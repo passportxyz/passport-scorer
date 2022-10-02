@@ -22,4 +22,4 @@ class Stamp(models.Model):
     credential = models.JSONField(default=dict)
 
     def __str__(self):
-        return f"#{self.stamp_id}"
+        return f"#{self.hash}"

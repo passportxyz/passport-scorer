@@ -20,6 +20,8 @@ django-cors-headers = "*"
 [dev-packages]
 black = "*"
 pre-commit = "*"
+pylint = "*"
+pylint-django = "*"
 
 [requires]
 python_version = "3.8"

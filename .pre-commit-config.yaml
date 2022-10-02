@@ -33,15 +33,12 @@ repos:
         args: ["--profile", "black"]
         name: isort (python)
 
-# -   repo: local
-#     hooks:
-#       - id: pylint
-#         name: pylint
-#         entry: pylint
-#         language: system
-#         types: [python]
-#         args:
-#           - --fail-under=1
-#           - --rcfile=.pylintrc
-#           - --load-plugins=pylint_django
-#           - --django-settings-module=manager.settings
+-   repo: local
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: pylint
+        language: system
+        types: [python]
+        require_serial: true
+        exclude: .*/migrations/.*

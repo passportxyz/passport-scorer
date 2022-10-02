@@ -1,15 +1,13 @@
 import json
 import logging
-from sys import api_version
 
 import didkit
-from asgiref.sync import async_to_sync, sync_to_async
+from asgiref.sync import async_to_sync
 from django.db import transaction
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import render
-from django.views.decorators.csrf import csrf_exempt
+from rest_framework import viewsets
 from rest_framework.decorators import api_view
-from rest_framework.views import APIView
 
 from registry.models import Passport, Stamp
 from registry.serializers import PassportSerializer, StampSerializer
@@ -23,10 +21,11 @@ def index(request):
 
 
 async def validate_credential(did, credential):
+    # pylint: disable=fixme
     # TODO: break this out in an utils module
     stamp_return_errors = []
     credential_subject = credential.get("credentialSubject")
-    hash = credential_subject.get("hash")
+    stamp_hash = credential_subject.get("hash")
     stamp_did = credential_subject.get("id").lower()
     provider = credential_subject.get("provider")
 
@@ -36,7 +35,7 @@ async def validate_credential(did, credential):
     if not credential_subject:
         stamp_return_errors.append("Missing attribute: credentialSubject")
 
-    if not hash:
+    if not stamp_hash:
         stamp_return_errors.append("Missing attribute: hash")
 
     if not stamp_did:
@@ -48,6 +47,7 @@ async def validate_credential(did, credential):
     if did != stamp_did:
         stamp_return_errors.append("Did mismatch")
 
+    # pylint: disable=no-member
     verification = await didkit.verify_credential(
         json.dumps(credential), '{"proofPurpose":"assertionMethod"}'
     )
@@ -59,10 +59,12 @@ async def validate_credential(did, credential):
     return stamp_return_errors
 
 
-# @transaction.atomic
+@transaction.atomic
 @api_view(["POST"])
 def submit_passport(request):
+    # pylint: disable=fixme
     # TODO: request & verify signature
+    # pylint: disable=fixme
     # TODO: verify issuer
     errors = []
     stamp_returns = []
@@ -71,32 +73,32 @@ def submit_passport(request):
     log.error("data: %s", passport)
     did = passport.get("did").lower()
     stamps = passport.get("stamps", [])
+    # pylint: disable=fixme
     status = 200  # TODO: what is the proper status code ??? 204?
 
     if not did:
         errors.append("Missing attribute: did")
 
     if not errors:
-        passport = Passport.objects.get_or_create(
+        db_passport = Passport.objects.get_or_create(
             did=did, defaults={"passport": passport}
         )[0]
         for stamp in stamps:
+
             stamp_return_errors = []
             credential = stamp.get("credential")
             stamp_return_errors = async_to_sync(validate_credential)(did, credential)
 
             credential_subject = credential.get("credentialSubject")
-            hash = credential_subject.get("hash")
-            provider = credential_subject.get("provider")
 
             db_stamp = None
             if not stamp_return_errors:
                 db_stamp = Stamp.objects.get_or_create(
-                    hash=hash,
+                    hash=credential_subject.get("hash"),
                     defaults=dict(
-                        provider=provider,
+                        provider=credential_subject.get("provider"),
                         credential=credential,
-                        passport=passport,
+                        passport=db_passport,
                     ),
                 )[0]
 
@@ -115,9 +117,6 @@ def submit_passport(request):
         response_data["errors"] = errors
 
     return JsonResponse(response_data, status=status)
-
-
-from rest_framework import viewsets
 
 
 class PassportViewSet(viewsets.ReadOnlyModelViewSet):
