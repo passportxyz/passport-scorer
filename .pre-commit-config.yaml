@@ -1,0 +1,47 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0
+    hooks:
+    -   id: trailing-whitespace
+        exclude: |
+            (?x)^(
+                ^utils/pdf2jpg.app|
+                .*.min.css|
+                .*.min.js
+            )
+
+    -   id: end-of-file-fixer
+        exclude: |
+            (?x)^(
+                ^utils/pdf2jpg.app|
+                .*.min.css|
+                .*.min.js
+            )
+
+-   repo: https://github.com/psf/black
+    rev: 20.8b1 # Replace by any tag/version: https://github.com/psf/black/tags
+    hooks:
+      - id: black
+        language_version: python3 # Should be a command that runs python3.6+
+
+-   repo: https://github.com/pycqa/isort
+    rev: 5.6.3
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+        name: isort (python)
+
+# -   repo: local
+#     hooks:
+#       - id: pylint
+#         name: pylint
+#         entry: pylint
+#         language: system
+#         types: [python]
+#         args:
+#           - --fail-under=1
+#           - --rcfile=.pylintrc
+#           - --load-plugins=pylint_django
+#           - --django-settings-module=manager.settings

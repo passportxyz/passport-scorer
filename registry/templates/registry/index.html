@@ -1,0 +1,31 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body>
+    <h1 class="text-3xl font-bold">Passport Registry!</h1>
+    <button class="tailwindcss">Get Passports</button>
+    <button>Get Stamps</button>
+    <button>Submit Passport</button>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+      const { createApp } = Vue;
+
+
+
+      createApp({
+        compilerOptions: {
+          delimiters: ["[[", "]]"],
+        },
+        data() {
+          return {
+            message: "Hello Vue!",
+          };
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>
