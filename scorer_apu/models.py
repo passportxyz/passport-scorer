@@ -10,12 +10,15 @@ class ApuScorer(models.Model):
 
 
 class Score(models.Model):
-    passport = models.ForeignKey(Passport, on_delete=models.PROTECT)
+    passport = models.ForeignKey(
+        Passport, on_delete=models.PROTECT, related_name="apu_scores"
+    )
     scorer = models.ForeignKey(ApuScorer, on_delete=models.PROTECT)
 
 
 class Combo(models.Model):
     scorer = models.ForeignKey(ApuScorer, on_delete=models.PROTECT)
+    passport = models.ForeignKey(Passport, on_delete=models.PROTECT)
     combo = models.JSONField(default=list, blank=True, null=True, db_index=True)
     count = models.IntegerField(default=0, db_index=True)
 

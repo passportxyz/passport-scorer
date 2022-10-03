@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "registry",
     "scorer_apu",
+    "scorer_weighted",
     "corsheaders",
 ]
 
@@ -152,6 +153,6 @@ LOGGING = {
     },
     "root": {
         "handlers": ["console"],
-        "level": "WARNING",
+        "level": "DEBUG",
     },
 }

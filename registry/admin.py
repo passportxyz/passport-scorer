@@ -4,7 +4,7 @@ from registry.models import Passport, Stamp
 
 
 class PassportAdmin(admin.ModelAdmin):
-    list_display = ["did"]
+    list_display = ["did", "version"]
     search_fields = ["did"]
 
 
