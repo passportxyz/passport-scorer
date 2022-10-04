@@ -1,0 +1,4 @@
+# list of files to exclude from docker build
+.git
+.cache
+db.sqlite3

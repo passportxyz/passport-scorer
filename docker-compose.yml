@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  scorer:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+
+    volumes:
+      - ./db.sqlite3:/db.sqlite3
+
+    ports:
+      - 80:8000
