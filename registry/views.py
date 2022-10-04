@@ -63,6 +63,9 @@ async def validate_credential(did, credential):
 def get_duplicate_passport(did, stamp_hash):
     stamps = Stamp.objects.filter(hash=stamp_hash).exclude(passport__did=did)
     if stamps.exists():
+        log.debug(
+            "Duplicate did '%s' for stamp '%s'", stamps[0].passport.did, stamp_hash
+        )
         return stamps[0].passport
 
     return None
@@ -70,6 +73,7 @@ def get_duplicate_passport(did, stamp_hash):
 
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-branches
+# pylint: disable=too-many-statements
 @transaction.atomic
 @api_view(["POST"])
 def submit_passport(request):
@@ -126,7 +130,8 @@ def submit_passport(request):
             if not stamp_return_errors:
                 # This will create the stamp or update the previous stamp, and link it to the
                 # the current passport if it is the case.
-                db_stamp = Stamp.objects.get_or_create(
+                log.debug("Saving stamp '%s' to passport '%s'", stamp_hash, db_passport)
+                db_stamp = Stamp.objects.update_or_create(
                     hash=stamp_hash,
                     defaults=dict(
                         provider=credential_subject.get("provider"),
@@ -159,8 +164,10 @@ def submit_passport(request):
         status = 400
         response_data["errors"] = errors
     else:
-        log.debug("sending registry_updated signal for %s", passports_to_update.keys())
-        registry_updated.send(Passport, passport_ids=passports_to_update.keys())
+        affected_passports = list(passports_to_update.keys())
+        log.debug("sending registry_updated signal for %s", affected_passports)
+        registry_updated.send(Passport, passport_ids=affected_passports)
+        response_data["affected_passports"] = affected_passports
 
     return JsonResponse(response_data, status=status)
 
