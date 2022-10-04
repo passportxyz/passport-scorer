@@ -42,3 +42,5 @@ repos:
         types: [python]
         require_serial: true
         exclude: .*/migrations/.*
+        args:
+          - --fail-under=8

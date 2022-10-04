@@ -71,9 +71,6 @@ def get_duplicate_passport(did, stamp_hash):
     return None
 
 
-# pylint: disable=too-many-locals
-# pylint: disable=too-many-branches
-# pylint: disable=too-many-statements
 @transaction.atomic
 @api_view(["POST"])
 def submit_passport(request):
