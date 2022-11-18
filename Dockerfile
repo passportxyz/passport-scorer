@@ -15,7 +15,7 @@ RUN pip install --user pipenv
 # Tell pipenv to create venv in the current directory
 ENV PIPENV_VENV_IN_PROJECT=1
 
-ADD Pipfile.lock Pipfile /usr/src/
+ADD Pipfile /usr/src/
 
 WORKDIR /usr/src
 
@@ -27,7 +27,7 @@ WORKDIR /usr/src
 
 # RUN apt install -y libcurl3-gnutls libcurl4-gnutls-dev
 
-RUN /root/.local/bin/pipenv sync
+RUN /root/.local/bin/pipenv install
 
 RUN /usr/src/.venv/bin/python -c "import django; print(django.__version__)"
 
@@ -48,6 +48,6 @@ ENV PATH="/usr/src/.venv/bin/:${PATH}"
 
 WORKDIR /app
 
-RUN STATIC_ROOT=/app/static SECRET_KEY=secret_is_irelevent_here DATABASE_URL=sqlite:////dunmmy_db.sqlite3 python manage.py collectstatic --noinput
+# RUN STATIC_ROOT=/app/static SECRET_KEY=secret_is_irelevent_here DATABASE_URL=sqlite:////dunmmy_db.sqlite3 python manage.py collectstatic --noinput
 
 CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "scorer.asgi:application", "-b", "0.0.0.0:8000"]
