@@ -2,8 +2,8 @@
 # Getting Started
 
 ## API
-`cd api`
-`docker compose up --build`
+- `cd api`
+- `docker compose up --build`
 
 ## Interface
 `cd interface`
