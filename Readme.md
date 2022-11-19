@@ -10,6 +10,8 @@
 `yarn`
 `yarn dev`
 
+
+## Without docker
 Create virtual env and install dependencies: `pipenv install`
 
 Start the dev server:
