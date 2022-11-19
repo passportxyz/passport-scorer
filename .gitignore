@@ -1,2 +1,6 @@
 __pycache__
 .env
+
+api/scorer/bin/
+api/scorer/lib/
+api/scorer/pyvenv.cfg

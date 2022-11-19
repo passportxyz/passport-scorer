@@ -27,7 +27,8 @@ WORKDIR /usr/src
 
 # RUN apt install -y libcurl3-gnutls libcurl4-gnutls-dev
 
-RUN /root/.local/bin/pipenv install
+RUN /root/.local/bin/pipenv lock
+RUN /root/.local/bin/pipenv sync
 
 RUN /usr/src/.venv/bin/python -c "import django; print(django.__version__)"
 
@@ -48,6 +49,6 @@ ENV PATH="/usr/src/.venv/bin/:${PATH}"
 
 WORKDIR /app
 
-# RUN STATIC_ROOT=/app/static SECRET_KEY=secret_is_irelevent_here DATABASE_URL=sqlite:////dunmmy_db.sqlite3 python manage.py collectstatic --noinput
+RUN STATIC_ROOT=/app/static SECRET_KEY=secret_is_irelevent_here DATABASE_URL=sqlite:////dunmmy_db.sqlite3 python manage.py collectstatic --noinput
 
 CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "scorer.asgi:application", "-b", "0.0.0.0:8000"]
