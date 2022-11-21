@@ -40,7 +40,7 @@ class AccountTestCase(TestCase):
         signed_message = w3.eth.account.sign_message(message, private_key=private_key)
 
         response = c.post(
-            "/account/submit_signed_challenge",
+            "/account/test", #submit_signed_challenge",
             json.dumps(
                 {
                     "address": account.address,

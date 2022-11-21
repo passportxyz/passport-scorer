@@ -1,10 +1,16 @@
 from django.db import models
+from django.conf import settings
 
 # Create your models here.
 
 
 class Account(models.Model):
     address = models.CharField(max_length=100, blank=False, null=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        default=None
+    )
 
 
 class ApiKey(models.Model):
