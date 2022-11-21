@@ -17,6 +17,10 @@ pyyaml = "*"
 uritemplate = "*"
 django-cors-headers = "*"
 django-environ = "*"
+django-ninja = "*"
+django-ninja-jwt = "*"
+django-ninja-extra = "*"
+web3 = "*"
 
 [dev-packages]
 black = "*"

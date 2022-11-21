@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     "scorer_weighted",
     "corsheaders",
     "django_filters",
+    "account",
+    "ninja_extra",
 ]
 
 MIDDLEWARE = [
@@ -89,7 +91,7 @@ WSGI_APPLICATION = "scorer.wsgi.application"
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
 DATABASES = {
-    "default": env.db(default="sqlite:////db.sqlite3"),
+    "default": env.db(default="sqlite://db.sqlite3"),
 }
 
 
