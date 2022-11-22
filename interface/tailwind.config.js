@@ -6,6 +6,11 @@ module.exports = {
   ],
   theme: {
     extend: {},
+    fontFamily: {
+      miriamlibre: ["miriam libre"],
+      librefranklin: ["Libre Franklin"],
+      body: ['"Libre Franklin"'],
+    },
   },
   plugins: [],
 }
