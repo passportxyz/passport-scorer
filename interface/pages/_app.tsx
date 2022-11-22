@@ -9,6 +9,7 @@ import {
   getDefaultWallets,
   RainbowKitProvider,
 } from "@rainbow-me/rainbowkit";
+import { RainbowKitSiweNextAuthProvider } from '@rainbow-me/rainbowkit-siwe-next-auth';
 
 // --- Next components
 import type { AppProps } from "next/app";
