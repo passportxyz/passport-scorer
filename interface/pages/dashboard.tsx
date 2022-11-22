@@ -16,7 +16,7 @@ export default function Dashboard() {
           <h1 className="text-2xl font-miriamlibre">Dashboard</h1>
           <p className="mt-2 font-librefranklin text-gray-600">Generate community IDs for specific applications using non-duplication rules like first-in-first-out or last-in-first-out.</p>
         </div>
-        <div className="bg-slate-200 h-[45rem] flex flex-col justify-center">
+        <div className="bg-slate-200 h-[40rem] md:h-[45rem] flex flex-col  justify-center">
           <div className="bg-white p-2 w-13 flex text-center mx-auto rounded-full border-gray-300 border mb-8">
             <RepeatIcon viewBox="0 0 25 25" boxSize="1.9em" color={"gray.500"} />
           </div>
