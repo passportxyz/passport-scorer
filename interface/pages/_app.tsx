@@ -8,7 +8,9 @@ import {
   connectorsForWallets,
   getDefaultWallets,
   RainbowKitProvider,
+  lightTheme,
 } from "@rainbow-me/rainbowkit";
+import { RainbowKitSiweNextAuthProvider } from "@rainbow-me/rainbowkit-siwe-next-auth";
 
 // --- Next components
 import type { AppProps } from "next/app";
@@ -20,12 +22,12 @@ import {
   configureChains,
   createClient,
   WagmiConfig
-} from 'wagmi';
+} from "wagmi";
 import {
   metaMaskWallet,
-} from '@rainbow-me/rainbowkit/wallets';
-import { alchemyProvider } from 'wagmi/providers/alchemy';
-import { publicProvider } from 'wagmi/providers/public';
+} from "@rainbow-me/rainbowkit/wallets";
+import { alchemyProvider } from "wagmi/providers/alchemy";
+import { publicProvider } from "wagmi/providers/public";
 
 const { chains, provider, webSocketProvider } = configureChains(
   [
@@ -38,18 +40,18 @@ const { chains, provider, webSocketProvider } = configureChains(
 );
 
 const { wallets } = getDefaultWallets({
-  appName: 'Passport Scorer as a Service',
+  appName: "Passport Scorer as a Service",
   chains,
 });
 
 const passportScorerApp = {
-  appName: 'Passport Scorer as a Service',
+  appName: "Passport Scorer as a Service",
 };
 
 const connectors = connectorsForWallets([
   ...wallets,
   {
-    groupName: 'Wallets',
+    groupName: "Wallets",
     wallets: [
       metaMaskWallet({ chains })
     ],
@@ -71,7 +73,18 @@ export default function App({ Component, pageProps }: AppProps) {
         <title>Passport Scorer</title>
       </Head>
       <WagmiConfig client={wagmiClient}>
-        <RainbowKitProvider appInfo={passportScorerApp} chains={chains}>
+        <RainbowKitProvider
+          appInfo={passportScorerApp}
+          chains={chains}
+          modalSize="compact"
+          theme={lightTheme({
+            accentColor: "#757087",
+            accentColorForeground: "white",
+            borderRadius: "small",
+            overlayBlur: "small",
+            fontStack: undefined,
+          })}
+        >
           <ChakraProvider>
             <Component {...pageProps} />
           </ChakraProvider>

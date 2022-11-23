@@ -2,7 +2,7 @@ import React from "react";
 
 const Footer = ({}): JSX.Element => {
   return (
-    <div className="py-2 px-4">
+    <div className="py-2 px-4 md:mt-40 invisible md:visible">
       <div className="container mx-auto flex flex-wrap items-center py-5 px-2 md:flex-row">
         <div className="flex flex-col p-2 text-base text-gray-400 lg:flex-row">
           Powered By
@@ -13,7 +13,7 @@ const Footer = ({}): JSX.Element => {
         <img
           src="./assets/gitcoindaoGreyDark.svg"
           alt="Gitcoin Logo"
-          className="flex hidden flex-wrap items-center justify-center p-2 text-base md:ml-auto md:mr-auto md:inline-block"
+          className="flex flex-wrap items-center justify-center p-2 text-base md:ml-auto md:mr-auto md:inline-block"
         />
         <a
           href="https://github.com/gitcoinco/passport"
