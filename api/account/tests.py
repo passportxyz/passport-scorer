@@ -40,7 +40,7 @@ class AccountTestCase(TestCase):
         signed_message = w3.eth.account.sign_message(message, private_key=private_key)
 
         response = c.post(
-            "/account/test", #submit_signed_challenge",
+            "/account/submit_signed_challenge",  # submit_signed_challenge",
             json.dumps(
                 {
                     "address": account.address,
@@ -54,4 +54,7 @@ class AccountTestCase(TestCase):
         self.assertEqual(200, response.status_code)
         data = response.json()
         print("response:", data)
-        self.assertEqual(True, data["ok"])
+        self.assertTrue("refresh" in data)
+        self.assertTrue("access" in data)
+
+
