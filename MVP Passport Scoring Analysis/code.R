@@ -309,6 +309,23 @@ model_coefficients <- tibble(
 
 write_csv(model_coefficients, "outputs/logistic_and_regularized_coefficients.csv")
 
+## Write out all coefficients
+model_coefficients %>%
+    select(Stamp, Coefficient = Logistic) %>%
+    write_csv("weights/scoringmethod_LogRegOmni_112322.csv")
+
+model_coefficients %>%
+    select(Stamp, Coefficient = Regularized) %>%
+    write_csv("weights/scoringmethod_RegularizedLogRegOmni_112322.csv")
+
+forgery %>%
+    select(Stamp, Coefficient = COF_Kish_Estimates) %>%
+    write_csv("weights/scoringmethod_CoFKish_112322.csv")
+
+forgery %>%
+    select(Stamp, Coefficient = FDD_Regen_Score_Omni) %>%
+    write_csv("weights/scoringmethod_GitcoinRegenOmni_112322.csv")
+
 ## Create the model confusion matrix
 model_confusion_matrix <- tibble(
     glm_pred = glm_preds,
