@@ -18,7 +18,7 @@ export default function Home() {
             <img src="/assets/gitcoinWordLogo.svg" alt="Passport Logo" className="py-4 px-1" />
             <p className="text-5xl sm:text-7xl md:text-7xl text-gray-600">Passport</p>
           </div>
-          <div className="font-libre-franklin mt-0 text-lg text-gray-400 sm:text-xl md:mt-10 md:pr-20 md:text-xl">
+          <div className="font-libre-franklin mt-0 text-lg text-gray-400 sm:text-xl mt-8 md:mt-10 md:pr-20 md:text-xl">
           Gitcoin Passport is an identity protocol that proves your trustworthiness without needing to collect personally identifiable information.
           </div>
           {/* TODO: When the user successfully connects their wallet, they're routed to the Dashboard */}
