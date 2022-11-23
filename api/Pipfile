@@ -21,6 +21,7 @@ django-ninja = "*"
 django-ninja-jwt = "*"
 django-ninja-extra = "*"
 web3 = "*"
+siwe = "*"
 
 [dev-packages]
 black = "*"
