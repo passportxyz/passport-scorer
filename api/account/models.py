@@ -3,7 +3,6 @@ from django.conf import settings
 
 # Create your models here.
 
-
 class Account(models.Model):
     address = models.CharField(max_length=100, blank=False, null=False)
     user = models.ForeignKey(
@@ -11,7 +10,6 @@ class Account(models.Model):
         on_delete=models.PROTECT,
         default=None
     )
-
 
 class ApiKey(models.Model):
     account = models.ForeignKey(Account, on_delete=models.PROTECT)

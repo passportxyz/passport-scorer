@@ -1,39 +1,53 @@
-from ninja import NinjaAPI
+# --- Python imports
 import random
 import hashlib
 import string
 import logging
+from typing import Dict, Optional, Type, cast
+
+# --- Web3 & Eth
 from eth_account.messages import defunct_hash_message
 from web3.auto import w3
+from siwe import SiweMessage
+
+# --- Ninja
+from ninja import NinjaAPI
+from ninja_jwt.schema import TokenObtainPairSerializer, RefreshToken
+from ninja_jwt.controller import TokenObtainPairController
+from ninja_jwt.exceptions import AuthenticationFailed
+from ninja_extra import api_controller, route
+from ninja_schema import Schema
 from ninja_jwt.controller import NinjaJWTDefaultController
 from ninja_extra import NinjaExtraAPI
 from ninja import Schema
+
+# --- Models
 from .models import Account
-from siwe import SiweMessage
+from django.contrib.auth import get_user_model
+
+from pydantic import root_validator
+
 
 log = logging.getLogger(__name__)
 
 api = NinjaExtraAPI()
 api.register_controllers(NinjaJWTDefaultController)
 
-
 class ChallengeSubmission(Schema):
     address: str
     signature: str
-
 
 class SiweVerifySubmit(Schema):
     message: dict
     signature: str
 
-
 CHALLENGE_STATEMENT = "I authorize the passport scorer.\n\nnonce:"
 
-
+# Returns a random username to be used in the challenge
 def get_random_username():
     return "".join(random.choice(string.ascii_letters) for i in range(32))
 
-
+# API endpoint for challenge
 @api.get("/challenge")
 def challenge(request, address: str):
     challenge = {
@@ -47,7 +61,7 @@ def challenge(request, address: str):
     }
     return challenge
 
-
+# API endpoint for nonce
 @api.get("/nonce")
 def nonce(request):
     return hashlib.sha256(
@@ -56,36 +70,19 @@ def nonce(request):
         )
     ).hexdigest()
 
-
-from ninja_jwt.schema import TokenObtainPairSerializer, RefreshToken
-from ninja_jwt.controller import TokenObtainPairController
-from ninja_jwt.exceptions import AuthenticationFailed
-from ninja_extra import api_controller, route
-from ninja_schema import Schema
-
-
 class TokenObtainPairOutSchema(Schema):
     refresh: str
     access: str
     # user: UserSchema
 
-
 class UserSchema(Schema):
     first_name: str
     email: str
-
 
 class MyTokenObtainPairOutSchema(Schema):
     refresh: str
     access: str
     user: UserSchema
-
-
-from pydantic import root_validator
-from typing import Dict, Optional, Type, cast
-
-from django.contrib.auth import get_user_model
-
 
 class MyTokenObtainPairSchema(TokenObtainPairSerializer):
     @root_validator(pre=True)
@@ -159,48 +156,8 @@ def obtain_token(self, user_token: MyTokenObtainPairSchema):
     return ret
 
 
-@api.post("/submit_signed_challenge", response=TokenObtainPairOutSchema)
-def submit_signed_challenge(request, payload: ChallengeSubmission):
-    log.debug("payload: %s", payload)
-
-    address = payload.address
-    signature = payload.signature
-
-    challenge_string = CHALLENGE_STATEMENT
-    # check for valid sig
-    message_hash = defunct_hash_message(text=challenge_string)
-    signer = w3.eth.account.recoverHash(message_hash, signature=signature)
-
-    log.debug("signer:  %s", signer)
-    address_lower = address.lower()
-    sig_is_valid = address_lower == signer.lower()
-
-    if sig_is_valid:
-        try:
-            account = Account.objects.get(address=address_lower)
-        except Account.DoesNotExist:
-            log.debug("Create user")
-            user = get_user_model().objects.create_user(username=get_random_username())
-            log.debug("Create user %s", user)
-            user.save()
-            log.debug("Create user %s", user)
-            account = Account(address=address_lower, user=user)
-            log.debug("Create account %s", account)
-            account.save()
-            log.debug("Create account %s", account)
-
-        refresh = RefreshToken.for_user(account.user)
-        refresh = cast(RefreshToken, refresh)
-
-        return {"refresh": str(refresh), "access": str(refresh.access_token)}
-
-    # TODO: return JWT token to the user
-    return {"ok": sig_is_valid}
-
-
 @api.post("/verify", response=TokenObtainPairOutSchema)
 def submit_signed_challenge(request, payload: SiweVerifySubmit):
-    log.debug("payload: %s", payload)
 
     payload.message["chain_id"] = payload.message["chainId"]
     payload.message["issued_at"] = payload.message["issuedAt"]
@@ -209,7 +166,6 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
     # TODO: wrap in try-catch
     is_valid_signature = message.verify(payload.signature)   # TODO: add more verification params
 
-    log.debug("is_valid_signature %s", is_valid_signature)
     # {
     #     "domain": "gitcoin.co",
     #     "address": "0x4A13F4394cF05a52128BdA527664429D5376C67f",
@@ -244,22 +200,18 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
     # signer = w3.eth.account.recoverHash(message_hash, signature=signature)
 
     # log.debug("signer:  %s", signer)
-    # address_lower = address.lower()
     # sig_is_valid = address_lower == signer.lower()
+    # address_lower = address.lower()
 
     address_lower = payload.message["address"]
+
     try:
         account = Account.objects.get(address=address_lower)
     except Account.DoesNotExist:
-        log.debug("Create user")
         user = get_user_model().objects.create_user(username=get_random_username())
-        log.debug("Create user %s", user)
         user.save()
-        log.debug("Create user %s", user)
         account = Account(address=address_lower, user=user)
-        log.debug("Create account %s", account)
         account.save()
-        log.debug("Create account %s", account)
 
     refresh = RefreshToken.for_user(account.user)
     refresh = cast(RefreshToken, refresh)
