@@ -1,4 +1,4 @@
-// --- React Methods
+// --- React components/methods
 import React, { useState } from "react";
 
 // --- Styling & UI
@@ -136,7 +136,6 @@ export default function App({ Component, pageProps }: AppProps) {
               accentColorForeground: "white",
               borderRadius: "small",
               overlayBlur: "small",
-              fontStack: undefined,
             })}
           >
             <ChakraProvider>
