@@ -12,11 +12,10 @@ import {
   getDefaultWallets,
   RainbowKitProvider,
   lightTheme,
-  ConnectButton,
   RainbowKitAuthenticationProvider,
   AuthenticationStatus,
 } from "@rainbow-me/rainbowkit";
-import { RainbowKitSiweNextAuthProvider } from "@rainbow-me/rainbowkit-siwe-next-auth";
+import { createAuthenticationAdapter } from "@rainbow-me/rainbowkit";
 
 // --- Next components
 import type { AppProps } from "next/app";
@@ -28,11 +27,13 @@ import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
 import { alchemyProvider } from "wagmi/providers/alchemy";
 import { publicProvider } from "wagmi/providers/public";
 
-import { createAuthenticationAdapter } from "@rainbow-me/rainbowkit";
+// --- Authentication
 import { SiweMessage } from "siwe";
 
 const SCORER_BACKEND = "http://localhost:8000/";
 
+// Authenticate the user -- interacts with the backend to GET the nonce, create & send back the SIWE message,
+// and receive a response
 const authenticationAdapter = createAuthenticationAdapter({
   getNonce: async () => {
     const response = await fetch(`${SCORER_BACKEND}account/nonce`);
@@ -105,12 +106,15 @@ const wagmiClient = createClient({
 });
 
 export default function App({ Component, pageProps }: AppProps) {
+  /**
+   * @TODO Pass authentication status from dashboard.tsx (before/during/after)
+   */
+
   // You'll need to resolve AUTHENTICATION_STATUS here
   // using your application's authentication system.
   // It needs to be either 'loading' (during initial load),
   // 'unathenticated' or 'authenticated'.
-  const [authenticationStatus, setAuthenticationStatus] =
-    useState<AuthenticationStatus>("unauthenticated");
+  const [authenticationStatus, setAuthenticationStatus] = useState<AuthenticationStatus>("unauthenticated");
 
   return (
     <>
@@ -136,7 +140,7 @@ export default function App({ Component, pageProps }: AppProps) {
             })}
           >
             <ChakraProvider>
-              <Component {...pageProps} />
+              <Component {...pageProps} setAuthenticationStatus={setAuthenticationStatus} authenticationStatus={authenticationStatus} />
             </ChakraProvider>
           </RainbowKitProvider>
         </RainbowKitAuthenticationProvider>

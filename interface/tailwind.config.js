@@ -5,7 +5,21 @@ module.exports = {
     "./components/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        purple: {
+          softpurple: "#757087",
+        },
+        blue: {
+          darkblue: "#0E0333",
+        },
+        gray: {
+          lightgray: "#E2E0E7",
+          purplegray: "",
+          bluegray: "#F3F4F6",
+        }
+      },
+    },
     fontFamily: {
       miriamlibre: ["miriam libre"],
       librefranklin: ["Libre Franklin"],
