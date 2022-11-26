@@ -11,7 +11,7 @@ type CommunityCardProps = {
 const CommunityCard = ({ community }: CommunityCardProps): JSX.Element => {
   return (
     <div className="border-gray-lightgray border-x border-t last-of-type:border-b p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md bg-white">
-      <p className="font-librefranklin font-semibold text-blue-darkblue mb-2">{community.name}</p>
+      <p className="font-librefranklin font-semibold text-blue-darkblue mb-2"><a href="#">{community.name}</a></p>
       <p className="font-librefranklin text-purple-softpurple">{community.description}</p>
     </div>
   );

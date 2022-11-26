@@ -2,10 +2,9 @@
 import React from "react";
 
 // --- Components
-import {
-  Grid, GridItem
-} from "@chakra-ui/react"
 import CommunityCard from "./CommunityCard";
+import ModalTemplate from "./ModalTemplate";
+import { useDisclosure } from "@chakra-ui/react";
 
 // --- Types
 import { Community } from "../pages/dashboard";
@@ -14,10 +13,17 @@ type CommunityListProps = {
   communities: Community[];
 }
 
+/**
+ * 
+ * @TODO --> Finish adding Modal for 'Add community'
+ */
+
+// const { onOpen, isOpen, onClose } = useDisclosure();
+
 const CommunityList = ({ communities }: CommunityListProps): JSX.Element => {
-  const communityList = communities.map((community: Community) => {
+  const communityList = communities.map((community: Community, i: number) => {
     return (
-      <CommunityCard community={community} />
+      <CommunityCard key={i} community={community} />
     );
   });
 
@@ -26,7 +32,8 @@ const CommunityList = ({ communities }: CommunityListProps): JSX.Element => {
       <p className="text-purple-softpurple mb-3 font-librefranklin font-semibold">My Communities</p>
       {communityList}
       
-      <button className="text-blue-darkblue font-librefranklin text-md border border-gray-lightgray py-2 px-6 rounded-sm mt-5"><span className="text-lg">+</span> Add</button>
+      <button className="text-blue-darkblue font-librefranklin text-md border border-gray-lightgray py-1 px-6 rounded-sm mt-5 transition ease-in-out delay-100 hover:bg-gray-200 duration-150"><span className="text-lg">+</span> Add</button>
+      {/* <ModalTemplate /> */}
     </div>
   );
 };

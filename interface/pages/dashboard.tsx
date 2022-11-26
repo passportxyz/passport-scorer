@@ -28,21 +28,21 @@ export type Community = {
 export default function Dashboard({ setAuthenticationStatus, authenticationStatus }: DashboardProps) {
   const { address } = useAccount();
   const { isLoading } = useConnect();
-  // const [communities, setCommunities] = useState([
-  //   {
-  //     name: "Gitcoin Grants Protocol",
-  //     description: "Where web3 projects get funded.",
-  //   },
-  //   {
-  //     name: "Bankless",
-  //     description: "Media and Social DAO Onboarding 1 billion people to crypto.",
-  //   },
-  //   {
-  //     name: "Optimism",
-  //     description: "Purchase an .eth name to verify/ connect your existing account."
-  //   }
-  // ]);
-  const [communities, setCommunities] = useState([]);
+  const [communities, setCommunities] = useState([
+    {
+      name: "Gitcoin Grants Protocol",
+      description: "Where web3 projects get funded.",
+    },
+    {
+      name: "Bankless",
+      description: "Media and Social DAO Onboarding 1 billion people to crypto.",
+    },
+    {
+      name: "Optimism",
+      description: "Purchase an .eth name to verify/ connect your existing account."
+    }
+  ]);
+  // const [communities, setCommunities] = useState([]);
 
   useEffect(() => {
     if (address) {
@@ -89,7 +89,7 @@ export default function Dashboard({ setAuthenticationStatus, authenticationStatu
   return (
     <>
       <div>
-        <Header />
+        <Header authenticationStatus={authenticationStatus} />
         <div>
           <div className="mt-0 w-full pb-6 text-black p-6 border-b border-gray-300">
             <h1 className="text-2xl font-miriamlibre text-blue-darkblue">Dashboard</h1>
