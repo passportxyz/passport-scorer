@@ -35,9 +35,13 @@ jobs:
       - name: Install pipenv
         run: pip3 install pipenv
 
+      - name: Generate requirements.txt
+        working-directory: ./api
+        run: pipenv requirements --dev > requirements.txt
+
       - name: Install API dependencies
         working-directory: ./api
-        run: pipenv sync
+        run: pip3 install -r requirements.txt
 
       - name: Run API unittests
         working-directory: ./api
