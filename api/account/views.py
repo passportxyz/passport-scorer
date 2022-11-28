@@ -62,6 +62,7 @@ def challenge(request, address: str):
     return challenge
 
 # API endpoint for nonce
+# TODO - give nonce an expiration time and store it to verify the user
 @api.get("/nonce")
 def nonce(request):
     return hashlib.sha256(
@@ -111,7 +112,4 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
     refresh = RefreshToken.for_user(account.user)
     refresh = cast(RefreshToken, refresh)
 
-    return {"refresh": str(refresh), "access": str(refresh.access_token)}
-
-    # TODO: return JWT token to the user
-    # return {"ok": True}
+    return {"ok": True, "refresh": str(refresh), "access": str(refresh.access_token)}

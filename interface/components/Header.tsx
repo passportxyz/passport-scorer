@@ -8,10 +8,11 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
 
 type HeaderProps = {
-  authenticationStatus: AuthenticationStatus;
+  authenticationStatus?: AuthenticationStatus;
 }
 
 const Header = ({ authenticationStatus }: HeaderProps): JSX.Element => {
+
   return (
     <div className="flex flex-row border-b-2 md:flex-row flex-wrap px-5 items-center w-full">
       {/* Left side row */}
@@ -25,16 +26,11 @@ const Header = ({ authenticationStatus }: HeaderProps): JSX.Element => {
       {/* Right side row  */}
       <div className="flex flex-col w-[10rem] md:w-[30rem] lg:w-[72rem]">
         <div className="flex flex-row items-center justify-end">
-          <div className="flex flex-row mr-7 invisible md:visible">
-            Ceramic <span className="text-xs ml-2 flex items-center">{authenticationStatus === "authenticated" ? "🟢" : "🔴"}</span>
-          </div>
-          <div>
           {
             authenticationStatus === "authenticated"
             ? <ConnectButton showBalance={false} />
             : <div></div>
           }
-          </div>
         </div>
       </div>
     </div>

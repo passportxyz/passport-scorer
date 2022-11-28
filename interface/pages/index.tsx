@@ -1,6 +1,12 @@
 // --- React Methods
 import React from "react";
 
+// --- Wagmi
+import {
+  useAccount,
+  useConnect,
+} from "wagmi"
+
 // --- Components
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -10,9 +16,7 @@ export default function Home() {
 
   return (
     <>
-      <div>
-        <Header />
-      </div>
+      <Header />
       <div className="container mx-auto px-5 py-2 h-full">
         <div className="mt-0 w-full pb-6 text-white sm:mt-40 sm:w-1/2 md:mt-40 md:w-1/2 md:pt-6">
           <div className="font-miriam-libre leading-relaxed">

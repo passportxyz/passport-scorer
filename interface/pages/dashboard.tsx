@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 // --- Wagmi
 import {
@@ -28,6 +28,8 @@ export type Community = {
 export default function Dashboard({ setAuthenticationStatus, authenticationStatus }: DashboardProps) {
   const { address } = useAccount();
   const { isLoading } = useConnect();
+
+  // Mock -- communities
   const [communities, setCommunities] = useState([
     {
       name: "Gitcoin Grants Protocol",
@@ -42,17 +44,9 @@ export default function Dashboard({ setAuthenticationStatus, authenticationStatu
       description: "Purchase an .eth name to verify/ connect your existing account."
     }
   ]);
-  // const [communities, setCommunities] = useState([]);
 
-  useEffect(() => {
-    if (address) {
-      setAuthenticationStatus("authenticated");
-    } else if (isLoading) {
-      setAuthenticationStatus("loading");
-    } else {
-      setAuthenticationStatus("unauthenticated");
-    }
-  }, []);
+  // Mock -- no communities
+  // const [communities, setCommunities] = useState([]);
 
   /**
    * @TODO 

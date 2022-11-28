@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 // --- Styling & UI
 import "../styles/globals.css";
@@ -20,9 +20,10 @@ import { createAuthenticationAdapter } from "@rainbow-me/rainbowkit";
 // --- Next components
 import type { AppProps } from "next/app";
 import Head from "next/head";
+import { useRouter } from "next/router";
 
 // --- Wagmi
-import { chain, configureChains, createClient, WagmiConfig } from "wagmi";
+import { chain, configureChains, createClient, WagmiConfig, useConnect } from "wagmi";
 import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
 import { alchemyProvider } from "wagmi/providers/alchemy";
 import { publicProvider } from "wagmi/providers/public";
@@ -30,46 +31,10 @@ import { publicProvider } from "wagmi/providers/public";
 // --- Authentication
 import { SiweMessage } from "siwe";
 
+/**
+ * @TODO --> prevent wallet list modal from popping up on wallet disconnect
+ */
 const SCORER_BACKEND = "http://localhost:8000/";
-
-// Authenticate the user -- interacts with the backend to GET the nonce, create & send back the SIWE message,
-// and receive a response
-const authenticationAdapter = createAuthenticationAdapter({
-  getNonce: async () => {
-    const response = await fetch(`${SCORER_BACKEND}account/nonce`);
-    return await response.text();
-  },
-
-  createMessage: ({ nonce, address, chainId }) => {
-    return new SiweMessage({
-      domain: window.location.host,
-      address,
-      statement: "Sign in with Ethereum to the app.",
-      uri: window.location.origin,
-      version: "1",
-      chainId,
-      nonce,
-    });
-  },
-
-  getMessageBody: ({ message }) => {
-    return message.prepareMessage();
-  },
-
-  verify: async ({ message, signature }) => {
-    const verifyRes = await fetch(`${SCORER_BACKEND}account/verify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, signature }),
-    });
-
-    return Boolean(verifyRes.ok);
-  },
-
-  signOut: async () => {
-    await fetch("/api/logout");
-  },
-});
 
 const { chains, provider, webSocketProvider } = configureChains(
   [chain.mainnet],
@@ -106,22 +71,68 @@ const wagmiClient = createClient({
 });
 
 export default function App({ Component, pageProps }: AppProps) {
-  /**
-   * @TODO Pass authentication status from dashboard.tsx (before/during/after)
-   */
-
-  // You'll need to resolve AUTHENTICATION_STATUS here
-  // using your application's authentication system.
-  // It needs to be either 'loading' (during initial load),
-  // 'unathenticated' or 'authenticated'.
+  const router = useRouter();
   const [authenticationStatus, setAuthenticationStatus] = useState<AuthenticationStatus>("unauthenticated");
 
+  // Authenticate the user -- interacts with the backend to GET the nonce, create & send back the SIWE message,
+  // and receive a response
+
+  const authenticationAdapter = createAuthenticationAdapter({
+    getNonce: async () => {
+      const response = await fetch(`${SCORER_BACKEND}account/nonce`);
+      return await response.text();
+    },
+    
+    createMessage: ({ nonce, address, chainId }) => {
+      return new SiweMessage({
+        domain: window.location.host,
+        address,
+        statement: "Sign in with Ethereum to the app.",
+        uri: window.location.origin,
+        version: "1",
+        chainId,
+        nonce,
+      });
+    },
+
+    getMessageBody: ({ message }) => {
+      return message.prepareMessage();
+    },
+
+    verify: async ({ message, signature }) => {
+      // setAuthenticationStatus("loading");
+      const verifyRes = await fetch(`${SCORER_BACKEND}account/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, signature }),
+      });
+      
+      if (verifyRes.ok) {
+        const data = await verifyRes.json();
+        
+        // store JWT access token in LocalStorage
+        localStorage.setItem("access-token", data.access);
+
+        setAuthenticationStatus("authenticated");
+
+        router.push("/dashboard");
+      }
+      
+      return Boolean(verifyRes.ok);
+    },
+
+    signOut: async () => {
+      router.push("/");
+    },
+  });
+  
   return (
     <>
       <Head>
         <link rel="shortcut icon" href="/favicon.ico" />
         <title>Passport Scorer</title>
       </Head>
+
       <WagmiConfig client={wagmiClient}>
         <RainbowKitAuthenticationProvider
           adapter={authenticationAdapter}
@@ -139,9 +150,13 @@ export default function App({ Component, pageProps }: AppProps) {
             })}
           >
             <ChakraProvider>
-              <Component {...pageProps} setAuthenticationStatus={setAuthenticationStatus} authenticationStatus={authenticationStatus} />
+              <Component 
+                {...pageProps} 
+                setAuthenticationStatus={setAuthenticationStatus} 
+                authenticationStatus={authenticationStatus} 
+              />
             </ChakraProvider>
-          </RainbowKitProvider>
+          </RainbowKitProvider>{' '}
         </RainbowKitAuthenticationProvider>
       </WagmiConfig>
     </>
