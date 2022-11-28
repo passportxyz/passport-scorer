@@ -13,7 +13,7 @@ on:
         type: string
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     # Run a local ceramic nod to test against
