@@ -20,3 +20,8 @@ Start the dev server:
 
 ***Note:***
     - you will need to run `pipenv shell` to activate your local virtual env.
+
+# Testing
+## API
+
+In the `./api` folder run: `coverage run --source='.' manage.py test`

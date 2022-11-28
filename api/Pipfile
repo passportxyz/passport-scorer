@@ -28,6 +28,7 @@ black = "*"
 pre-commit = "*"
 pylint = "*"
 pylint-django = "*"
+coverage = "*"
 
 [requires]
 python_version = "3.10"

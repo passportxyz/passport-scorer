@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit ref"
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # Run a local ceramic nod to test against
+    # services:
+    #   ceramic:
+    #     image: ceramicnetwork/js-ceramic:2.6.0-rc.1
+    #     ports:
+    #       - 7007:7007
+
+    # env:
+    #  CERAMIC_CLIENT_URL: http://127.0.0.1:7007
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4 
+        with:
+          python-version: 'pypy3.10'
+
+      - name: Install pipenv
+        run: pip3 install pipenv
+
+      - name: Install API dependencies
+        working-directory: ./api
+        run: pipenv sync
+
+      - name: Run API unittests
+        working-directory: ./api
+        run: coverage run --source='.' manage.py test
+
+      - name: Python code coverage report
+        working-directory: ./api
+        run: coverage report --fail-under=70
