@@ -123,3 +123,7 @@ jobs:
           ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
           DOMAIN: ${{ secrets.DOMAIN }}
           SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN }}
+
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
