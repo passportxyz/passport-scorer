@@ -15,7 +15,7 @@ RUN pip install --user pipenv
 # Tell pipenv to create venv in the current directory
 ENV PIPENV_VENV_IN_PROJECT=1
 
-ADD Pipfile /usr/src/
+ADD Pipfile.lock /usr/src/
 
 WORKDIR /usr/src
 
@@ -26,12 +26,10 @@ WORKDIR /usr/src
 # In the runtime container you need only libcurl3-gnutls
 
 # RUN apt install -y libcurl3-gnutls libcurl4-gnutls-dev
+# RUN /root/.local/bin/pipenv lock
 
-RUN /root/.local/bin/pipenv lock
 RUN /root/.local/bin/pipenv sync
-
 RUN /usr/src/.venv/bin/python -c "import django; print(django.__version__)"
-
 
 
 #########################################################
