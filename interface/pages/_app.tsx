@@ -107,7 +107,6 @@ export default function App({ Component, pageProps }: AppProps) {
     },
 
     verify: async ({ message, signature }) => {
-      // setAuthenticationStatus("loading");
       const verifyRes = await fetch(`${SCORER_BACKEND}account/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
