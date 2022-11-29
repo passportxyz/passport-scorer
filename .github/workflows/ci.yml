@@ -28,9 +28,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4 
+      - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install pipenv
         run: pip3 install pipenv
@@ -51,15 +51,13 @@ jobs:
         working-directory: ./api
         run: coverage report --fail-under=70
 
-
   build:
     runs-on: ubuntu-latest
     steps:
-
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4 
+      - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Declare some variables
         id: vars
@@ -85,3 +83,43 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile ./api/
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+    outputs:
+      dockerTag: ${{ steps.vars.outputs.sha_short }}
+      ecrImageUrl: ${{ steps.login-ecr.outputs.registry }}/passport-scorer
+
+  deploy-review:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v2
+        with:
+          cache: "yarn"
+          cache-dependency-path: infra/production/package-lock.json
+          
+      # Update the pulumi stack with new image
+      - run: |
+          npm install
+          pulumi stack select -c gitcoin/passport-scorer/review
+          pulumi config -s gitcoin/dpopp/production set aws:region us-east-1 --non-interactive
+        working-directory: infra/review
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+      - uses: pulumi/actions@v3
+        id: pulumi
+        with:
+          command: up
+          stack-name: gitcoin/passport-scorer/review
+          upsert: false
+          work-dir: infra/review
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          DOCKER_GTC_PASSPORT_IAM_IMAGE: ${{ needs.build.outputs.ecrImageUrl }}:${{ needs.build.outputs.dockerTag }}
+          ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
+          DOMAIN: ${{ secrets.DOMAIN }}
+          SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN }}
