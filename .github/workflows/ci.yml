@@ -83,5 +83,5 @@ jobs:
           ECR_REPOSITORY: passport-scorer
           IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f iam/Dockerfile .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile ./api/
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
