@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 from pathlib import Path
 
 import environ
+import os
 
 env = environ.Env(
     # set casting, default value
@@ -22,6 +23,8 @@ env = environ.Env(
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Take environment variables from .env file
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
@@ -89,13 +92,15 @@ WSGI_APPLICATION = "scorer.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
-
+print("=" * 50)
+print("ALLOWED_HOSTS", ALLOWED_HOSTS)
+print("=" * 80)
+print("BASE_DIR", BASE_DIR)
+print("=" * 80)
+print("DATABASE", env.db())
+print("=" * 50)
 DATABASES = {
-    # "default": env.db(default="sqlite://db.sqlite3"),
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "db.sqlite3",
-    }
+    "default": env.db(),
 }
 
 
@@ -169,10 +174,6 @@ LOGGING = {
 }
 
 STATIC_ROOT = BASE_DIR / "static"
-
-print("=" * 80)
-print("ALLOWED_HOSTS", ALLOWED_HOSTS)
-print("=" * 80)
 
 
 from datetime import timedelta

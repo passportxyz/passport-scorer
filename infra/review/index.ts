@@ -5,7 +5,7 @@ import * as awsx from "@pulumi/awsx";
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
 let route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
-export const domain = `api-scorer.${process.env["DOMAIN"]}`;
+export const domain = `api.scorer.${process.env["DOMAIN"]}`;
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 let dbUsername = `${process.env["DB_USER"]}`;
 let dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);

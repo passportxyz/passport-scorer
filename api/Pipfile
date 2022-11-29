@@ -22,6 +22,7 @@ django-ninja-jwt = "*"
 django-ninja-extra = "*"
 web3 = "*"
 siwe = "*"
+psycopg2-binary = "*"
 
 [dev-packages]
 black = "*"
