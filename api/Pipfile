@@ -23,6 +23,7 @@ django-ninja-extra = "*"
 web3 = "*"
 siwe = "*"
 psycopg2-binary = "*"
+djangorestframework-api-key = "==2.*"
 
 [dev-packages]
 black = "*"

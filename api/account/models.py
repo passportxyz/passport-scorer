@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from rest_framework_api_key.models import AbstractAPIKey
 
 # Create your models here.
 
@@ -11,8 +12,10 @@ class Account(models.Model):
         default=None
     )
 
-class ApiKey(models.Model):
-    account = models.ForeignKey(Account, on_delete=models.PROTECT)
-    name = models.CharField(max_length=100, blank=False, null=False)
-    client_id = models.CharField(max_length=100, blank=False, null=False)
-    secret = models.CharField(max_length=100, blank=False, null=False)
+class AccountAPIKey(AbstractAPIKey):
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.CASCADE,
+        related_name="api_key",
+        default=None
+    )

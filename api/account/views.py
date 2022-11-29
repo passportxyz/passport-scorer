@@ -13,11 +13,13 @@ from siwe import SiweMessage
 from ninja import NinjaAPI
 from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
-from ninja_extra import NinjaExtraAPI
+from ninja_extra import NinjaExtraAPI, status
 from ninja import Schema
+from ninja_extra.exceptions import APIException
+from ninja_jwt.authentication import JWTAuth
 
 # --- Models
-from .models import Account
+from .models import Account, AccountAPIKey
 from django.contrib.auth import get_user_model
 
 
@@ -67,6 +69,13 @@ class MyTokenObtainPairOutSchema(Schema):
     access: str
     user: UserSchema
 
+class UnauthorizedException(APIException):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    message = 'UnAuthorized'
+
+class ExistingKeyException(APIException):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    message = 'API Key already exists'
 
 @api.post("/verify", response=TokenObtainPairOutSchema)
 def submit_signed_challenge(request, payload: SiweVerifySubmit):
@@ -95,3 +104,17 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
     refresh = cast(RefreshToken, refresh)
 
     return {"ok": True, "refresh": str(refresh), "access": str(refresh.access_token)}
+
+@api.post("/create-api-key", auth=JWTAuth())
+def create_api_key(request):
+    try:
+        account = Account.objects.get(pk=request.user.id)
+
+        if AccountAPIKey.objects.filter(account=account).exists():
+            raise ExistingKeyException()
+
+        api_key, key = AccountAPIKey.objects.create_key(account=account, name="scorer-service")
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
+
+    return { "api_key": key }
