@@ -4,3 +4,5 @@ __pycache__
 api/scorer/bin/
 api/scorer/lib/
 api/scorer/pyvenv.cfg
+
+api/*.sqlite3
