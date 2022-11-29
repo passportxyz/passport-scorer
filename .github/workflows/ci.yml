@@ -89,7 +89,7 @@ jobs:
       ecrImageUrl: ${{ steps.login-ecr.outputs.registry }}/passport-scorer
 
   deploy-review:
-    needs: build
+    needs: [build, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -97,13 +97,13 @@ jobs:
         uses: actions/setup-node@v2
         with:
           cache: "yarn"
-          cache-dependency-path: infra/production/package-lock.json
-          
+          cache-dependency-path: infra/review/package-lock.json
+
       # Update the pulumi stack with new image
       - run: |
           npm install
           pulumi stack select -c gitcoin/passport-scorer/review
-          pulumi config -s gitcoin/dpopp/production set aws:region us-east-1 --non-interactive
+          pulumi config -s gitcoin/passport-scorer/review set aws:region us-east-1 --non-interactive
         working-directory: infra/review
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
