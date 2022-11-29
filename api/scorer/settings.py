@@ -97,10 +97,10 @@ print("ALLOWED_HOSTS", ALLOWED_HOSTS)
 print("=" * 80)
 print("BASE_DIR", BASE_DIR)
 print("=" * 80)
-print("DATABASE", env.db())
+print("DATABASE", env.db(default="sqlite:///db.sqlite3"))
 print("=" * 50)
 DATABASES = {
-    "default": env.db(),
+    "default": env.db(default="sqlite:///db.sqlite3"),
 }
 
 
