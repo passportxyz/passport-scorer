@@ -23,7 +23,13 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 
 // --- Wagmi
-import { chain, configureChains, createClient, WagmiConfig, useConnect } from "wagmi";
+import {
+  chain,
+  configureChains,
+  createClient,
+  WagmiConfig,
+  useConnect,
+} from "wagmi";
 import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
 import { alchemyProvider } from "wagmi/providers/alchemy";
 import { publicProvider } from "wagmi/providers/public";
@@ -72,7 +78,8 @@ const wagmiClient = createClient({
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const [authenticationStatus, setAuthenticationStatus] = useState<AuthenticationStatus>("unauthenticated");
+  const [authenticationStatus, setAuthenticationStatus] =
+    useState<AuthenticationStatus>("unauthenticated");
 
   // Authenticate the user -- interacts with the backend to GET the nonce, create & send back the SIWE message,
   // and receive a response
@@ -80,9 +87,9 @@ export default function App({ Component, pageProps }: AppProps) {
   const authenticationAdapter = createAuthenticationAdapter({
     getNonce: async () => {
       const response = await fetch(`${SCORER_BACKEND}account/nonce`);
-      return await response.text();
+      return (await response.json()).nonce;
     },
-    
+
     createMessage: ({ nonce, address, chainId }) => {
       return new SiweMessage({
         domain: window.location.host,
@@ -106,10 +113,10 @@ export default function App({ Component, pageProps }: AppProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message, signature }),
       });
-      
+
       if (verifyRes.ok) {
         const data = await verifyRes.json();
-        
+
         // store JWT access token in LocalStorage
         localStorage.setItem("access-token", data.access);
 
@@ -117,7 +124,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
         router.push("/dashboard");
       }
-      
+
       return Boolean(verifyRes.ok);
     },
 
@@ -125,7 +132,7 @@ export default function App({ Component, pageProps }: AppProps) {
       router.push("/");
     },
   });
-  
+
   return (
     <>
       <Head>
@@ -150,13 +157,13 @@ export default function App({ Component, pageProps }: AppProps) {
             })}
           >
             <ChakraProvider>
-              <Component 
-                {...pageProps} 
-                setAuthenticationStatus={setAuthenticationStatus} 
-                authenticationStatus={authenticationStatus} 
+              <Component
+                {...pageProps}
+                setAuthenticationStatus={setAuthenticationStatus}
+                authenticationStatus={authenticationStatus}
               />
             </ChakraProvider>
-          </RainbowKitProvider>{' '}
+          </RainbowKitProvider>{" "}
         </RainbowKitAuthenticationProvider>
       </WagmiConfig>
     </>

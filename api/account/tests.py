@@ -32,11 +32,10 @@ class AccountTestCase(TestCase):
         print("account", account.address)
 
         c = Client()
-        response = c.get("/account/challenge?address={account.address}")
+        response = c.get("/account/nonce")
         self.assertEqual(200, response.status_code)
 
         data = response.json()
-        # TODO: verify data
         print("Data", data)
 
         siwe_data = {
