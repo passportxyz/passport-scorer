@@ -30,23 +30,23 @@ export default function Dashboard({ setAuthenticationStatus, authenticationStatu
   const { isLoading } = useConnect();
 
   // Mock -- communities
-  const [communities, setCommunities] = useState([
-    {
-      name: "Gitcoin Grants Protocol",
-      description: "Where web3 projects get funded.",
-    },
-    {
-      name: "Bankless",
-      description: "Media and Social DAO Onboarding 1 billion people to crypto.",
-    },
-    {
-      name: "Optimism",
-      description: "Purchase an .eth name to verify/ connect your existing account."
-    }
-  ]);
+  // const [communities, setCommunities] = useState([
+  //   {
+  //     name: "Gitcoin Grants Protocol",
+  //     description: "Where web3 projects get funded.",
+  //   },
+  //   {
+  //     name: "Bankless",
+  //     description: "Media and Social DAO Onboarding 1 billion people to crypto.",
+  //   },
+  //   {
+  //     name: "Optimism",
+  //     description: "Purchase an .eth name to verify/ connect your existing account."
+  //   }
+  // ]);
 
   // Mock -- no communities
-  // const [communities, setCommunities] = useState([]);
+  const [communities, setCommunities] = useState([]);
 
   /**
    * @TODO 
@@ -89,7 +89,7 @@ export default function Dashboard({ setAuthenticationStatus, authenticationStatu
             <h1 className="text-2xl font-miriamlibre text-blue-darkblue">Dashboard</h1>
             <p className="mt-2 font-librefranklin text-purple-softpurple">Generate community IDs for specific applications using non-duplication rules like first-in-first-out or last-in-first-out.</p>
           </div>
-          <div className="bg-gray-bluegray h-[40rem] md:h-[45rem] flex flex-col">
+          <div className="bg-gray-bluegray min-h-full md:h-screen flex flex-col">
             {
               communities.length > 0
               ? <CommunityList communities={communities} />
