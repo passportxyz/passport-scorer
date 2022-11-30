@@ -101,29 +101,35 @@ jobs:
 
       # Update the pulumi stack with new image
       - run: |
-          npm install
-          pulumi stack select -c gitcoin/passport-scorer/review
-          pulumi config -s gitcoin/passport-scorer/review set aws:region us-east-1 --non-interactive
-        working-directory: infra/review
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          echo "ecrImageUrl:" ${{ needs.build.outputs.ecrImageUrl }}
+          echo "dockerTag:" ${{ needs.build.outputs.dockerTag }}
+          echo "full ecrImageUrl:" :${{ needs.build.outputs.ecrImageUrl }}:${{ needs.build.outputs.dockerTag }}
 
-      - uses: pulumi/actions@v3
-        id: pulumi
-        with:
-          command: up
-          stack-name: gitcoin/passport-scorer/review
-          upsert: false
-          work-dir: infra/review
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          DOCKER_GTC_PASSPORT_SCORER_IMAGE: ${{ needs.build.outputs.ecrImageUrl }}:${{ needs.build.outputs.dockerTag }}
-          ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
-          DOMAIN: ${{ secrets.DOMAIN }}
-          SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN }}
+      # Update the pulumi stack with new image
+      # - run: |
+      #     npm install
+      #     pulumi stack select -c gitcoin/passport-scorer/review
+      #     pulumi config -s gitcoin/passport-scorer/review set aws:region us-east-1 --non-interactive
+      #   working-directory: infra/review
+      #   env:
+      #     PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      # - uses: pulumi/actions@v3
+      #   id: pulumi
+      #   with:
+      #     command: up
+      #     stack-name: gitcoin/passport-scorer/review
+      #     upsert: false
+      #     work-dir: infra/review
+      #   env:
+      #     PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     DOCKER_GTC_PASSPORT_SCORER_IMAGE: ${{ needs.build.outputs.ecrImageUrl }}:${{ needs.build.outputs.dockerTag }}
+      #     ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
+      #     DOMAIN: ${{ secrets.DOMAIN }}
+      #     SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN }}
+
+      #     DB_USER: ${{ secrets.DB_USER }}
+      #     DB_NAME: ${{ secrets.DB_NAME }}
+      #     DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
