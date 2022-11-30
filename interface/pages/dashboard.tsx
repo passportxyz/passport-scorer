@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 
 // --- Wagmi
-import { useAccount, useConnect } from "wagmi";
+// import { useAccount, useConnect } from "wagmi";
 
 // --- Components
 import Header from "../components/Header";
@@ -14,7 +14,7 @@ import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
 import { ApiKeyList } from "../components/APIKeyList";
 
 type DashboardProps = {
-  setAuthenticationStatus: Function;
+  // setAuthenticationStatus?: Function;
   authenticationStatus: AuthenticationStatus;
 };
 
@@ -24,11 +24,11 @@ export type Community = {
 };
 
 export default function Dashboard({
-  setAuthenticationStatus,
+  // setAuthenticationStatus,
   authenticationStatus,
 }: DashboardProps) {
-  const { address } = useAccount();
-  const { isLoading } = useConnect();
+  // const { address } = useAccount();
+  // const { isLoading } = useConnect();
 
   // Mock -- communities
   // const [communities, setCommunities] = useState([

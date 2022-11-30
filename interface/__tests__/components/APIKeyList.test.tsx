@@ -8,7 +8,7 @@ global.fetch = jest.fn(() =>
   })
 ) as jest.Mock;
 
-describe("dashboard", () => {
+describe("APIKeyList", () => {
   it("should have button that creates an API key", async () => {
     render(<ApiKeyList />);
     const createButton = screen.getByTestId("create-button");
