@@ -88,10 +88,23 @@ jobs:
           # docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile ./api/
           # docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
+      - name: Declare more variables
+        id: vars2
+        shell: bash
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: passport-scorer
+          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
+        run: |
+          echo "ECR_REGISTRY:" $ECR_REGISTRY
+          echo "ECR_REPOSITORY:" $ECR_REPOSITORY
+          echo "registry=$ECR_REGISTRY" >> $GITHUB_OUTPUT
+          echo "repository=$ECR_REPOSITORY" >> $GITHUB_OUTPUT
+
     outputs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
-      ecrImageUrl: ${{ steps.login-ecr.outputs.registry }}/passport-scorer
-      ecr: ${{ steps.login-ecr.outputs.registry }}
+      ecrImageUrl: ${{ steps.vars2.outputs.registry }}/passport-scorer
+      ecr: ${{ steps.vars2.outputs.registry }}
 
   deploy-review:
     needs: [build, test]
