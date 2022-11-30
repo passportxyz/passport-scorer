@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import Header from "../components/Header";
 import CommunityList from "../components/CommunityList";
 import NoCommunities from "../components/NoCommunities";
+import { SettingsIcon } from "@chakra-ui/icons";
 
 // --- Types
 import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
@@ -27,6 +28,7 @@ export default function Dashboard({
   // setAuthenticationStatus,
   authenticationStatus,
 }: DashboardProps) {
+  const [activeTab, setActiveTab] = useState("communities");
   // const { address } = useAccount();
   // const { isLoading } = useConnect();
 
@@ -81,6 +83,11 @@ export default function Dashboard({
    * --> if user has API keys, show them a list of their keys with copy/add/delete buttons and a callout that shows how many keys they have left
    */
 
+  const tabbedClasses = (tab: string) => {
+    const base = "my-4 flex leading-4 cursor-pointer";
+    return tab === activeTab ? `${base} font-bold font-blue-darkblue` : base;
+  };
+
   return (
     <>
       <div>
@@ -96,13 +103,38 @@ export default function Dashboard({
               last-in-first-out.
             </p>
           </div>
-          <div className="flex min-h-full flex-col bg-gray-bluegray md:h-screen">
-            {communities.length > 0 ? (
-              <CommunityList communities={communities} />
-            ) : (
-              <NoCommunities />
-            )}
-            <ApiKeyList />
+          <div className="flex bg-gray-bluegray px-6">
+            <div className="my-4 min-h-full w-1/5 flex-col border-r border-gray-lightgray">
+              <button
+                data-testid="communities-tab"
+                onClick={() => setActiveTab("communities")}
+                className={tabbedClasses("communities")}
+              >
+                Communities
+              </button>
+              <button
+                data-testid="api-keys-tab"
+                onClick={() => setActiveTab("apiKeys")}
+                className={tabbedClasses("apiKeys")}
+              >
+                <SettingsIcon className="mr-1" /> API Keys
+              </button>
+            </div>
+            <div className="flex min-h-full flex-col p-6 md:h-screen ">
+              <div className="w-4/5">
+                {activeTab === "communities" ? (
+                  <>
+                    {communities.length > 0 ? (
+                      <CommunityList communities={communities} />
+                    ) : (
+                      <NoCommunities />
+                    )}
+                  </>
+                ) : (
+                  <ApiKeyList />
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
