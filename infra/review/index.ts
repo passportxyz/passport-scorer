@@ -436,7 +436,7 @@ const web = new aws.ec2.Instance("Web", {
       volumeSize: 50
   },
   tags: {
-      Name: "Troubleshooting instance",
+      Name: "Passport Scorer - troubleshooting instance",
   },
   userData: ec2InitScript,
 });
