@@ -127,6 +127,10 @@ jobs:
           cache: "yarn"
           cache-dependency-path: infra/review/package-lock.json
 
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
       # Update the pulumi stack with new image
       - run: |
           echo "ecrImageUrl:" ${{ needs.build.outputs.ecrImageUrl }}
@@ -135,7 +139,8 @@ jobs:
           echo "full ecr:" ${{ needs.build.outputs.ecr }}
           echo "full ecr:" $ECR_REPOSITORY
         env:
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: passport-scorer
 
       # Update the pulumi stack with new image
       # - run: |
