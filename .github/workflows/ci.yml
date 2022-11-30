@@ -102,7 +102,7 @@ jobs:
           echo "repository=$ECR_REPOSITORY" >> $GITHUB_OUTPUT
 
       - name: Check some variables
-        id: vars2
+        # id: vars2
         shell: bash
         env:
           V1: ${{ steps.vars2.outputs.registry }}
