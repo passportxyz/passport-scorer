@@ -133,6 +133,9 @@ jobs:
           echo "dockerTag:" ${{ needs.build.outputs.dockerTag }}
           echo "full ecrImageUrl:" ${{ needs.build.outputs.ecrImageUrl }}:${{ needs.build.outputs.dockerTag }}
           echo "full ecr:" ${{ needs.build.outputs.ecr }}
+          echo "full ecr:" $ECR_REPOSITORY
+        env:
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
 
       # Update the pulumi stack with new image
       # - run: |
