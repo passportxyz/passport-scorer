@@ -81,12 +81,17 @@ jobs:
           ECR_REPOSITORY: passport-scorer
           IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile ./api/
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "ECR_REGISTRY:" $ECR_REGISTRY
+          echo "ECR_REPOSITORY:" $ECR_REPOSITORY
+
+
+          # docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile ./api/
+          # docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
     outputs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
       ecrImageUrl: ${{ steps.login-ecr.outputs.registry }}/passport-scorer
+      ecr: ${{ steps.login-ecr.outputs.registry }}
 
   deploy-review:
     needs: [build, test]
@@ -103,7 +108,8 @@ jobs:
       - run: |
           echo "ecrImageUrl:" ${{ needs.build.outputs.ecrImageUrl }}
           echo "dockerTag:" ${{ needs.build.outputs.dockerTag }}
-          echo "full ecrImageUrl:" :${{ needs.build.outputs.ecrImageUrl }}:${{ needs.build.outputs.dockerTag }}
+          echo "full ecrImageUrl:" ${{ needs.build.outputs.ecrImageUrl }}:${{ needs.build.outputs.dockerTag }}
+          echo "full ecr:" ${{ needs.build.outputs.ecr }}
 
       # Update the pulumi stack with new image
       # - run: |
