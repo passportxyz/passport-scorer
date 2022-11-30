@@ -15,6 +15,7 @@
 Create virtual env and install dependencies: `pipenv install`
 
 Start the dev server:
+- **first**: make sure you have the `.env` file in the api folder, with proper values (clone the `.env-sample` if required and adjust it)
 - `gunicorn -w 4 -k uvicorn.workers.UvicornWorker scorer.asgi:application`
 - or `uvicorn scorer.asgi:application --reload`
 
