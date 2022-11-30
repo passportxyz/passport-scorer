@@ -81,43 +81,14 @@ jobs:
           ECR_REPOSITORY: passport-scorer
           IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
-          echo "ECR_REGISTRY:" $ECR_REGISTRY
-          echo "ECR_REPOSITORY:" $ECR_REPOSITORY
-
-
-          # docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile ./api/
-          # docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-      - name: Declare more variables 2
-        id: vars2
-        shell: bash
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: passport-scorer
-          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
-        run: |
-          echo "ECR_REGISTRY:" $ECR_REGISTRY
-          echo "ECR_REPOSITORY:" $ECR_REPOSITORY
-          echo "registry=$ECR_REGISTRY" >> $GITHUB_OUTPUT
-          echo "repository=$ECR_REPOSITORY" >> $GITHUB_OUTPUT
-
-      - name: Check some variables
-        # id: vars2
-        shell: bash
-        env:
-          V1: ${{ steps.vars2.outputs.registry }}
-          V2: ${{ steps.vars2.outputs.repository }}
-        run: |
-          echo "ECR_REGISTRY:" $V1
-          echo "ECR_REPOSITORY:" $V2
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile ./api/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
     outputs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
-      ecrImageUrl: ${{ steps.vars2.outputs.registry }}/passport-scorer
-      ecr: ${{ steps.vars2.outputs.registry }}
 
   deploy-review:
-    needs: [build]
+    needs: [test, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -127,6 +98,10 @@ jobs:
           cache: "yarn"
           cache-dependency-path: infra/review/package-lock.json
 
+      ################################################################################################################
+      # TODO: to be fixed: only doing the aws-actions/configure-aws-credentials and aws-actions/amazon-ecr-login
+      # because passing over the repository value from the build step did not work
+      ################################################################################################################
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -140,38 +115,29 @@ jobs:
 
       # Update the pulumi stack with new image
       - run: |
-          echo "dockerTag:" ${{ needs.build.outputs.dockerTag }}
-          echo "full ecr:" $ECR_REGISTRY
-          echo "full ecr:" $ECR_REPOSITORY
+          npm install
+          pulumi stack select -c gitcoin/passport-scorer/review
+          pulumi config -s gitcoin/passport-scorer/review set aws:region us-east-1 --non-interactive
+        working-directory: infra/review
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: passport-scorer
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-      # Update the pulumi stack with new image
-      # - run: |
-      #     npm install
-      #     pulumi stack select -c gitcoin/passport-scorer/review
-      #     pulumi config -s gitcoin/passport-scorer/review set aws:region us-east-1 --non-interactive
-      #   working-directory: infra/review
-      #   env:
-      #     PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+      - uses: pulumi/actions@v3
+        id: pulumi
+        with:
+          command: up
+          stack-name: gitcoin/passport-scorer/review
+          upsert: false
+          work-dir: infra/review
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          DOCKER_GTC_PASSPORT_SCORER_IMAGE: ${{ needs.build.outputs.ecrImageUrl }}:${{ needs.build.outputs.dockerTag }}
+          ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
+          DOMAIN: ${{ secrets.DOMAIN }}
+          SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN }}
 
-      # - uses: pulumi/actions@v3
-      #   id: pulumi
-      #   with:
-      #     command: up
-      #     stack-name: gitcoin/passport-scorer/review
-      #     upsert: false
-      #     work-dir: infra/review
-      #   env:
-      #     PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     DOCKER_GTC_PASSPORT_SCORER_IMAGE: ${{ needs.build.outputs.ecrImageUrl }}:${{ needs.build.outputs.dockerTag }}
-      #     ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
-      #     DOMAIN: ${{ secrets.DOMAIN }}
-      #     SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN }}
-
-      #     DB_USER: ${{ secrets.DB_USER }}
-      #     DB_NAME: ${{ secrets.DB_NAME }}
-      #     DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
