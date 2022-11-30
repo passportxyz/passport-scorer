@@ -3,7 +3,7 @@ import random
 import hashlib
 import string
 import logging
-from typing import cast
+from typing import cast, List
 
 # --- Web3 & Eth
 from siwe import SiweMessage
@@ -12,9 +12,10 @@ from siwe import SiweMessage
 from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
 from ninja_extra import NinjaExtraAPI, status
-from ninja import Schema
+from ninja import Schema, ModelSchema
 from ninja_extra.exceptions import APIException
 from ninja_jwt.authentication import JWTAuth
+
 
 # --- Models
 from account.models import Account, AccountAPIKey
@@ -71,9 +72,14 @@ class UnauthorizedException(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
     message = 'UnAuthorized'
 
-class ExistingKeyException(APIException):
+class TooManyKeysException(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
-    message = 'API Key already exists'
+    message = 'You have already created 5 API Keys'
+
+class AccountApiSchema(ModelSchema):
+    class Config:
+        model = AccountAPIKey
+        model_fields = ['id', 'name']
 
 @api.post("/verify", response=TokenObtainPairOutSchema)
 def submit_signed_challenge(request, payload: SiweVerifySubmit):
@@ -108,11 +114,21 @@ def create_api_key(request):
     try:
         account = Account.objects.get(pk=request.user.id)
 
-        if AccountAPIKey.objects.filter(account=account).exists():
-            raise ExistingKeyException()
+        if AccountAPIKey.objects.filter(account=account).count() >= 5:
+            raise TooManyKeysException()
 
         api_key, key = AccountAPIKey.objects.create_key(account=account, name="scorer-service")
     except Account.DoesNotExist:
         raise UnauthorizedException()
 
     return { "api_key": key }
+
+@api.get("/api-key", auth=JWTAuth(), response=List[AccountApiSchema])
+def get_api_keys(request):
+    try:
+        account = Account.objects.get(pk=request.user.id)
+        api_keys = AccountAPIKey.objects.filter(account=account).all()
+        
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
+    return api_keys
