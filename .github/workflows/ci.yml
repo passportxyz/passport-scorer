@@ -110,8 +110,6 @@ jobs:
         run: |
           echo "ECR_REGISTRY:" $V1
           echo "ECR_REPOSITORY:" $V2
-          echo "ECR_REGISTRY:" ${steps.vars2.outputs.registry}
-          echo "ECR_REPOSITORY:" ${steps.vars2.outputs.repository}
 
     outputs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
