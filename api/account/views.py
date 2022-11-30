@@ -19,7 +19,7 @@ from ninja import Schema
 # --- Models
 from .models import Account
 from django.contrib.auth import get_user_model
-
+from django.http import HttpResponse
 
 log = logging.getLogger(__name__)
 
@@ -95,3 +95,7 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
     refresh = cast(RefreshToken, refresh)
 
     return {"ok": True, "refresh": str(refresh), "access": str(refresh.access_token)}
+
+
+def health(request):
+    return HttpResponse("Ok")
