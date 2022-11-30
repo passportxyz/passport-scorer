@@ -6,11 +6,9 @@ import logging
 from typing import cast
 
 # --- Web3 & Eth
-from web3.auto import w3
 from siwe import SiweMessage
 
 # --- Ninja
-from ninja import NinjaAPI
 from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
 from ninja_extra import NinjaExtraAPI, status
@@ -19,7 +17,7 @@ from ninja_extra.exceptions import APIException
 from ninja_jwt.authentication import JWTAuth
 
 # --- Models
-from .models import Account, AccountAPIKey
+from account.models import Account, AccountAPIKey
 from django.contrib.auth import get_user_model
 
 
@@ -105,7 +103,7 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
 
     return {"ok": True, "refresh": str(refresh), "access": str(refresh.access_token)}
 
-@api.post("/create-api-key", auth=JWTAuth())
+@api.post("/api-key", auth=JWTAuth())
 def create_api_key(request):
     try:
         account = Account.objects.get(pk=request.user.id)
