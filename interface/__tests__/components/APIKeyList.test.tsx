@@ -1,31 +1,47 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { ApiKeyList } from "../../components/APIKeyList";
+import { getApiKeys, createApiKey } from "../../utils/account-requests";
 
-global.fetch = jest.fn(() =>
-  Promise.resolve({
-    json: () => Promise.resolve({ test: 100 }),
-  })
-) as jest.Mock;
+jest.mock("../../utils/account-requests.ts", () => ({
+  getApiKeys: jest.fn(),
+  createApiKey: jest.fn(),
+}));
 
 describe("APIKeyList", () => {
+  beforeEach(() => {
+    (getApiKeys as jest.Mock).mockResolvedValue(["key1", "key2"]);
+    (createApiKey as jest.Mock).mockResolvedValue({});
+  });
   it("should have button that creates an API key", async () => {
-    render(<ApiKeyList />);
-    const createButton = screen.getByTestId("create-button");
-    expect(createButton).toBeInTheDocument();
+    act(() => {
+      render(<ApiKeyList />);
+    });
 
-    const SCORER_BACKEND = process.env.NEXT_PUBLIC_PASSPORT_SCORER_BACKEND;
-    global.Storage.prototype.getItem = jest.fn((key) => "12345") as jest.Mock;
+    const createButton = await screen.getByTestId("create-button");
+    await waitFor(() => {
+      expect(createButton).toBeInTheDocument();
+    });
+
     await fireEvent.click(createButton as HTMLElement);
-    expect(global.fetch).toHaveBeenCalledWith(
-      `${SCORER_BACKEND}account/api-key`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          AUTHORIZATION: "Bearer 12345",
-        },
-      }
-    );
+    await waitFor(() => {
+      expect(createApiKey).toHaveBeenCalled();
+    });
+  });
+
+  it("should render a list of API keys", async () => {
+    act(() => {
+      render(<ApiKeyList />);
+    });
+
+    await waitFor(async () => {
+      expect(await screen.getByText("API Key #2")).toBeInTheDocument();
+    });
   });
 });

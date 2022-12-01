@@ -120,20 +120,18 @@ export default function Dashboard({
                 <SettingsIcon className="mr-1" /> API Keys
               </button>
             </div>
-            <div className="flex min-h-full flex-col p-6 md:h-screen ">
-              <div className="w-4/5">
-                {activeTab === "communities" ? (
-                  <>
-                    {communities.length > 0 ? (
-                      <CommunityList communities={communities} />
-                    ) : (
-                      <NoCommunities />
-                    )}
-                  </>
-                ) : (
-                  <ApiKeyList />
-                )}
-              </div>
+            <div className="flex min-h-full w-full flex-col p-6 md:h-screen">
+              {activeTab === "communities" ? (
+                <>
+                  {communities.length > 0 ? (
+                    <CommunityList communities={communities} />
+                  ) : (
+                    <NoCommunities />
+                  )}
+                </>
+              ) : (
+                <ApiKeyList />
+              )}
             </div>
           </div>
         </div>
