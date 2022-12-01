@@ -173,3 +173,27 @@ class AccountTestCase(TestCase):
         self.assertTrue("id" in json_response[0])
         self.assertTrue("id" in json_response[1])
 
+    def test_create_community(self):
+        """Test creation of a community"""
+        client = Client()
+        response, account, signed_message = authenticate(client)
+        access_token = response.json()['access']
+
+        invalid_response = client.post("/account/communities", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer invalid_token'})
+        self.assertEqual(invalid_response.status_code, 401)
+
+        valid_response = client.post("/account/communities", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        self.assertEqual(valid_response.status_code, 200)
+
+        duplicate_community = client.post("/account/communities", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        self.assertEqual(duplicate_community.status_code, 401)
+
+        # Check too many communities
+        for i in range(0, 4):
+            client.post("/account/communities", json.dumps({"name": f"test{i}"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+
+        too_many_communities = client.post("/account/communities", json.dumps({"name": "test again"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        self.assertEqual(too_many_communities.status_code, 401)
+
+    
+
