@@ -16,7 +16,6 @@ from ninja import Schema, ModelSchema
 from ninja_extra.exceptions import APIException
 from ninja_jwt.authentication import JWTAuth
 
-
 # --- Models
 from account.models import Account, AccountAPIKey
 from django.contrib.auth import get_user_model
@@ -109,15 +108,21 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
 
     return {"ok": True, "refresh": str(refresh), "access": str(refresh.access_token)}
 
+
+class APIKeyName(Schema):
+    name: str
+
 @api.post("/api-key", auth=JWTAuth())
-def create_api_key(request):
+def create_api_key(request, payload: APIKeyName):
     try:
         account = Account.objects.get(pk=request.user.id)
 
         if AccountAPIKey.objects.filter(account=account).count() >= 5:
             raise TooManyKeysException()
 
-        api_key, key = AccountAPIKey.objects.create_key(account=account, name="scorer-service")
+        key_name = payload.name
+
+        api_key, key = AccountAPIKey.objects.create_key(account=account, name=key_name)
     except Account.DoesNotExist:
         raise UnauthorizedException()
 
