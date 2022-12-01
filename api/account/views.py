@@ -3,21 +3,21 @@ import random
 import hashlib
 import string
 import logging
-from typing import cast
+from typing import cast, List
 
 # --- Web3 & Eth
-from web3.auto import w3
 from siwe import SiweMessage
 
 # --- Ninja
-from ninja import NinjaAPI
 from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
-from ninja_extra import NinjaExtraAPI
-from ninja import Schema
+from ninja_extra import NinjaExtraAPI, status
+from ninja import Schema, ModelSchema
+from ninja_extra.exceptions import APIException
+from ninja_jwt.authentication import JWTAuth
 
 # --- Models
-from .models import Account
+from account.models import Account, AccountAPIKey
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 
@@ -67,6 +67,18 @@ class MyTokenObtainPairOutSchema(Schema):
     access: str
     user: UserSchema
 
+class UnauthorizedException(APIException):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    message = 'UnAuthorized'
+
+class TooManyKeysException(APIException):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    message = 'You have already created 5 API Keys'
+
+class AccountApiSchema(ModelSchema):
+    class Config:
+        model = AccountAPIKey
+        model_fields = ['id', 'name']
 
 @api.post("/verify", response=TokenObtainPairOutSchema)
 def submit_signed_challenge(request, payload: SiweVerifySubmit):
@@ -96,6 +108,35 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
 
     return {"ok": True, "refresh": str(refresh), "access": str(refresh.access_token)}
 
+
+class APIKeyName(Schema):
+    name: str
+
+@api.post("/api-key", auth=JWTAuth())
+def create_api_key(request, payload: APIKeyName):
+    try:
+        account = Account.objects.get(pk=request.user.id)
+
+        if AccountAPIKey.objects.filter(account=account).count() >= 5:
+            raise TooManyKeysException()
+
+        key_name = payload.name
+
+        api_key, key = AccountAPIKey.objects.create_key(account=account, name=key_name)
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
+
+    return { "api_key": key }
+
+@api.get("/api-key", auth=JWTAuth(), response=List[AccountApiSchema])
+def get_api_keys(request):
+    try:
+        account = Account.objects.get(pk=request.user.id)
+        api_keys = AccountAPIKey.objects.filter(account=account).all()
+        
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
+    return api_keys
 
 def health(request):
     return HttpResponse("Ok")
