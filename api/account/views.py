@@ -19,7 +19,7 @@ from ninja_jwt.authentication import JWTAuth
 # --- Models
 from account.models import Account, AccountAPIKey
 from django.contrib.auth import get_user_model
-
+from django.http import HttpResponse
 
 log = logging.getLogger(__name__)
 
@@ -137,3 +137,6 @@ def get_api_keys(request):
     except Account.DoesNotExist:
         raise UnauthorizedException()
     return api_keys
+
+def health(request):
+    return HttpResponse("Ok")

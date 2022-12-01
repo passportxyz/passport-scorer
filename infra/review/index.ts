@@ -6,6 +6,8 @@ import * as awsx from "@pulumi/awsx";
 
 let route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
 export const domain = `api.scorer.${process.env["DOMAIN"]}`;
+export const publicServiceUrl = `https://${domain}`;
+
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 let dbUsername = `${process.env["DB_USER"]}`;
 let dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
@@ -146,7 +148,7 @@ const httpListener = alb.createListener("web-listener", {
 const target = alb.createTargetGroup("scorer-target", {
   vpc,
   port: 80,
-  healthCheck: { path: "/health", unhealthyThreshold: 5 },
+  healthCheck: { path: "/health/", unhealthyThreshold: 5 },
 });
 
 // Listen to traffic on port 443 & route it through the target group
@@ -436,7 +438,7 @@ const web = new aws.ec2.Instance("Web", {
       volumeSize: 50
   },
   tags: {
-      Name: "Troubleshooting instance",
+      Name: "Passport Scorer - troubleshooting instance",
   },
   userData: ec2InitScript,
 });
