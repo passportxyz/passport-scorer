@@ -19,3 +19,12 @@ class AccountAPIKey(AbstractAPIKey):
         related_name="api_key",
         default=None
     )
+
+class Communities(models.Model):
+    name = models.CharField(max_length=100, blank=False, null=False)
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.CASCADE,
+        related_name="community",
+        default=None
+    )
