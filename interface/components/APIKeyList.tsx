@@ -19,6 +19,7 @@ export const ApiKeyList = () => {
           keysFetched = true;
           setApiKeys(apiKeys);
         } catch (error) {
+          console.log({ error });
           setError("There was an error fetching your API keys.");
         }
       }
@@ -57,7 +58,7 @@ export const ApiKeyList = () => {
         </div>
         <div className="flex w-1/4 flex-col p-4">
           <button
-            data-testid="create-button"
+            data-testid="open-api-key-modal"
             className="rounded bg-purple-softpurple py-2 px-4 text-white"
             onClick={() => setModalOpen(true)}
           >
@@ -75,6 +76,7 @@ export const ApiKeyList = () => {
             Key name
           </label>
           <Input
+            data-testid="key-name-input"
             value={keyName}
             onChange={(name) => setKeyName(name.target.value)}
             placeholder="Key name"
@@ -83,7 +85,7 @@ export const ApiKeyList = () => {
             <button
               disabled={!keyName}
               data-testid="create-button"
-              className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white"
+              className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
               onClick={handleCreateApiKey}
             >
               Create

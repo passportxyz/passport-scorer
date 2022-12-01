@@ -16,32 +16,32 @@ jest.mock("../../utils/account-requests.ts", () => ({
 
 describe("APIKeyList", () => {
   beforeEach(() => {
-    (getApiKeys as jest.Mock).mockResolvedValue(["key1", "key2"]);
+    (getApiKeys as jest.Mock).mockResolvedValue([
+      { name: "key1", id: "safasfasdf" },
+      { name: "key2", id: "asdfasf" },
+    ]);
     (createApiKey as jest.Mock).mockResolvedValue({});
   });
-  it("should have button that creates an API key", async () => {
-    act(() => {
-      render(<ApiKeyList />);
-    });
+  it("should create an API key", async () => {
+    render(<ApiKeyList />);
 
-    const createButton = await screen.getByTestId("create-button");
-    await waitFor(() => {
-      expect(createButton).toBeInTheDocument();
-    });
-
-    await fireEvent.click(createButton as HTMLElement);
-    await waitFor(() => {
-      expect(createApiKey).toHaveBeenCalled();
+    await waitFor(async () => {
+      const modalButton = screen.getByTestId("open-api-key-modal");
+      fireEvent.click(modalButton as HTMLElement);
+      expect(screen.getByTestId("create-button")).toBeInTheDocument();
+      const input = screen.getByTestId("key-name-input");
+      fireEvent.change(input, { target: { value: "test" } });
+      const createButton = screen.getByTestId("create-button");
+      fireEvent.click(createButton as HTMLElement);
+      expect(createApiKey).toHaveBeenCalledWith("test");
     });
   });
 
   it("should render a list of API keys", async () => {
-    act(() => {
-      render(<ApiKeyList />);
-    });
+    render(<ApiKeyList />);
 
     await waitFor(async () => {
-      expect(await screen.getByText("API Key #2")).toBeInTheDocument();
+      expect(screen.getByText("key2")).toBeInTheDocument();
     });
   });
 });
