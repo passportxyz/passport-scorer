@@ -12,6 +12,9 @@ from datetime import datetime
 from siwe import SiweMessage
 from copy import deepcopy
 
+mock_api_key_body = {"name": "test"}
+mock_community_body = {"name": "test", "description": "test"}
+
 def authenticate(client):
     """Test creation of an account wit SIWE"""
     web3 = Web3()
@@ -133,23 +136,23 @@ class AccountTestCase(TestCase):
         """Test creation of an API key"""
         client = Client()
 
-        invalid_response = client.post("/account/api-key", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer bad_token'})
+        invalid_response = client.post("/account/api-key", json.dumps(mock_api_key_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer bad_token'})
         self.assertEqual(invalid_response.status_code, 401)
 
         # create api_key record
         response, account, signed_message = authenticate(client)
         access_token = response.json()['access']
-        api_key_response = client.post("/account/api-key", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
-        api_key_response = client.post("/account/api-key", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
-        api_key_response = client.post("/account/api-key", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
-        api_key_response = client.post("/account/api-key", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
-        api_key_response = client.post("/account/api-key", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        api_key_response = client.post("/account/api-key", json.dumps(mock_api_key_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        api_key_response = client.post("/account/api-key", json.dumps(mock_api_key_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        api_key_response = client.post("/account/api-key", json.dumps(mock_api_key_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        api_key_response = client.post("/account/api-key", json.dumps(mock_api_key_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        api_key_response = client.post("/account/api-key", json.dumps(mock_api_key_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
         self.assertEqual(api_key_response.status_code, 200)
         data = api_key_response.json()
         self.assertTrue("api_key" in data)
 
         # check that we are throwing a 401 if they have already created an account
-        api_key_response = client.post("/account/api-key", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        api_key_response = client.post("/account/api-key", json.dumps(mock_api_key_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
         self.assertEqual(api_key_response.status_code, 401)
 
     def test_get_api_keys(self):
@@ -161,9 +164,9 @@ class AccountTestCase(TestCase):
         
         response, account, signed_message = authenticate(client)
         access_token = response.json()['access']
-        client.post("/account/api-key", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
-        client.post("/account/api-key", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
-        client.post("/account/api-key", json.dumps({"name": "test"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        client.post("/account/api-key", json.dumps(mock_api_key_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        client.post("/account/api-key", json.dumps(mock_api_key_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        client.post("/account/api-key", json.dumps(mock_api_key_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
         
         valid_response = client.get("/account/api-key", content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
 
@@ -172,6 +175,46 @@ class AccountTestCase(TestCase):
         self.assertEqual(len(json_response), 3)
         self.assertTrue("id" in json_response[0])
         self.assertTrue("id" in json_response[1])
+
+    def test_create_community(self):
+        """Test creation of a community"""
+        client = Client()
+        response, account, signed_message = authenticate(client)
+        access_token = response.json()['access']
+
+        invalid_response = client.post("/account/communities", json.dumps(mock_community_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer invalid_token'})
+        self.assertEqual(invalid_response.status_code, 401)
+
+        valid_response = client.post("/account/communities", json.dumps(mock_community_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        self.assertEqual(valid_response.status_code, 200)
+
+        duplicate_community = client.post("/account/communities", json.dumps(mock_community_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        self.assertEqual(duplicate_community.status_code, 401)
+
+        # Check too many communities
+        for i in range(0, 4):
+            client.post("/account/communities", json.dumps({"name": f"test{i}"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+
+        too_many_communities = client.post("/account/communities", json.dumps(mock_community_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        self.assertEqual(too_many_communities.status_code, 401)
+
+    def test_get_communities(self):
+        """Test getting communities"""
+        client = Client()
+        response, account, signed_message = authenticate(client)
+        access_token = response.json()['access']
+
+        invalid_response = client.get("/account/communities", content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer invalid_token'})
+        self.assertEqual(invalid_response.status_code, 401)
+
+        valid_response = client.post("/account/communities", json.dumps(mock_community_body), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+
+        valid_response = client.get("/account/communities", content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        self.assertEqual(valid_response.status_code, 200)
+
+        json_response = valid_response.json()
+        self.assertTrue("description" in json_response[0])
+        self.assertTrue("name" in json_response[0])
 
     def test_delete_api_key(self):
         """Test deleting the selected API key"""

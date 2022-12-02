@@ -1,10 +1,15 @@
 // --- React components/methods
-import { Input } from "@chakra-ui/react";
 import React, { useEffect, useState } from "react";
-import { ApiKeys, createApiKey, getApiKeys, deleteApiKey } from "../utils/account-requests";
+
+// --- Components
+import { Input } from "@chakra-ui/react";
 import ModalTemplate from "./ModalTemplate";
-import { DeleteIcon, Icon } from "@chakra-ui/icons";
+import { SettingsIcon, DeleteIcon, Icon } from "@chakra-ui/icons";
 import { MdFileCopy } from "react-icons/md";
+
+// --- Utils
+import { ApiKeys, createApiKey, getApiKeys, deleteApiKey } from "../utils/account-requests";
+import NoValues from "./NoValues";
 
 export const ApiKeyList = () => {
   const [apiKeys, setApiKeys] = useState<ApiKeys[]>([]);
@@ -53,10 +58,25 @@ export const ApiKeyList = () => {
   }
 
   return (
-    <div className="flex h-[40rem] md:h-[45rem]">
-      <div className="flex w-full">
-        <div className="flex w-3/4 flex-col">
-          {apiKeys.map((key, i) => (
+    <>
+      {apiKeys.length === 0 ? (
+        <NoValues
+          title="Create a key"
+          description="Communicate between applications by connecting a key to request service from the community or organization."
+          addRequest={() => setModalOpen(true)}
+          icon={
+            <SettingsIcon
+              viewBox="-2 -2 18 18"
+              boxSize="1.9em"
+              color="#757087"
+            />
+          }
+        />
+      ) : (
+        <div className="flex h-[40rem] md:h-[45rem]">
+          <div className="flex w-full">
+            <div className="flex w-3/4 flex-col">
+            {apiKeys.map((key, i) => (
             <div
               key={key.id}
               className="my-2 flex w-full justify-between rounded border border-gray-lightgray p-4 items-center bg-white hover:bg-gray-50"
@@ -78,20 +98,21 @@ export const ApiKeyList = () => {
               </button>
             </div>
           ))}
-        </div>
-        <div className="flex w-1/4 flex-col p-4 ml-2">
-          <div className="text-purple-softpurple mb-3">
-            <p>Communicate between applications by connecting a key to request service from the community/organization.</p>
+            </div>
+            <div className="flex w-1/4 flex-col p-4">
+              <button
+                data-testid="open-api-key-modal"
+                className="rounded bg-purple-softpurple py-2 px-4 text-white"
+                onClick={() => setModalOpen(true)}
+              >
+                <span className="mr-2 text-lg">+</span>Create a key
+              </button>
+            </div>
+            {modalOpen}
+            {error && <div>{error}</div>}
           </div>
-          <button
-            data-testid="open-api-key-modal"
-            className="rounded bg-purple-softpurple py-2 px-4 text-white"
-            onClick={() => setModalOpen(true)}
-          >
-            <span className="mr-2 text-lg">+</span>Create a key
-          </button>
         </div>
-      </div>
+      )}
       <ModalTemplate
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -116,10 +137,9 @@ export const ApiKeyList = () => {
             >
               Create
             </button>
-            {error && <div>{error}</div>}
           </div>
         </div>
       </ModalTemplate>
-    </div>
+    </>
   );
 };

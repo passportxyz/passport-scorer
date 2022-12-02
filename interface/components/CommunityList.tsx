@@ -1,40 +1,133 @@
 // --- React components/methods
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 // --- Components
+import { RepeatIcon } from "@chakra-ui/icons";
 import CommunityCard from "./CommunityCard";
 import ModalTemplate from "./ModalTemplate";
-import { useDisclosure } from "@chakra-ui/react";
+import NoValues from "./NoValues";
 
-// --- Types
-import { Community } from "../pages/dashboard";
+// --- Utils
+import {
+  createCommunity,
+  getCommunities,
+  Community,
+} from "../utils/account-requests";
+import { Input } from "@chakra-ui/react";
 
-type CommunityListProps = {
-  communities: Community[];
-}
+const CommunityList = (): JSX.Element => {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [communityName, setCommunityName] = useState("");
+  const [communityDescription, setCommunityDescription] = useState("");
+  const [error, setError] = useState<undefined | string>();
+  const [communities, setCommunities] = useState<Community[]>([]);
 
-/**
- * 
- * @TODO --> Finish adding Modal for 'Add community'
- */
+  const handleCreateCommunity = async () => {
+    try {
+      await createCommunity({
+        name: communityName,
+        description: communityDescription,
+      });
+      setCommunityName("");
+      setCommunityDescription("");
+      setCommunities(await getCommunities());
+      setModalOpen(false);
+    } catch (error) {
+      console.log({ error });
+    }
+  };
 
-// const { onOpen, isOpen, onClose } = useDisclosure();
+  useEffect(() => {
+    let keysFetched = false;
+    const fetchCommunities = async () => {
+      if (keysFetched === false) {
+        try {
+          await getCommunities();
+          keysFetched = true;
+          setCommunities(await getCommunities());
+        } catch (error) {
+          console.log({ error });
+          setError("There was an error fetching your Communities.");
+        }
+      }
+    };
+    fetchCommunities();
+  }, []);
 
-const CommunityList = ({ communities }: CommunityListProps): JSX.Element => {
   const communityList = communities.map((community: Community, i: number) => {
-    return (
-      <CommunityCard key={i} community={community} />
-    );
+    return <CommunityCard key={i} community={community} />;
   });
 
   return (
-    <div className="mt-10 mx-11">
-      <p className="text-purple-softpurple mb-3 font-librefranklin font-semibold">My Communities</p>
-      {communityList}
-      
-      <button className="text-blue-darkblue font-librefranklin text-md border border-gray-lightgray py-1 px-6 rounded-sm mt-5 transition ease-in-out delay-100 hover:bg-gray-200 duration-150"><span className="text-lg">+</span> Add</button>
-      {/* <ModalTemplate /> */}
-    </div>
+    <>
+      {communities.length === 0 ? (
+        <NoValues
+          title="My Communities"
+          description="Manage how your dapps interact with the Gitcoin Passport by creating a
+        key that will connect to any community."
+          addRequest={() => setModalOpen(true)}
+          icon={
+            <RepeatIcon viewBox="0 0 25 25" boxSize="1.9em" color="#757087" />
+          }
+        />
+      ) : (
+        <div className="mx-11 mt-10">
+          <p className="mb-3 font-librefranklin font-semibold text-purple-softpurple">
+            My Communities
+          </p>
+          {communityList}
+
+          <button
+            data-testid="open-community-modal"
+            onClick={() => setModalOpen(true)}
+            className="text-md mt-5 rounded-sm border border-gray-lightgray py-1 px-6 font-librefranklin text-blue-darkblue transition delay-100 duration-150 ease-in-out hover:bg-gray-200"
+          >
+            <span className="text-lg">+</span> Add
+          </button>
+          {error && <div>{error}</div>}
+        </div>
+      )}
+      <ModalTemplate
+        title="Create a Community"
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+      >
+        <div className="flex flex-col">
+          <label className="text-gray-softgray font-librefranklin text-xs">
+            Community Name
+          </label>
+          <Input
+            data-testid="community-name-input"
+            className="mb-4"
+            value={communityName}
+            onChange={(name) => setCommunityName(name.target.value)}
+            placeholder="Community name"
+          />
+          <label className="text-gray-softgray font-librefranklin text-xs">
+            Community Description
+          </label>
+          <Input
+            data-testid="community-description-input"
+            value={communityDescription}
+            onChange={(description) =>
+              setCommunityDescription(description.target.value)
+            }
+            placeholder="Community Description"
+          />
+          <div className="flex w-full justify-end">
+            <button
+              disabled={!communityName && !communityDescription}
+              data-testid="create-button"
+              className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
+              onClick={handleCreateCommunity}
+            >
+              Create
+            </button>
+            {error && <div>{error}</div>}
+          </div>
+        </div>
+      </ModalTemplate>
+    </>
   );
 };
 

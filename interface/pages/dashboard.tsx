@@ -20,11 +20,6 @@ type DashboardProps = {
   authenticationStatus: AuthenticationStatus;
 };
 
-export type Community = {
-  name: string;
-  description: string;
-};
-
 export default function Dashboard({
   // setAuthenticationStatus,
   authenticationStatus,
@@ -124,17 +119,7 @@ export default function Dashboard({
               </button>
             </div>
             <div className="flex min-h-full w-full flex-col p-6 md:h-screen">
-              {activeTab === "communities" ? (
-                <>
-                  {communities.length > 0 ? (
-                    <CommunityList communities={communities} />
-                  ) : (
-                    <NoCommunities />
-                  )}
-                </>
-              ) : (
-                <ApiKeyList />
-              )}
+              {activeTab === "communities" ? <CommunityList /> : <ApiKeyList />}
             </div>
           </div>
         </div>

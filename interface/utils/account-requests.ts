@@ -44,6 +44,46 @@ export const getApiKeys = async (): Promise<ApiKeys[]> => {
   }
 };
 
+export type Community = {
+  name: string;
+  description: string;
+};
+
+export const createCommunity = async (community: Community) => {
+  try {
+    const token = localStorage.getItem("access-token");
+    const response = await axios.post(
+      `${SCORER_BACKEND}account/communities`,
+      { ...community },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          AUTHORIZATION: `Bearer ${token}`,
+        },
+      }
+    );
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getCommunities = async (): Promise<Community[]> => {
+  try {
+    const token = localStorage.getItem("access-token");
+    const response = await axios.get(`${SCORER_BACKEND}account/communities`, {
+      headers: {
+        "Content-Type": "application/json",
+        AUTHORIZATION: `Bearer ${token}`,
+      },
+    });
+
+    const { data } = response;
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const deleteApiKey = async (apiKeyId: ApiKeys["id"]): Promise<void> => {
   try {
     const token = localStorage.getItem("access-token");
