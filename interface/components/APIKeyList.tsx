@@ -1,8 +1,12 @@
 // --- React components/methods
-import { Input } from "@chakra-ui/react";
 import React, { useEffect, useState } from "react";
-import { ApiKeys, createApiKey, getApiKeys } from "../utils/account-requests";
+
+// --- Components
+import { Input } from "@chakra-ui/react";
 import ModalTemplate from "./ModalTemplate";
+
+// --- Utils
+import { ApiKeys, createApiKey, getApiKeys } from "../utils/account-requests";
 
 export const ApiKeyList = () => {
   const [apiKeys, setApiKeys] = useState<ApiKeys[]>([]);
@@ -65,6 +69,7 @@ export const ApiKeyList = () => {
             <span className="mr-2 text-lg">+</span>Create a key
           </button>
         </div>
+        {error && <div>{error}</div>}
       </div>
       <ModalTemplate
         isOpen={modalOpen}
@@ -90,7 +95,6 @@ export const ApiKeyList = () => {
             >
               Create
             </button>
-            {error && <div>{error}</div>}
           </div>
         </div>
       </ModalTemplate>

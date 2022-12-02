@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ApiKeyList } from "../../components/APIKeyList";
 import { getApiKeys, createApiKey } from "../../utils/account-requests";
 
