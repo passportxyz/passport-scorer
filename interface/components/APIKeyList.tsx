@@ -8,7 +8,12 @@ import { SettingsIcon, DeleteIcon, Icon } from "@chakra-ui/icons";
 import { MdFileCopy } from "react-icons/md";
 
 // --- Utils
-import { ApiKeys, createApiKey, getApiKeys, deleteApiKey } from "../utils/account-requests";
+import {
+  ApiKeys,
+  createApiKey,
+  getApiKeys,
+  deleteApiKey,
+} from "../utils/account-requests";
 import NoValues from "./NoValues";
 
 export const ApiKeyList = () => {
@@ -45,13 +50,14 @@ export const ApiKeyList = () => {
     }
   };
 
-  const handleDeleteApiKey = async (apiKeyId: ApiKeys["id"]) => {
+  const handleDeleteApiKey = async (apiKeyId: ApiKeys["prefix"]) => {
     try {
       await deleteApiKey(apiKeyId);
+      setApiKeys(await getApiKeys());
     } catch (error) {
-      console.error(error)
+      console.error(error);
     }
-  }
+  };
 
   if (error) {
     return <div>{error}</div>;
@@ -76,28 +82,37 @@ export const ApiKeyList = () => {
         <div className="flex h-[40rem] md:h-[45rem]">
           <div className="flex w-full">
             <div className="flex w-3/4 flex-col">
-            {apiKeys.map((key, i) => (
-            <div
-              key={key.id}
-              className="my-2 flex w-full justify-between rounded border border-gray-lightgray p-4 items-center bg-white hover:bg-gray-50"
-            >
-              <div className="font-semibold">
-                <p>{key.name}</p>
-              </div>
-              <div className="text-purple-softpurple">
-                <p>{key.id.substring(0, 30)}...<span><Icon className="ml-1" as={MdFileCopy} color="#757087" /></span></p>
-              </div>
-              <div className="bg-gray-lightgray rounded-full px-3 py-1">
-                <p>Connected</p>
-              </div>
-              <button 
-                className="border border-gray-lightgray rounded-md px-3 pt-1 pb-2 shadow-sm shadow-gray-100 bg-white" 
-                onClick={async () => await handleDeleteApiKey(key.id)}
-              >
-                <DeleteIcon color="#757087" />
-              </button>
-            </div>
-          ))}
+              {apiKeys.map((key, i) => (
+                <div
+                  key={key.prefix}
+                  className="my-2 flex w-full items-center justify-between rounded border border-gray-lightgray bg-white p-4 hover:bg-gray-50"
+                >
+                  <div className="font-semibold">
+                    <p>{key.name}</p>
+                  </div>
+                  <div className="text-purple-softpurple">
+                    <p>
+                      {key.prefix}...
+                      <span>
+                        <Icon
+                          className="ml-1"
+                          as={MdFileCopy}
+                          color="#757087"
+                        />
+                      </span>
+                    </p>
+                  </div>
+                  <div className="rounded-full bg-gray-lightgray px-3 py-1">
+                    <p>Connected</p>
+                  </div>
+                  <button
+                    className="rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
+                    onClick={async () => await handleDeleteApiKey(key.prefix)}
+                  >
+                    <DeleteIcon color="#757087" />
+                  </button>
+                </div>
+              ))}
             </div>
             <div className="flex w-1/4 flex-col p-4">
               <button

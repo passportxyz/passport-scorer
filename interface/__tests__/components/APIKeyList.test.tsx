@@ -11,8 +11,8 @@ jest.mock("../../utils/account-requests.ts", () => ({
 describe("APIKeyList", () => {
   beforeEach(() => {
     (getApiKeys as jest.Mock).mockResolvedValue([
-      { name: "key1", id: "safasfasdf" },
-      { name: "key2", id: "asdfasf" },
+      { name: "key1", prefix: "safasfasdf" },
+      { name: "key2", prefix: "asdfasf" },
     ]);
     (createApiKey as jest.Mock).mockResolvedValue({});
   });
