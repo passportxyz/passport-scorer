@@ -4,21 +4,33 @@ import React from "react";
 // --- Components
 import { RepeatIcon } from "@chakra-ui/icons";
 
-const NoCommunities = ({}): JSX.Element => {
+const NoCommunities = ({
+  addRequest,
+}: {
+  addRequest: () => void;
+}): JSX.Element => {
   return (
-    <div className="flex flex-col justify-center h-[40rem] md:h-[45rem]">
-      <div className="bg-white p-2 w-13 flex mx-auto justify-center text-center rounded-full text-gray-lightgray border mb-8">
+    <div className="flex h-[40rem] flex-col justify-center md:h-[45rem]">
+      <div className="w-13 mx-auto mb-8 flex justify-center rounded-full border bg-white p-2 text-center text-gray-lightgray">
         <RepeatIcon viewBox="0 0 25 25" boxSize="1.9em" color="#757087" />
       </div>
-      <div className="flex flex-col justify-center text-center align-middle mx-auto">
-        <h2 className="text-xl font-miriamlibre text-purple-softpurple mx-auto">My Communities</h2>
-        <p className="font-librefranklin mt-2 text-purple-softpurple w-9/12 mx-auto">Manage how your dapps interact with the Gitcoin Passport by creating a key that will connect to any community.</p>
-        <button className="mt-6 w-40 pt-1 pb-2 bg-purple-softpurple rounded-md text-white mx-auto">
-        <span className="text-xl">+</span> Add
+      <div className="mx-auto flex flex-col justify-center text-center align-middle">
+        <h2 className="mx-auto font-miriamlibre text-xl text-purple-softpurple">
+          My Communities
+        </h2>
+        <p className="mx-auto mt-2 w-9/12 font-librefranklin text-purple-softpurple">
+          Manage how your dapps interact with the Gitcoin Passport by creating a
+          key that will connect to any community.
+        </p>
+        <button
+          onClick={addRequest}
+          className="mx-auto mt-6 w-40 rounded-md bg-purple-softpurple pt-1 pb-2 text-white"
+        >
+          <span className="text-xl">+</span> Add
         </button>
       </div>
     </div>
   );
-}
+};
 
 export default NoCommunities;
