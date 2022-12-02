@@ -83,7 +83,7 @@ class CommunityExistsException(APIException):
 class AccountApiSchema(ModelSchema):
     class Config:
         model = AccountAPIKey
-        model_fields = ['id', 'name']
+        model_fields = ['name', 'prefix']
 
 class CommunityApiSchema(ModelSchema):
     class Config:
@@ -185,12 +185,12 @@ def get_communities(request):
 class APIKeyId(Schema):
     id: str
 
-@api.delete("/api-key/{api_key_id}", auth=JWTAuth())
-def delete_api_key(request, api_key_id):
+@api.delete("/api-key/{prefix}", auth=JWTAuth())
+def delete_api_key(request, prefix):
     try:
         account = Account.objects.get(pk=request.user.id)
         api_keys = AccountAPIKey.objects.filter(account=account).all()
-        api_keys.filter(id=api_key_id).delete()
+        api_keys.filter(prefix=prefix).delete()
     except Account.DoesNotExist:
         raise UnauthorizedException()
     return { "success": True }
