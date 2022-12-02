@@ -7,7 +7,6 @@ import React, { useState } from "react";
 // --- Components
 import Header from "../components/Header";
 import CommunityList from "../components/CommunityList";
-import NoCommunities from "../components/NoCommunities";
 import { SettingsIcon } from "@chakra-ui/icons";
 
 // --- Types
@@ -116,11 +115,7 @@ export default function Dashboard({
               </button>
             </div>
             <div className="flex min-h-full w-full flex-col p-6 md:h-screen">
-              {activeTab === "communities" ? (
-                <CommunityList communities={communities} />
-              ) : (
-                <ApiKeyList />
-              )}
+              {activeTab === "communities" ? <CommunityList /> : <ApiKeyList />}
             </div>
           </div>
         </div>

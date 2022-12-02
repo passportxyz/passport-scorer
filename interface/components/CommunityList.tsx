@@ -2,9 +2,10 @@
 import React, { useEffect, useState } from "react";
 
 // --- Components
+import { RepeatIcon } from "@chakra-ui/icons";
 import CommunityCard from "./CommunityCard";
 import ModalTemplate from "./ModalTemplate";
-import NoCommunities from "./NoCommunities";
+import NoValues from "./NoValues";
 
 // --- Utils
 import {
@@ -60,7 +61,15 @@ const CommunityList = (): JSX.Element => {
   return (
     <>
       {communities.length === 0 ? (
-        <NoCommunities addRequest={() => setModalOpen(true)} />
+        <NoValues
+          title="My Communities"
+          description="Manage how your dapps interact with the Gitcoin Passport by creating a
+        key that will connect to any community."
+          addRequest={() => setModalOpen(true)}
+          icon={
+            <RepeatIcon viewBox="0 0 25 25" boxSize="1.9em" color="#757087" />
+          }
+        />
       ) : (
         <div className="mx-11 mt-10">
           <p className="mb-3 font-librefranklin font-semibold text-purple-softpurple">
