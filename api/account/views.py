@@ -4,6 +4,7 @@ import hashlib
 import string
 import logging
 from typing import cast, List
+from django.shortcuts import get_object_or_404
 
 # --- Web3 & Eth
 from siwe import SiweMessage
@@ -25,11 +26,9 @@ log = logging.getLogger(__name__)
 
 api = NinjaExtraAPI()
 
-
 class SiweVerifySubmit(Schema):
     message: dict
     signature: str
-
 
 CHALLENGE_STATEMENT = "I authorize the passport scorer.\n\nnonce:"
 
@@ -50,12 +49,10 @@ def nonce(request):
         ).hexdigest()
     }
 
-
 class TokenObtainPairOutSchema(Schema):
     refresh: str
     access: str
     # user: UserSchema
-
 
 class UserSchema(Schema):
     first_name: str
@@ -184,3 +181,16 @@ def get_communities(request):
     except Account.DoesNotExist:
         raise UnauthorizedException()
     return communities
+
+class APIKeyId(Schema):
+    id: str
+
+@api.delete("/api-key/{api_key_id}", auth=JWTAuth())
+def delete_api_key(request, api_key_id):
+    # try:
+    account = Account.objects.get(pk=request.user.id)
+    api_keys = AccountAPIKey.objects.filter(account=account).all()
+    api_keys.filter(id=api_key_id).delete()
+    # except Account.DoesNotExist:
+    #     raise UnauthorizedException()
+    return { "response": 200 }

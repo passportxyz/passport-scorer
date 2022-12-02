@@ -7,7 +7,9 @@ import React, { useState } from "react";
 // --- Components
 import Header from "../components/Header";
 import CommunityList from "../components/CommunityList";
-import { SettingsIcon } from "@chakra-ui/icons";
+import NoCommunities from "../components/NoCommunities";
+import { SettingsIcon, Icon } from "@chakra-ui/icons";
+import { GoInbox } from "react-icons/go"
 
 // --- Types
 import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
@@ -74,12 +76,14 @@ export default function Dashboard({
 
   /**
    * @TODO
-   * --> if user has API keys, show them a list of their keys with copy/add/delete buttons and a callout that shows how many keys they have left
+   * --> if user has API keys:
+   * - [] show them a list of their keys with copy buttons & delete buttons
+   * - [] callout that shows how many keys they have left
    */
 
   const tabbedClasses = (tab: string) => {
     const base = "my-4 flex leading-4 cursor-pointer";
-    return tab === activeTab ? `${base} font-bold font-blue-darkblue` : base;
+    return tab === activeTab ? `${base} font-bold font-blue-darkblue` : `${base} text-purple-softpurple`;
   };
 
   return (
@@ -104,14 +108,14 @@ export default function Dashboard({
                 onClick={() => setActiveTab("communities")}
                 className={tabbedClasses("communities")}
               >
-                Communities
+                <Icon as={GoInbox} className="mr-2" />Communities
               </button>
               <button
                 data-testid="api-keys-tab"
                 onClick={() => setActiveTab("apiKeys")}
                 className={tabbedClasses("apiKeys")}
               >
-                <SettingsIcon className="mr-1" /> API Keys
+                <SettingsIcon className="mr-2" /> API Keys
               </button>
             </div>
             <div className="flex min-h-full w-full flex-col p-6 md:h-screen">

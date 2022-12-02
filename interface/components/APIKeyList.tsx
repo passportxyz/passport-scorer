@@ -4,10 +4,11 @@ import React, { useEffect, useState } from "react";
 // --- Components
 import { Input } from "@chakra-ui/react";
 import ModalTemplate from "./ModalTemplate";
-import { SettingsIcon } from "@chakra-ui/icons";
+import { SettingsIcon, DeleteIcon, Icon } from "@chakra-ui/icons";
+import { MdFileCopy } from "react-icons/md";
 
 // --- Utils
-import { ApiKeys, createApiKey, getApiKeys } from "../utils/account-requests";
+import { ApiKeys, createApiKey, getApiKeys, deleteApiKey } from "../utils/account-requests";
 import NoValues from "./NoValues";
 
 export const ApiKeyList = () => {
@@ -43,6 +44,14 @@ export const ApiKeyList = () => {
       setError("There was an error creating your API key.");
     }
   };
+
+  const handleDeleteApiKey = async (apiKeyId: ApiKeys["id"]) => {
+    try {
+      await deleteApiKey(apiKeyId);
+    } catch (error) {
+      console.error(error)
+    }
+  }
 
   if (error) {
     return <div>{error}</div>;
@@ -89,6 +98,43 @@ export const ApiKeyList = () => {
             {modalOpen}
             {error && <div>{error}</div>}
           </div>
+    <div className="flex h-[40rem] md:h-[45rem]">
+      <div className="flex w-full">
+        <div className="flex w-3/4 flex-col">
+          {apiKeys.map((key, i) => (
+            <div
+              key={key.id}
+              className="my-2 flex w-full justify-between rounded border border-gray-lightgray p-4 items-center bg-white hover:bg-gray-50"
+            >
+              <div className="font-semibold">
+                <p>{key.name}</p>
+              </div>
+              <div className="text-purple-softpurple">
+                <p>{key.id.substring(0, 30)}...<span><Icon className="ml-1" as={MdFileCopy} color="#757087" /></span></p>
+              </div>
+              <div className="bg-gray-lightgray rounded-full px-3 py-1">
+                <p>Connected</p>
+              </div>
+              <button 
+                className="border border-gray-lightgray rounded-md px-3 pt-1 pb-2 shadow-sm shadow-gray-100 bg-white" 
+                onClick={async () => await handleDeleteApiKey(key.id)}
+              >
+                <DeleteIcon color="#757087" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="flex w-1/4 flex-col p-4 ml-2">
+          <div className="text-purple-softpurple mb-3">
+            <p>Communicate between applications by connecting a key to request service from the community/organization.</p>
+          </div>
+          <button
+            data-testid="open-api-key-modal"
+            className="rounded bg-purple-softpurple py-2 px-4 text-white"
+            onClick={() => setModalOpen(true)}
+          >
+            <span className="mr-2 text-lg">+</span>Create a key
+          </button>
         </div>
       )}
       <ModalTemplate
