@@ -173,8 +173,8 @@ class AccountTestCase(TestCase):
         self.assertEqual(valid_response.status_code, 200)
         json_response = valid_response.json()
         self.assertEqual(len(json_response), 3)
-        self.assertTrue("id" in json_response[0])
-        self.assertTrue("id" in json_response[1])
+        self.assertTrue("prefix" in json_response[0])
+        self.assertTrue("prefix" in json_response[1])
 
     def test_create_community(self):
         """Test creation of a community"""
@@ -225,8 +225,8 @@ class AccountTestCase(TestCase):
 
         response, account, signed_message = authenticate(client)
         access_token = response.json()['access']
-        client.post("/account/api-key", json.dumps({"id": "123-test-456"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
-        client.post("/account/api-key", json.dumps({"id": "123-test-456"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        client.post("/account/api-key", json.dumps({"prefix": "123-test-456"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        client.post("/account/api-key", json.dumps({"prefix": "123-test-456"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
 
         valid_response = client.delete("/account/api-key/123-test-456", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
         valid_response = client.delete("/account/api-key/123-test-456", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
