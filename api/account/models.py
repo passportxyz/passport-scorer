@@ -22,6 +22,7 @@ class AccountAPIKey(AbstractAPIKey):
 
 class Communities(models.Model):
     name = models.CharField(max_length=100, blank=False, null=False)
+    description = models.CharField(max_length=100, blank=False, null=False, default="My community")
     account = models.ForeignKey(
         Account,
         on_delete=models.CASCADE,
