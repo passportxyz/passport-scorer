@@ -53,6 +53,7 @@ export const ApiKeyList = () => {
   const handleDeleteApiKey = async (apiKeyId: ApiKeys["prefix"]) => {
     try {
       await deleteApiKey(apiKeyId);
+      setApiKeys(await getApiKeys());
     } catch (error) {
       console.error(error);
     }
