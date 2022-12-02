@@ -173,3 +173,21 @@ class AccountTestCase(TestCase):
         self.assertTrue("id" in json_response[0])
         self.assertTrue("id" in json_response[1])
 
+    def test_delete_api_key(self):
+        """Test deleting the selected API key"""
+        client = Client()
+
+        invalid_response = client.delete("/account/api-key/123-test-456", **{'HTTP_AUTHORIZATION': f'Bearer bad_token'})
+        self.assertEqual(invalid_response.status_code, 401)
+
+        response, account, signed_message = authenticate(client)
+        access_token = response.json()['access']
+        client.post("/account/api-key", json.dumps({"id": "123-test-456"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        client.post("/account/api-key", json.dumps({"id": "123-test-456"}), content_type="application/json", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+
+        valid_response = client.delete("/account/api-key/123-test-456", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+        valid_response = client.delete("/account/api-key/123-test-456", **{'HTTP_AUTHORIZATION': f'Bearer {access_token}'})
+
+        self.assertEqual(valid_response.status_code, 200)
+        data = valid_response.json()
+        self.assertTrue("success" in data)
