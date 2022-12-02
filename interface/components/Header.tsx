@@ -18,9 +18,9 @@ const Header = ({ authenticationStatus }: HeaderProps): JSX.Element => {
       {/* Left side row */}
       <div className="flex flex-col flex-wrap py-2 sm:p-5">
         <div className="h-9 mb-0 flex flex-row items-center font-medium text-gray-900">
-          <img className="w-5 sm:w-full" src="/assets/gitcoinLogoDark.svg" alt="Gitcoin Logo" />
+          <img className="" src="/assets/gitcoinLogoDark.svg" alt="Gitcoin Logo" />
           <img className="md:mx-6 mx-3" src="/assets/logoLine.svg" alt="Logo Line" />
-          <img className="w-3/6 sm:w-full" src="/assets/passportLogoBlack.svg" alt="Passport Logo" />
+          <img className="" src="/assets/passportLogoBlack.svg" alt="Passport Logo" />
         </div>
       </div>
       {/* Right side row  */}
