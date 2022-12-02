@@ -22,7 +22,7 @@ export const createApiKey = async (name: string) => {
 };
 
 export type ApiKeys = {
-  id: string;
+  prefix: string;
   name: string;
   created: string;
 };
@@ -39,6 +39,21 @@ export const getApiKeys = async (): Promise<ApiKeys[]> => {
 
     const { data } = response;
     return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteApiKey = async (
+  apiKeyId: ApiKeys["prefix"]
+): Promise<void> => {
+  try {
+    const token = localStorage.getItem("access-token");
+    await axios.delete(`${SCORER_BACKEND}account/api-key/${apiKeyId}`, {
+      headers: {
+        AUTHORIZATION: `Bearer ${token}`,
+      },
+    });
   } catch (error) {
     throw error;
   }
@@ -79,19 +94,6 @@ export const getCommunities = async (): Promise<Community[]> => {
 
     const { data } = response;
     return data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const deleteApiKey = async (apiKeyId: ApiKeys["id"]): Promise<void> => {
-  try {
-    const token = localStorage.getItem("access-token");
-    await axios.delete(`${SCORER_BACKEND}account/api-key/${apiKeyId}`, {
-      headers: {
-        AUTHORIZATION: `Bearer ${token}`,
-      },
-    });
   } catch (error) {
     throw error;
   }
