@@ -76,32 +76,7 @@ export const ApiKeyList = () => {
         <div className="flex h-[40rem] md:h-[45rem]">
           <div className="flex w-full">
             <div className="flex w-3/4 flex-col">
-              {apiKeys.map((key, i) => (
-                <div
-                  key={key.id}
-                  className="my-2 flex w-full justify-between rounded border border-gray-lightgray p-4"
-                >
-                  <p>{key.name}</p>
-                  <p>{key.id.substring(0, 30)}...</p>
-                </div>
-              ))}
-            </div>
-            <div className="flex w-1/4 flex-col p-4">
-              <button
-                data-testid="open-api-key-modal"
-                className="rounded bg-purple-softpurple py-2 px-4 text-white"
-                onClick={() => setModalOpen(true)}
-              >
-                <span className="mr-2 text-lg">+</span>Create a key
-              </button>
-            </div>
-            {modalOpen}
-            {error && <div>{error}</div>}
-          </div>
-    <div className="flex h-[40rem] md:h-[45rem]">
-      <div className="flex w-full">
-        <div className="flex w-3/4 flex-col">
-          {apiKeys.map((key, i) => (
+            {apiKeys.map((key, i) => (
             <div
               key={key.id}
               className="my-2 flex w-full justify-between rounded border border-gray-lightgray p-4 items-center bg-white hover:bg-gray-50"
@@ -123,18 +98,19 @@ export const ApiKeyList = () => {
               </button>
             </div>
           ))}
-        </div>
-        <div className="flex w-1/4 flex-col p-4 ml-2">
-          <div className="text-purple-softpurple mb-3">
-            <p>Communicate between applications by connecting a key to request service from the community/organization.</p>
+            </div>
+            <div className="flex w-1/4 flex-col p-4">
+              <button
+                data-testid="open-api-key-modal"
+                className="rounded bg-purple-softpurple py-2 px-4 text-white"
+                onClick={() => setModalOpen(true)}
+              >
+                <span className="mr-2 text-lg">+</span>Create a key
+              </button>
+            </div>
+            {modalOpen}
+            {error && <div>{error}</div>}
           </div>
-          <button
-            data-testid="open-api-key-modal"
-            className="rounded bg-purple-softpurple py-2 px-4 text-white"
-            onClick={() => setModalOpen(true)}
-          >
-            <span className="mr-2 text-lg">+</span>Create a key
-          </button>
         </div>
       )}
       <ModalTemplate

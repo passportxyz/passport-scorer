@@ -187,10 +187,10 @@ class APIKeyId(Schema):
 
 @api.delete("/api-key/{api_key_id}", auth=JWTAuth())
 def delete_api_key(request, api_key_id):
-    # try:
-    account = Account.objects.get(pk=request.user.id)
-    api_keys = AccountAPIKey.objects.filter(account=account).all()
-    api_keys.filter(id=api_key_id).delete()
-    # except Account.DoesNotExist:
-    #     raise UnauthorizedException()
-    return { "response": 200 }
+    try:
+        account = Account.objects.get(pk=request.user.id)
+        api_keys = AccountAPIKey.objects.filter(account=account).all()
+        api_keys.filter(id=api_key_id).delete()
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
+    return { "success": True }
