@@ -88,6 +88,11 @@ class AccountApiSchema(ModelSchema):
         model = AccountAPIKey
         model_fields = ['id', 'name']
 
+class CommunityApiSchema(ModelSchema):
+    class Config:
+        model = Communities
+        model_fields = ['name', 'description']
+
 @api.post("/verify", response=TokenObtainPairOutSchema)
 def submit_signed_challenge(request, payload: SiweVerifySubmit):
 
@@ -151,6 +156,7 @@ def health(request):
 
 class CommunitiesPayload(Schema):
     name: str
+    description: str
 
 @api.post("/communities", auth=JWTAuth())
 def create_community(request, payload: CommunitiesPayload):
@@ -162,9 +168,19 @@ def create_community(request, payload: CommunitiesPayload):
         if Communities.objects.filter(name=payload.name).count() > 0:
             raise CommunityExistsException()
 
-        Communities.objects.create(account=account, name=payload.name)
+        Communities.objects.create(account=account, name=payload.name, description=payload.description)
 
     except Account.DoesNotExist:
         raise UnauthorizedException()
 
     return {"ok": True}
+
+@api.get("/communities", auth=JWTAuth(), response=List[CommunityApiSchema])
+def get_communities(request):
+    try:
+        account = Account.objects.get(pk=request.user.id)
+        communities = Communities.objects.filter(account=account).all()
+        
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
+    return communities
