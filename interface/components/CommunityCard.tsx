@@ -2,7 +2,7 @@
 import React from "react";
 
 // --- Types
-import { Community } from "../pages/dashboard";
+import { Community } from "../utils/account-requests";
 
 type CommunityCardProps = {
   community: Community;

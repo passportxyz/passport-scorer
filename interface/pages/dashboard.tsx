@@ -7,7 +7,6 @@ import React, { useState } from "react";
 // --- Components
 import Header from "../components/Header";
 import CommunityList from "../components/CommunityList";
-import NoCommunities from "../components/NoCommunities";
 import { SettingsIcon, Icon } from "@chakra-ui/icons";
 import { GoInbox } from "react-icons/go"
 
@@ -25,60 +24,10 @@ export default function Dashboard({
   authenticationStatus,
 }: DashboardProps) {
   const [activeTab, setActiveTab] = useState("communities");
-  // const { address } = useAccount();
-  // const { isLoading } = useConnect();
-
-  // Mock -- communities
-  // const [communities, setCommunities] = useState([
-  //   {
-  //     name: "Gitcoin Grants Protocol",
-  //     description: "Where web3 projects get funded.",
-  //   },
-  //   {
-  //     name: "Bankless",
-  //     description: "Media and Social DAO Onboarding 1 billion people to crypto.",
-  //   },
-  //   {
-  //     name: "Optimism",
-  //     description: "Purchase an .eth name to verify/ connect your existing account."
-  //   }
-  // ]);
-
-  // Mock -- no communities
-  const [communities, setCommunities] = useState([]);
-
-  /**
-   * @TODO
-   * --> if user is authenticated, show them their dashboard -- if user is unauthenticated, show them the default dashboard
-   * --> Or -- make it so that if a user is unauthenticated they're automatically routed back to the Home page
-   */
-
-  /**
-   * @TODO
-   * --> if user has communities, list those communities -- otherwise show the default dashboard UI
-   */
-
-  /**
-   * @TODO
-   * --> when user clicks on "Add", a modal pops up where they can create a new Community
-   * --> sends POST request to backend where a new Community will be created in db
-   */
-
-  /**
-   * @TODO
-   * --> when user clicks on "Create a Key", a modal pops up -- that connects to an auto-generated API key in the BE -- and allows user to assign a name to the key and save it to their account
-   */
 
   /**
    * @TODO
    * --> if user has communities, show them the "Create key" button in the top part of the page
-   */
-
-  /**
-   * @TODO
-   * --> if user has API keys:
-   * - [] show them a list of their keys with copy buttons & delete buttons
-   * - [] callout that shows how many keys they have left
    */
 
   const tabbedClasses = (tab: string) => {
