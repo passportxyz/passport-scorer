@@ -42,9 +42,7 @@ export const ApiKeyList = () => {
 
   const handleDeleteApiKey = async (apiKeyId: ApiKeys["id"]) => {
     try {
-      const response = await deleteApiKey(apiKeyId);
-      console.log(response);
-      return response;
+      await deleteApiKey(apiKeyId);
     } catch (error) {
       console.error(error)
     }
@@ -68,14 +66,13 @@ export const ApiKeyList = () => {
               </div>
               <div className="text-purple-softpurple">
                 <p>{key.id.substring(0, 30)}...<span><Icon className="ml-1" as={MdFileCopy} color="#757087" /></span></p>
-                <p className="italic text-sm">{key.created}</p>
               </div>
               <div className="bg-gray-lightgray rounded-full px-3 py-1">
                 <p>Connected</p>
               </div>
               <button 
                 className="border border-gray-lightgray rounded-md px-3 pt-1 pb-2 shadow-sm shadow-gray-100 bg-white" 
-                onClick={() => handleDeleteApiKey(key.id)}
+                onClick={async () => await handleDeleteApiKey(key.id)}
               >
                 <DeleteIcon color="#757087" />
               </button>

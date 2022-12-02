@@ -26,11 +26,9 @@ log = logging.getLogger(__name__)
 
 api = NinjaExtraAPI()
 
-
 class SiweVerifySubmit(Schema):
     message: dict
     signature: str
-
 
 CHALLENGE_STATEMENT = "I authorize the passport scorer.\n\nnonce:"
 
@@ -51,12 +49,10 @@ def nonce(request):
         ).hexdigest()
     }
 
-
 class TokenObtainPairOutSchema(Schema):
     refresh: str
     access: str
     # user: UserSchema
-
 
 class UserSchema(Schema):
     first_name: str
@@ -113,9 +109,6 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
 class APIKeyName(Schema):
     name: str
 
-class APIKeyId(Schema):
-    id: str
-
 @api.post("/api-key", auth=JWTAuth())
 def create_api_key(request, payload: APIKeyName):
     try:
@@ -145,14 +138,15 @@ def get_api_keys(request):
 def health(request):
     return HttpResponse("Ok")
 
+class APIKeyId(Schema):
+    id: str
+
 @api.delete("/api-key/{api_key_id}", auth=JWTAuth())
 def delete_api_key(request, api_key_id):
-    try:
-        account = Account.objects.get(pk=request.user.id)
-        api_keys = AccountAPIKey.objects.filter(account=account).all()
-        api_keys.filter(id=api_key_id).delete()
-    
-    except Account.DoesNotExist:
-        raise UnauthorizedException
-
-    return { "success": True }
+    # try:
+    account = Account.objects.get(pk=request.user.id)
+    api_keys = AccountAPIKey.objects.filter(account=account).all()
+    api_keys.filter(id=api_key_id).delete()
+    # except Account.DoesNotExist:
+    #     raise UnauthorizedException()
+    return { "response": 200 }

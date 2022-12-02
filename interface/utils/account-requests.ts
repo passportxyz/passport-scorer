@@ -1,12 +1,13 @@
 import axios from "axios";
 
+const SCORER_BACKEND = process.env.NEXT_PUBLIC_PASSPORT_SCORER_BACKEND;
+
 export const createApiKey = async (name: string) => {
   try {
-    const SCORER_BACKEND = process.env.NEXT_PUBLIC_PASSPORT_SCORER_BACKEND;
     const token = localStorage.getItem("access-token");
     const response = await axios.post(
       `${SCORER_BACKEND}account/api-key`,
-      { data: { name } },
+      { name },
       {
         headers: {
           "Content-Type": "application/json",
@@ -28,7 +29,6 @@ export type ApiKeys = {
 
 export const getApiKeys = async (): Promise<ApiKeys[]> => {
   try {
-    const SCORER_BACKEND = process.env.NEXT_PUBLIC_PASSPORT_SCORER_BACKEND;
     const token = localStorage.getItem("access-token");
     const response = await axios.get(`${SCORER_BACKEND}account/api-key`, {
       headers: {
@@ -44,19 +44,14 @@ export const getApiKeys = async (): Promise<ApiKeys[]> => {
   }
 };
 
-export const deleteApiKey = async (apiKeyId: ApiKeys["id"]) => {
+export const deleteApiKey = async (apiKeyId: ApiKeys["id"]): Promise<void> => {
   try {
-    const SCORER_BACKEND = process.env.NEXT_PUBLIC_PASSPORT_SCORER_BACKEND;
     const token = localStorage.getItem("access-token");
-
-    const response = await fetch(`${SCORER_BACKEND}account/api-key/${apiKeyId}`, {
-      method: "DELETE",
+    await axios.delete(`${SCORER_BACKEND}account/api-key/${apiKeyId}`, {
       headers: {
         AUTHORIZATION: `Bearer ${token}`,
       },
     });
-    const data = await response.json();
-    return data;
   } catch (error) {
     throw error;
   }
