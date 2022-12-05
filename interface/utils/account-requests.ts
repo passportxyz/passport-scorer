@@ -11,7 +11,7 @@ export const createApiKey = async (name: string) => {
       {
         headers: {
           "Content-Type": "application/json",
-          AUTHORIZATION: `Bearer ${token}`,
+          "Authorization": `Bearer ${token}`,
         },
       }
     );
@@ -33,7 +33,7 @@ export const getApiKeys = async (): Promise<ApiKeys[]> => {
     const response = await axios.get(`${SCORER_BACKEND}account/api-key`, {
       headers: {
         "Content-Type": "application/json",
-        AUTHORIZATION: `Bearer ${token}`,
+        "Authorization": `Bearer ${token}`,
       },
     });
 
@@ -51,7 +51,7 @@ export const deleteApiKey = async (
     const token = localStorage.getItem("access-token");
     await axios.delete(`${SCORER_BACKEND}account/api-key/${apiKeyId}`, {
       headers: {
-        AUTHORIZATION: `Bearer ${token}`,
+        "Authorization": `Bearer ${token}`,
       },
     });
   } catch (error) {
@@ -73,7 +73,7 @@ export const createCommunity = async (community: Community) => {
       {
         headers: {
           "Content-Type": "application/json",
-          AUTHORIZATION: `Bearer ${token}`,
+          "Authorization": `Bearer ${token}`,
         },
       }
     );
@@ -88,7 +88,7 @@ export const getCommunities = async (): Promise<Community[]> => {
     const response = await axios.get(`${SCORER_BACKEND}account/communities`, {
       headers: {
         "Content-Type": "application/json",
-        AUTHORIZATION: `Bearer ${token}`,
+        "Authorization": `Bearer ${token}`,
       },
     });
 
