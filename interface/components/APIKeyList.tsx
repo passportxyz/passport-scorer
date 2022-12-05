@@ -50,7 +50,7 @@ export const ApiKeyList = () => {
     }
   };
 
-  const handleDeleteApiKey = async (apiKeyId: ApiKeys["prefix"]) => {
+  const handleDeleteApiKey = async (apiKeyId: ApiKeys["id"]) => {
     try {
       await deleteApiKey(apiKeyId);
       setApiKeys(await getApiKeys());
@@ -84,7 +84,7 @@ export const ApiKeyList = () => {
             <div className="flex w-3/4 flex-col">
               {apiKeys.map((key, i) => (
                 <div
-                  key={key.prefix}
+                  key={key.id}
                   className="my-2 flex w-full items-center justify-between rounded border border-gray-lightgray bg-white p-4 hover:bg-gray-50"
                 >
                   <div className="font-semibold">
@@ -92,7 +92,7 @@ export const ApiKeyList = () => {
                   </div>
                   <div className="text-purple-softpurple">
                     <p>
-                      {key.prefix}...
+                      {key.id.substring(0, 15)}...
                       <span>
                         <Icon
                           className="ml-1"
@@ -107,7 +107,7 @@ export const ApiKeyList = () => {
                   </div>
                   <button
                     className="rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
-                    onClick={async () => await handleDeleteApiKey(key.prefix)}
+                    onClick={async () => await handleDeleteApiKey(key.id)}
                   >
                     <DeleteIcon color="#757087" />
                   </button>
