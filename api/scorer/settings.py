@@ -91,8 +91,12 @@ TEMPLATES = [
 WSGI_APPLICATION = "scorer.wsgi.application"
 
 
+CSRF_TRUSTED_ORIGINS = env.json("CSRF_TRUSTED_ORIGINS", default=[])
+
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
+print("=" * 50)
+print("CSRF_TRUSTED_ORIGINS", CSRF_TRUSTED_ORIGINS)
 print("=" * 50)
 print("ALLOWED_HOSTS", ALLOWED_HOSTS)
 print("=" * 80)
@@ -100,6 +104,7 @@ print("BASE_DIR", BASE_DIR)
 print("=" * 80)
 print("DATABASE", env.db(default="sqlite:///db.sqlite3"))
 print("=" * 50)
+
 DATABASES = {
     "default": env.db(default="sqlite:///db.sqlite3"),
 }
