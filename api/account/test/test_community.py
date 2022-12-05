@@ -1,93 +1,157 @@
 from django.test import TestCase
 from django.test import Client
-
-# Create your tests here.
+from django.contrib.auth.models import User
+from ninja_jwt.schema import RefreshToken
 
 import json
-from .authenticate import authenticate
 
-mock_api_key_body = {"name": "test"}
+from account.models import Account, Community
+
 mock_community_body = {"name": "test", "description": "test"}
 
-
-class AccountTestCase(TestCase):
+class CommunityTestCase(TestCase):
     def setUp(self):
-        pass
+        User.objects.create_user(username="admin", password="12345")
 
-    def test_create_community(self):
-        """Test creation of a community"""
+        self.user = User.objects.create_user(username="testuser-1", password="12345")
+        self.user2 = User.objects.create_user(username="testuser-2", password="12345")
+
+        refresh = RefreshToken.for_user(self.user)
+        self.access_token = refresh.access_token
+
+        (self.account, _created) = Account.objects.get_or_create(
+            user=self.user, defaults={"address": "0x0"}
+        )
+        (self.account2, _created) = Account.objects.get_or_create(
+            user=self.user2, defaults={"address": "0x0"}
+        )
+    def test_create_community_with_bad_token(self):
+        """Test that creation of a community with bad token fails"""
         client = Client()
-        response, account, signed_message = authenticate(client)
-        access_token = response.json()["access"]
 
         invalid_response = client.post(
             "/account/communities",
             json.dumps(mock_community_body),
             content_type="application/json",
-            **{"HTTP_AUTHORIZATION": f"Bearer invalid_token"},
+            **{"HTTP_AUTHORIZATION": f"Bearer bad_token"},
         )
         self.assertEqual(invalid_response.status_code, 401)
 
-        valid_response = client.post(
+    def test_create_community(self):
+        """Test that creation of a community works"""
+        client = Client()
+        community_response = client.post(
             "/account/communities",
             json.dumps(mock_community_body),
             content_type="application/json",
-            **{"HTTP_AUTHORIZATION": f"Bearer {access_token}"},
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
         )
-        self.assertEqual(valid_response.status_code, 200)
+        self.assertEqual(community_response.status_code, 200)
 
-        duplicate_community = client.post(
+        # Check that the community was created
+        all_communities = list(Community.objects.all())
+        self.assertEqual(len(all_communities), 1)
+        self.assertEqual(all_communities[0].account.user.username, self.user.username)
+
+    def test_create_community_with_no_name(self):
+        """Test that creation of a community with no name fails"""
+        client = Client()
+        community_response = client.post(
             "/account/communities",
-            json.dumps(mock_community_body),
+            json.dumps({"description": "test"}),
             content_type="application/json",
-            **{"HTTP_AUTHORIZATION": f"Bearer {access_token}"},
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
         )
-        self.assertEqual(duplicate_community.status_code, 401)
+        self.assertEqual(community_response.status_code, 422)
 
-        # Check too many communities
-        for i in range(0, 4):
-            client.post(
+    def test_create_community_with_duplicate_name(self):
+        """Test that creation of a community with duplicate name fails"""
+        client = Client()
+        # create first community
+        community_response = client.post(
+            "/account/communities",
+            json.dumps({"name": "test", "description": "first community"}),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response.status_code, 200)
+
+        community_response1 = client.post(
+            "/account/communities",
+            json.dumps({"name": "test", "description": "another community"}),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response1.status_code, 400)
+    
+    def test_create_community_with_no_description(self):
+        """Test that creation of a community with no description fails"""
+        client = Client()
+        community_response = client.post(
+            "/account/communities",
+            json.dumps({"name": "test"}),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response.status_code, 422)
+
+    def test_create_community_with_no_body(self):
+        """Test that creation of a community with no body fails"""
+        client = Client()
+        community_response = client.post(
+            "/account/communities",
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response.status_code, 422)
+
+    def test_create_max_communities(self):
+        """Test that a user is only allowed to create maximum 5 communities"""
+        client = Client()
+
+        # Create 5 communities
+        for i in range(5):
+            community_response = client.post(
                 "/account/communities",
-                json.dumps({"name": f"test{i}"}),
+                json.dumps(mock_community_body),
                 content_type="application/json",
-                **{"HTTP_AUTHORIZATION": f"Bearer {access_token}"},
+                **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
             )
+            self.assertEqual(community_response.status_code, 200)
 
-        too_many_communities = client.post(
+        # check that we are throwing a 401 if they have already created an account
+        community_response = client.post(
             "/account/communities",
             json.dumps(mock_community_body),
             content_type="application/json",
-            **{"HTTP_AUTHORIZATION": f"Bearer {access_token}"},
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
         )
-        self.assertEqual(too_many_communities.status_code, 401)
+        self.assertEqual(community_response.status_code, 401)
+
+       # Check that only 5 Communities are in the DB
+        all_communities = list(Community.objects.all())
+        self.assertEqual(len(all_communities), 5)
+
+
 
     def test_get_communities(self):
-        """Test getting communities"""
+        """Test that getting communities works"""
         client = Client()
-        response, account, signed_message = authenticate(client)
-        access_token = response.json()["access"]
 
-        invalid_response = client.get(
+        # Create Community for first account
+        Community.objects.create(account=self.account, name="Community for user 1", description="test")
+
+        # Create Community for 2nd account
+        Community.objects.create(account=self.account2, name="Community for user 2", description="test")
+
+        # Get all communities
+        community_response = client.get(
             "/account/communities",
             content_type="application/json",
-            **{"HTTP_AUTHORIZATION": f"Bearer invalid_token"},
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
         )
-        self.assertEqual(invalid_response.status_code, 401)
-
-        valid_response = client.post(
-            "/account/communities",
-            json.dumps(mock_community_body),
-            content_type="application/json",
-            **{"HTTP_AUTHORIZATION": f"Bearer {access_token}"},
-        )
-
-        valid_response = client.get(
-            "/account/communities",
-            content_type="application/json",
-            **{"HTTP_AUTHORIZATION": f"Bearer {access_token}"},
-        )
-        self.assertEqual(valid_response.status_code, 200)
-
-        json_response = valid_response.json()
-        self.assertTrue("description" in json_response[0])
-        self.assertTrue("name" in json_response[0])
+        
+        self.assertEqual(community_response.status_code, 200)
+        json_response = community_response.json()
+        self.assertEqual(len(json_response), 1)
+        self.assertEqual(json_response[0]["name"], "Community for user 1")

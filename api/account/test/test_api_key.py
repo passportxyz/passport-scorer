@@ -59,6 +59,26 @@ class ApiKeyTestCase(TestCase):
         self.assertEqual(len(all_api_keys), 1)
         self.assertEqual(all_api_keys[0].account.user.username, self.user.username)
 
+    def test_create_api_key_with_duplicate_name(self):
+        """Test that creation of an API Key with duplicate name fails"""
+        client = Client()
+        # create first community
+        api_key_response = client.post(
+            "/account/api-key",
+            json.dumps({"name": "test", "description": "first API key"}),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(api_key_response.status_code, 200)
+        
+        api_key_response2 = client.post(
+            "/account/api-key",
+            json.dumps({"name": "test", "description": "another API key"}),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(api_key_response2.status_code, 400)
+
     def test_create_max_api_keys(self):
         """Test that a user is only allowed to create maximum 5 api keys"""
         client = Client()

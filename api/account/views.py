@@ -68,26 +68,37 @@ class MyTokenObtainPairOutSchema(Schema):
     access: str
     user: UserSchema
 
-
 class UnauthorizedException(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
     message = "UnAuthorized"
 
+class ApiKeyDuplicateNameException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    message = "An API Key with this name already exists"
 
 class TooManyKeysException(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
     message = "You have already created 5 API Keys"
 
-
 class TooManyCommunitiesException(APIException):
-    status_code = status.HTTP_401_UNAUTHORIZED
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
     message = "You have already created 5 Communities"
 
-
 class CommunityExistsException(APIException):
-    status_code = status.HTTP_401_UNAUTHORIZED
+    status_code = status.HTTP_400_BAD_REQUEST
     message = "A community with this name already exists"
 
+class CommunityHasNoNameException(APIException):
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    message = "A community must have a name"
+
+class CommunityHasNoDescriptionException(APIException):
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    message = "A community must have a description"
+
+class CommunityHasNoBodyException(APIException):
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    message = "A community must have a name and a description"
 
 class AccountApiSchema(ModelSchema):
     class Config:
@@ -141,6 +152,9 @@ def create_api_key(request, payload: APIKeyName):
         if AccountAPIKey.objects.filter(account=account).count() >= 5:
             raise TooManyKeysException()
 
+        if AccountAPIKey.objects.filter(name=payload.name).count() == 1:
+            raise ApiKeyDuplicateNameException()
+
         key_name = payload.name
 
         api_key, key = AccountAPIKey.objects.create_key(account=account, name=key_name)
@@ -177,8 +191,17 @@ def create_community(request, payload: CommunitiesPayload):
         if Community.objects.filter(account=account).count() >= 5:
             raise TooManyCommunitiesException()
 
-        if Community.objects.filter(name=payload.name).count() > 0:
+        if Community.objects.filter(name=payload.name).count() == 1:
             raise CommunityExistsException()
+
+        if payload.name == None:
+            raise CommunityHasNoNameException()
+
+        if payload.description == None:
+            raise CommunityHasNoDescriptionException()
+
+        if payload == None:
+            raise CommunityHasNoBodyException()
 
         Community.objects.create(
             account=account, name=payload.name, description=payload.description
