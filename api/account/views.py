@@ -237,7 +237,7 @@ class APIKeyId(Schema):
     id: str
 
 
-@api.delete("/api-key/{api_key_id}", auth=JWTAuth())
+@api.delete("/api-key/{path:api_key_id}", auth=JWTAuth())
 def delete_api_key(request, api_key_id):
     try:
         api_key = get_object_or_404(
