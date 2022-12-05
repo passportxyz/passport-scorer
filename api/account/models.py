@@ -4,28 +4,31 @@ from rest_framework_api_key.models import AbstractAPIKey
 
 # Create your models here.
 
+
 class Account(models.Model):
     address = models.CharField(max_length=100, blank=False, null=False)
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        default=None
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, default=None
     )
+
+    def __str__(self):
+        return f"{self.address} - {self.user}"
+
 
 class AccountAPIKey(AbstractAPIKey):
     account = models.ForeignKey(
-        Account,
-        on_delete=models.CASCADE,
-        related_name="api_key",
-        default=None
+        Account, on_delete=models.CASCADE, related_name="api_key", default=None
     )
 
-class Communities(models.Model):
+
+class Community(models.Model):
+    class Meta:
+        verbose_name_plural = "Communities"
+
     name = models.CharField(max_length=100, blank=False, null=False)
-    description = models.CharField(max_length=100, blank=False, null=False, default="My community")
+    description = models.CharField(
+        max_length=100, blank=False, null=False, default="My community"
+    )
     account = models.ForeignKey(
-        Account,
-        on_delete=models.CASCADE,
-        related_name="community",
-        default=None
+        Account, on_delete=models.CASCADE, related_name="community", default=None
     )

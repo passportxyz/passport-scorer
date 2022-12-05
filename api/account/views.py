@@ -18,7 +18,7 @@ from ninja_extra.exceptions import APIException
 from ninja_jwt.authentication import JWTAuth
 
 # --- Models
-from account.models import Account, AccountAPIKey, Communities
+from account.models import Account, AccountAPIKey, Community
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 
@@ -87,7 +87,7 @@ class AccountApiSchema(ModelSchema):
 
 class CommunityApiSchema(ModelSchema):
     class Config:
-        model = Communities
+        model = Community
         model_fields = ['name', 'description']
 
 @api.post("/verify", response=TokenObtainPairOutSchema)
