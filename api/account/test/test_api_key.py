@@ -1,0 +1,144 @@
+from django.test import TestCase
+from django.test import Client
+from django.contrib.auth.models import User
+from ninja_jwt.schema import RefreshToken
+
+import json
+
+from account.models import Account, AccountAPIKey
+
+
+mock_api_key_body = {"name": "test"}
+
+
+class ApiKeyTestCase(TestCase):
+    def setUp(self):
+        # Just create 1 user, to make sure the user id is different than account id
+        # This is to catch errors like the one where the user id is the same as the account id, and
+        # we query the account id by the user id
+        User.objects.create_user(username="admin", password="12345")
+
+        self.user = User.objects.create_user(username="testuser-1", password="12345")
+        self.user2 = User.objects.create_user(username="testuser-2", password="12345")
+
+        refresh = RefreshToken.for_user(self.user)
+        self.access_token = refresh.access_token
+
+        (self.account, _created) = Account.objects.get_or_create(
+            user=self.user, defaults={"address": "0x0"}
+        )
+        (self.account2, _created) = Account.objects.get_or_create(
+            user=self.user2, defaults={"address": "0x0"}
+        )
+
+    def test_create_api_key_with_bad_token(self):
+        """Test that creation of an API key with bad token fails"""
+        client = Client()
+
+        invalid_response = client.post(
+            "/account/api-key",
+            json.dumps(mock_api_key_body),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer bad_token"},
+        )
+        self.assertEqual(invalid_response.status_code, 401)
+
+    def test_create_api_key(self):
+        """Test that creation of an API key works"""
+        client = Client()
+        api_key_response = client.post(
+            "/account/api-key",
+            json.dumps(mock_api_key_body),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(api_key_response.status_code, 200)
+
+        # Check that the API key was created
+        all_api_keys = list(AccountAPIKey.objects.all())
+        self.assertEqual(len(all_api_keys), 1)
+        self.assertEqual(all_api_keys[0].account.user.username, self.user.username)
+
+    def test_create_max_api_keys(self):
+        """Test that a user is only allowed to create maximum 5 api keys"""
+        client = Client()
+        for i in range(5):
+            api_key_response = client.post(
+                "/account/api-key",
+                json.dumps(mock_api_key_body),
+                content_type="application/json",
+                **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+            )
+            self.assertEqual(api_key_response.status_code, 200)
+
+        # check that we are throwing a 401 if they have already created an account
+        api_key_response = client.post(
+            "/account/api-key",
+            json.dumps(mock_api_key_body),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(api_key_response.status_code, 401)
+
+        # Check that only 5 API keys are in the DB
+        all_api_keys = list(AccountAPIKey.objects.all())
+        self.assertEqual(len(all_api_keys), 5)
+
+    def test_get_api_keys_with_bad_token(self):
+        """Test that getting API keys with bad token fails"""
+        client = Client()
+
+        invalid_response = client.get(
+            "/account/api-key",
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer invalid_token"},
+        )
+        self.assertEqual(invalid_response.status_code, 401)
+
+    def test_get_api_keys(self):
+        """Test that getting API keys is succefull and that they are correctly filtered for the logged in user"""
+
+        # Create API key for first account
+        AccountAPIKey.objects.create_key(account=self.account, name="Token for user 1")
+
+        # Create API key for 2nd account
+        AccountAPIKey.objects.create_key(account=self.account2, name="Token for user 2")
+
+        client = Client()
+        valid_response = client.get(
+            "/account/api-key",
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+
+        self.assertEqual(valid_response.status_code, 200)
+        json_response = valid_response.json()
+        self.assertEqual(len(json_response), 1)
+        self.assertEqual(json_response[0]["name"], "Token for user 1")
+
+    def test_delete_api_key(self):
+        """Test deleting the selected API key"""
+
+        # Create API key for first account
+        (account_api_key, _) = AccountAPIKey.objects.create_key(
+            account=self.account, name="Token for user 1"
+        )
+        AccountAPIKey.objects.create_key(
+            account=self.account2, name="Another token for user 1"
+        )
+
+        client = Client()
+
+        valid_response = client.delete(
+            f"/account/api-key/{account_api_key.id}",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+
+        self.assertEqual(valid_response.status_code, 200)
+        data = valid_response.json()
+        self.assertTrue("ok" in data)
+
+        # Check that the object was deleted in the DB
+        all_api_keys = list(AccountAPIKey.objects.all())
+        self.assertEqual(len(all_api_keys), 1)
+        self.assertEqual(all_api_keys[0].name, "Another token for user 1")

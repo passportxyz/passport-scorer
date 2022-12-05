@@ -26,9 +26,11 @@ log = logging.getLogger(__name__)
 
 api = NinjaExtraAPI()
 
+
 class SiweVerifySubmit(Schema):
     message: dict
     signature: str
+
 
 CHALLENGE_STATEMENT = "I authorize the passport scorer.\n\nnonce:"
 
@@ -49,10 +51,12 @@ def nonce(request):
         ).hexdigest()
     }
 
+
 class TokenObtainPairOutSchema(Schema):
     refresh: str
     access: str
     # user: UserSchema
+
 
 class UserSchema(Schema):
     first_name: str
@@ -64,31 +68,38 @@ class MyTokenObtainPairOutSchema(Schema):
     access: str
     user: UserSchema
 
+
 class UnauthorizedException(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
-    message = 'UnAuthorized'
+    message = "UnAuthorized"
+
 
 class TooManyKeysException(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
-    message = 'You have already created 5 API Keys'
+    message = "You have already created 5 API Keys"
+
 
 class TooManyCommunitiesException(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
-    message = 'You have already created 5 Communities'
+    message = "You have already created 5 Communities"
+
 
 class CommunityExistsException(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
-    message = 'A community with this name already exists'
+    message = "A community with this name already exists"
+
 
 class AccountApiSchema(ModelSchema):
     class Config:
         model = AccountAPIKey
-        model_fields = ['name', 'prefix']
+        model_fields = ["name", "prefix"]
+
 
 class CommunityApiSchema(ModelSchema):
     class Config:
         model = Community
-        model_fields = ['name', 'description']
+        model_fields = ["name", "description"]
+
 
 @api.post("/verify", response=TokenObtainPairOutSchema)
 def submit_signed_challenge(request, payload: SiweVerifySubmit):
@@ -122,11 +133,11 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
 class APIKeyName(Schema):
     name: str
 
+
 @api.post("/api-key", auth=JWTAuth())
 def create_api_key(request, payload: APIKeyName):
     try:
-        account = Account.objects.get(pk=request.user.id)
-
+        account = request.user.account
         if AccountAPIKey.objects.filter(account=account).count() >= 5:
             raise TooManyKeysException()
 
@@ -136,61 +147,71 @@ def create_api_key(request, payload: APIKeyName):
     except Account.DoesNotExist:
         raise UnauthorizedException()
 
-    return { "api_key": True }
+    return {"ok": True}
+
 
 @api.get("/api-key", auth=JWTAuth(), response=List[AccountApiSchema])
 def get_api_keys(request):
     try:
-        account = Account.objects.get(pk=request.user.id)
+        account = request.user.account
         api_keys = AccountAPIKey.objects.filter(account=account).all()
-        
+
     except Account.DoesNotExist:
         raise UnauthorizedException()
     return api_keys
 
+
 def health(request):
     return HttpResponse("Ok")
+
 
 class CommunitiesPayload(Schema):
     name: str
     description: str
 
+
 @api.post("/communities", auth=JWTAuth())
 def create_community(request, payload: CommunitiesPayload):
     try:
-        account = Account.objects.get(pk=request.user.id)
+        account = request.user.account
         if Community.objects.filter(account=account).count() >= 5:
             raise TooManyCommunitiesException()
 
         if Community.objects.filter(name=payload.name).count() > 0:
             raise CommunityExistsException()
 
-        Community.objects.create(account=account, name=payload.name, description=payload.description)
+        Community.objects.create(
+            account=account, name=payload.name, description=payload.description
+        )
 
     except Account.DoesNotExist:
         raise UnauthorizedException()
 
     return {"ok": True}
 
+
 @api.get("/communities", auth=JWTAuth(), response=List[CommunityApiSchema])
 def get_communities(request):
     try:
-        account = Account.objects.get(pk=request.user.id)
+        account = request.user.account
         communities = Community.objects.filter(account=account).all()
-        
+
     except Account.DoesNotExist:
         raise UnauthorizedException()
     return communities
 
+
 class APIKeyId(Schema):
     id: str
 
-@api.delete("/api-key/{prefix}", auth=JWTAuth())
-def delete_api_key(request, prefix):
+
+@api.delete("/api-key/{api_key_id}", auth=JWTAuth())
+def delete_api_key(request, api_key_id):
     try:
-        account = Account.objects.get(pk=request.user.id)
-        api_keys = AccountAPIKey.objects.filter(account=account).all()
-        api_keys.filter(prefix=prefix).delete()
+        api_key = get_object_or_404(
+            AccountAPIKey, id=api_key_id, account=request.user.account
+        )
+        api_key.delete()
     except Account.DoesNotExist:
         raise UnauthorizedException()
-    return { "success": True }
+    return {"ok": True}

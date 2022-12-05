@@ -7,8 +7,8 @@ from rest_framework_api_key.models import AbstractAPIKey
 
 class Account(models.Model):
     address = models.CharField(max_length=100, blank=False, null=False)
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, default=None
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="account"
     )
 
     def __str__(self):
