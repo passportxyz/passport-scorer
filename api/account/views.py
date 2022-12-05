@@ -112,7 +112,7 @@ class CommunityHasNoBodyException(APIException):
 class AccountApiSchema(ModelSchema):
     class Config:
         model = AccountAPIKey
-        model_fields = ["name", "prefix"]
+        model_fields = ["name", "id"]
 
 
 class CommunityApiSchema(ModelSchema):
