@@ -113,7 +113,7 @@ class CommunityTestCase(TestCase):
         for i in range(5):
             community_response = client.post(
                 "/account/communities",
-                json.dumps(mock_community_body),
+                json.dumps({"name": f"test {i}", "description": "test"}),
                 content_type="application/json",
                 **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
             )
@@ -126,7 +126,7 @@ class CommunityTestCase(TestCase):
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
         )
-        self.assertEqual(community_response.status_code, 401)
+        self.assertEqual(community_response.status_code, 422)
 
        # Check that only 5 Communities are in the DB
         all_communities = list(Community.objects.all())
