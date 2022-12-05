@@ -68,37 +68,46 @@ class MyTokenObtainPairOutSchema(Schema):
     access: str
     user: UserSchema
 
+
 class UnauthorizedException(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
-    message = "UnAuthorized"
+    default_detail = "UnAuthorized"
+
 
 class ApiKeyDuplicateNameException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    message = "An API Key with this name already exists"
+    default_detail = "An API Key with this name already exists"
+
 
 class TooManyKeysException(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
-    message = "You have already created 5 API Keys"
+    default_detail = "You have already created 5 API Keys"
+
 
 class TooManyCommunitiesException(APIException):
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
-    message = "You have already created 5 Communities"
+    default_detail = "You have already created 5 Communities"
+
 
 class CommunityExistsException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    message = "A community with this name already exists"
+    default_detail = "A community with this name already exists"
+
 
 class CommunityHasNoNameException(APIException):
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
-    message = "A community must have a name"
+    default_detail = "A community must have a name"
+
 
 class CommunityHasNoDescriptionException(APIException):
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
-    message = "A community must have a description"
+    default_detail = "A community must have a description"
+
 
 class CommunityHasNoBodyException(APIException):
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
-    message = "A community must have a name and a description"
+    default_detail = "A community must have a name and a description"
+
 
 class AccountApiSchema(ModelSchema):
     class Config:
