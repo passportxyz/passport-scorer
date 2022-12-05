@@ -159,13 +159,13 @@ class CommunitiesPayload(Schema):
 def create_community(request, payload: CommunitiesPayload):
     try:
         account = Account.objects.get(pk=request.user.id)
-        if Communities.objects.filter(account=account).count() >= 5:
+        if Community.objects.filter(account=account).count() >= 5:
             raise TooManyCommunitiesException()
 
-        if Communities.objects.filter(name=payload.name).count() > 0:
+        if Community.objects.filter(name=payload.name).count() > 0:
             raise CommunityExistsException()
 
-        Communities.objects.create(account=account, name=payload.name, description=payload.description)
+        Community.objects.create(account=account, name=payload.name, description=payload.description)
 
     except Account.DoesNotExist:
         raise UnauthorizedException()
@@ -176,7 +176,7 @@ def create_community(request, payload: CommunitiesPayload):
 def get_communities(request):
     try:
         account = Account.objects.get(pk=request.user.id)
-        communities = Communities.objects.filter(account=account).all()
+        communities = Community.objects.filter(account=account).all()
         
     except Account.DoesNotExist:
         raise UnauthorizedException()
