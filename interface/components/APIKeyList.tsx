@@ -84,7 +84,7 @@ export const ApiKeyList = () => {
             <div className="flex w-3/4 flex-col">
               {apiKeys.map((key, i) => (
                 <div
-                  key={key.prefix}
+                  key={key.id}
                   className="my-2 flex w-full items-center justify-between rounded border border-gray-lightgray bg-white p-4 hover:bg-gray-50"
                 >
                   <div className="font-semibold">
@@ -92,7 +92,7 @@ export const ApiKeyList = () => {
                   </div>
                   <div className="text-purple-softpurple">
                     <p>
-                      {key.prefix}...
+                      {key.id.substring(0, 15)}...
                       <span>
                         <Icon
                           className="ml-1"

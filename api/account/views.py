@@ -115,6 +115,7 @@ class AccountApiSchema(ModelSchema):
         model_fields = ["name", "id", "prefix"]
 
 
+
 class CommunityApiSchema(ModelSchema):
     class Config:
         model = Community
