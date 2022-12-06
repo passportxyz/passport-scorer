@@ -50,7 +50,7 @@ export const ApiKeyList = () => {
     }
   };
 
-  const handleDeleteApiKey = async (apiKeyId: ApiKeys["prefix"]) => {
+  const handleDeleteApiKey = async (apiKeyId: ApiKeys["id"]) => {
     try {
       await deleteApiKey(apiKeyId);
       setApiKeys(await getApiKeys());
@@ -107,7 +107,7 @@ export const ApiKeyList = () => {
                   </div>
                   <button
                     className="rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
-                    onClick={async () => await handleDeleteApiKey(key.prefix)}
+                    onClick={async () => await handleDeleteApiKey(key.id)}
                   >
                     <DeleteIcon color="#757087" />
                   </button>

@@ -22,8 +22,9 @@ export const createApiKey = async (name: string) => {
 };
 
 export type ApiKeys = {
-  prefix: string;
+  id: string;
   name: string;
+  prefix: string;
   created: string;
 };
 
@@ -45,7 +46,7 @@ export const getApiKeys = async (): Promise<ApiKeys[]> => {
 };
 
 export const deleteApiKey = async (
-  apiKeyId: ApiKeys["prefix"]
+  apiKeyId: ApiKeys["id"]
 ): Promise<void> => {
   try {
     const token = localStorage.getItem("access-token");
