@@ -63,6 +63,7 @@ export const deleteApiKey = async (
 export type Community = {
   name: string;
   description: string;
+  id?: number;
 };
 
 export const createCommunity = async (community: Community) => {
@@ -95,6 +96,41 @@ export const getCommunities = async (): Promise<Community[]> => {
 
     const { data } = response;
     return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const editCommunity = async (community: Community) => {
+  try {
+    const token = localStorage.getItem("access-token");
+    const response = await axios.put(
+      `${SCORER_BACKEND}account/communities/${community.id}`,
+      { ...community },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteCommunity = async (communityId: Community["id"]) => {
+  try {
+    const token = localStorage.getItem("access-token");
+    const response = await axios.delete(
+      `${SCORER_BACKEND}account/communities/${communityId}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
   } catch (error) {
     throw error;
   }

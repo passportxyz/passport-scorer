@@ -11,6 +11,8 @@ import NoValues from "./NoValues";
 import {
   createCommunity,
   getCommunities,
+  editCommunity,
+  deleteCommunity,
   Community,
 } from "../utils/account-requests";
 import { Input } from "@chakra-ui/react";
@@ -37,6 +39,23 @@ const CommunityList = (): JSX.Element => {
     }
   };
 
+  const handleEditCommunity = async (communityId: Community["id"]) => {
+    try {
+
+    } catch (error) {
+
+    }
+  };
+
+  const handleDeleteCommunity = async (communityId: Community["id"]) => {
+    try {
+      await deleteCommunity(communityId);
+      setCommunities(await getCommunities());
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     let keysFetched = false;
     const fetchCommunities = async () => {
@@ -55,7 +74,15 @@ const CommunityList = (): JSX.Element => {
   }, []);
 
   const communityList = communities.map((community: Community, i: number) => {
-    return <CommunityCard key={i} community={community} />;
+    return ( 
+      <CommunityCard
+        key={i}
+        community={community}
+        communityId={community.id}
+        handleDeleteCommunity={handleDeleteCommunity}
+        handleEditCommunity={handleEditCommunity}
+      />
+    );
   });
 
   return (
@@ -67,22 +94,22 @@ const CommunityList = (): JSX.Element => {
         key that will connect to any community."
           addRequest={() => setModalOpen(true)}
           icon={
-            <RepeatIcon viewBox="0 0 25 25" boxSize="1.9em" color="#757087" />
+            <RepeatIcon
+              viewBox="0 0 25 25"
+              boxSize="1.9em"
+              color="#757087"
+            />
           }
         />
       ) : (
-        <div className="mx-11 mt-10">
-          <p className="mb-3 font-librefranklin font-semibold text-purple-softpurple">
-            My Communities
-          </p>
+        <div className="mx-5 mt-4">
           {communityList}
-
           <button
             data-testid="open-community-modal"
             onClick={() => setModalOpen(true)}
             className="text-md mt-5 rounded-sm border border-gray-lightgray py-1 px-6 font-librefranklin text-blue-darkblue transition delay-100 duration-150 ease-in-out hover:bg-gray-200"
           >
-            <span className="text-lg">+</span> Add
+            <span className="text-lg">+</span> Create a Community
           </button>
           {error && <div>{error}</div>}
         </div>

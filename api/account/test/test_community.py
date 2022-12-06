@@ -126,7 +126,7 @@ class CommunityTestCase(TestCase):
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
         )
-        self.assertEqual(community_response.status_code, 422)
+        self.assertEqual(community_response.status_code, 400)
 
        # Check that only 5 Communities are in the DB
         all_communities = list(Community.objects.all())
@@ -155,3 +155,29 @@ class CommunityTestCase(TestCase):
         json_response = community_response.json()
         self.assertEqual(len(json_response), 1)
         self.assertEqual(json_response[0]["name"], "Community for user 1")
+
+    def test_delete_community(self):
+        """Test that deleting a community works"""
+        client = Client()
+
+        # Create Community for first account
+        account_community = Community.objects.create(
+            account=self.account, name="Community1", description="test"
+        )
+
+        Community.objects.create(account=self.account2, name="Community2", description="test")
+
+        valid_response = client.delete(
+            f"/account/communities/{account_community.id}",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        
+        self.assertEqual(valid_response.status_code, 200)
+        data = valid_response.json()
+        self.assertTrue("ok" in data)
+
+        # Check that the community was deleted
+        all_communities = list(Community.objects.all())
+        self.assertEqual(len(all_communities), 1)
+        self.assertEqual(all_communities[0].name, "Community2")
+

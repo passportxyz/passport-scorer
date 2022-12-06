@@ -85,12 +85,12 @@ export const ApiKeyList = () => {
               {apiKeys.map((key, i) => (
                 <div
                   key={key.id}
-                  className="my-2 flex w-full items-center justify-between rounded border border-gray-lightgray bg-white p-4 hover:bg-gray-50"
+                  className="grid grid-cols-4 gap-3 auto-cols-auto border-x border-t last-of-type:border-b first-of-type:rounded-t-md last-of-type:rounded-b-md w-full items-center justify-between border-gray-lightgray bg-white p-4 hover:bg-gray-50"
                 >
-                  <div className="font-semibold">
+                  <div className="justify-self-center md:justify-self-start font-semibold">
                     <p>{key.name}</p>
                   </div>
-                  <div className="text-purple-softpurple">
+                  <div className="justify-self-start md:justify-self-center text-purple-softpurple">
                     <p>
                       {key.prefix.substring(0, 15)}...
                       <span>
@@ -102,11 +102,11 @@ export const ApiKeyList = () => {
                       </span>
                     </p>
                   </div>
-                  <div className="rounded-full bg-gray-lightgray px-3 py-1">
+                  <div className="rounded-full justify-self-center bg-gray-lightgray px-3 py-1">
                     <p>Connected</p>
                   </div>
                   <button
-                    className="rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
+                    className="justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
                     onClick={async () => await handleDeleteApiKey(key.id)}
                   >
                     <DeleteIcon color="#757087" />

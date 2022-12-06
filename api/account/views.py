@@ -71,7 +71,7 @@ class MyTokenObtainPairOutSchema(Schema):
 
 class UnauthorizedException(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
-    default_detail = "UnAuthorized"
+    default_detail = "Unauthorized"
 
 
 class ApiKeyDuplicateNameException(APIException):
@@ -80,12 +80,12 @@ class ApiKeyDuplicateNameException(APIException):
 
 
 class TooManyKeysException(APIException):
-    status_code = status.HTTP_401_UNAUTHORIZED
+    status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "You have already created 5 API Keys"
 
 
 class TooManyCommunitiesException(APIException):
-    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "You have already created 5 Communities"
 
 
@@ -119,7 +119,7 @@ class AccountApiSchema(ModelSchema):
 class CommunityApiSchema(ModelSchema):
     class Config:
         model = Community
-        model_fields = ["name", "description"]
+        model_fields = ["name", "description", "id"]
 
 
 @api.post("/verify", response=TokenObtainPairOutSchema)
@@ -184,6 +184,17 @@ def get_api_keys(request):
         raise UnauthorizedException()
     return api_keys
 
+@api.delete("/api-key/{path:api_key_id}", auth=JWTAuth())
+def delete_api_key(request, api_key_id):
+    try:
+        api_key = get_object_or_404(
+            AccountAPIKey, id=api_key_id, account=request.user.account
+        )
+        api_key.delete()
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
+    return {"ok": True}
+
 
 def health(request):
     return HttpResponse("Ok")
@@ -204,10 +215,10 @@ def create_community(request, payload: CommunitiesPayload):
         if Community.objects.filter(name=payload.name).count() == 1:
             raise CommunityExistsException()
 
-        if payload.name == None:
+        if len(payload.name) == 0:
             raise CommunityHasNoNameException()
 
-        if payload.description == None:
+        if len(payload.description) == 0:
             raise CommunityHasNoDescriptionException()
 
         if payload == None:
@@ -237,14 +248,28 @@ def get_communities(request):
 class APIKeyId(Schema):
     id: str
 
+# @TODO implement this
 
-@api.delete("/api-key/{path:api_key_id}", auth=JWTAuth())
-def delete_api_key(request, api_key_id):
+# @api.put("/communities/{community_id}", auth=JWTAuth())
+# def edit_api_key(request, community_id: CommunitiesPayload["id"], payload):
+#     try:
+#         community = get_object_or_404(
+#             Community, id=community_id, account=request.user.account
+#         )
+#         for attr, value in payload.dict().items():
+#             setattr(community, attr, value)
+#         community.save()
+#     except Account.DoesNotExist:
+#         raise UnauthorizedException()
+#     return {"ok": True}
+
+@api.delete("/communities/{community_id}", auth=JWTAuth())
+def delete_community(request, community_id):
     try:
-        api_key = get_object_or_404(
-            AccountAPIKey, id=api_key_id, account=request.user.account
+        community = get_object_or_404(
+            Community, id=community_id, account=request.user.account
         )
-        api_key.delete()
+        community.delete()
     except Account.DoesNotExist:
         raise UnauthorizedException()
     return {"ok": True}

@@ -97,7 +97,7 @@ class ApiKeyTestCase(TestCase):
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
         )
-        self.assertEqual(api_key_response.status_code, 401)
+        self.assertEqual(api_key_response.status_code, 400)
 
         # Check that only 5 API keys are in the DB
         all_api_keys = list(AccountAPIKey.objects.all())
