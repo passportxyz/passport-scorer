@@ -24,7 +24,7 @@ from django.http import HttpResponse
 
 log = logging.getLogger(__name__)
 
-api = NinjaExtraAPI()
+api = NinjaExtraAPI(urls_namespace="account")
 
 
 class SiweVerifySubmit(Schema):
