@@ -2,7 +2,6 @@ from django.test import TestCase
 from django.test import Client
 from django.contrib.auth.models import User
 from ninja_jwt.schema import RefreshToken
-
 import json
 
 from account.models import Account, AccountAPIKey
@@ -59,15 +58,35 @@ class ApiKeyTestCase(TestCase):
         self.assertEqual(len(all_api_keys), 1)
         self.assertEqual(all_api_keys[0].account.user.username, self.user.username)
 
+    def test_create_api_key_with_duplicate_name(self):
+        """Test that creation of an API Key with duplicate name fails"""
+        client = Client()
+        # create first community
+        api_key_response = client.post(
+            "/account/api-key",
+            json.dumps({"name": "test", "description": "first API key"}),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(api_key_response.status_code, 200)
+
+        api_key_response2 = client.post(
+            "/account/api-key",
+            json.dumps({"name": "test", "description": "another API key"}),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(api_key_response2.status_code, 400)
+
     def test_create_max_api_keys(self):
         """Test that a user is only allowed to create maximum 5 api keys"""
         client = Client()
         for i in range(5):
             api_key_response = client.post(
                 "/account/api-key",
-                json.dumps(mock_api_key_body),
+                json.dumps({"name": f"test {i}"}),
                 content_type="application/json",
-                **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+                HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
             )
             self.assertEqual(api_key_response.status_code, 200)
 
@@ -120,9 +139,10 @@ class ApiKeyTestCase(TestCase):
         """Test deleting the selected API key"""
 
         # Create API key for first account
-        (account_api_key, _) = AccountAPIKey.objects.create_key(
+        (account_api_key, secret) = AccountAPIKey.objects.create_key(
             account=self.account, name="Token for user 1"
         )
+
         AccountAPIKey.objects.create_key(
             account=self.account2, name="Another token for user 1"
         )
@@ -131,7 +151,7 @@ class ApiKeyTestCase(TestCase):
 
         valid_response = client.delete(
             f"/account/api-key/{account_api_key.id}",
-            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
 
         self.assertEqual(valid_response.status_code, 200)
@@ -142,3 +162,33 @@ class ApiKeyTestCase(TestCase):
         all_api_keys = list(AccountAPIKey.objects.all())
         self.assertEqual(len(all_api_keys), 1)
         self.assertEqual(all_api_keys[0].name, "Another token for user 1")
+
+    def test_delete_api_key_with_slash_in_id(self):
+        """Test deleting the selected API key"""
+
+        # Create API key for first account
+        (account_api_key, secret) = AccountAPIKey.objects.create_key(
+            account=self.account, name="Token for user 1"
+        )
+
+        # Forcefully add a "/"
+        account_api_key.id = f"PRE{account_api_key.id}/SJF"
+        account_api_key.prefix = f"PRE{account_api_key.prefix}"
+        account_api_key.save()
+
+        client = Client()
+
+        valid_response = client.delete(
+            f"/account/api-key/{account_api_key.id}",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+
+        self.assertEqual(valid_response.status_code, 200)
+        data = valid_response.json()
+        self.assertTrue("ok" in data)
+
+        # Check that the object was deleted in the DB
+        all_api_keys = list(AccountAPIKey.objects.all())
+        self.assertEqual(len(all_api_keys), 1)
+        # Make sure the API key was deleted
+        self.assertEqual(AccountAPIKey.objects.filter(pk=account_api_key.id).count(), 0)
