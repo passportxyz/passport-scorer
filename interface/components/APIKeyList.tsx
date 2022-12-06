@@ -92,7 +92,7 @@ export const ApiKeyList = () => {
                   </div>
                   <div className="text-purple-softpurple">
                     <p>
-                      {key.id.substring(0, 15)}...
+                      {key.prefix.substring(0, 15)}...
                       <span>
                         <Icon
                           className="ml-1"
