@@ -8,6 +8,8 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from rest_framework import viewsets
 from rest_framework.decorators import api_view
+from web3 import Web3
+from eth_account.messages import encode_defunct
 
 from registry.models import Passport, Stamp
 from registry.serializers import PassportSerializer, StampSerializer
@@ -15,6 +17,7 @@ from registry.signals import registry_updated
 
 log = logging.getLogger(__name__)
 
+web3 = Web3()
 
 def index(request):
     context = {}
@@ -69,6 +72,12 @@ def get_duplicate_passport(did, stamp_hash):
         return stamps[0].passport
 
     return None
+
+def verify_signature(signature) -> str:
+    message = "I authorize the passport scorer to validate my account"
+    encoded_message = encode_defunct(text=message)
+    address = web3.eth.account.recover_message(encoded_message, signature=signature)
+    return address
 
 
 @transaction.atomic
