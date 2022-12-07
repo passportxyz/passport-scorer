@@ -194,7 +194,7 @@ class ValidatePassportTestCase(TestCase):
     #     valid = verify_expiration(mock_passport)
     #     self.assertEqual(valid, True)
 
-    @patch("reader.passport_reader.get_passport", return_value=mock_passport)
+    @patch("registry.views.get_passport", return_value=mock_passport)
     def test_submit_passport(self, get_passport):
         # get_passport.return_value = mock_passport
 
