@@ -132,8 +132,6 @@ class CommunityTestCase(TestCase):
         all_communities = list(Community.objects.all())
         self.assertEqual(len(all_communities), 5)
 
-
-
     def test_get_communities(self):
         """Test that getting communities works"""
         client = Client()
@@ -156,8 +154,31 @@ class CommunityTestCase(TestCase):
         self.assertEqual(len(json_response), 1)
         self.assertEqual(json_response[0]["name"], "Community for user 1")
 
+    def test_update_community(self):
+        """Test successfully editing a community's name and description"""
+        client = Client()
+
+        # Create Community
+        account_community = Community.objects.create(account=self.account, name="Community 1", description="test")
+
+        # Edit the community
+        community_response = client.put(
+            f"/account/communities/{account_community.id}",
+            json.dumps({"name": "New Name", "description": "New Description"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+
+        self.assertEqual(community_response.status_code, 200)
+        # Check that the community was updated
+        community = list(Community.objects.all())
+        self.assertEqual(len(community), 1)
+        self.assertEqual(community[0].name, "New Name")
+        self.assertEqual(community[0].description, "New Description")
+
+
     def test_delete_community(self):
-        """Test that deleting a community works"""
+        """Test successfully deleting a community"""
         client = Client()
 
         # Create Community for first account

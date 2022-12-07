@@ -109,6 +109,11 @@ class CommunityHasNoBodyException(APIException):
     default_detail = "A community must have a name and a description"
 
 
+class SameCommunityNameOrDescriptionException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "You've entered the same community name or description"
+
+
 class AccountApiSchema(ModelSchema):
     class Config:
         model = AccountAPIKey
@@ -248,20 +253,29 @@ def get_communities(request):
 class APIKeyId(Schema):
     id: str
 
-# @TODO implement this
+@api.put("/communities/{community_id}", auth=JWTAuth())
+def update_community(request, community_id, payload: CommunitiesPayload):
+    try:
+        community = get_object_or_404(
+            Community, id=community_id, account=request.user.account
+        )
+        
+        name = payload.name
+        description = payload.description
+        db_name = community.name
+        db_description = community.description
 
-# @api.put("/communities/{community_id}", auth=JWTAuth())
-# def edit_api_key(request, community_id: CommunitiesPayload["id"], payload):
-#     try:
-#         community = get_object_or_404(
-#             Community, id=community_id, account=request.user.account
-#         )
-#         for attr, value in payload.dict().items():
-#             setattr(community, attr, value)
-#         community.save()
-#     except Account.DoesNotExist:
-#         raise UnauthorizedException()
-#     return {"ok": True}
+        if name == db_name or description == db_description:
+            raise SameCommunityNameOrDescriptionException()
+
+        for attr, value in payload.dict().items():
+            setattr(community, attr, value)
+
+        community.save()
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
+
+    return {"ok": True}
 
 @api.delete("/communities/{community_id}", auth=JWTAuth())
 def delete_community(request, community_id):
