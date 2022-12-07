@@ -27,8 +27,8 @@ ens_credential = {
     },
     "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).isoformat(),
-    "expirationDate": (datetime.utcnow() + timedelta(days=30)).isoformat(),
+    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ'),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:xG1Todke+0P1jphcnZhP/3UA5XUBMaEux4fHG86I20U=",
@@ -54,8 +54,8 @@ ens_credential_corrupted = {
     },
     "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).isoformat(),
-    "expirationDate": (datetime.utcnow() + timedelta(days=30)).isoformat(),
+    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ'),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:xG1Todke+0P1jphcnZhP/3UA5XUBMaEux4fHG86I20U=",
@@ -81,8 +81,8 @@ google_credential = {
     },
     "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).isoformat(),
-    "expirationDate": (datetime.utcnow() + timedelta(days=30)).isoformat(),
+    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ'),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
@@ -108,8 +108,8 @@ google_credential_expired = {
     },
     "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=30)).isoformat(),
-    "expirationDate": (datetime.utcnow() - timedelta(days=3)).isoformat(),
+    "issuanceDate": (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    "expirationDate": (datetime.utcnow() - timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ'),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
@@ -125,7 +125,7 @@ google_credential_expired = {
 
 mock_passport = {
     "issuanceDate": "2022-06-03T15:31:56.944Z",
-    "expiryDate": "2022-06-03T15:31:56.944Z",
+    "expirationDate": "2022-06-03T15:31:56.944Z",
     "stamps": [
         {"provider": "Google", "credential": google_credential},
         {"provider": "Ens", "credential": ens_credential},
@@ -134,7 +134,7 @@ mock_passport = {
 
 mock_passport_with_corrupted_stamp = {
     "issuanceDate": "2022-06-03T15:31:56.944Z",
-    "expiryDate": "2022-06-03T15:31:56.944Z",
+    "expirationDate": "2022-06-03T15:31:56.944Z",
     "stamps": [
         {"provider": "Google", "credential": google_credential},
         {"provider": "Ens", "credential": ens_credential},
@@ -145,7 +145,7 @@ mock_passport_with_corrupted_stamp = {
 
 mock_passport_with_expired_stamp = {
     "issuanceDate": "2022-06-03T15:31:56.944Z",
-    "expiryDate": "2022-06-03T15:31:56.944Z",
+    "expirationDate": "2022-06-03T15:31:56.944Z",
     "stamps": [
         {"provider": "Google", "credential": google_credential},
         {"provider": "Ens", "credential": ens_credential},
@@ -206,6 +206,7 @@ class ValidatePassportTestCase(TestCase):
         payload = {
             "address": "0x0",
             "signature": self.signed_message.signature.hex(),
+            "community": self.community.id,
         }
 
         response = self.client.post(
@@ -219,13 +220,9 @@ class ValidatePassportTestCase(TestCase):
         valid = verify_issuer(mock_passport)
         self.assertEqual(valid, True)
 
-    # TODO: Check requirements for stamp expiration - i.e. does one expired stamp invalidate a passport
-    # def test_passport_expiration_dates(self):
-    #     valid = verify_expiration(mock_passport)
-    #     self.assertEqual(valid, True)
-
+    @patch("registry.views.validate_credential", side_effect=[[], []])
     @patch("registry.views.get_passport", return_value=mock_passport)
-    def test_submit_passport(self, get_passport):
+    def test_submit_passport(self, get_passport, validate_credential):
         # get_passport.return_value = mock_passport
 
         did = f"did:pkh:eip155:1:{self.account.address.lower()}"
@@ -276,19 +273,20 @@ class ValidatePassportTestCase(TestCase):
             json.dumps(payload),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 422)
 
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 0)
 
+    @patch("registry.views.validate_credential", side_effect=[[], [], ["Stamp validation failed: invalid date"]])
     @patch(
         "registry.views.get_passport",
         return_value=mock_passport_with_corrupted_stamp,
     )
-    def test_submit_passport_with_invalid_stamp(self, get_passport):
+    def test_submit_passport_with_invalid_stamp(self, get_passport, validate_credential):
         """
-        Verify that stamps wich do not pass te didkit validation are ignored and not stored in the DB
+        Verify that stamps which do not pass the didkit validation are ignored and not stored in the DB
         """
         did = f"did:pkh:eip155:1:{self.account.address.lower()}"
 
@@ -321,11 +319,12 @@ class ValidatePassportTestCase(TestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
+    @patch("registry.views.validate_credential", side_effect=[[], [], []])
     @patch(
         "registry.views.get_passport",
         return_value=mock_passport_with_expired_stamp,
     )
-    def test_submit_passport_with_expired_stamps(self, get_passport):
+    def test_submit_passport_with_expired_stamps(self, get_passport, validate_credential):
         """
         Verify that stamps that are expired are ignored
         """
@@ -359,3 +358,34 @@ class ValidatePassportTestCase(TestCase):
         self.assertEqual(
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
+
+    @patch("registry.views.validate_credential", side_effect=[[], [], []])
+    @patch(
+        "registry.views.get_passport",
+        return_value=mock_passport,
+    )
+    def test_that_community_is_assiciated_with_passport(self, get_passport, validate_credential):
+        """
+        Verify that the community is associated with the passport
+        """
+        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
+
+        payload = {
+            "community": self.community.id,
+            "address": self.account.address,
+            "signature": self.signed_message.signature.hex(),
+        }
+
+        response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+
+        # Check if the passport data was saved to the database (data that we mock)
+        all_passports = list(Passport.objects.all())
+        self.assertEqual(len(all_passports), 1)
+        self.assertEqual(all_passports[0].passport, mock_passport)
+        self.assertEqual(all_passports[0].did, did)
+        self.assertEqual(all_passports[0].community, self.community)

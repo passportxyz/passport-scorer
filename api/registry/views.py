@@ -6,6 +6,8 @@ import json
 import logging
 from typing import cast, List
 from django.shortcuts import get_object_or_404
+from asgiref.sync import async_to_sync
+from datetime import datetime, timedelta
 
 # --- Ninja
 from ninja_jwt.schema import RefreshToken
@@ -32,9 +34,15 @@ class InvalidSignerException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Address does not match signature."
 
+class InvalidPassportCreationException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Error Creating Passport."
+
 class SubmitPassportPayload(Schema):
     address: str
     signature: str
+    community: str
+
 
 @api.post("/submit-passport")
 def submit_passport(request, payload: SubmitPassportPayload):
@@ -42,25 +50,33 @@ def submit_passport(request, payload: SubmitPassportPayload):
         raise InvalidSignerException()
 
     did = get_did(payload.address)
+
+    # Passport contents read from ceramic
     passport = get_passport(did)
 
-    print("**Passport --->", passport)
-    # Passport contents read from ceramic
-
-    # Deduplicate passport according to selected deduplication rule
-
-    # Save passport to Community database (related to community by community_id)
+    # TODO Deduplicate passport according to selected deduplication rule
 
     if not verify_issuer(passport):
         raise InvalidSignerException()
 
-    db_passport = Passport.objects.create(passport=passport, did=did)
-    db_passport.save()
+    try:
+        # Get community object
+        community=Community.objects.get(id=payload.community)
+        # Save passport to Community database (related to community by community_id)
+        db_passport = Passport.objects.create(passport=passport, did=did, community=community)
+        db_passport.save()
 
-    for stamp in passport["stamps"]:
-        db_stamp = Stamp.objects.create(hash=stamp["credential"]["credentialSubject"]["hash"], provider=stamp["provider"], credential=stamp["credential"], passport=db_passport)
-        db_stamp.save()
-    
+        for stamp in passport["stamps"]:
+            stamp_return_errors = async_to_sync(validate_credential)(did, stamp["credential"])
+            stamp_expiration_date = datetime.strptime(stamp["credential"]["expirationDate"], '%Y-%m-%dT%H:%M:%SZ')
+            # check that expuriration date is not in the past
+            stamp_is_expired = stamp_expiration_date < datetime.now()
+            if len(stamp_return_errors) == 0 and stamp_is_expired == False:
+                db_stamp = Stamp.objects.create(hash=stamp["credential"]["credentialSubject"]["hash"], provider=stamp["provider"], credential=stamp["credential"], passport=db_passport)
+                db_stamp.save()
+        
 
-    return {"working": True}
+        return {"working": True}
+    except Exception as e:
+        InvalidPassportCreationException()
     

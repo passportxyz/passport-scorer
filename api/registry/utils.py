@@ -58,7 +58,7 @@ async def validate_credential(did, credential):
         json.dumps(credential), '{"proofPurpose":"assertionMethod"}'
     )
     verification = json.loads(verification)
-    print("---- verification", verification)
+
     if verification["errors"]:
         stamp_return_errors.append(f"Stamp validation failed: {verification['errors']}")
 
