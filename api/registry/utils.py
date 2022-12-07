@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 import logging
 
@@ -87,6 +88,13 @@ def verify_issuer(passport) -> bool:
             return False
     return True
 
+def verify_expiration(passport) -> bool:
+    format = '%Y-%m-%dT%H:%M:%S.%fZ'
+    stamps = passport["stamps"]
+    for index in stamps:
+        if datetime.strptime(index['credential']['expirationDate'], format) < datetime.now():
+            return False
+    return True
 
 def submit_passport(request):
     # pylint: disable=fixme

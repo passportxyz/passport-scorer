@@ -6,8 +6,7 @@ from account.models import Community, Account
 from django.contrib.auth.models import User
 from web3 import Web3
 from eth_account.messages import encode_defunct
-from registry.utils import get_signer, verify_issuer
-from reader.passport_reader import get_did, get_passport
+from registry.utils import get_signer, verify_issuer, verify_expiration
 from unittest.mock import patch
 
 
@@ -66,6 +65,12 @@ class ValidatePassportTestCase(TestCase):
     def test_valid_issuer(self):
         valid = verify_issuer(mock_passport)
         self.assertEqual(valid, True)
+
+    # TODO: Check requirements for stamp expiration - i.e. does one expired stamp invalidate a passport
+    # def test_passport_expiration_dates(self):
+    #     valid = verify_expiration(mock_passport)
+    #     self.assertEqual(valid, True)
+
 
     @patch('reader.passport_reader.get_stamps')
     def test_submit_passport(self, get_stamps):
