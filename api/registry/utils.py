@@ -14,6 +14,7 @@ from eth_account.messages import encode_defunct
 from registry.models import Passport, Stamp
 from registry.serializers import PassportSerializer, StampSerializer
 from registry.signals import registry_updated
+from reader.passport_reader import TRUSTED_IAM_ISSUER
 
 log = logging.getLogger(__name__)
 
@@ -73,18 +74,21 @@ def get_duplicate_passport(did, stamp_hash):
 
     return None
 
-def verify_signature(signature) -> str:
+def get_signer(signature) -> str:
     message = "I authorize the passport scorer to validate my account"
     encoded_message = encode_defunct(text=message)
     address = web3.eth.account.recover_message(encoded_message, signature=signature)
     return address
 
+def verify_issuer(passport) -> bool:
+    stamps = passport["stamps"]
+    for index in stamps:
+        if index['credential']['issuer'] != TRUSTED_IAM_ISSUER:
+            return False
+    return True
+
 
 def submit_passport(request):
-    # pylint: disable=fixme
-    # TODO: request & verify signature
-    # pylint: disable=fixme
-    # TODO: verify issuer
     # pylint: disable=fixme
     # TODO: verify expiration date
     errors = []
