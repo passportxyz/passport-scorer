@@ -17,6 +17,7 @@ from ninja_jwt.authentication import JWTAuth
 
 # --- Models
 from account.models import Account, AccountAPIKey, Community
+from registry.models import Passport, Stamp
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 
@@ -43,8 +44,23 @@ def submit_passport(request, payload: SubmitPassportPayload):
     did = get_did(payload.address)
     passport = get_passport(did)
 
+    print("**Passport --->", passport)
+    # Passport contents read from ceramic
+
+    # Deduplicate passport according to selected deduplication rule
+
+    # Save passport to Community database (related to community by community_id)
+
     if not verify_issuer(passport):
         raise InvalidSignerException()
+
+    db_passport = Passport.objects.create(passport=passport, did=did)
+    db_passport.save()
+
+    for stamp in passport["stamps"]:
+        db_stamp = Stamp.objects.create(hash=stamp["credential"]["credentialSubject"]["hash"], provider=stamp["provider"], credential=stamp["credential"], passport=db_passport)
+        db_stamp.save()
+    
 
     return {"working": True}
     

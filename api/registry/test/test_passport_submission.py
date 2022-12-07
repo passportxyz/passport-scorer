@@ -9,11 +9,126 @@ from eth_account.messages import encode_defunct
 from registry.utils import get_signer, verify_issuer, verify_expiration
 from unittest.mock import patch
 
+from registry.models import Passport, Stamp
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
 
-mock_passport = {'issuanceDate': '2022-06-03T15:31:56.944Z', 'expiryDate': '2022-06-03T15:31:56.944Z', 'stamps': [{'provider': 'Google', 'credential': {'type': ['VerifiableCredential'], 'proof': {'jws': 'eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..UvANt5nz16WNjkGTyUFIxbMBmYdEFZcVrD97L3EzOkvxz8eN-6UKeFZul_uPBfa88h50jKQgVgJlJqxR8kpSAQ', 'type': 'Ed25519Signature2018', 'created': '2022-06-03T15:33:04.698Z', 'proofPurpose': 'assertionMethod', 'verificationMethod': 'did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC'}, 'issuer': 'did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC', '@context': ['https://www.w3.org/2018/credentials/v1'], 'issuanceDate': '2022-06-03T15:33:04.698Z', 'expirationDate': '2022-07-03T15:33:04.698Z', 'credentialSubject': {'id': 'did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE', 'hash': 'v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=', '@context': [{'hash': 'https://schema.org/Text', 'provider': 'https://schema.org/Text'}], 'provider': 'Google'}}}, {'provider': 'Ens', 'credential': {'type': ['VerifiableCredential'], 'proof': {'jws': 'eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..b_ek317zi0Gq3SylrtJeODlbZuRrzfv-1TTBBNcBrDTMDBTikzPJMR2A1SuVcrfUl3MpNZ-zymaLGB5qz9xdDg', 'type': 'Ed25519Signature2018', 'created': '2022-06-03T15:33:22.279Z', 'proofPurpose': 'assertionMethod', 'verificationMethod': 'did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC'}, 'issuer': 'did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC', '@context': ['https://www.w3.org/2018/credentials/v1'], 'issuanceDate': '2022-06-03T15:33:22.278Z', 'expirationDate': '2022-07-03T15:33:22.278Z', 'credentialSubject': {'id': 'did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE', 'hash': 'v0.0.0:xG1Todke+0P1jphcnZhP/3UA5XUBMaEux4fHG86I20U=', '@context': [{'hash': 'https://schema.org/Text', 'provider': 'https://schema.org/Text'}], 'provider': 'Ens'}}}]}
+ens_credential = {
+    "type": ["VerifiableCredential"],
+    "proof": {
+        "jws": "eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..b_ek317zi0Gq3SylrtJeODlbZuRrzfv-1TTBBNcBrDTMDBTikzPJMR2A1SuVcrfUl3MpNZ-zymaLGB5qz9xdDg",
+        "type": "Ed25519Signature2018",
+        "created": "2022-06-03T15:33:22.279Z",
+        "proofPurpose": "assertionMethod",
+        "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+    },
+                "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                "@context": ["https://www.w3.org/2018/credentials/v1"],
+                "issuanceDate": "2022-06-03T15:33:22.278Z",
+                "expirationDate": "2022-07-03T15:33:22.278Z",
+                "credentialSubject": {
+                    "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+                    "hash": "v0.0.0:xG1Todke+0P1jphcnZhP/3UA5XUBMaEux4fHG86I20U=",
+                    "@context": [
+                        {
+                            "hash": "https://schema.org/Text",
+                            "provider": "https://schema.org/Text",
+                        }
+                    ],
+                    "provider": "Ens",
+                },
+}
+
+google_credential = {
+    "type": ["VerifiableCredential"],
+    "proof": {
+        "jws": "eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..UvANt5nz16WNjkGTyUFIxbMBmYdEFZcVrD97L3EzOkvxz8eN-6UKeFZul_uPBfa88h50jKQgVgJlJqxR8kpSAQ",
+        "type": "Ed25519Signature2018",
+        "created": "2022-06-03T15:33:04.698Z",
+        "proofPurpose": "assertionMethod",
+        "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+    },
+    "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                "@context": ["https://www.w3.org/2018/credentials/v1"],
+                "issuanceDate": "2022-06-03T15:33:04.698Z",
+                "expirationDate": "2022-07-03T15:33:04.698Z",
+                "credentialSubject": {
+                    "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+                    "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
+                    "@context": [
+                        {
+                            "hash": "https://schema.org/Text",
+                            "provider": "https://schema.org/Text",
+                        }
+                    ],
+                    "provider": "Google",
+                }
+}
+
+mock_passport = {
+    "issuanceDate": "2022-06-03T15:31:56.944Z",
+    "expiryDate": "2022-06-03T15:31:56.944Z",
+    "stamps": [
+        {
+            "provider": "Google",
+            "credential": {
+                "type": ["VerifiableCredential"],
+                "proof": {
+                    "jws": "eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..UvANt5nz16WNjkGTyUFIxbMBmYdEFZcVrD97L3EzOkvxz8eN-6UKeFZul_uPBfa88h50jKQgVgJlJqxR8kpSAQ",
+                    "type": "Ed25519Signature2018",
+                    "created": "2022-06-03T15:33:04.698Z",
+                    "proofPurpose": "assertionMethod",
+                    "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                },
+                "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                "@context": ["https://www.w3.org/2018/credentials/v1"],
+                "issuanceDate": "2022-06-03T15:33:04.698Z",
+                "expirationDate": "2022-07-03T15:33:04.698Z",
+                "credentialSubject": {
+                    "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+                    "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
+                    "@context": [
+                        {
+                            "hash": "https://schema.org/Text",
+                            "provider": "https://schema.org/Text",
+                        }
+                    ],
+                    "provider": "Google",
+                },
+            },
+        },
+        {
+            "provider": "Ens",
+            "credential": {
+                "type": ["VerifiableCredential"],
+                "proof": {
+                    "jws": "eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..b_ek317zi0Gq3SylrtJeODlbZuRrzfv-1TTBBNcBrDTMDBTikzPJMR2A1SuVcrfUl3MpNZ-zymaLGB5qz9xdDg",
+                    "type": "Ed25519Signature2018",
+                    "created": "2022-06-03T15:33:22.279Z",
+                    "proofPurpose": "assertionMethod",
+                    "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                },
+                "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                "@context": ["https://www.w3.org/2018/credentials/v1"],
+                "issuanceDate": "2022-06-03T15:33:22.278Z",
+                "expirationDate": "2022-07-03T15:33:22.278Z",
+                "credentialSubject": {
+                    "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+                    "hash": "v0.0.0:xG1Todke+0P1jphcnZhP/3UA5XUBMaEux4fHG86I20U=",
+                    "@context": [
+                        {
+                            "hash": "https://schema.org/Text",
+                            "provider": "https://schema.org/Text",
+                        }
+                    ],
+                    "provider": "Ens",
+                },
+            },
+        },
+    ],
+}
+
 
 class ValidatePassportTestCase(TestCase):
     def setUp(self):
@@ -22,7 +137,6 @@ class ValidatePassportTestCase(TestCase):
         # we query the account id by the user id
         self.user = User.objects.create_user(username="admin", password="12345")
 
-        
         # TODO: load mnemonic from env
         my_mnemonic = (
             "chief loud snack trend chief net field husband vote message decide replace"
@@ -32,10 +146,15 @@ class ValidatePassportTestCase(TestCase):
         )
         self.account = account
 
-        self.user_account = Account.objects.create(user=self.user, address=account.address)
+        self.user_account = Account.objects.create(
+            user=self.user, address=account.address
+        )
 
         self.signed_message = web3.eth.account.sign_message(
-            encode_defunct(text="I authorize the passport scorer to validate my account"), private_key=self.account.key
+            encode_defunct(
+                text="I authorize the passport scorer to validate my account"
+            ),
+            private_key=self.account.key,
         )
 
         self.client = Client()
@@ -58,8 +177,12 @@ class ValidatePassportTestCase(TestCase):
             "address": "0x0",
             "signature": self.signed_message.signature.hex(),
         }
-        
-        response = self.client.post("/registry/submit-passport", json.dumps(payload), content_type="application/json")
+
+        response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(payload),
+            content_type="application/json",
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_valid_issuer(self):
@@ -71,14 +194,34 @@ class ValidatePassportTestCase(TestCase):
     #     valid = verify_expiration(mock_passport)
     #     self.assertEqual(valid, True)
 
+    @patch("reader.passport_reader.get_passport", return_value=mock_passport)
+    def test_submit_passport(self, get_passport):
+        # get_passport.return_value = mock_passport
 
-    @patch('reader.passport_reader.get_stamps')
-    def test_submit_passport(self, get_stamps):
-        get_stamps.return_value = mock_passport
+        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
 
         payload = {
             "address": self.account.address,
             "signature": self.signed_message.signature.hex(),
         }
-        response = self.client.post("/registry/submit-passport", json.dumps(payload), content_type="application/json")
+
+        response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(payload),
+            content_type="application/json",
+        )
         self.assertEqual(response.status_code, 200)
+
+        # Check if the passport data was saved to the database (data that we mock)
+        all_passports = list(Passport.objects.all())
+        self.assertEqual(len(all_passports), 1)
+        self.assertEqual(all_passports[0].passport, mock_passport)
+        self.assertEqual(all_passports[0].did, did)
+        self.assertEqual(len(all_passports[0].stamps.all()), 2)
+        stamp_ens = Stamp.objects.get(provider="Ens")
+        stamp_google = Stamp.objects.get(provider="Google")
+
+        self.assertEqual(stamp_ens.credential, ens_credential)
+        self.assertEqual(stamp_google.credential, google_credential)
+        self.assertEqual(stamp_ens.hash, ens_credential["credentialSubject"]["hash"])
+        self.assertEqual(stamp_google.hash, google_credential["credentialSubject"]["hash"])

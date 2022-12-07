@@ -1,4 +1,5 @@
 from django.db import models
+from account.models import Community
 
 
 class Passport(models.Model):
@@ -11,6 +12,9 @@ class Passport(models.Model):
         db_index=True,
         null=True,
         blank=True,
+    )
+    community = models.ForeignKey(
+        Community, related_name="passports", on_delete=models.CASCADE, null=True
     )
 
     def __str__(self):
