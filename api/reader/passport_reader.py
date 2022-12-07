@@ -41,7 +41,7 @@ CERAMIC_GITCOIN_PASSPORT_STREAM_ID = "kjzl6cwe1jw148h1e14jb5fkf55xmqhmyorp29r9cq
 
 def get_did(address, network="1"):
     # returns the did associated with the address on the given network
-    return f"did:pkh:eip155:{network}:{address}"
+    return (f"did:pkh:eip155:{network}:{address}").lower()
 
 def get_stream_ids(did, ids=[CERAMIC_GITCOIN_PASSPORT_STREAM_ID]):
     # return streams in a dict
