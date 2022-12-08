@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Cypress install
-        uses: cypress-io/github-action@v4.x.x # use the explicit version number
+        uses: cypress-io/github-action@v4.2.2 # use the explicit version number
         with:
           # Disable running of tests within install job
           runTests: false
@@ -92,7 +92,7 @@ jobs:
           path: build
 
       - name: 'UI Tests - Chrome'
-        uses: cypress-io/github-action@v4.x.x # use the explicit version number
+        uses: cypress-io/github-action@v4.2.2 # use the explicit version number
         with:
           # we have already installed all dependencies above
           install: false
