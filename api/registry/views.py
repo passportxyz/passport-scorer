@@ -54,14 +54,20 @@ def submit_passport(request, payload: SubmitPassportPayload):
     # Passport contents read from ceramic
     passport = get_passport(did)
 
-    # TODO Deduplicate passport according to selected deduplication rule
-
     if not verify_issuer(passport):
         raise InvalidSignerException()
 
     try:
         # Get community object
         community=Community.objects.get(id=payload.community)
+
+        # Check if passport already exists and delete it
+        if Passport.objects.filter(did=did, community=community).exists():
+            existing_passport = Passport.objects.get(did=did, community=community)
+            # Delete existing stamps
+            existing_passport.stamps.all().delete()
+            existing_passport.delete()
+
         # Save passport to Community database (related to community by community_id)
         db_passport = Passport.objects.create(passport=passport, did=did, community=community)
         db_passport.save()

@@ -1,6 +1,6 @@
 import binascii
 import json
-from django.test import TestCase
+from django.test import TransactionTestCase
 from django.test import Client
 from account.models import Community, Account
 from django.contrib.auth.models import User
@@ -153,8 +153,15 @@ mock_passport_with_expired_stamp = {
     ],
 }
 
+mock_passport_only_ens = {
+    "issuanceDate": "2022-06-03T15:31:56.944Z",
+    "expirationDate": "2022-06-03T15:31:56.944Z",
+    "stamps": [
+        {"provider": "Ens", "credential": ens_credential},
+    ],
+}
 
-class ValidatePassportTestCase(TestCase):
+class ValidatePassportTestCase(TransactionTestCase):
     def setUp(self):
         # Just create 1 user, to make sure the user id is different than account id
         # This is to catch errors like the one where the user id is the same as the account id, and
@@ -389,3 +396,41 @@ class ValidatePassportTestCase(TestCase):
         self.assertEqual(all_passports[0].passport, mock_passport)
         self.assertEqual(all_passports[0].did, did)
         self.assertEqual(all_passports[0].community, self.community)
+
+
+    @patch("registry.views.validate_credential", side_effect=[[]])
+    @patch(
+        "registry.views.get_passport",
+        return_value=mock_passport_only_ens,
+    )
+    def test_that_if_a_passport_already_exists_it_is_updated(self, get_passport, validate_credential):
+        """
+        Verify that if a passport already exists it is updated with the new stamps
+        """
+        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
+
+        # Create a passport
+        Passport.objects.create(
+            did=did,
+            passport=mock_passport,
+            community=self.community,
+        )
+
+        payload = {
+            "community": self.community.id,
+            "address": self.account.address,
+            "signature": self.signed_message.signature.hex(),
+        }
+
+        response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        # Check that the passport has one stamp
+        updated_passport = Passport.objects.get(did=did)        
+        self.assertEqual(len(updated_passport.stamps.all()), 1)
+        self.assertEqual(updated_passport.stamps.all()[0].provider, "Ens")
