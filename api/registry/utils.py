@@ -7,13 +7,13 @@ from asgiref.sync import async_to_sync
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import render
-from rest_framework import viewsets
-from rest_framework.decorators import api_view
+# from rest_framework import viewsets
+# from rest_framework.decorators import api_view
 from web3 import Web3
 from eth_account.messages import encode_defunct
 
 from registry.models import Passport, Stamp
-from registry.serializers import PassportSerializer, StampSerializer
+# from registry.serializers import PassportSerializer, StampSerializer
 from registry.signals import registry_updated
 from reader.passport_reader import TRUSTED_IAM_ISSUER
 
@@ -188,11 +188,3 @@ def submit_passport(request):
     return JsonResponse(response_data, status=status)
 
 
-class PassportViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Passport.objects.all()
-    serializer_class = PassportSerializer
-
-
-class StampViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Stamp.objects.all()
-    serializer_class = StampSerializer

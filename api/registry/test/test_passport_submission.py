@@ -27,8 +27,12 @@ ens_credential = {
     },
     "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ'),
-    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
+    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:xG1Todke+0P1jphcnZhP/3UA5XUBMaEux4fHG86I20U=",
@@ -54,8 +58,12 @@ ens_credential_corrupted = {
     },
     "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ'),
-    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
+    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:xG1Todke+0P1jphcnZhP/3UA5XUBMaEux4fHG86I20U=",
@@ -81,8 +89,12 @@ google_credential = {
     },
     "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ'),
-    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
+    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
@@ -108,8 +120,12 @@ google_credential_expired = {
     },
     "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ'),
-    "expirationDate": (datetime.utcnow() - timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    "issuanceDate": (datetime.utcnow() - timedelta(days=30)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
+    "expirationDate": (datetime.utcnow() - timedelta(days=3)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
@@ -236,7 +252,10 @@ class ValidatePassportTestCase(TestCase):
         response = self.client.post(
             "/registry/submit-passport",
             json.dumps(payload),
-            content_type="application/json",
+            **{
+                "content_type": "application/tson",
+                # "HTTP_Authorization": "api-key hello"
+            },
         )
         self.assertEqual(response.status_code, 200)
 
@@ -279,12 +298,17 @@ class ValidatePassportTestCase(TestCase):
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 0)
 
-    @patch("registry.views.validate_credential", side_effect=[[], [], ["Stamp validation failed: invalid date"]])
+    @patch(
+        "registry.views.validate_credential",
+        side_effect=[[], [], ["Stamp validation failed: invalid date"]],
+    )
     @patch(
         "registry.views.get_passport",
         return_value=mock_passport_with_corrupted_stamp,
     )
-    def test_submit_passport_with_invalid_stamp(self, get_passport, validate_credential):
+    def test_submit_passport_with_invalid_stamp(
+        self, get_passport, validate_credential
+    ):
         """
         Verify that stamps which do not pass the didkit validation are ignored and not stored in the DB
         """
@@ -324,7 +348,9 @@ class ValidatePassportTestCase(TestCase):
         "registry.views.get_passport",
         return_value=mock_passport_with_expired_stamp,
     )
-    def test_submit_passport_with_expired_stamps(self, get_passport, validate_credential):
+    def test_submit_passport_with_expired_stamps(
+        self, get_passport, validate_credential
+    ):
         """
         Verify that stamps that are expired are ignored
         """
@@ -364,7 +390,9 @@ class ValidatePassportTestCase(TestCase):
         "registry.views.get_passport",
         return_value=mock_passport,
     )
-    def test_that_community_is_assiciated_with_passport(self, get_passport, validate_credential):
+    def test_that_community_is_assiciated_with_passport(
+        self, get_passport, validate_credential
+    ):
         """
         Verify that the community is associated with the passport
         """

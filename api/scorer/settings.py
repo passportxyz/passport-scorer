@@ -47,13 +47,11 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_extensions",
-    "rest_framework",
     "rest_framework_api_key",
     "registry",
     "scorer_apu",
     "scorer_weighted",
     "corsheaders",
-    "django_filters",
     "account",
     "ninja_extra",
 ]

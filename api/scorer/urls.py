@@ -16,13 +16,13 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import TemplateView
-from rest_framework.schemas import get_schema_view
+# from rest_framework.schemas import get_schema_view
 from account.views import health
 
 urlpatterns = [
     path("health/", health, {}, "health-check"),
     path("admin/", admin.site.urls),
-    path("api-auth/", include("rest_framework.urls")),
+    # path("api-auth/", include("rest_framework.urls")),
     path("registry/", include("registry.urls")),
     path("scorer_weighted/", include("scorer_weighted.urls")),
     path("account/", include("account.urls")),
@@ -30,13 +30,13 @@ urlpatterns = [
     # Use the `get_schema_view()` helper to add a `SchemaView` to project URLs.
     #   * `title` and `description` parameters are passed to `SchemaGenerator`.
     #   * Provide view name for use with `reverse()`.
-    path(
-        "openapi",
-        get_schema_view(
-            title="Your Project", description="API for all things …", version="1.0.0"
-        ),
-        name="openapi-schema",
-    ),
+    # path(
+    #     "openapi",
+    #     get_schema_view(
+    #         title="Your Project", description="API for all things …", version="1.0.0"
+    #     ),
+    #     name="openapi-schema",
+    # ),
     # ...
     # Route TemplateView to serve Swagger UI template.
     #   * Provide `extra_context` with view name of `SchemaView`.

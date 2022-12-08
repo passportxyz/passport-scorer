@@ -5,9 +5,7 @@ name = "pypi"
 
 [packages]
 django = "*"
-djangorestframework = "*"
 markdown = "*"
-django-filter = "*"
 django-extensions = "*"
 didkit = "*"
 uvicorn = "*"
@@ -31,6 +29,9 @@ pre-commit = "*"
 pylint = "*"
 pylint-django = "*"
 coverage = "*"
+pytest-django = "*"
+pytest-bdd = "*"
+pytest-mock = "*"
 
 [requires]
 python_version = "3.10"
