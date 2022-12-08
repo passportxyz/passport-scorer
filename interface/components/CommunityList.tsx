@@ -41,9 +41,17 @@ const CommunityList = (): JSX.Element => {
 
   const handleEditCommunity = async (communityId: Community["id"]) => {
     try {
-
+      await editCommunity(communityId, 
+      {
+        name: communityName,
+        description: communityDescription,
+      });
+      setCommunityName("");
+      setCommunityDescription("");
+      setCommunities(await getCommunities());
+      setModalOpen(false);
     } catch (error) {
-
+      console.log({ error });
     }
   };
 
@@ -79,8 +87,10 @@ const CommunityList = (): JSX.Element => {
         key={i}
         community={community}
         communityId={community.id}
+        setModal={setModalOpen}
         handleDeleteCommunity={handleDeleteCommunity}
-        handleEditCommunity={handleEditCommunity}
+        setCommunityName={setCommunityName}
+        setCommunityDescription={setCommunityDescription}
       />
     );
   });
@@ -106,7 +116,11 @@ const CommunityList = (): JSX.Element => {
           {communityList}
           <button
             data-testid="open-community-modal"
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              setCommunityName("");
+              setCommunityDescription("");
+              setModalOpen(true)
+            }}
             className="text-md mt-5 rounded-sm border border-gray-lightgray py-1 px-6 font-librefranklin text-blue-darkblue transition delay-100 duration-150 ease-in-out hover:bg-gray-200"
           >
             <span className="text-lg">+</span> Create a Community
@@ -115,7 +129,11 @@ const CommunityList = (): JSX.Element => {
         </div>
       )}
       <ModalTemplate
-        title="Create a Community"
+        title={
+          communityName.length !== 0 || communityDescription.length !== 0
+            ? "Update Community"
+            : "Create a Community"
+        }
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
       >
@@ -148,7 +166,11 @@ const CommunityList = (): JSX.Element => {
               className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
               onClick={handleCreateCommunity}
             >
-              Create
+              {
+                communityName.length !== 0 || communityDescription.length !== 0
+                  ? "Save"
+                  : "Create"
+              }
             </button>
             {error && <div>{error}</div>}
           </div>

@@ -8,13 +8,15 @@ import { Community } from "../utils/account-requests";
 import { DeleteIcon, EditIcon } from "@chakra-ui/icons";
 
 type CommunityCardProps = {
+  setCommunityName: Function;
+  setCommunityDescription: Function;
   community: Community;
   communityId: Community["id"];
   handleDeleteCommunity: Function;
-  handleEditCommunity: Function;
+  setModal: Function;
 }
 
-const CommunityCard = ({ community, handleDeleteCommunity, communityId, handleEditCommunity }: CommunityCardProps): JSX.Element => {
+const CommunityCard = ({ community, handleDeleteCommunity, communityId, setModal, setCommunityName, setCommunityDescription }: CommunityCardProps): JSX.Element => {
   return (
     <div className="grid grid-cols-2 auto-cols-auto border-x border-t last-of-type:border-b first-of-type:rounded-t-md last-of-type:rounded-b-md w-full items-center justify-between border-gray-lightgray bg-white p-4 hover:bg-gray-50">
       {/* first column */}
@@ -25,8 +27,13 @@ const CommunityCard = ({ community, handleDeleteCommunity, communityId, handleEd
       {/* second column */}
       <div className="grid grid-cols-2 justify-self-end">
         <button
+          data-testid="open-community-modal"
           className="mr-2 justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
-          onClick={async () => await handleEditCommunity(communityId)}
+          onClick={async () => {
+            setCommunityName(community.name);
+            setCommunityDescription(community.description);
+            setModal(true);
+          }}
         >
           <EditIcon color="#757087" />
         </button>

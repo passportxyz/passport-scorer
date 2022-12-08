@@ -101,11 +101,11 @@ export const getCommunities = async (): Promise<Community[]> => {
   }
 };
 
-export const editCommunity = async (community: Community) => {
+export const editCommunity = async (communityId: Community["id"], community: Community) => {
   try {
     const token = localStorage.getItem("access-token");
     const response = await axios.put(
-      `${SCORER_BACKEND}account/communities/${community.id}`,
+      `${SCORER_BACKEND}account/communities/${communityId}`,
       { ...community },
       {
         headers: {
