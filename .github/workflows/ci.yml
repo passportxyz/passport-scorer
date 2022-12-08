@@ -45,11 +45,14 @@ jobs:
 
       - name: Run API unittests
         working-directory: ./api
-        run: coverage run --source='.' manage.py test
+        run: pytest
+      # - name: Run API unittests
+      #   working-directory: ./api
+      #   run: coverage run --source='.' manage.py test
 
-      - name: Python code coverage report
-        working-directory: ./api
-        run: coverage report --fail-under=70
+      # - name: Python code coverage report
+      #   working-directory: ./api
+      #   run: coverage report --fail-under=70
 
   cypress-install:
     runs-on: ubuntu-latest
