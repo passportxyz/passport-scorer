@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from rest_framework_api_key.models import AbstractAPIKey
+from scorer_weighted.models import Scorer
 
 # Create your models here.
 
@@ -32,3 +33,4 @@ class Community(models.Model):
     account = models.ForeignKey(
         Account, on_delete=models.CASCADE, related_name="community", default=None
     )
+    scorer = models.ForeignKey(Scorer)
