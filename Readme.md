@@ -56,3 +56,9 @@ coverage run --source='.' manage.py test
   - you will need to copy & paste the code from terminal to `test_.*.py` file
 
 
+
+### Cypress
+
+In the `./test`:
+- exec cypress tests: `yarn cypress run`
+- open cypress: `yarn cypress open`

@@ -7,5 +7,3 @@ api/scorer/pyvenv.cfg
 
 api/*.sqlite3
 **/node_modules/**
-interface/cypress
-.github/workflows/ci.yml
