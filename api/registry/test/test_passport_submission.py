@@ -203,6 +203,14 @@ class ValidatePassportTestCase(TestCase):
             private_key=self.account.key,
         )
 
+        self.user2 = User.objects.create_user(username="admin2", password="12345")
+        self.user_account2 = Account.objects.create(user=self.user2, address="0x02")
+        self.community2 = Community.objects.create(
+            name="My Community",
+            description="My Community description",
+            account=self.user_account2,
+        )
+
         self.client = Client()
 
     def test_verify_signature(self):
@@ -390,7 +398,7 @@ class ValidatePassportTestCase(TestCase):
         "registry.views.get_passport",
         return_value=mock_passport,
     )
-    def test_that_community_is_assiciated_with_passport(
+    def test_that_community_is_associated_with_passport(
         self, get_passport, validate_credential
     ):
         """
@@ -417,3 +425,26 @@ class ValidatePassportTestCase(TestCase):
         self.assertEqual(all_passports[0].passport, mock_passport)
         self.assertEqual(all_passports[0].did, did)
         self.assertEqual(all_passports[0].community, self.community)
+
+    @patch(
+        "registry.views.get_passport",
+        return_value=mock_passport,
+    )
+    def test_that_only_owned_communities_are_allowed(self, get_passport):
+        """
+        Verify that only communities owned by the user of the API key are allowed
+        """
+        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
+
+        payload = {
+            "community": self.community2.id,
+            "address": self.account.address,
+            "signature": self.signed_message.signature.hex(),
+        }
+
+        response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 401)
