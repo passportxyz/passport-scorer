@@ -176,6 +176,36 @@ class CommunityTestCase(TestCase):
         self.assertEqual(community[0].name, "New Name")
         self.assertEqual(community[0].description, "New Description")
 
+    def test_update_community_when_max_reached(self):
+        """Test that a user is only allowed to create maximum 5 communities"""
+        client = Client()
+
+        # Create 5 communities
+        for i in range(5):
+            community_response = client.post(
+                "/account/communities",
+                json.dumps({"name": f"test {i}", "description": "test"}),
+                content_type="application/json",
+                **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+            )
+            self.assertEqual(community_response.status_code, 200)
+
+        # check that we are throwing a 401 if they have already created an account
+        community_response = client.put(
+            "/account/communities/3",
+            json.dumps({"name": "New Name", "description": "New Description"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEqual(community_response.status_code, 200)
+        # Check that the community was updated
+        community = list(Community.objects.all())
+        for i in community:
+            print("**** community: ", i.id, i.name, i.description)
+        self.assertEqual(len(community), 5)
+        self.assertEqual(community[2].name, "New Name")
+        self.assertEqual(community[2].description, "New Description")
+       
 
     def test_delete_community(self):
         """Test successfully deleting a community"""

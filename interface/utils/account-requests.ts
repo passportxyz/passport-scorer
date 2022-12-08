@@ -101,7 +101,7 @@ export const getCommunities = async (): Promise<Community[]> => {
   }
 };
 
-export const editCommunity = async (communityId: Community["id"], community: Community) => {
+export const updateCommunity = async (communityId: Community["id"], community: Community) => {
   try {
     const token = localStorage.getItem("access-token");
     const response = await axios.put(

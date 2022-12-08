@@ -109,10 +109,14 @@ class CommunityHasNoBodyException(APIException):
     default_detail = "A community must have a name and a description"
 
 
-class SameCommunityNameOrDescriptionException(APIException):
+class SameCommunityNameException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "You've entered the same community name or description"
+    default_detail = "You've entered the same community name"
 
+
+class SameCommunityDescriptionException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "You've entered the same community description"
 
 class AccountApiSchema(ModelSchema):
     class Config:
@@ -259,14 +263,20 @@ def update_community(request, community_id, payload: CommunitiesPayload):
         community = get_object_or_404(
             Community, id=community_id, account=request.user.account
         )
-        
+
         name = payload.name
         description = payload.description
         db_name = community.name
         db_description = community.description
 
-        if name == db_name or description == db_description:
-            raise SameCommunityNameOrDescriptionException()
+        if len(name) == 0:
+            raise CommunityHasNoNameException()
+
+        if len(description) == 0:
+            raise CommunityHasNoDescriptionException()
+
+        if name == db_name:
+            raise SameCommunityNameException()
 
         for attr, value in payload.dict().items():
             setattr(community, attr, value)

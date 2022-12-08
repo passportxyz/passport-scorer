@@ -11,16 +11,20 @@ import NoValues from "./NoValues";
 import {
   createCommunity,
   getCommunities,
-  editCommunity,
+  updateCommunity,
   deleteCommunity,
   Community,
 } from "../utils/account-requests";
 import { Input } from "@chakra-ui/react";
 
 const CommunityList = (): JSX.Element => {
-  const [modalOpen, setModalOpen] = useState(false);
+  const [createCommunityModalOpen, setCreateCommunityModalOpen] = useState(false);
+  const [updateCommunityModalOpen, setUpdateCommunityModalOpen] = useState(false);
   const [communityName, setCommunityName] = useState("");
   const [communityDescription, setCommunityDescription] = useState("");
+  const [updatedCommunityDescription, setUpdatedCommunityDescription] = useState("");
+  const [updatedCommunityName, setUpdatedCommunityName] = useState("");
+  const [updatedCommunityId, setUpdatedCommunityId] = useState<Community["id"]>();
   const [error, setError] = useState<undefined | string>();
   const [communities, setCommunities] = useState<Community[]>([]);
 
@@ -33,23 +37,23 @@ const CommunityList = (): JSX.Element => {
       setCommunityName("");
       setCommunityDescription("");
       setCommunities(await getCommunities());
-      setModalOpen(false);
+      setCreateCommunityModalOpen(false);
     } catch (error) {
       console.log({ error });
     }
   };
 
-  const handleEditCommunity = async (communityId: Community["id"]) => {
+  const handleUpdateCommunity = async (communityId: Community["id"]) => {
     try {
-      await editCommunity(communityId, 
+      await updateCommunity(communityId, 
       {
-        name: communityName,
-        description: communityDescription,
+        name: updatedCommunityName,
+        description: updatedCommunityDescription,
       });
-      setCommunityName("");
-      setCommunityDescription("");
+      setUpdatedCommunityName("");
+      setUpdatedCommunityDescription("");
       setCommunities(await getCommunities());
-      setModalOpen(false);
+      setUpdateCommunityModalOpen(false);
     } catch (error) {
       console.log({ error });
     }
@@ -87,10 +91,11 @@ const CommunityList = (): JSX.Element => {
         key={i}
         community={community}
         communityId={community.id}
-        setModal={setModalOpen}
+        setUpdateCommunityModalOpen={setUpdateCommunityModalOpen}
         handleDeleteCommunity={handleDeleteCommunity}
-        setCommunityName={setCommunityName}
-        setCommunityDescription={setCommunityDescription}
+        setUpdatedCommunityId={setUpdatedCommunityId}
+        setUpdatedCommunityName={setUpdatedCommunityName}
+        setUpdatedCommunityDescription={setUpdatedCommunityDescription}
       />
     );
   });
@@ -102,7 +107,11 @@ const CommunityList = (): JSX.Element => {
           title="My Communities"
           description="Manage how your dapps interact with the Gitcoin Passport by creating a
         key that will connect to any community."
-          addRequest={() => setModalOpen(true)}
+          addRequest={() => {
+            setCommunityName("");
+            setCommunityDescription("");
+            setCreateCommunityModalOpen(true);
+          }}
           icon={
             <RepeatIcon
               viewBox="0 0 25 25"
@@ -119,9 +128,12 @@ const CommunityList = (): JSX.Element => {
             onClick={() => {
               setCommunityName("");
               setCommunityDescription("");
-              setModalOpen(true)
+              setUpdatedCommunityName("");
+              setUpdatedCommunityDescription("");
+              setCreateCommunityModalOpen(true)
             }}
-            className="text-md mt-5 rounded-sm border border-gray-lightgray py-1 px-6 font-librefranklin text-blue-darkblue transition delay-100 duration-150 ease-in-out hover:bg-gray-200"
+            className="text-md mt-5 rounded-sm border border-gray-lightgray py-1 px-6 font-librefranklin text-blue-darkblue "
+            disabled={communities.length >= 5}
           >
             <span className="text-lg">+</span> Create a Community
           </button>
@@ -129,13 +141,9 @@ const CommunityList = (): JSX.Element => {
         </div>
       )}
       <ModalTemplate
-        title={
-          communityName.length !== 0 || communityDescription.length !== 0
-            ? "Update Community"
-            : "Create a Community"
-        }
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        title="Create a Community"
+        isOpen={createCommunityModalOpen}
+        onClose={() => setCreateCommunityModalOpen(false)}
       >
         <div className="flex flex-col">
           <label className="text-gray-softgray font-librefranklin text-xs">
@@ -154,9 +162,7 @@ const CommunityList = (): JSX.Element => {
           <Input
             data-testid="community-description-input"
             value={communityDescription}
-            onChange={(description) =>
-              setCommunityDescription(description.target.value)
-            }
+            onChange={(description) => setCommunityDescription(description.target.value)}
             placeholder="Community Description"
           />
           <div className="flex w-full justify-end">
@@ -164,13 +170,47 @@ const CommunityList = (): JSX.Element => {
               disabled={!communityName && !communityDescription}
               data-testid="create-button"
               className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
-              onClick={handleCreateCommunity}
+              onClick={() => handleCreateCommunity()}
             >
-              {
-                communityName.length !== 0 || communityDescription.length !== 0
-                  ? "Save"
-                  : "Create"
-              }
+              Create
+            </button>
+            {error && <div>{error}</div>}
+          </div>
+        </div>
+      </ModalTemplate>
+      <ModalTemplate
+        title="Update Community"
+        isOpen={updateCommunityModalOpen}
+        onClose={() => setUpdateCommunityModalOpen(false)}
+      >
+        <div className="flex flex-col">
+          <label className="text-gray-softgray font-librefranklin text-xs">
+            Community Name
+          </label>
+          <Input
+            data-testid="update-community-name-input"
+            className="mb-4"
+            value={updatedCommunityName}
+            onChange={(name) => setUpdatedCommunityName(name.target.value)}
+            placeholder="Community name"
+          />
+          <label className="text-gray-softgray font-librefranklin text-xs">
+            Community Description
+          </label>
+          <Input
+            data-testid="update-community-description-input"
+            value={updatedCommunityDescription}
+            onChange={(description) => setUpdatedCommunityDescription(description.target.value)}
+            placeholder="Community Description"
+          />
+          <div className="flex w-full justify-end">
+            <button
+              disabled={!updatedCommunityName && !updatedCommunityDescription}
+              data-testid="save-button"
+              className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
+              onClick={() => handleUpdateCommunity(updatedCommunityId)}
+            >
+              Save
             </button>
             {error && <div>{error}</div>}
           </div>

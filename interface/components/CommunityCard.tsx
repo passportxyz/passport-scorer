@@ -8,15 +8,24 @@ import { Community } from "../utils/account-requests";
 import { DeleteIcon, EditIcon } from "@chakra-ui/icons";
 
 type CommunityCardProps = {
-  setCommunityName: Function;
-  setCommunityDescription: Function;
+  setUpdatedCommunityName: Function;
+  setUpdatedCommunityDescription: Function;
+  setUpdatedCommunityId: Function;
   community: Community;
   communityId: Community["id"];
   handleDeleteCommunity: Function;
-  setModal: Function;
+  setUpdateCommunityModalOpen: Function;
 }
 
-const CommunityCard = ({ community, handleDeleteCommunity, communityId, setModal, setCommunityName, setCommunityDescription }: CommunityCardProps): JSX.Element => {
+const CommunityCard = ({ 
+  community,
+  handleDeleteCommunity,
+  communityId,
+  setUpdateCommunityModalOpen,
+  setUpdatedCommunityName,
+  setUpdatedCommunityDescription,
+  setUpdatedCommunityId,
+}: CommunityCardProps): JSX.Element => {
   return (
     <div className="grid grid-cols-2 auto-cols-auto border-x border-t last-of-type:border-b first-of-type:rounded-t-md last-of-type:rounded-b-md w-full items-center justify-between border-gray-lightgray bg-white p-4 hover:bg-gray-50">
       {/* first column */}
@@ -30,9 +39,10 @@ const CommunityCard = ({ community, handleDeleteCommunity, communityId, setModal
           data-testid="open-community-modal"
           className="mr-2 justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
           onClick={async () => {
-            setCommunityName(community.name);
-            setCommunityDescription(community.description);
-            setModal(true);
+            setUpdatedCommunityId(community.id)
+            setUpdatedCommunityName(community.name);
+            setUpdatedCommunityDescription(community.description);
+            setUpdateCommunityModalOpen(true);
           }}
         >
           <EditIcon color="#757087" />
