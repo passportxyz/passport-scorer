@@ -27,6 +27,9 @@ from django.http import HttpResponse
 from registry.utils import validate_credential, get_signer, verify_issuer
 from reader.passport_reader import get_did, get_passport
 
+from ninja.compatibility.request import get_headers
+
+
 log = logging.getLogger(__name__)
 api = NinjaExtraAPI(urls_namespace="registry")
 
@@ -44,6 +47,24 @@ class SubmitPassportPayload(Schema):
     community: str
 
 
+from ninja.security import APIKeyHeader
+
+
+class ApiKey(APIKeyHeader):
+    param_name = "X-API-Key"
+
+    def authenticate(self, request, key):
+        print("*" * 80)
+        print(request)
+        print(request.META)
+        print(key)
+        print(get_headers(request))
+
+        if key == "supersecret":
+            return key
+
+api_key = ApiKey()
+
 @api.post("/submit-passport")
 def submit_passport(request, payload: SubmitPassportPayload):
     if get_signer(payload.signature) != payload.address:
@@ -53,7 +74,7 @@ def submit_passport(request, payload: SubmitPassportPayload):
 
     # Passport contents read from ceramic
     passport = get_passport(did)
-
+    print("PASSPORT:", passport)
     # TODO Deduplicate passport according to selected deduplication rule
 
     if not verify_issuer(passport):

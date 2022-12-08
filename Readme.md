@@ -39,3 +39,20 @@ In the `./api` folder run (make sure your local virtual env is activated):
 ```
 coverage run --source='.' manage.py test
 ```
+
+
+#### pytest
+- use pytest to run tests. In `./api` folder run `pytest`
+
+#### bdd
+
+- **docs**: 
+  - [pytest-bdd](https://pytest-bdd.readthedocs.io/en/latest/#advanced-code-generation)
+  - https://automationpanda.com/2018/10/22/python-testing-101-pytest-bdd/
+  - examples: https://github.com/AndyLPK247/behavior-driven-python
+  - https://github.com/pytest-dev/pytest-mock
+- **Location of feature file:**: ./api/account/test/features
+- **cmd to generate missing code:** (run from `./api` and virtulanv): `pytest --generate-missing --feature scorer/test/features scorer/test`
+  - you will need to copy & paste the code from terminal to `test_.*.py` file
+
+
