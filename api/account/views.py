@@ -277,6 +277,9 @@ def update_community(request, community_id, payload: CommunitiesPayload):
 
         if name == db_name:
             raise SameCommunityNameException()
+        
+        if Community.objects.filter(name=payload.name).count() == 1:
+            raise CommunityExistsException()
 
         for attr, value in payload.dict().items():
             setattr(community, attr, value)
