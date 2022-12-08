@@ -66,6 +66,7 @@ jobs:
         with:
           # Disable running of tests within install job
           runTests: false
+          install-command: yarn --frozen-lockfile
           build: yarn build
           working-directory: test
 
