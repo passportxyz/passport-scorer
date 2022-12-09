@@ -13,6 +13,9 @@ from reader.passport_reader import get_did, get_passport
 from registry.models import Passport, Score, Stamp
 from registry.utils import get_signer, validate_credential, verify_issuer
 
+# --- Deduplication Modules
+from registry.dedupe_rules.lifo import lifo
+
 log = logging.getLogger(__name__)
 api = NinjaExtraAPI(urls_namespace="registry")
 
@@ -73,13 +76,12 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
     if get_signer(payload.signature) != payload.address:
         raise InvalidSignerException()
 
+    # Get DID from address
     did = get_did(payload.address)
     log.debug("/submit-passport, payload=%s", payload)
 
     # Passport contents read from ceramic
     passport = get_passport(did)
-
-    # TODO Deduplicate passport according to selected deduplication rule
 
     if not verify_issuer(passport):
         raise InvalidSignerException()
@@ -90,20 +92,22 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
     )
 
     try:
-        # Save passport to Community database (related to community by community_id)
-        db_passport = Passport.objects.create(
-            passport=passport, address=payload.address.lower(), community=user_community
-        )
+        # Get community object
+        community=Community.objects.get(id=payload.community)
+
+        # List all stamps in database
+        db_stamps = list(Stamp.objects.all())
+
+        # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
+        passport_to_be_saved = lifo(passport, db_stamps)
+
+        # Save passport to Passport database (related to community by community_id)
+        db_passport = Passport.objects.create(passport=passport_to_be_saved, did=did, community=community)
         db_passport.save()
 
-        for stamp in passport["stamps"]:
-            log.error("geri checking stamp %s", stamp)
-            stamp_return_errors = async_to_sync(validate_credential)(
-                did, stamp["credential"]
-            )
-            stamp_expiration_date = datetime.strptime(
-                stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%SZ"
-            )
+        for stamp in passport_to_be_saved["stamps"]:
+            stamp_return_errors = async_to_sync(validate_credential)(did, stamp["credential"])
+            stamp_expiration_date = datetime.strptime(stamp["credential"]["expirationDate"], '%Y-%m-%dT%H:%M:%SZ')
             # check that expiration date is not in the past
             stamp_is_expired = stamp_expiration_date < datetime.now()
             if len(stamp_return_errors) == 0 and stamp_is_expired == False:
