@@ -53,6 +53,9 @@ ens_credential = {
     },
 }
 
+"aqGxthSqdilpEXR06Ojw+YLO8K0BSjz0d8="
+"aqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8="
+
 ens_credential_corrupted = {
     "type": ["VerifiableCredential"],
     "proof": {
@@ -103,7 +106,7 @@ google_credential = {
         "%Y-%m-%dT%H:%M:%SZ"
     ),
     "credentialSubject": {
-        "id": "did:pkh:eip155:1:0x0636F974D9d947d4946b2091d769ec6D2d415DE",
+        "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
         "@context": [
             {
@@ -130,7 +133,7 @@ google_credential_2 = {
     "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ'),
     "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ'),
     "credentialSubject": {
-        "id": "did:pkh:eip155:1:0xb7B444961b4E08cBBC921ef4aDA07170A558913B",
+        "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:edgFWHsCSaqGxthSqdilpEXR06Ojw+YLO8K0BSjz0d8=",
         "@context": [
             {
@@ -183,8 +186,8 @@ mock_passport = {
 }
 
 mock_passport_2 = {
-    "issuanceDate": "2022-08-03T15:31:56.944Z",
-    "expirationDate": "2022-08-03T15:31:56.944Z",
+    "issuanceDate": "2022-06-03T15:31:56.944Z",
+    "expirationDate": "2022-06-03T15:31:56.944Z",
     "stamps": [
         {"provider": "Ens", "credential": ens_credential},
         {"provider": "Google", "credential": google_credential_2},
@@ -192,8 +195,8 @@ mock_passport_2 = {
 }
 
 mock_passport_google = {
-    "issuanceDate": "2022-08-03T15:31:56.944Z",
-    "expirationDate": "2022-08-03T15:31:56.944Z",
+    "issuanceDate": "2022-06-03T15:31:56.944Z",
+    "expirationDate": "2022-06-03T15:31:56.944Z",
     "stamps": [
         {"provider": "Google", "credential": google_credential_2},
     ],
@@ -486,7 +489,7 @@ class ValidatePassportTestCase(TransactionTestCase):
     @patch("registry.views.validate_credential", side_effect=[[], [], []])
     @patch(
         "registry.views.get_passport",
-        return_value=mock_passport_2,
+        return_value=mock_passport,
     )
     def test_that_community_is_associated_with_passport(
         self, get_passport, validate_credential
@@ -585,6 +588,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "/registry/submit-passport",
             json.dumps(submission_test_payload),
             content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
 
         self.assertEqual(submission_response.status_code, 200)
@@ -592,4 +596,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         updated_passport = Passport.objects.get(did=submission_did)   
 
         self.assertEqual(len(updated_passport.passport["stamps"]), 1)
+        self.assertEqual(updated_passport.did, submission_did)
+        self.assertEqual(updated_passport.passport, mock_passport_google)
         self.assertEqual(updated_passport.passport["stamps"][0]["provider"], "Google")
