@@ -159,6 +159,7 @@ def _(scorer_community):
 def _(submit_passport_response):
     """I want to get a score based on the Gitcoin Community Score and deduplication rules (see default deduplication settings here)."""
     assert submit_passport_response.status_code == 200
+    # TODO: check that the correct score is included in the response
     raise NotImplementedError
 
 
