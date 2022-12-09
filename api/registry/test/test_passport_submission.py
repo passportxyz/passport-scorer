@@ -233,7 +233,7 @@ class ValidatePassportTestCase(TestCase):
             HTTP_AUTHORIZATION="Token 1234",
         )
 
-        self.assertAlmostEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 401)
 
     def test_verify_signature(self):
         signer = get_signer(self.signed_message.signature.hex())
