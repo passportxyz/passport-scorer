@@ -20,7 +20,7 @@ from ninja.security import APIKeyHeader
 
 # --- Models
 from account.models import Account, AccountAPIKey, Community
-from registry.models import Passport, Stamp
+from registry.models import Passport, Stamp, Score
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 
@@ -52,6 +52,11 @@ class SubmitPassportPayload(Schema):
     community: str
 
 
+class ScoreResponse(Schema):
+    passport_id: int
+    address: str
+    score: float
+
 
 
 
@@ -71,7 +76,7 @@ class ApiKey(APIKeyHeader):
             raise Unauthorized()
 
 @api.post("/submit-passport", auth=ApiKey())
-def submit_passport(request, payload: SubmitPassportPayload):
+def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreResponse]:
     if get_signer(payload.signature) != payload.address:
         raise InvalidSignerException()
 
@@ -90,7 +95,7 @@ def submit_passport(request, payload: SubmitPassportPayload):
 
     try:
         # Save passport to Community database (related to community by community_id)
-        db_passport = Passport.objects.create(passport=passport, did=did, community=user_community)
+        db_passport = Passport.objects.create(passport=passport, address=payload.address.lower(), community=user_community)
         db_passport.save()
 
         for stamp in passport["stamps"]:
@@ -102,8 +107,14 @@ def submit_passport(request, payload: SubmitPassportPayload):
                 db_stamp = Stamp.objects.create(hash=stamp["credential"]["credentialSubject"]["hash"], provider=stamp["provider"], credential=stamp["credential"], passport=db_passport)
                 db_stamp.save()
         
+        scorer = user_community.get_scorer()
+        scores = scorer.compute_score([db_passport.id])
 
-        return {"submitted": True}
+        return [{
+            "passport_id": s.passport.id,
+            "address": s.passport.address,
+            "score": s.score
+        } for s in scores]
     except Exception as e:
         InvalidPassportCreationException()
     

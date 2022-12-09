@@ -17,7 +17,10 @@ def calculate_score(sender, passport_ids, **kwargs):
         calculate_weighted_score(scorer, passport_ids)
 
 
-def calculate_weighted_score(scorer: WeightedScorer, passport_ids: List[int]):
+def calculate_weighted_score(
+    scorer: WeightedScorer, passport_ids: List[int]
+) -> List[Score]:
+    ret: List[Score] = []
     log.debug(
         "calculate_weighted_score for scorer %s and passports %s", scorer, passport_ids
     )
@@ -26,6 +29,8 @@ def calculate_weighted_score(scorer: WeightedScorer, passport_ids: List[int]):
         sum_of_weights = 0
         for stamp in Stamp.objects.filter(passport_id=passport_id):
             sum_of_weights += weights.get(stamp.provider, 0)
-        Score.objects.update_or_create(
-            passport_id=passport_id, scorer=scorer, defaults=dict(score=sum_of_weights)
+        score, _ = Score.objects.update_or_create(
+            passport_id=passport_id, defaults=dict(score=sum_of_weights)
         )
+        ret.append(score)
+    return ret

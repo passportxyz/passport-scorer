@@ -79,9 +79,9 @@ def _(scorer_community):
     pass
 
 
-@when("I call the submit-passport API for a specific ETH address")
+@when("I call the submit-passport API for an Ethereum account under that community ID", target_fixture="submit_passport_response")
 def _(scorer_api_key, scorer_community, mocker):
-    """I call the submit-passport API for a specific ETH address."""
+    """I call the submit-passport API for an Ethereum account under that community ID."""
     mocker.patch("registry.views.get_passport", return_value=mock_passport)
     client = Client()
 
@@ -110,14 +110,16 @@ def _(scorer_api_key, scorer_community, mocker):
         HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
     )
 
-    assert response.status_code == 200
+    return response
 
 
 @then(
     "the API logs all of the valid Passport data points (VCs), namely the complete JSON, mapped to that Passport holder within the respective community ID directory"
 )
-def _(scorer_community):
+def _(scorer_community, submit_passport_response):
     """the API logs all of the valid Passport data points (VCs), namely the complete JSON, mapped to that Passport holder within the respective community ID directory."""
+    assert submit_passport_response.status_code == 200
+
     assert len(Passport.objects.all()) == 1
     passport = Passport.objects.all()[0]
 
@@ -128,3 +130,41 @@ def _(scorer_community):
 def _():
     """the API reads all of the Passport data points."""
     pass
+
+
+@scenario(
+    "features/submit_passport.feature",
+    "As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API",
+)
+def test_as_a_developer_i_want_to_rely_on_the_gitcoin_community_scorer_scoring_settings_of_the_api():
+    """As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API."""
+
+
+@given("I have not further configured its settings")
+def _():
+    """I have not further configured its settings."""
+    # Nothingg to do here
+    pass
+
+
+@given("that I have created a community ID")
+def _(scorer_community):
+    """that I have created a community ID."""
+    pass
+
+
+@then(
+    "I want to get a score based on the Gitcoin Community Score and deduplication rules (see default deduplication settings here)"
+)
+def _(submit_passport_response):
+    """I want to get a score based on the Gitcoin Community Score and deduplication rules (see default deduplication settings here)."""
+    assert submit_passport_response.status_code == 200
+    raise NotImplementedError
+
+
+@then(
+    "log the score associated with this Passport under the corresponding community ID"
+)
+def _():
+    """log the score associated with this Passport under the corresponding community ID."""
+    raise NotImplementedError

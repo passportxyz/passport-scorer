@@ -43,3 +43,10 @@ class Community(models.Model):
     scorer = models.ForeignKey(
         Scorer, on_delete=models.PROTECT, default=get_default_community_scorer
     )
+
+    def get_scorer(self) -> Scorer:
+        if self.scorer.type == Scorer.Type.WEIGHTED:
+            return self.scorer.weighted_scorer
+        elif self.scorer.type == Scorer.Type.WEIGHTED_BINARY:
+            return self.scorer.binary_weighted_scorer
+        
