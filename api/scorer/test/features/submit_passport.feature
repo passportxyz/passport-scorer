@@ -1,4 +1,3 @@
-@web @duckduckgo
 Feature: Submit address for passport
   As a user of the passport scoring service
   I want to be able to submit eth addresses so I can get back 
