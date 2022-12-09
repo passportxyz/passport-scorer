@@ -25,18 +25,15 @@ web3.eth.account.enable_unaudited_hdwallet_features()
 pytestmark = pytest.mark.django_db
 
 
-@scenario("features/submit_passport.feature", "Submit passport successfully")
-def test_submit_passport_successfully():
-    """Submit passport successfully."""
-
-
-@given(
-    "that I'm a Passport developer and have a community ID", target_fixture="community"
-)
-def _():
-    """that I'm a Passport developer and have a community ID."""
+@pytest.fixture
+def scorer_user():
     user = User.objects.create_user(username="testuser-1", password="12345")
+    print("scorer_user user", user)
+    return user
 
+
+@pytest.fixture
+def scorer_account(scorer_user):
     # TODO: load mnemonic from env
     my_mnemonic = (
         "chief loud snack trend chief net field husband vote message decide replace"
@@ -45,20 +42,45 @@ def _():
         my_mnemonic, account_path="m/44'/60'/0'/0/0"
     )
 
-    account = Account.objects.create(user=user, address=web3_account.address)
+    print("scorer_user", scorer_user)
+    print("web3_account.address", web3_account.address)
+    account = Account.objects.create(user=scorer_user, address=web3_account.address)
+    return account
 
+
+@pytest.fixture
+def scorer_api_key(scorer_account):
+    (account_api_key, secret) = AccountAPIKey.objects.create_key(
+        account=scorer_account, name="Token for user 1"
+    )
+    return secret
+
+
+@pytest.fixture
+def scorer_community(scorer_account):
     community = Community.objects.create(
         name="My Community",
         description="My Community description",
-        account=account,
+        account=scorer_account,
     )
-
-    print(user)
     return community
 
 
+@scenario("features/submit_passport.feature", "Submit passport successfully")
+def test_submit_passport_successfully():
+    """Submit passport successfully."""
+
+
+@given(
+    "that I'm a Passport developer and have a community ID", target_fixture="community"
+)
+def _(scorer_community):
+    """that I'm a Passport developer and have a community ID."""
+    pass
+
+
 @when("I call the submit-passport API for a specific ETH address")
-def _(community, mocker):
+def _(scorer_api_key, scorer_community, mocker):
     """I call the submit-passport API for a specific ETH address."""
     mocker.patch("registry.views.get_passport", return_value=mock_passport)
     client = Client()
@@ -76,8 +98,8 @@ def _(community, mocker):
     )
 
     payload = {
-        "community": community.id,
-        "address": community.account.address,
+        "community": scorer_community.id,
+        "address": scorer_community.account.address,
         "signature": signed_message.signature.hex(),
     }
 
@@ -85,6 +107,7 @@ def _(community, mocker):
         "/registry/submit-passport",
         json.dumps(payload),
         content_type="application/json",
+        HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
     )
 
     assert response.status_code == 200
@@ -93,12 +116,12 @@ def _(community, mocker):
 @then(
     "the API logs all of the valid Passport data points (VCs), namely the complete JSON, mapped to that Passport holder within the respective community ID directory"
 )
-def _(community):
+def _(scorer_community):
     """the API logs all of the valid Passport data points (VCs), namely the complete JSON, mapped to that Passport holder within the respective community ID directory."""
     assert len(Passport.objects.all()) == 1
     passport = Passport.objects.all()[0]
 
-    assert passport.community.id == community.id
+    assert passport.community.id == scorer_community.id
 
 
 @then("the API reads all of the Passport data points")

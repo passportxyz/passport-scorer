@@ -2,7 +2,7 @@ import binascii
 import json
 from django.test import TestCase
 from django.test import Client
-from account.models import Community, Account
+from account.models import AccountAPIKey, Community, Account
 from django.contrib.auth.models import User
 from web3 import Web3
 from eth_account.messages import encode_defunct
@@ -211,7 +211,29 @@ class ValidatePassportTestCase(TestCase):
             account=self.user_account2,
         )
 
+        (account_api_key, secret) = AccountAPIKey.objects.create_key(
+            account=self.user_account, name="Token for user 1"
+        )
+        self.account_api_key = account_api_key
+        self.secret = secret
+
         self.client = Client()
+
+    def test_invalid_api_key(self):
+        payload = {
+            "address": self.account.address,
+            "signature": self.signed_message.signature.hex(),
+            "community": self.community.id,
+        }
+
+        response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Token 1234",
+        )
+
+        self.assertEqual(response.status_code, 401)
 
     def test_verify_signature(self):
         signer = get_signer(self.signed_message.signature.hex())
@@ -237,6 +259,7 @@ class ValidatePassportTestCase(TestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}"
         )
         self.assertEqual(response.status_code, 400)
 
@@ -262,7 +285,7 @@ class ValidatePassportTestCase(TestCase):
             json.dumps(payload),
             **{
                 "content_type": "application/tson",
-                # "HTTP_Authorization": "api-key hello"
+                "HTTP_AUTHORIZATION": f"Token {self.secret}"
             },
         )
         self.assertEqual(response.status_code, 200)
@@ -299,6 +322,7 @@ class ValidatePassportTestCase(TestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}"
         )
         self.assertEqual(response.status_code, 422)
 
@@ -332,6 +356,7 @@ class ValidatePassportTestCase(TestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}"
         )
         self.assertEqual(response.status_code, 200)
 
@@ -374,6 +399,7 @@ class ValidatePassportTestCase(TestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}"
         )
         self.assertEqual(response.status_code, 200)
 
@@ -416,6 +442,7 @@ class ValidatePassportTestCase(TestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}"
         )
         self.assertEqual(response.status_code, 200)
 
@@ -430,11 +457,10 @@ class ValidatePassportTestCase(TestCase):
         "registry.views.get_passport",
         return_value=mock_passport,
     )
-    def test_that_only_owned_communities_are_allowed(self, get_passport):
+    def test_that_only_owned_communities_can_submit_passport(self, get_passport):
         """
-        Verify that only communities owned by the user of the API key are allowed
+        Verify that only communities owned by the user of the API key can create passports
         """
-        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
 
         payload = {
             "community": self.community2.id,
@@ -446,5 +472,6 @@ class ValidatePassportTestCase(TestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}"
         )
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 404)
