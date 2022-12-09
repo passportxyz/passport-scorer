@@ -2,7 +2,7 @@
 
 import pytest
 from account.models import Account, AccountAPIKey, Community
-from registry.models import Passport, Stamp
+from registry.models import Passport, Score, Stamp
 from django.contrib.auth.models import User
 from django.test import Client
 from web3 import Web3
@@ -54,6 +54,24 @@ def scorer_api_key(scorer_account):
         account=scorer_account, name="Token for user 1"
     )
     return secret
+
+@pytest.fixture
+def scorer_passport(scorer_account, scorer_community):
+    passport = Passport.objects.create(
+        address=scorer_account.address,
+        passport={"name": "John Doe"},
+        version=1,
+        community=scorer_community,
+    )
+    return passport
+
+@pytest.fixture
+def scorer_score(scorer_passport):
+    stamp = Score.objects.create(
+        passport=scorer_passport,
+        score='0.650000000',
+    )
+    return stamp
 
 
 @pytest.fixture
@@ -138,6 +156,7 @@ def _():
 )
 def test_as_a_developer_i_want_to_rely_on_the_gitcoin_community_scorer_scoring_settings_of_the_api():
     """As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API."""
+    pass
 
 
 @given("I have not further configured its settings")
@@ -156,11 +175,17 @@ def _(scorer_community):
 @then(
     "I want to get a score based on the Gitcoin Community Score and deduplication rules (see default deduplication settings here)"
 )
-def _(submit_passport_response):
+def _(scorer_account, scorer_community, scorer_api_key, scorer_score):
     """I want to get a score based on the Gitcoin Community Score and deduplication rules (see default deduplication settings here)."""
-    assert submit_passport_response.status_code == 200
-    # TODO: check that the correct score is included in the response
-    raise NotImplementedError
+    address = scorer_account.address
+    community_id = scorer_community.id
+    client = Client()
+    response = client.get(
+        f"/registry/score/{address}/{community_id}",
+        HTTP_AUTHORIZATION="Token " + scorer_api_key,
+    )
+    assert response.status_code == 200
+    assert response.json() == {"score": scorer_score.score}
 
 
 @then(
