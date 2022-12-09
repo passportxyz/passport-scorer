@@ -30,7 +30,6 @@ from reader.passport_reader import get_did, get_passport
 
 from ninja.compatibility.request import get_headers
 
-
 log = logging.getLogger(__name__)
 api = NinjaExtraAPI(urls_namespace="registry")
 
@@ -140,3 +139,11 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         ]
     except Exception as e:
         InvalidPassportCreationException()
+
+@api.get("/score/{path:address}/{path:community_id}", auth=ApiKey())
+def get_score(request, address: str, community_id: int):
+    print("address", address, "community_iasdfasfdasd", community_id)
+    community = Community.objects.get(id=community_id)
+    passport = Passport.objects.get(address=address, community=community)
+    score = Score.objects.get(passport=passport)
+    return {"score": score.score}
