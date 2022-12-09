@@ -294,7 +294,7 @@ class ValidatePassportTestCase(TestCase):
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
         self.assertEqual(all_passports[0].passport, mock_passport)
-        self.assertEqual(all_passports[0].did, did)
+        self.assertEqual(all_passports[0].address, self.account.address.lower())
         self.assertEqual(len(all_passports[0].stamps.all()), 2)
         stamp_ens = Stamp.objects.get(provider="Ens")
         stamp_google = Stamp.objects.get(provider="Google")
@@ -344,7 +344,6 @@ class ValidatePassportTestCase(TestCase):
         """
         Verify that stamps which do not pass the didkit validation are ignored and not stored in the DB
         """
-        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
 
         payload = {
             "community": self.community.id,
@@ -364,7 +363,7 @@ class ValidatePassportTestCase(TestCase):
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
         self.assertEqual(all_passports[0].passport, mock_passport_with_corrupted_stamp)
-        self.assertEqual(all_passports[0].did, did)
+        self.assertEqual(all_passports[0].address, self.account.address.lower())
         self.assertEqual(len(all_passports[0].stamps.all()), 2)
         stamp_ens = Stamp.objects.get(provider="Ens")
         stamp_google = Stamp.objects.get(provider="Google")
@@ -387,7 +386,6 @@ class ValidatePassportTestCase(TestCase):
         """
         Verify that stamps that are expired are ignored
         """
-        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
 
         payload = {
             "community": self.community.id,
@@ -407,7 +405,7 @@ class ValidatePassportTestCase(TestCase):
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
         self.assertEqual(all_passports[0].passport, mock_passport_with_expired_stamp)
-        self.assertEqual(all_passports[0].did, did)
+        self.assertEqual(all_passports[0].address, self.account.address.lower())
         self.assertEqual(len(all_passports[0].stamps.all()), 2)
         stamp_ens = Stamp.objects.get(provider="Ens")
         stamp_google = Stamp.objects.get(provider="Google")
@@ -430,7 +428,6 @@ class ValidatePassportTestCase(TestCase):
         """
         Verify that the community is associated with the passport
         """
-        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
 
         payload = {
             "community": self.community.id,
@@ -450,7 +447,7 @@ class ValidatePassportTestCase(TestCase):
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
         self.assertEqual(all_passports[0].passport, mock_passport)
-        self.assertEqual(all_passports[0].did, did)
+        self.assertEqual(all_passports[0].address, self.account.address.lower())
         self.assertEqual(all_passports[0].community, self.community)
 
     @patch(

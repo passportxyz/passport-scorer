@@ -46,7 +46,7 @@ class Community(models.Model):
 
     def get_scorer(self) -> Scorer:
         if self.scorer.type == Scorer.Type.WEIGHTED:
-            return self.scorer.weighted_scorer
+            return self.scorer.weightedscorer
         elif self.scorer.type == Scorer.Type.WEIGHTED_BINARY:
             return self.scorer.binary_weighted_scorer
         
