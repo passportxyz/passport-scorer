@@ -3,7 +3,7 @@ from account.models import Community
 
 
 class Passport(models.Model):
-    address = models.CharField(null=False, blank=False, max_length=100)
+    address = models.CharField(null=True, blank=False, max_length=100)
     # TODO: shall we drop the did in favour of the address? The DID is specific to a certain network
     # did = models.CharField(null=False, blank=False, max_length=100)
     passport = models.JSONField(default=dict)

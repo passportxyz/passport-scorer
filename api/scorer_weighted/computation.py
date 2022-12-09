@@ -2,9 +2,7 @@ import logging
 from datetime import datetime
 from typing import List
 
-from registry.models import Stamp
 from scorer_weighted.models import WeightedScorer
-from registry.models import Score
 
 log = logging.getLogger(__name__)
 
@@ -19,8 +17,10 @@ def calculate_score(sender, passport_ids, **kwargs):
 
 def calculate_weighted_score(
     scorer: WeightedScorer, passport_ids: List[int]
-) -> List[Score]:
-    ret: List[Score] = []
+) -> List[float]:
+    from registry.models import Stamp
+
+    ret: List[float] = []
     log.debug(
         "calculate_weighted_score for scorer %s and passports %s", scorer, passport_ids
     )
@@ -29,8 +29,5 @@ def calculate_weighted_score(
         sum_of_weights = 0
         for stamp in Stamp.objects.filter(passport_id=passport_id):
             sum_of_weights += weights.get(stamp.provider, 0)
-        score, _ = Score.objects.update_or_create(
-            passport_id=passport_id, defaults=dict(score=sum_of_weights)
-        )
-        ret.append(score)
+        ret.append(sum_of_weights)
     return ret
