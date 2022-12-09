@@ -65,6 +65,9 @@ class ApiKey(APIKeyHeader):
     param_name = "X-API-Key"
 
     def authenticate(self, request, key):
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+        if not auth_header:
+            raise Unauthorized()
         try:
             key = request.META["HTTP_AUTHORIZATION"].split()[1]
             api_key = AccountAPIKey.objects.get_from_key(key)
@@ -142,7 +145,6 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
 
 @api.get("/score/{path:address}/{path:community_id}", auth=ApiKey())
 def get_score(request, address: str, community_id: int):
-    print("address", address, "community_iasdfasfdasd", community_id)
     community = Community.objects.get(id=community_id)
     passport = Passport.objects.get(address=address, community=community)
     score = Score.objects.get(passport=passport)
