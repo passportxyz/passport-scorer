@@ -3,7 +3,8 @@ from datetime import datetime
 from typing import List
 
 from registry.models import Stamp
-from scorer_weighted.models import Score, WeightedScorer
+from scorer_weighted.models import WeightedScorer
+from registry.models import Score
 
 log = logging.getLogger(__name__)
 

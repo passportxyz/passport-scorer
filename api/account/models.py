@@ -33,4 +33,4 @@ class Community(models.Model):
     account = models.ForeignKey(
         Account, on_delete=models.CASCADE, related_name="community", default=None
     )
-    scorer = models.ForeignKey(Scorer)
+    scorer = models.ForeignKey(Scorer, on_delete=models.PROTECT, default=None)

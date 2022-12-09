@@ -235,8 +235,7 @@ def create_community(request, payload: CommunitiesPayload):
             raise CommunityHasNoBodyException()
 
         Community.objects.create(
-            account=account, name=payload.name, description=payload.description,
-            W
+            account=account, name=payload.name, description=payload.description
         )
 
     except Account.DoesNotExist:

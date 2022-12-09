@@ -1,5 +1,6 @@
 from django.db import models
 from account.models import Community
+from scorer_weighted.models import Scorer
 
 
 class Passport(models.Model):
@@ -40,3 +41,10 @@ class Stamp(models.Model):
 
     class Meta:
         unique_together = ["hash", "community"]
+
+class Score(models.Model):
+    passport = models.ForeignKey(
+        Passport, on_delete=models.PROTECT, related_name="score"
+    )
+    scorer = models.ForeignKey(Scorer, on_delete=models.PROTECT)
+    score = models.DecimalField(null=True, blank=True, decimal_places=9, max_digits=18)
