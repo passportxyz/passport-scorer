@@ -86,7 +86,12 @@ class TestPassportGetScore:
             f"/registry/score/{address}/{community_id}",
         )
         assert response.status_code == 401
-    
 
-
-
+    def test_passport_get_scores_bad_community(self, scorer_api_key, scorer_account):
+        address = scorer_account.address
+        client = Client()
+        response = client.get(
+            f"/registry/score/{address}/3",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 400
