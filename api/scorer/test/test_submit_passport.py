@@ -154,7 +154,7 @@ def _():
     "features/submit_passport.feature",
     "As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API",
 )
-def test_as_a_developer_i_want_to_rely_on_the_gitcoin_community_scorer_scoring_settings_of_the_api():
+def _():
     """As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API."""
     pass
 
