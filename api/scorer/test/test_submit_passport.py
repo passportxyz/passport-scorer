@@ -77,7 +77,17 @@ def scorer_score(scorer_passport):
 
 
 @pytest.fixture
-def scorer_community(scorer_account):
+def scorer_community(mocker, scorer_account):
+    mock_settings = {
+        "Google": 1234,
+        "Ens": 1000000,
+    }
+    # Mock gitcoin scoring settings
+    mocker.patch(
+        "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
+        mock_settings,
+    )
+
     community = Community.objects.create(
         name="My Community",
         description="My Community description",
@@ -105,6 +115,7 @@ def _(scorer_community):
 )
 def _(scorer_api_key, scorer_community, mocker):
     """I call the submit-passport API for an Ethereum account under that community ID."""
+
     mocker.patch("registry.views.get_passport", return_value=mock_passport)
     client = Client()
 
@@ -159,11 +170,9 @@ def _():
     "features/submit_passport.feature",
     "As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API",
 )
-def test_as_a_developer_i_want_to_rely_on_the_gitcoin_community_scorer_scoring_settings_of_the_api():
-    """As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API."""
-
-
-def _(mocker):
+def test_as_a_developer_i_want_to_rely_on_the_gitcoin_community_scorer_scoring_settings_of_the_api(
+    mocker,
+):
     """As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API."""
     mock_settings = {
         "Google": 1234,
@@ -189,17 +198,17 @@ def _(scorer_community):
 @then(
     "I want to get a score based on the Gitcoin Community Score and deduplication rules (see default deduplication settings here)"
 )
-def _(scorer_account, scorer_community, scorer_api_key):
+def _(submit_passport_response):
     """I want to get a score based on the Gitcoin Community Score and deduplication rules (see default deduplication settings here)."""
-    address = scorer_account.address
-    community_id = scorer_community.id
-    client = Client()
-    response = client.get(
-        f"/registry/score/{address}/{community_id}",
-        HTTP_AUTHORIZATION="Token " + scorer_api_key,
-    )
-    assert response.status_code == 200
-    assert response.json() == {"score": 1001234511}
+    # address = scorer_passport.address
+    # community_id = scorer_community.id
+    # client = Client()
+    # response = client.get(
+    #     f"/registry/score/{address}/{community_id}",
+    #     HTTP_AUTHORIZATION="Token " + scorer_api_key,
+    # )
+    assert submit_passport_response.status_code == 200
+    assert submit_passport_response.json() == [{"score": 1001234}]
 
 
 @then(
