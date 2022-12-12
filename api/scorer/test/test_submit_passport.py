@@ -55,6 +55,7 @@ def scorer_api_key(scorer_account):
     )
     return secret
 
+
 @pytest.fixture
 def scorer_passport(scorer_account, scorer_community):
     passport = Passport.objects.create(
@@ -65,11 +66,12 @@ def scorer_passport(scorer_account, scorer_community):
     )
     return passport
 
+
 @pytest.fixture
 def scorer_score(scorer_passport):
     stamp = Score.objects.create(
         passport=scorer_passport,
-        score='0.650000000',
+        score="0.650000000",
     )
     return stamp
 
@@ -97,7 +99,10 @@ def _(scorer_community):
     pass
 
 
-@when("I call the submit-passport API for an Ethereum account under that community ID", target_fixture="submit_passport_response")
+@when(
+    "I call the submit-passport API for an Ethereum account under that community ID",
+    target_fixture="submit_passport_response",
+)
 def _(scorer_api_key, scorer_community, mocker):
     """I call the submit-passport API for an Ethereum account under that community ID."""
     mocker.patch("registry.views.get_passport", return_value=mock_passport)
@@ -154,9 +159,15 @@ def _():
     "features/submit_passport.feature",
     "As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API",
 )
-def _():
+def _(mocker):
     """As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API."""
-    pass
+    mock_settings = {
+        "Google": 1234,
+        "Ens": 1000000,
+    }
+    # Mock gitcoin scoring settings
+    mocker.patch("scorer_weighted.models.settings", return_value=mock_settings)
+
 
 
 @given("I have not further configured its settings")
@@ -175,7 +186,7 @@ def _(scorer_community):
 @then(
     "I want to get a score based on the Gitcoin Community Score and deduplication rules (see default deduplication settings here)"
 )
-def _(scorer_account, scorer_community, scorer_api_key, scorer_score):
+def _(scorer_account, scorer_community, scorer_api_key):
     """I want to get a score based on the Gitcoin Community Score and deduplication rules (see default deduplication settings here)."""
     address = scorer_account.address
     community_id = scorer_community.id
@@ -185,7 +196,7 @@ def _(scorer_account, scorer_community, scorer_api_key, scorer_score):
         HTTP_AUTHORIZATION="Token " + scorer_api_key,
     )
     assert response.status_code == 200
-    assert response.json() == {"score": scorer_score.score}
+    assert response.json() == {"score": 1001234511}
 
 
 @then(

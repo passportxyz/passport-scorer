@@ -78,6 +78,7 @@ class TestPassportGetScore:
         assert response.status_code == 200
         assert response.json() == {"score": scorer_score.score}
 
+    # TODO: Create test authorization separately
     def test_passport_get_scores_no_auth(self, scorer_community, scorer_account):
         address = scorer_account.address
         community_id = scorer_community.id

@@ -154,4 +154,6 @@ def get_score(request, address: str, community_id: int):
         score = Score.objects.get(passport=passport)
         return {"score": score.score}
     except Exception as e:
+        # TODO: Log error for why it failed
+        log.error("Error when handling passport submission. address=%s, community_id=%s", address, community_id, exc_info=True)
         raise InvalidScoreRequestException()
