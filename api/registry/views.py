@@ -90,6 +90,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         raise InvalidSignerException()
 
     did = get_did(payload.address)
+    log.debug("/submit-passport, payload=%s", payload)
 
     # Passport contents read from ceramic
     passport = get_passport(did)
@@ -112,6 +113,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         db_passport.save()
 
         for stamp in passport["stamps"]:
+            log.error("geri checking stamp %s", stamp)
             stamp_return_errors = async_to_sync(validate_credential)(
                 did, stamp["credential"]
             )
@@ -128,6 +130,13 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
                     passport=db_passport,
                 )
                 db_stamp.save()
+            else:
+                log.debug(
+                    "Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s",
+                    stamp,
+                    stamp_return_errors,
+                    stamp_is_expired,
+                )
 
         scorer = user_community.get_scorer()
         scores = scorer.compute_score([db_passport.id])
@@ -156,4 +165,11 @@ def get_score(request, address: str, community_id: int):
         score = Score.objects.get(passport=passport)
         return {"score": score.score}
     except Exception as e:
+        # TODO: Log error for why it failed
+        log.error(
+            "Error when handling passport submission. address=%s, community_id=%s",
+            address,
+            community_id,
+            exc_info=True,
+        )
         raise InvalidScoreRequestException()
