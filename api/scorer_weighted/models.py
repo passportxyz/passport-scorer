@@ -1,12 +1,9 @@
 from django.db import models
 from django.conf import settings
-
+import logging
 from typing import List
 
-
-def get_default_parent_scorer_for_weighted():
-    return Scorer(type=Scorer.Type.WEIGHTED)
-
+log = logging.getLogger(__name__)
 
 def get_default_weights():
     """
