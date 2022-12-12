@@ -552,12 +552,12 @@ class ValidatePassportTestCase(TransactionTestCase):
         Test the successful deduplication of stamps by last in first out (LIFO)
         """
 
-        did_1 = f"did:pkh:eip155:1:{self.account.address.lower()}"
-        submission_did = f"did:pkh:eip155:1:{self.mock_account.address.lower()}"
+        address_1 = self.account.address.lower()
+        submission_address = self.mock_account.address.lower()
 
         # Create first passport
         first_passport = Passport.objects.create(
-            did=did_1,
+            address=address_1,
             passport=mock_passport,
             community=self.community,
         )
@@ -593,9 +593,9 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         self.assertEqual(submission_response.status_code, 200)
 
-        updated_passport = Passport.objects.get(did=submission_did)   
+        updated_passport = Passport.objects.get(address=submission_address)   
 
         self.assertEqual(len(updated_passport.passport["stamps"]), 1)
-        self.assertEqual(updated_passport.did, submission_did)
+        self.assertEqual(updated_passport.address, submission_address)
         self.assertEqual(updated_passport.passport, mock_passport_google)
         self.assertEqual(updated_passport.passport["stamps"][0]["provider"], "Google")

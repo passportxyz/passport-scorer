@@ -92,9 +92,6 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
     )
 
     try:
-        # Get community object
-        community=Community.objects.get(id=payload.community)
-
         # List all stamps in database
         db_stamps = list(Stamp.objects.all())
 
@@ -102,7 +99,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         passport_to_be_saved = lifo(passport, db_stamps)
 
         # Save passport to Passport database (related to community by community_id)
-        db_passport = Passport.objects.create(passport=passport_to_be_saved, did=payload.address.lower(), community=community)
+        db_passport = Passport.objects.create(passport=passport_to_be_saved, address=payload.address.lower(), community=user_community)
         db_passport.save()
 
         for stamp in passport_to_be_saved["stamps"]:
