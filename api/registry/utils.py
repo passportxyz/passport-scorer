@@ -1,25 +1,27 @@
-from datetime import datetime
 import json
 import logging
+from datetime import datetime
 
 import didkit
 from asgiref.sync import async_to_sync
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import render
+from eth_account.messages import encode_defunct
+from reader.passport_reader import TRUSTED_IAM_ISSUER
+from registry.models import Passport, Stamp
+
+# from registry.serializers import PassportSerializer, StampSerializer
+from registry.signals import registry_updated
+
 # from rest_framework import viewsets
 # from rest_framework.decorators import api_view
 from web3 import Web3
-from eth_account.messages import encode_defunct
-
-from registry.models import Passport, Stamp
-# from registry.serializers import PassportSerializer, StampSerializer
-from registry.signals import registry_updated
-from reader.passport_reader import TRUSTED_IAM_ISSUER
 
 log = logging.getLogger(__name__)
 
 web3 = Web3()
+
 
 def index(request):
     context = {}
@@ -75,26 +77,33 @@ def get_duplicate_passport(did, stamp_hash):
 
     return None
 
+
 def get_signer(signature) -> str:
     message = "I authorize the passport scorer to validate my account"
     encoded_message = encode_defunct(text=message)
     address = web3.eth.account.recover_message(encoded_message, signature=signature)
     return address
 
+
 def verify_issuer(passport) -> bool:
     stamps = passport["stamps"]
     for index in stamps:
-        if index['credential']['issuer'] != TRUSTED_IAM_ISSUER:
+        if index["credential"]["issuer"] != TRUSTED_IAM_ISSUER:
             return False
     return True
 
+
 def verify_expiration(passport) -> bool:
-    format = '%Y-%m-%dT%H:%M:%S.%fZ'
+    format = "%Y-%m-%dT%H:%M:%S.%fZ"
     stamps = passport["stamps"]
     for index in stamps:
-        if datetime.strptime(index['credential']['expirationDate'], format) < datetime.now():
+        if (
+            datetime.strptime(index["credential"]["expirationDate"], format)
+            < datetime.now()
+        ):
             return False
     return True
+
 
 def submit_passport(request):
     # pylint: disable=fixme
@@ -186,5 +195,3 @@ def submit_passport(request):
         response_data["affected_passports"] = affected_passports
 
     return JsonResponse(response_data, status=status)
-
-

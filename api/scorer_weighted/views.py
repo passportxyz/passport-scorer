@@ -1,9 +1,11 @@
 import logging
 
+from scorer_weighted.models import WeightedScorer
+
 # from django_filters.rest_framework import DjangoFilterBackend
 # from rest_framework import viewsets
 
-from scorer_weighted.models import WeightedScorer
+
 # from scorer_weighted.serializers import ScoreSerializer, WeightedScorerSerializer
 
 log = logging.getLogger(__name__)

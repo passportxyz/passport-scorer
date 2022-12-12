@@ -1,13 +1,12 @@
-from django.test import TestCase
-from django.test import Client
-from django.contrib.auth.models import User
-from ninja_jwt.schema import RefreshToken
-
 import json
 
 from account.models import Account, Community
+from django.contrib.auth.models import User
+from django.test import Client, TestCase
+from ninja_jwt.schema import RefreshToken
 
 mock_community_body = {"name": "test", "description": "test"}
+
 
 class CommunityTestCase(TestCase):
     def setUp(self):
@@ -25,6 +24,7 @@ class CommunityTestCase(TestCase):
         (self.account2, _created) = Account.objects.get_or_create(
             user=self.user2, defaults={"address": "0x0"}
         )
+
     def test_create_community_with_bad_token(self):
         """Test that creation of a community with bad token fails"""
         client = Client()
@@ -83,7 +83,7 @@ class CommunityTestCase(TestCase):
             **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
         )
         self.assertEqual(community_response1.status_code, 400)
-    
+
     def test_create_community_with_no_description(self):
         """Test that creation of a community with no description fails"""
         client = Client()
@@ -128,7 +128,7 @@ class CommunityTestCase(TestCase):
         )
         self.assertEqual(community_response.status_code, 400)
 
-       # Check that only 5 Communities are in the DB
+        # Check that only 5 Communities are in the DB
         all_communities = list(Community.objects.all())
         self.assertEqual(len(all_communities), 5)
 
@@ -137,10 +137,14 @@ class CommunityTestCase(TestCase):
         client = Client()
 
         # Create Community for first account
-        Community.objects.create(account=self.account, name="Community for user 1", description="test")
+        Community.objects.create(
+            account=self.account, name="Community for user 1", description="test"
+        )
 
         # Create Community for 2nd account
-        Community.objects.create(account=self.account2, name="Community for user 2", description="test")
+        Community.objects.create(
+            account=self.account2, name="Community for user 2", description="test"
+        )
 
         # Get all communities
         community_response = client.get(
@@ -148,7 +152,7 @@ class CommunityTestCase(TestCase):
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
         )
-        
+
         self.assertEqual(community_response.status_code, 200)
         json_response = community_response.json()
         self.assertEqual(len(json_response), 1)
@@ -159,7 +163,9 @@ class CommunityTestCase(TestCase):
         client = Client()
 
         # Create Community
-        account_community = Community.objects.create(account=self.account, name="Community 1", description="test")
+        account_community = Community.objects.create(
+            account=self.account, name="Community 1", description="test"
+        )
 
         # Edit the community
         community_response = client.put(
@@ -205,7 +211,6 @@ class CommunityTestCase(TestCase):
         self.assertEqual(len(community), 5)
         self.assertEqual(community[2].name, "New Name")
         self.assertEqual(community[2].description, "New Description")
-       
 
     def test_delete_community(self):
         """Test successfully deleting a community"""
@@ -216,13 +221,15 @@ class CommunityTestCase(TestCase):
             account=self.account, name="Community1", description="test"
         )
 
-        Community.objects.create(account=self.account2, name="Community2", description="test")
+        Community.objects.create(
+            account=self.account2, name="Community2", description="test"
+        )
 
         valid_response = client.delete(
             f"/account/communities/{account_community.id}",
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
-        
+
         self.assertEqual(valid_response.status_code, 200)
         data = valid_response.json()
         self.assertTrue("ok" in data)
@@ -231,4 +238,3 @@ class CommunityTestCase(TestCase):
         all_communities = list(Community.objects.all())
         self.assertEqual(len(all_communities), 1)
         self.assertEqual(all_communities[0].name, "Community2")
-

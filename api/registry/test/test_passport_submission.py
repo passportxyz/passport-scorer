@@ -1,16 +1,15 @@
 import binascii
 import json
-from django.test import TestCase
-from django.test import Client
-from account.models import AccountAPIKey, Community, Account
-from django.contrib.auth.models import User
-from web3 import Web3
-from eth_account.messages import encode_defunct
-from registry.utils import get_signer, verify_issuer, verify_expiration
-from unittest.mock import patch
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
+from account.models import Account, AccountAPIKey, Community
+from django.contrib.auth.models import User
+from django.test import Client, TestCase
+from eth_account.messages import encode_defunct
 from registry.models import Passport, Stamp
+from registry.utils import get_signer, verify_expiration, verify_issuer
+from web3 import Web3
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -259,7 +258,7 @@ class ValidatePassportTestCase(TestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
-            HTTP_AUTHORIZATION=f"Token {self.secret}"
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 400)
 
@@ -285,7 +284,7 @@ class ValidatePassportTestCase(TestCase):
             json.dumps(payload),
             **{
                 "content_type": "application/tson",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}"
+                "HTTP_AUTHORIZATION": f"Token {self.secret}",
             },
         )
         self.assertEqual(response.status_code, 200)
@@ -322,7 +321,7 @@ class ValidatePassportTestCase(TestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
-            HTTP_AUTHORIZATION=f"Token {self.secret}"
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 422)
 
@@ -355,7 +354,7 @@ class ValidatePassportTestCase(TestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
-            HTTP_AUTHORIZATION=f"Token {self.secret}"
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
 
@@ -397,7 +396,7 @@ class ValidatePassportTestCase(TestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
-            HTTP_AUTHORIZATION=f"Token {self.secret}"
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
 
@@ -439,7 +438,7 @@ class ValidatePassportTestCase(TestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
-            HTTP_AUTHORIZATION=f"Token {self.secret}"
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
 
@@ -469,6 +468,6 @@ class ValidatePassportTestCase(TestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
-            HTTP_AUTHORIZATION=f"Token {self.secret}"
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 404)

@@ -1,34 +1,33 @@
 # --- Python imports
-import random
 import hashlib
-import string
 import json
 import logging
-from typing import cast, List
-from django.shortcuts import get_object_or_404
-from asgiref.sync import async_to_sync
+import random
+import string
 from datetime import datetime, timedelta
+from typing import List, cast
+
+# --- Models
+from account.models import Account, AccountAPIKey, Community
+from asgiref.sync import async_to_sync
+from django.contrib.auth import get_user_model
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from ninja import ModelSchema, Schema
+from ninja.compatibility.request import get_headers
+from ninja.security import APIKeyHeader
+from ninja_extra import NinjaExtraAPI, status
+from ninja_extra.exceptions import APIException
+from ninja_jwt.authentication import JWTAuth
 
 # --- Ninja
 from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
-from ninja_extra import NinjaExtraAPI, status
-from ninja import Schema, ModelSchema
-from ninja_extra.exceptions import APIException
-from ninja_jwt.authentication import JWTAuth
-from ninja.security import APIKeyHeader
-
-# --- Models
-from account.models import Account, AccountAPIKey, Community
-from registry.models import Passport, Stamp, Score
-from django.contrib.auth import get_user_model
-from django.http import HttpResponse
+from reader.passport_reader import get_did, get_passport
+from registry.models import Passport, Score, Stamp
 
 # --- Passport Utilities
-from registry.utils import validate_credential, get_signer, verify_issuer
-from reader.passport_reader import get_did, get_passport
-
-from ninja.compatibility.request import get_headers
+from registry.utils import get_signer, validate_credential, verify_issuer
 
 log = logging.getLogger(__name__)
 api = NinjaExtraAPI(urls_namespace="registry")
@@ -43,9 +42,11 @@ class InvalidPassportCreationException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Error Creating Passport."
 
+
 class InvalidScoreRequestException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Unable to get score for provided community."
+
 
 class Unauthorized(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
@@ -145,6 +146,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         ]
     except Exception as e:
         InvalidPassportCreationException()
+
 
 @api.get("/score/{path:address}/{path:community_id}", auth=ApiKey())
 def get_score(request, address: str, community_id: int):

@@ -21,10 +21,9 @@ repos:
             )
 
 -   repo: https://github.com/psf/black
-    rev: 20.8b1 # Replace by any tag/version: https://github.com/psf/black/tags
+    rev: 22.3.0
     hooks:
-      - id: black
-        language_version: python3 # Should be a command that runs python3.6+
+    -   id: black
 
 -   repo: https://github.com/pycqa/isort
     rev: 5.6.3
@@ -33,14 +32,14 @@ repos:
         args: ["--profile", "black"]
         name: isort (python)
 
--   repo: local
-    hooks:
-      - id: pylint
-        name: pylint
-        entry: pylint
-        language: system
-        types: [python]
-        require_serial: true
-        exclude: .*/migrations/.*
-        args:
-          - --fail-under=8
+# -   repo: local
+#     hooks:
+#       - id: pylint
+#         name: pylint
+#         entry: pylint
+#         language: system
+#         types: [python]
+#         require_serial: true
+#         exclude: .*/migrations/.*
+#         args:
+#           - --fail-under=8

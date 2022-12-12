@@ -1,23 +1,17 @@
 """Submit address for passport feature tests."""
 
-import pytest
-from account.models import Account, AccountAPIKey, Community
-from registry.models import Passport, Score, Stamp
-from django.contrib.auth.models import User
-from django.test import Client
-from web3 import Web3
-from eth_account.messages import encode_defunct
 import json
-
-from registry.test.test_passport_submission import mock_passport
 from unittest.mock import patch
 
-from pytest_bdd import (
-    given,
-    scenario,
-    then,
-    when,
-)
+import pytest
+from account.models import Account, AccountAPIKey, Community
+from django.contrib.auth.models import User
+from django.test import Client
+from eth_account.messages import encode_defunct
+from pytest_bdd import given, scenario, then, when
+from registry.models import Passport, Score, Stamp
+from registry.test.test_passport_submission import mock_passport
+from web3 import Web3
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -55,6 +49,7 @@ def scorer_api_key(scorer_account):
     )
     return secret
 
+
 @pytest.fixture
 def scorer_passport(scorer_account, scorer_community):
     passport = Passport.objects.create(
@@ -65,11 +60,12 @@ def scorer_passport(scorer_account, scorer_community):
     )
     return passport
 
+
 @pytest.fixture
 def scorer_score(scorer_passport):
     stamp = Score.objects.create(
         passport=scorer_passport,
-        score='0.650000000',
+        score="0.650000000",
     )
     return stamp
 
@@ -97,7 +93,10 @@ def _(scorer_community):
     pass
 
 
-@when("I call the submit-passport API for an Ethereum account under that community ID", target_fixture="submit_passport_response")
+@when(
+    "I call the submit-passport API for an Ethereum account under that community ID",
+    target_fixture="submit_passport_response",
+)
 def _(scorer_api_key, scorer_community, mocker):
     """I call the submit-passport API for an Ethereum account under that community ID."""
     mocker.patch("registry.views.get_passport", return_value=mock_passport)

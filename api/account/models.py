@@ -1,5 +1,5 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
 from rest_framework_api_key.models import AbstractAPIKey
 from scorer_weighted.models import Scorer, WeightedScorer
 
@@ -49,4 +49,3 @@ class Community(models.Model):
             return self.scorer.weightedscorer
         elif self.scorer.type == Scorer.Type.WEIGHTED_BINARY:
             return self.scorer.binary_weighted_scorer
-        
