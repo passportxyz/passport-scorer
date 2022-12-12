@@ -106,13 +106,6 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         Community, id=payload.community, account=request.auth
     )
 
-    log.error("geri did %s", did)
-    log.error("geri %s", user_community)
-    log.error("geri %s", user_community.scorer)
-    log.error("geri %s", dir(user_community.scorer))
-    log.error("geri %s", user_community.scorer.weightedscorer)
-    log.error("geri %s", user_community.scorer.weightedscorer.weights)
-
     try:
         # Save passport to Community database (related to community by community_id)
         db_passport = Passport.objects.create(
@@ -131,7 +124,6 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
             # check that expiration date is not in the past
             stamp_is_expired = stamp_expiration_date < datetime.now()
             if len(stamp_return_errors) == 0 and stamp_is_expired == False:
-                log.error("geri creating stamp %s", stamp["provider"])
                 db_stamp = Stamp.objects.create(
                     hash=stamp["credential"]["credentialSubject"]["hash"],
                     provider=stamp["provider"],
@@ -140,8 +132,12 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
                 )
                 db_stamp.save()
             else:
-                log.debug("Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s", stamp, stamp_return_errors, stamp_is_expired)
-
+                log.debug(
+                    "Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s",
+                    stamp,
+                    stamp_return_errors,
+                    stamp_is_expired,
+                )
 
         scorer = user_community.get_scorer()
         scores = scorer.compute_score([db_passport.id])

@@ -10,7 +10,6 @@ def get_default_weights():
     This function shall provide the default weights for the default scorer.
     It will load the weights from the settings
     """
-    log.error("geri settings.GITCOIN_PASSPORT_WEIGHTS %s", settings.GITCOIN_PASSPORT_WEIGHTS)
     return settings.GITCOIN_PASSPORT_WEIGHTS
 
 
