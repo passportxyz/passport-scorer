@@ -14,7 +14,7 @@ from registry.models import Passport, Score, Stamp
 from registry.utils import get_signer, validate_credential, verify_issuer
 
 # --- Deduplication Modules
-from registry.dedupe_rules.lifo import lifo
+from account.deduplication.lifo import lifo
 
 log = logging.getLogger(__name__)
 api = NinjaExtraAPI(urls_namespace="registry")

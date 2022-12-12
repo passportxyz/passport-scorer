@@ -7,3 +7,4 @@ def lifo(lifo_passport, lifo_db_stamps):
           deduped_passport["stamps"].remove(stamp)
 
   return deduped_passport
+
