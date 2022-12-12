@@ -45,7 +45,7 @@ const CommunityList = (): JSX.Element => {
 
   const handleUpdateCommunity = async (communityId: Community["id"]) => {
     try {
-      await updateCommunity(communityId, 
+      await updateCommunity(communityId,
       {
         name: updatedCommunityName,
         description: updatedCommunityDescription,
@@ -86,7 +86,7 @@ const CommunityList = (): JSX.Element => {
   }, []);
 
   const communityList = communities.map((community: Community, i: number) => {
-    return ( 
+    return (
       <CommunityCard
         key={i}
         community={community}

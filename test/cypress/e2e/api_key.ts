@@ -7,7 +7,7 @@ Given("that I have an API account", () => {
 });
 
 When("I hit to create an API key", () => {
-    
+
 });
 
 Then(

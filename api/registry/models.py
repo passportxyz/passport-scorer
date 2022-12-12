@@ -1,5 +1,5 @@
-from django.db import models
 from account.models import Community
+from django.db import models
 
 
 class Passport(models.Model):

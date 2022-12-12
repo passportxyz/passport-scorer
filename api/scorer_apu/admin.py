@@ -1,5 +1,4 @@
 from django.contrib import admin
-
 from scorer_apu.models import ApuScorer, Combo, NumInfo
 
 # Register your models here.

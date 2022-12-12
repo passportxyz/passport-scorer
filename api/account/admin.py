@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Account, Community, AccountAPIKey
+
+from .models import Account, AccountAPIKey, Community
 
 
 class AccountAdmin(admin.ModelAdmin):

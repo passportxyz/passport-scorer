@@ -53,8 +53,8 @@ clean_stamps$class <- factor(clean_stamps$class)
 ###
 ### Logistic Regression Model
 ###
-my_glm <- glm(class ~ ., data = clean_stamps %>% 
-                  filter(!is.na(class)) %>% 
+my_glm <- glm(class ~ ., data = clean_stamps %>%
+                  filter(!is.na(class)) %>%
                   select(-handle), family = "binomial")
 
 # Predictions
@@ -293,7 +293,7 @@ stamps_scoring_methods <- stamps %>%
            `Stamps Collected` = stamps_collected,
            `Logistic Regression Score` = Logistic, `Regularized Regression Score` = Regularized,
            `COF Kish Score` = Kish, `Gitcoin Regen Score` = Regen, Stamps = stamps)
-    
+
 stamps_scoring_methods %>% write_csv("outputs/stamps_scoring_methods.csv")
 
 ###
@@ -336,7 +336,7 @@ model_confusion_matrix <- tibble(
     mutate(glm_prediction = ifelse(glm_pred >= .5, "thor", "loki"),
            glmnet_cv_prediction = ifelse(glmnet_cv_pred >= .5, "thor", "loki")) %>%
     filter(!is.na(class))
-    
+
 table(model_confusion_matrix$glm_prediction, model_confusion_matrix$class)
 table(model_confusion_matrix$glmnet_cv_prediction, model_confusion_matrix$class)
 
@@ -344,7 +344,7 @@ table(model_confusion_matrix$glmnet_cv_prediction, model_confusion_matrix$class)
 cc <- scales::seq_gradient_pal("#F3587D", "#27AE60", "Lab")(seq(0,1,length.out=20))
 
 ## Pyramid Plot of Coefficients
-p61 <- tibble(coef = names(glm_co), s1 = glm_co) %>% 
+p61 <- tibble(coef = names(glm_co), s1 = glm_co) %>%
     filter(!is.na(s1)) %>%
     arrange(desc(s1)) %>%
     mutate(coef = factor(coef, levels = rev(coef))) %>%
@@ -365,7 +365,7 @@ p61 <- tibble(coef = names(glm_co), s1 = glm_co) %>%
 
 ggsave(p61, filename = "outputs/pyramid_plot_logistic.png", width = 12, height = 8)
 
-p62 <- tibble(coef = rownames(glmco_cv), s1 = glmco_cv[,1]) %>% 
+p62 <- tibble(coef = rownames(glmco_cv), s1 = glmco_cv[,1]) %>%
     filter(!is.na(s1)) %>%
     arrange(desc(s1)) %>%
     mutate(coef = factor(coef, levels = rev(coef))) %>%
@@ -612,7 +612,7 @@ binded_models %>%
 ### Kish / Regen Deep-Dive
 ###
 
-p63 <- tibble(coef = forgery$Stamp, s1 = as.numeric(forgery$COF_Kish_Estimates)) %>% 
+p63 <- tibble(coef = forgery$Stamp, s1 = as.numeric(forgery$COF_Kish_Estimates)) %>%
     filter(!is.na(s1)) %>%
     arrange(desc(s1)) %>%
     mutate(coef = factor(coef, levels = rev(coef))) %>%
@@ -633,7 +633,7 @@ p63 <- tibble(coef = forgery$Stamp, s1 = as.numeric(forgery$COF_Kish_Estimates))
 
 ggsave(p63, filename = "outputs/pyramid_plot_kish.png", width = 12, height = 8)
 
-p64 <- tibble(coef = forgery$Stamp, s1 = as.numeric(forgery$FDD_Regen_Score_Omni)) %>% 
+p64 <- tibble(coef = forgery$Stamp, s1 = as.numeric(forgery$FDD_Regen_Score_Omni)) %>%
     filter(!is.na(s1)) %>%
     arrange(desc(s1)) %>%
     mutate(coef = factor(coef, levels = rev(coef))) %>%
@@ -975,6 +975,6 @@ p113 <- ggplot(data = binded_models %>% arrange(Regen) %>%
 ggsave(p113, filename = "outputs/non_sybil_score_regen_allpassports.png", width = 12, height = 8)
 
 ## Scatterplot Matrix
-p200 <- ggpairs(binded_models %>% ungroup() %>% select(-handle, -class), title="correlogram with ggpairs()") 
+p200 <- ggpairs(binded_models %>% ungroup() %>% select(-handle, -class), title="correlogram with ggpairs()")
 
 ggsave(p200, filename = "outputs/score_comparison.png", width = 12, height = 8)

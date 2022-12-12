@@ -17,7 +17,7 @@ type CommunityCardProps = {
   setUpdateCommunityModalOpen: Function;
 }
 
-const CommunityCard = ({ 
+const CommunityCard = ({
   community,
   handleDeleteCommunity,
   communityId,

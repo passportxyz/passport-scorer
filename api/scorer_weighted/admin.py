@@ -1,5 +1,4 @@
 from django.contrib import admin
-
 from scorer_weighted.models import WeightedScorer
 
 # Register your models here.

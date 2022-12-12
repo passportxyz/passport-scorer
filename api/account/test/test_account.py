@@ -1,16 +1,16 @@
-from django.test import TestCase
-from django.test import Client
+import binascii
+import json
+from copy import deepcopy
+from datetime import datetime
+
+from django.test import Client, TestCase
+from eth_account.messages import encode_defunct
+from siwe import SiweMessage
+from web3 import Web3
+from web3.auto import w3
 
 # Create your tests here.
 
-from web3.auto import w3
-from web3 import Web3
-from eth_account.messages import encode_defunct
-import binascii
-import json
-from datetime import datetime
-from siwe import SiweMessage
-from copy import deepcopy
 
 mock_api_key_body = {"name": "test"}
 mock_community_body = {"name": "test", "description": "test"}

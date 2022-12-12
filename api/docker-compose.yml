@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     ports:
       - 5432:5432
-      
+
     environment:
       POSTGRES_USER: passport_scorer
       POSTGRES_PASSWORD: passport_scorer_pwd

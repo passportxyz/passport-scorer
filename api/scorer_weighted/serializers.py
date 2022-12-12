@@ -4,7 +4,6 @@ from registry.serializers import PassportSerializer
 
 from .models import Score, WeightedScorer
 
-
 # class WeightedScorerSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = WeightedScorer

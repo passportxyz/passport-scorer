@@ -377,7 +377,7 @@ const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
 export const securityGroupForTaskDefinition = secgrp.id;
 
 //////////////////////////////////////////////////////////////
-// Set up EC2 instance 
+// Set up EC2 instance
 //      - it is intended to be used for troubleshooting
 //////////////////////////////////////////////////////////////
 
@@ -413,7 +413,7 @@ apt-get install -y \
   curl \
   gnupg \
   lsb-release
-  
+
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 
 echo \

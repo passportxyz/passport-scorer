@@ -6,4 +6,3 @@ Feature: API Account (#689)
     And I Sign-in-with-Ethereum
     Then I will have an account created
     And be taken to the config dashboard
-

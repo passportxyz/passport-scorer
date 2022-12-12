@@ -2,7 +2,6 @@
 
 from .models import Passport, Stamp
 
-
 # class PassportSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = Passport

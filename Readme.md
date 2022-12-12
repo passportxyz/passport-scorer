@@ -35,7 +35,7 @@ Start the dev server:
 ##Testing
 ### API
 
-In the `./api` folder run (make sure your local virtual env is activated): 
+In the `./api` folder run (make sure your local virtual env is activated):
 ```
 coverage run --source='.' manage.py test
 ```
@@ -48,7 +48,7 @@ coverage run --source='.' manage.py test
 
 Make sure you install the dev dependencies `pipenv install --dev`.
 
-- **docs**: 
+- **docs**:
   - [pytest-bdd](https://pytest-bdd.readthedocs.io/en/latest/#advanced-code-generation)
   - https://automationpanda.com/2018/10/22/python-testing-101-pytest-bdd/
   - examples: https://github.com/AndyLPK247/behavior-driven-python

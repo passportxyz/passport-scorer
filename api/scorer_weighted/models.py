@@ -1,7 +1,7 @@
-from django.db import models
-from django.conf import settings
-
 from typing import List
+
+from django.conf import settings
+from django.db import models
 
 
 def get_default_parent_scorer_for_weighted():
