@@ -1,11 +1,6 @@
 """Deduplication rules feature tests."""
 
-from pytest_bdd import (
-    given,
-    scenario,
-    then,
-    when,
-)
+from pytest_bdd import given, scenario, then, when
 
 
 @scenario(

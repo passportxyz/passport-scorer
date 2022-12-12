@@ -6,5 +6,3 @@ Feature: Deduplication rules
     When we score the associated Passports, i.e., the Passports holding the stamps with identical hashes
     Then we don't recognize the version of the stamp that has been more recently submitted
     And score this Passport as if the stamp would be missing
-
-

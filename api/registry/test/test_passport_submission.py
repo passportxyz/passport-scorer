@@ -1,19 +1,11 @@
 import binascii
 import json
-from django.test import TransactionTestCase
-from django.test import Client
-from account.models import AccountAPIKey, Community, Account
-from django.contrib.auth.models import User
-from web3 import Web3
-from eth_account.messages import encode_defunct
-from registry.utils import get_signer, verify_issuer
-from unittest.mock import patch
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from account.models import Account, AccountAPIKey, Community
 from django.contrib.auth.models import User
-from django.test import Client
+from django.test import Client, TransactionTestCase
 from eth_account.messages import encode_defunct
 from registry.models import Passport, Stamp
 from registry.utils import get_signer, verify_issuer
@@ -130,8 +122,12 @@ google_credential_2 = {
     },
     "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ'),
-    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
+    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:edgFWHsCSaqGxthSqdilpEXR06Ojw+YLO8K0BSjz0d8=",
@@ -224,7 +220,6 @@ mock_passport_with_expired_stamp = {
 }
 
 
-
 class ValidatePassportTestCase(TransactionTestCase):
     def setUp(self):
         # Just create 1 user, to make sure the user id is different than account id
@@ -272,9 +267,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.account_api_key = account_api_key
         self.secret = secret
 
-        mock_mnemonic = (
-            "tourist search plug company mail blind arch rather angry captain spin reform"
-        )
+        mock_mnemonic = "tourist search plug company mail blind arch rather angry captain spin reform"
         mock_account = web3.eth.account.from_mnemonic(
             mock_mnemonic, account_path="m/44'/60'/0'/0/0"
         )
@@ -547,7 +540,9 @@ class ValidatePassportTestCase(TransactionTestCase):
         "registry.views.get_passport",
         return_value=mock_passport_google,
     )
-    def test_lifo_deduplication_duplicate_stamps(self, get_passport, validate_credential):
+    def test_lifo_deduplication_duplicate_stamps(
+        self, get_passport, validate_credential
+    ):
         """
         Test the successful deduplication of stamps by last in first out (LIFO)
         """
@@ -577,7 +572,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             provider="Google",
             credential=google_credential,
         )
-        
+
         submission_test_payload = {
             "community": self.community.id,
             "address": self.mock_account.address,
@@ -593,7 +588,7 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         self.assertEqual(submission_response.status_code, 200)
 
-        updated_passport = Passport.objects.get(address=submission_address)   
+        updated_passport = Passport.objects.get(address=submission_address)
 
         self.assertEqual(len(updated_passport.passport["stamps"]), 1)
         self.assertEqual(updated_passport.address, submission_address)

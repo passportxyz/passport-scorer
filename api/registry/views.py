@@ -2,6 +2,8 @@ import logging
 from datetime import datetime
 from typing import List
 
+# --- Deduplication Modules
+from account.deduplication.lifo import lifo
 from account.models import AccountAPIKey, Community
 from asgiref.sync import async_to_sync
 from django.shortcuts import get_object_or_404
@@ -12,9 +14,6 @@ from ninja_schema import Schema
 from reader.passport_reader import get_did, get_passport
 from registry.models import Passport, Score, Stamp
 from registry.utils import get_signer, validate_credential, verify_issuer
-
-# --- Deduplication Modules
-from account.deduplication.lifo import lifo
 
 log = logging.getLogger(__name__)
 api = NinjaExtraAPI(urls_namespace="registry")
@@ -147,7 +146,11 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
             for s in scores
         ]
     except Exception as e:
-        log.error("Error when handling passport submission. payload=%s", payload, exc_info=True)
+        log.error(
+            "Error when handling passport submission. payload=%s",
+            payload,
+            exc_info=True,
+        )
         InvalidPassportCreationException()
 
 
