@@ -117,6 +117,7 @@ def _(scorer_api_key, scorer_community, mocker):
     """I call the submit-passport API for an Ethereum account under that community ID."""
 
     mocker.patch("registry.views.get_passport", return_value=mock_passport)
+    mocker.patch("registry.views.validate_credential", side_effect=[[], []])
     client = Client()
 
     my_mnemonic = (
@@ -170,7 +171,7 @@ def _():
     "features/submit_passport.feature",
     "As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API",
 )
-def test_as_a_developer_i_want_to_rely_on_the_gitcoin_community_scorer_scoring_settings_of_the_api(
+def _(
     mocker,
 ):
     """As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API."""
@@ -200,15 +201,9 @@ def _(scorer_community):
 )
 def _(submit_passport_response):
     """I want to get a score based on the Gitcoin Community Score and deduplication rules (see default deduplication settings here)."""
-    # address = scorer_passport.address
-    # community_id = scorer_community.id
-    # client = Client()
-    # response = client.get(
-    #     f"/registry/score/{address}/{community_id}",
-    #     HTTP_AUTHORIZATION="Token " + scorer_api_key,
-    # )
+
     assert submit_passport_response.status_code == 200
-    assert submit_passport_response.json() == [{"score": 1001234}]
+    assert submit_passport_response.json() == [{'passport_id': 1, 'address': '0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c', "score": float(1001234)}]
 
 
 @then(
