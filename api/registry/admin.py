@@ -4,8 +4,8 @@ from registry.models import Passport, Stamp
 
 
 class PassportAdmin(admin.ModelAdmin):
-    list_display = ["did", "version"]
-    search_fields = ["did"]
+    list_display = ["address", "version"]
+    search_fields = ["address"]
 
 
 class StampAdmin(admin.ModelAdmin):

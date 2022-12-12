@@ -24,7 +24,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # path("api-auth/", include("rest_framework.urls")),
     path("registry/", include("registry.urls")),
-    path("scorer_weighted/", include("scorer_weighted.urls")),
+    # path("scorer_weighted/", include("scorer_weighted.urls")),
     path("account/", include("account.urls")),
     # ...
     # Use the `get_schema_view()` helper to add a `SchemaView` to project URLs.

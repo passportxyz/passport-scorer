@@ -9,13 +9,6 @@ class ApuScorer(models.Model):
     accepted_providers = models.JSONField(default=list, blank=True, null=True)
 
 
-class Score(models.Model):
-    passport = models.ForeignKey(
-        Passport, on_delete=models.PROTECT, related_name="apu_scores"
-    )
-    scorer = models.ForeignKey(ApuScorer, on_delete=models.PROTECT)
-
-
 class Combo(models.Model):
     scorer = models.ForeignKey(ApuScorer, on_delete=models.PROTECT)
     passport = models.ForeignKey(Passport, on_delete=models.PROTECT)

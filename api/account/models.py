@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from rest_framework_api_key.models import AbstractAPIKey
+from scorer_weighted.models import Scorer, WeightedScorer
 
 # Create your models here.
 
@@ -21,6 +22,13 @@ class AccountAPIKey(AbstractAPIKey):
     )
 
 
+def get_default_community_scorer():
+    """Returns the default scorer that shall be used for communities"""
+    ws = WeightedScorer()
+    ws.save()
+    return ws
+
+
 class Community(models.Model):
     class Meta:
         verbose_name_plural = "Communities"
@@ -32,3 +40,13 @@ class Community(models.Model):
     account = models.ForeignKey(
         Account, on_delete=models.CASCADE, related_name="community", default=None
     )
+    scorer = models.ForeignKey(
+        Scorer, on_delete=models.PROTECT, default=get_default_community_scorer
+    )
+
+    def get_scorer(self) -> Scorer:
+        if self.scorer.type == Scorer.Type.WEIGHTED:
+            return self.scorer.weightedscorer
+        elif self.scorer.type == Scorer.Type.WEIGHTED_BINARY:
+            return self.scorer.binary_weighted_scorer
+        

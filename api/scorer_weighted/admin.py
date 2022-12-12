@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from scorer_weighted.models import Score, WeightedScorer
+from scorer_weighted.models import WeightedScorer
 
 # Register your models here.
 
@@ -14,5 +14,5 @@ class ScoreAdmin(admin.ModelAdmin):
     search_fields = ["passport__did"]
 
 
-admin.site.register(WeightedScorer, WeightedScorerAdmin)
-admin.site.register(Score, ScoreAdmin)
+# admin.site.register(WeightedScorer, WeightedScorerAdmin)
+# admin.site.register(Score, ScoreAdmin)

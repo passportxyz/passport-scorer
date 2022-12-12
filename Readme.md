@@ -46,6 +46,8 @@ coverage run --source='.' manage.py test
 
 #### bdd
 
+Make sure you install the dev dependencies `pipenv install --dev`.
+
 - **docs**: 
   - [pytest-bdd](https://pytest-bdd.readthedocs.io/en/latest/#advanced-code-generation)
   - https://automationpanda.com/2018/10/22/python-testing-101-pytest-bdd/

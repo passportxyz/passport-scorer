@@ -19,6 +19,7 @@ from ninja_jwt.authentication import JWTAuth
 
 # --- Models
 from account.models import Account, AccountAPIKey, Community
+from scorer_weighted.models import WeightedScorer
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 

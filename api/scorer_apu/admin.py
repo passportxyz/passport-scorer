@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from scorer_apu.models import ApuScorer, Combo, NumInfo, Score
+from scorer_apu.models import ApuScorer, Combo, NumInfo
 
 # Register your models here.
 
@@ -24,6 +24,6 @@ class NumInfoAdmin(admin.ModelAdmin):
 
 
 admin.site.register(ApuScorer, ApuScorerAdmin)
-admin.site.register(Score, ScoreAdmin)
+# admin.site.register(Score, ScoreAdmin)
 admin.site.register(Combo, ComboAdmin)
 admin.site.register(NumInfo, NumInfoAdmin)
