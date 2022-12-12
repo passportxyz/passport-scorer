@@ -99,12 +99,20 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         passport_to_be_saved = lifo(passport, db_stamps)
 
         # Save passport to Passport database (related to community by community_id)
-        db_passport = Passport.objects.create(passport=passport_to_be_saved, address=payload.address.lower(), community=user_community)
+        db_passport = Passport.objects.create(
+            passport=passport_to_be_saved,
+            address=payload.address.lower(),
+            community=user_community,
+        )
         db_passport.save()
 
         for stamp in passport_to_be_saved["stamps"]:
-            stamp_return_errors = async_to_sync(validate_credential)(did, stamp["credential"])
-            stamp_expiration_date = datetime.strptime(stamp["credential"]["expirationDate"], '%Y-%m-%dT%H:%M:%SZ')
+            stamp_return_errors = async_to_sync(validate_credential)(
+                did, stamp["credential"]
+            )
+            stamp_expiration_date = datetime.strptime(
+                stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%SZ"
+            )
             # check that expiration date is not in the past
             stamp_is_expired = stamp_expiration_date < datetime.now()
             if len(stamp_return_errors) == 0 and stamp_is_expired == False:
@@ -139,6 +147,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
             for s in scores
         ]
     except Exception as e:
+        log.error("Error when andling passport submission. payload=%s", exc_info=True)
         InvalidPassportCreationException()
 
 
@@ -150,9 +159,9 @@ def get_score(request, address: str, community_id: int):
         score = Score.objects.get(passport=passport)
         return {"score": score.score}
     except Exception as e:
-        # TODO: Log error for why it failed
+
         log.error(
-            "Error when handling passport submission. address=%s, community_id=%s",
+            "Error when getting passport score. address=%s, community_id=%s",
             address,
             community_id,
             exc_info=True,
