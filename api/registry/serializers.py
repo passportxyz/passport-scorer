@@ -1,6 +1,6 @@
 # from rest_framework import serializers
 
-from .models import Passport, Stamp
+# from .models import Passport, Stamp
 
 # class PassportSerializer(serializers.ModelSerializer):
 #     class Meta:

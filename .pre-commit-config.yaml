@@ -32,14 +32,14 @@ repos:
         args: ["--profile", "black"]
         name: isort (python)
 
-# -   repo: local
-#     hooks:
-#       - id: pylint
-#         name: pylint
-#         entry: pylint
-#         language: system
-#         types: [python]
-#         require_serial: true
-#         exclude: .*/migrations/.*
-#         args:
-#           - --fail-under=8
+-   repo: local
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: pylint
+        language: system
+        types: [python]
+        require_serial: true
+        exclude: .*/migrations/.*
+        args:
+          - --fail-under=8

@@ -1,32 +1,16 @@
-# --- Python imports
-import hashlib
-import json
 import logging
-import random
-import string
-from datetime import datetime, timedelta
-from typing import List, cast
+from datetime import datetime
+from typing import List
 
-# --- Models
-from account.models import Account, AccountAPIKey, Community
+from account.models import AccountAPIKey, Community
 from asgiref.sync import async_to_sync
-from django.contrib.auth import get_user_model
-from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from ninja import ModelSchema, Schema
-from ninja.compatibility.request import get_headers
 from ninja.security import APIKeyHeader
 from ninja_extra import NinjaExtraAPI, status
 from ninja_extra.exceptions import APIException
-from ninja_jwt.authentication import JWTAuth
-
-# --- Ninja
-from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
 from reader.passport_reader import get_did, get_passport
 from registry.models import Passport, Score, Stamp
-
-# --- Passport Utilities
 from registry.utils import get_signer, validate_credential, verify_issuer
 
 log = logging.getLogger(__name__)
