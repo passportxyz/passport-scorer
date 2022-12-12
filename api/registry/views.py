@@ -46,7 +46,7 @@ class SubmitPassportPayload(Schema):
 
 
 class ScoreResponse(Schema):
-    passport_id: int
+    # passport_id: int
     address: str
     score: float
 
@@ -139,7 +139,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
 
         return [
             {
-                "passport_id": score.passport.id,
+                # "passport_id": score.passport.id,
                 "address": score.passport.address,
                 "score": score.score,
             }

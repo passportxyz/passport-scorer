@@ -7,14 +7,6 @@ class Passport(models.Model):
     # TODO: shall we drop the did in favour of the address? The DID is specific to a certain network
     # did = models.CharField(null=False, blank=False, max_length=100)
     passport = models.JSONField(default=dict)
-    version = models.BigIntegerField(
-        help_text="""A counter for passport submissions. This records in which passport
-        submission the passport was updated. This will include also submissions when
-        stamps have been removed from this passport as part of de-duping""",
-        db_index=True,
-        null=True,
-        blank=True,
-    )
     community = models.ForeignKey(
         Community, related_name="passports", on_delete=models.CASCADE, null=True
     )
