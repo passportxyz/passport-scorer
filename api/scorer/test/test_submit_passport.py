@@ -159,6 +159,10 @@ def _():
     "features/submit_passport.feature",
     "As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API",
 )
+def test_as_a_developer_i_want_to_rely_on_the_gitcoin_community_scorer_scoring_settings_of_the_api():
+    """As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API."""
+
+
 def _(mocker):
     """As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API."""
     mock_settings = {
@@ -167,7 +171,6 @@ def _(mocker):
     }
     # Mock gitcoin scoring settings
     mocker.patch("scorer_weighted.models.settings", return_value=mock_settings)
-
 
 
 @given("I have not further configured its settings")

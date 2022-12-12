@@ -119,11 +119,11 @@ class SameCommunityDescriptionException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "You've entered the same community description"
 
+
 class AccountApiSchema(ModelSchema):
     class Config:
         model = AccountAPIKey
         model_fields = ["name", "id", "prefix"]
-
 
 
 class CommunityApiSchema(ModelSchema):
@@ -194,6 +194,7 @@ def get_api_keys(request):
         raise UnauthorizedException()
     return api_keys
 
+
 @api.delete("/api-key/{path:api_key_id}", auth=JWTAuth())
 def delete_api_key(request, api_key_id):
     try:
@@ -258,6 +259,7 @@ def get_communities(request):
 class APIKeyId(Schema):
     id: str
 
+
 @api.put("/communities/{community_id}", auth=JWTAuth())
 def update_community(request, community_id, payload: CommunitiesPayload):
     try:
@@ -278,7 +280,7 @@ def update_community(request, community_id, payload: CommunitiesPayload):
 
         if name == db_name:
             raise SameCommunityNameException()
-        
+
         if Community.objects.filter(name=payload.name).count() == 1:
             raise CommunityExistsException()
 
@@ -290,6 +292,7 @@ def update_community(request, community_id, payload: CommunitiesPayload):
         raise UnauthorizedException()
 
     return {"ok": True}
+
 
 @api.delete("/communities/{community_id}", auth=JWTAuth())
 def delete_community(request, community_id):

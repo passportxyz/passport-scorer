@@ -43,9 +43,11 @@ class InvalidPassportCreationException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Error Creating Passport."
 
+
 class InvalidScoreRequestException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Unable to get score for provided community."
+
 
 class Unauthorized(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
@@ -146,6 +148,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
     except Exception as e:
         InvalidPassportCreationException()
 
+
 @api.get("/score/{path:address}/{path:community_id}", auth=ApiKey())
 def get_score(request, address: str, community_id: int):
     try:
@@ -155,5 +158,10 @@ def get_score(request, address: str, community_id: int):
         return {"score": score.score}
     except Exception as e:
         # TODO: Log error for why it failed
-        log.error("Error when handling passport submission. address=%s, community_id=%s", address, community_id, exc_info=True)
+        log.error(
+            "Error when handling passport submission. address=%s, community_id=%s",
+            address,
+            community_id,
+            exc_info=True,
+        )
         raise InvalidScoreRequestException()
