@@ -3,6 +3,8 @@ from django.db import models
 from rest_framework_api_key.models import AbstractAPIKey
 from scorer_weighted.models import Scorer, WeightedScorer
 
+from .deduplication import Rules
+
 # Create your models here.
 
 
@@ -34,6 +36,13 @@ class Community(models.Model):
         verbose_name_plural = "Communities"
 
     name = models.CharField(max_length=100, blank=False, null=False)
+    rules = models.CharField(
+        max_length=100,
+        blank=False,
+        null=False,
+        default=Rules.LIFO,
+        choices=[(Rules.LIFO, "LIFO"), (Rules.FIFO, "FIFO")],
+    )
     description = models.CharField(
         max_length=100, blank=False, null=False, default="My community"
     )

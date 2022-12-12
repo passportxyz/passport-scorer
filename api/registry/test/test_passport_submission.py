@@ -5,10 +5,10 @@ from unittest.mock import patch
 
 from account.models import Account, AccountAPIKey, Community
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client, TransactionTestCase
 from eth_account.messages import encode_defunct
 from registry.models import Passport, Stamp
-from registry.utils import get_signer, verify_expiration, verify_issuer
+from registry.utils import get_signer, verify_issuer
 from web3 import Web3
 
 web3 = Web3()
@@ -108,6 +108,37 @@ google_credential = {
 }
 
 
+google_credential_2 = {
+    "type": ["VerifiableCredential"],
+    "proof": {
+        "jws": "eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..UvANt5nz16WNjkGTyUFIxbMBmYdEFZcVrD97L3EzOkvxz8eN-6UKeFZul_uPBfa88h50jKQgVgJlJqxR8kpSAQ",
+        "type": "Ed25519Signature2018",
+        "created": "2022-06-03T15:33:04.698Z",
+        "proofPurpose": "assertionMethod",
+        "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+    },
+    "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+    "@context": ["https://www.w3.org/2018/credentials/v1"],
+    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
+    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
+    "credentialSubject": {
+        "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+        "hash": "v0.0.0:edgFWHsCSaqGxthSqdilpEXR06Ojw+YLO8K0BSjz0d8=",
+        "@context": [
+            {
+                "hash": "https://schema.org/Text",
+                "provider": "https://schema.org/Text",
+            }
+        ],
+        "provider": "Google",
+    },
+}
+
+
 google_credential_expired = {
     "type": ["VerifiableCredential"],
     "proof": {
@@ -142,8 +173,25 @@ mock_passport = {
     "issuanceDate": "2022-06-03T15:31:56.944Z",
     "expirationDate": "2022-06-03T15:31:56.944Z",
     "stamps": [
-        {"provider": "Google", "credential": google_credential},
         {"provider": "Ens", "credential": ens_credential},
+        {"provider": "Google", "credential": google_credential},
+    ],
+}
+
+mock_passport_2 = {
+    "issuanceDate": "2022-06-03T15:31:56.944Z",
+    "expirationDate": "2022-06-03T15:31:56.944Z",
+    "stamps": [
+        {"provider": "Ens", "credential": ens_credential},
+        {"provider": "Google", "credential": google_credential_2},
+    ],
+}
+
+mock_passport_google = {
+    "issuanceDate": "2022-06-03T15:31:56.944Z",
+    "expirationDate": "2022-06-03T15:31:56.944Z",
+    "stamps": [
+        {"provider": "Google", "credential": google_credential_2},
     ],
 }
 
@@ -169,7 +217,7 @@ mock_passport_with_expired_stamp = {
 }
 
 
-class ValidatePassportTestCase(TestCase):
+class ValidatePassportTestCase(TransactionTestCase):
     def setUp(self):
         # Just create 1 user, to make sure the user id is different than account id
         # This is to catch errors like the one where the user id is the same as the account id, and
@@ -215,6 +263,18 @@ class ValidatePassportTestCase(TestCase):
         )
         self.account_api_key = account_api_key
         self.secret = secret
+
+        mock_mnemonic = "tourist search plug company mail blind arch rather angry captain spin reform"
+        mock_account = web3.eth.account.from_mnemonic(
+            mock_mnemonic, account_path="m/44'/60'/0'/0/0"
+        )
+        self.mock_account = mock_account
+        self.mock_signed_message = web3.eth.account.sign_message(
+            encode_defunct(
+                text="I authorize the passport scorer to validate my account"
+            ),
+            private_key=self.mock_account.key,
+        )
 
         self.client = Client()
 
@@ -471,3 +531,63 @@ class ValidatePassportTestCase(TestCase):
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 404)
+
+    @patch("registry.views.validate_credential", side_effect=[[], []])
+    @patch(
+        "registry.views.get_passport",
+        return_value=mock_passport_google,
+    )
+    def test_lifo_deduplication_duplicate_stamps(
+        self, get_passport, validate_credential
+    ):
+        """
+        Test the successful deduplication of stamps by last in first out (LIFO)
+        """
+
+        address_1 = self.account.address.lower()
+        submission_address = self.mock_account.address.lower()
+
+        # Create first passport
+        first_passport = Passport.objects.create(
+            address=address_1,
+            passport=mock_passport,
+            community=self.community,
+        )
+
+        Stamp.objects.create(
+            passport=first_passport,
+            community=self.community,
+            hash=ens_credential["credentialSubject"]["hash"],
+            provider="Ens",
+            credential=ens_credential,
+        )
+
+        Stamp.objects.create(
+            passport=first_passport,
+            community=self.community,
+            hash=google_credential["credentialSubject"]["hash"],
+            provider="Google",
+            credential=google_credential,
+        )
+
+        submission_test_payload = {
+            "community": self.community.id,
+            "address": self.mock_account.address,
+            "signature": self.mock_signed_message.signature.hex(),
+        }
+
+        submission_response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(submission_test_payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+
+        self.assertEqual(submission_response.status_code, 200)
+
+        updated_passport = Passport.objects.get(address=submission_address)
+
+        self.assertEqual(len(updated_passport.passport["stamps"]), 1)
+        self.assertEqual(updated_passport.address, submission_address)
+        self.assertEqual(updated_passport.passport, mock_passport_google)
+        self.assertEqual(updated_passport.passport["stamps"][0]["provider"], "Google")

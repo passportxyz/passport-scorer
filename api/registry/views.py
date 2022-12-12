@@ -2,6 +2,8 @@ import logging
 from datetime import datetime
 from typing import List
 
+# --- Deduplication Modules
+from account.deduplication.lifo import lifo
 from account.models import AccountAPIKey, Community
 from asgiref.sync import async_to_sync
 from django.shortcuts import get_object_or_404
@@ -44,7 +46,7 @@ class SubmitPassportPayload(Schema):
 
 
 class ScoreResponse(Schema):
-    passport_id: int
+    # passport_id: int
     address: str
     score: float
 
@@ -73,13 +75,12 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
     if get_signer(payload.signature) != payload.address:
         raise InvalidSignerException()
 
+    # Get DID from address
     did = get_did(payload.address)
     log.debug("/submit-passport, payload=%s", payload)
 
     # Passport contents read from ceramic
     passport = get_passport(did)
-
-    # TODO Deduplicate passport according to selected deduplication rule
 
     if not verify_issuer(passport):
         raise InvalidSignerException()
@@ -90,14 +91,21 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
     )
 
     try:
-        # Save passport to Community database (related to community by community_id)
+        # List all stamps in database
+        db_stamps = list(Stamp.objects.all())
+
+        # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
+        passport_to_be_saved = lifo(passport)
+
+        # Save passport to Passport database (related to community by community_id)
         db_passport = Passport.objects.create(
-            passport=passport, address=payload.address.lower(), community=user_community
+            passport=passport_to_be_saved,
+            address=payload.address.lower(),
+            community=user_community,
         )
         db_passport.save()
 
-        for stamp in passport["stamps"]:
-            log.error("geri checking stamp %s", stamp)
+        for stamp in passport_to_be_saved["stamps"]:
             stamp_return_errors = async_to_sync(validate_credential)(
                 did, stamp["credential"]
             )
@@ -131,13 +139,18 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
 
         return [
             {
-                "passport_id": score.passport.id,
+                # "passport_id": score.passport.id,
                 "address": score.passport.address,
                 "score": score.score,
             }
             for s in scores
         ]
     except Exception as e:
+        log.error(
+            "Error when handling passport submission. payload=%s",
+            payload,
+            exc_info=True,
+        )
         InvalidPassportCreationException()
 
 
@@ -149,9 +162,9 @@ def get_score(request, address: str, community_id: int):
         score = Score.objects.get(passport=passport)
         return {"score": score.score}
     except Exception as e:
-        # TODO: Log error for why it failed
+
         log.error(
-            "Error when handling passport submission. address=%s, community_id=%s",
+            "Error when getting passport score. address=%s, community_id=%s",
             address,
             community_id,
             exc_info=True,
