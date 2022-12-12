@@ -45,9 +45,6 @@ ens_credential = {
     },
 }
 
-"aqGxthSqdilpEXR06Ojw+YLO8K0BSjz0d8="
-"aqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8="
-
 ens_credential_corrupted = {
     "type": ["VerifiableCredential"],
     "proof": {
