@@ -102,7 +102,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         passport_to_be_saved = lifo(passport, db_stamps)
 
         # Save passport to Passport database (related to community by community_id)
-        db_passport = Passport.objects.create(passport=passport_to_be_saved, did=did, community=community)
+        db_passport = Passport.objects.create(passport=passport_to_be_saved, did=payload.address.lower(), community=community)
         db_passport.save()
 
         for stamp in passport_to_be_saved["stamps"]:
