@@ -96,7 +96,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         db_stamps = list(Stamp.objects.all())
 
         # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
-        passport_to_be_saved = lifo(passport, db_stamps)
+        passport_to_be_saved = lifo(passport)
 
         # Save passport to Passport database (related to community by community_id)
         db_passport = Passport.objects.create(
@@ -147,7 +147,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
             for s in scores
         ]
     except Exception as e:
-        log.error("Error when andling passport submission. payload=%s", exc_info=True)
+        log.error("Error when handling passport submission. payload=%s", payload, exc_info=True)
         InvalidPassportCreationException()
 
 
