@@ -236,7 +236,7 @@ const secrets = [
 const environment = [
   {
     name: "DEBUG",
-    value: "on",
+    value: "off",
   },
   {
     name: "DATABASE_URL",
