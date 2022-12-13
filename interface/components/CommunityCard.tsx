@@ -36,7 +36,7 @@ const CommunityCard = ({
       {/* second column */}
       <div className="grid grid-cols-2 justify-self-end">
         <button
-          data-testid="open-community-modal"
+          data-testid="edit-community-button"
           className="mr-2 justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
           onClick={async () => {
             setUpdatedCommunityId(community.id)

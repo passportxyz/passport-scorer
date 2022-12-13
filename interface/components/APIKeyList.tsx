@@ -88,13 +88,13 @@ export const ApiKeyList = () => {
             <div className="flex w-3/4 flex-col">
               {apiKeys.map((key, i) => (
                 <div
-                  key={key.id}
-                  className="grid grid-cols-3 gap-3 auto-cols-auto border-x border-t last-of-type:border-b first-of-type:rounded-t-md last-of-type:rounded-b-md w-full items-center justify-between border-gray-lightgray bg-white p-4 hover:bg-gray-50"
+                  key={`${key.id}-${i}`}
+                  className="grid w-full auto-cols-auto grid-cols-4 items-center justify-between gap-3 border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50"
                 >
-                  <div className="justify-self-center md:justify-self-start font-semibold">
+                  <div className="justify-self-center font-semibold md:justify-self-start">
                     <p>{key.name}</p>
                   </div>
-                  <div className="rounded-full justify-self-center bg-gray-lightgray px-3 py-1">
+                  <div className="justify-self-center rounded-full bg-gray-lightgray px-3 py-1">
                     <p>Connected</p>
                   </div>
                   <button
