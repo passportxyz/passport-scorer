@@ -30,7 +30,7 @@ const CommunityCard = ({
     <div className="grid grid-cols-2 auto-cols-auto border-x border-t last-of-type:border-b first-of-type:rounded-t-md last-of-type:rounded-b-md w-full items-center justify-between border-gray-lightgray bg-white p-4 hover:bg-gray-50">
       {/* first column */}
       <div className="grid grid-rows">
-        <p className="font-librefranklin font-semibold text-blue-darkblue mb-2"><a href="#">{community.name}</a></p>
+        <p className="font-librefranklin font-semibold text-blue-darkblue mb-2"><a href="#">#{community.id} - {community.name}</a></p>
         <p className="font-librefranklin text-purple-softpurple">{community.description}</p>
       </div>
       {/* second column */}

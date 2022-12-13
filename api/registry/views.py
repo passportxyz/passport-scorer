@@ -42,7 +42,7 @@ class Unauthorized(APIException):
 class SubmitPassportPayload(Schema):
     address: str
     signature: str
-    community: str
+    community: str  # TODO: gerald: community_id ???, and make it int
 
 
 class ScoreResponse(Schema):
