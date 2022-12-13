@@ -89,22 +89,10 @@ export const ApiKeyList = () => {
               {apiKeys.map((key, i) => (
                 <div
                   key={key.id}
-                  className="grid grid-cols-4 gap-3 auto-cols-auto border-x border-t last-of-type:border-b first-of-type:rounded-t-md last-of-type:rounded-b-md w-full items-center justify-between border-gray-lightgray bg-white p-4 hover:bg-gray-50"
+                  className="grid grid-cols-3 gap-3 auto-cols-auto border-x border-t last-of-type:border-b first-of-type:rounded-t-md last-of-type:rounded-b-md w-full items-center justify-between border-gray-lightgray bg-white p-4 hover:bg-gray-50"
                 >
                   <div className="justify-self-center md:justify-self-start font-semibold">
                     <p>{key.name}</p>
-                  </div>
-                  <div className="justify-self-start md:justify-self-center text-purple-softpurple">
-                    <p>
-                      {key.prefix.substring(0, 15)}...
-                      <span>
-                        <Icon
-                          className="ml-1"
-                          as={MdFileCopy}
-                          color="#757087"
-                        />
-                      </span>
-                    </p>
                   </div>
                   <div className="rounded-full justify-self-center bg-gray-lightgray px-3 py-1">
                     <p>Connected</p>
@@ -166,9 +154,10 @@ export const ApiKeyList = () => {
       >
         <div className="flex flex-col">
           <label className="text-gray-softgray font-librefranklin text-xs">
-            Key name
+            API Key
           </label>
           <Input
+            className="mb-6"
             data-testid="key-name-input"
             value={newApiKey}
             readOnly={true}
