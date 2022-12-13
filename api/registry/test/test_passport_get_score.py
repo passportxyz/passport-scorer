@@ -80,7 +80,7 @@ class TestPassportGetScore:
         community_id = scorer_community.id
         client = Client()
         response = client.get(
-            f"/registry/score/{address}/{community_id}",
+            f"/api/registry/score/{address}/{community_id}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         assert response.status_code == 200
@@ -92,7 +92,7 @@ class TestPassportGetScore:
         community_id = scorer_community.id
         client = Client()
         response = client.get(
-            f"/registry/score/{address}/{community_id}",
+            f"/api/registry/score/{address}/{community_id}",
         )
         assert response.status_code == 401
 
@@ -100,7 +100,7 @@ class TestPassportGetScore:
         address = scorer_account.address
         client = Client()
         response = client.get(
-            f"/registry/score/{address}/3",
+            f"/api/registry/score/{address}/3",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         assert response.status_code == 400

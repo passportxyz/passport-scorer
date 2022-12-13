@@ -36,8 +36,8 @@ def _(scorer_community_with_gitcoin_default):
 def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
     """I call the submit-passport API for an Ethereum account under that community ID."""
 
-    mocker.patch("registry.views.get_passport", return_value=mock_passport)
-    mocker.patch("registry.views.validate_credential", side_effect=[[], []])
+    mocker.patch("registry.api.get_passport", return_value=mock_passport)
+    mocker.patch("registry.api.validate_credential", side_effect=[[], []])
     client = Client()
 
     my_mnemonic = (
@@ -59,7 +59,7 @@ def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
     }
 
     response = client.post(
-        "/registry/submit-passport",
+        "/api/registry/submit-passport",
         json.dumps(payload),
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Token {scorer_api_key}",

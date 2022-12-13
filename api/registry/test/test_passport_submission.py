@@ -286,7 +286,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            "/api/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION="Token 1234",
@@ -315,7 +315,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            "/api/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -326,8 +326,8 @@ class ValidatePassportTestCase(TransactionTestCase):
         valid = verify_issuer(mock_passport)
         self.assertEqual(valid, True)
 
-    @patch("registry.views.validate_credential", side_effect=[[], []])
-    @patch("registry.views.get_passport", return_value=mock_passport)
+    @patch("registry.api.validate_credential", side_effect=[[], []])
+    @patch("registry.api.get_passport", return_value=mock_passport)
     def test_submit_passport(self, get_passport, validate_credential):
         # get_passport.return_value = mock_passport
 
@@ -340,7 +340,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            "/api/registry/submit-passport",
             json.dumps(payload),
             **{
                 "content_type": "application/tson",
@@ -365,7 +365,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    @patch("registry.views.get_passport", return_value=mock_passport)
+    @patch("registry.api.get_passport", return_value=mock_passport)
     def test_submit_passport_missing_community(self, get_passport):
         """
         Make sure that the community is required when submitting eth address
@@ -378,7 +378,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            "/api/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -390,11 +390,11 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(len(all_passports), 0)
 
     @patch(
-        "registry.views.validate_credential",
+        "registry.api.validate_credential",
         side_effect=[[], [], ["Stamp validation failed: invalid date"]],
     )
     @patch(
-        "registry.views.get_passport",
+        "registry.api.get_passport",
         return_value=mock_passport_with_corrupted_stamp,
     )
     def test_submit_passport_with_invalid_stamp(
@@ -411,7 +411,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            "/api/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -434,9 +434,9 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    @patch("registry.views.validate_credential", side_effect=[[], [], []])
+    @patch("registry.api.validate_credential", side_effect=[[], [], []])
     @patch(
-        "registry.views.get_passport",
+        "registry.api.get_passport",
         return_value=mock_passport_with_expired_stamp,
     )
     def test_submit_passport_with_expired_stamps(
@@ -453,7 +453,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            "/api/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -476,9 +476,9 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    @patch("registry.views.validate_credential", side_effect=[[], [], []])
+    @patch("registry.api.validate_credential", side_effect=[[], [], []])
     @patch(
-        "registry.views.get_passport",
+        "registry.api.get_passport",
         return_value=mock_passport,
     )
     def test_that_community_is_associated_with_passport(
@@ -495,7 +495,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            "/api/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -510,7 +510,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(all_passports[0].community, self.community)
 
     @patch(
-        "registry.views.get_passport",
+        "registry.api.get_passport",
         return_value=mock_passport,
     )
     def test_that_only_owned_communities_can_submit_passport(self, get_passport):
@@ -525,16 +525,16 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            "/api/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 404)
 
-    @patch("registry.views.validate_credential", side_effect=[[], []])
+    @patch("registry.api.validate_credential", side_effect=[[], []])
     @patch(
-        "registry.views.get_passport",
+        "registry.api.get_passport",
         return_value=mock_passport_google,
     )
     def test_lifo_deduplication_duplicate_stamps(
@@ -577,7 +577,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         submission_response = self.client.post(
-            "/registry/submit-passport",
+            "/api/registry/submit-passport",
             json.dumps(submission_test_payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",

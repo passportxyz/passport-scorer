@@ -64,8 +64,8 @@ def _(
     )
 
     # Now submit a second passport with the duplicate hash
-    mocker.patch("registry.views.get_passport", return_value=mock_passport)
-    mocker.patch("registry.views.validate_credential", side_effect=[[], []])
+    mocker.patch("registry.api.get_passport", return_value=mock_passport)
+    mocker.patch("registry.api.validate_credential", side_effect=[[], []])
     client = Client()
     second_account = passport_holder_addresses[1]
 
@@ -81,7 +81,7 @@ def _(
     }
 
     response = client.post(
-        "/registry/submit-passport",
+        "/api/registry/submit-passport",
         json.dumps(payload),
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Token {scorer_api_key}",

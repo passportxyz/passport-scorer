@@ -7,6 +7,7 @@ from account.deduplication.lifo import lifo
 from account.models import AccountAPIKey, Community
 from asgiref.sync import async_to_sync
 from django.shortcuts import get_object_or_404
+from ninja import Router
 from ninja.security import APIKeyHeader
 from ninja_extra import NinjaExtraAPI, status
 from ninja_extra.exceptions import APIException
@@ -16,7 +17,8 @@ from registry.models import Passport, Score, Stamp
 from registry.utils import get_signer, validate_credential, verify_issuer
 
 log = logging.getLogger(__name__)
-api = NinjaExtraAPI(urls_namespace="registry")
+# api = NinjaExtraAPI(urls_namespace="registry")
+router = Router()
 
 
 class InvalidSignerException(APIException):
@@ -70,7 +72,7 @@ class ApiKey(APIKeyHeader):
             raise Unauthorized()
 
 
-@api.post("/submit-passport", auth=ApiKey())
+@router.post("/submit-passport", auth=ApiKey())
 def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreResponse]:
     # TODO: gerald - test that checksummed & non-checksummed addresses work
     if get_signer(payload.signature).lower() != payload.address.lower():
@@ -155,7 +157,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         InvalidPassportCreationException()
 
 
-@api.get("/score/{str:address}/{int:community_id}", auth=ApiKey())
+@router.get("/score/{str:address}/{int:community_id}", auth=ApiKey())
 def get_score(request, address: str, community_id: int):
     try:
         community = Community.objects.get(id=community_id)
