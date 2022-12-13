@@ -1,11 +1,9 @@
-# --- Python imports
 import hashlib
 import logging
 import random
 import string
-from typing import List, cast
+from typing import List, Optional, cast
 
-# --- Models
 from account.models import Account, AccountAPIKey, Community
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
@@ -14,13 +12,8 @@ from ninja import ModelSchema, Schema
 from ninja_extra import NinjaExtraAPI, status
 from ninja_extra.exceptions import APIException
 from ninja_jwt.authentication import JWTAuth
-
-# --- Ninja
 from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
-from scorer_weighted.models import WeightedScorer
-
-# --- Web3 & Eth
 from siwe import SiweMessage
 
 log = logging.getLogger(__name__)
@@ -125,6 +118,8 @@ class AccountApiSchema(ModelSchema):
         model = AccountAPIKey
         model_fields = ["name", "id", "prefix"]
 
+    api_key: Optional[str] = None
+
 
 class CommunityApiSchema(ModelSchema):
     class Config:
@@ -165,7 +160,7 @@ class APIKeyName(Schema):
     name: str
 
 
-@api.post("/api-key", auth=JWTAuth())
+@api.post("/api-key", auth=JWTAuth(), response=AccountApiSchema)
 def create_api_key(request, payload: APIKeyName):
     try:
         account = request.user.account
@@ -181,7 +176,12 @@ def create_api_key(request, payload: APIKeyName):
     except Account.DoesNotExist:
         raise UnauthorizedException()
 
-    return {"ok": True}
+    return {
+        "id": api_key.id,
+        "name": api_key.name,
+        "prefix": api_key.prefix,
+        "api_key": key,
+    }
 
 
 @api.get("/api-key", auth=JWTAuth(), response=List[AccountApiSchema])

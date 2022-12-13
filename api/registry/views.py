@@ -154,7 +154,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         InvalidPassportCreationException()
 
 
-@api.get("/score/{path:address}/{path:community_id}", auth=ApiKey())
+@api.get("/score/{str:address}/{int:community_id}", auth=ApiKey())
 def get_score(request, address: str, community_id: int):
     try:
         community = Community.objects.get(id=community_id)

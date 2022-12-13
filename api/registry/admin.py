@@ -3,7 +3,7 @@ from registry.models import Passport, Stamp
 
 
 class PassportAdmin(admin.ModelAdmin):
-    list_display = ["address", "version"]
+    list_display = ["address"]
     search_fields = ["address"]
 
 
