@@ -91,9 +91,6 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
     )
 
     try:
-        # List all stamps in database
-        db_stamps = list(Stamp.objects.all())
-
         # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
         passport_to_be_saved = lifo(passport)
 
