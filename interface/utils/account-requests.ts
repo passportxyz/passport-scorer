@@ -16,6 +16,7 @@ export const createApiKey = async (name: string) => {
       }
     );
     const { data } = await response;
+    return data;
   } catch (error) {
     throw error;
   }
@@ -45,9 +46,7 @@ export const getApiKeys = async (): Promise<ApiKeys[]> => {
   }
 };
 
-export const deleteApiKey = async (
-  apiKeyId: ApiKeys["id"]
-): Promise<void> => {
+export const deleteApiKey = async (apiKeyId: ApiKeys["id"]): Promise<void> => {
   try {
     const token = localStorage.getItem("access-token");
     await axios.delete(`${SCORER_BACKEND}account/api-key/${apiKeyId}`, {
@@ -101,7 +100,10 @@ export const getCommunities = async (): Promise<Community[]> => {
   }
 };
 
-export const updateCommunity = async (communityId: Community["id"], community: Community) => {
+export const updateCommunity = async (
+  communityId: Community["id"],
+  community: Community
+) => {
   try {
     const token = localStorage.getItem("access-token");
     const response = await axios.put(

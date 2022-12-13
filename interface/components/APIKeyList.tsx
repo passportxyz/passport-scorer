@@ -20,6 +20,8 @@ export const ApiKeyList = () => {
   const [apiKeys, setApiKeys] = useState<ApiKeys[]>([]);
   const [error, setError] = useState<undefined | string>();
   const [modalOpen, setModalOpen] = useState(false);
+  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
+  const [newApiKey, setNewApiKey] = useState();
   const [keyName, setKeyName] = useState("");
 
   useEffect(() => {
@@ -41,10 +43,12 @@ export const ApiKeyList = () => {
 
   const handleCreateApiKey = async () => {
     try {
-      await createApiKey(keyName);
+      const apiKey = await createApiKey(keyName);
+      setNewApiKey(apiKey.api_key);
       setKeyName("");
       setApiKeys(await getApiKeys());
       setModalOpen(false);
+      setApiKeyModalOpen(true);
     } catch (error) {
       setError("There was an error creating your API key.");
     }
@@ -153,6 +157,22 @@ export const ApiKeyList = () => {
               Create
             </button>
           </div>
+        </div>
+      </ModalTemplate>
+      <ModalTemplate
+        isOpen={apiKeyModalOpen}
+        onClose={() => setApiKeyModalOpen(false)}
+        title="Copy your API Key"
+      >
+        <div className="flex flex-col">
+          <label className="text-gray-softgray font-librefranklin text-xs">
+            Key name
+          </label>
+          <Input
+            data-testid="key-name-input"
+            value={newApiKey}
+            readOnly={true}
+          />
         </div>
       </ModalTemplate>
     </>
