@@ -24,7 +24,7 @@ export const Layout = ({ children }: LayoutProps) => {
 
   return (
     <div>
-        <Header authenticationStatus="authenticated" />
+        <Header />
         <div>
           <div className="mt-0 w-full border-b border-gray-300 p-6 pb-6 text-black">
             <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
@@ -40,8 +40,8 @@ export const Layout = ({ children }: LayoutProps) => {
             <div className="my-4 min-h-full w-1/5 flex-col border-r border-gray-lightgray">
               <button
                 data-testid="communities-tab"
-                onClick={() => router.push("/dashboard/communities")}
-                className={tabbedClasses("communities")}
+                onClick={() => router.push("/dashboard/community")}
+                className={tabbedClasses("community")}
               >
                 <Icon as={GoInbox} className="mr-2" />Communities
               </button>

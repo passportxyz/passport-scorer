@@ -8,6 +8,13 @@ jest.mock("../../utils/account-requests.ts", () => ({
   createCommunity: jest.fn(),
 }));
 
+// mock next router
+jest.mock("next/router", () => ({
+  useRouter: () => ({
+    pathname: "/dashboard/api-keys",
+  }),
+}));
+
 describe("CommunityList", () => {
   beforeEach(() => {
     (getCommunities as jest.Mock).mockResolvedValue([
