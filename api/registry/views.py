@@ -72,6 +72,7 @@ class ApiKey(APIKeyHeader):
 
 @api.post("/submit-passport", auth=ApiKey())
 def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreResponse]:
+    # TODO: gerald - test that checksummed & non-checksummed addresses work
     if get_signer(payload.signature).lower() != payload.address.lower():
         raise InvalidSignerException()
 
