@@ -43,6 +43,10 @@ jobs:
         working-directory: ./api
         run: pip3 install -r requirements.txt
 
+      - name: Django Check
+        working-directory: ./api
+        run: python manage.py check
+
       - name: Run API unittests
         working-directory: ./api
         run: pytest
