@@ -72,6 +72,10 @@ class ApiKey(APIKeyHeader):
 
 @api.post("/submit-passport", auth=ApiKey())
 def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreResponse]:
+
+    log.info("address: %s", payload.address)
+
+    log.info("get_signer: %s", get_signer(payload.signature))
     if get_signer(payload.signature) != payload.address:
         raise InvalidSignerException()
 
