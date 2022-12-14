@@ -106,7 +106,7 @@ def _(passport_holder_addresses, submit_passport_response):
     assert submit_passport_response.json() == [
         {
             "address": passport_holder_addresses[1]["address"].lower(),
-            "score": float(1234),  # we expect a score only for the ENS stamp
+            "score": "1234.000000000",  # we expect a score only for the ENS stamp
         }
     ]
 

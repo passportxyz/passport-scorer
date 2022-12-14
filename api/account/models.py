@@ -5,11 +5,14 @@ from scorer_weighted.models import Scorer, WeightedScorer
 
 from .deduplication import Rules
 
-# Create your models here.
+
+class EthAddressField(models.CharField):
+    def get_prep_value(self, value):
+        return str(value).lower()
 
 
 class Account(models.Model):
-    address = models.CharField(max_length=100, blank=False, null=False)
+    address = EthAddressField(max_length=100, blank=False, null=False)
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="account"
     )

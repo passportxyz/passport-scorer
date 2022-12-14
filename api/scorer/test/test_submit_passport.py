@@ -91,9 +91,7 @@ def _():
     "features/submit_passport.feature",
     "As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API",
 )
-def _(
-    mocker,
-):
+def test_as_a_developer_i_want_to_rely_on_the_gitcoin_community_scorer_scoring_settings_of_the_api():
     """As a developer, I want to rely on the Gitcoin Community Scorer scoring settings of the API."""
     pass
 
@@ -120,9 +118,8 @@ def _(submit_passport_response):
     assert submit_passport_response.status_code == 200
     assert submit_passport_response.json() == [
         {
-            "passport_id": 1,
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-            "score": float(1001234),
+            "score": "1001234.000000000",
         }
     ]
 
@@ -130,6 +127,20 @@ def _(submit_passport_response):
 @then(
     "log the score associated with this Passport under the corresponding community ID"
 )
-def _():
+def _(scorer_community_with_gitcoin_default, scorer_api_key):
     """log the score associated with this Passport under the corresponding community ID."""
-    raise NotImplementedError
+    client = Client()
+
+    response = client.get(
+        f"/api/registry/score/{scorer_community_with_gitcoin_default.id}/{scorer_community_with_gitcoin_default.account.address}",
+        content_type="application/json",
+        HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
+    )
+
+    print("*" * 80)
+    print(response.json())
+    assert response.status_code == 200
+    assert response.json() == {
+        "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
+        "score": "1001234.000000000",
+    }

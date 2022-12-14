@@ -50,7 +50,7 @@ class SubmitPassportPayload(Schema):
 class ScoreResponse(Schema):
     # passport_id: int
     address: str
-    score: float
+    score: str  # The score should be represented as string as it will be a decimal number
 
 
 class ApiKey(APIKeyHeader):
@@ -141,7 +141,9 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
             {
                 # "passport_id": score.passport.id,
                 "address": score.passport.address,
-                "score": score.score,
+                "score": Score.objects.get(
+                    pk=score.id
+                ).score,  # Just reading out the value from DB to have it as decimal formatted
             }
             for s in scores
         ]
@@ -154,13 +156,18 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         InvalidPassportCreationException()
 
 
-@router.get("/score/{str:address}/{int:community_id}", auth=ApiKey())
-def get_score(request, address: str, community_id: int):
+@router.get("/score/{int:community_id}/{str:address}", auth=ApiKey())
+def get_score(request, address: str, community_id: int) -> ScoreResponse:
     try:
+        # TODO: validate that community belongs to the account holding the ApiKey
+        lower_address = address.lower()
         community = Community.objects.get(id=community_id)
-        passport = Passport.objects.get(address=address, community=community)
+        passport = Passport.objects.get(address=lower_address, community=community)
         score = Score.objects.get(passport=passport)
-        return {"score": score.score}
+        return {
+            "address": score.passport.address,
+            "score": score.score,
+        }
     except Exception as e:
 
         log.error(

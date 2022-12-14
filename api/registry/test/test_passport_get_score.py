@@ -80,11 +80,14 @@ class TestPassportGetScore:
         community_id = scorer_community.id
         client = Client()
         response = client.get(
-            f"/api/registry/score/{address}/{community_id}",
+            f"/api/registry/score/{community_id}/{address}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         assert response.status_code == 200
-        assert response.json() == {"score": scorer_score.score}
+        assert response.json() == {
+            "address": address.lower(),
+            "score": scorer_score.score,
+        }
 
     # TODO: Create test authorization separately
     def test_passport_get_scores_no_auth(self, scorer_community, scorer_account):
@@ -92,7 +95,7 @@ class TestPassportGetScore:
         community_id = scorer_community.id
         client = Client()
         response = client.get(
-            f"/api/registry/score/{address}/{community_id}",
+            f"/api/registry/score/{community_id}/{address}",
         )
         assert response.status_code == 401
 
@@ -100,7 +103,7 @@ class TestPassportGetScore:
         address = scorer_account.address
         client = Client()
         response = client.get(
-            f"/api/registry/score/{address}/3",
+            f"/api/registry/score/3/{address}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         assert response.status_code == 400
