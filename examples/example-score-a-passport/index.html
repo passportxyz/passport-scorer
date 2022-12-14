@@ -70,7 +70,7 @@
         const signedMessage = await signer.signMessage(msg);
         // TODO: submit with Axios
 
-        const endpoint = "http://localhost:8000/registry/submit-passport";
+        const endpoint = "http://localhost:8000/api/registry/submit-passport";
         const response = await axios.post(endpoint, {
           address: account,
           community: communityId,
