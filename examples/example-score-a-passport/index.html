@@ -19,9 +19,9 @@
       <div class="connectInfo fst-italic">Not connected</div>
       <div>
         <p class="mt-3">2. Enter your community ID and API key, which you can get from Scoring app on localhost</p>
-        <button type="button" class="submitForScoringButton btn btn-primary">Submit address for scoring</button>
         <input type="text" id="communityId" placeholder="Community ID" />
         <input type="text" id="apiKey" placeholder="API Key" />
+        <button type="button" class="submitForScoringButton btn btn-primary">Submit for scoring</button>
       </div>
     </div>
     <script
@@ -35,7 +35,7 @@
       type="application/javascript"
     ></script>
     <script>
-      let communityId, apiKey;
+      let communityId, apiKey, score;
 
       const ethereumButton = document.querySelector(".enableEthereumButton");
       const submitForScoringButton = document.querySelector(
@@ -49,45 +49,43 @@
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       ethereumButton.addEventListener("click", async () => {
         // MetaMask requires requesting permission to connect users accounts
-        console.log("p", provider)
         const accounts = await provider.send("eth_requestAccounts", []);
 
         account = accounts[0];
-        console.log("account", account);
-        connectionInfoDiv.innerHTML = "Your address is: " + account;
 
+        connectionInfoDiv.innerHTML = "Your address is: " + account;
       });
 
       submitForScoringButton.addEventListener("click", async () => {
         communityId = document.querySelector("#communityId").value;
         apiKey = document.querySelector("#apiKey").value;
-        console.log(communityId, apiKey)
+
         const msg = "I authorize the passport scorer to validate my account";
         // The MetaMask plugin also allows signing transactions to
         // send ether and pay to change state within the blockchain.
         // For this, you need the account signer...
         const signer = provider.getSigner();
         const signedMessage = await signer.signMessage(msg);
-        // TODO: submit with Axios
 
-        const endpoint = "http://localhost:8000/registry/submit-passport";
+        const endpoint = "http://localhost:8000/api/registry/submit-passport";
         const response = await axios.post(endpoint, {
           address: account,
           community: communityId,
           signature: signedMessage,
         },
         {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-      })
-
-        // TODO: display score
-        const score = response
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+        });
+        const score = await response
         console.log(score)
+
       });
 
+      // TODO: display score
+      // TODO: display message that no passport exists -- add a link to passport.gitcoin.co to create one
 
     </script>
   </body>
