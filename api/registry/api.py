@@ -111,7 +111,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
                 did, stamp["credential"]
             )
             stamp_expiration_date = datetime.strptime(
-                stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%SZ"
+                stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%S.%fZ"
             )
             # check that expiration date is not in the past
             stamp_is_expired = stamp_expiration_date < datetime.now()
