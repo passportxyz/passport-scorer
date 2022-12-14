@@ -1,3 +1,4 @@
+"""Configuration for the gitcoin scorer"""
 GITCOIN_PASSPORT_WEIGHTS = {
     "Brightid": 1.5761509563103948,
     "CommunityStakingBronze": 2.5470857307445187,
