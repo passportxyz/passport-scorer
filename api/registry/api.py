@@ -98,12 +98,13 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         passport_to_be_saved = lifo(passport)
 
         # Save passport to Passport database (related to community by community_id)
-        db_passport = Passport.objects.create(
-            passport=passport_to_be_saved,
+        db_passport, _ = Passport.objects.update_or_create(
             address=payload.address.lower(),
             community=user_community,
+            defaults={
+                "passport": passport_to_be_saved,
+            },
         )
-        db_passport.save()
 
         for stamp in passport_to_be_saved["stamps"]:
             stamp_return_errors = async_to_sync(validate_credential)(
