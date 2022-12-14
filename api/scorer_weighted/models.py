@@ -16,15 +16,12 @@ def get_default_weights():
 
 
 class Scorer(models.Model):
-    class Type:
-        WEIGHTED = "WEIGHTED"
-        WEIGHTED_BINARY = "WEIGHTED_BINARY"
+    class Type(models.TextChoices):
+        WEIGHTED = "WEIGHTED", "Weighted"
+        WEIGHTED_BINARY = "WEIGHTED_BINARY", "Weighted Binary"
 
     type = models.CharField(
-        choices=[
-            (Type.WEIGHTED, "Weighted"),
-            (Type.WEIGHTED_BINARY, "Weighted Binary"),
-        ],
+        choices=Type.choices,
         default=Type.WEIGHTED,
         max_length=100,
     )

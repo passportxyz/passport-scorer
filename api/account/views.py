@@ -304,3 +304,24 @@ def delete_community(request, community_id):
     except Account.DoesNotExist:
         raise UnauthorizedException()
     return {"ok": True}
+
+
+class ScorerResponse(Schema):
+    ok: bool
+    current_scorer: str
+    choices: List[str]
+
+
+@api.get("/communities/{community_id}/scorers", auth=JWTAuth(), response=ScorerResponse)
+def get_community_scorers(request, community_id):
+    try:
+        community = get_object_or_404(
+            Community, id=community_id, account=request.user.account
+        )
+
+        scorer = community.scorer
+        current_scorer = scorer.type
+        choices = [i[1] for i in scorer.Type.choices]
+    except Community.DoesNotExist:
+        raise UnauthorizedException()
+    return {"ok": True, "current_scorer": current_scorer, "choices": choices}
