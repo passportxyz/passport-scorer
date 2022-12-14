@@ -1,3 +1,4 @@
+import json
 from sysconfig import get_default_scheme
 import pytest
 from account.models import Account, Community, get_default_community_scorer
@@ -54,7 +55,8 @@ def access_token(scorer_user):
 class TestScorer:
     def test_get_default_scorer(self, client, access_token, scorer_community):
         scorer = scorer_community.scorer
-        scorer_choices = [i[1] for i in scorer.Type.choices]
+        labels = [i[1] for i in scorer.Type.choices]
+        ids = [i[0] for i in scorer.Type.choices]
         client = Client()
         response = client.get(
             f"/account/communities/{scorer_community.id}/scorers",
@@ -65,5 +67,55 @@ class TestScorer:
         assert response.json() == {
             "ok": True,
             "current_scorer": scorer.type,
-            "choices": scorer_choices,
+            "labels": labels,
+            "ids": ids,
         }
+
+    def test_unauthorized_get_default_scorer(self, client, scorer_community):
+        client = Client()
+        response = client.get(
+            f"/account/communities/{scorer_community.id}/scorers",
+            HTTP_AUTHORIZATION="Bearer badtoken",
+        )
+        assert response.status_code == 401
+
+    def test_update_community_scorer(self, client, access_token, scorer_community):
+        scorer = scorer_community.scorer
+        labels = [i[1] for i in scorer.Type.choices]
+        ids = [i[0] for i in scorer.Type.choices]
+        client = Client()
+        response = client.put(
+            f"/account/communities/{scorer_community.id}/scorers",
+            json.dumps({"scorer_type": scorer.Type.WEIGHTED_BINARY}),
+            HTTP_AUTHORIZATION=f"Bearer {access_token}",
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "ok": True,
+        }
+
+    def test_do_not_allow_unauthorized_scorer_update(self, client, scorer_community):
+        scorer = scorer_community.scorer
+        labels = [i[1] for i in scorer.Type.choices]
+        ids = [i[0] for i in scorer.Type.choices]
+        client = Client()
+        response = client.put(
+            f"/account/communities/{scorer_community.id}/scorers",
+            json.dumps({"scorer_type": scorer.Type.WEIGHTED_BINARY}),
+            HTTP_AUTHORIZATION=f"Bearer badtoken",
+        )
+
+        assert response.status_code == 401
+
+    def test_do_not_allow_invalid_scorer_type_update(
+        self, client, access_token, scorer_community
+    ):
+        client = Client()
+        response = client.put(
+            f"/account/communities/{scorer_community.id}/scorers",
+            json.dumps({"scorer_type": "Christmas"}),
+            HTTP_AUTHORIZATION=f"Bearer {access_token}",
+        )
+
+        assert response.status_code == 400

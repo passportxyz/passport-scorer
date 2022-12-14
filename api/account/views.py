@@ -113,6 +113,11 @@ class SameCommunityDescriptionException(APIException):
     default_detail = "You've entered the same community description"
 
 
+class ScorerTypeDoesNotExistException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "The scorer type does not exist"
+
+
 class AccountApiSchema(ModelSchema):
     class Config:
         model = AccountAPIKey
@@ -309,7 +314,8 @@ def delete_community(request, community_id):
 class ScorerResponse(Schema):
     ok: bool
     current_scorer: str
-    choices: List[str]
+    labels: List[str]
+    ids: List[str]
 
 
 @api.get("/communities/{community_id}/scorers", auth=JWTAuth(), response=ScorerResponse)
@@ -321,7 +327,38 @@ def get_community_scorers(request, community_id):
 
         scorer = community.scorer
         current_scorer = scorer.type
-        choices = [i[1] for i in scorer.Type.choices]
+        labels = [i[1] for i in scorer.Type.choices]
+        ids = [i[0] for i in scorer.Type.choices]
+
     except Community.DoesNotExist:
         raise UnauthorizedException()
-    return {"ok": True, "current_scorer": current_scorer, "choices": choices}
+    return {
+        "ok": True,
+        "current_scorer": current_scorer,
+        "labels": labels,
+        "ids": ids,
+    }
+
+
+class ScorerId(Schema):
+    scorer_type: str
+
+
+@api.put("/communities/{community_id}/scorers", auth=JWTAuth())
+def update_community_scorers(request, community_id, payload: ScorerId):
+    try:
+        community = get_object_or_404(
+            Community, id=community_id, account=request.user.account
+        )
+
+        if payload.scorer_type not in community.scorer.Type:
+            raise ScorerTypeDoesNotExistException()
+
+        scorer = community.scorer
+
+        scorer.type = payload.scorer_type
+        scorer.save()
+
+    except Community.DoesNotExist:
+        raise UnauthorizedException()
+    return {"ok": True}
