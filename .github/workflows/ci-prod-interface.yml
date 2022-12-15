@@ -2,7 +2,7 @@ name: Deploy Interface to Production
 on:
   workflow_dispatch:
     inputs:
-      # commit hash (for frontend deploy to fleek)
+      # commit hash (for frontend deploy to Amplify)
       commit:
         description: "Branch/Commit ref"
         default: "origin/main"
