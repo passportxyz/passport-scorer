@@ -76,6 +76,7 @@ jobs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
 
   deploy-production:
+    environment: Production
     needs: [test, build]
     runs-on: ubuntu-latest
     steps:

@@ -72,21 +72,21 @@ class ApiKey(APIKeyHeader):
             raise Unauthorized()
 
 
-@router.post("/submit-passport", auth=ApiKey())
+@router.post("/submit-passport", auth=ApiKey(), response=List[ScoreResponse])
 def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreResponse]:
     # TODO: gerald - test that checksummed & non-checksummed addresses work
-    if get_signer(payload.signature).lower() != payload.address.lower():
+    address_lower = payload.address.lower()
+    log.debug("Validating signer")
+    if get_signer(payload.signature).lower() != address_lower:
         raise InvalidSignerException()
 
     # Get DID from address
     did = get_did(payload.address)
     log.debug("/submit-passport, payload=%s", payload)
 
+    log.debug("Getting passport")
     # Passport contents read from ceramic
     passport = get_passport(did)
-
-    if not verify_issuer(passport):
-        raise InvalidSignerException()
 
     # Get community object
     user_community = get_object_or_404(
@@ -94,8 +94,9 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
     )
 
     try:
+        log.debug("deduplicating ...")
         # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
-        passport_to_be_saved = lifo(passport)
+        passport_to_be_saved = lifo(passport, address_lower)
 
         # Save passport to Passport database (related to community by community_id)
         db_passport, _ = Passport.objects.update_or_create(
@@ -106,31 +107,48 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
             },
         )
 
+        log.debug("validating stamps")
         for stamp in passport_to_be_saved["stamps"]:
             stamp_return_errors = async_to_sync(validate_credential)(
                 did, stamp["credential"]
             )
-            stamp_expiration_date = datetime.strptime(
-                stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%SZ"
-            )
+            try:
+                # TODO: use some library or https://docs.python.org/3/library/datetime.html#datetime.datetime.fromisoformat to
+                # parse iso timestamps
+                stamp_expiration_date = datetime.strptime(
+                    stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%S.%fZ"
+                )
+            except ValueError:
+                stamp_expiration_date = datetime.strptime(
+                    stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%SZ"
+                )
+
+            is_issuer_verified = verify_issuer(stamp)
             # check that expiration date is not in the past
             stamp_is_expired = stamp_expiration_date < datetime.now()
-            if len(stamp_return_errors) == 0 and stamp_is_expired == False:
-                db_stamp = Stamp.objects.create(
+            if (
+                len(stamp_return_errors) == 0
+                and not stamp_is_expired
+                and is_issuer_verified
+            ):
+                Stamp.objects.update_or_create(
                     hash=stamp["credential"]["credentialSubject"]["hash"],
-                    provider=stamp["provider"],
-                    credential=stamp["credential"],
                     passport=db_passport,
+                    defaults={
+                        "provider": stamp["provider"],
+                        "credential": stamp["credential"],
+                    },
                 )
-                db_stamp.save()
             else:
                 log.debug(
-                    "Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s",
+                    "Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s is_issuer_verified=%s",
                     stamp,
                     stamp_return_errors,
                     stamp_is_expired,
+                    is_issuer_verified,
                 )
 
+        log.debug("Saving score")
         scorer = user_community.get_scorer()
         scores = scorer.compute_score([db_passport.id])
 
@@ -157,7 +175,9 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         InvalidPassportCreationException()
 
 
-@router.get("/score/{int:community_id}/{str:address}", auth=ApiKey())
+@router.get(
+    "/score/{int:community_id}/{str:address}", auth=ApiKey(), response=ScoreResponse
+)
 def get_score(request, address: str, community_id: int) -> ScoreResponse:
     try:
         # TODO: validate that community belongs to the account holding the ApiKey

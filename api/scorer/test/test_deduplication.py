@@ -48,7 +48,6 @@ def _(
 
     Stamp.objects.create(
         passport=first_passport,
-        community=scorer_community_with_gitcoin_default,
         hash="hash1",
         provider="Some Provider",
         credential={},
@@ -57,9 +56,8 @@ def _(
     # Create a stamp, with and ID that will be duplicate
     Stamp.objects.create(
         passport=first_passport,
-        community=scorer_community_with_gitcoin_default,
         hash=ens_credential["credentialSubject"]["hash"],
-        provider="Some Provider",
+        provider="Ens",
         credential={},
     )
 
