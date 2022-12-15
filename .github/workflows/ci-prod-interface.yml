@@ -17,5 +17,5 @@ jobs:
           git fetch
           git checkout -b production-interface origin/production-interface
           git reset --hard ${{ github.event.inputs.commit }}
-          git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/gitcoinco/passport.git
+          git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/gitcoinco/passport-scorer.git
           git push origin production-interface -f
