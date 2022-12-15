@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Checkout production-app
+      - name: Checkout production-interface
         run: |
           git fetch
-          git checkout -b production-app origin/production-app
+          git checkout -b production-interface origin/production-interface
           git reset --hard ${{ github.event.inputs.commit }}
           git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/gitcoinco/passport.git
-          git push origin production-app -f
+          git push origin production-interface -f
