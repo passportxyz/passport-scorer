@@ -375,6 +375,30 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
+    @patch("registry.api.validate_credential", side_effect=[[], []])
+    @patch("registry.api.get_passport", return_value={})
+    def test_submitting_without_passport(self, get_passport, validate_credential):
+
+        payload = {
+            "community": self.community.id,
+            "address": self.account.address,
+            "signature": self.signed_message.signature.hex(),
+        }
+
+        response = self.client.post(
+            "/api/registry/submit-passport",
+            json.dumps(payload),
+            **{
+                "content_type": "application/tson",
+                "HTTP_AUTHORIZATION": f"Token {self.secret}",
+            },
+        )
+        self.assertEqual(response.status_code, 404)
+
+        # Check if the passport data was saved to the database (data that we mock)
+        all_passports = list(Passport.objects.all())
+        self.assertEqual(len(all_passports), 0)
+
     @patch("registry.api.validate_credential", side_effect=[[], [], [], []])
     @patch(
         "registry.api.get_passport",

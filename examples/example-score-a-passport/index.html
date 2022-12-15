@@ -89,11 +89,11 @@
 
           if (score) {
             passportScoreDisplay.innerHTML = "Your score is: " + score;
-          } else if (response.status === 404) {
-            passportScoreDisplay.innerHTML = "No passport exists for this address. Please create one at "
-            // + "<a href='https://passport.gitcoin.co'>Passport</a>";
           }
         } catch (e) {
+          if (e.response.data.detail == "No Passport found for this address.") {
+            passportScoreDisplay.innerHTML = "No Passport exists for this address. Please create one at " + "<a href='https://passport.gitcoin.co' target='_blank'>Gitcoin Passport</a>, come back and refresh this page, and score your Passport again";
+          }
           console.error(e)
         }
       });

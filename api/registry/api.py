@@ -36,6 +36,11 @@ class InvalidScoreRequestException(APIException):
     default_detail = "Unable to get score for provided community."
 
 
+class NoPassportException(APIException):
+    status_code = status.HTTP_404_NOT_FOUND
+    default_detail = "No Passport found for this address."
+
+
 class Unauthorized(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
     default_detail = "Invalid API Key."
@@ -87,6 +92,9 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
     log.debug("Getting passport")
     # Passport contents read from ceramic
     passport = get_passport(did)
+
+    if not passport:
+        raise NoPassportException()
 
     # Get community object
     user_community = get_object_or_404(
