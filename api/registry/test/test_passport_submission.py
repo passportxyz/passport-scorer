@@ -1,4 +1,5 @@
 import binascii
+import copy
 import json
 from datetime import datetime, timedelta
 from unittest.mock import patch
@@ -237,11 +238,20 @@ class ValidatePassportTestCase(TransactionTestCase):
             user=self.user, address=account.address
         )
 
-        self.community = Community.objects.create(
-            name="My Community",
-            description="My Community description",
-            account=self.user_account,
-        )
+        # Mock the default weights for new communities that are created
+        with patch(
+            "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
+            {
+                "Google": 1,
+                "Ens": 1,
+            },
+        ):
+
+            self.community = Community.objects.create(
+                name="My Community",
+                description="My Community description",
+                account=self.user_account,
+            )
 
         self.signed_message = web3.eth.account.sign_message(
             encode_defunct(
@@ -352,6 +362,81 @@ class ValidatePassportTestCase(TransactionTestCase):
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
+        self.assertEqual(all_passports[0].passport, mock_passport)
+        self.assertEqual(all_passports[0].address, self.account.address.lower())
+        self.assertEqual(len(all_passports[0].stamps.all()), 2)
+        stamp_ens = Stamp.objects.get(provider="Ens")
+        stamp_google = Stamp.objects.get(provider="Google")
+
+        self.assertEqual(stamp_ens.credential, ens_credential)
+        self.assertEqual(stamp_google.credential, google_credential)
+        self.assertEqual(stamp_ens.hash, ens_credential["credentialSubject"]["hash"])
+        self.assertEqual(
+            stamp_google.hash, google_credential["credentialSubject"]["hash"]
+        )
+
+    @patch("registry.api.validate_credential", side_effect=[[], [], [], []])
+    @patch(
+        "registry.api.get_passport",
+        side_effect=[copy.deepcopy(mock_passport), copy.deepcopy(mock_passport)],
+    )
+    def test_submit_passport_mulitple_times(self, get_passport, validate_credential):
+        """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
+        # get_passport.return_value = mock_passport
+
+        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
+
+        payload = {
+            "community": self.community.id,
+            "address": self.account.address,
+            "signature": self.signed_message.signature.hex(),
+        }
+
+        # First submission
+        response = self.client.post(
+            "/api/registry/submit-passport",
+            json.dumps(payload),
+            **{
+                "content_type": "application/tson",
+                "HTTP_AUTHORIZATION": f"Token {self.secret}",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            [
+                {
+                    "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
+                    "score": "2.000000000",
+                }
+            ],
+        )
+
+        # 2nd submission
+        response = self.client.post(
+            "/api/registry/submit-passport",
+            json.dumps(payload),
+            **{
+                "content_type": "application/tson",
+                "HTTP_AUTHORIZATION": f"Token {self.secret}",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            [
+                {
+                    "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
+                    "score": "2.000000000",
+                }
+            ],
+        )
+
+        # Check that the stamps have only been recorded once
+        # Check if the passport data was saved to the database (data that we mock)
+        all_passports = list(Passport.objects.all())
+        self.assertEqual(len(all_passports), 1)
+
         self.assertEqual(all_passports[0].passport, mock_passport)
         self.assertEqual(all_passports[0].address, self.account.address.lower())
         self.assertEqual(len(all_passports[0].stamps.all()), 2)
@@ -556,7 +641,6 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         Stamp.objects.create(
             passport=first_passport,
-            community=self.community,
             hash=ens_credential["credentialSubject"]["hash"],
             provider="Ens",
             credential=ens_credential,
@@ -564,7 +648,6 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         Stamp.objects.create(
             passport=first_passport,
-            community=self.community,
             hash=google_credential["credentialSubject"]["hash"],
             provider="Google",
             credential=google_credential,

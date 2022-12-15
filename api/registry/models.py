@@ -22,9 +22,6 @@ class Stamp(models.Model):
     passport = models.ForeignKey(
         Passport, related_name="stamps", on_delete=models.CASCADE, null=True
     )
-    community = models.ForeignKey(
-        Community, related_name="stamps", on_delete=models.CASCADE, null=True
-    )
     hash = models.CharField(null=False, blank=False, max_length=100, db_index=True)
     provider = models.CharField(
         null=False, blank=False, default="", max_length=256, db_index=True
@@ -35,7 +32,7 @@ class Stamp(models.Model):
         return f"#{self.hash}"
 
     class Meta:
-        unique_together = ["hash", "community"]
+        unique_together = ["hash", "passport"]
 
 
 class Score(models.Model):

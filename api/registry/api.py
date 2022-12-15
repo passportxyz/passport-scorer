@@ -75,8 +75,9 @@ class ApiKey(APIKeyHeader):
 @router.post("/submit-passport", auth=ApiKey())
 def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreResponse]:
     # TODO: gerald - test that checksummed & non-checksummed addresses work
+    address_lower = payload.address.lower()
     log.debug("Validating signer")
-    if get_signer(payload.signature).lower() != payload.address.lower():
+    if get_signer(payload.signature).lower() != address_lower:
         raise InvalidSignerException()
 
     # Get DID from address
@@ -95,7 +96,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
     try:
         log.debug("deduplicating ...")
         # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
-        passport_to_be_saved = lifo(passport)
+        passport_to_be_saved = lifo(passport, address_lower)
 
         # Save passport to Passport database (related to community by community_id)
         db_passport, _ = Passport.objects.update_or_create(
@@ -130,13 +131,14 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
                 and not stamp_is_expired
                 and is_issuer_verified
             ):
-                db_stamp = Stamp.objects.create(
+                Stamp.objects.update_or_create(
                     hash=stamp["credential"]["credentialSubject"]["hash"],
-                    provider=stamp["provider"],
-                    credential=stamp["credential"],
                     passport=db_passport,
+                    defaults={
+                        "provider": stamp["provider"],
+                        "credential": stamp["credential"],
+                    },
                 )
-                db_stamp.save()
             else:
                 log.debug(
                     "Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s is_issuer_verified=%s",
