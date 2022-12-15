@@ -72,7 +72,7 @@ class ApiKey(APIKeyHeader):
             raise Unauthorized()
 
 
-@router.post("/submit-passport", auth=ApiKey())
+@router.post("/submit-passport", auth=ApiKey(), response=List[ScoreResponse])
 def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreResponse]:
     # TODO: gerald - test that checksummed & non-checksummed addresses work
     address_lower = payload.address.lower()
@@ -175,7 +175,9 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         InvalidPassportCreationException()
 
 
-@router.get("/score/{int:community_id}/{str:address}", auth=ApiKey())
+@router.get(
+    "/score/{int:community_id}/{str:address}", auth=ApiKey(), response=ScoreResponse
+)
 def get_score(request, address: str, community_id: int) -> ScoreResponse:
     try:
         # TODO: validate that community belongs to the account holding the ApiKey
