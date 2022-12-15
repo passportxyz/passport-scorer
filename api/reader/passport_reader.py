@@ -1,8 +1,19 @@
 # libs for processing the deterministic stream location
 import json
+import logging
 
 # Making GET requests against the CERAMIC_URL to read streams
 import requests
+from ninja_extra import status
+from ninja_extra.exceptions import APIException
+
+log = logging.getLogger(__name__)
+
+
+class NoPassportException(APIException):
+    status_code = status.HTTP_404_NOT_FOUND
+    default_detail = "No Passport found for this address."
+
 
 # Location of a Ceramic node that we can read state from
 CERAMIC_URL = "https://ceramic.passport-iam.gitcoin.co"
@@ -114,6 +125,9 @@ def get_passport(did="", stream_ids=[]):
 
 
 def get_stamps(passport):
+    if not passport:
+        raise NoPassportException()
+
     # hydrate stamps contained within the passport
     if passport and passport["stamps"]:
         for (index, stamp) in enumerate(passport["stamps"]):

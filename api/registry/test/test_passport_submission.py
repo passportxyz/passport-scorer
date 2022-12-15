@@ -323,7 +323,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_valid_issuer(self):
-        valid = verify_issuer(mock_passport)
+        valid = verify_issuer(mock_passport["stamps"][1])
         self.assertEqual(valid, True)
 
     @patch("registry.api.validate_credential", side_effect=[[], []])

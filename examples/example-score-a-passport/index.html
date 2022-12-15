@@ -23,6 +23,7 @@
         <input type="text" id="apiKey" placeholder="API Key" />
         <button type="button" class="submitForScoringButton btn btn-primary">Submit for scoring</button>
       </div>
+      <div class="passportScore mt-3"></div>
     </div>
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"
@@ -35,14 +36,16 @@
       type="application/javascript"
     ></script>
     <script>
-      let communityId, apiKey, score;
+      let communityId, apiKey;
 
       const ethereumButton = document.querySelector(".enableEthereumButton");
       const submitForScoringButton = document.querySelector(
         ".submitForScoringButton"
       );
       const connectionInfoDiv = document.querySelector(".connectInfo");
+      const passportScoreDisplay = document.querySelector(".passportScore");
       let account = null;
+      let score = null;
 
       // A Web3Provider wraps a standard Web3 provider, which is
       // what MetaMask injects as window.ethereum into each page
@@ -68,25 +71,32 @@
         const signedMessage = await signer.signMessage(msg);
 
         const endpoint = "http://localhost:8000/api/registry/submit-passport";
-        const response = await axios.post(endpoint, {
-          address: account,
-          community: communityId,
-          signature: signedMessage,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
+
+        try {
+          const response = await axios.post(endpoint, {
+            address: account,
+            community: communityId,
+            signature: signedMessage,
           },
-        });
-        const score = await response
-        console.log(score)
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+          });
 
+          score = response.data[0].score;
+
+          if (score) {
+            passportScoreDisplay.innerHTML = "Your score is: " + score;
+          } else if (response.status === 404) {
+            passportScoreDisplay.innerHTML = "No passport exists for this address. Please create one at "
+            // + "<a href='https://passport.gitcoin.co'>Passport</a>";
+          }
+        } catch (e) {
+          console.error(e)
+        }
       });
-
-      // TODO: display score
-      // TODO: display message that no passport exists -- add a link to passport.gitcoin.co to create one
-
     </script>
   </body>
 </html>
