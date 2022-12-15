@@ -2,6 +2,7 @@ import hashlib
 import logging
 import random
 import string
+from ast import Dict
 from typing import List, Optional, cast
 
 from account.models import Account, AccountAPIKey, Community
@@ -311,14 +312,14 @@ def delete_community(request, community_id):
     return {"ok": True}
 
 
-class ScorerResponse(Schema):
-    ok: bool
-    current_scorer: str
-    labels: List[str]
-    ids: List[str]
+# TODO - type list if dicts response
+# class ScorerResponse(Schema):
+#     ok: bool
+#     current_scorer: str
+#     scorers: List[Dict[str, str]]
 
 
-@api.get("/communities/{community_id}/scorers", auth=JWTAuth(), response=ScorerResponse)
+@api.get("/communities/{community_id}/scorers", auth=JWTAuth())
 def get_community_scorers(request, community_id):
     try:
         community = get_object_or_404(
@@ -327,16 +328,14 @@ def get_community_scorers(request, community_id):
 
         scorer = community.scorer
         current_scorer = scorer.type
-        labels = [i[1] for i in scorer.Type.choices]
-        ids = [i[0] for i in scorer.Type.choices]
+        scorers = [{"id": i[0], "label": i[1]} for i in scorer.Type.choices]
 
     except Community.DoesNotExist:
         raise UnauthorizedException()
     return {
         "ok": True,
         "current_scorer": current_scorer,
-        "labels": labels,
-        "ids": ids,
+        "scorers": scorers,
     }
 
 

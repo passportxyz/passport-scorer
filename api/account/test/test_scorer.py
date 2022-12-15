@@ -1,11 +1,12 @@
 import json
 from sysconfig import get_default_scheme
+
 import pytest
 from account.models import Account, Community, get_default_community_scorer
 from django.contrib.auth.models import User
 from django.test import Client
-from web3 import Web3
 from ninja_jwt.schema import RefreshToken
+from web3 import Web3
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -55,8 +56,7 @@ def access_token(scorer_user):
 class TestScorer:
     def test_get_default_scorer(self, client, access_token, scorer_community):
         scorer = scorer_community.scorer
-        labels = [i[1] for i in scorer.Type.choices]
-        ids = [i[0] for i in scorer.Type.choices]
+        scorers = [{"id": i[0], "label": i[1]} for i in scorer.Type.choices]
         client = Client()
         response = client.get(
             f"/account/communities/{scorer_community.id}/scorers",
@@ -67,8 +67,7 @@ class TestScorer:
         assert response.json() == {
             "ok": True,
             "current_scorer": scorer.type,
-            "labels": labels,
-            "ids": ids,
+            "scorers": scorers,
         }
 
     def test_unauthorized_get_default_scorer(self, client, scorer_community):
