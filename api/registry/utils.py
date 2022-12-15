@@ -85,12 +85,12 @@ def get_signer(signature) -> str:
     return address
 
 
-def verify_issuer(passport) -> bool:
-    stamps = passport["stamps"]
-    for index in stamps:
-        if index["credential"]["issuer"] != TRUSTED_IAM_ISSUER:
-            return False
-    return True
+def verify_issuer(stamp: dict) -> bool:
+    return (
+        "credential" in stamp
+        and "issuer" in stamp["credential"]
+        and stamp["credential"]["issuer"] == TRUSTED_IAM_ISSUER
+    )
 
 
 def verify_expiration(passport) -> bool:
