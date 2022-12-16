@@ -24,16 +24,16 @@ jobs:
         working-directory: ./api
         run: pip3 install -r requirements.txt
 
+      - name: Build and run the api
+        working-directory: ./api
+        run: |
+          gunicorn -w 4 -k uvicorn.workers.UvicornWorker scorer.asgi:application
+
       - name: Install Interface Dependencies
         working-directory: ./interface
         run: yarn & yarn build
-
-      - name: Build and run the app
-        run: |
-          npm run build
-          python manage.py runserver &
       - name: Run Cypress tests
-        run: cypress run
+        run: yarn cypress run
       - name: Upload test results
         uses: actions/upload-artifact@v2
         with:
