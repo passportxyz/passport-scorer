@@ -41,7 +41,7 @@ const scorerResponse = {
 describe("Dashboard", () => {
   // beforeEach(() => {});
   // TODO: remove skip once scorer config is further fleshed out
-  it.skip("Should render a list of scorer options", async () => {
+  it("Should render a list of scorer options", async () => {
     (getCommunityScorers as jest.Mock).mockResolvedValue(scorerResponse);
     render(<Community />);
     await waitFor(async () => {
