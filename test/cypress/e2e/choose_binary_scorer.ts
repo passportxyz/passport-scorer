@@ -21,9 +21,6 @@ When("I see the scoring options I can select for that community", () => {
 Then(
   "I see the Gitcoin Binary Community Score as an option, i.e., the binary output version of the of the default Gitcoin Community Score",
   () => {
-    cy.get("p").contains("Gitcoin Scoring");
-    cy.get("p").contains(
-      "Stamps and data are binarily verified, aggregated, and scored relative to all other attestations."
-    );
+    cy.get("p").contains("Weighted Binary");
   }
 );
