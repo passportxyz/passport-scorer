@@ -15,7 +15,7 @@ class Passport(models.Model):
         unique_together = ["address", "community"]
 
     def __str__(self):
-        return f"{self.did}"
+        return f"{self.address}"
 
 
 class Stamp(models.Model):

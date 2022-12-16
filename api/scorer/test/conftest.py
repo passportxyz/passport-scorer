@@ -1,3 +1,4 @@
+# pylint: disable=redefined-outer-name
 import pytest
 from account.models import Account, AccountAPIKey, Community
 from django.contrib.auth.models import User
@@ -56,10 +57,27 @@ def passport_holder_addresses():
 
 @pytest.fixture
 def scorer_api_key(scorer_account):
-    (account_api_key, secret) = AccountAPIKey.objects.create_key(
+    (_, secret) = AccountAPIKey.objects.create_key(
         account=scorer_account, name="Token for user 1"
     )
     return secret
+
+
+@pytest.fixture
+def scorer_community_with_binary_scorer(mocker, scorer_account):
+    mock_settings = {"Facebook": 1, "Google": 1, "Ens": 1}
+    # Mock gitcoin scoring settings
+    mocker.patch(
+        "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
+        mock_settings,
+    )
+
+    community = Community.objects.create(
+        name="My Community",
+        description="My Community description",
+        account=scorer_account,
+    )
+    return community
 
 
 @pytest.fixture
