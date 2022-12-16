@@ -295,7 +295,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/api/registry/submit-passport",
+            "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION="Token 1234",
@@ -325,7 +325,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/api/registry/submit-passport",
+            "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -351,7 +351,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/api/registry/submit-passport",
+            "/registry/submit-passport",
             json.dumps(payload),
             **{
                 "content_type": "application/tson",
@@ -388,7 +388,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/api/registry/submit-passport",
+            "/registry/submit-passport",
             json.dumps(payload),
             **{
                 "content_type": "application/tson",
@@ -421,7 +421,7 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         # First submission
         response = self.client.post(
-            "/api/registry/submit-passport",
+            "/registry/submit-passport",
             json.dumps(payload),
             **{
                 "content_type": "application/tson",
@@ -441,7 +441,7 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         # 2nd submission
         response = self.client.post(
-            "/api/registry/submit-passport",
+            "/registry/submit-passport",
             json.dumps(payload),
             **{
                 "content_type": "application/tson",
@@ -491,7 +491,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/api/registry/submit-passport",
+            "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -525,7 +525,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/api/registry/submit-passport",
+            "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -568,7 +568,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/api/registry/submit-passport",
+            "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -611,7 +611,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/api/registry/submit-passport",
+            "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -642,7 +642,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/api/registry/submit-passport",
+            "/registry/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -694,7 +694,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         submission_response = self.client.post(
-            "/api/registry/submit-passport",
+            "/registry/submit-passport",
             json.dumps(submission_test_payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",

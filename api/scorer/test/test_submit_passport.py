@@ -65,7 +65,7 @@ def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
     }
 
     response = client.post(
-        "/api/registry/submit-passport",
+        "/registry/submit-passport",
         json.dumps(payload),
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
@@ -138,7 +138,7 @@ def _(scorer_community_with_gitcoin_default, scorer_api_key):
     client = Client()
 
     response = client.get(
-        f"/api/registry/score/{scorer_community_with_gitcoin_default.id}/{scorer_community_with_gitcoin_default.account.address}",
+        f"/registry/score/{scorer_community_with_gitcoin_default.id}/{scorer_community_with_gitcoin_default.account.address}",
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
     )

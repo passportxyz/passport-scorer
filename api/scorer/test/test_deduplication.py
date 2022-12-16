@@ -85,7 +85,7 @@ def _(
     }
 
     response = client.post(
-        "/api/registry/submit-passport",
+        "/registry/submit-passport",
         json.dumps(payload),
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
