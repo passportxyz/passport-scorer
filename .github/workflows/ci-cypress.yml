@@ -1,0 +1,41 @@
+name: Cypress Tests
+
+on:
+  push:
+    branches: [778-choose-binary-community-score]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.10
+      - name: Install pipenv
+        run: pip3 install pipenv
+
+      - name: Generate requirements.txt
+        working-directory: ./api
+        run: pipenv requirements --dev > requirements.txt
+
+      - name: Install API dependencies
+        working-directory: ./api
+        run: pip3 install -r requirements.txt
+
+      - name: Install Interface Dependencies
+        working-directory: ./interface
+        run: yarn & yarn build
+
+      - name: Build and run the app
+        run: |
+          npm run build
+          python manage.py runserver &
+      - name: Run Cypress tests
+        run: cypress run
+      - name: Upload test results
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-results
+          path: cypress/results
