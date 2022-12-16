@@ -5,7 +5,6 @@ import pytest
 from account.models import AccountAPIKey, Nonce
 from account.test.test_api_key import mock_api_key_body
 from django.test import Client
-from eth_account.messages import encode_defunct
 from ninja_jwt.schema import RefreshToken
 from pytest_bdd import given, scenario, then, when
 from registry.test.test_passport_submission import mock_passport
@@ -56,7 +55,7 @@ def _(api_key_response):
 
 
 @then("I can use that key to call the API")
-def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
+def _(scorer_api_key, scorer_community_with_gitcoin_default):
     """I can use that key to call the API."""
 
     mocker.patch("registry.api.get_passport", return_value=mock_passport)
