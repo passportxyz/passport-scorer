@@ -67,7 +67,7 @@
         // The MetaMask plugin also allows signing transactions to
         // send ether and pay to change state within the blockchain.
         // For this, you need the account signer...
-        const signer = provider.getSigner();
+        const signer = provider.getSigner()
         const signedMessage = await signer.signMessage(msg);
 
         const endpoint = "https://api.scorer.gitcoin.co/registry/submit-passport";
