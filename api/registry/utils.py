@@ -78,8 +78,15 @@ def get_duplicate_passport(did, stamp_hash):
     return None
 
 
-def get_signer(signature) -> str:
-    message = "I authorize the passport scorer to validate my account"
+def get_signing_message(nonce: str) -> str:
+    return f"""I hereby agree to submit my address in order to score my associated Gitcoin Passport from Ceramic.
+
+Nonce: {nonce}
+"""
+
+
+def get_signer(nonce: str, signature: str) -> str:
+    message = get_signing_message(nonce)
     encoded_message = encode_defunct(text=message)
     address = web3.eth.account.recover_message(encoded_message, signature=signature)
     return address

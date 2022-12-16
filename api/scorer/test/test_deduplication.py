@@ -3,6 +3,7 @@
 import json
 
 import pytest
+from account.models import Nonce
 from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when
@@ -12,6 +13,7 @@ from registry.test.test_passport_submission import (
     google_credential,
     mock_passport,
 )
+from registry.utils import get_signing_message
 from web3 import Web3
 
 pytestmark = pytest.mark.django_db
@@ -67,8 +69,11 @@ def _(
     client = Client()
     second_account = passport_holder_addresses[1]
 
+    nonce = Nonce.create_nonce()
+    signing_message = get_signing_message(nonce)
+
     signed_message = web3.eth.account.sign_message(
-        encode_defunct(text="I authorize the passport scorer to validate my account"),
+        encode_defunct(text=signing_message),
         private_key=second_account["key"],
     )
 
@@ -76,6 +81,7 @@ def _(
         "community": scorer_community_with_gitcoin_default.id,
         "address": second_account["address"],
         "signature": signed_message.signature.hex(),
+        "nonce": nonce,
     }
 
     response = client.post(

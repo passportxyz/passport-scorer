@@ -4,12 +4,12 @@ import json
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from account.models import Account, AccountAPIKey, Community
+from account.models import Account, AccountAPIKey, Community, Nonce
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
 from eth_account.messages import encode_defunct
 from registry.models import Passport, Stamp
-from registry.utils import get_signer, verify_issuer
+from registry.utils import get_signer, get_signing_message, verify_issuer
 from web3 import Web3
 
 web3 = Web3()
@@ -253,10 +253,11 @@ class ValidatePassportTestCase(TransactionTestCase):
                 account=self.user_account,
             )
 
+        self.nonce = Nonce.create_nonce()
+        self.signing_message = get_signing_message(self.nonce)
+
         self.signed_message = web3.eth.account.sign_message(
-            encode_defunct(
-                text="I authorize the passport scorer to validate my account"
-            ),
+            encode_defunct(text=self.signing_message),
             private_key=self.account.key,
         )
 
@@ -280,9 +281,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.mock_account = mock_account
         self.mock_signed_message = web3.eth.account.sign_message(
-            encode_defunct(
-                text="I authorize the passport scorer to validate my account"
-            ),
+            encode_defunct(text=self.signing_message),
             private_key=self.mock_account.key,
         )
 
@@ -305,7 +304,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_verify_signature(self):
-        signer = get_signer(self.signed_message.signature.hex())
+        signer = get_signer(self.nonce, self.signed_message.signature.hex())
         self.assertEqual(signer, self.account.address)
 
     def test_verify_signature_wrong_signature(self):
@@ -314,7 +313,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         signature[0] = signature[0] + 1
         signature = bytes(signature)
 
-        signer = get_signer(signature)
+        signer = get_signer(self.nonce, signature)
         self.assertNotEqual(signer, self.account.address)
 
     def test_invalid_address_throws_exception(self):
@@ -322,6 +321,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "address": "0x0",
             "signature": self.signed_message.signature.hex(),
             "community": self.community.id,
+            "nonce": self.nonce,
         }
 
         response = self.client.post(
@@ -347,6 +347,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "community": self.community.id,
             "address": self.account.address,
             "signature": self.signed_message.signature.hex(),
+            "nonce": self.nonce,
         }
 
         response = self.client.post(
@@ -383,6 +384,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "community": self.community.id,
             "address": self.account.address,
             "signature": self.signed_message.signature.hex(),
+            "nonce": self.nonce,
         }
 
         response = self.client.post(
@@ -414,6 +416,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "community": self.community.id,
             "address": self.account.address,
             "signature": self.signed_message.signature.hex(),
+            "nonce": self.nonce,
         }
 
         # First submission
@@ -484,6 +487,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         payload = {
             "address": self.account.address,
             "signature": self.signed_message.signature.hex(),
+            "nonce": self.nonce,
         }
 
         response = self.client.post(
@@ -517,6 +521,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "community": self.community.id,
             "address": self.account.address,
             "signature": self.signed_message.signature.hex(),
+            "nonce": self.nonce,
         }
 
         response = self.client.post(
@@ -559,6 +564,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "community": self.community.id,
             "address": self.account.address,
             "signature": self.signed_message.signature.hex(),
+            "nonce": self.nonce,
         }
 
         response = self.client.post(
@@ -601,6 +607,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "community": self.community.id,
             "address": self.account.address,
             "signature": self.signed_message.signature.hex(),
+            "nonce": self.nonce,
         }
 
         response = self.client.post(
@@ -631,6 +638,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "community": self.community2.id,
             "address": self.account.address,
             "signature": self.signed_message.signature.hex(),
+            "nonce": self.nonce,
         }
 
         response = self.client.post(
@@ -677,10 +685,12 @@ class ValidatePassportTestCase(TransactionTestCase):
             credential=google_credential,
         )
 
+        # Now we submit a duplicate hash, and expect deduplication to happen
         submission_test_payload = {
             "community": self.community.id,
             "address": self.mock_account.address,
             "signature": self.mock_signed_message.signature.hex(),
+            "nonce": self.nonce,
         }
 
         submission_response = self.client.post(

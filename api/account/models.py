@@ -1,3 +1,5 @@
+import secrets
+
 from django.conf import settings
 from django.db import models
 from rest_framework_api_key.models import AbstractAPIKey
@@ -9,6 +11,25 @@ from .deduplication import Rules
 class EthAddressField(models.CharField):
     def get_prep_value(self, value):
         return str(value).lower()
+
+
+class Nonce(models.Model):
+    nonce = models.CharField(max_length=60, blank=False, null=False, unique=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    was_used = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.id} - {self.nonce}"
+
+    def mark_as_used(self):
+        self.was_used = True
+        self.save()
+
+    @classmethod
+    def create_nonce(cls) -> str:
+        nonce = Nonce(nonce=secrets.token_hex(30))
+        nonce.save()
+        return nonce.nonce
 
 
 class Account(models.Model):

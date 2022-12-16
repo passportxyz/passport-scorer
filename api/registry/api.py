@@ -4,7 +4,7 @@ from typing import List
 
 # --- Deduplication Modules
 from account.deduplication.lifo import lifo
-from account.models import AccountAPIKey, Community
+from account.models import AccountAPIKey, Community, Nonce
 from asgiref.sync import async_to_sync
 from django.shortcuts import get_object_or_404
 from ninja import Router
@@ -14,7 +14,12 @@ from ninja_extra.exceptions import APIException
 from ninja_schema import Schema
 from reader.passport_reader import get_did, get_passport
 from registry.models import Passport, Score, Stamp
-from registry.utils import get_signer, validate_credential, verify_issuer
+from registry.utils import (
+    get_signer,
+    get_signing_message,
+    validate_credential,
+    verify_issuer,
+)
 
 log = logging.getLogger(__name__)
 # api = NinjaExtraAPI(urls_namespace="registry")
@@ -50,12 +55,18 @@ class SubmitPassportPayload(Schema):
     address: str
     signature: str
     community: str  # TODO: gerald: community_id ???, and make it int
+    nonce: str
 
 
 class ScoreResponse(Schema):
     # passport_id: int
     address: str
     score: str  # The score should be represented as string as it will be a decimal number
+
+
+class SigningMessageResponse(Schema):
+    message: str
+    nonce: str
 
 
 class ApiKey(APIKeyHeader):
@@ -77,12 +88,22 @@ class ApiKey(APIKeyHeader):
             raise Unauthorized()
 
 
+@router.post("/signing_message", auth=ApiKey())
+def get_signing_message(
+    request, payload: SubmitPassportPayload
+) -> SigningMessageResponse:
+    nonce = Nonce.create_nonce()
+    return {
+        "message": get_signing_message(nonce),
+        "nonce": nonce,
+    }
+
+
 @router.post("/submit-passport", auth=ApiKey(), response=List[ScoreResponse])
 def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreResponse]:
     # TODO: gerald - test that checksummed & non-checksummed addresses work
     address_lower = payload.address.lower()
-    log.debug("Validating signer")
-    if get_signer(payload.signature).lower() != address_lower:
+    if get_signer(payload.nonce, payload.signature).lower() != address_lower:
         raise InvalidSignerException()
 
     # Get DID from address
