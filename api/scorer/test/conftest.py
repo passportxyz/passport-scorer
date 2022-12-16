@@ -2,6 +2,7 @@
 import pytest
 from account.models import Account, AccountAPIKey, Community
 from django.contrib.auth.models import User
+from ninja_jwt.schema import RefreshToken
 from registry.models import Passport, Score
 from web3 import Web3
 
@@ -16,6 +17,22 @@ def scorer_user():
     user = User.objects.create_user(username="testuser-1", password="12345")
     print("scorer_user user", user)
     return user
+
+
+@pytest.fixture
+def access_token(scorer_user):
+    refresh = RefreshToken.for_user(scorer_user)
+    return refresh.access_token
+
+
+@pytest.fixture
+def scorer_community(scorer_account):
+    community = Community.objects.create(
+        name="My Community",
+        description="My Community description",
+        account=scorer_account,
+    )
+    return community
 
 
 @pytest.fixture
