@@ -2,14 +2,14 @@ name: Cypress Tests
 
 on:
   push:
-    branches: [778-choose-binary-community-score]
+    branches: []
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python "3.8"
+      - name: Set up Python "3.10"
         uses: actions/setup-python@v2
         with:
           python-version: "3.10"
@@ -27,7 +27,7 @@ jobs:
       - name: Build and run the api
         working-directory: ./api
         run: |
-          gunicorn -w 4 -k uvicorn.workers.UvicornWorker scorer.asgi:application
+          gunicorn -w 4 -k uvicorn.workers.UvicornWorker scorer.asgi:application &
 
       - name: Install Interface Dependencies
         working-directory: ./interface
