@@ -135,3 +135,10 @@ def scorer_community_with_gitcoin_default(mocker, scorer_account):
         account=scorer_account,
     )
     return community
+
+
+@pytest.fixture
+def no_account_db_response():
+    return {
+        "detail": "No account found for the provided address.",
+    }
