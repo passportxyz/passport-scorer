@@ -31,6 +31,11 @@ class InvalidSignerException(APIException):
     default_detail = "Address does not match signature."
 
 
+class InvalidNonceException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Invalid nonce."
+
+
 class InvalidPassportCreationException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Error Creating Passport."
@@ -90,7 +95,7 @@ class ApiKey(APIKeyHeader):
 
 @router.get("/signing_message", auth=ApiKey(), response=SigningMessageResponse)
 def get_signing_message(request) -> SigningMessageResponse:
-    nonce = Nonce.create_nonce()
+    nonce = Nonce.create_nonce().nonce
     return {
         "message": get_signing_message(nonce),
         "nonce": nonce,
@@ -101,12 +106,19 @@ def get_signing_message(request) -> SigningMessageResponse:
 def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreResponse]:
     # TODO: gerald - test that checksummed & non-checksummed addresses work
     address_lower = payload.address.lower()
-    if get_signer(payload.nonce, payload.signature).lower() != address_lower:
-        raise InvalidSignerException()
 
     # Get DID from address
     did = get_did(payload.address)
     log.debug("/submit-passport, payload=%s", payload)
+
+    # Verify nonce
+    if not Nonce.use_nonce(payload.nonce):
+        log.error("Invalid nonce %s for address %s", payload.nonce, payload.address)
+        raise InvalidNonceException()
+
+    # Verify the signer
+    if get_signer(payload.nonce, payload.signature).lower() != address_lower:
+        raise InvalidSignerException()
 
     log.debug("Getting passport")
     # Passport contents read from ceramic

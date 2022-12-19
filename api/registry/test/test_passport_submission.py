@@ -232,7 +232,11 @@ class ValidatePassportTestCase(TransactionTestCase):
         account = web3.eth.account.from_mnemonic(
             my_mnemonic, account_path="m/44'/60'/0'/0/0"
         )
+        account_2 = web3.eth.account.from_mnemonic(
+            my_mnemonic, account_path="m/44'/60'/0'/0/0"
+        )
         self.account = account
+        self.account_2 = account_2
 
         self.user_account = Account.objects.create(
             user=self.user, address=account.address
@@ -253,12 +257,19 @@ class ValidatePassportTestCase(TransactionTestCase):
                 account=self.user_account,
             )
 
-        self.nonce = Nonce.create_nonce()
+        self.nonce = Nonce.create_nonce().nonce
+        self.nonce_2 = Nonce.create_nonce().nonce
+
         self.signing_message = get_signing_message(self.nonce)
+        self.signing_message_2 = get_signing_message(self.nonce_2)
 
         self.signed_message = web3.eth.account.sign_message(
             encode_defunct(text=self.signing_message),
             private_key=self.account.key,
+        )
+        self.signed_message_2 = web3.eth.account.sign_message(
+            encode_defunct(text=self.signing_message),
+            private_key=self.account_2.key,
         )
 
         self.user2 = User.objects.create_user(username="admin2", password="12345")
@@ -308,12 +319,13 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(signer, self.account.address)
 
     def test_verify_signature_wrong_signature(self):
+        """Compare signature of account_2 against account"""
         # Change the signature
-        signature = bytearray(self.signed_message.signature)
-        signature[0] = signature[0] + 1
+        signature = bytearray(self.signed_message_2.signature)
+        signature[0] = signature[0]
         signature = bytes(signature)
 
-        signer = get_signer(self.nonce, signature)
+        signer = get_signer(self.nonce_2, signature)
         self.assertNotEqual(signer, self.account.address)
 
     def test_invalid_address_throws_exception(self):
@@ -375,6 +387,29 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
+
+    def test_submit_passport_bad_nonce(self):
+        """Test that submitting a bad nonce results in rejection"""
+
+        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
+
+        payload = {
+            "community": self.community.id,
+            "address": self.account.address,
+            "signature": self.signed_message.signature.hex(),
+            "nonce": "SOME BAD NONCE",
+        }
+
+        response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(payload),
+            **{
+                "content_type": "application/tson",
+                "HTTP_AUTHORIZATION": f"Token {self.secret}",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"detail": "Invalid nonce."})
 
     @patch("registry.api.validate_credential", side_effect=[[], []])
     @patch("registry.api.get_passport", return_value={})
@@ -440,6 +475,21 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
 
         # 2nd submission
+        # Get another nonce (nonces can only be used once)
+        nonce = Nonce.create_nonce().nonce
+        signing_message = get_signing_message(nonce)
+        signed_message = web3.eth.account.sign_message(
+            encode_defunct(text=signing_message),
+            private_key=self.account_2.key,
+        )
+
+        payload = {
+            "community": self.community.id,
+            "address": self.account.address,
+            "signature": signed_message.signature.hex(),
+            "nonce": nonce,
+        }
+
         response = self.client.post(
             "/registry/submit-passport",
             json.dumps(payload),

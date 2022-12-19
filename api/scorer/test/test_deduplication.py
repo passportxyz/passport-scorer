@@ -69,7 +69,7 @@ def _(
     client = Client()
     second_account = passport_holder_addresses[1]
 
-    nonce = Nonce.create_nonce()
+    nonce = Nonce.create_nonce().nonce
     signing_message = get_signing_message(nonce)
 
     signed_message = web3.eth.account.sign_message(

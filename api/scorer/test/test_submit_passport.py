@@ -49,7 +49,7 @@ def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
         my_mnemonic, account_path="m/44'/60'/0'/0/0"
     )
 
-    nonce = Nonce.create_nonce()
+    nonce = Nonce.create_nonce().nonce
     signing_message = get_signing_message(nonce)
 
     signed_message = web3.eth.account.sign_message(
