@@ -35,8 +35,6 @@ def _(scorer_account, mocker):
 def _(scorer_user):
     """I hit the Create API key button."""
 
-    mocker.patch("account.views.create_api_key", return_value=mock_api_key_body)
-
     refresh = RefreshToken.for_user(scorer_user)
     access_token = refresh.access_token
 
