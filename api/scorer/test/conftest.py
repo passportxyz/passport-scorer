@@ -142,3 +142,14 @@ def no_account_db_response():
     return {
         "detail": "No account found for the provided address.",
     }
+
+
+@pytest.fixture
+def api_key_response():
+    api_key = AccountAPIKey.objects.create_key(
+        id=1,
+        name="The Key",
+        prefix="sjB2KmJLS",
+        api_key="sjB2KmJLS.KD8A7sdjQKhsw29JSs",
+    )
+    return api_key
