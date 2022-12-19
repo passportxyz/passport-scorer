@@ -152,6 +152,7 @@ disable=abstract-method,
         xrange-builtin,
         zip-builtin-not-iterating,
         line-too-long,  # Disabled because black formatter automatically limits lines at 88 chars
+        missing-class-docstring
 
 
 [REPORTS]

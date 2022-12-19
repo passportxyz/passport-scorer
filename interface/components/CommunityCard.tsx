@@ -7,6 +7,9 @@ import { Community } from "../utils/account-requests";
 // Components
 import { DeleteIcon, EditIcon } from "@chakra-ui/icons";
 
+// --- Next
+import { useRouter } from "next/router";
+
 type CommunityCardProps = {
   setUpdatedCommunityName: Function;
   setUpdatedCommunityDescription: Function;
@@ -15,7 +18,7 @@ type CommunityCardProps = {
   communityId: Community["id"];
   handleDeleteCommunity: Function;
   setUpdateCommunityModalOpen: Function;
-}
+};
 
 const CommunityCard = ({
   community,
@@ -26,20 +29,30 @@ const CommunityCard = ({
   setUpdatedCommunityDescription,
   setUpdatedCommunityId,
 }: CommunityCardProps): JSX.Element => {
+  const router = useRouter();
+
   return (
-    <div className="grid grid-cols-2 auto-cols-auto border-x border-t last-of-type:border-b first-of-type:rounded-t-md last-of-type:rounded-b-md w-full items-center justify-between border-gray-lightgray bg-white p-4 hover:bg-gray-50">
+    <div className="grid w-full auto-cols-auto grid-cols-2 items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50">
       {/* first column */}
-      <div className="grid grid-rows">
-        <p className="font-librefranklin font-semibold text-blue-darkblue mb-2"><a href="#">#{community.id} - {community.name}</a></p>
-        <p className="font-librefranklin text-purple-softpurple">{community.description}</p>
+      <div className="grid-rows grid">
+        <p className="mb-2 cursor-pointer font-librefranklin font-semibold text-blue-darkblue">
+          <a
+            onClick={() => router.push(`/dashboard/community/${community.id}`)}
+          >
+            {community.name}
+          </a>
+        </p>
+        <p className="font-librefranklin text-purple-softpurple">
+          {community.description}
+        </p>
       </div>
       {/* second column */}
       <div className="grid grid-cols-2 justify-self-end">
         <button
-          data-testid="open-community-modal"
+          data-testid="edit-community-button"
           className="mr-2 justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
           onClick={async () => {
-            setUpdatedCommunityId(community.id)
+            setUpdatedCommunityId(community.id);
             setUpdatedCommunityName(community.name);
             setUpdatedCommunityDescription(community.description);
             setUpdateCommunityModalOpen(true);

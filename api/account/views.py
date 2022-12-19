@@ -2,6 +2,7 @@ import hashlib
 import logging
 import random
 import string
+from ast import Dict
 from typing import List, Optional, cast
 
 from account.models import Account, AccountAPIKey, Community
@@ -111,6 +112,11 @@ class SameCommunityNameException(APIException):
 class SameCommunityDescriptionException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "You've entered the same community description"
+
+
+class ScorerTypeDoesNotExistException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "The scorer type does not exist"
 
 
 class AccountApiSchema(ModelSchema):
@@ -302,5 +308,56 @@ def delete_community(request, community_id):
         )
         community.delete()
     except Account.DoesNotExist:
+        raise UnauthorizedException()
+    return {"ok": True}
+
+
+# TODO - type list if dicts response
+# class ScorerResponse(Schema):
+#     ok: bool
+#     current_scorer: str
+#     scorers: List[Dict[str, str]]
+
+
+@api.get("/communities/{community_id}/scorers", auth=JWTAuth())
+def get_community_scorers(request, community_id):
+    try:
+        community = get_object_or_404(
+            Community, id=community_id, account=request.user.account
+        )
+
+        scorer = community.scorer
+        current_scorer = scorer.type
+        scorers = [{"id": i[0], "label": i[1]} for i in scorer.Type.choices]
+
+    except Community.DoesNotExist:
+        raise UnauthorizedException()
+    return {
+        "ok": True,
+        "current_scorer": current_scorer,
+        "scorers": scorers,
+    }
+
+
+class ScorerId(Schema):
+    scorer_type: str
+
+
+@api.put("/communities/{community_id}/scorers", auth=JWTAuth())
+def update_community_scorers(request, community_id, payload: ScorerId):
+    try:
+        community = get_object_or_404(
+            Community, id=community_id, account=request.user.account
+        )
+
+        if payload.scorer_type not in community.scorer.Type:
+            raise ScorerTypeDoesNotExistException()
+
+        scorer = community.scorer
+
+        scorer.type = payload.scorer_type
+        scorer.save()
+
+    except Community.DoesNotExist:
         raise UnauthorizedException()
     return {"ok": True}

@@ -137,3 +137,63 @@ export const deleteCommunity = async (communityId: Community["id"]) => {
     throw error;
   }
 };
+
+export type Scorer = {
+  label: string;
+  id: string;
+  description?: string;
+};
+
+export type ScorerResponse = {
+  scorers: Scorer[];
+  currentScorer: string;
+};
+
+export const getCommunityScorers = async (
+  communityId: string
+): Promise<ScorerResponse> => {
+  try {
+    const token = localStorage.getItem("access-token");
+    const response = await axios.get(
+      `${SCORER_BACKEND}account/communities/${communityId}/scorers`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const { data } = response;
+
+    const scorers: Scorer[] = data.scorers;
+
+    return {
+      scorers,
+      currentScorer: data.current_scorer,
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateCommunityScorers = async (
+  communityId: string,
+  scorerType: string
+) => {
+  try {
+    const token = localStorage.getItem("access-token");
+    const response = await axios.put(
+      `${SCORER_BACKEND}account/communities/${communityId}/scorers`,
+      { scorer_type: scorerType },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+  } catch (error) {
+    throw error;
+  }
+};
