@@ -15,13 +15,20 @@
     <div class="container-fluid mx-auto">
       <h1 class="text-center mt-5">Score Your Passport</h1>
       <p>1. Connect your wallet</p>
-      <button type="button" class="enableEthereumButton btn btn-info">Connect</button>
+      <button type="button" class="enableEthereumButton btn btn-info">
+        Connect
+      </button>
       <div class="connectInfo fst-italic">Not connected</div>
       <div>
-        <p class="mt-3">2. Enter your community ID and API key, which you can get from your <a href="https://scorer.gitcoin.co/">scoring dashboard</a></p>
+        <p class="mt-3">
+          2. Enter your community ID and API key, which you can get from your
+          <a href="https://scorer.gitcoin.co/">scoring dashboard</a>
+        </p>
         <input type="text" id="communityId" placeholder="Community ID" />
         <input type="text" id="apiKey" placeholder="API Key" />
-        <button type="button" class="submitForScoringButton btn btn-primary">Submit for scoring</button>
+        <button type="button" class="submitForScoringButton btn btn-primary">
+          Submit for scoring
+        </button>
       </div>
       <div class="passportScore mt-3"></div>
     </div>
@@ -30,7 +37,10 @@
       integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4"
       crossorigin="anonymous"
     ></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script
+      type="module"
+      src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"
+    ></script>
     <script
       src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"
       type="application/javascript"
@@ -60,30 +70,46 @@
       });
 
       submitForScoringButton.addEventListener("click", async () => {
-        communityId = document.querySelector("#communityId").value;
-        apiKey = document.querySelector("#apiKey").value;
-
-        const msg = "I authorize the passport scorer to validate my account";
-        // The MetaMask plugin also allows signing transactions to
-        // send ether and pay to change state within the blockchain.
-        // For this, you need the account signer...
-        const signer = provider.getSigner()
-        const signedMessage = await signer.signMessage(msg);
-
-        const endpoint = "https://api.scorer.gitcoin.co/registry/submit-passport";
+        // const endpoint = "https://api.scorer.gitcoin.co";
+        const endpoint = "http://127.0.0.1:8000";
+        const communityId = document.querySelector("#communityId").value;
+        const apiKey = document.querySelector("#apiKey").value;
 
         try {
-          const response = await axios.post(endpoint, {
-            address: account,
-            community: communityId,
-            signature: signedMessage,
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`,
+          const message_response = await axios.get(
+            endpoint + "/registry/signing-message",
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+              },
+            }
+          );
+
+          console.log(message_response.data);
+          const msg = message_response.data.message;
+          const nonce = message_response.data.nonce;
+          // The MetaMask plugin also allows signing transactions to
+          // send ether and pay to change state within the blockchain.
+          // For this, you need the account signer...
+          const signer = provider.getSigner();
+          const signedMessage = await signer.signMessage(msg);
+
+          const response = await axios.post(
+            endpoint + "/registry/submit-passport",
+            {
+              address: account,
+              community: communityId,
+              signature: signedMessage,
+              nonce: nonce,
             },
-          });
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+              },
+            }
+          );
 
           score = response.data[0].score;
 
@@ -92,9 +118,11 @@
           }
         } catch (e) {
           if (e.response.data.detail == "No Passport found for this address.") {
-            passportScoreDisplay.innerHTML = "No Passport exists for this address. Please create one at " + "<a href='https://passport.gitcoin.co' target='_blank'>Gitcoin Passport</a>, come back and refresh this page, and score your Passport again";
+            passportScoreDisplay.innerHTML =
+              "No Passport exists for this address. Please create one at " +
+              "<a href='https://passport.gitcoin.co' target='_blank'>Gitcoin Passport</a>, come back and refresh this page, and score your Passport again";
           }
-          console.error(e)
+          console.error(e);
         }
       });
     </script>

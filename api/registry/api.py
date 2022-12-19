@@ -93,8 +93,8 @@ class ApiKey(APIKeyHeader):
             raise Unauthorized()
 
 
-@router.get("/signing_message", auth=ApiKey(), response=SigningMessageResponse)
-def get_signing_message(request) -> SigningMessageResponse:
+@router.get("/signing-message", auth=ApiKey(), response=SigningMessageResponse)
+def signing_message(request) -> SigningMessageResponse:
     nonce = Nonce.create_nonce().nonce
     return {
         "message": get_signing_message(nonce),

@@ -7,7 +7,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture(
     params=[
-        ("get", "/registry/signing_message"),
+        ("get", "/registry/signing-message"),
         ("post", "/registry/submit-passport"),
         ("get", "/registry/score/3/0x0"),
     ]
@@ -28,6 +28,6 @@ def test_authentication_is_required(api_path_that_requires_auth):
 
     response = method_fn(
         path,
-        HTTP_AUTHORIZATION="Token " + "some bas API_KEY",
+        HTTP_AUTHORIZATION="Token " + "some bad API_KEY",
     )
     assert response.status_code == 401
