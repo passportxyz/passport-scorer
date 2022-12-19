@@ -27,7 +27,6 @@ def test_successfully_create_api_keys_for_my_apps():
 @given("that I have an API account", target_fixture="account")
 def _(scorer_account, mocker):
     """that I have an API account."""
-
     mocker.patch("account.views.submit_signed_challenge", return_value=scorer_account)
 
 
@@ -35,26 +34,24 @@ def _(scorer_account, mocker):
 def _(scorer_user, mocker):
     """I hit the Create API key button."""
 
-    mocker.patch("account.views.create_api_key", return_value=mock_api_key_body)
-
     refresh = RefreshToken.for_user(scorer_user)
     access_token = refresh.access_token
 
     client = Client()
-    response = client.post(
+    api_key_response = client.post(
         "/account/api-key",
         json.dumps(mock_api_key_body),
         content_type="application/json",
         **{"HTTP_AUTHORIZATION": f"Bearer {access_token}"},
     )
-    print("**** API Key Response --->>>>", access_token)
-    return response
+    return api_key_response
 
 
 @then("I’m returned a secret API key, basically a long cryptic string")
 def _(api_key_response):
     """I’m returned a secret API key, basically a long cryptic string."""
-    print("**** API Key Response --->>>>", api_key_response)
+    assert api_key_response.status_code == 200
+    assert len(AccountAPIKey.objects.all()) == 1
 
 
 @then("I can use that key to call the API")

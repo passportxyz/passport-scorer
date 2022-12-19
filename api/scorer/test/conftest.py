@@ -145,11 +145,11 @@ def no_account_db_response():
 
 
 @pytest.fixture
-def api_key_response():
-    api_key = AccountAPIKey.objects.create_key(
-        id=1,
-        name="The Key",
-        prefix="sjB2KmJLS",
-        api_key="sjB2KmJLS.KD8A7sdjQKhsw29JSs",
+def api_key_object(scorer_account):
+    (account_api_key, secret) = AccountAPIKey.objects.create_key(
+        account=scorer_account, name="The Key"
     )
-    return api_key
+    return {
+        "name": account_api_key,
+        "api_key": secret,
+    }
