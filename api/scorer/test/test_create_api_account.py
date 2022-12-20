@@ -6,7 +6,7 @@ from copy import deepcopy
 from datetime import datetime
 
 import pytest
-from account.models import Account, AccountAPIKey
+from account.models import Account
 from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when

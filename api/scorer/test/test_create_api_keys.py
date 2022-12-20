@@ -43,7 +43,7 @@ def _(scorer_user):
         "/account/api-key",
         json.dumps(mock_api_key_body),
         content_type="application/json",
-        **{"HTTP_AUTHORIZATION": f"Bearer {access_token}"},
+        HTTP_AUTHORIZATION=f"Bearer {access_token}",
     )
     return api_key_response
 
