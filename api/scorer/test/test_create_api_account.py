@@ -44,7 +44,7 @@ def _(mocker):
     mocker.patch("account.views.nonce", return_value=nonce)
 
 
-@then("I Sign-in-with-Ethereum")
+@then("I Sign-in-with-Ethereum", target_fixture="account_response")
 def _():
     """I Sign-in-with-Ethereum."""
 
@@ -83,7 +83,7 @@ def _():
         encode_defunct(text=data_to_sign), private_key=private_key
     )
 
-    response = c.post(
+    account_response = c.post(
         "/account/verify",
         json.dumps(
             {
@@ -94,15 +94,15 @@ def _():
         content_type="application/json",
     )
 
-    assert response.status_code == 200
-    return response
+    return account_response
 
 
-@then("I will have an account created")
-def _():
+@then("I will have an account created", target_fixture="account_response")
+def _(account_response):
     """I will have an account created."""
-    # Implemented in previous step
-    pass
+
+    assert account_response.status_code == 200
+    assert len(Account.objects.all()) == 1
 
 
 @then("be taken to the dashboard")
