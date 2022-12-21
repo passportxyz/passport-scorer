@@ -27,11 +27,8 @@ def test_successfully_create_an_api_account():
     """Successfully create an API account."""
 
 
-@given(
-    "that I am a builder and I don't have an API ACCOUNT",
-    target_fixture="no_account_db_response",
-)
-def _(no_account_db_response):
+@given("that I am a builder and I don't have an API ACCOUNT")
+def _():
     """that I am a builder and I don't have an API ACCOUNT."""
     # User's address is not in the database --> so they need to:
     return no_account_db_response
@@ -98,11 +95,11 @@ def _():
 
 
 @then("I will have an account created", target_fixture="account_response")
-def _(account_response):
+def _(account_response, scorer_account):
     """I will have an account created."""
-
+    account = Account.objects.all()[0]
+    assert account.address == scorer_account.address.lower()
     assert account_response.status_code == 200
-    assert len(Account.objects.all()) == 1
 
 
 @then("be taken to the dashboard")

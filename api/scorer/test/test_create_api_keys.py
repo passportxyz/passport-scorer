@@ -28,7 +28,7 @@ def test_successfully_create_api_keys_for_my_apps():
 @given("that I have an API account", target_fixture="account")
 def _(scorer_account, mocker):
     """that I have an API account."""
-    mocker.patch("account.views.submit_signed_challenge", return_value=scorer_account)
+    pass
 
 
 @when("I hit the Create API key button", target_fixture="api_key_response")
