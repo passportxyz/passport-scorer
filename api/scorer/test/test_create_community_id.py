@@ -22,7 +22,7 @@ def test_successfully_create_a_community_id():
 
 
 @given("that I have an API account", target_fixture="account")
-def _():
+def _(scorer_account, mocker):
     """that I have an API account."""
     pass
 
@@ -60,5 +60,5 @@ def _(community_response):
     assert community_response.status_code == 200
     assert len(Community.objects.all()) == 1
     community = Community.objects.all()[0]
-    assert community["name"] == "test"
-    assert community["description"] == "test"
+    assert community.name == "test"
+    assert community.description == "test"
