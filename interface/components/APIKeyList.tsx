@@ -4,8 +4,9 @@ import React, { useEffect, useState } from "react";
 // --- Components
 import { Input } from "@chakra-ui/react";
 import ModalTemplate from "./ModalTemplate";
-import { DeleteIcon, Icon } from "@chakra-ui/icons";
+import { Icon } from "@chakra-ui/icons";
 import { HiKey } from "react-icons/hi";
+import APIKeyCard from "./APIKeyCard";
 
 // --- Utils
 import {
@@ -63,6 +64,17 @@ export const ApiKeyList = () => {
     }
   };
 
+  const apiKeyList = apiKeys.map((apiKey: ApiKeys, i: number) => {
+    return (
+      <APIKeyCard
+        key={i}
+        apiKey={apiKey}
+        apiKeyId={apiKey.id}
+        handleDeleteApiKey={handleDeleteApiKey}
+      />
+    );
+  });
+
   if (error) {
     return <div>{error}</div>;
   }
@@ -89,25 +101,7 @@ export const ApiKeyList = () => {
         <div className="flex h-[40rem] md:h-[45rem]">
           <div className="flex w-full">
             <div className="flex w-3/4 flex-col">
-              {apiKeys.map((key, i) => (
-                <div
-                  key={`${key.id}-${i}`}
-                  className="grid w-full auto-cols-auto grid-cols-4 items-center justify-between gap-3 border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50"
-                >
-                  <div className="justify-self-center font-semibold md:justify-self-start">
-                    <p>{key.name}</p>
-                  </div>
-                  <div className="justify-self-center rounded-full bg-gray-lightgray px-3 py-1">
-                    <p>Connected</p>
-                  </div>
-                  <button
-                    className="justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
-                    onClick={async () => await handleDeleteApiKey(key.id)}
-                  >
-                    <DeleteIcon color="#757087" />
-                  </button>
-                </div>
-              ))}
+              {apiKeyList}
             </div>
             <div className="flex w-1/4 flex-col p-4">
               <button

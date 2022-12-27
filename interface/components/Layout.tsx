@@ -29,7 +29,7 @@ export const Layout = ({ children }: LayoutProps) => {
         <div>
           <div className="mt-0 w-full border-b border-gray-300 p-6 pb-6 text-black">
             <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
-              Dashboard
+              Scoring Dashboard
             </h1>
             <p className="mt-2 font-librefranklin text-purple-softpurple">
             Create a community and API key to interact with and score eligibility using Gitcoin Passport.

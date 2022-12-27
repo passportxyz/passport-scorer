@@ -7,11 +7,8 @@ import {
   ModalOverlay,
   ModalContent,
   ModalHeader,
-  ModalFooter,
   ModalBody,
   ModalCloseButton,
-  useDisclosure,
-  Button,
 } from "@chakra-ui/react";
 
 type ModalProps = {

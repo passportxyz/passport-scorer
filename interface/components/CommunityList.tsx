@@ -172,7 +172,7 @@ const CommunityList = (): JSX.Element => {
             <button
               disabled={!communityName && !communityDescription}
               data-testid="create-button"
-              className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
+              className="mt-6 mb-2 rounded-sm bg-purple-gitcoinviolet py-2 px-4 text-white disabled:opacity-25"
               onClick={() => handleCreateCommunity()}
             >
               Create
@@ -210,7 +210,7 @@ const CommunityList = (): JSX.Element => {
             <button
               disabled={!updatedCommunityName && !updatedCommunityDescription}
               data-testid="save-button"
-              className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
+              className="mt-6 mb-2 rounded-sm bg-purple-gitcoinviolet py-2 px-4 text-white disabled:opacity-25"
               onClick={() => handleUpdateCommunity(updatedCommunityId)}
             >
               Save
