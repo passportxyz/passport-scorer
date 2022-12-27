@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from "react";
 
 // --- Components
-import { RepeatIcon } from "@chakra-ui/icons";
+import { Icon } from "@chakra-ui/icons";
+import { IoIosPeople } from "react-icons/io"
 import CommunityCard from "./CommunityCard";
 import ModalTemplate from "./ModalTemplate";
 import NoValues from "./NoValues";
@@ -102,26 +103,28 @@ const CommunityList = (): JSX.Element => {
 
   return (
     <>
+      <p className="font-librefranklin text-purple-softpurple">API developers use Communities to manage scoring, settings, and log traffic for their Passport-enabled applications.</p>
       {communities.length === 0 ? (
         <NoValues
-          title="My Communities"
-          description="Manage how your dapps interact with the Gitcoin Passport by creating a
-        key that will connect to any community."
+          title="Create a Community"
+          description="DAOs, grants programs, applications, and projects are all considered to be communities."
           addRequest={() => {
             setCommunityName("");
             setCommunityDescription("");
             setCreateCommunityModalOpen(true);
           }}
           icon={
-            <RepeatIcon
+            <Icon
+              as={IoIosPeople}
               viewBox="0 0 25 25"
               boxSize="1.9em"
-              color="#757087"
+              color="#6F3FF5"
             />
           }
+          buttonText=" Community"
         />
       ) : (
-        <div className="mx-5 mt-4">
+        <div className="mt-4">
           {communityList}
           <button
             data-testid="open-community-modal"

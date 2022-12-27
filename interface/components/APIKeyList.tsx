@@ -4,8 +4,8 @@ import React, { useEffect, useState } from "react";
 // --- Components
 import { Input } from "@chakra-ui/react";
 import ModalTemplate from "./ModalTemplate";
-import { SettingsIcon, DeleteIcon, Icon } from "@chakra-ui/icons";
-import { MdFileCopy } from "react-icons/md";
+import { DeleteIcon, Icon } from "@chakra-ui/icons";
+import { HiKey } from "react-icons/hi";
 
 // --- Utils
 import {
@@ -69,18 +69,21 @@ export const ApiKeyList = () => {
 
   return (
     <>
+      <p className="font-librefranklin text-purple-softpurple mb-5">The API’s are composed of communities, scoring mechanisms, and verifiable credentials.</p>
       {apiKeys.length === 0 ? (
         <NoValues
           title="Create a key"
-          description="Communicate between applications by connecting a key to request service from the community or organization."
+          description="Request service from communities and interact between applications. The key limit is five."
           addRequest={() => setModalOpen(true)}
           icon={
-            <SettingsIcon
+            <Icon
+              as={HiKey}
               viewBox="-2 -2 18 18"
               boxSize="1.9em"
-              color="#757087"
+              color="#6F3FF5"
             />
           }
+          buttonText=" API Key"
         />
       ) : (
         <div className="flex h-[40rem] md:h-[45rem]">
@@ -109,7 +112,7 @@ export const ApiKeyList = () => {
             <div className="flex w-1/4 flex-col p-4">
               <button
                 data-testid="open-api-key-modal"
-                className="rounded bg-purple-softpurple py-2 px-4 text-white"
+                className="rounded-sm bg-purple-gitcoinviolet py-2 px-4 text-white"
                 onClick={() => setModalOpen(true)}
               >
                 <span className="mr-2 text-lg">+</span>Create a key
@@ -139,7 +142,7 @@ export const ApiKeyList = () => {
             <button
               disabled={!keyName}
               data-testid="create-button"
-              className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
+              className="mt-6 mb-2 rounded-sm bg-purple-gitcoinviolet py-2 px-4 text-white disabled:opacity-25"
               onClick={handleCreateApiKey}
             >
               Create
