@@ -161,9 +161,16 @@ const CommunityList = (): JSX.Element => {
         title="Create a Community"
         isOpen={createCommunityModalOpen}
         onClose={() => setCreateCommunityModalOpen(false)}
+        body="DAOs, grants programs, apps, and projects can all be considered communities."
+        icon={<Icon
+          as={IoIosPeople}
+          viewBox="-1 -1 17 17"
+          boxSize="2.2em"
+          color="#6F3FF5"
+        />}
       >
         <div className="flex flex-col">
-          <label className="text-gray-softgray font-librefranklin text-xs">
+          <label className="text-gray-softgray font-librefranklin text-xs mb-2">
             Community Name
           </label>
           <Input
@@ -173,7 +180,7 @@ const CommunityList = (): JSX.Element => {
             onChange={(name) => setCommunityName(name.target.value)}
             placeholder="Community name"
           />
-          <label className="text-gray-softgray font-librefranklin text-xs">
+          <label className="text-gray-softgray font-librefranklin text-xs mb-2">
             Community Description
           </label>
           <Input
@@ -199,9 +206,16 @@ const CommunityList = (): JSX.Element => {
         title="Update Community"
         isOpen={updateCommunityModalOpen}
         onClose={() => setUpdateCommunityModalOpen(false)}
+        body="DAOs, grants programs, apps, and projects can all be considered communities."
+        icon={<Icon
+          as={IoIosPeople}
+          viewBox="-1 -1 17 17"
+          boxSize="2.2em"
+          color="#6F3FF5"
+        />}
       >
         <div className="flex flex-col">
-          <label className="text-gray-softgray font-librefranklin text-xs">
+          <label className="text-gray-softgray font-librefranklin text-xs mb-2">
             Community Name
           </label>
           <Input
@@ -211,7 +225,7 @@ const CommunityList = (): JSX.Element => {
             onChange={(name) => setUpdatedCommunityName(name.target.value)}
             placeholder="Community name"
           />
-          <label className="text-gray-softgray font-librefranklin text-xs">
+          <label className="text-gray-softgray font-librefranklin text-xs mb-2">
             Community Description
           </label>
           <Input

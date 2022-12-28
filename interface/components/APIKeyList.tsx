@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { Input } from "@chakra-ui/react";
 import ModalTemplate from "./ModalTemplate";
 import { Icon } from "@chakra-ui/icons";
-import { HiKey } from "react-icons/hi";
+import { HiKey, HiOutlineKey } from "react-icons/hi";
 import APIKeyCard from "./APIKeyCard";
 
 // --- Utils
@@ -127,9 +127,16 @@ export const ApiKeyList = () => {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Create a key"
+        body="Request service from communities and interact between applications. The key limit is five."
+        icon={<Icon
+          as={HiOutlineKey}
+          viewBox="-1 -1 17 17"
+          boxSize="2.2em"
+          color="#6F3FF5"
+        />}
       >
         <div className="flex flex-col">
-          <label className="text-gray-softgray font-librefranklin text-xs">
+          <label className="text-gray-softgray font-librefranklin text-xs mb-2">
             Key name
           </label>
           <Input

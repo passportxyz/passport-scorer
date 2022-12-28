@@ -9,6 +9,8 @@ import {
   ModalHeader,
   ModalBody,
   ModalCloseButton,
+  ModalFooter,
+  Text,
 } from "@chakra-ui/react";
 
 type ModalProps = {
@@ -16,6 +18,9 @@ type ModalProps = {
   onClose: () => void;
   title: string;
   children?: React.ReactNode;
+  icon?: JSX.Element;
+  body?: string;
+  footer?: string;
 };
 
 const ModalTemplate = ({
@@ -23,16 +28,28 @@ const ModalTemplate = ({
   onClose,
   title,
   children,
+  icon,
+  body,
+  footer,
 }: ModalProps): JSX.Element => {
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose}>
+      <Modal size="xl" isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader>{title}</ModalHeader>
+          <div className="mx-auto mt-12 w-30 p-2 bg-gray-100 flex justify-center rounded-full">{icon}</div>
+          <ModalHeader className="font-librefranklin text-blue-darkblue text-center">{title}</ModalHeader>
+          <ModalBody>
+            <Text className="font-librefranklin text-purple-softpurple text-center mb-6">
+              {body}
+            </Text>
+            {children}
+          </ModalBody>
           <ModalCloseButton />
-          <ModalBody>{children}</ModalBody>
         </ModalContent>
+        <ModalFooter>
+          {footer}
+        </ModalFooter>
       </Modal>
     </>
   );
