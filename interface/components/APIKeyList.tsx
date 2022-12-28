@@ -80,43 +80,55 @@ export const ApiKeyList = () => {
   }
 
   return (
-    <>
-      <p className="font-librefranklin text-purple-softpurple mb-5">The API’s are composed of communities, scoring mechanisms, and verifiable credentials.</p>
-      {apiKeys.length === 0 ? (
-        <NoValues
-          title="Create a key"
-          description="Request service from communities and interact between applications. The key limit is five."
-          addRequest={() => setModalOpen(true)}
-          icon={
-            <Icon
-              as={HiKey}
-              viewBox="-2 -2 18 18"
-              boxSize="1.9em"
-              color="#6F3FF5"
-            />
-          }
-          buttonText=" API Key"
-        />
-      ) : (
-        <div className="flex h-[40rem] md:h-[45rem]">
-          <div className="flex w-full">
-            <div className="flex w-3/4 flex-col">
-              {apiKeyList}
+    <div className="grid grid-cols-4 gap-6">
+      {/* the noValue and/or list of items go in the first grid item */}
+      <div className="grid grid-rows col-span-3">
+        <p className="font-librefranklin text-purple-softpurple mb-5">The API’s are composed of communities, scoring mechanisms, and verifiable credentials.</p>
+        {apiKeys.length === 0 ? (
+          <NoValues
+            title="Create a key"
+            description="Request service from communities and interact between applications. The key limit is five."
+            addRequest={() => setModalOpen(true)}
+            icon={
+              <Icon
+                as={HiKey}
+                viewBox="-2 -2 18 18"
+                boxSize="1.9em"
+                color="#6F3FF5"
+              />
+            }
+            buttonText=" API Key"
+          />
+        ) : (
+          <div className="h-[40rem] md:h-[45rem]">
+            <div className="">
+              <div className="flex flex-col">
+                {apiKeyList}
+              </div>
+
+              {modalOpen}
+              {error && <div>{error}</div>}
             </div>
-            <div className="flex w-1/4 flex-col p-4">
-              <button
-                data-testid="open-api-key-modal"
-                className="rounded-sm bg-purple-gitcoinviolet py-2 px-4 text-white"
-                onClick={() => setModalOpen(true)}
-              >
-                <span className="mr-2 text-lg">+</span>Create a key
-              </button>
+            <div>
+              <p className="font-librefranklin text-purple-softpurple mt-3">The key limit is five.</p>
             </div>
-            {modalOpen}
-            {error && <div>{error}</div>}
           </div>
+        )}
+      </div>
+      {/* The second grid item for adding a new key */}
+      <div className="grid grid-rows col-span-1">
+        <div className="flex flex-col">
+          <p className="font-librefranklin text-blue-darkblue mb-2 text-lg">Generate API Keys</p>
+          <p className="font-librefranklin text-purple-softpurple mb-4">Request service from communities and interact between applications.</p>
+          <button
+            data-testid="open-api-key-modal"
+            className="rounded-sm bg-purple-gitcoinviolet py-2 px-4 text-white"
+            onClick={() => setModalOpen(true)}
+          >
+            <span className="mr-2 text-lg">+</span>Create a key
+          </button>
         </div>
-      )}
+      </div>
       <ModalTemplate
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -161,6 +173,6 @@ export const ApiKeyList = () => {
           />
         </div>
       </ModalTemplate>
-    </>
+    </div>
   );
 };

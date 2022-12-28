@@ -19,7 +19,7 @@ export const Layout = ({ children }: LayoutProps) => {
   const router = useRouter();
 
   const tabbedClasses = (route: string) => {
-    const base = "my-4 flex leading-4 cursor-pointer";
+    const base = "my-4 flex leading-4 cursor-pointer text-left";
     return router.pathname.includes(route) ? `${base} font-bold text-purple-gitcoinviolet bg-white py-2 pr-9 pl-2 rounded-sm` : `${base} text-blue-darkblue`;
   };
 
@@ -27,15 +27,20 @@ export const Layout = ({ children }: LayoutProps) => {
     <div>
         <Header />
         <div>
-          <div className="mt-0 w-full border-b border-gray-300 p-6 pb-6 text-black">
-            <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
-              Scoring Dashboard
-            </h1>
-            <p className="mt-2 font-librefranklin text-purple-softpurple">
-            Create a community and API key to interact with and score eligibility using Gitcoin Passport.
-            </p>
+          <div className="mt-0 w-full border-b border-gray-300 px-10 py-4 text-black">
+            <div>
+              <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
+                Scoring Dashboard
+              </h1>
+              <p className="mt-2 font-librefranklin text-purple-softpurple">
+              Create a community and API key to interact with and score eligibility using Gitcoin Passport.
+              </p>
+            </div>
+            <div>
+
+            </div>
           </div>
-          <div className="flex bg-gray-bluegray px-6">
+          <div className="flex bg-gray-bluegray py-4 px-10">
             <div className="my-4 min-h-full w-1/5 flex-col">
               <button
                 data-testid="communities-tab"

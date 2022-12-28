@@ -102,30 +102,41 @@ const CommunityList = (): JSX.Element => {
   });
 
   return (
-    <>
-      <p className="font-librefranklin text-purple-softpurple">API developers use Communities to manage scoring, settings, and log traffic for their Passport-enabled applications.</p>
-      {communities.length === 0 ? (
-        <NoValues
-          title="Create a Community"
-          description="DAOs, grants programs, applications, and projects are all considered to be communities."
-          addRequest={() => {
-            setCommunityName("");
-            setCommunityDescription("");
-            setCreateCommunityModalOpen(true);
-          }}
-          icon={
-            <Icon
-              as={IoIosPeople}
-              viewBox="0 0 25 25"
-              boxSize="1.9em"
-              color="#6F3FF5"
-            />
-          }
-          buttonText=" Community"
-        />
-      ) : (
-        <div className="mt-4">
-          {communityList}
+    <div className="grid grid-cols-4 gap-6">
+      {/* the noValue and/or list of items go in the first grid item */}
+      <div className="grid grid-rows col-span-3">
+        <p className="font-librefranklin text-purple-softpurple">API developers use Communities to manage scoring, settings, and log traffic for their Passport-enabled applications.</p>
+        {communities.length === 0 ? (
+          <NoValues
+            title="Create a Community"
+            description="DAOs, grants programs, applications, and projects are all considered to be communities."
+            addRequest={() => {
+              setCommunityName("");
+              setCommunityDescription("");
+              setCreateCommunityModalOpen(true);
+            }}
+            icon={
+              <Icon
+                as={IoIosPeople}
+                viewBox="0 0 25 25"
+                boxSize="1.9em"
+                color="#6F3FF5"
+              />
+            }
+            buttonText=" Community"
+          />
+        ) : (
+          <div className="mt-4">
+            {communityList}
+            {error && <div>{error}</div>}
+          </div>
+        )}
+      </div>
+      {/* The second grid item for adding new community */}
+      <div className="grid grid-rows col-span-1">
+        <div className="flex flex-col">
+          <p className="font-librefranklin text-blue-darkblue mb-2 text-lg">Community Scoring</p>
+          <p className="font-librefranklin text-purple-softpurple mb-4">DAOs, grants programs, apps, and projects can all be considered communities.</p>
           <button
             data-testid="open-community-modal"
             onClick={() => {
@@ -135,14 +146,13 @@ const CommunityList = (): JSX.Element => {
               setUpdatedCommunityDescription("");
               setCreateCommunityModalOpen(true)
             }}
-            className="text-md mt-5 rounded-sm border border-gray-lightgray py-1 px-6 font-librefranklin text-blue-darkblue "
+            className="rounded-sm bg-purple-gitcoinviolet py-2 px-4 text-white"
             disabled={communities.length >= 5}
           >
             <span className="text-lg">+</span> Create a Community
           </button>
-          {error && <div>{error}</div>}
         </div>
-      )}
+      </div>
       <ModalTemplate
         title="Create a Community"
         isOpen={createCommunityModalOpen}
@@ -219,7 +229,7 @@ const CommunityList = (): JSX.Element => {
           </div>
         </div>
       </ModalTemplate>
-    </>
+    </div>
   );
 };
 
