@@ -17,7 +17,7 @@ const NoValues = ({
   buttonText,
 }: NoValuesProps): JSX.Element => {
   return (
-    <div className="flex h-[40rem] flex-col justify-center md:h-[45rem]">
+    <div className="flex h-[38rem] flex-col justify-center md:h-[43rem]">
       <div className="w-13 mx-auto mb-8 flex justify-center rounded-full border bg-white p-2 text-center text-gray-lightgray">
         {icon}
       </div>
