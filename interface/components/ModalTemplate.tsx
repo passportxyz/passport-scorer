@@ -47,9 +47,6 @@ const ModalTemplate = ({
           </ModalBody>
           <ModalCloseButton />
         </ModalContent>
-        <ModalFooter>
-          {footer}
-        </ModalFooter>
       </Modal>
     </>
   );

@@ -90,7 +90,7 @@ export const ApiKeyList = () => {
             addRequest={() => setModalOpen(true)}
             icon={
               <Icon
-                as={HiKey}
+                as={HiOutlineKey}
                 viewBox="-2 -2 18 18"
                 boxSize="1.9em"
                 color="#6F3FF5"
@@ -145,7 +145,8 @@ export const ApiKeyList = () => {
             onChange={(name) => setKeyName(name.target.value)}
             placeholder="Key name"
           />
-          <div className="flex w-full justify-end">
+          <div className="flex flex-col w-full justify-end">
+            <p className="font-librefranklin text-sm text-purple-softpurple italic mt-7 border-b border-purple-softpurple pb-1">i.e. ‘Gitcoin’, or ‘Snapshot’, or ‘Bankless Academy’, or ‘ENS’, etc.</p>
             <button
               disabled={!keyName}
               data-testid="create-button"
@@ -161,6 +162,13 @@ export const ApiKeyList = () => {
         isOpen={apiKeyModalOpen}
         onClose={() => setApiKeyModalOpen(false)}
         title="Copy your API Key"
+        body="Please copy your API key now. You won’t be able to see it again!"
+        icon={<Icon
+          as={HiOutlineKey}
+          viewBox="-1 -1 17 17"
+          boxSize="2.2em"
+          color="#6F3FF5"
+        />}
       >
         <div className="flex flex-col">
           <label className="text-gray-softgray font-librefranklin text-xs">
