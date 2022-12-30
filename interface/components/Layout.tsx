@@ -6,7 +6,7 @@ import Router, { NextRouter, useRouter } from "next/router";
 
 // --- Components
 import Header from "../components/Header";
-import { Icon, QuestionIcon } from "@chakra-ui/icons";
+import { Icon, QuestionIcon, ArrowBackIcon } from "@chakra-ui/icons";
 import { HiKey } from "react-icons/hi";
 import { IoIosPeople } from "react-icons/io";
 import ModalTemplate from "./ModalTemplate";
@@ -16,11 +16,20 @@ type LayoutProps = {
   children: React.ReactNode;
 }
 
+// ** if a community is clicked on:
+// - The below header displays the name of the community and the description
+// ** else
+// - the default Scoring Passport text is shown
+
 export const Layout = ({ children }: LayoutProps) => {
   const [welcomeModalOpen, setWelcomeModalOpen] = useState(false);
   const [encryptedModalOpen, setEncryptedModalOpen] = useState(false);
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const router = useRouter();
+
+  // router.asPath.includes(`/dashboard/community/${router.query.id}`)
+  console.log(router);
+
 
   const tabbedClasses = (route: string) => {
     const base = "my-4 flex leading-4 cursor-pointer text-left";
@@ -32,12 +41,37 @@ export const Layout = ({ children }: LayoutProps) => {
       <Header />
       <div className="grid grid-cols-4 w-11/12 mx-auto">
         <div className="mt-0 py-4 text-black col-span-3">
-          <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
-            Scoring Dashboard
-          </h1>
-          <p className="mt-2 font-librefranklin text-purple-softpurple">
-          Create a community and API key to interact with and score eligibility using Gitcoin Passport.
-          </p>
+          {
+            router.asPath.includes(`/dashboard/community/${router.query.id}`) ? (
+              <>
+                <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
+                  {router.query.communityName}
+                </h1>
+                <p className="mt-2 mb-7 font-librefranklin text-purple-softpurple">
+                  {router.query.communityDescription}
+                </p>
+                <div>
+                  <a
+                    onClick={() => router.push('/dashboard')}
+                    className="flex flex-row items-center font-librefranklin text-purple-gitcoinviolet cursor-pointer"
+                  >
+                    <ArrowBackIcon className="mr-2" />
+                    Back
+                  </a>
+
+                </div>
+              </>
+            ) : (
+              <>
+                <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
+                  Scoring Dashboard
+                </h1>
+                <p className="mt-2 font-librefranklin text-purple-softpurple">
+                Create a community and API key to interact with and score eligibility using Gitcoin Passport.
+                </p>
+              </>
+            )
+          }
         </div>
         <div className="flex col-span-1 items-center justify-self-end">
           <button

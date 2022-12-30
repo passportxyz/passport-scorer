@@ -53,7 +53,14 @@ const CommunityCard = ({
       <div className="grid-rows grid">
         <p className="mb-2 cursor-pointer font-librefranklin font-semibold text-blue-darkblue">
           <a
-            onClick={() => router.push(`/dashboard/community/${community.id}`)}
+            onClick={() => router.push({
+              pathname: `/dashboard/community/${community.id}`,
+              query: {
+                id: community.id,
+                communityName: community.name,
+                communityDescription: community.description,
+              }
+            })}
           >
             {community.name}
           </a>
