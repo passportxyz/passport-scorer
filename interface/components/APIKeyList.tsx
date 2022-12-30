@@ -144,6 +144,7 @@ export const ApiKeyList = () => {
             value={keyName}
             onChange={(name) => setKeyName(name.target.value)}
             placeholder="Key name"
+            className="font-librefranklin"
           />
           <div className="flex flex-col w-full justify-end">
             <p className="font-librefranklin text-sm text-purple-softpurple italic mt-7 border-b border-purple-softpurple pb-1">i.e. ‘Gitcoin’, or ‘Snapshot’, or ‘Bankless Academy’, or ‘ENS’, etc.</p>
@@ -175,7 +176,7 @@ export const ApiKeyList = () => {
             API Key
           </label>
           <Input
-            className="mb-6"
+            className="mb-6 font-librefranklin"
             data-testid="key-name-input"
             value={newApiKey}
             readOnly={true}

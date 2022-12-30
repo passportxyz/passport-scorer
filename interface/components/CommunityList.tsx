@@ -175,7 +175,7 @@ const CommunityList = (): JSX.Element => {
           </label>
           <Input
             data-testid="community-name-input"
-            className="mb-4"
+            className="mb-4 font-librefranklin"
             value={communityName}
             onChange={(name) => setCommunityName(name.target.value)}
             placeholder="Community name"
@@ -186,14 +186,15 @@ const CommunityList = (): JSX.Element => {
           <Input
             data-testid="community-description-input"
             value={communityDescription}
+            className="font-librefranklin"
             onChange={(description) => setCommunityDescription(description.target.value)}
             placeholder="Community Description"
           />
-          <div className="flex w-full justify-end">
+          <div className="flex">
             <button
               disabled={!communityName && !communityDescription}
               data-testid="create-button"
-              className="mt-6 mb-2 rounded-sm bg-purple-gitcoinviolet py-2 px-4 text-white disabled:opacity-25"
+              className="mt-6 mb-2 rounded-sm bg-purple-gitcoinviolet py-2 px-4 text-white disabled:opacity-25 w-full"
               onClick={() => handleCreateCommunity()}
             >
               Create
@@ -220,7 +221,7 @@ const CommunityList = (): JSX.Element => {
           </label>
           <Input
             data-testid="update-community-name-input"
-            className="mb-4"
+            className="mb-4 font-librefranklin"
             value={updatedCommunityName}
             onChange={(name) => setUpdatedCommunityName(name.target.value)}
             placeholder="Community name"
@@ -231,6 +232,7 @@ const CommunityList = (): JSX.Element => {
           <Input
             data-testid="update-community-description-input"
             value={updatedCommunityDescription}
+            className="font-librefranklin"
             onChange={(description) => setUpdatedCommunityDescription(description.target.value)}
             placeholder="Community Description"
           />
