@@ -18,7 +18,7 @@ type menuChild = {
   onClick?: () => void;
 }
 
-const MenuTemplate = ({children}: MenuProps) => {
+const MenuTemplate = ({children}: MenuProps): JSX.Element => {
   return (
     <>
       <Menu isLazy>

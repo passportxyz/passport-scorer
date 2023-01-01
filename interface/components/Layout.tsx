@@ -16,20 +16,11 @@ type LayoutProps = {
   children: React.ReactNode;
 }
 
-// ** if a community is clicked on:
-// - The below header displays the name of the community and the description
-// ** else
-// - the default Scoring Passport text is shown
-
 export const Layout = ({ children }: LayoutProps) => {
   const [welcomeModalOpen, setWelcomeModalOpen] = useState(false);
   const [encryptedModalOpen, setEncryptedModalOpen] = useState(false);
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const router = useRouter();
-
-  // router.asPath.includes(`/dashboard/community/${router.query.id}`)
-  console.log(router);
-
 
   const tabbedClasses = (route: string) => {
     const base = "my-4 flex leading-4 cursor-pointer text-left";
@@ -58,7 +49,6 @@ export const Layout = ({ children }: LayoutProps) => {
                     <ArrowBackIcon className="mr-2" />
                     Back
                   </a>
-
                 </div>
               </>
             ) : (
@@ -85,22 +75,28 @@ export const Layout = ({ children }: LayoutProps) => {
         </div>
       </div>
       <div className="flex bg-gray-bluegray py-4 border-t border-gray-300 px-14">
-        <div className="my-4 min-h-full w-1/5 flex-col">
-          <button
-            data-testid="communities-tab"
-            onClick={() => router.push("/dashboard/community")}
-            className={tabbedClasses("community")}
-          >
-            <Icon as={IoIosPeople} className="mr-2" />Communities
-          </button>
-          <button
-            data-testid="api-keys-tab"
-            onClick={() => router.push("/dashboard/api-keys")}
-            className={tabbedClasses("api-keys")}
-          >
-            <Icon as={HiKey} className="mr-2" /> API Keys
-          </button>
-        </div>
+        {
+          router.asPath.includes(`/dashboard/community/${router.query.id}`) ? (
+            <div></div>
+          ) : (
+            <div className="my-4 min-h-full w-1/5 flex-col">
+              <button
+                data-testid="communities-tab"
+                onClick={() => router.push("/dashboard/community")}
+                className={tabbedClasses("community")}
+              >
+                <Icon as={IoIosPeople} className="mr-2" />Communities
+              </button>
+              <button
+                data-testid="api-keys-tab"
+                onClick={() => router.push("/dashboard/api-keys")}
+                className={tabbedClasses("api-keys")}
+              >
+                <Icon as={HiKey} className="mr-2" /> API Keys
+              </button>
+            </div>
+          )
+        }
         <div className="flex min-h-full w-full flex-col p-6 md:h-screen">
           {children}
         </div>
