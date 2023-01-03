@@ -58,7 +58,7 @@ class Unauthorized(APIException):
 
 class SubmitPassportPayload(Schema):
     address: str
-    signature: str
+    signature: str = ''
     community: str  # TODO: gerald: community_id ???, and make it int
     nonce: str
 
@@ -101,6 +101,9 @@ def signing_message(request) -> SigningMessageResponse:
         "nonce": nonce,
     }
 
+# TODO define logic once Community model has been updated
+def community_requires_signature(community):
+    return False
 
 @router.post("/submit-passport", auth=ApiKey(), response=List[ScoreResponse])
 def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreResponse]:
@@ -116,10 +119,6 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         log.error("Invalid nonce %s for address %s", payload.nonce, payload.address)
         raise InvalidNonceException()
 
-    # Verify the signer
-    if get_signer(payload.nonce, payload.signature).lower() != address_lower:
-        raise InvalidSignerException()
-
     log.debug("Getting passport")
     # Passport contents read from ceramic
     passport = get_passport(did)
@@ -131,6 +130,10 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
     user_community = get_object_or_404(
         Community, id=payload.community, account=request.auth
     )
+
+    # Verify the signer
+    if community_requires_signature(user_community) and get_signer(payload.nonce, payload.signature).lower() != address_lower:
+        raise InvalidSignerException()
 
     try:
         log.debug("deduplicating ...")
