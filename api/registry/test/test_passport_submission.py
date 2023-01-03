@@ -342,7 +342,26 @@ class ValidatePassportTestCase(TransactionTestCase):
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 404)
+
+    @patch("registry.api.validate_credential", side_effect=[[], []])
+    @patch("registry.api.get_passport", return_value=mock_passport)
+    def test_signature_not_needed_by_default(self, get_passport, validate_credential):
+        payload = {
+            "community": self.community.id,
+            "address": self.account.address,
+            "nonce": self.nonce,
+        }
+
+        response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(payload),
+            **{
+                "content_type": "application/json",
+                "HTTP_AUTHORIZATION": f"Token {self.secret}",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
 
     def test_valid_issuer(self):
         valid = verify_issuer(mock_passport["stamps"][1])
@@ -366,7 +385,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             **{
-                "content_type": "application/tson",
+                "content_type": "application/json",
                 "HTTP_AUTHORIZATION": f"Token {self.secret}",
             },
         )
