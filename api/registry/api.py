@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List
+from typing import List, Union
 
 # --- Deduplication Modules
 from account.deduplication.lifo import lifo
@@ -63,16 +63,26 @@ class SubmitPassportPayload(Schema):
     nonce: str
 
 
+class ScoreEvidence(Schema):
+    type: str
+    success: bool
+
+class ThresholdEvidence(ScoreEvidence):
+    rawScore: str
+    threshold: str
+
+class RequiredStampEvidence(ScoreEvidence):
+    stamp: str
+
 class ScoreResponse(Schema):
     # passport_id: int
     address: str
     score: str  # The score should be represented as string as it will be a decimal number
-
+    evidence: List[Union[ThresholdEvidence,RequiredStampEvidence]] = []
 
 class SigningMessageResponse(Schema):
     message: str
     nonce: str
-
 
 class ApiKey(APIKeyHeader):
     param_name = "X-API-Key"
