@@ -350,7 +350,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         payload = {
             "community": self.community.id,
             "address": self.account.address,
-            "nonce": self.nonce,
         }
 
         response = self.client.post(
@@ -407,8 +406,10 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    def test_submit_passport_bad_nonce(self):
-        """Test that submitting a bad nonce results in rejection"""
+    @patch("registry.api.validate_credential", side_effect=[[], []])
+    @patch("registry.api.get_passport", return_value=mock_passport)
+    def test_submit_passport_reused_nonce(self, get_passport, validate_credential):
+        """Test that submitting a reused nonce results in rejection"""
 
         did = f"did:pkh:eip155:1:{self.account.address.lower()}"
 
@@ -416,19 +417,21 @@ class ValidatePassportTestCase(TransactionTestCase):
             "community": self.community.id,
             "address": self.account.address,
             "signature": self.signed_message.signature.hex(),
-            "nonce": "SOME BAD NONCE",
+            "nonce": self.nonce,
         }
 
-        response = self.client.post(
-            "/registry/submit-passport",
-            json.dumps(payload),
-            **{
-                "content_type": "application/tson",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}",
-            },
-        )
-        self.assertEqual(response.status_code, 400)
+        for _ in [1, 2]:
+            response = self.client.post(
+                "/registry/submit-passport",
+                json.dumps(payload),
+                **{
+                    "content_type": "application/json",
+                    "HTTP_AUTHORIZATION": f"Token {self.secret}",
+                },
+            )
+
         self.assertEqual(response.json(), {"detail": "Invalid nonce."})
+        self.assertEqual(response.status_code, 400)
 
     @patch("registry.api.validate_credential", side_effect=[[], []])
     @patch("registry.api.get_passport", return_value={})
