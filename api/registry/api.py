@@ -58,9 +58,9 @@ class Unauthorized(APIException):
 
 class SubmitPassportPayload(Schema):
     address: str
-    signature: str = ''
     community: str  # TODO: gerald: community_id ???, and make it int
-    nonce: str
+    signature: str = ''
+    nonce: str = ''
 
 
 class ScoreEvidence(Schema):
@@ -124,10 +124,22 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
     did = get_did(payload.address)
     log.debug("/submit-passport, payload=%s", payload)
 
-    # Verify nonce
-    if not Nonce.use_nonce(payload.nonce):
-        log.error("Invalid nonce %s for address %s", payload.nonce, payload.address)
-        raise InvalidNonceException()
+    # Get community object
+    user_community = get_object_or_404(
+        Community, id=payload.community, account=request.auth
+    )
+
+    # Verify the signer
+    # TODO This first condition--payload.signature--is only here for testing and
+    # can be removed when community_requires_signature() is completed
+    if payload.signature or community_requires_signature(user_community):
+        if get_signer(payload.nonce, payload.signature).lower() != address_lower:
+            raise InvalidSignerException()
+
+        # Verify nonce
+        if not Nonce.use_nonce(payload.nonce):
+            log.error("Invalid nonce %s for address %s", payload.nonce, payload.address)
+            raise InvalidNonceException()
 
     log.debug("Getting passport")
     # Passport contents read from ceramic
@@ -135,15 +147,6 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
 
     if not passport:
         raise NoPassportException()
-
-    # Get community object
-    user_community = get_object_or_404(
-        Community, id=payload.community, account=request.auth
-    )
-
-    # Verify the signer
-    if community_requires_signature(user_community) and get_signer(payload.nonce, payload.signature).lower() != address_lower:
-        raise InvalidSignerException()
 
     try:
         log.debug("deduplicating ...")
