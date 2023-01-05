@@ -331,9 +331,7 @@ class ValidatePassportTestCase(TransactionTestCase):
     def test_invalid_address_throws_exception(self):
         payload = {
             "address": "0x0",
-            "signature": self.signed_message.signature.hex(),
             "community": self.community.id,
-            "nonce": self.nonce,
         }
 
         response = self.client.post(
