@@ -75,5 +75,8 @@ class TestBinaraWeightedScorer:
         )
         scorer.save()
 
-        scores = scorer.compute_score([p.id for p in weighted_scorer_passports])
-        assert scores == [0, 1, 1]
+        scores = [
+            s.score
+            for s in scorer.compute_score([p.id for p in weighted_scorer_passports])
+        ]
+        assert scores == ["0", "1", "1"]

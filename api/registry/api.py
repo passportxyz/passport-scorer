@@ -5,6 +5,7 @@ from typing import List, Union
 # --- Deduplication Modules
 from account.deduplication.lifo import lifo
 from account.models import AccountAPIKey, Community, Nonce
+from scorer_weighted.models import ScoreData
 from asgiref.sync import async_to_sync
 from django.shortcuts import get_object_or_404
 from ninja import Router
@@ -59,30 +60,26 @@ class Unauthorized(APIException):
 class SubmitPassportPayload(Schema):
     address: str
     community: str  # TODO: gerald: community_id ???, and make it int
-    signature: str = ''
-    nonce: str = ''
+    signature: str = ""
+    nonce: str = ""
 
 
-class ScoreEvidence(Schema):
-    type: str
-    success: bool
-
-class ThresholdEvidence(ScoreEvidence):
-    rawScore: str
-    threshold: str
-
-class RequiredStampEvidence(ScoreEvidence):
-    stamp: str
-
-class ScoreResponse(Schema):
+class DetailedScoreResponse(ScoreData):
+    # !! This schema inherits properties from ScoreData !!
     # passport_id: int
     address: str
-    score: str  # The score should be represented as string as it will be a decimal number
-    evidence: List[Union[ThresholdEvidence,RequiredStampEvidence]] = []
+
+
+class SimpleScoreResponse(Schema):
+    # passport_id: int
+    address: str
+    score: str
+
 
 class SigningMessageResponse(Schema):
     message: str
     nonce: str
+
 
 class ApiKey(APIKeyHeader):
     param_name = "X-API-Key"
@@ -111,12 +108,16 @@ def signing_message(request) -> SigningMessageResponse:
         "nonce": nonce,
     }
 
+
 # TODO define logic once Community model has been updated
 def community_requires_signature(community):
     return False
 
-@router.post("/submit-passport", auth=ApiKey(), response=List[ScoreResponse])
-def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreResponse]:
+
+@router.post("/submit-passport", auth=ApiKey(), response=List[DetailedScoreResponse])
+def submit_passport(
+    request, payload: SubmitPassportPayload
+) -> List[DetailedScoreResponse]:
     # TODO: gerald - test that checksummed & non-checksummed addresses work
     address_lower = payload.address.lower()
 
@@ -207,19 +208,23 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         scorer = user_community.get_scorer()
         scores = scorer.compute_score([db_passport.id])
 
+        scoreData = scores[0]
+
         score, _ = Score.objects.update_or_create(
-            passport_id=db_passport.id, defaults=dict(score=scores[0])
+            passport_id=db_passport.id, defaults=dict(score=scoreData.score)
         )
 
+        # TODO should this just return a single object instead of an array?
+        # TODO Do we still want it decimal formatted for a binary score?
         return [
-            {
-                # "passport_id": score.passport.id,
-                "address": score.passport.address,
-                "score": Score.objects.get(
+            DetailedScoreResponse(
+                # passport_id= score.passport.id,
+                address=score.passport.address,
+                score=Score.objects.get(
                     pk=score.id
                 ).score,  # Just reading out the value from DB to have it as decimal formatted
-            }
-            for s in scores
+                evidence=scoreData.evidence,
+            )
         ]
     except Exception as e:
         log.error(
@@ -227,13 +232,15 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
             payload,
             exc_info=True,
         )
-        InvalidPassportCreationException()
+        raise InvalidPassportCreationException()
 
 
 @router.get(
-    "/score/{int:community_id}/{str:address}", auth=ApiKey(), response=ScoreResponse
+    "/score/{int:community_id}/{str:address}",
+    auth=ApiKey(),
+    response=SimpleScoreResponse,
 )
-def get_score(request, address: str, community_id: int) -> ScoreResponse:
+def get_score(request, address: str, community_id: int) -> SimpleScoreResponse:
     try:
         # TODO: validate that community belongs to the account holding the ApiKey
         lower_address = address.lower()
