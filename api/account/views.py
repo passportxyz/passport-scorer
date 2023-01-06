@@ -17,6 +17,8 @@ from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
 from siwe import SiweMessage
 
+from scorer_weighted.models import WeightedScorer, BinaryWeightedScorer
+
 log = logging.getLogger(__name__)
 
 api = NinjaExtraAPI(urls_namespace="account")
@@ -353,10 +355,38 @@ def update_community_scorers(request, community_id, payload: ScorerId):
         if payload.scorer_type not in community.scorer.Type:
             raise ScorerTypeDoesNotExistException()
 
-        scorer = community.scorer
+        # TODO this is all too dependent on there being only the two
+        # scorer types, WeightedScorer and BinaryWeightedScorer
+        # Should probably do this a bit differently, but we should
+        # have a larger conversation on how we want to persist this
+        # data and separate scoring classes first
 
-        scorer.type = payload.scorer_type
-        scorer.save()
+        if payload.scorer_type == community.scorer.Type.WEIGHTED_BINARY:
+            # TODO threshold should be passed in as part of the payload instead of hardcoded
+            threshold = "3.0"
+            newScorer = BinaryWeightedScorer(threshold=threshold)
+            # TODO Weights should likely be passed in too, or use defaults, or something
+            newScorer.weights = community.scorer.weightedscorer.weights
+        else:
+            newScorer = WeightedScorer()
+            newScorer.weights = community.scorer.binaryweightedscorer.weights
+
+        newScorer.type = payload.scorer_type
+
+        newScorer.save()
+
+        oldScorer = community.scorer
+
+        community.scorer = newScorer
+
+        community.save()
+
+        # TODO Do we want to hang on to this, maybe associate it with the Scores?
+        # Or, do we want to disallow modifying scoring rules after scores have
+        # been created? Or store a date on the score, and a scoringRulesLastUpdated
+        # date on the community, and compare the two when reporting? We need to do
+        # one of those things to avoid showing scores from a previous scorer as fully approved
+        oldScorer.delete()
 
     except Community.DoesNotExist:
         raise UnauthorizedException()
