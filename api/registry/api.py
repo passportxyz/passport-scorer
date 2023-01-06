@@ -1,11 +1,10 @@
 import logging
 from datetime import datetime
-from typing import List, Union
+from typing import List, Union, Optional
 
 # --- Deduplication Modules
 from account.deduplication.lifo import lifo
 from account.models import AccountAPIKey, Community, Nonce
-from scorer_weighted.models import ScoreData
 from asgiref.sync import async_to_sync
 from django.shortcuts import get_object_or_404
 from ninja import Router
@@ -64,10 +63,21 @@ class SubmitPassportPayload(Schema):
     nonce: str = ""
 
 
-class DetailedScoreResponse(ScoreData):
-    # !! This schema inherits properties from ScoreData !!
+class ScoreEvidenceResponse(Schema):
+    type: str
+    success: bool
+
+
+class ThresholdScoreEvidenceResponse(ScoreEvidenceResponse):
+    rawScore: str
+    threshold: str
+
+
+class DetailedScoreResponse(Schema):
     # passport_id: int
     address: str
+    score: str
+    evidence: Optional[List[ThresholdScoreEvidenceResponse]]
 
 
 class SimpleScoreResponse(Schema):

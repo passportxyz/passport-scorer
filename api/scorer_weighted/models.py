@@ -2,6 +2,7 @@
 # pylint: disable=import-outside-toplevel
 import logging
 from typing import List, Union, Optional
+from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
@@ -10,29 +11,23 @@ log = logging.getLogger(__name__)
 
 from ninja_schema import Schema
 
-# TODO Perhaps we should use normal types here instead of
-# schemas, but then we'd have to redefine the schemas in
-# the API code. But maybe that's best. Alternatively,
-# maybe we keep it as Schema and add evidence to the DB
+
+class ThresholdScoreEvidence:
+    def __init__(self, success: bool, rawScore: Decimal, threshold: Decimal):
+        self.type = "ThresholdScoreCheck"
+        self.success = success
+        self.rawScore = rawScore
+        self.threshold = threshold
 
 
-class ScoreEvidence(Schema):
-    type: str
-    success: bool
-
-
-class ThresholdEvidence(ScoreEvidence):
-    rawScore: str
-    threshold: str
-
-
-class RequiredStampEvidence(ScoreEvidence):
-    stamp: str
-
-
-class ScoreData(Schema):
-    score: str
-    evidence: Optional[List[Union[ThresholdEvidence, RequiredStampEvidence]]]
+class ScoreData:
+    # do multiple evidence types like:
+    # Optional[List[Union[ThresholdScoreEvidence, RequiredStampEvidence]]]
+    def __init__(
+        self, score: Decimal, evidence: Optional[List[ThresholdScoreEvidence]]
+    ):
+        self.score = score
+        self.evidence = evidence
 
 
 def get_default_weights():
@@ -55,7 +50,7 @@ class Scorer(models.Model):
     )
 
     def compute_score(self) -> List[ScoreData]:
-        """Compute the score. This shall be overriden in child classes"""
+        """Compute the score. This shall be overridden in child classes"""
         raise NotImplemented()
 
 
@@ -70,7 +65,7 @@ class WeightedScorer(Scorer):
         from .computation import calculate_weighted_score
 
         return [
-            ScoreData(score=str(s), evidence=None)
+            ScoreData(score=s, evidence=None)
             for s in calculate_weighted_score(self, passport_ids)
         ]
 
@@ -87,7 +82,9 @@ class BinaryWeightedScorer(Scorer):
         from .computation import calculate_weighted_score
 
         rawScores = calculate_weighted_score(self, passport_ids)
-        binaryScores = ["1" if s >= self.threshold else "0" for s in rawScores]
+        binaryScores = [
+            Decimal(1) if s >= self.threshold else Decimal(0) for s in rawScores
+        ]
 
         return list(
             map(
@@ -95,11 +92,10 @@ class BinaryWeightedScorer(Scorer):
                     score=binaryScore,
                     evidence=list(
                         [
-                            ThresholdEvidence(
-                                type="thresholdScore",
-                                threshold=str(self.threshold),
-                                rawScore=str(rawScore),
-                                success=(binaryScore == "1"),
+                            ThresholdScoreEvidence(
+                                threshold=Decimal(str(self.threshold)),
+                                rawScore=Decimal(rawScore),
+                                success=bool(binaryScore),
                             )
                         ]
                     ),
