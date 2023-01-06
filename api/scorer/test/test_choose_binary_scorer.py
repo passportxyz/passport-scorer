@@ -6,6 +6,7 @@ import pytest
 from account.models import Community
 from django.test import Client
 from pytest_bdd import given, scenario, then, when
+from scorer_weighted.models import BinaryWeightedScorer
 
 pytestmark = pytest.mark.django_db
 
@@ -41,6 +42,7 @@ def _(access_token, scorer_community):
 
 @then("it automatically becomes the new rule in the respective community")
 def _(scorer_community):
-    assert (
-        Community.objects.get(id=scorer_community.id).scorer.type == "WEIGHTED_BINARY"
-    )
+    scorer = Community.objects.get(id=scorer_community.id).scorer
+    assert (scorer.type == "WEIGHTED_BINARY")
+    assert (scorer.binaryweightedscorer)
+    assert (type(scorer.binaryweightedscorer) == BinaryWeightedScorer)
