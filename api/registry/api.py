@@ -270,9 +270,6 @@ def get_score(request, address: str, community_id: int) -> SimpleScoreResponse:
     try:
         score = get_score_for_address(address)
 
-        if score["error"]:
-            raise InvalidScoreRequestException()
-
         return {
             "address": score.passport.address,
             "score": score.score,
