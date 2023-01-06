@@ -90,15 +90,13 @@ class BinaryWeightedScorer(Scorer):
             map(
                 lambda rawScore, binaryScore: ScoreData(
                     score=binaryScore,
-                    evidence=list(
-                        [
-                            ThresholdScoreEvidence(
-                                threshold=Decimal(str(self.threshold)),
-                                rawScore=Decimal(rawScore),
-                                success=bool(binaryScore),
-                            )
-                        ]
-                    ),
+                    evidence=[
+                        ThresholdScoreEvidence(
+                            threshold=Decimal(str(self.threshold)),
+                            rawScore=Decimal(rawScore),
+                            success=bool(binaryScore),
+                        )
+                    ],
                 ),
                 rawScores,
                 binaryScores,

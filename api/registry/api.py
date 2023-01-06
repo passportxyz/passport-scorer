@@ -83,7 +83,7 @@ class DetailedScoreResponse(Schema):
 class SimpleScoreResponse(Schema):
     # passport_id: int
     address: str
-    score: str
+    score: str  # The score should be represented as string as it will be a decimal number
 
 
 class SigningMessageResponse(Schema):

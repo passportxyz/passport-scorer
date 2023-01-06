@@ -1,6 +1,7 @@
 import pytest
 from registry.models import Passport, Stamp
 from scorer_weighted.models import BinaryWeightedScorer
+from decimal import Decimal
 
 pytestmark = pytest.mark.django_db
 
@@ -79,4 +80,4 @@ class TestBinaraWeightedScorer:
             s.score
             for s in scorer.compute_score([p.id for p in weighted_scorer_passports])
         ]
-        assert scores == ["0", "1", "1"]
+        assert scores == [Decimal(0), Decimal(1), Decimal(1)]
