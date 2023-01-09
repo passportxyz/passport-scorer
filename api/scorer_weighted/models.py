@@ -60,6 +60,9 @@ class Scorer(models.Model):
         """Compute the score. This shall be overridden in child classes"""
         raise NotImplemented()
 
+    def __str__(self):
+        return f"Scorer #{self.id}, type='{self.type}'"
+
 
 class WeightedScorer(Scorer):
     weights = models.JSONField(default=get_default_weights, blank=True, null=True)
@@ -75,6 +78,9 @@ class WeightedScorer(Scorer):
             ScoreData(score=s, evidence=None)
             for s in calculate_weighted_score(self, passport_ids)
         ]
+
+    def __str__(self):
+        return f"WeightedScorer #{self.id}"
 
 
 class BinaryWeightedScorer(Scorer):
@@ -111,3 +117,6 @@ class BinaryWeightedScorer(Scorer):
                 binaryScores,
             )
         )
+
+    def __str__(self):
+        return f"WeightedScorer #{self.id}, threshold='{self.threshold}'"

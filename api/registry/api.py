@@ -231,9 +231,7 @@ def submit_passport(
             DetailedScoreResponse(
                 # passport_id= score.passport.id,
                 address=score.passport.address,
-                score=Score.objects.get(
-                    pk=score.id
-                ).score,  # Just reading out the value from DB to have it as decimal formatted
+                score=f"{score.score:.9f}",
                 evidence=scoreData.evidence,
             )
         ]
