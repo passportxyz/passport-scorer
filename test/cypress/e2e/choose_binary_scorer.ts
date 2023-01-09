@@ -12,10 +12,10 @@ Given("that I'm a developer and have setup a community", () => {
     "Test Description"
   );
   cy.get('[data-testid="create-button"]').click();
+  cy.get("a").contains("Test Community").click();
 });
 
 When("I see the scoring options I can select for that community", () => {
-  cy.get("a").contains("Test Community").click();
 });
 
 Then(

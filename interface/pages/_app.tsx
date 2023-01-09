@@ -37,9 +37,6 @@ import { publicProvider } from "wagmi/providers/public";
 // --- Authentication
 import { SiweMessage } from "siwe";
 
-/**
- * @TODO --> prevent wallet list modal from popping up on wallet disconnect
- */
 const SCORER_BACKEND = process.env.NEXT_PUBLIC_PASSPORT_SCORER_BACKEND;
 
 const { chains, provider, webSocketProvider } = configureChains(
