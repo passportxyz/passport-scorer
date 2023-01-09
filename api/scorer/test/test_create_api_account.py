@@ -30,8 +30,6 @@ def test_successfully_create_an_api_account():
 @given("that I am a builder and I don't have an API ACCOUNT")
 def _():
     """that I am a builder and I don't have an API ACCOUNT."""
-    # User's address is not in the database --> so they need to:
-    return no_account_db_response
 
 
 @when("I hit the Connect Wallet button")
