@@ -1,8 +1,8 @@
 # TODO: remove pylint skip once circular dependency removed
 # pylint: disable=import-outside-toplevel
 import logging
-from typing import List, Union, Optional
 from decimal import Decimal
+from typing import List, Optional, Union
 
 from django.conf import settings
 from django.db import models
@@ -36,6 +36,13 @@ def get_default_weights():
     It will load the weights from the settings
     """
     return settings.GITCOIN_PASSPORT_WEIGHTS
+
+
+def get_default_threshold():
+    """
+    This function shall provide the default threshold for the default binary scorer from the settings.
+    """
+    return settings.GITCOIN_PASSPORT_THRESHOLD
 
 
 class Scorer(models.Model):
@@ -72,7 +79,9 @@ class WeightedScorer(Scorer):
 
 class BinaryWeightedScorer(Scorer):
     weights = models.JSONField(default=get_default_weights, blank=True, null=True)
-    threshold = models.DecimalField(max_digits=10, decimal_places=5)
+    threshold = models.DecimalField(
+        max_digits=10, decimal_places=5, default=get_default_threshold
+    )
 
     def compute_score(self, passport_ids) -> List[ScoreData]:
         """

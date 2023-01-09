@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
 # --- Deduplication Modules
 from account.deduplication.lifo import lifo
@@ -224,8 +224,9 @@ def submit_passport(
             passport_id=db_passport.id, defaults=dict(score=scoreData.score)
         )
 
-        # TODO should this just return a single object instead of an array?
-        # TODO Do we still want it decimal formatted for a binary score?
+        # We return an array of results here, because in some cases we might have scorers (like the APU scoe)
+        # that will affect also the score of other passwords (as scores are relative)
+        # We return decimal for all scorers (Weighted and Binary Weighted) atm
         return [
             DetailedScoreResponse(
                 # passport_id= score.passport.id,
