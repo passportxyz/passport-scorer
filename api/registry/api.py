@@ -247,20 +247,6 @@ def submit_passport(
         raise InvalidPassportCreationException()
 
 
-def get_score_for_address(address: str):
-    try:
-        # TODO: validate that community belongs to the account holding the ApiKey
-        lower_address = address.lower()
-        passport = Passport.objects.get(address=lower_address)
-        score = Score.objects.get(passport=passport)
-        return score
-    except Exception as e:
-        log.error(
-            "Error when getting passport score. address=%s", address, exc_info=True
-        )
-        return e
-
-
 @router.get(
     "/score/{int:community_id}/{str:address}",
     auth=ApiKey(),
@@ -268,7 +254,7 @@ def get_score_for_address(address: str):
 )
 def get_score(request, address: str, community_id: int) -> SimpleScoreResponse:
     try:
-        score = get_score_for_address(address)
+        score = Score.objects.get(passport__address=address)
 
         return {
             "address": score.passport.address,
@@ -297,21 +283,23 @@ def get_scores(request, filters: ScoreFilters = Query({})) -> List[ScoreResponse
     try:
         results = []
         request_filters = filters.dict()
-        for address in request_filters["addresses"]:
-            try:
-                score = get_score_for_address(address)
-                results.append(
-                    {"address": score.passport.address, "score": score.score}
-                )
-            except Exception as e:
-                results.append(
-                    {
-                        "address": address,
-                        "score": "",
-                        "error": "Unable to find score for given address",
-                    }
-                )
-                continue
+
+        addresses = [x.lower() for x in request_filters["addresses"]]
+        scores = Score.objects.filter(passport__address__in=addresses)
+
+        for score in scores:
+            results.append({"address": score.passport.address, "score": score.score})
+            addresses.remove(score.passport.address)
+
+        # return error for addresses that were not found
+        for address in addresses:
+            results.append(
+                {
+                    "address": address,
+                    "score": "",
+                    "error": "Unable to find score for given address",
+                }
+            )
 
         return results
     except Exception as e:
