@@ -11,6 +11,8 @@ log = logging.getLogger(__name__)
 
 from ninja_schema import Schema
 
+THRESHOLD_DECIMAL_PLACES = 5
+
 
 class ThresholdScoreEvidence:
     def __init__(self, success: bool, rawScore: Decimal, threshold: Decimal):
@@ -42,7 +44,7 @@ def get_default_threshold():
     """
     This function shall provide the default threshold for the default binary scorer from the settings.
     """
-    return settings.GITCOIN_PASSPORT_THRESHOLD
+    return round(Decimal(settings.GITCOIN_PASSPORT_THRESHOLD), THRESHOLD_DECIMAL_PLACES)
 
 
 class Scorer(models.Model):
@@ -56,7 +58,7 @@ class Scorer(models.Model):
         max_length=100,
     )
 
-    def compute_score(self) -> List[ScoreData]:
+    def compute_score(self, passport_ids) -> List[ScoreData]:
         """Compute the score. This shall be overridden in child classes"""
         raise NotImplemented()
 
@@ -86,7 +88,9 @@ class WeightedScorer(Scorer):
 class BinaryWeightedScorer(Scorer):
     weights = models.JSONField(default=get_default_weights, blank=True, null=True)
     threshold = models.DecimalField(
-        max_digits=10, decimal_places=5, default=get_default_threshold
+        max_digits=10,
+        decimal_places=THRESHOLD_DECIMAL_PLACES,
+        default=get_default_threshold,
     )
 
     def compute_score(self, passport_ids) -> List[ScoreData]:

@@ -89,7 +89,7 @@ def _(scoreResponse):
 def _(scoreResponse):
     """the threshold should be returned."""
     assert (
-        scoreResponse.json()[0]["evidence"][0]["threshold"] == "74.00000"
+        scoreResponse.json()[0]["evidence"][0]["threshold"] == "21.75812"
     )  # That is the mocked value
 
 

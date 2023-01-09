@@ -360,16 +360,22 @@ def update_community_scorers(request, community_id, payload: ScorerId):
         # have a larger conversation on how we want to persist this
         # data and separate scoring classes first
 
+        if community.scorer and community.scorer.weightedscorer:
+            oldWeights = community.scorer.weightedscorer.weights
+        elif community.scorer and community.scorer.binaryweightedscorer:
+            oldWeights = community.scorer.binaryweightedscorer.weights
+        else:
+            oldWeights = None
+
         if payload.scorer_type == community.scorer.Type.WEIGHTED_BINARY:
             # Threshold should be passed in as part of the payload instead of hardcoded
             newScorer = BinaryWeightedScorer()
-            # Weights should likely be passed in too, or use defaults, or something
-            if community.scorer and community.scorer.weightedscorer:
-                newScorer.weights = community.scorer.weightedscorer.weights
         else:
             newScorer = WeightedScorer()
-            if community.scorer and community.scorer.binaryweightedscorer:
-                newScorer.weights = community.scorer.binaryweightedscorer.weights
+
+        # Weights should likely be passed in too, or use defaults, or something
+        if oldWeights:
+            newScorer.weights = oldWeights
 
         newScorer.type = payload.scorer_type
 
