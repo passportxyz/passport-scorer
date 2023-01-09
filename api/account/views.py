@@ -360,9 +360,11 @@ def update_community_scorers(request, community_id, payload: ScorerId):
         # have a larger conversation on how we want to persist this
         # data and separate scoring classes first
 
-        if community.scorer and community.scorer.weightedscorer:
+        if community.scorer and getattr(community.scorer, "weightedscorer", None):
             oldWeights = community.scorer.weightedscorer.weights
-        elif community.scorer and community.scorer.binaryweightedscorer:
+        elif community.scorer and getattr(
+            community.scorer, "binaryweightedscorer", None
+        ):
             oldWeights = community.scorer.binaryweightedscorer.weights
         else:
             oldWeights = None
