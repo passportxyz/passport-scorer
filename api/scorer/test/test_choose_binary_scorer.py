@@ -76,7 +76,7 @@ def score_response(scorer_community, scorer_api_key):
 @then("the binary score should be returned")
 def _(scoreResponse):
     """the binary score should be returned."""
-    assert scoreResponse.json()[0]["score"] == "0.000000000"
+    assert scoreResponse.json()[0]["score"] == "0E-9"
 
 
 @then("the raw score should be returned")
@@ -107,9 +107,6 @@ def test_get_score_of_000000():
 )
 def _(scorer_community_with_binary_scorer, scorer_api_key):
     """I submit a passport that yields a weighted score less than the threshold."""
-    print("-" * 30)
-    print(scorer_community_with_binary_scorer.scorer.binaryweightedscorer)
-    print("-" * 30)
     with patch(
         "scorer_weighted.computation.calculate_weighted_score",
         return_value=[Decimal("70")],
@@ -137,7 +134,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
 @then('the score "0.000000000" is returned')
 def _(scoreResponseFor0):
     """the score "0.000000000" is returned."""
-    assert scoreResponseFor0.json()[0]["score"] == "0.000000000"
+    assert scoreResponseFor0.json()[0]["score"] == "0E-9"
 
 
 ###################################################################################################
@@ -154,9 +151,6 @@ def test_get_score_of_1000000000():
 )
 def _(scorer_community_with_binary_scorer, scorer_api_key):
     """I submit a passport that yields a weighted score greater or equal than the threshold."""
-    print("-" * 30)
-    print(scorer_community_with_binary_scorer.scorer.binaryweightedscorer)
-    print("-" * 30)
     with patch(
         "scorer_weighted.computation.calculate_weighted_score",
         return_value=[Decimal("90")],

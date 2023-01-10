@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from decimal import Decimal
 from typing import List, Optional, Union
 
 # --- Deduplication Modules
@@ -69,8 +70,8 @@ class ScoreEvidenceResponse(Schema):
 
 
 class ThresholdScoreEvidenceResponse(ScoreEvidenceResponse):
-    rawScore: str
-    threshold: str
+    rawScore: Decimal
+    threshold: Decimal
 
 
 class DetailedScoreResponse(Schema):
@@ -83,7 +84,7 @@ class DetailedScoreResponse(Schema):
 class SimpleScoreResponse(Schema):
     # passport_id: int
     address: str
-    score: str  # The score should be represented as string as it will be a decimal number
+    score: Decimal  # The score should be represented as string as it will be a decimal number
 
 
 class SigningMessageResponse(Schema):
@@ -231,7 +232,9 @@ def submit_passport(
             DetailedScoreResponse(
                 # passport_id= score.passport.id,
                 address=score.passport.address,
-                score=f"{score.score:.9f}",
+                score=Score.objects.get(
+                    pk=score.id
+                ).score,  # Just reading out the value from DB to have it as decimal formatted
                 evidence=scoreData.evidence,
             )
         ]
