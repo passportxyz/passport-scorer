@@ -1,6 +1,5 @@
 import pytest
 from account.models import Account, AccountAPIKey, Community
-from django.contrib.auth.models import User
 from django.test import Client
 from registry.models import Passport, Score, Stamp
 from web3 import Web3
@@ -10,13 +9,6 @@ web3.eth.account.enable_unaudited_hdwallet_features()
 
 # TODO: Load from fixture file
 pytestmark = pytest.mark.django_db
-
-
-@pytest.fixture
-def scorer_user():
-    user = User.objects.create_user(username="testuser-1", password="12345")
-    print("scorer_user user", user)
-    return user
 
 
 @pytest.fixture
@@ -37,20 +29,10 @@ def scorer_account(scorer_user):
 
 @pytest.fixture
 def scorer_api_key(scorer_account):
-    (account_api_key, secret) = AccountAPIKey.objects.create_key(
+    (_, secret) = AccountAPIKey.objects.create_key(
         account=scorer_account, name="Token for user 1"
     )
     return secret
-
-
-@pytest.fixture
-def scorer_community(scorer_account):
-    community = Community.objects.create(
-        name="My Community",
-        description="My Community description",
-        account=scorer_account,
-    )
-    return community
 
 
 @pytest.fixture
@@ -137,11 +119,66 @@ class TestPassportGetScore:
             account=scorer_account,
         )
 
+        client = Client()
+        response = client.get(
+            f"/registry/scores/{additional_community.id}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        assert response.status_code == 200
+        assert len(response_data["items"]) == 0
+
+    def test_get_scores_returns_second_page_scores(
+        self,
+        scorer_api_key,
+        scorer_account,
+        passport_holder_addresses,
+        scorer_community,
+    ):
+        for holder in passport_holder_addresses:
+            passport = Passport.objects.create(
+                address=holder["address"],
+                community=scorer_community,
+                passport={"name": "John Doe"},
+            )
+
+            Score.objects.create(
+                passport=passport,
+                score="1",
+            )
+
+        offset = 2
+        limit = 4
         address = scorer_account.address
         client = Client()
         response = client.get(
-            f"/registry/scores?community_id={additional_community.id}&addresses={address}",
+            f"/registry/scores/{scorer_community.id}?limit={limit}&offset={offset}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
+        response_data = response.json()
 
+        assert response.status_code == 200
+        assert (
+            response_data["items"][0]["address"]
+            == passport_holder_addresses[offset]["address"].lower()
+        )
+        assert (
+            response_data["items"][1]["address"]
+            == passport_holder_addresses[offset + 1]["address"].lower()
+        )
+        assert (
+            response_data["items"][2]["address"]
+            == passport_holder_addresses[offset + 2]["address"].lower()
+        )
+
+    def test_get_scores_request_throws_404_for_invalid_community(self, scorer_api_key):
+        client = Client()
+        response = client.get(
+            f"/registry/scores/3",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
         assert response.status_code == 400
+        assert response.json() == {
+            "detail": "Unable to get score for provided community.",
+        }

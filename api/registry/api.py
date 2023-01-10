@@ -9,6 +9,7 @@ from account.models import AccountAPIKey, Community, Nonce
 from asgiref.sync import async_to_sync
 from django.shortcuts import get_object_or_404
 from ninja import Field, Query, Router
+from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
 from ninja_extra import NinjaExtraAPI, status
 from ninja_extra.exceptions import APIException
@@ -45,6 +46,11 @@ class InvalidPassportCreationException(APIException):
 class InvalidScoreRequestException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Unable to get score for provided address(s)."
+
+
+class InvalidCommunityScoreRequestException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Unable to get score for provided community."
 
 
 class NoPassportException(APIException):
@@ -112,7 +118,7 @@ class ApiKey(APIKeyHeader):
 
 
 @router.get("/signing-message", auth=ApiKey(), response=SigningMessageResponse)
-def signing_message(request) -> SigningMessageResponse:
+def signing_message() -> SigningMessageResponse:
     nonce = Nonce.create_nonce().nonce
     return {
         "message": get_signing_message(nonce),
@@ -121,7 +127,7 @@ def signing_message(request) -> SigningMessageResponse:
 
 
 # TODO define logic once Community model has been updated
-def community_requires_signature(community):
+def community_requires_signature(_):
     return False
 
 
@@ -238,7 +244,7 @@ def submit_passport(
                 evidence=scoreData.evidence,
             )
         ]
-    except Exception as e:
+    except Exception:
         log.error(
             "Error when handling passport submission. payload=%s",
             payload,
@@ -273,48 +279,22 @@ def get_score(request, address: str, community_id: int) -> SimpleScoreResponse:
         raise InvalidScoreRequestException()
 
 
-class ScoreFilters(Schema):
-    community_id: int
-    limit: int = 50
-    offset: int = 0
-    addresses: List[str] = Field(None, alias="addresses")
-
-
-@router.get("/scores", auth=ApiKey(), response=List[ScoreResponse])
-def get_scores(request, filters: ScoreFilters = Query({})) -> List[ScoreResponse]:
+@router.get("/scores/{int:community_id}", auth=ApiKey(), response=List[ScoreResponse])
+@paginate()
+def get_scores(request, community_id: int, **kwargs) -> List[ScoreResponse]:
     try:
-        results = []
-        request_filters = filters.dict()
-
-        addresses = [x.lower() for x in request_filters["addresses"]]
-        scores = Score.objects.filter(
-            passport__address__in=addresses,
-            passport__community__id=filters.community_id,
+        # Get community object
+        user_community = get_object_or_404(
+            Community, id=community_id, account=request.auth
         )
 
-        # if no results are found throw error
-        if len(scores) == 0:
-            raise InvalidScoreRequestException()
+        scores = Score.objects.filter(passport__community__id=community_id)
 
-        for score in scores:
-            results.append({"address": score.passport.address, "score": score.score})
-            addresses.remove(score.passport.address)
-
-        # return error for addresses that were not found
-        for address in addresses:
-            results.append(
-                {
-                    "address": address,
-                    "score": "",
-                    "error": "Unable to find score for given address",
-                }
-            )
-
-        return results
+        return [{"address": s.passport.address, "score": s.score} for s in scores]
     except Exception as e:
         log.error(
             "Error getting passport scores. community_id=%s",
-            request_filters["community_id"],
+            community_id,
             exc_info=True,
         )
-        raise InvalidScoreRequestException()
+        raise InvalidCommunityScoreRequestException()
