@@ -2,10 +2,11 @@ import json
 from sysconfig import get_default_scheme
 
 import pytest
-from account.models import Account, Community, get_default_community_scorer
+from account.models import Account, Community
 from django.contrib.auth.models import User
 from django.test import Client
 from ninja_jwt.schema import RefreshToken
+from scorer_weighted.models import Scorer, get_default_threshold
 from web3 import Web3
 
 web3 = Web3()
@@ -80,8 +81,6 @@ class TestScorer:
 
     def test_update_community_scorer(self, client, access_token, scorer_community):
         scorer = scorer_community.scorer
-        labels = [i[1] for i in scorer.Type.choices]
-        ids = [i[0] for i in scorer.Type.choices]
         client = Client()
         response = client.put(
             f"/account/communities/{scorer_community.id}/scorers",
@@ -96,8 +95,6 @@ class TestScorer:
 
     def test_do_not_allow_unauthorized_scorer_update(self, client, scorer_community):
         scorer = scorer_community.scorer
-        labels = [i[1] for i in scorer.Type.choices]
-        ids = [i[0] for i in scorer.Type.choices]
         client = Client()
         response = client.put(
             f"/account/communities/{scorer_community.id}/scorers",
@@ -118,3 +115,24 @@ class TestScorer:
         )
 
         assert response.status_code == 400
+
+    def test_update_to_weighted_to_binary(self, client, access_token, scorer_community):
+        scorer = scorer_community.scorer
+        client = Client()
+        response = client.put(
+            f"/account/communities/{scorer_community.id}/scorers",
+            json.dumps({"scorer_type": scorer.Type.WEIGHTED_BINARY}),
+            HTTP_AUTHORIZATION=f"Bearer {access_token}",
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "ok": True,
+        }
+
+        # Test that the changes have been persisted in the DB
+        community = Community.objects.get(pk=scorer_community.id)
+        scorer = Scorer.objects.get(pk=community.scorer_id)
+        assert scorer.type == Scorer.Type.WEIGHTED_BINARY
+        # Ensure the default threshold was set
+        assert scorer.binaryweightedscorer.threshold == get_default_threshold()

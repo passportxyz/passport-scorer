@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
-from typing import List
+from decimal import Decimal
+from typing import List, Optional, Union
 
 # --- Deduplication Modules
 from account.deduplication.lifo import lifo
@@ -59,14 +60,31 @@ class Unauthorized(APIException):
 class SubmitPassportPayload(Schema):
     address: str
     community: str  # TODO: gerald: community_id ???, and make it int
-    signature: str = ''
-    nonce: str = ''
+    signature: str = ""
+    nonce: str = ""
 
 
-class ScoreResponse(Schema):
+class ScoreEvidenceResponse(Schema):
+    type: str
+    success: bool
+
+
+class ThresholdScoreEvidenceResponse(ScoreEvidenceResponse):
+    rawScore: Decimal
+    threshold: Decimal
+
+
+class DetailedScoreResponse(Schema):
     # passport_id: int
     address: str
-    score: str  # The score should be represented as string as it will be a decimal number
+    score: str
+    evidence: Optional[List[ThresholdScoreEvidenceResponse]]
+
+
+class SimpleScoreResponse(Schema):
+    # passport_id: int
+    address: str
+    score: Decimal  # The score should be represented as string as it will be a decimal number
 
 
 class SigningMessageResponse(Schema):
@@ -101,12 +119,16 @@ def signing_message(request) -> SigningMessageResponse:
         "nonce": nonce,
     }
 
+
 # TODO define logic once Community model has been updated
 def community_requires_signature(community):
     return False
 
-@router.post("/submit-passport", auth=ApiKey(), response=List[ScoreResponse])
-def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreResponse]:
+
+@router.post("/submit-passport", auth=ApiKey(), response=List[DetailedScoreResponse])
+def submit_passport(
+    request, payload: SubmitPassportPayload
+) -> List[DetailedScoreResponse]:
     # TODO: gerald - test that checksummed & non-checksummed addresses work
     address_lower = payload.address.lower()
 
@@ -197,19 +219,24 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
         scorer = user_community.get_scorer()
         scores = scorer.compute_score([db_passport.id])
 
+        scoreData = scores[0]
+
         score, _ = Score.objects.update_or_create(
-            passport_id=db_passport.id, defaults=dict(score=scores[0])
+            passport_id=db_passport.id, defaults=dict(score=scoreData.score)
         )
 
+        # We return an array of results here, because in some cases we might have scorers (like the APU scoe)
+        # that will affect also the score of other passwords (as scores are relative)
+        # We return decimal for all scorers (Weighted and Binary Weighted) atm
         return [
-            {
-                # "passport_id": score.passport.id,
-                "address": score.passport.address,
-                "score": Score.objects.get(
+            DetailedScoreResponse(
+                # passport_id= score.passport.id,
+                address=score.passport.address,
+                score=Score.objects.get(
                     pk=score.id
                 ).score,  # Just reading out the value from DB to have it as decimal formatted
-            }
-            for s in scores
+                evidence=scoreData.evidence,
+            )
         ]
     except Exception as e:
         log.error(
@@ -217,13 +244,15 @@ def submit_passport(request, payload: SubmitPassportPayload) -> List[ScoreRespon
             payload,
             exc_info=True,
         )
-        InvalidPassportCreationException()
+        raise InvalidPassportCreationException()
 
 
 @router.get(
-    "/score/{int:community_id}/{str:address}", auth=ApiKey(), response=ScoreResponse
+    "/score/{int:community_id}/{str:address}",
+    auth=ApiKey(),
+    response=SimpleScoreResponse,
 )
-def get_score(request, address: str, community_id: int) -> ScoreResponse:
+def get_score(request, address: str, community_id: int) -> SimpleScoreResponse:
     try:
         # TODO: validate that community belongs to the account holding the ApiKey
         lower_address = address.lower()

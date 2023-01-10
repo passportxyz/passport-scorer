@@ -4,6 +4,7 @@ from account.models import Account, AccountAPIKey, Community
 from django.contrib.auth.models import User
 from ninja_jwt.schema import RefreshToken
 from registry.models import Passport, Score
+from scorer_weighted.models import BinaryWeightedScorer, Scorer
 from web3 import Web3
 
 web3 = Web3()
@@ -88,11 +89,18 @@ def scorer_community_with_binary_scorer(mocker, scorer_account):
         "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
         mock_settings,
     )
+    mocker.patch(
+        "scorer_weighted.models.settings.GITCOIN_PASSPORT_THRESHOLD",
+        75,
+    )
+
+    scorer = BinaryWeightedScorer.objects.create(type=Scorer.Type.WEIGHTED_BINARY)
 
     community = Community.objects.create(
         name="My Community",
         description="My Community description",
         account=scorer_account,
+        scorer=scorer,
     )
     return community
 

@@ -14,14 +14,28 @@
   <body>
     <div class="container-fluid mx-auto">
       <h1 class="text-center mt-5">Score Your Passport</h1>
-      <p>1. Connect your wallet</p>
+      <h4>Connect your wallet</h4>
       <button type="button" class="enableEthereumButton btn btn-info">
         Connect
       </button>
       <div class="connectInfo fst-italic">Not connected</div>
       <div>
         <p class="mt-3">
-          2. Enter your community ID and API key, which you can get from your
+          <h4>Score without required signature</h4>
+          Enter your community ID and API key, which you can get from your
+          <a href="https://scorer.gitcoin.co/">scoring dashboard</a>
+        </p>
+        <input type="text" id="communityId" placeholder="Community ID" />
+        <input type="text" id="apiKey" placeholder="API Key" />
+        <button type="button" class="submitForScoringWithoutSignatureButton btn btn-primary">
+          Submit for scoring without signature
+        </button>
+      </div>
+      <div class="passportScoreWithoutSignature mt-3"></div>
+      <div>
+        <p class="mt-3">
+          <h4>Score with required signature</h4>
+          Enter your community ID and API key, which you can get from your
           <a href="https://scorer.gitcoin.co/">scoring dashboard</a>
         </p>
         <input type="text" id="communityId" placeholder="Community ID" />
@@ -48,12 +62,18 @@
     <script>
       let communityId, apiKey;
 
+      const endpoint = "https://api.scorer.gitcoin.co";
+      // const endpoint = "http://127.0.0.1:8000";
       const ethereumButton = document.querySelector(".enableEthereumButton");
       const submitForScoringButton = document.querySelector(
         ".submitForScoringButton"
       );
+      const submitForScoringWithoutSignatureButton = document.querySelector(
+        ".submitForScoringWithoutSignatureButton"
+      );
       const connectionInfoDiv = document.querySelector(".connectInfo");
       const passportScoreDisplay = document.querySelector(".passportScore");
+      const passportScoreWithoutSignatureDisplay = document.querySelector(".passportScoreWithoutSignature");
       let account = null;
       let score = null;
 
@@ -69,8 +89,46 @@
         connectionInfoDiv.innerHTML = "Your address is: " + account;
       });
 
+      submitForScoringWithoutSignatureButton.addEventListener("click", async () => {
+        passportScoreWithoutSignatureDisplay.innerHTML = "Calculating your score ..."
+        const communityId = document.querySelector("#communityId").value;
+        const apiKey = document.querySelector("#apiKey").value;
+
+        try {
+          const response = await axios.post(
+            endpoint + "/registry/submit-passport",
+            {
+              address: account,
+              community: communityId,
+            },
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+              },
+            }
+          );
+
+          score = response.data[0].score;
+
+          if (score) {
+            passportScoreWithoutSignatureDisplay.innerHTML = "Your score is: " + score;
+          }
+        } catch (e) {
+          if (e.response.data.detail == "No Passport found for this address.") {
+            passportScoreWithoutSignatureDisplay.innerHTML =
+              "No Passport exists for this address. Please create one at " +
+              "<a href='https://passport.gitcoin.co' target='_blank'>Gitcoin Passport</a>, come back and refresh this page, and score your Passport again";
+          } else {
+            passportScoreWithoutSignatureDisplay.innerHTML =
+              "An error has occured. Please try again.";
+          }
+          console.error(e);
+        }
+      });
+
       submitForScoringButton.addEventListener("click", async () => {
-        const endpoint = "https://api.scorer.gitcoin.co";
+        passportScoreDisplay.innerHTML = "Calculating your score ..."
         const communityId = document.querySelector("#communityId").value;
         const apiKey = document.querySelector("#apiKey").value;
 
@@ -120,6 +178,9 @@
             passportScoreDisplay.innerHTML =
               "No Passport exists for this address. Please create one at " +
               "<a href='https://passport.gitcoin.co' target='_blank'>Gitcoin Passport</a>, come back and refresh this page, and score your Passport again";
+            } else {
+              passportScoreDisplay.innerHTML =
+              "An error has occured. Please try again.";
           }
           console.error(e);
         }

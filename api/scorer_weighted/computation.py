@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 from typing import List
+from decimal import Decimal
 
 from scorer_weighted.models import WeightedScorer
 
@@ -17,17 +18,17 @@ def calculate_score(sender, passport_ids, **kwargs):
 
 def calculate_weighted_score(
     scorer: WeightedScorer, passport_ids: List[int]
-) -> List[float]:
+) -> List[Decimal]:
     from registry.models import Stamp
 
-    ret: List[float] = []
+    ret: List[Decimal] = []
     log.debug(
         "calculate_weighted_score for scorer %s and passports %s", scorer, passport_ids
     )
     weights = scorer.weights
     for passport_id in passport_ids:
-        sum_of_weights = 0
+        sum_of_weights: Decimal = Decimal(0)
         for stamp in Stamp.objects.filter(passport_id=passport_id):
-            sum_of_weights += weights.get(stamp.provider, 0)
+            sum_of_weights += Decimal(weights.get(stamp.provider, 0))
         ret.append(sum_of_weights)
     return ret

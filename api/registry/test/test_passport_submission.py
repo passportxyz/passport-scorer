@@ -461,7 +461,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         "registry.api.get_passport",
         side_effect=[copy.deepcopy(mock_passport), copy.deepcopy(mock_passport)],
     )
-    def test_submit_passport_mulitple_times(self, get_passport, validate_credential):
+    def test_submit_passport_multiple_times(self, get_passport, validate_credential):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
         # get_passport.return_value = mock_passport
 
@@ -473,6 +473,14 @@ class ValidatePassportTestCase(TransactionTestCase):
             "signature": self.signed_message.signature.hex(),
             "nonce": self.nonce,
         }
+
+        expectedResponse = [
+            {
+                "score": "2.000000000",
+                "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
+                "evidence": None,
+            }
+        ]
 
         # First submission
         response = self.client.post(
@@ -486,12 +494,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            [
-                {
-                    "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-                    "score": "2.000000000",
-                }
-            ],
+            expectedResponse,
         )
 
         # 2nd submission
@@ -521,12 +524,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            [
-                {
-                    "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-                    "score": "2.000000000",
-                }
-            ],
+            expectedResponse,
         )
 
         # Check that the stamps have only been recorded once
