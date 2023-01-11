@@ -35,6 +35,10 @@ Start the dev server:
 Start the celery worker:
 - `celery -A scorer worker -l DEBUG`
 
+Running redis locally:
+
+- `docker run -d -p 6379:6379 redis`
+
 ##Testing
 ### API
 
