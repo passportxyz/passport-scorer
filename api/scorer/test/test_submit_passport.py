@@ -139,7 +139,7 @@ def _(scorer_community_with_gitcoin_default, scorer_api_key):
     client = Client()
 
     response = client.get(
-        f"/registry/score/{scorer_community_with_gitcoin_default.id}/{scorer_community_with_gitcoin_default.account.address}",
+        f"/registry/score/{scorer_community_with_gitcoin_default.id}?address={scorer_community_with_gitcoin_default.account.address}",
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
     )
@@ -147,7 +147,8 @@ def _(scorer_community_with_gitcoin_default, scorer_api_key):
     print("*" * 80)
     print(response.json())
     assert response.status_code == 200
-    assert response.json() == {
+    assert response.json()["items"][0] == {
         "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
         "score": "1001234.000000000",
+        "evidence": None,
     }

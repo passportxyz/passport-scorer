@@ -43,7 +43,7 @@ def _(passport_holder_addresses, scorer_community):
 def _(passport_holder_addresses, scorer_community, scorer_api_key):
     """I make a request calling /score/community/{community-id} API endpoint with my API Key."""
     response = client.get(
-        f"/registry/scores/{scorer_community.id}?limit={limit}&offset={offset}",
+        f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}",
         HTTP_AUTHORIZATION="Token " + scorer_api_key,
     )
     return response

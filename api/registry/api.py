@@ -254,33 +254,7 @@ def submit_passport(
 
 
 @router.get(
-    "/score/{int:community_id}/{str:address}",
-    auth=ApiKey(),
-    response=SimpleScoreResponse,
-)
-def get_score(request, address: str, community_id: int) -> DetailedScoreResponse:
-    try:
-        score = Score.objects.get(
-            passport__address=address, passport__community__id=community_id
-        )
-
-        return {
-            "address": score.passport.address,
-            "score": score.score,
-        }
-    except Exception as e:
-
-        log.error(
-            "Error when getting passport score. address=%s, community_id=%s",
-            address,
-            community_id,
-            exc_info=True,
-        )
-        raise InvalidScoreRequestException()
-
-
-@router.get(
-    "/scores/{int:community_id}", auth=ApiKey(), response=List[DetailedScoreResponse]
+    "/score/{int:community_id}", auth=ApiKey(), response=List[DetailedScoreResponse]
 )
 @paginate()
 def get_scores(

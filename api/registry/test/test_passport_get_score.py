@@ -77,60 +77,6 @@ def paginated_scores(scorer_passport, passport_holder_addresses, scorer_communit
 
 
 class TestPassportGetScore:
-    def test_passport_get_scores(
-        self, scorer_api_key, scorer_community, scorer_account, scorer_score
-    ):
-        address = scorer_account.address
-        community_id = scorer_community.id
-        client = Client()
-        response = client.get(
-            f"/registry/score/{community_id}/{address}",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
-
-        assert response.status_code == 200
-        assert response.json() == {
-            "address": address.lower(),
-            "score": scorer_score.score,
-        }
-
-    # TODO: Create test authorization separately
-    def test_passport_get_scores_no_auth(self, scorer_community, scorer_account):
-        address = scorer_account.address
-        community_id = scorer_community.id
-        client = Client()
-        response = client.get(
-            f"/registry/score/{community_id}/{address}",
-        )
-        assert response.status_code == 401
-
-    def test_passport_get_scores_bad_community(self, scorer_api_key, scorer_account):
-        address = scorer_account.address
-        client = Client()
-        response = client.get(
-            f"/registry/score/3/{address}",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
-        assert response.status_code == 400
-
-    def test_get_score_with_valid_community_with_no_scores(
-        self, scorer_api_key, scorer_account
-    ):
-        additional_community = Community.objects.create(
-            name="My Community",
-            description="My Community description",
-            account=scorer_account,
-        )
-
-        address = scorer_account.address
-        client = Client()
-        response = client.get(
-            f"/registry/score/{additional_community.id}/{address}",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
-
-        assert response.status_code == 400
-
     def test_get_scores_with_valid_community_with_no_scores(
         self, scorer_api_key, scorer_account
     ):
@@ -142,7 +88,7 @@ class TestPassportGetScore:
 
         client = Client()
         response = client.get(
-            f"/registry/scores/{additional_community.id}",
+            f"/registry/score/{additional_community.id}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
@@ -161,7 +107,7 @@ class TestPassportGetScore:
         address = scorer_account.address
         client = Client()
         response = client.get(
-            f"/registry/scores/{scorer_community.id}?limit={limit}&offset={offset}",
+            f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
@@ -177,7 +123,7 @@ class TestPassportGetScore:
     def test_get_scores_request_throws_400_for_invalid_community(self, scorer_api_key):
         client = Client()
         response = client.get(
-            f"/registry/scores/3",
+            f"/registry/score/3",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         assert response.status_code == 400
@@ -195,7 +141,7 @@ class TestPassportGetScore:
     ):
         client = Client()
         response = client.get(
-            f"/registry/scores/{scorer_community.id}?address={passport_holder_addresses[0]['address']}",
+            f"/registry/score/{scorer_community.id}?address={passport_holder_addresses[0]['address']}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         assert response.status_code == 200

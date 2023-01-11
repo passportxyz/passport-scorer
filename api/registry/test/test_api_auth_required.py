@@ -9,7 +9,7 @@ pytestmark = pytest.mark.django_db
     params=[
         ("get", "/registry/signing-message"),
         ("post", "/registry/submit-passport"),
-        ("get", "/registry/score/3/0x0"),
+        ("get", "/registry/score/3"),
     ]
 )
 def api_path_that_requires_auth(request):
