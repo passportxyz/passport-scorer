@@ -54,3 +54,4 @@ class Score(models.Model):
         choices=STATUS_CHOICES, max_length=20, null=True, default=None
     )
     error = models.TextField(null=True, blank=True)
+    evidence = models.JSONField(null=True, blank=True)

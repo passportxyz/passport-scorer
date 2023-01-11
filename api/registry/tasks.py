@@ -100,7 +100,16 @@ def score_passport(community_id: int, address: str):
         scoreData = scores[0]
 
         score, _ = Score.objects.update_or_create(
-            passport_id=db_passport.id, defaults=dict(score=scoreData.score)
+            passport_id=db_passport.id,
+            defaults=dict(
+                score=scoreData.score,
+                status=Score.Status.DONE,
+                last_score_timestamp=datetime.utcnow(),
+                # TODO: check: does scoreData.evidence need to be an array?
+                evidence=scoreData.evidence[0].as_dict()
+                if scoreData.evidence
+                else None,
+            ),
         )
     except Exception as e:
         log.error(

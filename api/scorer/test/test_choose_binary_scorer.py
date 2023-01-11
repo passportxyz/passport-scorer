@@ -1,6 +1,7 @@
 """Select Binary Scorer feature tests."""
 
 import json
+from datetime import datetime, timezone
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -8,6 +9,7 @@ import pytest
 from account.models import Community
 from django.test import Client
 from pytest_bdd import given, scenario, then, when
+from registry.tasks import score_passport
 from registry.test.test_passport_submission import mock_passport
 from scorer_weighted.models import BinaryWeightedScorer
 
@@ -55,41 +57,78 @@ def _(scorer_community):
 @when("I choose to score a passport", target_fixture="scoreResponse")
 def score_response(scorer_community, scorer_api_key):
     """I choose to score a passport."""
-    with patch("registry.api.get_passport", return_value=mock_passport) as get_passport:
+    with patch("registry.tasks.score_passport.delay") as mock_score_passport_task:
         with patch(
-            "registry.api.validate_credential", side_effect=[[], []]
-        ) as validate_credential:
-            client = Client()
-            return client.post(
-                "/registry/submit-passport",
-                json.dumps(
+            "registry.tasks.get_passport", return_value=mock_passport
+        ) as get_passport:
+            with patch(
+                "registry.tasks.validate_credential", side_effect=[[], []]
+            ) as validate_credential:
+                client = Client()
+                submitResponse = client.post(
+                    "/registry/submit-passport",
+                    json.dumps(
+                        {
+                            "community": scorer_community.id,
+                            "address": "0x0123",
+                        }
+                    ),
+                    content_type="application/json",
+                    HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
+                )
+
+                # execute the task
+                score_passport(scorer_community.id, "0x0123")
+
+                # read the score ...
+                assert submitResponse.json() == [
                     {
-                        "community": scorer_community.id,
                         "address": "0x0123",
+                        "score": None,
+                        "status": "PROCESSING",
+                        "last_score_timestamp": None,
+                        "evidence": None,
                     }
-                ),
-                content_type="application/json",
-                HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
-            )
+                ]
+                return client.get(
+                    f"/registry/score/{scorer_community.id}/0x0123",
+                    content_type="application/json",
+                    HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
+                )
 
 
 @then("the binary score should be returned")
 def _(scoreResponse):
     """the binary score should be returned."""
-    assert scoreResponse.json()[0]["score"] == "0E-9"
+    scoreResponseData = scoreResponse.json()
+    print("scoreResponseData", scoreResponseData)
+    assert scoreResponseData["address"] == "0x0123"
+    assert scoreResponseData["status"] == "DONE"
+    assert scoreResponseData["score"] == "0E-9"
+    assert scoreResponseData["evidence"]["type"] == "ThresholdScoreCheck"
+    assert (
+        scoreResponseData["evidence"]["success"] == False
+    )  # TODO: check: why is success false
+
+    last_score_timestamp = datetime.fromisoformat(
+        scoreResponseData["last_score_timestamp"]
+    )
+    assert (
+        datetime.now(timezone.utc) - last_score_timestamp
+    ).seconds < 2  # The timestamp should be recent
 
 
 @then("the raw score should be returned")
 def _(scoreResponse):
     """the raw score should be returned."""
-    assert float(scoreResponse.json()[0]["evidence"][0]["rawScore"]) > 0
+    assert float(scoreResponse.json()["evidence"]["rawScore"]) > 0
 
 
 @then("the threshold should be returned")
 def _(scoreResponse):
     """the threshold should be returned."""
     assert (
-        scoreResponse.json()[0]["evidence"][0]["threshold"] == "21.75812"
+        scoreResponse.json()["evidence"]["threshold"] == "21.75812"
     )  # That is the mocked value
 
 
@@ -110,13 +149,11 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
     with patch(
         "scorer_weighted.computation.calculate_weighted_score",
         return_value=[Decimal("70")],
-    ) as calculate_weighted_score:
+    ):
         with patch(
             "registry.api.get_passport", return_value=mock_passport
         ) as get_passport:
-            with patch(
-                "registry.api.validate_credential", side_effect=[[], []]
-            ) as validate_credential:
+            with patch("registry.api.validate_credential", side_effect=[[], []]):
                 client = Client()
                 return client.post(
                     "/registry/submit-passport",
@@ -155,12 +192,8 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
         "scorer_weighted.computation.calculate_weighted_score",
         return_value=[Decimal("90")],
     ) as calculate_weighted_score:
-        with patch(
-            "registry.api.get_passport", return_value=mock_passport
-        ) as get_passport:
-            with patch(
-                "registry.api.validate_credential", side_effect=[[], []]
-            ) as validate_credential:
+        with patch("registry.api.get_passport", return_value=mock_passport):
+            with patch("registry.api.validate_credential", side_effect=[[], []]):
                 client = Client()
                 return client.post(
                     "/registry/submit-passport",

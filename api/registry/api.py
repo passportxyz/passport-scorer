@@ -53,10 +53,10 @@ class ThresholdScoreEvidenceResponse(ScoreEvidenceResponse):
 class DetailedScoreResponse(Schema):
     # passport_id: int
     address: str
-    score: str
+    score: Optional[str]
     status: Optional[str]
     last_score_timestamp: Optional[str]
-    evidence: Optional[List[ThresholdScoreEvidenceResponse]]
+    evidence: Optional[ThresholdScoreEvidenceResponse]
 
 
 class SimpleScoreResponse(Schema):
@@ -154,7 +154,10 @@ def submit_passport(
             address=score.passport.address,
             score=score.score,
             status=score.status,
-            last_score_timestamp=score.last_score_timestamp,
+            evidence=score.evidence,
+            last_score_timestamp=score.last_score_timestamp.isoformat()
+            if score.last_score_timestamp
+            else None,
         )
     ]
 
@@ -175,7 +178,10 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
             address=score.passport.address,
             score=score.score,
             status=score.status,
-            last_score_timestamp=score.last_score_timestamp,
+            evidence=score.evidence,
+            last_score_timestamp=score.last_score_timestamp.isoformat()
+            if score.last_score_timestamp
+            else None,
         )
     except Exception as e:
         log.error(
