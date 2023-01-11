@@ -504,29 +504,25 @@ class ValidatePassportTestCase(TransactionTestCase):
             "nonce": self.nonce,
         }
 
-        expectedResponse = [
-            {
-                "score": None,
-                "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-                "evidence": None,
-                "last_score_timestamp": None,
-                "score": None,
-                "status": "PROCESSING",
-                "error": None,
-            }
-        ]
+        expectedResponse = {
+            "score": None,
+            "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
+            "evidence": None,
+            "last_score_timestamp": None,
+            "score": None,
+            "status": "PROCESSING",
+            "error": None,
+        }
 
-        expected2ndResponse = [
-            {
-                "score": None,
-                "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-                "evidence": None,
-                "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
-                "score": None,
-                "status": "PROCESSING",
-                "error": None,
-            }
-        ]
+        expected2ndResponse = {
+            "score": None,
+            "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
+            "evidence": None,
+            "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
+            "score": None,
+            "status": "PROCESSING",
+            "error": None,
+        }
 
         # First submission
         response = self.client.post(

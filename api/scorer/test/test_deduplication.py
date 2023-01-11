@@ -95,16 +95,14 @@ def _(
     )
 
     # read the score ...
-    assert submitResponse.json() == [
-        {
-            "address": passport_holder_addresses[1]["address"].lower(),
-            "score": None,
-            "status": "PROCESSING",
-            "last_score_timestamp": None,
-            "evidence": None,
-            "error": None,
-        }
-    ]
+    assert submitResponse.json() == {
+        "address": passport_holder_addresses[1]["address"].lower(),
+        "score": None,
+        "status": "PROCESSING",
+        "last_score_timestamp": None,
+        "evidence": None,
+        "error": None,
+    }
     response = client.get(
         f"/registry/score/{scorer_community_with_gitcoin_default.id}/{passport_holder_addresses[1]['address'].lower()}",
         content_type="application/json",

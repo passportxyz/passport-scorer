@@ -79,16 +79,14 @@ def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
     )
 
     # read the score ...
-    assert submit_response.json() == [
-        {
-            "address": scorer_community_with_gitcoin_default.account.address.lower(),
-            "score": None,
-            "status": "PROCESSING",
-            "last_score_timestamp": None,
-            "evidence": None,
-            "error": None,
-        }
-    ]
+    assert submit_response.json() == {
+        "address": scorer_community_with_gitcoin_default.account.address.lower(),
+        "score": None,
+        "status": "PROCESSING",
+        "last_score_timestamp": None,
+        "evidence": None,
+        "error": None,
+    }
     response = client.get(
         f"/registry/score/{scorer_community_with_gitcoin_default.id}/{scorer_community_with_gitcoin_default.account.address}",
         content_type="application/json",

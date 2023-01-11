@@ -81,16 +81,14 @@ def score_response(scorer_community, scorer_api_key):
                 score_passport(scorer_community.id, "0x0123")
 
                 # read the score ...
-                assert submitResponse.json() == [
-                    {
-                        "address": "0x0123",
-                        "score": None,
-                        "status": "PROCESSING",
-                        "last_score_timestamp": None,
-                        "evidence": None,
-                        "error": None,
-                    }
-                ]
+                assert submitResponse.json() == {
+                    "address": "0x0123",
+                    "score": None,
+                    "status": "PROCESSING",
+                    "last_score_timestamp": None,
+                    "evidence": None,
+                    "error": None,
+                }
                 return client.get(
                     f"/registry/score/{scorer_community.id}/0x0123",
                     content_type="application/json",
@@ -172,16 +170,15 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
             score_passport(scorer_community_with_binary_scorer.id, "0x0123")
 
             # read the score ...
-            assert submitResponse.json() == [
-                {
-                    "address": "0x0123",
-                    "score": None,
-                    "status": "PROCESSING",
-                    "last_score_timestamp": None,
-                    "evidence": None,
-                    "error": None,
-                }
-            ]
+            assert submitResponse.json() == {
+                "address": "0x0123",
+                "score": None,
+                "status": "PROCESSING",
+                "last_score_timestamp": None,
+                "evidence": None,
+                "error": None,
+            }
+
             return client.get(
                 f"/registry/score/{scorer_community_with_binary_scorer.id}/0x0123",
                 content_type="application/json",
@@ -231,16 +228,15 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                 score_passport(scorer_community_with_binary_scorer.id, "0x0123")
 
                 # read the score ...
-                assert submitResponse.json() == [
-                    {
-                        "address": "0x0123",
-                        "score": None,
-                        "status": "PROCESSING",
-                        "last_score_timestamp": None,
-                        "evidence": None,
-                        "error": None,
-                    }
-                ]
+                assert submitResponse.json() == {
+                    "address": "0x0123",
+                    "score": None,
+                    "status": "PROCESSING",
+                    "last_score_timestamp": None,
+                    "evidence": None,
+                    "error": None,
+                }
+
                 return client.get(
                     f"/registry/score/{scorer_community_with_binary_scorer.id}/0x0123",
                     content_type="application/json",

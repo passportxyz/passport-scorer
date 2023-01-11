@@ -96,7 +96,7 @@ def community_requires_signature(_):
     return False
 
 
-@router.post("/submit-passport", auth=ApiKey(), response=List[DetailedScoreResponse])
+@router.post("/submit-passport", auth=ApiKey(), response=DetailedScoreResponse)
 def submit_passport(
     request, payload: SubmitPassportPayload
 ) -> List[DetailedScoreResponse]:
@@ -142,17 +142,15 @@ def submit_passport(
 
     score_passport.delay(user_community.id, payload.address)
 
-    return [
-        DetailedScoreResponse(
-            address=score.passport.address,
-            score=score.score,
-            status=score.status,
-            evidence=score.evidence,
-            last_score_timestamp=score.last_score_timestamp.isoformat()
-            if score.last_score_timestamp
-            else None,
-        )
-    ]
+    return DetailedScoreResponse(
+        address=score.passport.address,
+        score=score.score,
+        status=score.status,
+        evidence=score.evidence,
+        last_score_timestamp=score.last_score_timestamp.isoformat()
+        if score.last_score_timestamp
+        else None,
+    )
 
 
 @router.get(
@@ -204,7 +202,33 @@ def get_scores(
         if address:
             scores = scores.filter(passport__address=address.lower())
 
-        return [{"address": s.passport.address, "score": s.score} for s in scores]
+        return [
+            DetailedScoreResponse(
+                address=score.passport.address,
+                score=score.score,
+                status=score.status,
+                evidence=score.evidence,
+                last_score_timestamp=score.last_score_timestamp.isoformat()
+                if score.last_score_timestamp
+                else None,
+                error=score.error,
+            )
+            for score in scores
+        ]
+        # for score in scores:
+        #     response = DetailedScoreResponse(
+        #         address=score.passport.address,
+        #         score=score.score,
+        #         status=score.status,
+        #         evidence=score.evidence,
+        #         last_score_timestamp=score.last_score_timestamp.isoformat()
+        #         if score.last_score_timestamp
+        #         else None,
+        #         error=score.error,
+        #     )
+        #     import pdb; pdb.set_trace()
+        #     return response
+        # return [{"address": s.passport.address, "score": s.score} for s in scores]
     except Exception as e:
         log.error(
             "Error getting passport scores. community_id=%s",
