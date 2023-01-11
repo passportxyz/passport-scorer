@@ -3,22 +3,14 @@ from decimal import Decimal
 from typing import List, Optional
 
 # --- Deduplication Modules
-from account.deduplication.lifo import lifo
 from account.models import AccountAPIKey, Community, Nonce
-from asgiref.sync import async_to_sync
 from django.shortcuts import get_object_or_404
 from ninja import Field, Query, Router
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
 from ninja_schema import Schema
-from reader.passport_reader import get_did, get_passport
-from registry.models import Passport, Score, Stamp
-from registry.utils import (
-    get_signer,
-    get_signing_message,
-    validate_credential,
-    verify_issuer,
-)
+from registry.models import Passport, Score
+from registry.utils import get_signer, get_signing_message
 
 from .exceptions import (
     InvalidNonceException,

@@ -59,8 +59,8 @@ def _(api_key_response):
 def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
     """I can use that key to call the API."""
 
-    mocker.patch("registry.api.get_passport", return_value=mock_passport)
-    mocker.patch("registry.api.validate_credential", side_effect=[[], []])
+    mocker.patch("registry.tasks.get_passport", return_value=mock_passport)
+    mocker.patch("registry.tasks.validate_credential", side_effect=[[], []])
     client = Client()
 
     my_mnemonic = (
