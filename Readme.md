@@ -32,6 +32,9 @@ Start the dev server:
 - `gunicorn -w 4 -k uvicorn.workers.UvicornWorker scorer.asgi:application`
 - or `uvicorn scorer.asgi:application --reload`
 
+Start the celery worker:
+- `celery -A scorer worker -l DEBUG`
+
 ##Testing
 ### API
 
