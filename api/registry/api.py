@@ -13,8 +13,8 @@ from registry.models import Passport, Score
 from registry.utils import get_signer, get_signing_message
 
 from .exceptions import (
+    InvalidCommunityScoreRequestException,
     InvalidNonceException,
-    InvalidScoreRequestException,
     InvalidSignerException,
     Unauthorized,
 )

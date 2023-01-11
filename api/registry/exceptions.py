@@ -30,3 +30,8 @@ class NoPassportException(APIException):
 class Unauthorized(APIException):
     status_code = status.HTTP_401_UNAUTHORIZED
     default_detail = "Invalid API Key."
+
+
+class InvalidCommunityScoreRequestException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Unable to get score for provided community."
