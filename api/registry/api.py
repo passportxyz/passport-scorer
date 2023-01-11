@@ -283,7 +283,9 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
     "/scores/{int:community_id}", auth=ApiKey(), response=List[DetailedScoreResponse]
 )
 @paginate()
-def get_scores(request, community_id: int, **kwargs) -> List[DetailedScoreResponse]:
+def get_scores(
+    request, community_id: int, address: str = ""
+) -> List[DetailedScoreResponse]:
     try:
         # Get community object
         user_community = get_object_or_404(
@@ -291,6 +293,9 @@ def get_scores(request, community_id: int, **kwargs) -> List[DetailedScoreRespon
         )
 
         scores = Score.objects.filter(passport__community__id=user_community.id)
+
+        if address:
+            scores = scores.filter(passport__address=address.lower())
 
         return [{"address": s.passport.address, "score": s.score} for s in scores]
     except Exception as e:

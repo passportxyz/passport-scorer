@@ -10,6 +10,9 @@ web3.eth.account.enable_unaudited_hdwallet_features()
 # TODO: Load from fixture file
 pytestmark = pytest.mark.django_db
 
+offset = 2
+limit = 4
+
 
 @pytest.fixture
 def scorer_account(scorer_user):
@@ -52,6 +55,25 @@ def scorer_score(scorer_passport):
         score="0.650000000",
     )
     return stamp
+
+
+@pytest.fixture
+def paginated_scores(scorer_passport, passport_holder_addresses, scorer_community):
+    scores = []
+    for holder in passport_holder_addresses:
+        passport = Passport.objects.create(
+            address=holder["address"],
+            community=scorer_community,
+            passport={"name": "John Doe"},
+        )
+
+        score = Score.objects.create(
+            passport=passport,
+            score="1",
+        )
+
+        scores.append(score)
+    return scores
 
 
 class TestPassportGetScore:
@@ -134,21 +156,8 @@ class TestPassportGetScore:
         scorer_account,
         passport_holder_addresses,
         scorer_community,
+        paginated_scores,
     ):
-        for holder in passport_holder_addresses:
-            passport = Passport.objects.create(
-                address=holder["address"],
-                community=scorer_community,
-                passport={"name": "John Doe"},
-            )
-
-            Score.objects.create(
-                passport=passport,
-                score="1",
-            )
-
-        offset = 2
-        limit = 4
         address = scorer_account.address
         client = Client()
         response = client.get(
@@ -158,20 +167,14 @@ class TestPassportGetScore:
         response_data = response.json()
 
         assert response.status_code == 200
-        assert (
-            response_data["items"][0]["address"]
-            == passport_holder_addresses[offset]["address"].lower()
-        )
-        assert (
-            response_data["items"][1]["address"]
-            == passport_holder_addresses[offset + 1]["address"].lower()
-        )
-        assert (
-            response_data["items"][2]["address"]
-            == passport_holder_addresses[offset + 2]["address"].lower()
-        )
 
-    def test_get_scores_request_throws_404_for_invalid_community(self, scorer_api_key):
+        for i in range(0, 2):
+            assert (
+                response_data["items"][i]["address"]
+                == passport_holder_addresses[offset + i]["address"].lower()
+            )
+
+    def test_get_scores_request_throws_400_for_invalid_community(self, scorer_api_key):
         client = Client()
         response = client.get(
             f"/registry/scores/3",
@@ -181,3 +184,23 @@ class TestPassportGetScore:
         assert response.json() == {
             "detail": "Unable to get score for provided community.",
         }
+
+    def test_get_single_score_for_address(
+        self,
+        scorer_api_key,
+        scorer_account,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        client = Client()
+        response = client.get(
+            f"/registry/scores/{scorer_community.id}?address={passport_holder_addresses[0]['address']}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+
+        assert (
+            response.json()["items"][0]["address"]
+            == passport_holder_addresses[0]["address"].lower()
+        )
