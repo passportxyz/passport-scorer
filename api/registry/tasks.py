@@ -19,6 +19,10 @@ from .exceptions import InvalidPassportCreationException, NoPassportException
 log = logging.getLogger(__name__)
 
 
+def get_utc_time():
+    return datetime.utcnow()
+
+
 @shared_task
 def score_passport(community_id: int, address: str):
     log.debug(
@@ -32,10 +36,8 @@ def score_passport(community_id: int, address: str):
     log.debug("score_passport loaded passport=%s", passport)
 
     try:
-        print("")
-        if not passport:
-            raise NoPassportException()
-
+        log.debug("passport loaded for address %s is %s", address, passport)
+        # TODO: do not throw, but manage the empty passport
         user_community = Community.objects.get(pk=community_id)
 
         log.debug("deduplicating ...")
@@ -50,6 +52,22 @@ def score_passport(community_id: int, address: str):
                 "passport": passport_to_be_saved,
             },
         )
+
+        if not passport:
+            # If not passport was retreived, just mark this as an error and return
+            # raise NoPassportException()
+            score, _ = Score.objects.update_or_create(
+                passport_id=db_passport.id,
+                defaults=dict(
+                    score=None,
+                    status=Score.Status.ERROR,
+                    last_score_timestamp=None,
+                    evidence=None,
+                    error="Error scoring passport",
+                ),
+            )
+            # return from the task, there is nothing to process
+            return
 
         log.debug("validating stamps")
         for stamp in passport_to_be_saved["stamps"]:
@@ -104,7 +122,7 @@ def score_passport(community_id: int, address: str):
             defaults=dict(
                 score=scoreData.score,
                 status=Score.Status.DONE,
-                last_score_timestamp=datetime.utcnow(),
+                last_score_timestamp=get_utc_time(),
                 # TODO: check: does scoreData.evidence need to be an array?
                 evidence=scoreData.evidence[0].as_dict()
                 if scoreData.evidence
@@ -118,4 +136,14 @@ def score_passport(community_id: int, address: str):
             address,
             exc_info=True,
         )
-        raise InvalidPassportCreationException() from e
+        # raise InvalidPassportCreationException() from e
+        score, _ = Score.objects.update_or_create(
+            passport_id=db_passport.id,
+            defaults=dict(
+                score=scoreData.score,
+                status=Score.Status.ERROR,
+                last_score_timestamp=None,
+                evidence=None,
+                error="Error scoring passport",
+            ),
+        )

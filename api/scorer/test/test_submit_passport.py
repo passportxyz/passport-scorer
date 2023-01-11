@@ -86,6 +86,7 @@ def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
             "status": "PROCESSING",
             "last_score_timestamp": None,
             "evidence": None,
+            "error": None,
         }
     ]
     response = client.get(

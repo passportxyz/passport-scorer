@@ -49,6 +49,7 @@ class DetailedScoreResponse(Schema):
     status: Optional[str]
     last_score_timestamp: Optional[str]
     evidence: Optional[ThresholdScoreEvidenceResponse]
+    error: Optional[str]
 
 
 class SimpleScoreResponse(Schema):
@@ -174,6 +175,7 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
             last_score_timestamp=score.last_score_timestamp.isoformat()
             if score.last_score_timestamp
             else None,
+            error=score.error,
         )
     except Exception as e:
         log.error(

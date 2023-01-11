@@ -102,6 +102,7 @@ def _(
             "status": "PROCESSING",
             "last_score_timestamp": None,
             "evidence": None,
+            "error": None,
         }
     ]
     response = client.get(

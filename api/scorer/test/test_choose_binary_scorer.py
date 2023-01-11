@@ -88,6 +88,7 @@ def score_response(scorer_community, scorer_api_key):
                         "status": "PROCESSING",
                         "last_score_timestamp": None,
                         "evidence": None,
+                        "error": None,
                     }
                 ]
                 return client.get(
@@ -178,6 +179,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                     "status": "PROCESSING",
                     "last_score_timestamp": None,
                     "evidence": None,
+                    "error": None,
                 }
             ]
             return client.get(
@@ -236,6 +238,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                         "status": "PROCESSING",
                         "last_score_timestamp": None,
                         "evidence": None,
+                        "error": None,
                     }
                 ]
                 return client.get(

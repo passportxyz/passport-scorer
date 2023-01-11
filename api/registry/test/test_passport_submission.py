@@ -452,22 +452,46 @@ class ValidatePassportTestCase(TransactionTestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             **{
-                "content_type": "application/tson",
+                "content_type": "application/json",
                 "HTTP_AUTHORIZATION": f"Token {self.secret}",
             },
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
+
+        # TODO: check that task was triggered
+        # Trigger the task
+        score_passport(self.community.id, self.account.address)
 
         # Check if the passport data was saved to the database (data that we mock)
+        # We do expect an empty passport to have been stored
         all_passports = list(Passport.objects.all())
-        self.assertEqual(len(all_passports), 0)
+        self.assertEqual(len(all_passports), 1)
+        self.assertEqual(all_passports[0].passport, {"stamps": []})
+
+        response = self.client.get(
+            f"/registry/score/{self.community.id}/{self.account.address}",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "address": self.account.address.lower(),
+            "score": None,
+            "evidence": None,
+            "last_score_timestamp": None,
+            "status": "ERROR",
+            "error": "Error scoring passport",
+        }
 
     @patch("registry.tasks.validate_credential", side_effect=[[], [], [], []])
     @patch(
         "registry.tasks.get_passport",
         side_effect=[copy.deepcopy(mock_passport), copy.deepcopy(mock_passport)],
     )
-    def test_submit_passport_multiple_times(self, get_passport, validate_credential):
+    @patch(
+        "registry.tasks.get_utc_time",
+        return_value=datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00"),
+    )
+    def test_submit_passport_multiple_times(self, _, get_passport, validate_credential):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
         # get_passport.return_value = mock_passport
 
@@ -482,9 +506,25 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         expectedResponse = [
             {
-                "score": "2.000000000",
+                "score": None,
                 "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
                 "evidence": None,
+                "last_score_timestamp": None,
+                "score": None,
+                "status": "PROCESSING",
+                "error": None,
+            }
+        ]
+
+        expected2ndResponse = [
+            {
+                "score": None,
+                "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
+                "evidence": None,
+                "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
+                "score": None,
+                "status": "PROCESSING",
+                "error": None,
             }
         ]
 
@@ -534,7 +574,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            expectedResponse,
+            expected2ndResponse,
         )
 
         # TODO: check that task was triggered
@@ -614,6 +654,10 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
+        # TODO: check that task was triggered
+        # Trigger the task
+        score_passport(self.community.id, self.account.address)
+
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
@@ -657,6 +701,10 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
+        # TODO: check that task was triggered
+        # Trigger the task
+        score_passport(self.community.id, self.account.address)
+
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
@@ -699,6 +747,10 @@ class ValidatePassportTestCase(TransactionTestCase):
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
+
+        # TODO: check that task was triggered
+        # Trigger the task
+        score_passport(self.community.id, self.account.address)
 
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
