@@ -70,7 +70,6 @@ class TestPassportGetScore:
         assert response.json() == {
             "address": address.lower(),
             "score": scorer_score.score,
-            "error": None,
         }
 
     # TODO: Create test authorization separately

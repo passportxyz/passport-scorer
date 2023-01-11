@@ -150,5 +150,4 @@ def _(scorer_community_with_gitcoin_default, scorer_api_key):
     assert response.json() == {
         "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
         "score": "1001234.000000000",
-        "error": None,
     }

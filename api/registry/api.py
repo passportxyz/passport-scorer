@@ -258,7 +258,7 @@ def submit_passport(
     auth=ApiKey(),
     response=SimpleScoreResponse,
 )
-def get_score(request, address: str, community_id: int) -> SimpleScoreResponse:
+def get_score(request, address: str, community_id: int) -> DetailedScoreResponse:
     try:
         score = Score.objects.get(
             passport__address=address, passport__community__id=community_id
@@ -279,16 +279,18 @@ def get_score(request, address: str, community_id: int) -> SimpleScoreResponse:
         raise InvalidScoreRequestException()
 
 
-@router.get("/scores/{int:community_id}", auth=ApiKey(), response=List[ScoreResponse])
+@router.get(
+    "/scores/{int:community_id}", auth=ApiKey(), response=List[DetailedScoreResponse]
+)
 @paginate()
-def get_scores(request, community_id: int, **kwargs) -> List[ScoreResponse]:
+def get_scores(request, community_id: int, **kwargs) -> List[DetailedScoreResponse]:
     try:
         # Get community object
         user_community = get_object_or_404(
             Community, id=community_id, account=request.auth
         )
 
-        scores = Score.objects.filter(passport__community__id=community_id)
+        scores = Score.objects.filter(passport__community__id=user_community.id)
 
         return [{"address": s.passport.address, "score": s.score} for s in scores]
     except Exception as e:
