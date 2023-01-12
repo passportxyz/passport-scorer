@@ -62,7 +62,8 @@
     <script>
       let communityId, apiKey;
 
-      const endpoint = "https://api.scorer.gitcoin.co";
+      // const endpoint = "https://api.scorer.gitcoin.co";
+      const endpoint = "https://api.scorer.dpopp.gitcoin.co";
       // const endpoint = "http://127.0.0.1:8000";
       const ethereumButton = document.querySelector(".enableEthereumButton");
       const submitForScoringButton = document.querySelector(
@@ -89,6 +90,9 @@
         connectionInfoDiv.innerHTML = "Your address is: " + account;
       });
 
+      /////////////////////////////////////////////////////////////////////
+      // Scoring when signature is not required
+      /////////////////////////////////////////////////////////////////////
       submitForScoringWithoutSignatureButton.addEventListener("click", async () => {
         passportScoreWithoutSignatureDisplay.innerHTML = "Calculating your score ..."
         const communityId = document.querySelector("#communityId").value;
@@ -109,10 +113,34 @@
             }
           );
 
-          score = response.data[0].score;
+          const score = response.data;
+          console.log("Response: ", response.data)
 
           if (score) {
-            passportScoreWithoutSignatureDisplay.innerHTML = "Your score is: " + score;
+            passportScoreWithoutSignatureDisplay.innerHTML = `${new Date()} <br>Your score status: ${score.status} ${score.status == "DONE"? "- your score is:" + score.score:""}`;
+
+            async function updateScore() {
+              const response = await axios.get(
+                endpoint + `/registry/score/${communityId}/${account}`,
+                {
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${apiKey}`,
+                  },
+                }
+              );
+
+              const score = response.data;
+              console.log("Response: ", response.data)
+
+              passportScoreWithoutSignatureDisplay.innerHTML = `${new Date()} <br>Your score status: ${score.status} ${score.status == "DONE"? "- your score is:" + score.score:""}`;
+              if(score.status != "DONE") {
+                // Stop updating the score
+                setTimeout(updateScore, 1000);
+              }
+            }
+
+            setTimeout(updateScore, 1000);
           }
         } catch (e) {
           if (e.response.data.detail == "No Passport found for this address.") {
