@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
 from eth_account.messages import encode_defunct
 from registry.models import Passport, Stamp
+from registry.tasks import score_passport
 from registry.utils import get_signer, get_signing_message, verify_issuer
 from web3 import Web3
 
@@ -328,22 +329,23 @@ class ValidatePassportTestCase(TransactionTestCase):
         signer = get_signer(self.nonce_2, signature)
         self.assertNotEqual(signer, self.account.address)
 
-    def test_invalid_address_throws_exception(self):
-        payload = {
-            "address": "0x0",
-            "community": self.community.id,
-        }
+    # TODO: this should be checked in score_passport
+    # def test_invalid_address_throws_exception(self):
+    #     payload = {
+    #         "address": "0x0",
+    #         "community": self.community.id,
+    #     }
 
-        response = self.client.post(
-            "/registry/submit-passport",
-            json.dumps(payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=f"Token {self.secret}",
-        )
-        self.assertEqual(response.status_code, 404)
+    #     response = self.client.post(
+    #         "/registry/submit-passport",
+    #         json.dumps(payload),
+    #         content_type="application/json",
+    #         HTTP_AUTHORIZATION=f"Token {self.secret}",
+    #     )
+    #     self.assertEqual(response.status_code, 404)
 
-    @patch("registry.api.validate_credential", side_effect=[[], []])
-    @patch("registry.api.get_passport", return_value=mock_passport)
+    @patch("registry.tasks.validate_credential", side_effect=[[], []])
+    @patch("registry.tasks.get_passport", return_value=mock_passport)
     def test_signature_not_needed_by_default(self, get_passport, validate_credential):
         payload = {
             "community": self.community.id,
@@ -364,8 +366,8 @@ class ValidatePassportTestCase(TransactionTestCase):
         valid = verify_issuer(mock_passport["stamps"][1])
         self.assertEqual(valid, True)
 
-    @patch("registry.api.validate_credential", side_effect=[[], []])
-    @patch("registry.api.get_passport", return_value=mock_passport)
+    @patch("registry.tasks.validate_credential", side_effect=[[], []])
+    @patch("registry.tasks.get_passport", return_value=mock_passport)
     def test_submit_passport(self, get_passport, validate_credential):
         # get_passport.return_value = mock_passport
 
@@ -388,6 +390,10 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
+        # TODO: check that task was triggered
+        # Trigger the task
+        score_passport(self.community.id, self.account.address)
+
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
@@ -404,8 +410,8 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    @patch("registry.api.validate_credential", side_effect=[[], []])
-    @patch("registry.api.get_passport", return_value=mock_passport)
+    @patch("registry.tasks.validate_credential", side_effect=[[], []])
+    @patch("registry.tasks.get_passport", return_value=mock_passport)
     def test_submit_passport_reused_nonce(self, get_passport, validate_credential):
         """Test that submitting a reused nonce results in rejection"""
 
@@ -431,8 +437,8 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(response.json(), {"detail": "Invalid nonce."})
         self.assertEqual(response.status_code, 400)
 
-    @patch("registry.api.validate_credential", side_effect=[[], []])
-    @patch("registry.api.get_passport", return_value={})
+    @patch("registry.tasks.validate_credential", side_effect=[[], []])
+    @patch("registry.tasks.get_passport", return_value={})
     def test_submitting_without_passport(self, get_passport, validate_credential):
 
         payload = {
@@ -446,22 +452,46 @@ class ValidatePassportTestCase(TransactionTestCase):
             "/registry/submit-passport",
             json.dumps(payload),
             **{
-                "content_type": "application/tson",
+                "content_type": "application/json",
                 "HTTP_AUTHORIZATION": f"Token {self.secret}",
             },
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
+
+        # TODO: check that task was triggered
+        # Trigger the task
+        score_passport(self.community.id, self.account.address)
 
         # Check if the passport data was saved to the database (data that we mock)
+        # We do expect an empty passport to have been stored
         all_passports = list(Passport.objects.all())
-        self.assertEqual(len(all_passports), 0)
+        self.assertEqual(len(all_passports), 1)
+        self.assertEqual(all_passports[0].passport, {"stamps": []})
 
-    @patch("registry.api.validate_credential", side_effect=[[], [], [], []])
+        response = self.client.get(
+            f"/registry/score/{self.community.id}/{self.account.address}",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "address": self.account.address.lower(),
+            "score": None,
+            "evidence": None,
+            "last_score_timestamp": None,
+            "status": "ERROR",
+            "error": "Error scoring passport",
+        }
+
+    @patch("registry.tasks.validate_credential", side_effect=[[], [], [], []])
     @patch(
-        "registry.api.get_passport",
+        "registry.tasks.get_passport",
         side_effect=[copy.deepcopy(mock_passport), copy.deepcopy(mock_passport)],
     )
-    def test_submit_passport_multiple_times(self, get_passport, validate_credential):
+    @patch(
+        "registry.tasks.get_utc_time",
+        return_value=datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00"),
+    )
+    def test_submit_passport_multiple_times(self, _, get_passport, validate_credential):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
         # get_passport.return_value = mock_passport
 
@@ -474,13 +504,25 @@ class ValidatePassportTestCase(TransactionTestCase):
             "nonce": self.nonce,
         }
 
-        expectedResponse = [
-            {
-                "score": "2.000000000",
-                "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-                "evidence": None,
-            }
-        ]
+        expectedResponse = {
+            "score": None,
+            "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
+            "evidence": None,
+            "last_score_timestamp": None,
+            "score": None,
+            "status": "PROCESSING",
+            "error": None,
+        }
+
+        expected2ndResponse = {
+            "score": None,
+            "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
+            "evidence": None,
+            "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
+            "score": None,
+            "status": "PROCESSING",
+            "error": None,
+        }
 
         # First submission
         response = self.client.post(
@@ -496,6 +538,10 @@ class ValidatePassportTestCase(TransactionTestCase):
             response.json(),
             expectedResponse,
         )
+
+        # TODO: check that task was triggered
+        # Trigger the task
+        score_passport(self.community.id, self.account.address)
 
         # 2nd submission
         # Get another nonce (nonces can only be used once)
@@ -524,8 +570,12 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            expectedResponse,
+            expected2ndResponse,
         )
+
+        # TODO: check that task was triggered
+        # Trigger the task
+        score_passport(self.community.id, self.account.address)
 
         # Check that the stamps have only been recorded once
         # Check if the passport data was saved to the database (data that we mock)
@@ -545,7 +595,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    @patch("registry.api.get_passport", return_value=mock_passport)
+    @patch("registry.tasks.get_passport", return_value=mock_passport)
     def test_submit_passport_missing_community(self, get_passport):
         """
         Make sure that the community is required when submitting eth address
@@ -571,11 +621,11 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(len(all_passports), 0)
 
     @patch(
-        "registry.api.validate_credential",
+        "registry.tasks.validate_credential",
         side_effect=[[], [], ["Stamp validation failed: invalid date"]],
     )
     @patch(
-        "registry.api.get_passport",
+        "registry.tasks.get_passport",
         return_value=mock_passport_with_corrupted_stamp,
     )
     def test_submit_passport_with_invalid_stamp(
@@ -600,6 +650,10 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
+        # TODO: check that task was triggered
+        # Trigger the task
+        score_passport(self.community.id, self.account.address)
+
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
@@ -616,9 +670,9 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    @patch("registry.api.validate_credential", side_effect=[[], [], []])
+    @patch("registry.tasks.validate_credential", side_effect=[[], [], []])
     @patch(
-        "registry.api.get_passport",
+        "registry.tasks.get_passport",
         return_value=mock_passport_with_expired_stamp,
     )
     def test_submit_passport_with_expired_stamps(
@@ -643,6 +697,10 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
+        # TODO: check that task was triggered
+        # Trigger the task
+        score_passport(self.community.id, self.account.address)
+
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
@@ -659,9 +717,9 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    @patch("registry.api.validate_credential", side_effect=[[], [], []])
+    @patch("registry.tasks.validate_credential", side_effect=[[], [], []])
     @patch(
-        "registry.api.get_passport",
+        "registry.tasks.get_passport",
         return_value=mock_passport,
     )
     def test_that_community_is_associated_with_passport(
@@ -686,6 +744,10 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
+        # TODO: check that task was triggered
+        # Trigger the task
+        score_passport(self.community.id, self.account.address)
+
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
@@ -694,7 +756,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(all_passports[0].community, self.community)
 
     @patch(
-        "registry.api.get_passport",
+        "registry.tasks.get_passport",
         return_value=mock_passport,
     )
     def test_that_only_owned_communities_can_submit_passport(self, get_passport):
@@ -717,9 +779,9 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 404)
 
-    @patch("registry.api.validate_credential", side_effect=[[], []])
+    @patch("registry.tasks.validate_credential", side_effect=[[], []])
     @patch(
-        "registry.api.get_passport",
+        "registry.tasks.get_passport",
         return_value=mock_passport_google,
     )
     def test_lifo_deduplication_duplicate_stamps(
@@ -767,6 +829,10 @@ class ValidatePassportTestCase(TransactionTestCase):
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
+
+        # TODO: check that task was triggered
+        # Trigger the task
+        score_passport(self.community.id, self.mock_account.address)
 
         self.assertEqual(submission_response.status_code, 200)
 

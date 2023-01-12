@@ -22,6 +22,7 @@ web3 = "*"
 siwe = "*"
 psycopg2-binary = "*"
 djangorestframework-api-key = "==2.*"
+celery = {extras = ["redis"], version = "*"}
 
 [dev-packages]
 black = "*"

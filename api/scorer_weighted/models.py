@@ -21,6 +21,14 @@ class ThresholdScoreEvidence:
         self.rawScore = rawScore
         self.threshold = threshold
 
+    def as_dict(self):
+        return {
+            "type": self.type,
+            "success": self.success,
+            "rawScore": str(self.rawScore),
+            "threshold": str(self.threshold),
+        }
+
 
 class ScoreData:
     # do multiple evidence types like:

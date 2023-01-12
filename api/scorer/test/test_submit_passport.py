@@ -8,6 +8,7 @@ from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when
 from registry.models import Passport
+from registry.tasks import score_passport
 from registry.test.test_passport_submission import mock_passport
 from registry.utils import get_signing_message
 from web3 import Web3
@@ -33,13 +34,13 @@ def _(scorer_community_with_gitcoin_default):
 
 @when(
     "I call the submit-passport API for an Ethereum account under that community ID",
-    target_fixture="submit_passport_response",
+    target_fixture="score_response",
 )
 def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
     """I call the submit-passport API for an Ethereum account under that community ID."""
 
-    mocker.patch("registry.api.get_passport", return_value=mock_passport)
-    mocker.patch("registry.api.validate_credential", side_effect=[[], []])
+    mocker.patch("registry.tasks.get_passport", return_value=mock_passport)
+    mocker.patch("registry.tasks.validate_credential", side_effect=[[], []])
     client = Client()
 
     my_mnemonic = (
@@ -64,11 +65,32 @@ def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
         "nonce": nonce,
     }
 
-    response = client.post(
+    submit_response = client.post(
         "/registry/submit-passport",
         json.dumps(payload),
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
+    )
+
+    # execute the task
+    score_passport(
+        scorer_community_with_gitcoin_default.id,
+        scorer_community_with_gitcoin_default.account.address,
+    )
+
+    # read the score ...
+    assert submit_response.json() == {
+        "address": scorer_community_with_gitcoin_default.account.address.lower(),
+        "score": None,
+        "status": "PROCESSING",
+        "last_score_timestamp": None,
+        "evidence": None,
+        "error": None,
+    }
+    response = client.get(
+        f"/registry/score/{scorer_community_with_gitcoin_default.id}/{scorer_community_with_gitcoin_default.account.address}",
+        content_type="application/json",
+        HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
     )
 
     return response
@@ -77,9 +99,9 @@ def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
 @then(
     "the API logs all of the valid Passport data points (VCs), namely the complete JSON, mapped to that Passport holder within the respective community ID directory"
 )
-def _(scorer_community_with_gitcoin_default, submit_passport_response):
+def _(scorer_community_with_gitcoin_default, score_response):
     """the API logs all of the valid Passport data points (VCs), namely the complete JSON, mapped to that Passport holder within the respective community ID directory."""
-    assert submit_passport_response.status_code == 200
+    assert score_response.status_code == 200
 
     assert len(Passport.objects.all()) == 1
     passport = Passport.objects.all()[0]
@@ -118,17 +140,18 @@ def _(scorer_community_with_gitcoin_default):
 @then(
     "I want to get a score based on the Gitcoin Community Score and deduplication rules (see default deduplication settings here)"
 )
-def _(submit_passport_response):
+def _(score_response):
     """I want to get a score based on the Gitcoin Community Score and deduplication rules (see default deduplication settings here)."""
 
-    assert submit_passport_response.status_code == 200
-    assert submit_passport_response.json() == [
-        {
-            "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-            "score": "1001234.000000000",
-            "evidence": None,
-        }
-    ]
+    assert score_response.status_code == 200
+    score_response_data = score_response.json()
+    assert (
+        score_response_data["address"] == "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c"
+    )
+    assert score_response_data["score"] == "1001234.000000000"
+    assert score_response_data["evidence"] == None
+    assert score_response_data["status"] == "DONE"
+    # assert score_response_data["last_score_timestamp"] == None    # TODO check that timestamp is recent
 
 
 @then(
@@ -138,17 +161,18 @@ def _(scorer_community_with_gitcoin_default, scorer_api_key):
     """log the score associated with this Passport under the corresponding community ID."""
     client = Client()
 
-    response = client.get(
-        f"/registry/score/{scorer_community_with_gitcoin_default.id}?address={scorer_community_with_gitcoin_default.account.address}",
+    score_response = client.get(
+        f"/registry/score/{scorer_community_with_gitcoin_default.id}/{scorer_community_with_gitcoin_default.account.address}",
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
     )
 
-    print("*" * 80)
-    print(response.json())
-    assert response.status_code == 200
-    assert response.json()["items"][0] == {
-        "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-        "score": "1001234.000000000",
-        "evidence": None,
-    }
+    # TODO: This checks essentially the same thing as previous step. Logic of the test scnario might need a rework
+    score_response_data = score_response.json()
+    assert (
+        score_response_data["address"] == "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c"
+    )
+    assert score_response_data["score"] == "1001234.000000000"
+    assert score_response_data["evidence"] == None
+    assert score_response_data["status"] == "DONE"
+    # assert score_response_data["last_score_timestamp"] == None    # TODO check that timestamp is recent

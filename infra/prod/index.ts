@@ -72,24 +72,75 @@ const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
 });
 
 // TODO: enable delete protection for the DB
-const postgresql = new aws.rds.Instance(`scorer-db`, {
-  allocatedStorage: 10,
-  engine: "postgres",
-  // engineVersion: "5.7",
-  instanceClass: "db.t3.micro",
-  dbName: dbName,
-  password: dbPassword,
-  username: dbUsername,
-  skipFinalSnapshot: true,
-  dbSubnetGroupName: dbSubnetGroup.id,
-  vpcSecurityGroupIds: [db_secgrp.id],
-  protect: true,
-});
+const postgresql = new aws.rds.Instance(
+  `scorer-db`,
+  {
+    allocatedStorage: 10,
+    engine: "postgres",
+    // engineVersion: "5.7",
+    instanceClass: "db.t3.micro",
+    dbName: dbName,
+    password: dbPassword,
+    username: dbUsername,
+    skipFinalSnapshot: true,
+    dbSubnetGroupName: dbSubnetGroup.id,
+    vpcSecurityGroupIds: [db_secgrp.id],
+  },
+  { protect: true }
+);
 
 export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
-export const rdsConnectionUrl = pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`;
+export const rdsConnectionUrl = pulumi.secret(
+  pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
+);
 export const rdsId = postgresql.id;
+
+//////////////////////////////////////////////////////////////
+// Set up Redis
+//////////////////////////////////////////////////////////////
+
+const redisSubnetGroup = new aws.elasticache.SubnetGroup(
+  "scorer-redis-subnet",
+  {
+    subnetIds: vpcPrivateSubnetIds,
+  }
+);
+
+const secgrp_redis = new aws.ec2.SecurityGroup("scorer-redis-secgrp", {
+  description: "scorer",
+  vpcId: vpc.id,
+  ingress: [
+    {
+      protocol: "tcp",
+      fromPort: 6379,
+      toPort: 6379,
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+  egress: [
+    {
+      protocol: "-1",
+      fromPort: 0,
+      toPort: 0,
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+});
+
+const redis = new aws.elasticache.Cluster("scorer-redis", {
+  engine: "redis",
+  engineVersion: "4.0.10",
+  nodeType: "cache.m5.large",
+  numCacheNodes: 1,
+  port: 6379,
+  subnetGroupName: redisSubnetGroup.name,
+  securityGroupIds: [secgrp_redis.id],
+});
+
+export const redisPrimaryNode = redis.cacheNodes[0];
+// export const redisConnectionUrl = pulumi.interpolate`rediscache://${redisPrimaryNode.address}:${redisPrimaryNode.port}/0?client_class=django_redis.client.DefaultClient`
+export const redisCacheOpsConnectionUrl = pulumi.interpolate`redis://${redisPrimaryNode.address}:${redisPrimaryNode.port}/0`;
 
 //////////////////////////////////////////////////////////////
 // Set up ALB and ECS cluster
@@ -172,7 +223,6 @@ const www = new aws.route53.Record("scorer", {
   ],
 });
 
-
 const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
   assumeRolePolicy: JSON.stringify({
     Version: "2012-10-17",
@@ -251,6 +301,10 @@ const environment = [
     name: "CSRF_TRUSTED_ORIGINS",
     value: JSON.stringify([`https://${domain}`]),
   },
+  {
+    name: "CELERY_BROKER_URL",
+    value: redisCacheOpsConnectionUrl,
+  },
 ];
 
 //////////////////////////////////////////////////////////////
@@ -283,6 +337,86 @@ const service = new awsx.ecs.FargateService("scorer", {
         linuxParameters: {
           initProcessEnabled: true,
         },
+      },
+    },
+  },
+});
+
+//////////////////////////////////////////////////////////////
+// Set up the Celery Worker Secrvice
+//////////////////////////////////////////////////////////////
+const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
+  assumeRolePolicy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Action: "sts:AssumeRole",
+        Effect: "Allow",
+        Sid: "",
+        Principal: {
+          Service: "ecs-tasks.amazonaws.com",
+        },
+      },
+    ],
+  }),
+  inlinePolicies: [
+    {
+      name: "allow_exec",
+      policy: JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Action: [
+              "ssmmessages:CreateControlChannel",
+              "ssmmessages:CreateDataChannel",
+              "ssmmessages:OpenControlChannel",
+              "ssmmessages:OpenDataChannel",
+            ],
+            Resource: "*",
+          },
+        ],
+      }),
+    },
+    {
+      name: "allow_iam_secrets_access",
+      policy: JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Action: ["secretsmanager:GetSecretValue"],
+            Effect: "Allow",
+            Resource: SCORER_SERVER_SSM_ARN,
+          },
+        ],
+      }),
+    },
+  ],
+  managedPolicyArns: [
+    "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+  ],
+  tags: {
+    dpopp: "",
+  },
+});
+
+const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
+  cluster,
+  desiredCount: 3,
+  subnets: vpc.privateSubnetIds,
+  taskDefinitionArgs: {
+    executionRole: workerRole,
+    containers: {
+      worker1: {
+        image: dockerGtcPassportScorerImage,
+        command: ["celery", "-A", "scorer", "worker", "-l", "DEBUG"],
+        memory: 4096,
+        cpu: 2000,
+        portMappings: [],
+        secrets: secrets,
+        environment: environment,
+        dependsOn: [],
+        links: [],
       },
     },
   },
@@ -385,14 +519,14 @@ export const securityGroupForTaskDefinition = secgrp.id;
 const ubuntu = aws.ec2.getAmi({
   mostRecent: true,
   filters: [
-      {
-          name: "name",
-          values: ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"],
-      },
-      {
-          name: "virtualization-type",
-          values: ["hvm"],
-      },
+    {
+      name: "name",
+      values: ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"],
+    },
+    {
+      name: "virtualization-type",
+      values: ["hvm"],
+    },
   ],
   owners: ["099720109477"],
 });
@@ -426,22 +560,25 @@ apt-get install -y docker-ce docker-ce-cli containerd.io awscli
 mkdir /var/log/gitcoin
 echo $(date) "Finished installation of docker" >> /var/log/gitcoin/init.log
 
-`
+`;
 
 const web = new aws.ec2.Instance("Web", {
-  ami: ubuntu.then(ubuntu => ubuntu.id),
+  ami: ubuntu.then((ubuntu) => ubuntu.id),
   associatePublicIpAddress: true,
   instanceType: "t3.medium",
   subnetId: vpcPublicSubnetId1.then(),
 
   vpcSecurityGroupIds: [secgrp.id],
   rootBlockDevice: {
-      volumeSize: 50
+    volumeSize: 50,
   },
   tags: {
-      Name: "Passport Scorer - troubleshooting instance",
+    Name: "Passport Scorer - troubleshooting instance",
   },
   userData: ec2InitScript,
 });
 
 export const ec2PublicIp = web.publicIp;
+export const dockrRunCmd = pulumi.secret(
+  pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
+);

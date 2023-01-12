@@ -1,66 +1,28 @@
 import logging
-from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional, Union
+from typing import List, Optional
 
 # --- Deduplication Modules
-from account.deduplication.lifo import lifo
 from account.models import AccountAPIKey, Community, Nonce
-from asgiref.sync import async_to_sync
 from django.shortcuts import get_object_or_404
 from ninja import Field, Query, Router
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
-from ninja_extra import NinjaExtraAPI, status
-from ninja_extra.exceptions import APIException
 from ninja_schema import Schema
-from reader.passport_reader import get_did, get_passport
-from registry.models import Passport, Score, Stamp
-from registry.utils import (
-    get_signer,
-    get_signing_message,
-    validate_credential,
-    verify_issuer,
+from registry.models import Passport, Score
+from registry.utils import get_signer, get_signing_message
+
+from .exceptions import (
+    InvalidCommunityScoreRequestException,
+    InvalidNonceException,
+    InvalidSignerException,
+    Unauthorized,
 )
+from .tasks import score_passport
 
 log = logging.getLogger(__name__)
 # api = NinjaExtraAPI(urls_namespace="registry")
 router = Router()
-
-
-class InvalidSignerException(APIException):
-    status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Address does not match signature."
-
-
-class InvalidNonceException(APIException):
-    status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Invalid nonce."
-
-
-class InvalidPassportCreationException(APIException):
-    status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Error Creating Passport."
-
-
-class InvalidScoreRequestException(APIException):
-    status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Unable to get score for provided address(s)."
-
-
-class InvalidCommunityScoreRequestException(APIException):
-    status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Unable to get score for provided community."
-
-
-class NoPassportException(APIException):
-    status_code = status.HTTP_404_NOT_FOUND
-    default_detail = "No Passport found for this address."
-
-
-class Unauthorized(APIException):
-    status_code = status.HTTP_401_UNAUTHORIZED
-    default_detail = "Invalid API Key."
 
 
 class SubmitPassportPayload(Schema):
@@ -83,8 +45,11 @@ class ThresholdScoreEvidenceResponse(ScoreEvidenceResponse):
 class DetailedScoreResponse(Schema):
     # passport_id: int
     address: str
-    score: str
-    evidence: Optional[List[ThresholdScoreEvidenceResponse]]
+    score: Optional[str]
+    status: Optional[str]
+    last_score_timestamp: Optional[str]
+    evidence: Optional[ThresholdScoreEvidenceResponse]
+    error: Optional[str]
 
 
 class SimpleScoreResponse(Schema):
@@ -131,7 +96,7 @@ def community_requires_signature(_):
     return False
 
 
-@router.post("/submit-passport", auth=ApiKey(), response=List[DetailedScoreResponse])
+@router.post("/submit-passport", auth=ApiKey(), response=DetailedScoreResponse)
 def submit_passport(
     request, payload: SubmitPassportPayload
 ) -> List[DetailedScoreResponse]:
@@ -139,7 +104,7 @@ def submit_passport(
     address_lower = payload.address.lower()
 
     # Get DID from address
-    did = get_did(payload.address)
+    # did = get_did(payload.address)
     log.debug("/submit-passport, payload=%s", payload)
 
     # Get community object
@@ -159,98 +124,64 @@ def submit_passport(
             log.error("Invalid nonce %s for address %s", payload.nonce, payload.address)
             raise InvalidNonceException()
 
-    log.debug("Getting passport")
-    # Passport contents read from ceramic
-    passport = get_passport(did)
+    # Create an empty passport instance, only needed to be able to create a pending Score
+    # The passport will be updated by the score_passport task
+    db_passport, _ = Passport.objects.update_or_create(
+        address=payload.address.lower(),
+        community=user_community,
+        defaults={
+            "passport": {},  # Leave the dict empty for now
+        },
+    )
 
-    if not passport:
-        raise NoPassportException()
+    # Create a score with status PROCESSING
+    score, _ = Score.objects.update_or_create(
+        passport_id=db_passport.id,
+        defaults=dict(score=None, status=Score.Status.PROCESSING),
+    )
 
+    score_passport.delay(user_community.id, payload.address)
+
+    return DetailedScoreResponse(
+        address=score.passport.address,
+        score=score.score,
+        status=score.status,
+        evidence=score.evidence,
+        last_score_timestamp=score.last_score_timestamp.isoformat()
+        if score.last_score_timestamp
+        else None,
+    )
+
+
+@router.get(
+    "/score/{int:community_id}/{str:address}",
+    auth=ApiKey(),
+    response=DetailedScoreResponse,
+)
+def get_score(request, address: str, community_id: int) -> DetailedScoreResponse:
     try:
-        log.debug("deduplicating ...")
-        # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
-        passport_to_be_saved = lifo(passport, address_lower)
-
-        # Save passport to Passport database (related to community by community_id)
-        db_passport, _ = Passport.objects.update_or_create(
-            address=payload.address.lower(),
-            community=user_community,
-            defaults={
-                "passport": passport_to_be_saved,
-            },
+        # TODO: validate that community belongs to the account holding the ApiKey
+        lower_address = address.lower()
+        community = Community.objects.get(id=community_id)
+        passport = Passport.objects.get(address=lower_address, community=community)
+        score = Score.objects.get(passport=passport)
+        return DetailedScoreResponse(
+            address=score.passport.address,
+            score=score.score,
+            status=score.status,
+            evidence=score.evidence,
+            last_score_timestamp=score.last_score_timestamp.isoformat()
+            if score.last_score_timestamp
+            else None,
+            error=score.error,
         )
-
-        log.debug("validating stamps")
-        for stamp in passport_to_be_saved["stamps"]:
-            stamp_return_errors = async_to_sync(validate_credential)(
-                did, stamp["credential"]
-            )
-            try:
-                # TODO: use some library or https://docs.python.org/3/library/datetime.html#datetime.datetime.fromisoformat to
-                # parse iso timestamps
-                stamp_expiration_date = datetime.strptime(
-                    stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%S.%fZ"
-                )
-            except ValueError:
-                stamp_expiration_date = datetime.strptime(
-                    stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%SZ"
-                )
-
-            is_issuer_verified = verify_issuer(stamp)
-            # check that expiration date is not in the past
-            stamp_is_expired = stamp_expiration_date < datetime.now()
-            if (
-                len(stamp_return_errors) == 0
-                and not stamp_is_expired
-                and is_issuer_verified
-            ):
-                Stamp.objects.update_or_create(
-                    hash=stamp["credential"]["credentialSubject"]["hash"],
-                    passport=db_passport,
-                    defaults={
-                        "provider": stamp["provider"],
-                        "credential": stamp["credential"],
-                    },
-                )
-            else:
-                log.debug(
-                    "Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s is_issuer_verified=%s",
-                    stamp,
-                    stamp_return_errors,
-                    stamp_is_expired,
-                    is_issuer_verified,
-                )
-
-        log.debug("Saving score")
-        scorer = user_community.get_scorer()
-        scores = scorer.compute_score([db_passport.id])
-
-        scoreData = scores[0]
-
-        score, _ = Score.objects.update_or_create(
-            passport_id=db_passport.id, defaults=dict(score=scoreData.score)
-        )
-
-        # We return an array of results here, because in some cases we might have scorers (like the APU scoe)
-        # that will affect also the score of other passwords (as scores are relative)
-        # We return decimal for all scorers (Weighted and Binary Weighted) atm
-        return [
-            DetailedScoreResponse(
-                # passport_id= score.passport.id,
-                address=score.passport.address,
-                score=Score.objects.get(
-                    pk=score.id
-                ).score,  # Just reading out the value from DB to have it as decimal formatted
-                evidence=scoreData.evidence,
-            )
-        ]
-    except Exception:
+    except Exception as e:
         log.error(
-            "Error when handling passport submission. payload=%s",
-            payload,
+            "Error getting passport scores. community_id=%s",
+            community_id,
             exc_info=True,
         )
-        raise InvalidPassportCreationException()
+        raise InvalidCommunityScoreRequestException()
 
 
 @router.get(
@@ -271,7 +202,33 @@ def get_scores(
         if address:
             scores = scores.filter(passport__address=address.lower())
 
-        return [{"address": s.passport.address, "score": s.score} for s in scores]
+        return [
+            DetailedScoreResponse(
+                address=score.passport.address,
+                score=score.score,
+                status=score.status,
+                evidence=score.evidence,
+                last_score_timestamp=score.last_score_timestamp.isoformat()
+                if score.last_score_timestamp
+                else None,
+                error=score.error,
+            )
+            for score in scores
+        ]
+        # for score in scores:
+        #     response = DetailedScoreResponse(
+        #         address=score.passport.address,
+        #         score=score.score,
+        #         status=score.status,
+        #         evidence=score.evidence,
+        #         last_score_timestamp=score.last_score_timestamp.isoformat()
+        #         if score.last_score_timestamp
+        #         else None,
+        #         error=score.error,
+        #     )
+        #     import pdb; pdb.set_trace()
+        #     return response
+        # return [{"address": s.passport.address, "score": s.score} for s in scores]
     except Exception as e:
         log.error(
             "Error getting passport scores. community_id=%s",

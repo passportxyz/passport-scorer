@@ -32,6 +32,13 @@ Start the dev server:
 - `gunicorn -w 4 -k uvicorn.workers.UvicornWorker scorer.asgi:application`
 - or `uvicorn scorer.asgi:application --reload`
 
+Start the celery worker:
+- `celery -A scorer worker -l DEBUG`
+
+Running redis locally:
+
+- `docker run -d -p 6379:6379 redis`
+
 ##Testing
 ### API
 
