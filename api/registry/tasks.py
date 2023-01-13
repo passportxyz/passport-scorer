@@ -5,16 +5,10 @@ from account.deduplication.lifo import lifo
 from account.models import Community
 from asgiref.sync import async_to_sync
 from celery import shared_task
+from ninja_extra.exceptions import APIException
 from reader.passport_reader import get_did, get_passport
 from registry.models import Passport, Score, Stamp
-from registry.utils import (
-    get_signer,
-    get_signing_message,
-    validate_credential,
-    verify_issuer,
-)
-
-from .exceptions import InvalidPassportCreationException, NoPassportException
+from registry.utils import validate_credential, verify_issuer
 
 log = logging.getLogger(__name__)
 
@@ -30,12 +24,24 @@ def score_passport(community_id: int, address: str):
         community_id,
         address,
     )
-    address_lower = address.lower()
-    did = get_did(address)
-    passport = get_passport(did)
-    log.debug("score_passport loaded passport=%s", passport)
 
+    db_passport = None
     try:
+        address_lower = address.lower()
+
+        # Save passport to Passport database (related to community by community_id)
+        db_passport, _ = Passport.objects.update_or_create(
+            address=address_lower,
+            community_id=community_id,
+            defaults={
+                "passport": None,
+            },
+        )
+
+        did = get_did(address)
+        passport = get_passport(did)
+        log.debug("score_passport loaded passport=%s", passport)
+
         log.debug("passport loaded for address %s is %s", address, passport)
         # TODO: do not throw, but manage the empty passport
         user_community = Community.objects.get(pk=community_id)
@@ -44,18 +50,8 @@ def score_passport(community_id: int, address: str):
         # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
         passport_to_be_saved = lifo(passport, address_lower)
 
-        # Save passport to Passport database (related to community by community_id)
-        db_passport, _ = Passport.objects.update_or_create(
-            address=address_lower,
-            community_id=community_id,
-            defaults={
-                "passport": passport_to_be_saved,
-            },
-        )
-
         if not passport:
             # If not passport was retreived, just mark this as an error and return
-            # raise NoPassportException()
             score, _ = Score.objects.update_or_create(
                 passport_id=db_passport.id,
                 defaults=dict(
@@ -129,6 +125,25 @@ def score_passport(community_id: int, address: str):
                 else None,
             ),
         )
+    except APIException as e:
+        log.error(
+            "APIException when handling passport submission. community_id=%s, address='%s'",
+            community_id,
+            address,
+            exc_info=True,
+        )
+        if db_passport:
+            # Create a score with error status
+            Score.objects.update_or_create(
+                passport_id=db_passport.id,
+                defaults=dict(
+                    score=None,
+                    status=Score.Status.ERROR,
+                    last_score_timestamp=None,
+                    evidence=None,
+                    error=e.detail,
+                ),
+            )
     except Exception as e:
         log.error(
             "Error when handling passport submission. community_id=%s, address='%s'",
@@ -136,14 +151,15 @@ def score_passport(community_id: int, address: str):
             address,
             exc_info=True,
         )
-        # raise InvalidPassportCreationException() from e
-        score, _ = Score.objects.update_or_create(
-            passport_id=db_passport.id,
-            defaults=dict(
-                score=scoreData.score,
-                status=Score.Status.ERROR,
-                last_score_timestamp=None,
-                evidence=None,
-                error="Error scoring passport",
-            ),
-        )
+        if db_passport:
+            # Create a score with error status
+            Score.objects.update_or_create(
+                passport_id=db_passport.id,
+                defaults=dict(
+                    score=None,
+                    status=Score.Status.ERROR,
+                    last_score_timestamp=None,
+                    evidence=None,
+                    error=str(e),
+                ),
+            )

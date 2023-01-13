@@ -63,8 +63,8 @@
       let communityId, apiKey;
 
       // const endpoint = "https://api.scorer.gitcoin.co";
-      const endpoint = "https://api.scorer.dpopp.gitcoin.co";
-      // const endpoint = "http://127.0.0.1:8000";
+      // const endpoint = "https://api.scorer.dpopp.gitcoin.co";
+      const endpoint = "http://127.0.0.1:8000";
       const ethereumButton = document.querySelector(".enableEthereumButton");
       const submitForScoringButton = document.querySelector(
         ".submitForScoringButton"
@@ -97,6 +97,7 @@
         passportScoreWithoutSignatureDisplay.innerHTML = "Calculating your score ..."
         const communityId = document.querySelector("#communityId").value;
         const apiKey = document.querySelector("#apiKey").value;
+        const account = "0x098C4D4124f4ecE308a02eA15f044afdE6BA7fFF";
 
         try {
           const response = await axios.post(
@@ -134,7 +135,7 @@
               console.log("Response: ", response.data)
 
               passportScoreWithoutSignatureDisplay.innerHTML = `${new Date()} <br>Your score status: ${score.status} ${score.status == "DONE"? "- your score is:" + score.score:""}`;
-              if(score.status != "DONE") {
+              if(score.status == "PROCESSING") {
                 // Stop updating the score
                 setTimeout(updateScore, 1000);
               }
