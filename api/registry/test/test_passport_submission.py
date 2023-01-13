@@ -466,7 +466,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         # We do expect an empty passport to have been stored
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
-        self.assertEqual(all_passports[0].passport, {"stamps": []})
+        self.assertEqual(all_passports[0].passport, None)
 
         response = self.client.get(
             f"/registry/score/{self.community.id}/{self.account.address}",
@@ -479,7 +479,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "evidence": None,
             "last_score_timestamp": None,
             "status": "ERROR",
-            "error": "Error scoring passport",
+            "error": "No Passport found for this address.",
         }
 
     @patch("registry.tasks.validate_credential", side_effect=[[], [], [], []])

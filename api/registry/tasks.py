@@ -7,6 +7,7 @@ from asgiref.sync import async_to_sync
 from celery import shared_task
 from ninja_extra.exceptions import APIException
 from reader.passport_reader import get_did, get_passport
+from registry.exceptions import NoPassportException
 from registry.models import Passport, Score, Stamp
 from registry.utils import validate_credential, verify_issuer
 
@@ -29,7 +30,7 @@ def score_passport(community_id: int, address: str):
     try:
         address_lower = address.lower()
 
-        # Save passport to Passport database (related to community by community_id)
+        # Create a DB record for the passport unless one already exists
         db_passport, _ = Passport.objects.update_or_create(
             address=address_lower,
             community_id=community_id,
@@ -42,28 +43,19 @@ def score_passport(community_id: int, address: str):
         passport = get_passport(did)
         log.debug("score_passport loaded passport=%s", passport)
 
+        if not passport:
+            raise NoPassportException()
+
         log.debug("passport loaded for address %s is %s", address, passport)
-        # TODO: do not throw, but manage the empty passport
         user_community = Community.objects.get(pk=community_id)
 
         log.debug("deduplicating ...")
         # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
         passport_to_be_saved = lifo(passport, address_lower)
 
-        if not passport:
-            # If not passport was retreived, just mark this as an error and return
-            score, _ = Score.objects.update_or_create(
-                passport_id=db_passport.id,
-                defaults=dict(
-                    score=None,
-                    status=Score.Status.ERROR,
-                    last_score_timestamp=None,
-                    evidence=None,
-                    error="Error scoring passport",
-                ),
-            )
-            # return from the task, there is nothing to process
-            return
+        # Create a DB record for the passport unless one already exists
+        db_passport.passport = passport_to_be_saved
+        db_passport.save()
 
         log.debug("validating stamps")
         for stamp in passport_to_be_saved["stamps"]:
@@ -113,7 +105,7 @@ def score_passport(community_id: int, address: str):
         log.debug("Scores: %s", scores)
         scoreData = scores[0]
 
-        score, _ = Score.objects.update_or_create(
+        Score.objects.update_or_create(
             passport_id=db_passport.id,
             defaults=dict(
                 score=scoreData.score,
