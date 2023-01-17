@@ -319,7 +319,8 @@ const service = new awsx.ecs.FargateService("scorer", {
     containers: {
       scorer: {
         image: dockerGtcPassportScorerImage,
-        memory: 1024,
+        memory: 4096,
+        cpu: 4000,
         portMappings: [httpsListener],
         command: [
           "gunicorn",
