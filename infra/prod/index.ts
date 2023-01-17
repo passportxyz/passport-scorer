@@ -343,6 +343,14 @@ const service = new awsx.ecs.FargateService("scorer", {
   },
 });
 
+const ecsTargetAutiscaling = new aws.appautoscaling.Target("autoscaling_target", {
+  maxCapacity: 10,
+  minCapacity: 1,
+  resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${service.service.name}`,
+  scalableDimension: "ecs:service:DesiredCount",
+  serviceNamespace: "ecs",
+});
+
 //////////////////////////////////////////////////////////////
 // Set up the Celery Worker Secrvice
 //////////////////////////////////////////////////////////////
