@@ -179,8 +179,54 @@ const certificateValidation = new aws.acm.CertificateValidation(
   { customTimeouts: { create: "30s", update: "30s" } }
 );
 
+// Create bucket for access logs
+const accessLogsBucket = new aws.s3.Bucket(`gitcoin-scorer-access-logs`, {
+  acl: "private",
+  forceDestroy: true,
+});
+
+const serviceAccount = aws.elb.getServiceAccount({});
+
+const accessLogsBucketPolicyDocument = aws.iam.getPolicyDocumentOutput({
+  statements: serviceAccount.then((serviceAccount) => [
+    {
+      effect: "Allow",
+      principals: [
+        {
+          type: "AWS",
+          identifiers: [pulumi.interpolate`${serviceAccount.arn}`],
+        },
+      ],
+      actions: ["s3:PutObject"],
+      resources: [pulumi.interpolate`arn:aws:s3:::${accessLogsBucket.id}/AWSLogs/*`],
+    },
+    {
+      effect: "Allow",
+      principals: [
+        {
+          type: "Service",
+          identifiers: ["logdelivery.elb.amazonaws.com"],
+        },
+      ],
+      actions: ["s3:GetBucketAcl"],
+      resources: [pulumi.interpolate`arn:aws:s3:::${accessLogsBucket.id}`],
+    },
+  ]),
+});
+
+const accessLogsBucketPolicy = new aws.s3.BucketPolicy(`gitcoin-accessLogs-policy`, {
+  bucket: accessLogsBucket.id,
+  policy: accessLogsBucketPolicyDocument.apply((accessLogsBucketPolicyDocument) => accessLogsBucketPolicyDocument.json),
+});
+
 // Creates an ALB associated with our custom VPC.
-const alb = new awsx.lb.ApplicationLoadBalancer(`scorer-service`, { vpc });
+const alb = new awsx.lb.ApplicationLoadBalancer(`scorer-service`, { 
+  vpc,
+  accessLogs: {
+      bucket: accessLogsBucket.bucket,
+      enabled: true,
+    },
+});
 
 // Listen to HTTP traffic on port 80 and redirect to 443
 const httpListener = alb.createListener("web-listener", {
