@@ -345,7 +345,7 @@ const service = new awsx.ecs.FargateService("scorer", {
 
 const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target("scorer-autoscaling-target", {
   maxCapacity: 10,
-  minCapacity: 1,
+  minCapacity: 2,
   resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${service.service.name}`,
   scalableDimension: "ecs:service:DesiredCount",
   serviceNamespace: "ecs",
