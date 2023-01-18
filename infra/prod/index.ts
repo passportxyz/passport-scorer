@@ -343,13 +343,29 @@ const service = new awsx.ecs.FargateService("scorer", {
   },
 });
 
-const ecsTargetAutiscaling = new aws.appautoscaling.Target("autoscaling_target", {
+const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target("scorer-autoscaling-target", {
   maxCapacity: 10,
   minCapacity: 1,
   resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${service.service.name}`,
   scalableDimension: "ecs:service:DesiredCount",
   serviceNamespace: "ecs",
 });
+
+const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy("scorer-autoscaling-policy", {
+  policyType: "TargetTrackingScaling",
+  resourceId: ecsScorerServiceAutoscalingTarget.resourceId,
+  scalableDimension: ecsScorerServiceAutoscalingTarget.scalableDimension,
+  serviceNamespace: ecsScorerServiceAutoscalingTarget.serviceNamespace,
+  targetTrackingScalingPolicyConfiguration: {
+      predefinedMetricSpecification: {
+          predefinedMetricType: "ECSServiceAverageCPUUtilization",
+      },
+      targetValue: 80,
+      scaleInCooldown: 300,
+      scaleOutCooldown: 300,
+  },
+});
+
 
 //////////////////////////////////////////////////////////////
 // Set up the Celery Worker Secrvice
