@@ -220,7 +220,7 @@ const accessLogsBucketPolicy = new aws.s3.BucketPolicy(`gitcoin-accessLogs-polic
 });
 
 // Creates an ALB associated with our custom VPC.
-const alb = new awsx.lb.ApplicationLoadBalancer(`scorer-service`, { 
+const alb = new awsx.lb.ApplicationLoadBalancer(`scorer-service`, {
   vpc,
   accessLogs: {
       bucket: accessLogsBucket.bucket,
@@ -471,9 +471,9 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
   },
 });
 
-const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
+const celeryWorker = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
   cluster,
-  desiredCount: 3,
+  desiredCount: 2,
   subnets: vpc.privateSubnetIds,
   taskDefinitionArgs: {
     executionRole: workerRole,
@@ -490,6 +490,29 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
         links: [],
       },
     },
+  },
+});
+
+const ecsScorerWorkerAutoscalingTarget = new aws.appautoscaling.Target("scorer-worker-autoscaling-target", {
+  maxCapacity: 10,
+  minCapacity: 2,
+  resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celeryWorker.service.name}`,
+  scalableDimension: "ecs:service:DesiredCount",
+  serviceNamespace: "ecs",
+});
+
+const ecsScorerWorkerAutoscaling = new aws.appautoscaling.Policy("scorer-worker-autoscaling-policy", {
+  policyType: "TargetTrackingScaling",
+  resourceId: ecsScorerWorkerAutoscalingTarget.resourceId,
+  scalableDimension: ecsScorerWorkerAutoscalingTarget.scalableDimension,
+  serviceNamespace: ecsScorerWorkerAutoscalingTarget.serviceNamespace,
+  targetTrackingScalingPolicyConfiguration: {
+      predefinedMetricSpecification: {
+          predefinedMetricType: "ECSServiceAverageCPUUtilization",
+      },
+      targetValue: 80,
+      scaleInCooldown: 300,
+      scaleOutCooldown: 300,
   },
 });
 
