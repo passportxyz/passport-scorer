@@ -62,9 +62,9 @@
     <script>
       let communityId, apiKey;
 
-      // const endpoint = "https://api.scorer.gitcoin.co";
+      const endpoint = "https://api.scorer.gitcoin.co";
       // const endpoint = "https://api.scorer.dpopp.gitcoin.co";
-      const endpoint = "http://127.0.0.1:8000";
+      // const endpoint = "http://127.0.0.1:8000";
       const ethereumButton = document.querySelector(".enableEthereumButton");
       const submitForScoringButton = document.querySelector(
         "#scoringWithSignature .submitForScoringButton"
@@ -117,8 +117,6 @@
           console.log("Response: ", response.data)
 
           if (score) {
-            passportScoreDisplay.innerHTML = `${new Date()} <br>Your score status: ${score.status} ${score.status == "DONE"? "- your score is:" + score.score:""}`;
-
             async function updateScore() {
               const response = await axios.get(
                 endpoint + `/registry/score/${communityId}/${account}`,
@@ -132,7 +130,7 @@
 
               const score = response.data;
 
-              passportScoreDisplay.innerHTML = `${new Date()} <br>Your score status: ${score.status} ${score.status == "DONE"? "- your score is:" + score.score:""}`;
+              passportScoreDisplay.innerHTML = `${new Date()} <br>Your score status (for address ${account}): ${score.status} ${score.status == "DONE"? "- your score is:" + score.score:""}`;
               if(score.status == "PROCESSING") {
                 // Stop updating the score
                 setTimeout(updateScore, 1000);
@@ -200,7 +198,6 @@
           const score = response.data;
 
           if (score) {
-            passportScoreDisplay.innerHTML = `${new Date()} <br>Your score status: ${score.status} ${score.status == "DONE"? "- your score is:" + score.score:""}`;
 
             async function updateScore() {
               const response = await axios.get(
@@ -222,7 +219,7 @@
               } else if(score.status == "ERROR") {
                 passportScoreDisplay.innerHTML = `${new Date()} <br>Error: ${score.error}`;
               } else if(score.status == "DONE") {
-                passportScoreDisplay.innerHTML = `${new Date()} <br>Your score status: ${score.status} ${score.status == "DONE"? "- your score is:" + score.score:""}`;
+                passportScoreDisplay.innerHTML = `${new Date()} <br>Your score status (for address ${account}): ${score.status} ${score.status == "DONE"? "- your score is:" + score.score:""}`;
               }
             }
 
