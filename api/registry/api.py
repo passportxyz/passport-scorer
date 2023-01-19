@@ -83,7 +83,7 @@ class ApiKey(APIKeyHeader):
 
 
 @router.get("/signing-message", auth=ApiKey(), response=SigningMessageResponse)
-def signing_message() -> SigningMessageResponse:
+def signing_message(_request) -> SigningMessageResponse:
     nonce = Nonce.create_nonce().nonce
     return {
         "message": get_signing_message(nonce),
