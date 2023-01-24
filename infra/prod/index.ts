@@ -480,7 +480,7 @@ const celeryWorker = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
     containers: {
       worker1: {
         image: dockerGtcPassportScorerImage,
-        command: ["celery", "-A", "scorer", "worker", "-l", "DEBUG"],
+        command: ["celery", "-A", "scorer", "worker", "-l", "DEBUG", "-c", "8"],
         memory: 4096,
         cpu: 2000,
         portMappings: [],
