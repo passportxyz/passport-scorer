@@ -1,73 +1,46 @@
+# Gitcoin Passports Scorer API
 
-# Getting Started
+The Gitcoin Passport API allows developers to integrate identity verification
+functionality into their applications. The API provides a simple way to read and
+score the identities of Gitcoin Passport holders by applying scoring mechanisms
+to verifiable credentials.
 
-## Interface
-To run the frontend
-```
-cd interface
-yarn
-yarn dev
-```
+Social organizations have a difficult time ensuring that each participant is
+unique: that they are in fact human (not a bot) and also a unique participant
+(not double counting). The Gitcoin Passport solves this by providing
+a solution that is decentralized and recognizes the intersectional and social
+nature of identity.
 
-## API
-### With Docker
-```
-cd api
-docker compose up --build
-```
+The Passport Scorer API (this repository) is a centralized service provided by
+Gitcoin to make it easier to read and work with Passport scores.
 
-### Without docker
-Activate your local virtual env
-```
-pipenv shell
-```
+## Quick Links
 
-Create virtual env and install dependencies:
-```
-pipenv install
-```
+- [Passport Docs](https://docs.passport.gitcoin.co/)
+- [API Docs](https://api.scorer.gitcoin.co/docs)
+- [Official Website](https://go.gitcoin.co/passport?utm_source=scorer-api-repo&utm_medium=referral&utm_content=Passport)
+- [Announcement / Overview Article](https://go.gitcoin.co/blog/intro-to-passport)
 
-Start the dev server:
-- **first**: make sure you have the `.env` file in the api folder, with proper values (clone the `.env-sample` if required and adjust it)
-- `gunicorn -w 4 -k uvicorn.workers.UvicornWorker scorer.asgi:application`
-- or `uvicorn scorer.asgi:application --reload`
+## Contributing
 
-Start the celery worker:
-- `celery -A scorer worker -l DEBUG`
+We welcome everyone to contribute to Passports and the Scorer API! Please review
+our [contributing guidelines](./CONTRIBUTING.md) before proceeding.
 
-Running redis locally:
+You can join our [Discord](https://discord.gg/w6K2wwHr) (just be sure to select
+the builder role when you join) to get help and discuss the project with the
+rest of the community.
 
-- `docker run -d -p 6379:6379 redis`
+You can also familiarize yourself with our near term project roadmap in the
+[project backlog](https://github.com/orgs/gitcoinco/projects/6)
 
-##Testing
-### API
+## Setup
 
-In the `./api` folder run (make sure your local virtual env is activated):
-```
-coverage run --source='.' manage.py test
-```
+Instructions are provided in the [`SETUP.md`](./SETUP.md) for getting the
+codebase up and running on your local machine. This project is under active
+development and has not been tested on every possible operating system. If you
+get stuck setting up this project, please file an issue.
 
+## [License](./LICENSE)
 
-#### pytest
-- use pytest to run tests. In `./api` folder run `pytest`
+All code is licensed under MIT.
 
-#### bdd
-
-Make sure you install the dev dependencies `pipenv install --dev`.
-
-- **docs**:
-  - [pytest-bdd](https://pytest-bdd.readthedocs.io/en/latest/#advanced-code-generation)
-  - https://automationpanda.com/2018/10/22/python-testing-101-pytest-bdd/
-  - examples: https://github.com/AndyLPK247/behavior-driven-python
-  - https://github.com/pytest-dev/pytest-mock
-- **Location of feature file:**: ./api/account/test/features
-- **cmd to generate missing code:** (run from `./api` and virtulanv): `pytest --generate-missing --feature scorer/test/features scorer/test`
-  - you will need to copy & paste the code from terminal to `test_.*.py` file
-
-
-
-### Cypress
-
-In the `./test`:
-- exec cypress tests: `yarn cypress run`
-- open cypress: `yarn cypress open`
