@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "registry",
     "scorer_apu",
     "scorer_weighted",
+    "ceramic_cache",
     "corsheaders",
     "account",
     "ninja_extra",
