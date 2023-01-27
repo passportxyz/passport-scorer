@@ -4,7 +4,6 @@
 # from django.shortcuts import get_object_or_404
 
 from django.conf import settings
-from django.db import IntegrityError
 from ninja import Router, Schema
 from ninja.security import HttpBearer
 
@@ -34,14 +33,22 @@ class CachedStampResponse(Schema):
 @router.post(
     "stamp",
     auth=AuthBearer(),
-    response={201: CachedStampResponse, 409: {"error": str}},
+    response={201: CachedStampResponse},
 )
 def cache_stamp(request, payload: CacheStampPayload):
     try:
+        existing_stamp = CeramicCache.objects.filter(
+            provider=payload.provider, address=payload.address
+        )
+        if existing_stamp.exists():
+            existing_stamp = existing_stamp.first()
+            existing_stamp.stamp = payload.stamp
+            existing_stamp.save()
+            return existing_stamp
+
         cached_stamp = CeramicCache.objects.create(
             address=payload.address, provider=payload.provider, stamp=payload.stamp
         )
-
         return cached_stamp
-    except IntegrityError as e:
-        return {"error": "Stamp already exists"}
+    except Exception as e:
+        raise e
