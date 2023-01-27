@@ -1,7 +1,7 @@
 import binascii
 import copy
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from account.models import Account, AccountAPIKey, Community, Nonce
@@ -170,6 +170,8 @@ google_credential_expired = {
         "provider": "Google",
     },
 }
+
+mock_utc_timestamp = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
 
 mock_passport = {
     "issuanceDate": "2022-06-03T15:31:56.944Z",

@@ -115,6 +115,7 @@ def score_passport(community_id: int, address: str):
                 evidence=scoreData.evidence[0].as_dict()
                 if scoreData.evidence
                 else None,
+                error=None,
             ),
         )
     except APIException as e:
