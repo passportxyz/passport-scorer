@@ -37,18 +37,12 @@ class CachedStampResponse(Schema):
 )
 def cache_stamp(request, payload: CacheStampPayload):
     try:
-        existing_stamp = CeramicCache.objects.filter(
-            provider=payload.provider, address=payload.address
+        stamp, created = CeramicCache.objects.update_or_create(
+            address=payload.address,
+            provider=payload.provider,
+            defaults={"stamp": payload.stamp},
         )
-        if existing_stamp.exists():
-            existing_stamp = existing_stamp.first()
-            existing_stamp.stamp = payload.stamp
-            existing_stamp.save()
-            return existing_stamp
 
-        cached_stamp = CeramicCache.objects.create(
-            address=payload.address, provider=payload.provider, stamp=payload.stamp
-        )
-        return cached_stamp
+        return stamp
     except Exception as e:
         raise e
