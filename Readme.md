@@ -39,7 +39,7 @@ Running redis locally:
 
 - `docker run -d -p 6379:6379 redis`
 
-##Testing
+## Testing
 ### API
 
 In the `./api` folder run (make sure your local virtual env is activated):
