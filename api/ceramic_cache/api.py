@@ -1,13 +1,9 @@
 """Ceramic Cache API"""
 
-# from ceramic_cache.models import CeramicCache
-# from django.shortcuts import get_object_or_404
-
 from django.conf import settings
 from ninja import Router, Schema
 from ninja.security import HttpBearer
-from ninja_extra.exceptions import APIException
-from ninja_extra import status
+from .exceptions import InvalidDeleteCacheRequestException
 
 from .models import CeramicCache
 
@@ -41,11 +37,6 @@ class CachedStampResponse(Schema):
     address: str
     provider: str
     stamp: str
-
-
-class InvalidDeleteCacheRequestException(APIException):
-    status_code = status.HTTP_404_NOT_FOUND
-    default_detail = "Unable to find stamp to delete."
 
 
 @router.post(
