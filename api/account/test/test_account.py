@@ -31,6 +31,9 @@ class AccountTestCase(TestCase):
         account = web3.eth.account.from_mnemonic(
             my_mnemonic, account_path="m/44'/60'/0'/0/0"
         )
+        import pdb
+
+        pdb.set_trace()
 
         c = Client()
         response = c.get("/account/nonce")

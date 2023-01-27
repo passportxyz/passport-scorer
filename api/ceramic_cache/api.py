@@ -32,7 +32,7 @@ class CachedStampResponse(Schema):
 
 
 @router.post(
-    "/stamp",
+    "stamp",
     auth=AuthBearer(),
     response={201: CachedStampResponse, 409: {"error": str}},
 )
