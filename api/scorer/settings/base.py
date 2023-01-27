@@ -23,6 +23,8 @@ DEBUG = env("DEBUG", default=True)
 
 ALLOWED_HOSTS = env.json("ALLOWED_HOSTS", default=[])
 
+CERAMIC_CACHE_BEARER_TOKEN = env("CERAMIC_CACHE_BEARER_TOKEN", default="supersecret")
+
 
 # Application definition
 INSTALLED_APPS = [

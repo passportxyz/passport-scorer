@@ -160,3 +160,48 @@ def api_key_object(scorer_account):
         "name": account_api_key,
         "api_key": secret,
     }
+
+
+@pytest.fixture
+def verifiable_credential():
+    return """
+        {
+            "type": [
+                "VerifiableCredential"
+            ],
+            "proof": {
+                "jws": "eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..zbjVKQieb8fI04ygmQRr8EUYoJ-NSjBiEtV-5zxVoPMeq2XPPE3lL_QUyVda7u5L9RtB1QvRQYtv5_3X0OnyAg",
+                "type": "Ed25519Signature2018",
+                "created": "2023-01-24T01:56:57.048Z",
+                "proofPurpose": "assertionMethod",
+                "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC"
+            },
+            "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+            "@context": [
+                "https://www.w3.org/2018/credentials/v1"
+            ],
+            "issuanceDate": "2023-01-24T01:56:57.048Z",
+            "expirationDate": "2023-04-24T01:56:57.048Z",
+            "credentialSubject": {
+                "id": "did:pkh:eip155:1:0xC79BFBF4e4824Cdb65C71f2eeb2D7f2db5dA1fB8",
+                "hash": "v0.0.0:SxN5492/GCHVOL5I6IFVqR1M35N9MFMDFQlkOv64zUU=",
+                "@context": [
+                    {
+                        "hash": "https://schema.org/Text",
+                        "provider": "https://schema.org/Text"
+                    }
+                ],
+                "provider": "Twitter"
+            }
+        }
+    """
+
+
+@pytest.fixture
+def sample_provider():
+    return "Twitter"
+
+
+@pytest.fixture
+def sample_address():
+    return "0xC79BFBF4e4824Cdb65C71f2eeb2D7f2db5dA1fB8"
