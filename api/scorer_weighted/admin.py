@@ -1,17 +1,22 @@
 from django.contrib import admin
-from scorer_weighted.models import WeightedScorer
+from scorer_weighted.models import WeightedScorer, BinaryWeightedScorer, Scorer
 
 # Register your models here.
 
 
+# @admin.register(Scorer)
+class ScorerAdmin(admin.ModelAdmin):
+    list_display = [
+        "type",
+        "id",
+    ]
+
+
+@admin.register(WeightedScorer)
 class WeightedScorerAdmin(admin.ModelAdmin):
-    list_display = ["start_time", "end_time", "weights"]
+    list_display = ["id", "type"]
 
 
-class ScoreAdmin(admin.ModelAdmin):
-    list_display = ["passport", "scorer"]
-    search_fields = ["passport__did"]
-
-
-# admin.site.register(WeightedScorer, WeightedScorerAdmin)
-# admin.site.register(Score, ScoreAdmin)
+@admin.register(BinaryWeightedScorer)
+class BinaryWeightedScorerAdmin(admin.ModelAdmin):
+    list_display = ["id", "threshold", "type"]

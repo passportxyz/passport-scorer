@@ -22,7 +22,7 @@ class NumInfoAdmin(admin.ModelAdmin):
     list_display = ["scorer", "stamp_count", "count"]
 
 
-admin.site.register(ApuScorer, ApuScorerAdmin)
+# admin.site.register(ApuScorer, ApuScorerAdmin)
 # admin.site.register(Score, ScoreAdmin)
-admin.site.register(Combo, ComboAdmin)
-admin.site.register(NumInfo, NumInfoAdmin)
+# admin.site.register(Combo, ComboAdmin)
+# admin.site.register(NumInfo, NumInfoAdmin)

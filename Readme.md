@@ -43,4 +43,3 @@ get stuck setting up this project, please file an issue.
 ## [License](./LICENSE)
 
 All code is licensed under MIT.
-
