@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 
 // --- Components
 import { RepeatIcon } from "@chakra-ui/icons";
@@ -10,19 +10,14 @@ import NoValues from "./NoValues";
 // --- Utils
 import {
   createCommunity,
+  getCommunities,
   updateCommunity,
   deleteCommunity,
   Community,
 } from "../utils/account-requests";
 import { Input } from "@chakra-ui/react";
 
-const CommunityList = (props: {
-  error?: string;
-  setError: (err?: string) => void;
-  communities: Community[];
-  handleCommunityUpdate: () => Promise<void>;
-}) => {
-  const { error, communities, handleCommunityUpdate } = props;
+const CommunityList = () => {
   const [createCommunityModalOpen, setCreateCommunityModalOpen] =
     useState(false);
   const [updateCommunityModalOpen, setUpdateCommunityModalOpen] =
@@ -34,8 +29,9 @@ const CommunityList = (props: {
   const [updatedCommunityName, setUpdatedCommunityName] = useState("");
   const [updatedCommunityId, setUpdatedCommunityId] =
     useState<Community["id"]>();
+  const [error, setError] = useState<undefined | string>();
+  const [communities, setCommunities] = useState<Community[]>([]);
 
-  // TODO clear error on load
   const handleCreateCommunity = async () => {
     try {
       await createCommunity({
@@ -44,12 +40,25 @@ const CommunityList = (props: {
       });
       setCommunityName("");
       setCommunityDescription("");
-      await handleCommunityUpdate();
+      await fetchCommunities();
       setCreateCommunityModalOpen(false);
     } catch (error) {
       console.log({ error });
     }
   };
+
+  const fetchCommunities = useCallback(async () => {
+    try {
+      setCommunities(await getCommunities());
+    } catch (error) {
+      console.log({ error });
+      setError("There was an error fetching your Communities.");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCommunities();
+  }, []);
 
   const handleUpdateCommunity = async (communityId: Community["id"]) => {
     try {
@@ -59,7 +68,7 @@ const CommunityList = (props: {
       });
       setUpdatedCommunityName("");
       setUpdatedCommunityDescription("");
-      await handleCommunityUpdate();
+      await fetchCommunities();
       setUpdateCommunityModalOpen(false);
     } catch (error) {
       console.log({ error });
@@ -69,7 +78,7 @@ const CommunityList = (props: {
   const handleDeleteCommunity = async (communityId: Community["id"]) => {
     try {
       await deleteCommunity(communityId);
-      await handleCommunityUpdate();
+      await fetchCommunities();
     } catch (error) {
       console.error(error);
     }
@@ -131,7 +140,7 @@ const CommunityList = (props: {
         isOpen={createCommunityModalOpen}
         onClose={() => setCreateCommunityModalOpen(false)}
       >
-        <div className="flex flex-col">
+        <div className="flex flex-col" data-testid="community-modal">
           <label className="text-gray-softgray font-librefranklin text-xs">
             Community Name
           </label>

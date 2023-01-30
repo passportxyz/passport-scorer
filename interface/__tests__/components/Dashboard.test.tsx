@@ -1,6 +1,8 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { Layout } from "../../components/Layout";
+import Dashboard from "../../components/Dashboard";
+
+jest.mock("next/router", () => require("next-router-mock"));
 
 // mock header component
 jest.mock("../../components/Header", () => {
@@ -8,16 +10,13 @@ jest.mock("../../components/Header", () => {
   return () => <div></div>;
 });
 
-// mock next router
-jest.mock("next/router", () => ({
-  useRouter: () => ({
-    pathname: "/dashboard/api-keys",
-  }),
-}));
-
-describe("Layout", () => {
+describe("Dashboard", () => {
   it("should render the header", async () => {
-    render(<Layout><div></div></Layout>);
+    render(
+      <Dashboard activeTab="api-keys">
+        <div></div>
+      </Dashboard>
+    );
     const activeTab = screen.getByTestId("api-keys-tab");
     const notActiveTab = screen.getByTestId("communities-tab");
     await waitFor(async () => {
@@ -26,3 +25,4 @@ describe("Layout", () => {
     });
   });
 });
+

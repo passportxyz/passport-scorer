@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 
 // --- Wagmi
 // import { useAccount, useConnect } from "wagmi";
+import { useRouter } from "next/router";
 
 // --- Components
 import Header from "../components/Header";
@@ -10,38 +11,23 @@ import CommunityList from "../components/CommunityList";
 import { SettingsIcon, Icon } from "@chakra-ui/icons";
 import { GoInbox } from "react-icons/go";
 
-// --- Utils
-import { getCommunities, Community } from "../utils/account-requests";
-
 // --- Types
 import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
-import { ApiKeyList } from "../components/APIKeyList";
 
 type DashboardProps = {
   // setAuthenticationStatus?: Function;
   authenticationStatus: AuthenticationStatus;
+  activeTab: string;
+  children: React.ReactNode;
 };
 
 export default function Dashboard({
   // setAuthenticationStatus,
   authenticationStatus,
+  activeTab,
+  children,
 }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState("communities");
-  const [communities, setCommunities] = useState<Community[]>([]);
-  const [error, setError] = useState<undefined | string>();
-
-  const fetchCommunities = useCallback(async () => {
-    try {
-      setCommunities(await getCommunities());
-    } catch (error) {
-      console.log({ error });
-      setError("There was an error fetching your Communities.");
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCommunities();
-  }, []);
+  const router = useRouter();
 
   /**
    * @TODO
@@ -74,31 +60,22 @@ export default function Dashboard({
             <div className="my-4 min-h-full w-1/5 flex-col border-r border-gray-lightgray">
               <button
                 data-testid="communities-tab"
-                onClick={() => setActiveTab("communities")}
-                className={tabbedClasses("communities")}
+                onClick={() => router.push("/dashboard/community")}
+                className={tabbedClasses("community")}
               >
                 <Icon as={GoInbox} className="mr-2" />
                 Communities
               </button>
               <button
                 data-testid="api-keys-tab"
-                onClick={() => setActiveTab("apiKeys")}
-                className={tabbedClasses("apiKeys")}
+                onClick={() => router.push("/dashboard/api-keys")}
+                className={tabbedClasses("api-keys")}
               >
                 <SettingsIcon className="mr-2" /> API Keys
               </button>
             </div>
             <div className="flex min-h-full w-full flex-col p-6 md:h-screen">
-              {activeTab === "communities" ? (
-                <CommunityList
-                  error={error}
-                  setError={setError}
-                  communities={communities}
-                  handleCommunityUpdate={fetchCommunities}
-                />
-              ) : (
-                <ApiKeyList error={error} setError={setError} />
-              )}
+              {children}
             </div>
           </div>
         </div>

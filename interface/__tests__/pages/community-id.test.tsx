@@ -1,5 +1,5 @@
 import { fireEvent, screen, render, waitFor } from "@testing-library/react";
-import Community from "../../pages/dashboard/community/[id]";
+import TabRoute from "../../pages/dashboard/[...tabRoute]";
 import {
   getCommunityScorers,
   updateCommunityScorers,
@@ -15,7 +15,7 @@ jest.mock("../../components/Header", () => {
 jest.mock("next/router", () => ({
   useRouter: () => ({
     pathname: "/dashboard/community/2",
-    query: { id: "2" },
+    query: { tabRoute: ["community", "2"] },
   }),
 }));
 
@@ -41,7 +41,7 @@ const scorerResponse = {
 describe("Dashboard", () => {
   it("Should render a list of scorer options", async () => {
     (getCommunityScorers as jest.Mock).mockResolvedValue(scorerResponse);
-    render(<Community />);
+    render(<TabRoute />);
     await waitFor(async () => {
       expect(screen.getByText("Weighted")).toBeInTheDocument();
       expect(screen.getByText("Weighted Binary")).toBeInTheDocument();
@@ -49,7 +49,7 @@ describe("Dashboard", () => {
   });
   it("should update active radio button when selected", async () => {
     (getCommunityScorers as jest.Mock).mockResolvedValue(scorerResponse);
-    const { container } = render(<Community />);
+    const { container } = render(<TabRoute />);
 
     waitFor(async () => {
       const radio = container.querySelector(

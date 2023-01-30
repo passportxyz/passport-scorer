@@ -16,11 +16,8 @@ import {
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
 
-export const ApiKeyList = (props: {
-  error?: string;
-  setError: (err?: string) => void;
-}) => {
-  const { error, setError } = props;
+const APIKeyList = () => {
+  const [error, setError] = useState<undefined | string>();
   const [apiKeys, setApiKeys] = useState<ApiKeys[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
@@ -170,3 +167,4 @@ export const ApiKeyList = (props: {
     </>
   );
 };
+export default APIKeyList;
