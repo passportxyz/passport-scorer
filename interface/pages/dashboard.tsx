@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 // --- Wagmi
 // import { useAccount, useConnect } from "wagmi";
@@ -8,7 +8,10 @@ import React, { useState } from "react";
 import Header from "../components/Header";
 import CommunityList from "../components/CommunityList";
 import { SettingsIcon, Icon } from "@chakra-ui/icons";
-import { GoInbox } from "react-icons/go"
+import { GoInbox } from "react-icons/go";
+
+// --- Utils
+import { getCommunities, Community } from "../utils/account-requests";
 
 // --- Types
 import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
@@ -24,6 +27,21 @@ export default function Dashboard({
   authenticationStatus,
 }: DashboardProps) {
   const [activeTab, setActiveTab] = useState("communities");
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [error, setError] = useState<undefined | string>();
+
+  const fetchCommunities = useCallback(async () => {
+    try {
+      setCommunities(await getCommunities());
+    } catch (error) {
+      console.log({ error });
+      setError("There was an error fetching your Communities.");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCommunities();
+  }, []);
 
   /**
    * @TODO
@@ -32,7 +50,9 @@ export default function Dashboard({
 
   const tabbedClasses = (tab: string) => {
     const base = "my-4 flex leading-4 cursor-pointer";
-    return tab === activeTab ? `${base} font-bold font-blue-darkblue` : `${base} text-purple-softpurple`;
+    return tab === activeTab
+      ? `${base} font-bold font-blue-darkblue`
+      : `${base} text-purple-softpurple`;
   };
 
   return (
@@ -57,7 +77,8 @@ export default function Dashboard({
                 onClick={() => setActiveTab("communities")}
                 className={tabbedClasses("communities")}
               >
-                <Icon as={GoInbox} className="mr-2" />Communities
+                <Icon as={GoInbox} className="mr-2" />
+                Communities
               </button>
               <button
                 data-testid="api-keys-tab"
@@ -68,7 +89,16 @@ export default function Dashboard({
               </button>
             </div>
             <div className="flex min-h-full w-full flex-col p-6 md:h-screen">
-              {activeTab === "communities" ? <CommunityList /> : <ApiKeyList />}
+              {activeTab === "communities" ? (
+                <CommunityList
+                  error={error}
+                  setError={setError}
+                  communities={communities}
+                  handleCommunityUpdate={fetchCommunities}
+                />
+              ) : (
+                <ApiKeyList error={error} setError={setError} />
+              )}
             </div>
           </div>
         </div>

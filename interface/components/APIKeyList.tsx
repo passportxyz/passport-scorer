@@ -16,9 +16,12 @@ import {
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
 
-export const ApiKeyList = () => {
+export const ApiKeyList = (props: {
+  error?: string;
+  setError: (err?: string) => void;
+}) => {
+  const { error, setError } = props;
   const [apiKeys, setApiKeys] = useState<ApiKeys[]>([]);
-  const [error, setError] = useState<undefined | string>();
   const [modalOpen, setModalOpen] = useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [newApiKey, setNewApiKey] = useState();

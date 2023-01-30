@@ -10,24 +10,32 @@ import NoValues from "./NoValues";
 // --- Utils
 import {
   createCommunity,
-  getCommunities,
   updateCommunity,
   deleteCommunity,
   Community,
 } from "../utils/account-requests";
 import { Input } from "@chakra-ui/react";
 
-const CommunityList = (): JSX.Element => {
-  const [createCommunityModalOpen, setCreateCommunityModalOpen] = useState(false);
-  const [updateCommunityModalOpen, setUpdateCommunityModalOpen] = useState(false);
+const CommunityList = (props: {
+  error?: string;
+  setError: (err?: string) => void;
+  communities: Community[];
+  handleCommunityUpdate: () => Promise<void>;
+}) => {
+  const { error, communities, handleCommunityUpdate } = props;
+  const [createCommunityModalOpen, setCreateCommunityModalOpen] =
+    useState(false);
+  const [updateCommunityModalOpen, setUpdateCommunityModalOpen] =
+    useState(false);
   const [communityName, setCommunityName] = useState("");
   const [communityDescription, setCommunityDescription] = useState("");
-  const [updatedCommunityDescription, setUpdatedCommunityDescription] = useState("");
+  const [updatedCommunityDescription, setUpdatedCommunityDescription] =
+    useState("");
   const [updatedCommunityName, setUpdatedCommunityName] = useState("");
-  const [updatedCommunityId, setUpdatedCommunityId] = useState<Community["id"]>();
-  const [error, setError] = useState<undefined | string>();
-  const [communities, setCommunities] = useState<Community[]>([]);
+  const [updatedCommunityId, setUpdatedCommunityId] =
+    useState<Community["id"]>();
 
+  // TODO clear error on load
   const handleCreateCommunity = async () => {
     try {
       await createCommunity({
@@ -36,7 +44,7 @@ const CommunityList = (): JSX.Element => {
       });
       setCommunityName("");
       setCommunityDescription("");
-      setCommunities(await getCommunities());
+      await handleCommunityUpdate();
       setCreateCommunityModalOpen(false);
     } catch (error) {
       console.log({ error });
@@ -45,14 +53,13 @@ const CommunityList = (): JSX.Element => {
 
   const handleUpdateCommunity = async (communityId: Community["id"]) => {
     try {
-      await updateCommunity(communityId,
-      {
+      await updateCommunity(communityId, {
         name: updatedCommunityName,
         description: updatedCommunityDescription,
       });
       setUpdatedCommunityName("");
       setUpdatedCommunityDescription("");
-      setCommunities(await getCommunities());
+      await handleCommunityUpdate();
       setUpdateCommunityModalOpen(false);
     } catch (error) {
       console.log({ error });
@@ -62,28 +69,11 @@ const CommunityList = (): JSX.Element => {
   const handleDeleteCommunity = async (communityId: Community["id"]) => {
     try {
       await deleteCommunity(communityId);
-      setCommunities(await getCommunities());
+      await handleCommunityUpdate();
     } catch (error) {
       console.error(error);
     }
   };
-
-  useEffect(() => {
-    let keysFetched = false;
-    const fetchCommunities = async () => {
-      if (keysFetched === false) {
-        try {
-          await getCommunities();
-          keysFetched = true;
-          setCommunities(await getCommunities());
-        } catch (error) {
-          console.log({ error });
-          setError("There was an error fetching your Communities.");
-        }
-      }
-    };
-    fetchCommunities();
-  }, []);
 
   const communityList = communities.map((community: Community, i: number) => {
     return (
@@ -113,11 +103,7 @@ const CommunityList = (): JSX.Element => {
             setCreateCommunityModalOpen(true);
           }}
           icon={
-            <RepeatIcon
-              viewBox="0 0 25 25"
-              boxSize="1.9em"
-              color="#757087"
-            />
+            <RepeatIcon viewBox="0 0 25 25" boxSize="1.9em" color="#757087" />
           }
         />
       ) : (
@@ -130,7 +116,7 @@ const CommunityList = (): JSX.Element => {
               setCommunityDescription("");
               setUpdatedCommunityName("");
               setUpdatedCommunityDescription("");
-              setCreateCommunityModalOpen(true)
+              setCreateCommunityModalOpen(true);
             }}
             className="text-md mt-5 rounded-sm border border-gray-lightgray py-1 px-6 font-librefranklin text-blue-darkblue "
             disabled={communities.length >= 5}
@@ -162,7 +148,9 @@ const CommunityList = (): JSX.Element => {
           <Input
             data-testid="community-description-input"
             value={communityDescription}
-            onChange={(description) => setCommunityDescription(description.target.value)}
+            onChange={(description) =>
+              setCommunityDescription(description.target.value)
+            }
             placeholder="Community Description"
           />
           <div className="flex w-full justify-end">
@@ -200,7 +188,9 @@ const CommunityList = (): JSX.Element => {
           <Input
             data-testid="update-community-description-input"
             value={updatedCommunityDescription}
-            onChange={(description) => setUpdatedCommunityDescription(description.target.value)}
+            onChange={(description) =>
+              setUpdatedCommunityDescription(description.target.value)
+            }
             placeholder="Community Description"
           />
           <div className="flex w-full justify-end">
