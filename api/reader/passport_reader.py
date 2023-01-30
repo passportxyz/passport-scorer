@@ -7,6 +7,8 @@ import requests
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
 
+from ceramic_cache.models import CeramicCache
+
 log = logging.getLogger(__name__)
 
 
@@ -118,22 +120,72 @@ def get_passport(did="", stream_ids=[]):
     )
 
     # attempt to pull content
-    passport = get_stamps(get_passport_stream(stream_ids))
+    passport = get_stamps(get_passport_stream(stream_ids), did)
 
     # return a list of wallet address without the @eip155:1 suffix
     return passport
 
 
-def get_stamps(passport):
-    if not passport:
+def get_stamps(ceramicPassport, did):
+    if not ceramicPassport:
         raise NoPassportException()
 
+    ceramic_stamps = get_ceramic_stamps(ceramicPassport)
+    log.debug("STAMP %s" % json.dumps(ceramic_stamps))
+
+    address = did.split(":")[-1]
+    cached_stamp_info_by_provider = get_cached_stamp_info_by_provider(address)
+
+    stamps = []
+
+    for ceramic_stamp in ceramic_stamps:
+        provider = ceramic_stamp["provider"]
+        cached_stamp_info = (
+            cached_stamp_info_by_provider.pop(provider)
+            if provider in cached_stamp_info_by_provider
+            else None
+        )
+        if cached_stamp_is_newer(ceramic_stamp, cached_stamp_info):
+            if cached_stamp_info.deleted_at:
+                pass
+            else:
+                stamps.append(cached_stamp_info.stamp)
+        else:
+            stamps.append(ceramic_stamp)
+
+    [
+        stamps.append(stamp_info.stamp)
+        for stamp_info in cached_stamp_info_by_provider.values()
+        if stamp_info.stamp and not stamp_info.deleted_at
+    ]
+
+    ceramicPassport["stamps"] = stamps
+
+    return ceramicPassport
+
+
+def cached_stamp_is_newer(ceramic_stamp, cached_stamp_info) -> bool:
+    return bool(
+        cached_stamp_info
+        and cached_stamp_info.stamp
+        and cached_stamp_info.stamp["issuanceDate"]
+        and ceramic_stamp["credential"]["issuanceDate"]
+        > cached_stamp_info.stamp["issuanceDate"]
+    )
+
+
+def get_cached_stamp_info_by_provider(address: str) -> dict[str, CeramicCache]:
+    return {
+        cache.provider: cache for cache in CeramicCache.objects.filter(address=address)
+    }
+
+
+def get_ceramic_stamps(passport):
     # hydrate stamps contained within the passport
     if passport and passport["stamps"]:
-        for (index, stamp) in enumerate(passport["stamps"]):
-            passport["stamps"][index] = get_stamp_stream(stamp)
-
-    return passport
+        return [get_stamp_stream(stamp) for stamp in passport["stamps"]]
+    else:
+        return []
 
 
 def get_passport_stream(stream_ids=[]):
