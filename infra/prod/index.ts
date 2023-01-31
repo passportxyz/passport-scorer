@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as aws from "@pulumi/  ws";
+import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
@@ -77,13 +77,15 @@ const postgresql = new aws.rds.Instance(
     allocatedStorage: 10,
     engine: "postgres",
     // engineVersion: "5.7",
-    instanceClass: "db.t3.micro",
+    instanceClass: "db.t3.large",
     dbName: dbName,
     password: dbPassword,
     username: dbUsername,
     skipFinalSnapshot: true,
     dbSubnetGroupName: dbSubnetGroup.id,
     vpcSecurityGroupIds: [db_secgrp.id],
+    deletionProtection: true,
+    backupRetentionPeriod: 5,
   },
   { protect: true }
 );
@@ -417,7 +419,7 @@ const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
       predefinedMetricSpecification: {
         predefinedMetricType: "ECSServiceAverageCPUUtilization",
       },
-      targetValue: 80,
+      targetValue: 70,
       scaleInCooldown: 300,
       scaleOutCooldown: 300,
     },
