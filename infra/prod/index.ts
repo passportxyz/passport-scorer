@@ -78,13 +78,15 @@ const postgresql = new aws.rds.Instance(
     allocatedStorage: 10,
     engine: "postgres",
     // engineVersion: "5.7",
-    instanceClass: "db.t3.micro",
+    instanceClass: "db.t3.large",
     dbName: dbName,
     password: dbPassword,
     username: dbUsername,
     skipFinalSnapshot: true,
     dbSubnetGroupName: dbSubnetGroup.id,
     vpcSecurityGroupIds: [db_secgrp.id],
+    deletionProtection: true,
+    backupRetentionPeriod: 5,
   },
   { protect: true }
 );
