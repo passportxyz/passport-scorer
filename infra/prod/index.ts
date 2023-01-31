@@ -406,7 +406,7 @@ const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy("scorer-autosc
       predefinedMetricSpecification: {
           predefinedMetricType: "ECSServiceAverageCPUUtilization",
       },
-      targetValue: 80,
+      targetValue: 70,
       scaleInCooldown: 300,
       scaleOutCooldown: 300,
   },
