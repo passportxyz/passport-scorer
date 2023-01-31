@@ -4,10 +4,15 @@ from django.conf import settings
 from ninja import Router, Schema
 from ninja.security import HttpBearer
 from .exceptions import InvalidDeleteCacheRequestException
+from datetime import datetime
 
 from .models import CeramicCache
 
 router = Router()
+
+
+def get_utc_time():
+    return datetime.utcnow()
 
 
 class AuthBearer(HttpBearer):
@@ -51,7 +56,7 @@ def cache_stamp(request, payload: CacheStampPayload):
             provider=payload.provider,
             defaults=dict(
                 stamp=payload.stamp,
-                deleted_at=False,
+                deleted_at=None,
             ),
         )
         return stamp
@@ -70,7 +75,7 @@ def soft_delete_stamp(request, payload: DeleteStampPayload):
             address=payload.address,
             provider=payload.provider,
         )
-        stamp.deleted_at = True
+        stamp.deleted_at = get_utc_time()
         stamp.save()
 
         return DeleteStampResponse(

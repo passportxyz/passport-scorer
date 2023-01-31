@@ -3,6 +3,8 @@ import json
 import pytest
 from ceramic_cache.models import CeramicCache
 from django.test import Client
+from datetime import datetime
+from ceramic_cache.api import get_utc_time
 
 pytestmark = pytest.mark.django_db
 
@@ -18,7 +20,7 @@ def create_delete_stamp(sample_address, sample_provider, verifiable_credential):
     CeramicCache.objects.create(
         address=sample_address,
         provider=sample_provider,
-        stamp=json.dumps(verifiable_credential),
+        stamp=verifiable_credential,
     )
 
     delete_stamp_response = client.delete(
@@ -77,20 +79,21 @@ class TestSubmitStamp:
         assert cache_stamp_response.status_code == 401
 
     def test_soft_delete_stamp(
-        self, sample_provider, sample_address, verifiable_credential
+        self, mocker, sample_provider, sample_address, verifiable_credential
     ):
+        mocker.patch(
+            "ceramic_cache.api.get_utc_time",
+            return_value=datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00"),
+        )
         delete_stamp_response = create_delete_stamp(
             sample_address, sample_provider, verifiable_credential
         )
 
         assert delete_stamp_response.status_code == 200
         assert delete_stamp_response.json()["status"] == "deleted"
-        assert (
-            CeramicCache.objects.get(
-                address=sample_address, provider=sample_provider
-            ).deleted_at
-            == True
-        )
+        assert CeramicCache.objects.get(
+            address=sample_address, provider=sample_provider
+        ).deleted_at == datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00")
 
     def test_recreate_soft_deleted_stamp(
         self, sample_provider, sample_address, verifiable_credential
@@ -116,7 +119,7 @@ class TestSubmitStamp:
             CeramicCache.objects.get(
                 address=sample_address, provider=sample_provider
             ).deleted_at
-            == False
+            == None
         )
 
     def test_soft_delete_non_existent_record(self, sample_provider, sample_address):

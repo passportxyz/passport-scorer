@@ -10,7 +10,7 @@ class CeramicCache(models.Model):
         null=False, blank=False, default="", max_length=256, db_index=True
     )
     stamp = models.JSONField(default=dict)
-    deleted_at = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(default=None, null=True, blank=True)
 
     class Meta:
         unique_together = ["address", "provider"]
