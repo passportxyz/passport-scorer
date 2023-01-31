@@ -2,7 +2,7 @@
 
 from django.conf import settings
 from ninja import Router, Schema
-from ninja.security import HttpBearer
+from ninja.security import APIKeyHeader
 from .exceptions import InvalidDeleteCacheRequestException
 from datetime import datetime
 
@@ -15,10 +15,12 @@ def get_utc_time():
     return datetime.utcnow()
 
 
-class AuthBearer(HttpBearer):
-    def authenticate(self, request, token):
-        if token == settings.CERAMIC_CACHE_BEARER_TOKEN:
-            return token
+class AuthAPIKey(APIKeyHeader):
+    param_name = "X-API-Key"
+
+    def authenticate(self, request, key):
+        if key == settings.CERAMIC_CACHE_BEARER_TOKEN:
+            return key
 
 
 class CacheStampPayload(Schema):
@@ -46,7 +48,7 @@ class CachedStampResponse(Schema):
 
 @router.post(
     "stamp",
-    auth=AuthBearer(),
+    auth=AuthAPIKey(),
     response={201: CachedStampResponse},
 )
 def cache_stamp(request, payload: CacheStampPayload):
@@ -66,7 +68,7 @@ def cache_stamp(request, payload: CacheStampPayload):
 
 @router.delete(
     "stamp",
-    auth=AuthBearer(),
+    auth=AuthAPIKey(),
     response=DeleteStampResponse,
 )
 def soft_delete_stamp(request, payload: DeleteStampPayload):

@@ -27,7 +27,7 @@ def create_delete_stamp(sample_address, sample_provider, verifiable_credential):
         "/ceramic-cache/stamp",
         json.dumps(params),
         content_type="application/json",
-        HTTP_AUTHORIZATION=f"Bearer supersecret",
+        **{"HTTP_X_API_KEY": "supersecret"},
     )
 
     return delete_stamp_response
@@ -50,7 +50,7 @@ class TestSubmitStamp:
                 "/ceramic-cache/stamp",
                 json.dumps(params),
                 content_type="application/json",
-                HTTP_AUTHORIZATION=f"Bearer supersecret",
+                **{"HTTP_X_API_KEY": "supersecret"},
             )
 
             responses.append(cache_stamp_response)
@@ -112,7 +112,7 @@ class TestSubmitStamp:
             "/ceramic-cache/stamp",
             json.dumps(params),
             content_type="application/json",
-            HTTP_AUTHORIZATION=f"Bearer supersecret",
+            **{"HTTP_X_API_KEY": "supersecret"},
         )
 
         assert (
@@ -132,7 +132,7 @@ class TestSubmitStamp:
             "/ceramic-cache/stamp",
             json.dumps(params),
             content_type="application/json",
-            HTTP_AUTHORIZATION=f"Bearer supersecret",
+            **{"HTTP_X_API_KEY": "supersecret"},
         )
 
         assert delete_stamp_response.status_code == 404
