@@ -76,18 +76,22 @@ const postgresql = new aws.rds.Instance(`scorer-db`, {
   allocatedStorage: 10,
   engine: "postgres",
   // engineVersion: "5.7",
-  instanceClass: "db.t3.micro",
+  instanceClass: "db.t3.large",
   dbName: dbName,
   password: dbPassword,
   username: dbUsername,
   skipFinalSnapshot: true,
   dbSubnetGroupName: dbSubnetGroup.id,
   vpcSecurityGroupIds: [db_secgrp.id],
+  deletionProtection: true,
+  backupRetentionPeriod: 5,
 });
 
 export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
-export const rdsConnectionUrl = pulumi.secret(pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`);
+export const rdsConnectionUrl = pulumi.secret(
+  pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
+);
 export const rdsId = postgresql.id;
 
 //////////////////////////////////////////////////////////////
@@ -403,14 +407,7 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
     containers: {
       worker1: {
         image: dockerGtcPassportScorerImage,
-        command: [
-          "celery",
-          "-A",
-          "scorer",
-          "worker",
-          "-l",
-          "DEBUG",
-        ],
+        command: ["celery", "-A", "scorer", "worker", "-l", "DEBUG"],
         memory: 4096,
         cpu: 2000,
         portMappings: [],
@@ -581,4 +578,6 @@ const web = new aws.ec2.Instance("Web", {
 
 export const ec2PublicIp = web.publicIp;
 
-export const dockrRunCmd = pulumi.secret(pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`);
+export const dockrRunCmd = pulumi.secret(
+  pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
+);
