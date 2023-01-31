@@ -19,7 +19,7 @@ class AuthAPIKey(APIKeyHeader):
     param_name = "X-API-Key"
 
     def authenticate(self, request, key):
-        if key == settings.CERAMIC_CACHE_BEARER_TOKEN:
+        if key == settings.CERAMIC_CACHE_API_KEY:
             return key
 
 

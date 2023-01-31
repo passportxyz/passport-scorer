@@ -23,7 +23,7 @@ DEBUG = env("DEBUG", default=True)
 
 ALLOWED_HOSTS = env.json("ALLOWED_HOSTS", default=[])
 
-CERAMIC_CACHE_BEARER_TOKEN = env("CERAMIC_CACHE_BEARER_TOKEN", default="supersecret")
+CERAMIC_CACHE_API_KEY = env("CERAMIC_CACHE_API_KEY")
 
 
 # Application definition
