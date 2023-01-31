@@ -6,11 +6,14 @@ from ninja_jwt.schema import RefreshToken
 from registry.models import Passport, Score
 from scorer_weighted.models import BinaryWeightedScorer, Scorer
 from web3 import Web3
+from django.conf import settings
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
 
 pytestmark = pytest.mark.django_db
+
+my_mnemonic = settings.TEST_MNEMONIC
 
 
 @pytest.fixture
@@ -38,10 +41,6 @@ def scorer_community(scorer_account):
 
 @pytest.fixture
 def scorer_account(scorer_user):
-    # TODO: load mnemonic from env
-    my_mnemonic = (
-        "chief loud snack trend chief net field husband vote message decide replace"
-    )
     web3_account = web3.eth.account.from_mnemonic(
         my_mnemonic, account_path="m/44'/60'/0'/0/0"
     )
@@ -54,10 +53,6 @@ def scorer_account(scorer_user):
 
 @pytest.fixture
 def passport_holder_addresses():
-    # TODO: load mnemonic from env
-    my_mnemonic = (
-        "chief loud snack trend chief net field husband vote message decide replace"
-    )
     ret = []
     for i in range(5):
         web3_account = web3.eth.account.from_mnemonic(
