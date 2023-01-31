@@ -1,5 +1,11 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  waitForElementToBeRemoved,
+} from "@testing-library/react";
 import CommunityList from "../../components/CommunityList";
 import { getCommunities, createCommunity } from "../../utils/account-requests";
 
@@ -30,22 +36,24 @@ describe("CommunityList", () => {
     };
     render(<CommunityList />);
 
-    await waitFor(async () => {
-      const modalButton = screen.getByTestId("open-community-modal");
-      fireEvent.click(modalButton as HTMLElement);
-      expect(screen.getByTestId("create-button")).toBeInTheDocument();
-      const nameInput = screen.getByTestId("community-name-input");
-      const descriptionInput = screen.getByTestId(
-        "community-description-input"
-      );
-      fireEvent.change(nameInput, { target: { value: sampleInput.name } });
-      fireEvent.change(descriptionInput, {
-        target: { value: sampleInput.description },
-      });
-      const createButton = screen.getByTestId("create-button");
-      fireEvent.click(createButton as HTMLElement);
-      expect(createCommunity).toHaveBeenCalledWith(sampleInput);
+    await waitFor(async () =>
+      expect(screen.getByTestId("open-community-modal")).toBeInTheDocument()
+    );
+    const modalButton = screen.getByTestId("open-community-modal");
+    fireEvent.click(modalButton as HTMLElement);
+    expect(screen.getByTestId("create-button")).toBeInTheDocument();
+    const nameInput = screen.getByTestId("community-name-input");
+    const descriptionInput = screen.getByTestId("community-description-input");
+    fireEvent.change(nameInput, { target: { value: sampleInput.name } });
+    fireEvent.change(descriptionInput, {
+      target: { value: sampleInput.description },
     });
+    const createButton = screen.getByTestId("create-button");
+    fireEvent.click(createButton as HTMLElement);
+
+    expect(createCommunity).toHaveBeenCalledWith(sampleInput);
+
+    waitForElementToBeRemoved(screen.getByTestId("community-modal"));
   });
 
   it("should render a list of communities", async () => {

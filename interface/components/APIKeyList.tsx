@@ -16,9 +16,9 @@ import {
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
 
-export const ApiKeyList = () => {
-  const [apiKeys, setApiKeys] = useState<ApiKeys[]>([]);
+const APIKeyList = () => {
   const [error, setError] = useState<undefined | string>();
+  const [apiKeys, setApiKeys] = useState<ApiKeys[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [newApiKey, setNewApiKey] = useState();
@@ -167,3 +167,4 @@ export const ApiKeyList = () => {
     </>
   );
 };
+export default APIKeyList;

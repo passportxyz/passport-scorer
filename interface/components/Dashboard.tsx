@@ -1,29 +1,33 @@
 // --- React components/methods
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 // --- Wagmi
 // import { useAccount, useConnect } from "wagmi";
+import { useRouter } from "next/router";
 
 // --- Components
 import Header from "../components/Header";
 import CommunityList from "../components/CommunityList";
 import { SettingsIcon, Icon } from "@chakra-ui/icons";
-import { GoInbox } from "react-icons/go"
+import { GoInbox } from "react-icons/go";
 
 // --- Types
 import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
-import { ApiKeyList } from "../components/APIKeyList";
 
 type DashboardProps = {
   // setAuthenticationStatus?: Function;
   authenticationStatus: AuthenticationStatus;
+  activeTab: string;
+  children: React.ReactNode;
 };
 
 export default function Dashboard({
   // setAuthenticationStatus,
   authenticationStatus,
+  activeTab,
+  children,
 }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState("communities");
+  const router = useRouter();
 
   /**
    * @TODO
@@ -32,7 +36,9 @@ export default function Dashboard({
 
   const tabbedClasses = (tab: string) => {
     const base = "my-4 flex leading-4 cursor-pointer";
-    return tab === activeTab ? `${base} font-bold font-blue-darkblue` : `${base} text-purple-softpurple`;
+    return tab === activeTab
+      ? `${base} font-bold font-blue-darkblue`
+      : `${base} text-purple-softpurple`;
   };
 
   return (
@@ -54,21 +60,22 @@ export default function Dashboard({
             <div className="my-4 min-h-full w-1/5 flex-col border-r border-gray-lightgray">
               <button
                 data-testid="communities-tab"
-                onClick={() => setActiveTab("communities")}
-                className={tabbedClasses("communities")}
+                onClick={() => router.push("/dashboard/community")}
+                className={tabbedClasses("community")}
               >
-                <Icon as={GoInbox} className="mr-2" />Communities
+                <Icon as={GoInbox} className="mr-2" />
+                Communities
               </button>
               <button
                 data-testid="api-keys-tab"
-                onClick={() => setActiveTab("apiKeys")}
-                className={tabbedClasses("apiKeys")}
+                onClick={() => router.push("/dashboard/api-keys")}
+                className={tabbedClasses("api-keys")}
               >
                 <SettingsIcon className="mr-2" /> API Keys
               </button>
             </div>
             <div className="flex min-h-full w-full flex-col p-6 md:h-screen">
-              {activeTab === "communities" ? <CommunityList /> : <ApiKeyList />}
+              {children}
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { ApiKeyList } from "../../components/APIKeyList";
+import APIKeyList from "../../components/APIKeyList";
 import { getApiKeys, createApiKey } from "../../utils/account-requests";
 
 jest.mock("../../utils/account-requests.ts", () => ({
@@ -17,7 +17,7 @@ describe("APIKeyList", () => {
     (createApiKey as jest.Mock).mockResolvedValue({});
   });
   it("should create an API key", async () => {
-    render(<ApiKeyList />);
+    render(<APIKeyList />);
 
     await waitFor(async () => {
       const modalButton = screen.getByTestId("open-api-key-modal");
@@ -32,7 +32,7 @@ describe("APIKeyList", () => {
   });
 
   it("should render a list of API keys", async () => {
-    render(<ApiKeyList />);
+    render(<APIKeyList />);
 
     await waitFor(async () => {
       expect(screen.getByText("key2")).toBeInTheDocument();

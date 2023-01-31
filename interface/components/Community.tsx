@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
 // Components
-import { Layout } from "../../../components/Layout";
 import { Radio, RadioGroup } from "@chakra-ui/react";
 
 // Requests
@@ -12,7 +11,7 @@ import {
   getCommunityScorers,
   Scorer,
   updateCommunityScorers,
-} from "../../../utils/account-requests";
+} from "../utils/account-requests";
 
 const defaultScorer = {
   name: "Gitcoin Scoring",
@@ -23,17 +22,15 @@ const defaultScorer = {
 
 const defaultScorers = [defaultScorer];
 
-const Community = () => {
+const Community = ({ id }: { id: string }) => {
   const [activeScorer, setActiveScorer] = useState("gitcoin");
 
   const router = useRouter();
   const [scorers, setScorers] = useState<Scorer[]>([]);
 
-  const { id } = router.query;
-
   const updateScorer = async (communityId: string, scorerId: string) => {
     await updateCommunityScorers(communityId, scorerId);
-    const communityScorers = await getCommunityScorers(id as string);
+    const communityScorers = await getCommunityScorers(id);
     setActiveScorer(communityScorers.currentScorer || "");
   };
 
@@ -43,7 +40,7 @@ const Community = () => {
         setScorers([]);
         return;
       }
-      const communityScorers = await getCommunityScorers(id as string);
+      const communityScorers = await getCommunityScorers(id);
 
       setScorers(communityScorers.scorers);
       setActiveScorer(communityScorers.currentScorer || "");
@@ -52,7 +49,7 @@ const Community = () => {
   }, [id]);
 
   return (
-    <Layout>
+    <>
       {scorers.map((scorer) => (
         <div
           key={scorer.id}
@@ -69,19 +66,19 @@ const Community = () => {
               colorScheme={"purple"}
               value={scorer.id}
               className="mr-4"
-              onChange={() => updateScorer(id as string, scorer.id)}
+              onChange={() => updateScorer(id, scorer.id)}
             >
               <p className="mb-2 font-librefranklin font-semibold text-blue-darkblue">
                 {scorer.label}
               </p>
               {/* <p className="font-librefranklin text-purple-softpurple">
-                {scorer.description}
-              </p> */}
+              {scorer.description}
+            </p> */}
             </Radio>
           </RadioGroup>
         </div>
       ))}
-    </Layout>
+    </>
   );
 };
 
