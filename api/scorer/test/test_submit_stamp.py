@@ -46,7 +46,7 @@ def _(verifiable_credential, sample_provider, sample_address):
         "/ceramic-cache/stamp",
         json.dumps(params),
         content_type="application/json",
-        HTTP_AUTHORIZATION=f"Bearer supersecret",
+        **{"HTTP_X_API_KEY": "supersecret"},
     )
 
     assert cache_stamp_response.status_code == 201
