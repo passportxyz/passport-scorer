@@ -71,19 +71,22 @@ const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
   ],
 });
 
-const postgresql = new aws.rds.Instance(`scorer-db`, {
-  allocatedStorage: 10,
-  engine: "postgres",
-  // engineVersion: "5.7",
-  deletionProtection: true,
-  instanceClass: "db.t3.micro",
-  dbName: dbName,
-  password: dbPassword,
-  username: dbUsername,
-  skipFinalSnapshot: true,
-  dbSubnetGroupName: dbSubnetGroup.id,
-  vpcSecurityGroupIds: [db_secgrp.id],
-});
+const postgresql = new aws.rds.Instance(
+  `scorer-db`,
+  {
+    allocatedStorage: 10,
+    engine: "postgres",
+    // engineVersion: "5.7",
+    instanceClass: "db.t3.micro",
+    dbName: dbName,
+    password: dbPassword,
+    username: dbUsername,
+    skipFinalSnapshot: true,
+    dbSubnetGroupName: dbSubnetGroup.id,
+    vpcSecurityGroupIds: [db_secgrp.id],
+  },
+  { protect: true }
+);
 
 export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;

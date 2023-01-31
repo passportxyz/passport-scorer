@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as aws from "@pulumi/aws";
+import * as aws from "@pulumi/  ws";
 import * as awsx from "@pulumi/awsx";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
@@ -77,7 +77,6 @@ const postgresql = new aws.rds.Instance(
     allocatedStorage: 10,
     engine: "postgres",
     // engineVersion: "5.7",
-    deletionProtection: true,
     instanceClass: "db.t3.micro",
     dbName: dbName,
     password: dbPassword,

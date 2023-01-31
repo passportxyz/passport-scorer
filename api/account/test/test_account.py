@@ -74,6 +74,6 @@ class AccountTestCase(TestCase):
         )
         self.assertEqual(200, response.status_code)
         data = response.json()
-        # TODO: check payload of the JWT token ???
+        # Refresh/access JWT created by django
         self.assertTrue("refresh" in data)
         self.assertTrue("access" in data)
