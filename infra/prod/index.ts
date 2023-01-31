@@ -71,13 +71,13 @@ const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
   ],
 });
 
-// TODO: enable delete protection for the DB
 const postgresql = new aws.rds.Instance(
   `scorer-db`,
   {
     allocatedStorage: 10,
     engine: "postgres",
     // engineVersion: "5.7",
+    deletionProtection: true,
     instanceClass: "db.t3.micro",
     dbName: dbName,
     password: dbPassword,
@@ -198,7 +198,9 @@ const accessLogsBucketPolicyDocument = aws.iam.getPolicyDocumentOutput({
         },
       ],
       actions: ["s3:PutObject"],
-      resources: [pulumi.interpolate`arn:aws:s3:::${accessLogsBucket.id}/AWSLogs/*`],
+      resources: [
+        pulumi.interpolate`arn:aws:s3:::${accessLogsBucket.id}/AWSLogs/*`,
+      ],
     },
     {
       effect: "Allow",
@@ -214,18 +216,23 @@ const accessLogsBucketPolicyDocument = aws.iam.getPolicyDocumentOutput({
   ]),
 });
 
-const accessLogsBucketPolicy = new aws.s3.BucketPolicy(`gitcoin-accessLogs-policy`, {
-  bucket: accessLogsBucket.id,
-  policy: accessLogsBucketPolicyDocument.apply((accessLogsBucketPolicyDocument) => accessLogsBucketPolicyDocument.json),
-});
+const accessLogsBucketPolicy = new aws.s3.BucketPolicy(
+  `gitcoin-accessLogs-policy`,
+  {
+    bucket: accessLogsBucket.id,
+    policy: accessLogsBucketPolicyDocument.apply(
+      (accessLogsBucketPolicyDocument) => accessLogsBucketPolicyDocument.json
+    ),
+  }
+);
 
 // Creates an ALB associated with our custom VPC.
 const alb = new awsx.lb.ApplicationLoadBalancer(`scorer-service`, {
   vpc,
   accessLogs: {
-      bucket: accessLogsBucket.bucket,
-      enabled: true,
-    },
+    bucket: accessLogsBucket.bucket,
+    enabled: true,
+  },
 });
 
 // Listen to HTTP traffic on port 80 and redirect to 443
@@ -389,29 +396,34 @@ const service = new awsx.ecs.FargateService("scorer", {
   },
 });
 
-const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target("scorer-autoscaling-target", {
-  maxCapacity: 10,
-  minCapacity: 2,
-  resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${service.service.name}`,
-  scalableDimension: "ecs:service:DesiredCount",
-  serviceNamespace: "ecs",
-});
+const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
+  "scorer-autoscaling-target",
+  {
+    maxCapacity: 10,
+    minCapacity: 2,
+    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${service.service.name}`,
+    scalableDimension: "ecs:service:DesiredCount",
+    serviceNamespace: "ecs",
+  }
+);
 
-const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy("scorer-autoscaling-policy", {
-  policyType: "TargetTrackingScaling",
-  resourceId: ecsScorerServiceAutoscalingTarget.resourceId,
-  scalableDimension: ecsScorerServiceAutoscalingTarget.scalableDimension,
-  serviceNamespace: ecsScorerServiceAutoscalingTarget.serviceNamespace,
-  targetTrackingScalingPolicyConfiguration: {
+const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
+  "scorer-autoscaling-policy",
+  {
+    policyType: "TargetTrackingScaling",
+    resourceId: ecsScorerServiceAutoscalingTarget.resourceId,
+    scalableDimension: ecsScorerServiceAutoscalingTarget.scalableDimension,
+    serviceNamespace: ecsScorerServiceAutoscalingTarget.serviceNamespace,
+    targetTrackingScalingPolicyConfiguration: {
       predefinedMetricSpecification: {
-          predefinedMetricType: "ECSServiceAverageCPUUtilization",
+        predefinedMetricType: "ECSServiceAverageCPUUtilization",
       },
       targetValue: 80,
       scaleInCooldown: 300,
       scaleOutCooldown: 300,
-  },
-});
-
+    },
+  }
+);
 
 //////////////////////////////////////////////////////////////
 // Set up the Celery Worker Secrvice
@@ -493,28 +505,34 @@ const celeryWorker = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
   },
 });
 
-const ecsScorerWorkerAutoscalingTarget = new aws.appautoscaling.Target("scorer-worker-autoscaling-target", {
-  maxCapacity: 10,
-  minCapacity: 2,
-  resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celeryWorker.service.name}`,
-  scalableDimension: "ecs:service:DesiredCount",
-  serviceNamespace: "ecs",
-});
+const ecsScorerWorkerAutoscalingTarget = new aws.appautoscaling.Target(
+  "scorer-worker-autoscaling-target",
+  {
+    maxCapacity: 10,
+    minCapacity: 2,
+    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celeryWorker.service.name}`,
+    scalableDimension: "ecs:service:DesiredCount",
+    serviceNamespace: "ecs",
+  }
+);
 
-const ecsScorerWorkerAutoscaling = new aws.appautoscaling.Policy("scorer-worker-autoscaling-policy", {
-  policyType: "TargetTrackingScaling",
-  resourceId: ecsScorerWorkerAutoscalingTarget.resourceId,
-  scalableDimension: ecsScorerWorkerAutoscalingTarget.scalableDimension,
-  serviceNamespace: ecsScorerWorkerAutoscalingTarget.serviceNamespace,
-  targetTrackingScalingPolicyConfiguration: {
+const ecsScorerWorkerAutoscaling = new aws.appautoscaling.Policy(
+  "scorer-worker-autoscaling-policy",
+  {
+    policyType: "TargetTrackingScaling",
+    resourceId: ecsScorerWorkerAutoscalingTarget.resourceId,
+    scalableDimension: ecsScorerWorkerAutoscalingTarget.scalableDimension,
+    serviceNamespace: ecsScorerWorkerAutoscalingTarget.serviceNamespace,
+    targetTrackingScalingPolicyConfiguration: {
       predefinedMetricSpecification: {
-          predefinedMetricType: "ECSServiceAverageCPUUtilization",
+        predefinedMetricType: "ECSServiceAverageCPUUtilization",
       },
       targetValue: 80,
       scaleInCooldown: 300,
       scaleOutCooldown: 300,
-  },
-});
+    },
+  }
+);
 
 //////////////////////////////////////////////////////////////
 // Set up task to run migrations
