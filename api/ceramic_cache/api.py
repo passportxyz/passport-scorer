@@ -5,13 +5,12 @@ from datetime import datetime, timedelta
 from typing import Dict, List, cast
 
 import requests
-from account.views import TokenObtainPairOutSchema
 from django.conf import settings
 from ninja import Router, Schema
 from ninja.security import APIKeyHeader
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
-from ninja_jwt.tokens import AccessToken, RefreshToken
+from ninja_jwt.tokens import RefreshToken
 
 from .exceptions import InvalidDeleteCacheRequestException
 from .models import CeramicCache
@@ -56,12 +55,17 @@ class CachedStampResponse(Schema):
     stamp: str
 
 
+class GetStampResponse(Schema):
+    success: bool
+    stamps: List[CachedStampResponse]
+
+
 @router.post(
     "stamp",
     auth=AuthAPIKey(),
     response={201: CachedStampResponse},
 )
-def cache_stamp(request, payload: CacheStampPayload):
+def cache_stamp(_, payload: CacheStampPayload):
     try:
         stamp, created = CeramicCache.objects.update_or_create(
             address=payload.address,
@@ -81,7 +85,7 @@ def cache_stamp(request, payload: CacheStampPayload):
     auth=AuthAPIKey(),
     response=DeleteStampResponse,
 )
-def soft_delete_stamp(request, payload: DeleteStampPayload):
+def soft_delete_stamp(_, payload: DeleteStampPayload):
     try:
         stamp = CeramicCache.objects.get(
             address=payload.address,

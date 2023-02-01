@@ -4,7 +4,6 @@ import pytest
 from ceramic_cache.models import CeramicCache
 from django.test import Client
 from datetime import datetime
-from ceramic_cache.api import get_utc_time
 
 pytestmark = pytest.mark.django_db
 
