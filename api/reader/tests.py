@@ -88,18 +88,9 @@ sample_stamps = [
 ]
 
 
-@pytest.fixture
-def mock_ceramic_stamps(requests_mock):
-    for (index, stamp) in enumerate(sample_stamps):
-        requests_mock.get(
-            f"{CERAMIC_URL}/api/v0/streams/{index + 1}",
-            json={"state": {"content": sample_stamps[index]}},
-        )
-
-
 class TestGetStamps:
     @pytest.mark.django_db
-    def test_only_ceramic_stamps(self, mock_ceramic_stamps):
+    def test_only_ceramic_stamps(self):
         """Make sure cached ceramic stamps are returned when no cached stamps exist in the DB"""
 
         address = "0x123test"

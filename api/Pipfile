@@ -23,7 +23,6 @@ siwe = "*"
 psycopg2-binary = "*"
 djangorestframework-api-key = "==2.*"
 celery = {extras = ["redis"], version = "*"}
-requests-mock = "*"
 
 [dev-packages]
 black = "*"
