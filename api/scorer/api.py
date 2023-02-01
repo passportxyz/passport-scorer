@@ -10,5 +10,4 @@ api = NinjaAPI()
 
 api.add_router("/registry/", registry_router)
 
-if settings.FEATURE_FLAG_DB_CACHE_API:
-    api.add_router("/ceramic-cache/", ceramic_cache_router)
+api.add_router("/ceramic-cache/", ceramic_cache_router)
