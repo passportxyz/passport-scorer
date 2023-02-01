@@ -5,7 +5,7 @@ import string
 from ast import Dict
 from typing import List, Optional, cast
 
-from account.models import Account, AccountAPIKey, Community
+from account.models import Account, AccountAPIKey, Community, Nonce
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -33,19 +33,6 @@ CHALLENGE_STATEMENT = "I authorize the passport scorer.\n\nnonce:"
 # Returns a random username to be used in the challenge
 def get_random_username():
     return "".join(random.choice(string.ascii_letters) for i in range(32))
-
-
-# API endpoint for nonce
-# TODO - give nonce an expiration time and store it to verify the user
-@api.get("/nonce")
-def nonce(request):
-    return {
-        "nonce": hashlib.sha256(
-            str("".join(random.choice(string.ascii_letters) for i in range(32))).encode(
-                "utf"
-            )
-        ).hexdigest()
-    }
 
 
 class TokenObtainPairOutSchema(Schema):
@@ -120,6 +107,20 @@ class ScorerTypeDoesNotExistException(APIException):
     default_detail = "The scorer type does not exist"
 
 
+class InvalidNonceException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Invalid nonce."
+
+
+# API endpoint for nonce
+# TODO - give nonce an expiration time and store it to verify the user
+@api.get("/nonce/{address}")
+def nonce(request, address):
+    nonce = Nonce.create_nonce(address=address, ttl=300)
+
+    return {"nonce": nonce.nonce}
+
+
 class AccountApiSchema(ModelSchema):
     class Config:
         model = AccountAPIKey
@@ -141,12 +142,18 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
     payload.message["issued_at"] = payload.message["issuedAt"]
     message: SiweMessage = SiweMessage(payload.message)
 
+    if not Nonce.use_nonce(
+        payload.message["nonce"], address=payload.message["address"]
+    ):
+        raise InvalidNonceException()
+
     # TODO: wrap in try-catch
     is_valid_signature = message.verify(
         payload.signature
     )  # TODO: add more verification params
 
     message.json()
+
     address_lower = payload.message["address"]
 
     try:

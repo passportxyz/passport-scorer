@@ -32,7 +32,7 @@ class AccountTestCase(TestCase):
         )
 
         c = Client()
-        response = c.get("/account/nonce")
+        response = c.get(f"/account/nonce/{account.address}")
         self.assertEqual(200, response.status_code)
 
         data = response.json()
