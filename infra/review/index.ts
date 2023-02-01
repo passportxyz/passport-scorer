@@ -281,6 +281,10 @@ const secrets = [
     name: "SECRET_KEY",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:SECRET_KEY::`,
   },
+  {
+    name: "CERAMIC_CACHE_API_KEY",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:CERAMIC_CACHE_API_KEY::`,
+  },
 ];
 const environment = [
   {
