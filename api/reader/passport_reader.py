@@ -126,7 +126,7 @@ def get_passport(address: str = "", stream_ids: List[str] = []) -> Dict:
         )
 
         # attempt to pull content
-        passport = get_stamps(get_passport_stream(stream_ids), did)
+        passport = get_stamps(get_passport_stream(stream_ids))
 
         # return a list of wallet address without the @eip155:1 suffix
         return passport
