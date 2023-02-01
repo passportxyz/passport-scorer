@@ -7,7 +7,7 @@ from typing import List, Optional, cast
 
 from account.models import Account, AccountAPIKey, Community, Nonce
 from django.contrib.auth import get_user_model
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from ninja import ModelSchema, Schema
 from ninja_extra import NinjaExtraAPI, status
@@ -126,7 +126,7 @@ class InvalidNonceException(APIException):
 # API endpoint for nonce
 @api.get("/nonce")
 def nonce(request):
-    nonce = Nonce.create_nonce(ttl=120)
+    nonce = Nonce.create_nonce(ttl=300)
 
     # CORS (specific domains, not *) for the /account endpoints
     # and fetch(url, {credentials: "include"}) in the frontend
@@ -134,7 +134,7 @@ def nonce(request):
 
     # request.session["nonce"] = nonce.nonce
 
-    return JsonResponse({"nonce": nonce.nonce})
+    return {"nonce": nonce.nonce}
 
 
 class AccountApiSchema(ModelSchema):

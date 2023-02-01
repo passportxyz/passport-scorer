@@ -121,7 +121,6 @@ const CommunityList = () => {
         <div className="mx-5 mt-4">
           {communityList}
           <button
-            data-testid="open-community-modal"
             onClick={() => router.push("/dashboard/api-keys")}
             className="text-md mt-5 mr-5 rounded-sm bg-purple-softpurple  py-1 px-6 font-librefranklin text-white"
           >
