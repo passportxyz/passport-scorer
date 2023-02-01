@@ -33,6 +33,7 @@ coverage = "*"
 pytest-django = "*"
 pytest-bdd = "*"
 pytest-mock = "*"
+django-stubs = "*"
 
 [requires]
 python_version = "3.10"
