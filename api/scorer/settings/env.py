@@ -10,6 +10,10 @@ env = environ.Env(
         str,
         "chief loud snack trend chief net field husband vote message decide replace",
     ),
+    UI_DOMAIN=(
+        str,
+        "localhost:3000",
+    ),
 )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.

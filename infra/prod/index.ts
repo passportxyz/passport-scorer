@@ -348,6 +348,10 @@ const environment = [
     value: rdsConnectionUrl,
   },
   {
+    name: "UI_DOMAIN",
+    value: "scorer." + process.env["DOMAIN"],
+  },
+  {
     name: "ALLOWED_HOSTS",
     value: JSON.stringify([domain, "*"]),
   },

@@ -25,6 +25,7 @@ ALLOWED_HOSTS = env.json("ALLOWED_HOSTS", default=[])
 
 CERAMIC_CACHE_BEARER_TOKEN = env("CERAMIC_CACHE_BEARER_TOKEN", default="supersecret")
 
+UI_DOMAIN = env("UI_DOMAIN")
 
 # Application definition
 INSTALLED_APPS = [
