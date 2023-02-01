@@ -1,5 +1,6 @@
 """Ceramic Cache API"""
 
+from typing import List
 from django.conf import settings
 from ninja import Router, Schema
 from ninja.security import APIKeyHeader
@@ -46,12 +47,17 @@ class CachedStampResponse(Schema):
     stamp: str
 
 
+class GetStampResponse(Schema):
+    success: bool
+    stamps: List[CachedStampResponse]
+
+
 @router.post(
     "stamp",
     auth=AuthAPIKey(),
     response={201: CachedStampResponse},
 )
-def cache_stamp(request, payload: CacheStampPayload):
+def cache_stamp(_, payload: CacheStampPayload):
     try:
         stamp, created = CeramicCache.objects.update_or_create(
             address=payload.address,
@@ -71,7 +77,7 @@ def cache_stamp(request, payload: CacheStampPayload):
     auth=AuthAPIKey(),
     response=DeleteStampResponse,
 )
-def soft_delete_stamp(request, payload: DeleteStampPayload):
+def soft_delete_stamp(_, payload: DeleteStampPayload):
     try:
         stamp = CeramicCache.objects.get(
             address=payload.address,
@@ -87,3 +93,24 @@ def soft_delete_stamp(request, payload: DeleteStampPayload):
         )
     except Exception as e:
         raise InvalidDeleteCacheRequestException()
+
+
+@router.get(
+    "stamp",
+    auth=AuthAPIKey(),
+    response=GetStampResponse,
+)
+def get_stamps(_, address):
+    try:
+        stamps = CeramicCache.objects.filter(deleted_at=None, address=address)
+        return GetStampResponse(
+            success=True,
+            stamps=[
+                CachedStampResponse(
+                    address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                )
+                for stamp in stamps
+            ],
+        )
+    except Exception as e:
+        raise e
