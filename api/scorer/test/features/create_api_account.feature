@@ -9,3 +9,8 @@ Feature: Create an API account
     Then I Sign-in-with-Ethereum
     Then I will have an account created
     And be taken to the dashboard
+
+  Scenario: Invalid Nonce useage
+    Given that I have an expired nonce
+    When I verify the SIWE message
+    Then verification fails

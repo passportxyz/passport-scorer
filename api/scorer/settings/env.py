@@ -6,6 +6,14 @@ import environ
 env = environ.Env(
     # set casting, default value
     DEBUG=(bool, False),
+    TEST_MNEMONIC=(
+        str,
+        "chief loud snack trend chief net field husband vote message decide replace",
+    ),
+    UI_DOMAIN=(
+        str,
+        "localhost:3000",
+    ),
 )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.

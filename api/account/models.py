@@ -1,6 +1,8 @@
+from __future__ import annotations
+from datetime import datetime, timedelta, timezone
 import logging
 import secrets
-from typing import Type
+from typing import Type, Optional
 
 from django.conf import settings
 from django.db import models
@@ -10,7 +12,9 @@ from scorer_weighted.models import Scorer, WeightedScorer
 from .deduplication import Rules
 
 log = logging.getLogger(__name__)
-from typing import TypeVar
+
+Q = models.Q
+tz = timezone.utc
 
 
 class EthAddressField(models.CharField):
@@ -18,45 +22,49 @@ class EthAddressField(models.CharField):
         return str(value).lower()
 
 
-N = TypeVar("N", bound="Nonce")
-
-
 class Nonce(models.Model):
     nonce = models.CharField(
         max_length=60, blank=False, null=False, unique=True, db_index=True
     )
     created_on = models.DateTimeField(auto_now_add=True)
+    expires_on = models.DateTimeField(null=True, blank=True)
     was_used = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.id} - {self.nonce} - used={self.was_used}"
+        return f"{self.nonce} - used={self.was_used} - expires_on={self.expires_on}"
 
     def mark_as_used(self):
         self.was_used = True
         self.save()
 
     @classmethod
-    def create_nonce(cls: N) -> str:
-        nonce = Nonce(nonce=secrets.token_hex(30))
+    def create_nonce(cls: Type[Nonce], ttl: Optional[int] = None) -> Nonce:
+        expires_on = datetime.now(tz) + timedelta(seconds=ttl) if ttl else None
+
+        nonce = Nonce(nonce=secrets.token_hex(30), expires_on=expires_on)
         nonce.save()
+
         return nonce
 
     @classmethod
-    def validate_nonce(cls: N, nonce: str) -> N:
+    def validate_nonce(cls: Type[Nonce], nonce: str) -> Nonce:
         try:
             log.debug("Checking nonce: %s", nonce)
-            nonce = Nonce.objects.filter(nonce=nonce).exclude(was_used=True).get()
-            return nonce
+            return Nonce.objects.filter(
+                Q(nonce=nonce),
+                (Q(expires_on__isnull=True) | Q(expires_on__gt=datetime.now(tz))),
+                Q(was_used=False),
+            ).get()
         except Nonce.DoesNotExist:
             # Re-raise the exception
             raise
 
     @classmethod
-    def use_nonce(cls: N, nonce: str) -> bool:
+    def use_nonce(cls: Type[Nonce], nonce: str):
         try:
-            nonce = cls.validate_nonce(nonce)
-            nonce.was_used = True
-            nonce.save()
+            nonceRecord = cls.validate_nonce(nonce)
+            nonceRecord.was_used = True
+            nonceRecord.save()
             return True
         except Exception:
             log.error("Error when validating nonce", exc_info=True)

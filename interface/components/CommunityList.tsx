@@ -1,5 +1,6 @@
 // --- React components/methods
 import React, { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/router";
 
 // --- Components
 import { RepeatIcon } from "@chakra-ui/icons";
@@ -18,6 +19,7 @@ import {
 import { Input } from "@chakra-ui/react";
 
 const CommunityList = () => {
+  const router = useRouter();
   const [createCommunityModalOpen, setCreateCommunityModalOpen] =
     useState(false);
   const [updateCommunityModalOpen, setUpdateCommunityModalOpen] =
@@ -119,6 +121,12 @@ const CommunityList = () => {
         <div className="mx-5 mt-4">
           {communityList}
           <button
+            onClick={() => router.push("/dashboard/api-keys")}
+            className="text-md mt-5 mr-5 rounded-sm bg-purple-softpurple  py-1 px-6 font-librefranklin text-white"
+          >
+            <span className="text-lg">+</span> Configure API Keys
+          </button>
+          <button
             data-testid="open-community-modal"
             onClick={() => {
               setCommunityName("");
@@ -127,7 +135,7 @@ const CommunityList = () => {
               setUpdatedCommunityDescription("");
               setCreateCommunityModalOpen(true);
             }}
-            className="text-md mt-5 rounded-sm border border-gray-lightgray py-1 px-6 font-librefranklin text-blue-darkblue "
+            className="text-md mt-5 rounded-sm border-2 border-gray-lightgray py-1 px-6 font-librefranklin text-blue-darkblue "
             disabled={communities.length >= 5}
           >
             <span className="text-lg">+</span> Create a Community

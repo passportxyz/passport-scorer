@@ -105,9 +105,7 @@ def _(scoreResponse):
     assert scoreResponseData["status"] == "DONE"
     assert scoreResponseData["score"] == "0E-9"
     assert scoreResponseData["evidence"]["type"] == "ThresholdScoreCheck"
-    assert (
-        scoreResponseData["evidence"]["success"] == False
-    )  # TODO: check: why is success false
+    assert scoreResponseData["evidence"]["success"] is False
 
     last_score_timestamp = datetime.fromisoformat(
         scoreResponseData["last_score_timestamp"]

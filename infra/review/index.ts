@@ -71,21 +71,23 @@ const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
   ],
 });
 
-// TODO: enable delete protection for the DB
-const postgresql = new aws.rds.Instance(`scorer-db`, {
-  allocatedStorage: 10,
-  engine: "postgres",
-  // engineVersion: "5.7",
-  instanceClass: "db.t3.large",
-  dbName: dbName,
-  password: dbPassword,
-  username: dbUsername,
-  skipFinalSnapshot: true,
-  dbSubnetGroupName: dbSubnetGroup.id,
-  vpcSecurityGroupIds: [db_secgrp.id],
-  deletionProtection: true,
-  backupRetentionPeriod: 5,
-});
+const postgresql = new aws.rds.Instance(
+  `scorer-db`,
+  {
+    allocatedStorage: 10,
+    engine: "postgres",
+    // engineVersion: "5.7",
+    instanceClass: "db.t3.large",
+    dbName: dbName,
+    password: dbPassword,
+    username: dbUsername,
+    skipFinalSnapshot: true,
+    dbSubnetGroupName: dbSubnetGroup.id,
+    vpcSecurityGroupIds: [db_secgrp.id],
+    backupRetentionPeriod: 5,
+  },
+  { protect: true }
+);
 
 export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
@@ -294,6 +296,10 @@ const environment = [
   {
     name: "DATABASE_URL",
     value: rdsConnectionUrl,
+  },
+  {
+    name: "UI_DOMAIN",
+    value: "scorer." + process.env["DOMAIN"],
   },
   {
     name: "ALLOWED_HOSTS",
