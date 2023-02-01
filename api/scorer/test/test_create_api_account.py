@@ -54,7 +54,7 @@ def _():
     data = response.json()
 
     siwe_data = {
-        "domain": "localhost",
+        "domain": "localhost:3000",
         "address": account.address,
         "statement": "Sign in with Ethereum to the app.",
         "uri": "http://localhost/",
