@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from ceramic_cache.models import CeramicCache
 
@@ -102,22 +104,30 @@ class TestGetStamps:
 
         address = "0x123test"
 
-        passport = get_passport(
-            address,
-            stream_ids=[
-                "1",
-                "2",
-                "3",
-            ],
-        )
+        with patch(
+            "reader.passport_reader.get_stamps",
+            return_value={
+                "stamps": [
+                    {
+                        "provider": s["credentialSubject"]["provider"],
+                        "credential": s,
+                    }
+                    for s in sample_stamps
+                ]
+            },
+        ):
+            passport = get_passport(
+                address,
+                stream_ids=[
+                    "1",
+                    "2",
+                    "3",
+                ],
+            )
+
         stamps = passport["stamps"]
 
-        print("=" * 40)
-        import pprint
-
-        pprint.pprint(stamps)
-        print("=" * 40)
-
+        assert len(sample_stamps) == len(stamps)
         for (index, sample_stamp) in enumerate(sample_stamps):
             assert (
                 stamps[index]["credential"]["issuanceDate"]
@@ -139,12 +149,6 @@ class TestGetStamps:
 
         passport = get_passport(address)
         stamps = passport["stamps"]
-
-        print("=" * 40)
-        import pprint
-
-        pprint.pprint(stamps)
-        print("=" * 40)
 
         for (index, sample_stamp) in enumerate(sample_stamps):
             assert (
