@@ -28,49 +28,41 @@ class Nonce(models.Model):
     )
     created_on = models.DateTimeField(auto_now_add=True)
     expires_on = models.DateTimeField(null=True, blank=True)
-    address = models.CharField(max_length=42, null=True, blank=True)
     was_used = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.nonce} - used={self.was_used} - address={self.address} - expires_on={self.expires_on}"
+        return f"{self.nonce} - used={self.was_used} - expires_on={self.expires_on}"
 
     def mark_as_used(self):
         self.was_used = True
         self.save()
 
     @classmethod
-    def create_nonce(
-        cls: Type[Nonce], ttl: Optional[int] = None, address: Optional[str] = None
-    ) -> Nonce:
+    def create_nonce(cls: Type[Nonce], ttl: Optional[int] = None) -> Nonce:
         expires_on = datetime.now(tz) + timedelta(seconds=ttl) if ttl else None
 
-        nonce = Nonce(
-            nonce=secrets.token_hex(30), expires_on=expires_on, address=address
-        )
+        nonce = Nonce(nonce=secrets.token_hex(30), expires_on=expires_on)
         nonce.save()
 
         return nonce
 
     @classmethod
-    def validate_nonce(
-        cls: Type[Nonce], nonce: str, address: Optional[str] = None
-    ) -> Nonce:
+    def validate_nonce(cls: Type[Nonce], nonce: str) -> Nonce:
         try:
             log.debug("Checking nonce: %s", nonce)
             return Nonce.objects.filter(
                 Q(nonce=nonce),
                 (Q(expires_on__isnull=True) | Q(expires_on__gt=datetime.now(tz))),
                 Q(was_used=False),
-                Q(address=address),
             ).get()
         except Nonce.DoesNotExist:
             # Re-raise the exception
             raise
 
     @classmethod
-    def use_nonce(cls: Type[Nonce], nonce: str, address: Optional[str] = None) -> bool:
+    def use_nonce(cls: Type[Nonce], nonce: str):
         try:
-            nonceRecord = cls.validate_nonce(nonce, address=address)
+            nonceRecord = cls.validate_nonce(nonce)
             nonceRecord.was_used = True
             nonceRecord.save()
             return True

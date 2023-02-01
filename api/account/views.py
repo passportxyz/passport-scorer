@@ -113,10 +113,9 @@ class InvalidNonceException(APIException):
 
 
 # API endpoint for nonce
-# TODO - give nonce an expiration time and store it to verify the user
-@api.get("/nonce/{address}")
-def nonce(request, address):
-    nonce = Nonce.create_nonce(address=address, ttl=300)
+@api.get("/nonce")
+def nonce(request):
+    nonce = Nonce.create_nonce(ttl=120)
 
     return {"nonce": nonce.nonce}
 
@@ -142,9 +141,7 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
     payload.message["issued_at"] = payload.message["issuedAt"]
     message: SiweMessage = SiweMessage(payload.message)
 
-    if not Nonce.use_nonce(
-        payload.message["nonce"], address=payload.message["address"]
-    ):
+    if not Nonce.use_nonce(payload.message["nonce"]):
         raise InvalidNonceException()
 
     # TODO: wrap in try-catch

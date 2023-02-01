@@ -11,6 +11,6 @@ Feature: Create an API account
     And be taken to the dashboard
 
   Scenario: Invalid Nonce useage
-    Given that I have requested a nonce with the wrong address
+    Given that I have an expired nonce
     When I verify the SIWE message
     Then verification fails

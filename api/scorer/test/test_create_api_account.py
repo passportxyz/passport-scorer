@@ -1,13 +1,12 @@
 """Create an API account feature tests."""
 
-import pdb
 import binascii
 import json
 from copy import deepcopy
 from datetime import datetime
 
 import pytest
-from account.models import Account
+from account.models import Account, Nonce
 from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when
@@ -15,6 +14,7 @@ from siwe import SiweMessage
 from web3 import Web3
 from web3.auto import w3
 from django.conf import settings
+from unittest.mock import patch
 
 pytestmark = pytest.mark.django_db
 
@@ -49,7 +49,7 @@ def _():
     )
 
     c = Client()
-    response = c.get(f"/account/nonce/{account.address}")
+    response = c.get("/account/nonce")
 
     data = response.json()
 
@@ -113,7 +113,7 @@ def test_invalid_nonce_useage():
     "that I have an expired nonce",
     target_fixture="badNonceVerifyPayload",
 )
-def _():
+def _(mocker):
     """that I have an expired nonce""",
 
     account = web3.eth.account.from_mnemonic(
@@ -121,7 +121,14 @@ def _():
     )
 
     c = Client()
-    response = c.get(f"/account/nonce")
+
+    expiredNonce = Nonce.create_nonce(ttl=-10)
+
+    with patch(
+        "account.models.Nonce.create_nonce", return_value=expiredNonce
+    ) as nonceMock:
+        response = c.get("/account/nonce")
+        nonceMock.assert_called()
 
     data = response.json()
 
@@ -159,17 +166,13 @@ def _():
 @when("I verify the SIWE message", target_fixture="badNonceVerifyResponse")
 def _(badNonceVerifyPayload):
     c = Client()
-    try:
-        return c.post(
-            "/account/verify",
-            badNonceVerifyPayload,
-            content_type="application/json",
-        )
-    except Exception as e:
-        pdb.set_trace()
-        print(e)
+    return c.post(
+        "/account/verify",
+        badNonceVerifyPayload,
+        content_type="application/json",
+    )
 
 
 @then("verification fails")
 def _(badNonceVerifyResponse):
-    pass
+    assert badNonceVerifyResponse.status_code == 400
