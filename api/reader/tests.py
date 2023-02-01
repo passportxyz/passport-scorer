@@ -1,11 +1,7 @@
-from ninja_schema.orm.utils.converter import django
 import pytest
-import pdb
-import json
-
-from .passport_reader import get_stamps
 from ceramic_cache.models import CeramicCache
 
+from .passport_reader import get_passport
 
 # Location of a Ceramic node that we can read state from
 CERAMIC_URL = "https://ceramic.passport-iam.gitcoin.co"
@@ -102,31 +98,36 @@ def mock_ceramic_stamps(requests_mock):
 class TestGetStamps:
     @pytest.mark.django_db
     def test_only_ceramic_stamps(self, mock_ceramic_stamps):
-        stamps = get_stamps(
-            {
-                "stamps": [
-                    {"provider": "Github", "credential": "ceramic://1"},
-                    {
-                        "provider": "GitcoinContributorStatistics#numGrantsContributeToGte#1",
-                        "credential": "ceramic://2",
-                    },
-                    {
-                        "provider": "GitcoinContributorStatistics#totalContributionAmountGte#10",
-                        "credential": "ceramic://3",
-                    },
-                ]
-            },
-            "did:0x123",
-        )
+        """Make sure cached ceramic stamps are returned when no cached stamps exist in the DB"""
 
-        for (index, stamp) in enumerate(sample_stamps):
+        address = "0x123test"
+
+        passport = get_passport(
+            address,
+            stream_ids=[
+                "1",
+                "2",
+                "3",
+            ],
+        )
+        stamps = passport["stamps"]
+
+        print("=" * 40)
+        import pprint
+
+        pprint.pprint(stamps)
+        print("=" * 40)
+
+        for (index, sample_stamp) in enumerate(sample_stamps):
             assert (
-                stamps["stamps"][index]["credential"]["issuanceDate"]
-                == sample_stamps[index]["issuanceDate"]
+                stamps[index]["credential"]["issuanceDate"]
+                == sample_stamp["issuanceDate"]
             )
 
     @pytest.mark.django_db
     def test_only_cached_stamps(self):
+        """Make sure cached stamps are returned when they exist in the DB and the ceramic stamps are ignored"""
+
         address = "0x123test"
 
         for stamp in sample_stamps:
@@ -136,11 +137,17 @@ class TestGetStamps:
                 stamp=stamp,
             )
 
-        pdb.set_trace()
-        stamps = get_stamps({"stamps": []}, f"did:{address}")
+        passport = get_passport(address)
+        stamps = passport["stamps"]
 
-        for (index, stamp) in enumerate(sample_stamps):
+        print("=" * 40)
+        import pprint
+
+        pprint.pprint(stamps)
+        print("=" * 40)
+
+        for (index, sample_stamp) in enumerate(sample_stamps):
             assert (
-                stamps["stamps"][index]["credential"]["issuanceDate"]
-                == sample_stamps[index]["issuanceDate"]
+                stamps[index]["credential"]["issuanceDate"]
+                == sample_stamp["issuanceDate"]
             )
