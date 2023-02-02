@@ -24,14 +24,6 @@ def get_utc_time():
     return datetime.utcnow()
 
 
-class AuthAPIKey(APIKeyHeader):
-    param_name = "X-API-Key"
-
-    def authenticate(self, request, key):
-        if key == settings.CERAMIC_CACHE_API_KEY and key != "":
-            return key
-
-
 class CacheStampPayload(Schema):
     address: str
     provider: str
@@ -62,7 +54,6 @@ class GetStampResponse(Schema):
 
 @router.post(
     "stamp",
-    auth=AuthAPIKey(),
     response={201: CachedStampResponse},
 )
 def cache_stamp(_, payload: CacheStampPayload):
@@ -82,7 +73,6 @@ def cache_stamp(_, payload: CacheStampPayload):
 
 @router.delete(
     "stamp",
-    auth=AuthAPIKey(),
     response=DeleteStampResponse,
 )
 def soft_delete_stamp(_, payload: DeleteStampPayload):
@@ -123,7 +113,6 @@ class DbCacheToken(RefreshToken):
 
 
 class AcessTokenResponse(Schema):
-
     access: str
 
 
