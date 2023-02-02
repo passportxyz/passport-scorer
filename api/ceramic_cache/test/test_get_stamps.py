@@ -20,7 +20,6 @@ class TestGetStamp:
 
         response = client.get(
             f"/ceramic-cache/stamp?address={sample_address}",
-            **{"HTTP_X_API_KEY": "supersecret"},
         )
 
         first_stamp = response.json()["stamps"][0]
@@ -33,7 +32,6 @@ class TestGetStamp:
     def test_get_stamp_returns_empty_list_if_no_stamps_exist(self, sample_address):
         response = client.get(
             f"/ceramic-cache/stamp?address={sample_address}",
-            **{"HTTP_X_API_KEY": "supersecret"},
         )
 
         assert response.status_code is 200
@@ -56,7 +54,6 @@ class TestGetStamp:
 
         response = client.get(
             f"/ceramic-cache/stamp?address={sample_address}",
-            **{"HTTP_X_API_KEY": "supersecret"},
         )
 
         assert response.status_code is 200
@@ -66,7 +63,6 @@ class TestGetStamp:
     def test_get_stamp_returns_422_if_address_is_not_provided(self):
         response = client.get(
             "/ceramic-cache/stamp",
-            **{"HTTP_X_API_KEY": "supersecret"},
         )
 
         assert response.status_code == 422
