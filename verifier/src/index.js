@@ -13,7 +13,7 @@ import("dids").then((dids) => {
 
         app.post("/verify", (req, res) => {
           const jws_restored = {
-            signatures: req.body.signature,
+            signatures: req.body.signatures,
             payload: req.body.payload,
             cid: CID.decode(new Uint8Array(req.body.cid)),
           };

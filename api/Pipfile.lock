@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "370e239f38921e72117c9fbc0bf63ea641ee12ea7e28994d918fd3f63adb5666"
+            "sha256": "0432efe657d6b97b2ea03614ec7230b93edbda0e4bb8b1d7e5d411dcb170e70f"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -1230,7 +1230,9 @@
             "version": "==1.10.4"
         },
         "pyjwt": {
-            "extras": [],
+            "extras": [
+                "crypto"
+            ],
             "hashes": [
                 "sha256:69285c7e31fc44f68a1feb309e948e0df53259d579295e6cfe2b1792329f05fd",
                 "sha256:d83c3d892a77bbb74d3e1a2cfa90afaadb60945205d1095d9221f04466f64c14"
@@ -1344,6 +1346,7 @@
                 "sha256:64299f4909223da747622c030b781c0d7811e359c37124b4bd368fb8c6518baa",
                 "sha256:98b1b2782e3c6c4904938b84c0eb932721069dfdb9134313beff7c83c2df24bf"
             ],
+            "index": "pypi",
             "markers": "python_version >= '3.7' and python_version < '4'",
             "version": "==2.28.2"
         },
@@ -2011,11 +2014,11 @@
         },
         "pre-commit": {
             "hashes": [
-                "sha256:aa97fa71e7ab48225538e1e91a6b26e483029e6de64824f04760c32557bc91d7",
-                "sha256:f448d5224c70e196a6c6f87961d2333dfdc49988ebbf660477f9efe991c03597"
+                "sha256:4187e74fda38f0f700256fb2f757774385503b04292047d0899fc913207f314b",
+                "sha256:83e2e8cc5cbb3691cff9474494816918d865120768aa36c9eda6185126667d21"
             ],
             "index": "pypi",
-            "version": "==3.0.2"
+            "version": "==3.0.3"
         },
         "pylint": {
             "hashes": [

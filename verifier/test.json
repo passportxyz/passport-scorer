@@ -1,6 +1,6 @@
 {
   "issuer": "did:pkh:eip155:1:0x85ff01cff157199527528788ec4ea6336615c989",
-  "signature": [
+  "signatures": [
     {
       "protected": "eyJhbGciOiJFZERTQSIsImNhcCI6ImlwZnM6Ly9iYWZ5cmVpZXpnY3M1c3FxaHI0ZXA1ajVjNjdpaWVzNGtwMnZwanAzdzY2d2U3NW1sZXhiZ25vdnVpbSIsImtpZCI6ImRpZDprZXk6ejZNa201dzVDU2pUc1hIWlJZUUhKdkpEemtjaWM5cG9EeFRSZ2M0S3lEWlJ3WFhiI3o2TWttNXc1Q1NqVHNYSFpSWVFISnZKRHprY2ljOXBvRHhUUmdjNEt5RFpSd1hYYiJ9",
       "signature": "oKrQe4G_5_vLyeEx7QBxJgF3XqzUBMHMinh8HbnJGQ_eYrz73_gpsKsvnazzttK1vBDKGUT-wUX8VUqnjmGZCQ"
