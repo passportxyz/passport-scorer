@@ -134,6 +134,7 @@ def authenticate(request, payload: CacaoVerifySubmit):
         )
         if r.status_code == 200:
             token = DbCacheToken()
+            token["did"] = payload.issuer
 
             return {
                 "ok": True,
