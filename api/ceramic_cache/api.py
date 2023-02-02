@@ -27,7 +27,7 @@ def get_utc_time():
 class CacheStampPayload(Schema):
     address: str
     provider: str
-    stamp: str
+    stamp: Any
 
 
 class DeleteStampPayload(Schema):
@@ -44,7 +44,7 @@ class DeleteStampResponse(Schema):
 class CachedStampResponse(Schema):
     address: str
     provider: str
-    stamp: str
+    stamp: Any
 
 
 class GetStampResponse(Schema):
