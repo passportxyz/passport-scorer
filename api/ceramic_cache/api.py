@@ -11,7 +11,7 @@ from ninja_extra import status
 from ninja_extra.exceptions import APIException
 from ninja_jwt.tokens import RefreshToken
 
-from .exceptions import InvalidDeleteCacheRequestException
+from .exceptions import InvalidDeleteCacheRequestException, InvalidSessionException
 from .models import CeramicCache
 
 from django.conf import settings
@@ -35,6 +35,10 @@ router = Router()
 
 def get_utc_time():
     return datetime.utcnow()
+
+
+def get_did(address: str):
+    return f"did:pkh:eip155:1:{address.lower()}"
 
 
 class JWTDidAuthentication:
@@ -69,7 +73,7 @@ class JWTDidAuthentication:
 
         raise InvalidToken(
             {
-                "detail": _("Given token not valid for any token type"),
+                "detail": "Given token not valid for any token type",
                 "messages": messages,
             }
         )
@@ -78,7 +82,7 @@ class JWTDidAuthentication:
         request.did = None
         validated_token = self.get_validated_token(token)
         request.did = validated_token["did"]
-        return request.did
+        return request
 
 
 class JWTDidAuth(JWTDidAuthentication, HttpBearer):
@@ -121,10 +125,12 @@ class GetStampResponse(Schema):
 @router.post(
     "stamp",
     response={201: CachedStampResponse},
-    # auth=JWTDidAuth()    <-- to be uncommented in order to enable authentication
+    auth=JWTDidAuth(),
 )
-def cache_stamp(_, payload: CacheStampPayload):
+def cache_stamp(request, payload: CacheStampPayload):
     try:
+        if request.did != get_did(payload.address):
+            raise InvalidSessionException()
         stamp, created = CeramicCache.objects.update_or_create(
             address=payload.address,
             provider=payload.provider,
@@ -141,10 +147,13 @@ def cache_stamp(_, payload: CacheStampPayload):
 @router.delete(
     "stamp",
     response=DeleteStampResponse,
-    # auth=JWTDidAuth()    <-- to be uncommented in order to enable authentication
+    auth=JWTDidAuth(),
 )
-def soft_delete_stamp(_, payload: DeleteStampPayload):
+def soft_delete_stamp(request, payload: DeleteStampPayload):
     try:
+        if request.did != get_did(payload.address):
+            raise InvalidSessionException()
+
         stamp = CeramicCache.objects.get(
             address=payload.address,
             provider=payload.provider,
@@ -162,7 +171,7 @@ def soft_delete_stamp(_, payload: DeleteStampPayload):
 
 
 @router.get("stamp", response=GetStampResponse)
-def get_stamps(_, address):
+def get_stamps(request, address):
     try:
         stamps = CeramicCache.objects.filter(deleted_at=None, address=address)
         return GetStampResponse(
@@ -197,17 +206,17 @@ class DbCacheToken(RefreshToken):
     lifetime: timedelta = timedelta(days=7)
 
 
-class AcessTokenResponse(Schema):
+class AccessTokenResponse(Schema):
     access: str
 
 
 @router.post(
     "authenticate",
-    response=AcessTokenResponse,
+    response=AccessTokenResponse,
 )
 def authenticate(request, payload: CacaoVerifySubmit):
     """
-    This method will validat a jws created with DagJWS, will validate by forwarding this to our validator
+    This method will validate a jws created with DagJWS, will validate by forwarding this to our validator
     it and return a JWT token.
     """
     try:

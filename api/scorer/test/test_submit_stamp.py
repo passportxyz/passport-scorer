@@ -7,6 +7,7 @@ from ceramic_cache.models import CeramicCache
 from django.test import Client
 from pytest_bdd import given, scenario, then, when
 
+
 pytestmark = pytest.mark.django_db
 
 
@@ -33,7 +34,7 @@ def _(verifiable_credential, sample_provider, sample_address):
     "it stores the stamp in the DB Cache by posting it to the Scorer API URL",
     target_fixture="cache_stamp_response",
 )
-def _(verifiable_credential, sample_provider, sample_address):
+def _(verifiable_credential, sample_provider, sample_address, sample_token):
     """it stores the stamp in the DB Cache by posting it to the Scorer API URL."""
     params = {
         "address": sample_address,
@@ -46,7 +47,7 @@ def _(verifiable_credential, sample_provider, sample_address):
         "/ceramic-cache/stamp",
         json.dumps(params),
         content_type="application/json",
-        **{"HTTP_X_API_KEY": "supersecret"},
+        **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
     )
 
     assert cache_stamp_response.status_code == 201

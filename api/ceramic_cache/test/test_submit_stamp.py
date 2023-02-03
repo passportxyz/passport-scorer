@@ -10,7 +10,9 @@ pytestmark = pytest.mark.django_db
 client = Client()
 
 
-def create_delete_stamp(sample_address, sample_provider, verifiable_credential):
+def create_delete_stamp(
+    sample_address, sample_provider, verifiable_credential, sample_token
+):
     params = {
         "address": sample_address,
         "provider": sample_provider,
@@ -26,7 +28,7 @@ def create_delete_stamp(sample_address, sample_provider, verifiable_credential):
         "/ceramic-cache/stamp",
         json.dumps(params),
         content_type="application/json",
-        **{"HTTP_X_API_KEY": "supersecret"},
+        **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
     )
 
     return delete_stamp_response
@@ -34,7 +36,7 @@ def create_delete_stamp(sample_address, sample_provider, verifiable_credential):
 
 class TestSubmitStamp:
     def test_updated_stamp_is_saved_to_address_provider_record(
-        self, sample_provider, sample_address
+        self, sample_provider, sample_address, sample_token
     ):
         params = {
             "address": sample_address,
@@ -49,7 +51,7 @@ class TestSubmitStamp:
                 "/ceramic-cache/stamp",
                 json.dumps(params),
                 content_type="application/json",
-                **{"HTTP_X_API_KEY": "supersecret"},
+                **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
             )
 
             responses.append(cache_stamp_response)
@@ -60,14 +62,19 @@ class TestSubmitStamp:
         assert responses[1].json()["stamp"] == '{"stamp": 2}'
 
     def test_soft_delete_stamp(
-        self, mocker, sample_provider, sample_address, verifiable_credential
+        self,
+        mocker,
+        sample_provider,
+        sample_address,
+        verifiable_credential,
+        sample_token,
     ):
         mocker.patch(
             "ceramic_cache.api.get_utc_time",
             return_value=datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00"),
         )
         delete_stamp_response = create_delete_stamp(
-            sample_address, sample_provider, verifiable_credential
+            sample_address, sample_provider, verifiable_credential, sample_token
         )
 
         assert delete_stamp_response.status_code == 200
@@ -77,10 +84,10 @@ class TestSubmitStamp:
         ).deleted_at == datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00")
 
     def test_recreate_soft_deleted_stamp(
-        self, sample_provider, sample_address, verifiable_credential
+        self, sample_provider, sample_address, verifiable_credential, sample_token
     ):
         delete_stamp_response = create_delete_stamp(
-            sample_address, sample_provider, verifiable_credential
+            sample_address, sample_provider, verifiable_credential, create_delete_stamp
         )
 
         params = {
@@ -93,7 +100,7 @@ class TestSubmitStamp:
             "/ceramic-cache/stamp",
             json.dumps(params),
             content_type="application/json",
-            **{"HTTP_X_API_KEY": "supersecret"},
+            **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
         )
 
         assert (
@@ -103,7 +110,9 @@ class TestSubmitStamp:
             == None
         )
 
-    def test_soft_delete_non_existent_record(self, sample_provider, sample_address):
+    def test_soft_delete_non_existent_record(
+        self, sample_provider, sample_address, sample_token
+    ):
         params = {
             "address": sample_address,
             "provider": sample_provider,
@@ -113,7 +122,7 @@ class TestSubmitStamp:
             "/ceramic-cache/stamp",
             json.dumps(params),
             content_type="application/json",
-            **{"HTTP_X_API_KEY": "supersecret"},
+            **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
         )
 
         assert delete_stamp_response.status_code == 404
