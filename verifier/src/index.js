@@ -51,7 +51,7 @@ app.use(express.json());
 app.use(cors());
 
 // default port to listen on
-const port = process.env.IAM_PORT || 80;
+const port = process.env.VERIFIER_PORT || 8001;
 
 app.listen(port, () => {
   // eslint-disable-next-line no-console

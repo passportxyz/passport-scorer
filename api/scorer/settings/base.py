@@ -201,5 +201,5 @@ TEST_MNEMONIC = env("TEST_MNEMONIC")
 
 
 CERAMIC_CACHE_CACAO_VALIDATION_URL = env(
-    "CERAMIC_CACHE_CACAO_VALIDATION_URL", default="http://localhost/verify"
+    "CERAMIC_CACHE_CACAO_VALIDATION_URL", default="http://localhost:8001/verify"
 )
