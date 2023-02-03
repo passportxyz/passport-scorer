@@ -154,7 +154,13 @@ def authenticate(request, payload: CacaoVerifySubmit):
                 "access": str(token.access_token),
             }
 
-        raise FailedVerificationException
+        log.error(
+            "Failed to validate did signature for: %s.\n%s\n%s",
+            payload.dict(),
+            r,
+            r.text,
+        )
+        raise FailedVerificationException(detail=f"Verifier response: {str(r)}")
 
     except Exception as e:
         log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
