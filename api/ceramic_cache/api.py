@@ -1,12 +1,22 @@
 """Ceramic Cache API"""
 
+import logging
+from datetime import datetime, timedelta
+from typing import Dict, List, cast
+
+import requests
+from account.views import TokenObtainPairOutSchema
 from django.conf import settings
 from ninja import Router, Schema
 from ninja.security import APIKeyHeader
-from .exceptions import InvalidDeleteCacheRequestException
-from datetime import datetime
+from ninja_extra import status
+from ninja_extra.exceptions import APIException
+from ninja_jwt.tokens import AccessToken, RefreshToken
 
+from .exceptions import InvalidDeleteCacheRequestException
 from .models import CeramicCache
+
+log = logging.getLogger(__name__)
 
 router = Router()
 
@@ -87,3 +97,52 @@ def soft_delete_stamp(request, payload: DeleteStampPayload):
         )
     except Exception as e:
         raise InvalidDeleteCacheRequestException()
+
+
+class CacaoVerifySubmit(Schema):
+    issuer: str
+    signatures: List[Dict]
+    payload: str
+    cid: List[int]
+    cacao: List[int]
+
+
+class FailedVerificationException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Unable to authorize request"
+
+
+class DbCacheToken(RefreshToken):
+    # Lifetime of the token is set to 7 days (because this is the setting of the CACAO session)
+    # But it should ideally be read out of the cacao
+    lifetime: timedelta = timedelta(days=7)
+
+
+class AcessTokenResponse(Schema):
+
+    access: str
+
+
+@router.post(
+    "authenticate",
+    response=AcessTokenResponse,
+)
+def authenticate(request, payload: CacaoVerifySubmit):
+    try:
+        r = requests.post(
+            settings.CERAMIC_CACHE_CACAO_VALIDATION_URL, json=payload.dict()
+        )
+        if r.status_code == 200:
+            token = DbCacheToken()
+            token["did"] = payload.issuer
+
+            return {
+                "ok": True,
+                "access": str(token.access_token),
+            }
+
+        raise FailedVerificationException
+
+    except Exception as e:
+        log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
+        raise e

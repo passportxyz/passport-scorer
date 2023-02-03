@@ -2,10 +2,10 @@ import hashlib
 import logging
 import random
 import string
-from ast import Dict
 from typing import List, Optional, cast
 
 from account.models import Account, AccountAPIKey, Community, Nonce
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -17,7 +17,6 @@ from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
 from scorer_weighted.models import BinaryWeightedScorer, WeightedScorer
 from siwe import SiweMessage, siwe
-from django.conf import settings
 
 log = logging.getLogger(__name__)
 
