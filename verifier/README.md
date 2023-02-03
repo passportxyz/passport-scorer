@@ -2,7 +2,7 @@
 # Test
 With curl to node:
 ```bash
-curl -X POST http://localhost:80/verify \
+curl -X POST http://localhost:8001/verify \
    -H 'Content-Type: application/json' \
    -d @test.json
 ```
