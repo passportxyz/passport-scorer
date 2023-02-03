@@ -133,7 +133,7 @@ jobs:
   #         # determine the unique run id necessary to re-run the checks
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build:
+  build-api:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -172,8 +172,47 @@ jobs:
     outputs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
 
+  build-verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Declare some variables
+        id: vars
+        shell: bash
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      - name: Login to Amazon ECR Public
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          registry-type: public
+
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REGISTRY_ALIAS: i8r3d4s6
+          ECR_REPOSITORY: passport-verifier
+          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f verifier/Dockerfile ./verifier/
+          docker push $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
+
+    outputs:
+      dockerTag: ${{ steps.vars.outputs.sha_short }}
+
   deploy-review:
-    needs: [test, build]
+    needs: [test, build-api, build-verifier]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
