@@ -355,6 +355,12 @@ const service = new awsx.ecs.FargateService("scorer", {
         image: dockerGtcPassportVerifierImage,
         memory: 512,
         links: [],
+        portMappings: [
+          {
+            containerPort: 8001,
+            hostPort: 8001,
+          },
+        ],
         linuxParameters: {
           initProcessEnabled: true,
         },
