@@ -368,6 +368,10 @@ const environment = [
     name: "CELERY_BROKER_URL",
     value: redisCacheOpsConnectionUrl,
   },
+  {
+    name: "CERAMIC_CACHE_CACAO_VALIDATION_URL",
+    value: "http://localhost:8001/verify",
+  },
 ];
 
 //////////////////////////////////////////////////////////////
