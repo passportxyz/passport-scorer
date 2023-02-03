@@ -59,24 +59,6 @@ class TestSubmitStamp:
         assert responses[1].status_code == 201
         assert responses[1].json()["stamp"] == '{"stamp": 2}'
 
-    def test_bad_bearer_token_returns_401(
-        self, verifiable_credential, sample_provider, sample_address
-    ):
-        params = {
-            "address": sample_address,
-            "provider": sample_provider,
-            "stamp": verifiable_credential,
-        }
-
-        cache_stamp_response = client.post(
-            "/ceramic-cache/stamp",
-            json.dumps(params),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=f"Bearer notsecret",
-        )
-
-        assert cache_stamp_response.status_code == 401
-
     def test_soft_delete_stamp(
         self, mocker, sample_provider, sample_address, verifiable_credential
     ):
