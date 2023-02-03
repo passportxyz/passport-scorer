@@ -14,6 +14,7 @@ let dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
 let dbName = `${process.env["DB_NAME"]}`;
 
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
+export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
 
 //////////////////////////////////////////////////////////////
 // Set up VPC
@@ -313,6 +314,10 @@ const environment = [
     name: "CELERY_BROKER_URL",
     value: redisCacheOpsConnectionUrl,
   },
+  {
+    name: "CERAMIC_CACHE_CACAO_VALIDATION_URL",
+    value: "http://localhost:8001/verify",
+  },
 ];
 
 //////////////////////////////////////////////////////////////
@@ -342,6 +347,14 @@ const service = new awsx.ecs.FargateService("scorer", {
         links: [],
         secrets: secrets,
         environment: environment,
+        linuxParameters: {
+          initProcessEnabled: true,
+        },
+      },
+      verifier: {
+        image: dockerGtcPassportVerifierImage,
+        memory: 512,
+        links: [],
         linuxParameters: {
           initProcessEnabled: true,
         },
