@@ -416,6 +416,12 @@ const service = new awsx.ecs.FargateService("scorer", {
             hostPort: 8001,
           },
         ],
+        environment: [
+          {
+            name: "VERIFIER_PORT",
+            value: "8001",
+          },
+        ],
         linuxParameters: {
           initProcessEnabled: true,
         },
