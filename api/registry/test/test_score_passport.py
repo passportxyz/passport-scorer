@@ -1,13 +1,13 @@
 from unittest.mock import patch
 
 from account.models import Account, Community
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
 from registry.exceptions import NoPassportException
 from registry.models import Passport, Score
 from registry.tasks import score_passport
 from web3 import Web3
-from django.conf import settings
 
 my_mnemonic = settings.TEST_MNEMONIC
 web3 = Web3()
@@ -52,7 +52,7 @@ class TestScorePassportTestCase(TransactionTestCase):
 
     def test_no_passport(self):
 
-        with patch("registry.tasks.score_passport", side_effect=NoPassportException):
+        with patch("registry.tasks.get_passport", return_value=None):
             score_passport(self.community.id, self.account.address)
 
             passport = Passport.objects.get(

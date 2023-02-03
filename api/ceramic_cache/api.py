@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, cast
+from typing import Any, Dict, List
 
 import requests
 from django.conf import settings
@@ -91,6 +91,26 @@ def soft_delete_stamp(_, payload: DeleteStampPayload):
         )
     except Exception as e:
         raise InvalidDeleteCacheRequestException()
+
+
+@router.get(
+    "stamp",
+    response=GetStampResponse,
+)
+def get_stamps(_, address):
+    try:
+        stamps = CeramicCache.objects.filter(deleted_at=None, address=address)
+        return GetStampResponse(
+            success=True,
+            stamps=[
+                CachedStampResponse(
+                    address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                )
+                for stamp in stamps
+            ],
+        )
+    except Exception as e:
+        raise e
 
 
 class CacaoVerifySubmit(Schema):
