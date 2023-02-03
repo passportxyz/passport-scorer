@@ -14,6 +14,7 @@ let dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
 let dbName = `${process.env["DB_NAME"]}`;
 
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
+export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
 
 //////////////////////////////////////////////////////////////
 // Set up VPC
@@ -397,6 +398,20 @@ const service = new awsx.ecs.FargateService("scorer", {
         links: [],
         secrets: secrets,
         environment: environment,
+        linuxParameters: {
+          initProcessEnabled: true,
+        },
+      },
+      verifier: {
+        image: dockerGtcPassportVerifierImage,
+        memory: 512,
+        links: [],
+        portMappings: [
+          {
+            containerPort: 8001,
+            hostPort: 8001,
+          },
+        ],
         linuxParameters: {
           initProcessEnabled: true,
         },
