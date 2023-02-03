@@ -2,16 +2,15 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, cast
+from typing import Any, Dict, List
 
 import requests
-from account.views import TokenObtainPairOutSchema
 from django.conf import settings
 from ninja import Router, Schema
 from ninja.security import APIKeyHeader
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
-from ninja_jwt.tokens import AccessToken, RefreshToken
+from ninja_jwt.tokens import RefreshToken
 
 from .exceptions import InvalidDeleteCacheRequestException
 from .models import CeramicCache
@@ -25,18 +24,10 @@ def get_utc_time():
     return datetime.utcnow()
 
 
-class AuthAPIKey(APIKeyHeader):
-    param_name = "X-API-Key"
-
-    def authenticate(self, request, key):
-        if key == settings.CERAMIC_CACHE_API_KEY and key != "":
-            return key
-
-
 class CacheStampPayload(Schema):
     address: str
     provider: str
-    stamp: str
+    stamp: Any
 
 
 class DeleteStampPayload(Schema):
@@ -53,15 +44,19 @@ class DeleteStampResponse(Schema):
 class CachedStampResponse(Schema):
     address: str
     provider: str
-    stamp: str
+    stamp: Any
+
+
+class GetStampResponse(Schema):
+    success: bool
+    stamps: List[CachedStampResponse]
 
 
 @router.post(
     "stamp",
-    auth=AuthAPIKey(),
     response={201: CachedStampResponse},
 )
-def cache_stamp(request, payload: CacheStampPayload):
+def cache_stamp(_, payload: CacheStampPayload):
     try:
         stamp, created = CeramicCache.objects.update_or_create(
             address=payload.address,
@@ -78,10 +73,9 @@ def cache_stamp(request, payload: CacheStampPayload):
 
 @router.delete(
     "stamp",
-    auth=AuthAPIKey(),
     response=DeleteStampResponse,
 )
-def soft_delete_stamp(request, payload: DeleteStampPayload):
+def soft_delete_stamp(_, payload: DeleteStampPayload):
     try:
         stamp = CeramicCache.objects.get(
             address=payload.address,
@@ -97,6 +91,26 @@ def soft_delete_stamp(request, payload: DeleteStampPayload):
         )
     except Exception as e:
         raise InvalidDeleteCacheRequestException()
+
+
+@router.get(
+    "stamp",
+    response=GetStampResponse,
+)
+def get_stamps(_, address):
+    try:
+        stamps = CeramicCache.objects.filter(deleted_at=None, address=address)
+        return GetStampResponse(
+            success=True,
+            stamps=[
+                CachedStampResponse(
+                    address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                )
+                for stamp in stamps
+            ],
+        )
+    except Exception as e:
+        raise e
 
 
 class CacaoVerifySubmit(Schema):
@@ -119,7 +133,6 @@ class DbCacheToken(RefreshToken):
 
 
 class AcessTokenResponse(Schema):
-
     access: str
 
 
