@@ -1,13 +1,21 @@
 """Ceramic Cache API"""
 
-from typing import List, Any
+import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
+
+import requests
 from django.conf import settings
 from ninja import Router, Schema
 from ninja.security import APIKeyHeader
-from .exceptions import InvalidDeleteCacheRequestException
-from datetime import datetime
+from ninja_extra import status
+from ninja_extra.exceptions import APIException
+from ninja_jwt.tokens import RefreshToken
 
+from .exceptions import InvalidDeleteCacheRequestException
 from .models import CeramicCache
+
+log = logging.getLogger(__name__)
 
 router = Router()
 
@@ -102,4 +110,52 @@ def get_stamps(_, address):
             ],
         )
     except Exception as e:
+        raise e
+
+
+class CacaoVerifySubmit(Schema):
+    issuer: str
+    signatures: List[Dict]
+    payload: str
+    cid: List[int]
+    cacao: List[int]
+
+
+class FailedVerificationException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Unable to authorize request"
+
+
+class DbCacheToken(RefreshToken):
+    # Lifetime of the token is set to 7 days (because this is the setting of the CACAO session)
+    # But it should ideally be read out of the cacao
+    lifetime: timedelta = timedelta(days=7)
+
+
+class AccessTokenResponse(Schema):
+    access: str
+
+
+@router.post(
+    "authenticate",
+    response=AccessTokenResponse,
+)
+def authenticate(request, payload: CacaoVerifySubmit):
+    try:
+        r = requests.post(
+            settings.CERAMIC_CACHE_CACAO_VALIDATION_URL, json=payload.dict()
+        )
+        if r.status_code == 200:
+            token = DbCacheToken()
+            token["did"] = payload.issuer
+
+            return {
+                "ok": True,
+                "access": str(token.access_token),
+            }
+
+        raise FailedVerificationException
+
+    except Exception as e:
+        log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
         raise e

@@ -14,6 +14,7 @@ let dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
 let dbName = `${process.env["DB_NAME"]}`;
 
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
+export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
 
 //////////////////////////////////////////////////////////////
 // Set up VPC
@@ -71,21 +72,23 @@ const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
   ],
 });
 
-// TODO: enable delete protection for the DB
-const postgresql = new aws.rds.Instance(`scorer-db`, {
-  allocatedStorage: 10,
-  engine: "postgres",
-  // engineVersion: "5.7",
-  instanceClass: "db.t3.large",
-  dbName: dbName,
-  password: dbPassword,
-  username: dbUsername,
-  skipFinalSnapshot: true,
-  dbSubnetGroupName: dbSubnetGroup.id,
-  vpcSecurityGroupIds: [db_secgrp.id],
-  deletionProtection: true,
-  backupRetentionPeriod: 5,
-});
+const postgresql = new aws.rds.Instance(
+  `scorer-db`,
+  {
+    allocatedStorage: 10,
+    engine: "postgres",
+    // engineVersion: "5.7",
+    instanceClass: "db.t3.large",
+    dbName: dbName,
+    password: dbPassword,
+    username: dbUsername,
+    skipFinalSnapshot: true,
+    dbSubnetGroupName: dbSubnetGroup.id,
+    vpcSecurityGroupIds: [db_secgrp.id],
+    backupRetentionPeriod: 5,
+  },
+  { protect: true }
+);
 
 export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
@@ -296,6 +299,10 @@ const environment = [
     value: rdsConnectionUrl,
   },
   {
+    name: "UI_DOMAIN",
+    value: "scorer." + process.env["DOMAIN"],
+  },
+  {
     name: "ALLOWED_HOSTS",
     value: JSON.stringify([domain, "*"]),
   },
@@ -306,6 +313,10 @@ const environment = [
   {
     name: "CELERY_BROKER_URL",
     value: redisCacheOpsConnectionUrl,
+  },
+  {
+    name: "CERAMIC_CACHE_CACAO_VALIDATION_URL",
+    value: "http://localhost:8001/verify",
   },
 ];
 
@@ -336,6 +347,20 @@ const service = new awsx.ecs.FargateService("scorer", {
         links: [],
         secrets: secrets,
         environment: environment,
+        linuxParameters: {
+          initProcessEnabled: true,
+        },
+      },
+      verifier: {
+        image: dockerGtcPassportVerifierImage,
+        memory: 512,
+        links: [],
+        portMappings: [
+          {
+            containerPort: 8001,
+            hostPort: 8001,
+          },
+        ],
         linuxParameters: {
           initProcessEnabled: true,
         },

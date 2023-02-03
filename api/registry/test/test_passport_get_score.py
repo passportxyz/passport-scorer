@@ -3,9 +3,11 @@ from account.models import Account, AccountAPIKey, Community
 from django.test import Client
 from registry.models import Passport, Score, Stamp
 from web3 import Web3
+from django.conf import settings
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
+my_mnemonic = settings.TEST_MNEMONIC
 
 # TODO: Load from fixture file
 pytestmark = pytest.mark.django_db
@@ -16,10 +18,6 @@ limit = 4
 
 @pytest.fixture
 def scorer_account(scorer_user):
-    # TODO: load mnemonic from env
-    my_mnemonic = (
-        "chief loud snack trend chief net field husband vote message decide replace"
-    )
     web3_account = web3.eth.account.from_mnemonic(
         my_mnemonic, account_path="m/44'/60'/0'/0/0"
     )

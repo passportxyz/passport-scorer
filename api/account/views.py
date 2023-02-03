@@ -2,10 +2,10 @@ import hashlib
 import logging
 import random
 import string
-from ast import Dict
 from typing import List, Optional, cast
 
-from account.models import Account, AccountAPIKey, Community
+from account.models import Account, AccountAPIKey, Community, Nonce
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -16,7 +16,7 @@ from ninja_jwt.authentication import JWTAuth
 from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
 from scorer_weighted.models import BinaryWeightedScorer, WeightedScorer
-from siwe import SiweMessage
+from siwe import SiweMessage, siwe
 
 log = logging.getLogger(__name__)
 
@@ -33,19 +33,6 @@ CHALLENGE_STATEMENT = "I authorize the passport scorer.\n\nnonce:"
 # Returns a random username to be used in the challenge
 def get_random_username():
     return "".join(random.choice(string.ascii_letters) for i in range(32))
-
-
-# API endpoint for nonce
-# TODO - give nonce an expiration time and store it to verify the user
-@api.get("/nonce")
-def nonce(request):
-    return {
-        "nonce": hashlib.sha256(
-            str("".join(random.choice(string.ascii_letters) for i in range(32))).encode(
-                "utf"
-            )
-        ).hexdigest()
-    }
 
 
 class TokenObtainPairOutSchema(Schema):
@@ -120,6 +107,35 @@ class ScorerTypeDoesNotExistException(APIException):
     default_detail = "The scorer type does not exist"
 
 
+class FailedVerificationException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Unable to authorize account"
+
+
+class InvalidDomainException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Unable to authorize requests from this domain"
+
+
+class InvalidNonceException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Unable to verify the provided nonce"
+
+
+# API endpoint for nonce
+@api.get("/nonce")
+def nonce(request):
+    nonce = Nonce.create_nonce(ttl=300)
+
+    # CORS (specific domains, not *) for the /account endpoints
+    # and fetch(url, {credentials: "include"}) in the frontend
+    # must be configured in order to facilitate sessions
+
+    # request.session["nonce"] = nonce.nonce
+
+    return {"nonce": nonce.nonce}
+
+
 class AccountApiSchema(ModelSchema):
     class Config:
         model = AccountAPIKey
@@ -139,14 +155,26 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
 
     payload.message["chain_id"] = payload.message["chainId"]
     payload.message["issued_at"] = payload.message["issuedAt"]
-    message: SiweMessage = SiweMessage(payload.message)
 
-    # TODO: wrap in try-catch
-    is_valid_signature = message.verify(
-        payload.signature
-    )  # TODO: add more verification params
+    if not Nonce.use_nonce(payload.message["nonce"]):
+        raise InvalidNonceException()
 
-    message.json()
+    try:
+        message: SiweMessage = SiweMessage(payload.message)
+        verifyParams = {
+            "signature": payload.signature,
+            # See note in /nonce function above
+            # "nonce": request.session["nonce"],
+        }
+        if not settings.DEBUG:
+            verifyParams["domain"] = settings.UI_DOMAIN
+
+        message.verify(**verifyParams)
+    except siwe.DomainMismatch:
+        raise InvalidDomainException()
+    except siwe.VerificationError:
+        raise FailedVerificationException()
+
     address_lower = payload.message["address"]
 
     try:

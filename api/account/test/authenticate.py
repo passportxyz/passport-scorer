@@ -8,9 +8,11 @@ from eth_account.messages import encode_defunct
 from siwe import SiweMessage
 from web3 import Web3
 from web3.auto import w3
+from django.conf import settings
 
 # Create your tests here.
 
+my_mnemonic = settings.TEST_MNEMONIC
 
 mock_api_key_body = {"name": "test"}
 mock_community_body = {"name": "test", "description": "test"}
@@ -20,10 +22,6 @@ def authenticate(client):
     """Test creation of an account wit SIWE"""
     web3 = Web3()
     web3.eth.account.enable_unaudited_hdwallet_features()
-    # TODO: load mnemonic from env
-    my_mnemonic = (
-        "chief loud snack trend chief net field husband vote message decide replace"
-    )
     account = web3.eth.account.from_mnemonic(
         my_mnemonic, account_path="m/44'/60'/0'/0/0"
     )
@@ -77,10 +75,6 @@ class AccountTestCase(TestCase):
         """Test creation of an account wit SIWE"""
         web3 = Web3()
         web3.eth.account.enable_unaudited_hdwallet_features()
-        # TODO: load mnemonic from env
-        my_mnemonic = (
-            "chief loud snack trend chief net field husband vote message decide replace"
-        )
         account = web3.eth.account.from_mnemonic(
             my_mnemonic, account_path="m/44'/60'/0'/0/0"
         )
@@ -128,6 +122,6 @@ class AccountTestCase(TestCase):
         )
         self.assertEqual(200, response.status_code)
         data = response.json()
-        # TODO: check payload of the JWT token ???
+        # Refresh/access JWT created by django
         self.assertTrue("refresh" in data)
         self.assertTrue("access" in data)

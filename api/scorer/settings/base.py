@@ -25,6 +25,7 @@ ALLOWED_HOSTS = env.json("ALLOWED_HOSTS", default=[])
 
 CERAMIC_CACHE_API_KEY = env("CERAMIC_CACHE_API_KEY", default="")
 
+UI_DOMAIN = env("UI_DOMAIN")
 
 # Application definition
 INSTALLED_APPS = [
@@ -195,3 +196,10 @@ NINJA_JWT = {
     "SLIDING_TOKEN_LIFETIME": timedelta(minutes=5),
     "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
 }
+
+TEST_MNEMONIC = env("TEST_MNEMONIC")
+
+
+CERAMIC_CACHE_CACAO_VALIDATION_URL = env(
+    "CERAMIC_CACHE_CACAO_VALIDATION_URL", default="http://localhost:8001/verify"
+)

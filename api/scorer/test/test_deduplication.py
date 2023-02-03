@@ -7,6 +7,7 @@ from account.models import Nonce
 from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when
+from datetime import datetime, timezone
 from registry.models import Passport, Stamp
 from registry.tasks import score_passport
 from registry.test.test_passport_submission import ens_credential, mock_passport
@@ -134,9 +135,13 @@ def _(passport_holder_addresses, submit_passport_response):
     assert (
         submit_passport_response_data["score"] == "1234.000000000"
     )  # we expect a score only for the ENS stamp
-    assert submit_passport_response_data["evidence"] == None
-    assert submit_passport_response_data["status"] == "DONE"
-    # assert submit_passport_response_data['last_score_timestamp'] == 'DONE'  # TODO check that timestamp is recent
+    assert submit_passport_response_data["evidence"] is None
+    last_score_timestamp = datetime.fromisoformat(
+        submit_passport_response_data["last_score_timestamp"]
+    )
+    assert (
+        datetime.now(timezone.utc) - last_score_timestamp
+    ).seconds < 2  # The timestamp should be recent
 
 
 @then(

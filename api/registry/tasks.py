@@ -20,7 +20,7 @@ def get_utc_time():
 
 @shared_task
 def score_passport(community_id: int, address: str):
-    log.debug(
+    log.info(
         "score_passport request for community_id=%s, address='%s'",
         community_id,
         address,
@@ -29,6 +29,7 @@ def score_passport(community_id: int, address: str):
     db_passport = None
     try:
         address_lower = address.lower()
+        did = get_did(address_lower)
 
         # Create a DB record for the passport unless one already exists
         db_passport, _ = Passport.objects.update_or_create(
@@ -39,14 +40,14 @@ def score_passport(community_id: int, address: str):
             },
         )
 
-        did = get_did(address)
-        passport = get_passport(did)
-        log.debug("score_passport loaded passport=%s", passport)
+        passport = get_passport(address_lower)
+        log.debug(
+            "score_passport loaded for address='%s' passport=%s", address, passport
+        )
 
         if not passport:
             raise NoPassportException()
 
-        log.debug("passport loaded for address %s is %s", address, passport)
         user_community = Community.objects.get(pk=community_id)
 
         log.debug("deduplicating ...")
@@ -90,7 +91,7 @@ def score_passport(community_id: int, address: str):
                     },
                 )
             else:
-                log.debug(
+                log.info(
                     "Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s is_issuer_verified=%s",
                     stamp,
                     stamp_return_errors,
@@ -102,7 +103,7 @@ def score_passport(community_id: int, address: str):
         scorer = user_community.get_scorer()
         scores = scorer.compute_score([db_passport.id])
 
-        log.debug("Scores: %s", scores)
+        log.info("Scores for address '%s': %s", address, scores)
         scoreData = scores[0]
 
         Score.objects.update_or_create(

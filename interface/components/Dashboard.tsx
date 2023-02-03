@@ -29,11 +29,6 @@ export default function Dashboard({
 }: DashboardProps) {
   const router = useRouter();
 
-  /**
-   * @TODO
-   * --> if user has communities, show them the "Create key" button in the top part of the page
-   */
-
   const tabbedClasses = (tab: string) => {
     const base = "my-4 flex leading-4 cursor-pointer";
     return tab === activeTab

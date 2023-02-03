@@ -5,12 +5,6 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:
-    inputs:
-      commit:
-        description: "Commit ref"
-        required: true
-        type: string
 
 jobs:
   test:
@@ -134,82 +128,3 @@ jobs:
   #         # Recommended: pass the GitHub token lets this action correctly
   #         # determine the unique run id necessary to re-run the checks
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
-      - name: Declare some variables
-        id: vars
-        shell: bash
-        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-
-      - name: Login to Amazon ECR Public
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-        with:
-          registry-type: public
-
-      - name: Build, tag, and push image to Amazon ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REGISTRY_ALIAS: i8r3d4s6
-          ECR_REPOSITORY: passport-scorer
-          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile ./api/
-          docker push $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
-
-    outputs:
-      dockerTag: ${{ steps.vars.outputs.sha_short }}
-
-  deploy-review:
-    needs: [test, build]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js
-        uses: actions/setup-node@v2
-        with:
-          cache: "yarn"
-          cache-dependency-path: infra/review/package-lock.json
-
-      # Update the pulumi stack with new image
-      - run: |
-          npm install
-          pulumi stack select -c gitcoin/passport-scorer/review
-          pulumi config -s gitcoin/passport-scorer/review set aws:region us-east-1 --non-interactive
-        working-directory: infra/review
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-
-      - uses: pulumi/actions@v3
-        id: pulumi
-        with:
-          command: up
-          stack-name: gitcoin/passport-scorer/review
-          upsert: false
-          work-dir: infra/review
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          DOCKER_GTC_PASSPORT_SCORER_IMAGE: public.ecr.aws/i8r3d4s6/passport-scorer:${{ needs.build.outputs.dockerTag }}
-          ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
-          DOMAIN: ${{ secrets.DOMAIN }}
-          SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN }}
-
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}

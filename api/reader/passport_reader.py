@@ -1,9 +1,11 @@
 # libs for processing the deterministic stream location
 import json
 import logging
+from typing import Dict, List
 
 # Making GET requests against the CERAMIC_URL to read streams
 import requests
+from ceramic_cache.models import CeramicCache
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
 
@@ -85,6 +87,7 @@ def get_stream_ids(did, ids=[CERAMIC_GITCOIN_PASSPORT_STREAM_ID]):
                     "anchor": False,
                 },
             },
+            timeout=10,
         )
         # get the state and default to empty content
         state = stream_response.json().get("state", {"content": {}})
@@ -109,22 +112,33 @@ def get_stream_ids(did, ids=[CERAMIC_GITCOIN_PASSPORT_STREAM_ID]):
     return streams
 
 
-def get_passport(did="", stream_ids=[]):
-    # get streamIds if non are provided
-    stream_ids = (
-        stream_ids
-        if len(stream_ids) > 0
-        else get_stream_ids(did, [CERAMIC_GITCOIN_PASSPORT_STREAM_ID])
-    )
+def get_passport(address: str = "", stream_ids: List[str] = []) -> Dict:
+    did = get_did(address)
 
-    # attempt to pull content
-    passport = get_stamps(get_passport_stream(stream_ids))
+    db_stamp_list = CeramicCache.objects.filter(address=address)
 
-    # return a list of wallet address without the @eip155:1 suffix
-    return passport
+    if len(db_stamp_list) == 0:
+        # get streamIds if non are provided
+        stream_ids = (
+            stream_ids
+            if len(stream_ids) > 0
+            else get_stream_ids(did, [CERAMIC_GITCOIN_PASSPORT_STREAM_ID])
+        )
+
+        # attempt to pull content
+        passport = get_stamps(get_passport_stream(stream_ids))
+
+        # return a list of wallet address without the @eip155:1 suffix
+        return passport
+    else:
+        return {
+            "stamps": [
+                {"provider": s.provider, "credential": s.stamp} for s in db_stamp_list
+            ]
+        }
 
 
-def get_stamps(passport):
+def get_stamps(passport: Dict) -> Dict:
     if not passport:
         raise NoPassportException()
 
@@ -136,7 +150,7 @@ def get_stamps(passport):
     return passport
 
 
-def get_passport_stream(stream_ids=[]):
+def get_passport_stream(stream_ids=list()):
     # create an empty passport
     passport = {"stamps": []}
 
@@ -144,7 +158,9 @@ def get_passport_stream(stream_ids=[]):
         # pull the CryptoAccounts streamID
         stream_id = stream_ids[CERAMIC_GITCOIN_PASSPORT_STREAM_ID]
         # get the stream content from given streamID
-        stream_response = requests.get(f"{CERAMIC_URL}/api/v0/streams/{stream_id}")
+        stream_response = requests.get(
+            f"{CERAMIC_URL}/api/v0/streams/{stream_id}", timeout=10
+        )
         # get back the state object
         state = stream_response.json().get("state", {"content": {}})
 
@@ -158,11 +174,11 @@ def get_passport_stream(stream_ids=[]):
     return passport
 
 
-def get_stamp_stream(stamp):
+def get_stamp_stream(stamp: Dict) -> Dict:
     try:
         stamp["credential"] = stamp["credential"].replace("ceramic://", "")
         stamp_response = requests.get(
-            f"{CERAMIC_URL}/api/v0/streams/{stamp['credential']}"
+            f"{CERAMIC_URL}/api/v0/streams/{stamp['credential']}", timeout=10
         )
         # get back the state object
         state = stamp_response.json().get("state", {"content": {}})
