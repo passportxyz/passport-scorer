@@ -206,17 +206,17 @@ class DbCacheToken(RefreshToken):
     lifetime: timedelta = timedelta(days=7)
 
 
-class AcessTokenResponse(Schema):
+class AccessTokenResponse(Schema):
     access: str
 
 
 @router.post(
     "authenticate",
-    response=AcessTokenResponse,
+    response=AccessTokenResponse,
 )
 def authenticate(request, payload: CacaoVerifySubmit):
     """
-    This method will validat a jws created with DagJWS, will validate by forwarding this to our validator
+    This method will validate a jws created with DagJWS, will validate by forwarding this to our validator
     it and return a JWT token.
     """
     try:

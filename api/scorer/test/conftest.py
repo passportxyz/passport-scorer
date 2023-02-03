@@ -7,6 +7,7 @@ from registry.models import Passport, Score
 from scorer_weighted.models import BinaryWeightedScorer, Scorer
 from web3 import Web3
 from django.conf import settings
+from ceramic_cache.api import DbCacheToken
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -200,3 +201,12 @@ def sample_provider():
 @pytest.fixture
 def sample_address():
     return "0xC79BFBF4e4824Cdb65C71f2eeb2D7f2db5dA1fB8"
+
+
+@pytest.fixture
+def sample_token(sample_address):
+    token = DbCacheToken()
+    token["token_type"] = "access"
+    token["did"] = f"did:pkh:eip155:1:{sample_address.lower()}"
+
+    return str(token)
