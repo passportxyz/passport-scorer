@@ -129,7 +129,7 @@ class GetStampResponse(Schema):
 )
 def cache_stamp(request, payload: CacheStampPayload):
     try:
-        if request.did != get_did(payload.address):
+        if request.did.lower() != get_did(payload.address):
             raise InvalidSessionException()
         stamp, created = CeramicCache.objects.update_or_create(
             address=payload.address,
@@ -151,7 +151,7 @@ def cache_stamp(request, payload: CacheStampPayload):
 )
 def soft_delete_stamp(request, payload: DeleteStampPayload):
     try:
-        if request.did != get_did(payload.address):
+        if request.did.lower() != get_did(payload.address):
             raise InvalidSessionException()
 
         stamp = CeramicCache.objects.get(
