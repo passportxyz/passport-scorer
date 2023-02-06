@@ -16,6 +16,7 @@ from .exceptions import (
     InvalidCommunityScoreRequestException,
     InvalidNonceException,
     InvalidSignerException,
+    InvalidLimitException,
     Unauthorized,
 )
 from .tasks import score_passport
@@ -50,6 +51,11 @@ class DetailedScoreResponse(Schema):
     last_score_timestamp: Optional[str]
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
+
+
+class GetScoresResponse(Schema):
+    items: List[DetailedScoreResponse]
+    count: int
 
 
 class SimpleScoreResponse(Schema):
@@ -184,13 +190,12 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
         raise InvalidCommunityScoreRequestException()
 
 
-@router.get(
-    "/score/{int:community_id}", auth=ApiKey(), response=List[DetailedScoreResponse]
-)
-@paginate()
+@router.get("/score/{int:community_id}", auth=ApiKey(), response=GetScoresResponse)
 def get_scores(
-    request, community_id: int, address: str = ""
-) -> List[DetailedScoreResponse]:
+    request, community_id: int, address: str = "", limit: int = 100, offset: int = 0
+) -> GetScoresResponse:
+    if limit > 1000:
+        raise InvalidLimitException()
     try:
         # Get community object
         user_community = get_object_or_404(
@@ -202,7 +207,10 @@ def get_scores(
         if address:
             scores = scores.filter(passport__address=address.lower())
 
-        return [
+        count = scores.count()
+        paginated_scores = scores[offset:limit]
+
+        formatted_scores = [
             DetailedScoreResponse(
                 address=score.passport.address,
                 score=score.score,
@@ -213,22 +221,14 @@ def get_scores(
                 else None,
                 error=score.error,
             )
-            for score in scores
+            for score in paginated_scores
         ]
-        # for score in scores:
-        #     response = DetailedScoreResponse(
-        #         address=score.passport.address,
-        #         score=score.score,
-        #         status=score.status,
-        #         evidence=score.evidence,
-        #         last_score_timestamp=score.last_score_timestamp.isoformat()
-        #         if score.last_score_timestamp
-        #         else None,
-        #         error=score.error,
-        #     )
-        #     import pdb; pdb.set_trace()
-        #     return response
-        # return [{"address": s.passport.address, "score": s.score} for s in scores]
+
+        return GetScoresResponse(
+            items=formatted_scores,
+            count=count,
+        )
+
     except Exception as e:
         log.error(
             "Error getting passport scores. community_id=%s",

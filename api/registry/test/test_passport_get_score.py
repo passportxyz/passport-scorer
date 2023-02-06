@@ -22,8 +22,6 @@ def scorer_account(scorer_user):
         my_mnemonic, account_path="m/44'/60'/0'/0/0"
     )
 
-    print("scorer_user", scorer_user)
-    print("web3_account.address", web3_account.address)
     account = Account.objects.create(user=scorer_user, address=web3_account.address)
     return account
 
@@ -148,3 +146,28 @@ class TestPassportGetScore:
             response.json()["items"][0]["address"]
             == passport_holder_addresses[0]["address"].lower()
         )
+
+    def test_limit_greater_than_1000_throws_an_error(
+        self, scorer_community, passport_holder_addresses, scorer_api_key
+    ):
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?limit=1001&offset={offset}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": "Invalid limit.",
+        }
+
+    def test_limit_of_1000_is_ok(
+        self, scorer_community, passport_holder_addresses, scorer_api_key
+    ):
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?limit=1000&offset={offset}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert response.status_code == 200
