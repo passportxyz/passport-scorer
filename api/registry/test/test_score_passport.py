@@ -4,8 +4,7 @@ from account.models import Account, Community
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
-from registry.exceptions import NoPassportException
-from registry.models import Passport, Score
+from registry.models import Passport, Score, Stamp
 from registry.tasks import score_passport
 from web3 import Web3
 
@@ -19,7 +18,7 @@ class TestScorePassportTestCase(TransactionTestCase):
         # Just create 1 user, to make sure the user id is different than account id
         # This is to catch errors like the one where the user id is the same as the account id, and
         # we query the account id by the user id
-        self.user = User.objects.create_user(username="admin", password="12345")
+        self.user = User.objects.create(username="admin", password="12345")
 
         account = web3.eth.account.from_mnemonic(
             my_mnemonic, account_path="m/44'/60'/0'/0/0"
@@ -53,10 +52,10 @@ class TestScorePassportTestCase(TransactionTestCase):
     def test_no_passport(self):
 
         with patch("registry.tasks.get_passport", return_value=None):
-            score_passport(self.community.id, self.account.address)
+            score_passport(self.community.pk, self.account.address)
 
             passport = Passport.objects.get(
-                address=self.account.address, community_id=self.community.id
+                address=self.account.address, community_id=self.community.pk
             )
             self.assertEqual(passport.passport, None)
 
@@ -66,3 +65,64 @@ class TestScorePassportTestCase(TransactionTestCase):
             self.assertEqual(score.evidence, None)
             self.assertEqual(score.status, Score.Status.ERROR)
             self.assertEqual(score.error, "No Passport found for this address.")
+
+    def test_cleaning_stale_stamps(self):
+        passport, _ = Passport.objects.update_or_create(
+            address=self.account.address, community_id=self.community.pk
+        )
+
+        Stamp.objects.filter(passport=passport).delete()
+
+        Stamp.objects.update_or_create(
+            hash="0x1234",
+            passport=passport,
+            defaults={"provider": "Gitcoin", "credential": "{}"},
+        )
+
+        assert Stamp.objects.filter(passport=passport).count() == 1
+
+        mock_passport_data = {
+            "stamps": [
+                {
+                    "provider": "Ens",
+                    "credential": {
+                        "type": ["VerifiableCredential"],
+                        "credentialSubject": {
+                            "id": "did:pkh:eip155:1:0xa6Cf54ec56BaD8288Ee4559098c48b8D78C05468",
+                            "hash": "v0.0.0:1Vzw/OyM9CBUkVi/3mb+BiwFnHzsSRZhVH1gaQIyHvM=",
+                            "provider": "Ens",
+                        },
+                        "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                        "issuanceDate": "2023-02-06T23:22:58.848Z",
+                        "expirationDate": "2099-02-06T23:22:58.848Z",
+                    },
+                },
+                {
+                    "provider": "Gitcoin",
+                    "credential": {
+                        "type": ["VerifiableCredential"],
+                        "credentialSubject": {
+                            "id": "did:pkh:eip155:1:0xa6Cf54ec56BaD8288Ee4559098c48b8D78C05468",
+                            "hash": "0x45678",
+                            "provider": "Gitcoin",
+                        },
+                        "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                        "expirationDate": "2099-02-06T23:22:58.848Z",
+                    },
+                },
+            ]
+        }
+
+        def mock_validate(*args, **kwargs):
+            return []
+
+        with patch("registry.tasks.get_passport", return_value=mock_passport_data):
+            with patch("registry.tasks.async_to_sync", return_value=mock_validate):
+                score_passport(self.community.pk, self.account.address)
+
+                my_stamps = Stamp.objects.filter(passport=passport)
+                assert len(my_stamps) == 2
+
+                gitcoin_stamps = my_stamps.filter(provider="Gitcoin")
+                assert len(gitcoin_stamps) == 1
+                assert gitcoin_stamps[0].hash == "0x45678"
