@@ -18,7 +18,6 @@ from .exceptions import (
     InvalidLimitException,
     Unauthorized,
 )
-from .permissions import DataSciencePermission
 from .tasks import score_passport
 
 log = logging.getLogger(__name__)
@@ -230,8 +229,8 @@ def get_scores(
 @paginate()
 def get_scores(request) -> List[DetailedScoreResponse]:
     try:        
-        if not request.user.groups.filter(name="DataScientist").exists():
-            return 403, { "error": "You are not allowed to access this endpoint"}
+        if not request.user.groups.filter(name="Researcher").exists():
+            return 403, { "detail": "You are not allowed to access this endpoint"}
 
         scores = Score.objects.all()
 

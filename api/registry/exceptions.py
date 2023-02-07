@@ -1,4 +1,4 @@
-from ninja_extra import NinjaExtraAPI, status
+from ninja_extra import status
 from ninja_extra.exceptions import APIException
 
 
