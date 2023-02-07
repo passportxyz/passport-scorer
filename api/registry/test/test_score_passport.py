@@ -66,3 +66,23 @@ class TestScorePassportTestCase(TransactionTestCase):
             self.assertEqual(score.evidence, None)
             self.assertEqual(score.status, Score.Status.ERROR)
             self.assertEqual(score.error, "No Passport found for this address.")
+
+    def test_cleaning_stale_stamps(self):
+        passport = Passport.objects.create_or_update(
+            address=self.account.address, community_id=self.community.id
+        )
+
+        with patch("registry.tasks.get_passport", return_value=None):
+            score_passport(self.community.id, self.account.address)
+
+            passport = Passport.objects.get(
+                address=self.account.address, community_id=self.community.id
+            )
+            self.assertEqual(passport.passport, None)
+
+            score = Score.objects.get(passport=passport)
+            self.assertEqual(score.score, None)
+            self.assertEqual(score.last_score_timestamp, None)
+            self.assertEqual(score.evidence, None)
+            self.assertEqual(score.status, Score.Status.ERROR)
+            self.assertEqual(score.error, "No Passport found for this address.")

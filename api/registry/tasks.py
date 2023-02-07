@@ -50,6 +50,8 @@ def score_passport(community_id: int, address: str):
 
         user_community = Community.objects.get(pk=community_id)
 
+        clean_stale_stamps_from_db(db_passport, passport["stamps"])
+
         log.debug("deduplicating ...")
         # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
         passport_to_be_saved = lifo(passport, address_lower)
@@ -82,6 +84,7 @@ def score_passport(community_id: int, address: str):
                 and not stamp_is_expired
                 and is_issuer_verified
             ):
+                # TODO provider should be header-level, used for uniqueness
                 Stamp.objects.update_or_create(
                     hash=stamp["credential"]["credentialSubject"]["hash"],
                     passport=db_passport,
@@ -157,3 +160,18 @@ def score_passport(community_id: int, address: str):
                     error=str(e),
                 ),
             )
+
+
+def clean_stale_stamps_from_db(db_passport, fresh_stamps):
+    fresh_providers = [stamp["provider"] for stamp in fresh_stamps]
+
+    stale_stamps = Stamp.objects.filter(passport=db_passport).exclude(
+        provider__in=fresh_providers
+    )
+
+    log.debug(
+        "Removing stale stamps for passport address='%s' providers=%s",
+        db_passport.address,
+        ", ".join([stamp.provider for stamp in stale_stamps]),
+    )
+    stale_stamps.delete()
