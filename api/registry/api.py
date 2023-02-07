@@ -18,6 +18,7 @@ from .exceptions import (
     InvalidLimitException,
     Unauthorized,
 )
+from .permissions import DataSciencePermission
 from .tasks import score_passport
 
 log = logging.getLogger(__name__)
@@ -196,13 +197,16 @@ def get_scores(
 
     if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
+
     try:
         # Get community object
-        user_community = get_object_or_404(
-            Community, id=community_id, account=request.auth
-        )
-
-        scores = Score.objects.filter(passport__community__id=user_community.pk).prefetch_related(
+        if request.user.groups.filter(name="Researcher").exists():
+            user_community = get_object_or_404(Community, id=community_id)
+        else:
+            user_community = get_object_or_404(
+                Community, id=community_id, account=request.auth
+            )
+        scores = Score.objects.filter(passport__community__id=user_community.id).prefetch_related(
             "passport"
         )
 
@@ -217,4 +221,34 @@ def get_scores(
             community_id,
             exc_info=True,
         )
+        raise InvalidCommunityScoreRequestException()
+
+
+@router.get(
+    "/score/", auth=ApiKey(), response=List[DetailedScoreResponse]
+)
+@paginate()
+def get_scores(request) -> List[DetailedScoreResponse]:
+    try:        
+        if not request.user.groups.filter(name="DataScientist").exists():
+            return 403, { "error": "You are not allowed to access this endpoint"}
+
+        scores = Score.objects.all()
+
+        return [
+            DetailedScoreResponse(
+                address=score.passport.address,
+                score=score.score,
+                status=score.status,
+                evidence=score.evidence,
+                last_score_timestamp=score.last_score_timestamp.isoformat()
+                if score.last_score_timestamp
+                else None,
+                error=score.error,
+            )
+            for score in scores
+        ]
+
+    except Exception as e:
+        log.error("Error getting passport scores.")
         raise InvalidCommunityScoreRequestException()
