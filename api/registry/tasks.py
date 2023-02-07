@@ -26,102 +26,15 @@ def score_passport(community_id: int, address: str):
         address,
     )
 
-    db_passport = None
+    passport = None
     try:
         address_lower = address.lower()
-        did = get_did(address_lower)
+        passport = load_passport(community_id, address_lower)
+        populate_passport(passport, address_lower)
+        remove_existing_stamps_from_db(passport)
+        validate_and_save_stamps(passport)
+        calculate_score(passport, community_id)
 
-        # Create a DB record for the passport unless one already exists
-        db_passport, _ = Passport.objects.update_or_create(
-            address=address_lower,
-            community_id=community_id,
-            defaults={
-                "passport": None,
-            },
-        )
-
-        passport = get_passport(address_lower)
-        log.debug(
-            "score_passport loaded for address='%s' passport=%s", address, passport
-        )
-
-        if not passport:
-            raise NoPassportException()
-
-        user_community = Community.objects.get(pk=community_id)
-
-        clean_stale_stamps_from_db(db_passport, passport["stamps"])
-
-        log.debug("deduplicating ...")
-        # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
-        passport_to_be_saved = lifo(passport, address_lower)
-
-        # Create a DB record for the passport unless one already exists
-        db_passport.passport = passport_to_be_saved
-        db_passport.save()
-
-        log.debug("validating stamps")
-        for stamp in passport_to_be_saved["stamps"]:
-            stamp_return_errors = async_to_sync(validate_credential)(
-                did, stamp["credential"]
-            )
-            try:
-                # TODO: use some library or https://docs.python.org/3/library/datetime.html#datetime.datetime.fromisoformat to
-                # parse iso timestamps
-                stamp_expiration_date = datetime.strptime(
-                    stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%S.%fZ"
-                )
-            except ValueError:
-                stamp_expiration_date = datetime.strptime(
-                    stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%SZ"
-                )
-
-            is_issuer_verified = verify_issuer(stamp)
-            # check that expiration date is not in the past
-            stamp_is_expired = stamp_expiration_date < datetime.now()
-            if (
-                len(stamp_return_errors) == 0
-                and not stamp_is_expired
-                and is_issuer_verified
-            ):
-                # TODO provider should be header-level, used for uniqueness
-                Stamp.objects.update_or_create(
-                    hash=stamp["credential"]["credentialSubject"]["hash"],
-                    passport=db_passport,
-                    defaults={
-                        "provider": stamp["provider"],
-                        "credential": stamp["credential"],
-                    },
-                )
-            else:
-                log.info(
-                    "Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s is_issuer_verified=%s",
-                    stamp,
-                    stamp_return_errors,
-                    stamp_is_expired,
-                    is_issuer_verified,
-                )
-
-        log.debug("Scoring")
-        scorer = user_community.get_scorer()
-        scores = scorer.compute_score([db_passport.id])
-
-        log.info("Scores for address '%s': %s", address, scores)
-        scoreData = scores[0]
-
-        Score.objects.update_or_create(
-            passport_id=db_passport.id,
-            defaults=dict(
-                score=scoreData.score,
-                status=Score.Status.DONE,
-                last_score_timestamp=get_utc_time(),
-                # TODO: check: does scoreData.evidence need to be an array?
-                evidence=scoreData.evidence[0].as_dict()
-                if scoreData.evidence
-                else None,
-                error=None,
-            ),
-        )
     except APIException as e:
         log.error(
             "APIException when handling passport submission. community_id=%s, address='%s'",
@@ -129,10 +42,10 @@ def score_passport(community_id: int, address: str):
             address,
             exc_info=True,
         )
-        if db_passport:
+        if passport:
             # Create a score with error status
             Score.objects.update_or_create(
-                passport_id=db_passport.id,
+                passport_id=passport.pk,
                 defaults=dict(
                     score=None,
                     status=Score.Status.ERROR,
@@ -148,10 +61,10 @@ def score_passport(community_id: int, address: str):
             address,
             exc_info=True,
         )
-        if db_passport:
+        if passport:
             # Create a score with error status
             Score.objects.update_or_create(
-                passport_id=db_passport.id,
+                passport_id=passport.pk,
                 defaults=dict(
                     score=None,
                     status=Score.Status.ERROR,
@@ -162,16 +75,109 @@ def score_passport(community_id: int, address: str):
             )
 
 
-def clean_stale_stamps_from_db(db_passport, fresh_stamps):
-    fresh_providers = [stamp["provider"] for stamp in fresh_stamps]
-
-    stale_stamps = Stamp.objects.filter(passport=db_passport).exclude(
-        provider__in=fresh_providers
+def load_passport(community_id: int, address_lower: str):
+    # Create a DB record for the passport unless one already exists
+    db_passport, _ = Passport.objects.update_or_create(
+        address=address_lower,
+        community_id=community_id,
+        defaults={
+            "passport": None,
+        },
     )
 
+    return db_passport
+
+
+def populate_passport(passport: Passport, address_lower: str):
+    passport_data = get_passport(address_lower)
     log.debug(
-        "Removing stale stamps for passport address='%s' providers=%s",
-        db_passport.address,
-        ", ".join([stamp.provider for stamp in stale_stamps]),
+        "score_passport loaded for address='%s' passport=%s",
+        address_lower,
+        passport_data,
     )
-    stale_stamps.delete()
+
+    if not passport_data:
+        raise NoPassportException()
+
+    log.debug("deduplicating ...")
+    # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
+    passport_data_to_be_saved = lifo(passport_data, address_lower)
+
+    # Create a DB record for the passport unless one already exists
+    passport.passport = passport_data_to_be_saved
+    passport.save()
+
+    return passport
+
+
+def validate_and_save_stamps(passport: Passport):
+    log.debug("validating stamps")
+
+    did = get_did(passport.address)
+
+    for stamp in passport.passport["stamps"]:
+        stamp_return_errors = async_to_sync(validate_credential)(
+            did, stamp["credential"]
+        )
+        try:
+            # TODO: use some library or https://docs.python.org/3/library/datetime.html#datetime.datetime.fromisoformat to
+            # parse iso timestamps
+            stamp_expiration_date = datetime.strptime(
+                stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%S.%fZ"
+            )
+        except ValueError:
+            stamp_expiration_date = datetime.strptime(
+                stamp["credential"]["expirationDate"], "%Y-%m-%dT%H:%M:%SZ"
+            )
+
+        is_issuer_verified = verify_issuer(stamp)
+        # check that expiration date is not in the past
+        stamp_is_expired = stamp_expiration_date < datetime.now()
+        if (
+            len(stamp_return_errors) == 0
+            and not stamp_is_expired
+            and is_issuer_verified
+        ):
+            Stamp.objects.update_or_create(
+                hash=stamp["credential"]["credentialSubject"]["hash"],
+                passport=passport,
+                defaults={
+                    "provider": stamp["provider"],
+                    "credential": stamp["credential"],
+                },
+            )
+        else:
+            log.info(
+                "Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s is_issuer_verified=%s",
+                stamp,
+                stamp_return_errors,
+                stamp_is_expired,
+                is_issuer_verified,
+            )
+
+
+def remove_existing_stamps_from_db(passport: Passport):
+    Stamp.objects.filter(passport=passport).delete()
+
+
+def calculate_score(passport: Passport, community_id: int):
+    log.debug("Scoring")
+    user_community = Community.objects.get(pk=community_id)
+
+    scorer = user_community.get_scorer()
+    scores = scorer.compute_score([passport.pk])
+
+    log.info("Scores for address '%s': %s", passport.address, scores)
+    scoreData = scores[0]
+
+    Score.objects.update_or_create(
+        passport_id=passport.pk,
+        defaults=dict(
+            score=scoreData.score,
+            status=Score.Status.DONE,
+            last_score_timestamp=get_utc_time(),
+            # TODO: check: does scoreData.evidence need to be an array?
+            evidence=scoreData.evidence[0].as_dict() if scoreData.evidence else None,
+            error=None,
+        ),
+    )
