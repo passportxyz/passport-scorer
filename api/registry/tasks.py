@@ -28,9 +28,8 @@ def score_passport(community_id: int, address: str):
 
     passport = None
     try:
-        address_lower = address.lower()
-        passport = load_passport(community_id, address_lower)
-        populate_passport(passport, address_lower)
+        passport = load_passport_record(community_id, address)
+        populate_passport_record(passport)
         remove_existing_stamps_from_db(passport)
         validate_and_save_stamps(passport)
         calculate_score(passport, community_id)
@@ -75,10 +74,10 @@ def score_passport(community_id: int, address: str):
             )
 
 
-def load_passport(community_id: int, address_lower: str):
+def load_passport_record(community_id: int, address: str):
     # Create a DB record for the passport unless one already exists
     db_passport, _ = Passport.objects.update_or_create(
-        address=address_lower,
+        address=address.lower(),
         community_id=community_id,
         defaults={
             "passport": None,
@@ -88,11 +87,11 @@ def load_passport(community_id: int, address_lower: str):
     return db_passport
 
 
-def populate_passport(passport: Passport, address_lower: str):
-    passport_data = get_passport(address_lower)
+def populate_passport_record(passport: Passport):
+    passport_data = get_passport(passport.address)
     log.debug(
         "score_passport loaded for address='%s' passport=%s",
-        address_lower,
+        passport.address,
         passport_data,
     )
 
@@ -100,11 +99,10 @@ def populate_passport(passport: Passport, address_lower: str):
         raise NoPassportException()
 
     log.debug("deduplicating ...")
-    # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
-    passport_data_to_be_saved = lifo(passport_data, address_lower)
 
-    # Create a DB record for the passport unless one already exists
-    passport.passport = passport_data_to_be_saved
+    # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
+    passport.passport = lifo(passport_data, passport.address)
+
     passport.save()
 
     return passport
