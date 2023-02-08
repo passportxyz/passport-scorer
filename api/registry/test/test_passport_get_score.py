@@ -1,6 +1,7 @@
 import pytest
 from account.models import Account, AccountAPIKey, Community
 from django.test import Client
+from django.contrib.auth.models import Group
 from registry.models import Passport, Score, Stamp
 from web3 import Web3
 from django.conf import settings
@@ -193,3 +194,27 @@ class TestPassportGetScore:
         )
 
         assert response.status_code == 200
+
+    def test_get_scores_request_throws_403_for_non_researcher(self, scorer_api_key):
+        client = Client()
+        response = client.get(
+            f"/registry/score/",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": "You are not allowed to access this endpoint.",
+        }
+
+    def test_get_scores_request_for_researcher(self, scorer_api_key, scorer_account):
+        group, _ = Group.objects.get_or_create(name="Researcher")
+        scorer_account.user.groups.add(group)
+
+        client = Client()
+        response = client.get(
+            f"/registry/score/",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"items": [], "count": 0}
