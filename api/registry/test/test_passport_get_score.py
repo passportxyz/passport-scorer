@@ -106,8 +106,6 @@ class TestPassportGetScore:
         )
         response_data = response.json()
 
-        print(response_data)
-
         assert response.status_code == 200
 
         for i in range(0, 1):

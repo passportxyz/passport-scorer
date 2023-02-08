@@ -5,10 +5,9 @@ from typing import List, Optional
 # --- Deduplication Modules
 from account.models import AccountAPIKey, Community, Nonce
 from django.shortcuts import get_object_or_404
-from ninja import Field, Query, Router, Schema
+from ninja import Router, Schema
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
-# from ninja_schema import Schema
 from registry.models import Passport, Score
 from registry.utils import get_signer, get_signing_message
 
@@ -68,7 +67,6 @@ class GetScoresResponse(Schema):
 
 
 class SimpleScoreResponse(Schema):
-    # passport_id: int
     address: str
     score: Decimal  # The score should be represented as string as it will be a decimal number
 
