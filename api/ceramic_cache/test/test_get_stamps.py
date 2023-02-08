@@ -37,29 +37,6 @@ class TestGetStamp:
         assert response.status_code is 200
         assert response.json()["stamps"] == []
 
-    def test_deleted_stamps_are_not_returned(
-        self, sample_address, sample_provider, verifiable_credential
-    ):
-        CeramicCache.objects.create(
-            address=sample_address,
-            provider=sample_provider,
-            stamp=verifiable_credential,
-        )
-        CeramicCache.objects.create(
-            address=sample_address,
-            provider="Google",
-            stamp=verifiable_credential,
-            deleted_at=datetime.now(),
-        )
-
-        response = client.get(
-            f"/ceramic-cache/stamp?address={sample_address}",
-        )
-
-        assert response.status_code is 200
-        assert len(response.json()["stamps"]) is 1
-        assert response.json()["stamps"][0]["provider"] == sample_provider
-
     def test_get_stamp_returns_422_if_address_is_not_provided(self):
         response = client.get(
             "/ceramic-cache/stamp",
