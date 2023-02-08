@@ -5,10 +5,10 @@ from typing import List, Optional
 # --- Deduplication Modules
 from account.models import AccountAPIKey, Community, Nonce
 from django.shortcuts import get_object_or_404
-from ninja import Field, Query, Router
+from ninja import Field, Query, Router, Schema
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
-from ninja_schema import Schema
+# from ninja_schema import Schema
 from registry.models import Passport, Score
 from registry.utils import get_signer, get_signing_message
 
@@ -44,13 +44,22 @@ class ThresholdScoreEvidenceResponse(ScoreEvidenceResponse):
 
 
 class DetailedScoreResponse(Schema):
-    # passport_id: int
     address: str
     score: Optional[str]
     status: Optional[str]
     last_score_timestamp: Optional[str]
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
+
+    @staticmethod
+    def resolve_last_score_timestamp(obj):
+        if obj.last_score_timestamp:
+            return obj.last_score_timestamp.isoformat()
+        return None
+
+    @staticmethod
+    def resolve_address(obj):
+        return obj.passport.address
 
 
 class GetScoresResponse(Schema):
@@ -171,16 +180,7 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
         community = Community.objects.get(id=community_id)
         passport = Passport.objects.get(address=lower_address, community=community)
         score = Score.objects.get(passport=passport)
-        return DetailedScoreResponse(
-            address=score.passport.address,
-            score=score.score,
-            status=score.status,
-            evidence=score.evidence,
-            last_score_timestamp=score.last_score_timestamp.isoformat()
-            if score.last_score_timestamp
-            else None,
-            error=score.error,
-        )
+        return score
     except Exception as e:
         log.error(
             "Error getting passport scores. community_id=%s",
@@ -190,11 +190,13 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
         raise InvalidCommunityScoreRequestException()
 
 
-@router.get("/score/{int:community_id}", auth=ApiKey(), response=GetScoresResponse)
+@router.get("/score/{int:community_id}", auth=ApiKey(), response=List[DetailedScoreResponse])
+@paginate(pass_parameter="pagination_info")
 def get_scores(
-    request, community_id: int, address: str = "", limit: int = 100, offset: int = 0
-) -> GetScoresResponse:
-    if limit > 1000:
+    request, community_id: int, address: str = "", **kwargs
+) -> List[DetailedScoreResponse]:
+
+    if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
     try:
         # Get community object
@@ -202,35 +204,14 @@ def get_scores(
             Community, id=community_id, account=request.auth
         )
 
-        scores = Score.objects.filter(passport__community__id=user_community.pk)
+        scores = Score.objects.filter(passport__community__id=user_community.pk).prefetch_related(
+            "passport"
+        )
 
         if address:
-            scores = scores.filter(passport__address=address.lower()).prefetch_related(
-                "passport"
-            )
+            scores = scores.filter(passport__address=address.lower())
 
-        count = scores.count()
-
-        paginated_scores = scores[offset : (limit + offset)]
-
-        formatted_scores = [
-            DetailedScoreResponse(
-                address=score.passport.address,
-                score=score.score,
-                status=score.status,
-                evidence=score.evidence,
-                last_score_timestamp=score.last_score_timestamp.isoformat()
-                if score.last_score_timestamp
-                else None,
-                error=score.error,
-            )
-            for score in paginated_scores
-        ]
-
-        return GetScoresResponse(
-            items=formatted_scores,
-            count=count,
-        )
+        return scores
 
     except Exception as e:
         log.error(
