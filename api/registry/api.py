@@ -202,13 +202,16 @@ def get_scores(
             Community, id=community_id, account=request.auth
         )
 
-        scores = Score.objects.filter(passport__community__id=user_community.id)
+        scores = Score.objects.filter(passport__community__id=user_community.pk)
 
         if address:
-            scores = scores.filter(passport__address=address.lower())
+            scores = scores.filter(passport__address=address.lower()).prefetch_related(
+                "passport"
+            )
 
         count = scores.count()
-        paginated_scores = scores[offset:limit]
+
+        paginated_scores = scores[offset : (limit + offset)]
 
         formatted_scores = [
             DetailedScoreResponse(
