@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from datetime import datetime
+
 import pytest
 from ceramic_cache.models import CeramicCache
 
@@ -131,17 +133,29 @@ class TestGetStamps:
 
         address = "0x123test"
 
-        for stamp in sample_stamps:
+        good_stamps = sample_stamps[:2]
+        bad_stamp = sample_stamps[2]
+
+        for stamp in good_stamps:
             CeramicCache.objects.create(
                 address=address,
                 provider=stamp["credentialSubject"]["provider"],
                 stamp=stamp,
             )
 
+        CeramicCache.objects.create(
+            address=address,
+            provider=bad_stamp["credentialSubject"]["provider"],
+            stamp=bad_stamp,
+            deleted_at=datetime.now(),
+        )
+
         passport = get_passport(address)
         stamps = passport["stamps"]
 
-        for (index, sample_stamp) in enumerate(sample_stamps):
+        assert len(good_stamps) == len(stamps)
+
+        for (index, sample_stamp) in enumerate(good_stamps):
             assert (
                 stamps[index]["credential"]["issuanceDate"]
                 == sample_stamp["issuanceDate"]
