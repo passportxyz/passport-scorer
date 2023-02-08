@@ -7,3 +7,5 @@ api/scorer/pyvenv.cfg
 
 api/*.sqlite3
 **/node_modules/**
+
+postgres_db_data

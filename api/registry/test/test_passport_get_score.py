@@ -12,9 +12,6 @@ my_mnemonic = settings.TEST_MNEMONIC
 # TODO: Load from fixture file
 pytestmark = pytest.mark.django_db
 
-offset = 2
-limit = 4
-
 
 @pytest.fixture
 def scorer_account(scorer_user):
@@ -22,8 +19,6 @@ def scorer_account(scorer_user):
         my_mnemonic, account_path="m/44'/60'/0'/0/0"
     )
 
-    print("scorer_user", scorer_user)
-    print("web3_account.address", web3_account.address)
     account = Account.objects.create(user=scorer_user, address=web3_account.address)
     return account
 
@@ -86,7 +81,7 @@ class TestPassportGetScore:
 
         client = Client()
         response = client.get(
-            f"/registry/score/{additional_community.id}",
+            f"/registry/score/{additional_community.pk}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
@@ -94,15 +89,41 @@ class TestPassportGetScore:
         assert response.status_code == 200
         assert len(response_data["items"]) == 0
 
-    def test_get_scores_returns_second_page_scores(
+    def test_get_scores_returns_first_page_scores(
         self,
         scorer_api_key,
-        scorer_account,
         passport_holder_addresses,
         scorer_community,
         paginated_scores,
     ):
-        address = scorer_account.address
+        offset = 0
+        limit = 2
+
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        assert response.status_code == 200
+
+        for i in range(0, 1):
+            assert (
+                response_data["items"][i]["address"]
+                == passport_holder_addresses[offset + i]["address"].lower()
+            )
+
+    def test_get_scores_returns_second_page_scores(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        offset = 2
+        limit = 2
+
         client = Client()
         response = client.get(
             f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}",
@@ -132,7 +153,6 @@ class TestPassportGetScore:
     def test_get_single_score_for_address(
         self,
         scorer_api_key,
-        scorer_account,
         passport_holder_addresses,
         scorer_community,
         paginated_scores,
@@ -148,3 +168,28 @@ class TestPassportGetScore:
             response.json()["items"][0]["address"]
             == passport_holder_addresses[0]["address"].lower()
         )
+
+    def test_limit_greater_than_1000_throws_an_error(
+        self, scorer_community, passport_holder_addresses, scorer_api_key
+    ):
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?limit=1001",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": "Invalid limit.",
+        }
+
+    def test_limit_of_1000_is_ok(
+        self, scorer_community, passport_holder_addresses, scorer_api_key
+    ):
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?limit=1000",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert response.status_code == 200

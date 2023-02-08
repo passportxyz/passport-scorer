@@ -5,10 +5,9 @@ from typing import List, Optional
 # --- Deduplication Modules
 from account.models import AccountAPIKey, Community, Nonce
 from django.shortcuts import get_object_or_404
-from ninja import Field, Query, Router
+from ninja import Router, Schema
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
-from ninja_schema import Schema
 from registry.models import Passport, Score
 from registry.utils import get_signer, get_signing_message
 
@@ -16,6 +15,7 @@ from .exceptions import (
     InvalidCommunityScoreRequestException,
     InvalidNonceException,
     InvalidSignerException,
+    InvalidLimitException,
     Unauthorized,
 )
 from .tasks import score_passport
@@ -43,7 +43,6 @@ class ThresholdScoreEvidenceResponse(ScoreEvidenceResponse):
 
 
 class DetailedScoreResponse(Schema):
-    # passport_id: int
     address: str
     score: Optional[str]
     status: Optional[str]
@@ -51,9 +50,23 @@ class DetailedScoreResponse(Schema):
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
 
+    @staticmethod
+    def resolve_last_score_timestamp(obj):
+        if obj.last_score_timestamp:
+            return obj.last_score_timestamp.isoformat()
+        return None
+
+    @staticmethod
+    def resolve_address(obj):
+        return obj.passport.address
+
+
+class GetScoresResponse(Schema):
+    items: List[DetailedScoreResponse]
+    count: int
+
 
 class SimpleScoreResponse(Schema):
-    # passport_id: int
     address: str
     score: Decimal  # The score should be represented as string as it will be a decimal number
 
@@ -165,16 +178,7 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
         community = Community.objects.get(id=community_id)
         passport = Passport.objects.get(address=lower_address, community=community)
         score = Score.objects.get(passport=passport)
-        return DetailedScoreResponse(
-            address=score.passport.address,
-            score=score.score,
-            status=score.status,
-            evidence=score.evidence,
-            last_score_timestamp=score.last_score_timestamp.isoformat()
-            if score.last_score_timestamp
-            else None,
-            error=score.error,
-        )
+        return score
     except Exception as e:
         log.error(
             "Error getting passport scores. community_id=%s",
@@ -184,51 +188,29 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
         raise InvalidCommunityScoreRequestException()
 
 
-@router.get(
-    "/score/{int:community_id}", auth=ApiKey(), response=List[DetailedScoreResponse]
-)
-@paginate()
+@router.get("/score/{int:community_id}", auth=ApiKey(), response=List[DetailedScoreResponse])
+@paginate(pass_parameter="pagination_info")
 def get_scores(
-    request, community_id: int, address: str = ""
+    request, community_id: int, address: str = "", **kwargs
 ) -> List[DetailedScoreResponse]:
+
+    if kwargs["pagination_info"].limit > 1000:
+        raise InvalidLimitException()
     try:
         # Get community object
         user_community = get_object_or_404(
             Community, id=community_id, account=request.auth
         )
 
-        scores = Score.objects.filter(passport__community__id=user_community.id)
+        scores = Score.objects.filter(passport__community__id=user_community.pk).prefetch_related(
+            "passport"
+        )
 
         if address:
             scores = scores.filter(passport__address=address.lower())
 
-        return [
-            DetailedScoreResponse(
-                address=score.passport.address,
-                score=score.score,
-                status=score.status,
-                evidence=score.evidence,
-                last_score_timestamp=score.last_score_timestamp.isoformat()
-                if score.last_score_timestamp
-                else None,
-                error=score.error,
-            )
-            for score in scores
-        ]
-        # for score in scores:
-        #     response = DetailedScoreResponse(
-        #         address=score.passport.address,
-        #         score=score.score,
-        #         status=score.status,
-        #         evidence=score.evidence,
-        #         last_score_timestamp=score.last_score_timestamp.isoformat()
-        #         if score.last_score_timestamp
-        #         else None,
-        #         error=score.error,
-        #     )
-        #     import pdb; pdb.set_trace()
-        #     return response
-        # return [{"address": s.passport.address, "score": s.score} for s in scores]
+        return scores
+
     except Exception as e:
         log.error(
             "Error getting passport scores. community_id=%s",
