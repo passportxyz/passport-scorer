@@ -19,11 +19,8 @@ from ninja_jwt.settings import api_settings
 from ninja_jwt.tokens import RefreshToken, Token, TokenError
 from ninja_schema import Schema
 
-from .exceptions import (
-    InvalidDeleteCacheRequestException,
-    InvalidSessionException,
-    TooManyStampsException,
-)
+from .exceptions import InvalidDeleteCacheRequestException, InvalidSessionException
+
 from .models import CeramicCache
 
 log = logging.getLogger(__name__)
@@ -246,6 +243,7 @@ class CacaoVerifySubmit(Schema):
     issuer: str
     signatures: List[Dict]
     payload: str
+    nonce: str
     cid: List[int]
     cacao: List[int]
 
@@ -275,6 +273,12 @@ def authenticate(request, payload: CacaoVerifySubmit):
     it and return a JWT token.
     """
     try:
+        # First validate the payload
+        # This will ensure that the payload signature was made for our unique nonce
+        # TODO: make sure the nonce was issued by us (check the nonce table)
+        if not validate_dag_jws_payload({"nonce": payload.nonce}, payload.payload):
+            raise FailedVerificationException(detail=f"Invalid nonce or payload!")
+
         r = requests.post(
             settings.CERAMIC_CACHE_CACAO_VALIDATION_URL, json=payload.dict()
         )
