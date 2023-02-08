@@ -115,7 +115,7 @@ def get_stream_ids(did, ids=[CERAMIC_GITCOIN_PASSPORT_STREAM_ID]):
 def get_passport(address: str = "", stream_ids: List[str] = []) -> Dict:
     did = get_did(address)
 
-    db_stamp_list = CeramicCache.objects.filter(address=address)
+    db_stamp_list = CeramicCache.objects.filter(address=address, deleted_at=None)
 
     if len(db_stamp_list) == 0:
         # get streamIds if non are provided
