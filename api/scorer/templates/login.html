@@ -1,4 +1,5 @@
 {% extends "admin/login.html" %}
 {% block footer %}
 <div>Login</div>
+<a href="{% url 'social:begin' 'google-oauth2' %}">Google+</a>
 {% endblock %}

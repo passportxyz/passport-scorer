@@ -28,6 +28,9 @@ CERAMIC_CACHE_API_KEY = env("CERAMIC_CACHE_API_KEY", default="")
 
 UI_DOMAIN = env("UI_DOMAIN")
 
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = env("GOOGLE_OAUTH_CLIENT_ID", default="")
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
+
 # Application definition
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -45,6 +48,12 @@ INSTALLED_APPS = [
     "corsheaders",
     "account",
     "ninja_extra",
+    "social_django",
+]
+
+AUTHENTICATION_BACKENDS = [
+    "social_core.backends.google.GoogleOAuth2",
+    "django.contrib.auth.backends.ModelBackend",
 ]
 
 MIDDLEWARE = [
