@@ -61,7 +61,7 @@ class TestSubmitStamp:
         assert responses[1].status_code == 201
         assert responses[1].json()["stamp"] == '{"stamp": 2}'
 
-    def test_soft_delete_stamp(
+    def test_delete_stamp(
         self,
         mocker,
         sample_provider,
@@ -69,21 +69,20 @@ class TestSubmitStamp:
         verifiable_credential,
         sample_token,
     ):
-        mocker.patch(
-            "ceramic_cache.api.get_utc_time",
-            return_value=datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00"),
-        )
         delete_stamp_response = create_delete_stamp(
             sample_address, sample_provider, verifiable_credential, sample_token
         )
 
         assert delete_stamp_response.status_code == 200
         assert delete_stamp_response.json()["status"] == "deleted"
-        assert CeramicCache.objects.get(
-            address=sample_address, provider=sample_provider
-        ).deleted_at == datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00")
+        assert (
+            CeramicCache.objects.filter(
+                address=sample_address, provider=sample_provider
+            ).count()
+            == 0
+        )
 
-    def test_recreate_soft_deleted_stamp(
+    def test_recreate_deleted_stamp(
         self, sample_provider, sample_address, verifiable_credential, sample_token
     ):
         delete_stamp_response = create_delete_stamp(
@@ -106,11 +105,11 @@ class TestSubmitStamp:
         assert (
             CeramicCache.objects.get(
                 address=sample_address, provider=sample_provider
-            ).deleted_at
-            == None
+            ).provider
+            == sample_provider
         )
 
-    def test_soft_delete_non_existent_record(
+    def test_delete_non_existent_record(
         self, sample_provider, sample_address, sample_token
     ):
         params = {

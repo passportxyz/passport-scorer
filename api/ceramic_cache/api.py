@@ -136,7 +136,6 @@ def cache_stamp(request, payload: CacheStampPayload):
             provider=payload.provider,
             defaults=dict(
                 stamp=payload.stamp,
-                deleted_at=None,
             ),
         )
         return stamp
@@ -149,7 +148,7 @@ def cache_stamp(request, payload: CacheStampPayload):
     response=DeleteStampResponse,
     auth=JWTDidAuth(),
 )
-def soft_delete_stamp(request, payload: DeleteStampPayload):
+def delete_stamp(request, payload: DeleteStampPayload):
     try:
         if request.did.lower() != get_did(payload.address):
             raise InvalidSessionException()
@@ -158,12 +157,15 @@ def soft_delete_stamp(request, payload: DeleteStampPayload):
             address=payload.address,
             provider=payload.provider,
         )
-        stamp.deleted_at = get_utc_time()
-        stamp.save()
+
+        address = stamp.address
+        provider = stamp.provider
+
+        stamp.delete()
 
         return DeleteStampResponse(
-            address=stamp.address,
-            provider=stamp.provider,
+            address=address,
+            provider=provider,
             status="deleted",
         )
     except Exception as e:
@@ -173,7 +175,7 @@ def soft_delete_stamp(request, payload: DeleteStampPayload):
 @router.get("stamp", response=GetStampResponse)
 def get_stamps(request, address):
     try:
-        stamps = CeramicCache.objects.filter(deleted_at=None, address=address)
+        stamps = CeramicCache.objects.filter(address=address)
         return GetStampResponse(
             success=True,
             stamps=[

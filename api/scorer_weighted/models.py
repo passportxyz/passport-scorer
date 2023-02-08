@@ -29,6 +29,9 @@ class ThresholdScoreEvidence:
             "threshold": str(self.threshold),
         }
 
+    def __repr__(self):
+        return f"ThresholdScoreEvidence(success={self.success}, rawScore={self.rawScore}, threshold={self.threshold})"
+
 
 class ScoreData:
     # do multiple evidence types like:
@@ -38,6 +41,9 @@ class ScoreData:
     ):
         self.score = score
         self.evidence = evidence
+
+    def __repr__(self):
+        return f"ScoreData(score={self.score}, evidence={self.evidence})"
 
 
 def get_default_weights():
