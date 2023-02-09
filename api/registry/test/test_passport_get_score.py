@@ -206,7 +206,7 @@ class TestPassportGetScore:
             "detail": "You are not allowed to access this endpoint.",
         }
 
-    def test_get_scores_request_for_researcher(self, scorer_api_key, scorer_account):
+    def test_get_scores_request_for_researcher(self, scorer_api_key, scorer_account, passport_holder_addresses, paginated_scores):
         group, _ = Group.objects.get_or_create(name="Researcher")
         scorer_account.user.groups.add(group)
 
@@ -216,5 +216,11 @@ class TestPassportGetScore:
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
+        response_data = response.json()
+
         assert response.status_code == 200
-        assert response.json() == {"items": [], "count": 0}
+        for i in range(0, 5):
+            assert (
+                response_data["items"][i]["address"]
+                == passport_holder_addresses[i]["address"].lower()
+            )

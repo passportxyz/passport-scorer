@@ -1,17 +1,16 @@
 import logging
 from decimal import Decimal
 from typing import List, Optional
-from urllib.parse import urlencode
 
 # --- Deduplication Modules
 from account.models import AccountAPIKey, Community, Nonce
 from django.shortcuts import get_object_or_404
 from ninja import Router, Schema
-from django.urls import reverse_lazy
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
 from registry.models import Passport, Score
-from registry.utils import get_signer, get_signing_message
+from registry.permissions import ResearcherPermission
+from registry.utils import get_signer, get_signing_message, reverse_lazy_with_query, permissions_required
 
 from .exceptions import (
     InternalServerErrorException,
@@ -19,7 +18,6 @@ from .exceptions import (
     InvalidNonceException,
     InvalidSignerException,
     InvalidLimitException,
-    NoRequiredPermissionsException,
     Unauthorized,
 )
 from .tasks import score_passport
@@ -65,14 +63,8 @@ class DetailedScoreResponse(Schema):
         return obj.passport.address
 
 
-class GetScoresResponse(Schema):
-    items: List[DetailedScoreResponse]
-    count: int
-
-
 class CursorPaginatedScoreResponse(Schema):
-    next: str
-    prev: str
+    next: Optional[str]
     items: List[DetailedScoreResponse]
 
 
@@ -210,12 +202,15 @@ def get_scores(
 
     try:
         # Get community object
-        if request.user.groups.filter(name="Researcher").exists():
+        researcher_permission = ResearcherPermission()
+
+        if researcher_permission.has_permission(request, None):
             user_community = get_object_or_404(Community, id=community_id)
         else:
             user_community = get_object_or_404(
                 Community, id=community_id, account=request.auth
             )
+
         scores = Score.objects.filter(passport__community__id=user_community.id).prefetch_related(
             "passport"
         )
@@ -234,69 +229,32 @@ def get_scores(
         raise InvalidCommunityScoreRequestException()
 
 
-def reverse_querystring(view, urlconf=None, args=None, kwargs=None, current_app=None, query_kwargs=None):
-    '''Custom reverse to handle query strings.
-    Usage:
-        reverse('app.views.my_view', kwargs={'pk': 123}, query_kwargs={'search': 'Bob'})
-    '''
-    base_url = reverse_lazy(view, urlconf=urlconf, args=args, kwargs=kwargs, current_app=current_app)
-    if query_kwargs:
-        return '{}?{}'.format(base_url, urlencode(query_kwargs))
-    return base_url
-
-
 @router.get(
-    "/score/", auth=ApiKey(), response=List[CursorPaginatedScoreResponse]
+    "/score/", auth=ApiKey(), response=CursorPaginatedScoreResponse
 )
+@permissions_required([ResearcherPermission])
 def get_scores(
     request, last_id: int = None, limit: int = 1000
-) -> List[CursorPaginatedScoreResponse]:
-    if not request.user.groups.filter(name="Researcher").exists():
-        raise NoRequiredPermissionsException()
+) -> CursorPaginatedScoreResponse:
+    query = Score.objects.order_by("id")
 
-    try:
-        query = Score.objects.order_by("id")
+    if limit and limit > 1000:
+        limit = 1000
 
-        if limit and limit > 1000:
-            limit = 1000
+    if last_id:
+        query = query.filter(id__gt=last_id)
 
-        if last_id:
-            query = query.filter(id__gt=last_id)
-    
+    last_score = query[limit-1:limit].first() if limit and len(query) >= limit else query.last()
 
-        next_url = reverse_querystring("api-1.0.0:get_scores", query_kwargs={
-            "last_id": query.reverse()[0].id if query else ""
-        })
+    scores = query[:limit]
 
-        previous_url = reverse_querystring("api-1.0.0:get_scores", query_kwargs={
-            "last_id": query[0].id if query else ""
-        })
-        print(next_url, previous_url)
+    next_url = reverse_lazy_with_query("api-1.0.0:get_scores", query_kwargs={
+        "last_id": last_score.id
+    }) if last_score else None
 
-        scores = [
-                DetailedScoreResponse(
-                    address=score.passport.address,
-                    score=score.score,
-                    status=score.status,
-                    evidence=score.evidence,
-                    last_score_timestamp=score.last_score_timestamp.isoformat()
-                    if score.last_score_timestamp
-                    else None,
-                    error=score.error,
-                )
-                for score in query[:limit]
-            ]
+    response = CursorPaginatedScoreResponse(
+        next=next_url,
+        items=scores
+    )
 
-        print(scores)
-
-        response = CursorPaginatedScoreResponse(
-            next=next_url,
-            prev=previous_url,
-            items=scores
-        )
-
-        return response
-
-    except Exception as e:
-        log.error("Error getting passport scores.", e)
-        raise InternalServerErrorException()
+    return response
