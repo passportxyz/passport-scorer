@@ -14,7 +14,8 @@ from ninja_extra import status
 from ninja_extra.exceptions import APIException
 from ninja_extra.security import HttpBearer
 from ninja_jwt.authentication import InvalidToken
-from ninja_jwt.schema import RefreshToken
+
+# from ninja_jwt.schema import RefreshToken
 from ninja_jwt.settings import api_settings
 from ninja_jwt.tokens import RefreshToken, Token, TokenError
 from ninja_schema import Schema
@@ -22,6 +23,7 @@ from ninja_schema import Schema
 from .exceptions import InvalidDeleteCacheRequestException, InvalidSessionException
 
 from .models import CeramicCache
+from .utils import validate_dag_jws_payload
 
 log = logging.getLogger(__name__)
 
@@ -253,6 +255,11 @@ class FailedVerificationException(APIException):
     default_detail = "Unable to authorize request"
 
 
+class FailedVerificationException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Unable to authorize request"
+
+
 class DbCacheToken(RefreshToken):
     # Lifetime of the token is set to 7 days (because this is the setting of the CACAO session)
     # But it should ideally be read out of the cacao
@@ -272,22 +279,26 @@ def authenticate(request, payload: CacaoVerifySubmit):
     This method will validate a jws created with DagJWS, will validate by forwarding this to our validator
     it and return a JWT token.
     """
+    # First validate the payload
+    # This will ensure that the payload signature was made for our unique nonce
+    # TODO: make sure the nonce was issued by us (check the nonce table)
     try:
-        # First validate the payload
-        # This will ensure that the payload signature was made for our unique nonce
-        # TODO: make sure the nonce was issued by us (check the nonce table)
         if not validate_dag_jws_payload({"nonce": payload.nonce}, payload.payload):
             raise FailedVerificationException(detail=f"Invalid nonce or payload!")
+    except Exception as exc:
+        log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
+        raise FailedVerificationException(detail="Invalid nonce or payload!") from exc
+
+    try:
 
         r = requests.post(
-            settings.CERAMIC_CACHE_CACAO_VALIDATION_URL, json=payload.dict()
+            settings.CERAMIC_CACHE_CACAO_VALIDATION_URL, json=payload.dict(), timeout=30
         )
         if r.status_code == 200:
             token = DbCacheToken()
             token["did"] = payload.issuer
 
             return {
-                "ok": True,
                 "access": str(token.access_token),
             }
 
@@ -299,6 +310,9 @@ def authenticate(request, payload: CacaoVerifySubmit):
         )
         raise FailedVerificationException(detail=f"Verifier response: {str(r)}")
 
-    except Exception as e:
+    except APIException:
+        # re-raise API exceptions
+        raise
+    except Exception as esc:
         log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
-        raise e
+        raise APIException(detail=f"Failed authenticate request: {str(esc)}") from esc
