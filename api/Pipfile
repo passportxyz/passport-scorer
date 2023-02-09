@@ -24,12 +24,9 @@ psycopg2-binary = "*"
 djangorestframework-api-key = "==2.*"
 celery = {extras = ["redis"], version = "*"}
 requests = "*"
-<<<<<<< HEAD
 social-auth-app-django = "*"
-=======
 dag-cbor = "*"
 py-cid = "*"
->>>>>>> 3b61f50 (feat(db_cache): validate the payload when authenticating ...)
 
 [dev-packages]
 black = "*"
