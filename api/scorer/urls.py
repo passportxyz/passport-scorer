@@ -16,6 +16,7 @@ Including another URLconf
 # from rest_framework.schemas import get_schema_view
 from account.views import health
 from django.contrib import admin
+from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from django.views.generic import TemplateView
 
@@ -24,6 +25,12 @@ from .api import api
 urlpatterns = [
     path("", api.urls),
     path("health/", health, {}, "health-check"),
+    path(
+        "admin/login/",
+        auth_views.LoginView.as_view(template_name="login.html"),
+        name="login",
+    ),
     path("admin/", admin.site.urls),
     path("account/", include("account.urls")),
+    path("social/", include("social_django.urls", namespace="social")),
 ]

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from .env import BASE_DIR, env
+import os
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
@@ -26,6 +27,24 @@ ALLOWED_HOSTS = env.json("ALLOWED_HOSTS", default=[])
 CERAMIC_CACHE_API_KEY = env("CERAMIC_CACHE_API_KEY", default="")
 
 UI_DOMAIN = env("UI_DOMAIN")
+
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = env("GOOGLE_OAUTH_CLIENT_ID", default="")
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
+
+LOGIN_REDIRECT_URL = "/admin"
+
+SOCIAL_AUTH_PIPELINE = (
+    "social_core.pipeline.social_auth.social_details",
+    "social_core.pipeline.social_auth.social_uid",
+    "social_core.pipeline.social_auth.auth_allowed",
+    "social_core.pipeline.social_auth.social_user",
+    "social_core.pipeline.user.get_username",
+    "social_core.pipeline.user.create_user",
+    "social_core.pipeline.social_auth.associate_user",
+    "social_core.pipeline.social_auth.load_extra_data",
+    "social_core.pipeline.user.user_details",
+    "scorer.pipeline.add_social_auth_user_to_group",
+)
 
 # Application definition
 INSTALLED_APPS = [
@@ -44,6 +63,12 @@ INSTALLED_APPS = [
     "corsheaders",
     "account",
     "ninja_extra",
+    "social_django",
+]
+
+AUTHENTICATION_BACKENDS = [
+    "social_core.backends.google.GoogleOAuth2",
+    "django.contrib.auth.backends.ModelBackend",
 ]
 
 MIDDLEWARE = [
@@ -56,6 +81,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "social_django.middleware.SocialAuthExceptionMiddleware",
 ]
 
 ROOT_URLCONF = "scorer.urls"
@@ -63,7 +89,9 @@ ROOT_URLCONF = "scorer.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [
+            os.path.join(BASE_DIR, "templates"),
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
