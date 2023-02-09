@@ -15,9 +15,9 @@ from registry.utils import get_signer, get_signing_message, reverse_lazy_with_qu
 from .exceptions import (
     InternalServerErrorException,
     InvalidCommunityScoreRequestException,
+    InvalidLimitException,
     InvalidNonceException,
     InvalidSignerException,
-    InvalidLimitException,
     Unauthorized,
 )
 from .tasks import score_passport
@@ -82,15 +82,26 @@ class ApiKey(APIKeyHeader):
     param_name = "X-API-Key"
 
     def authenticate(self, request, key):
-        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-        if not auth_header:
-            raise Unauthorized()
+        """
+        The authenticate method will validate the API key:
+        1. first in the X-API-Key header - this will have preceedence
+        2. in the HTTP_AUTHORIZATION header if none exists in the X-API-Key header (this is for backwards compatibility)
+        """
+        if not key:
+            # if X-API-Key was not specified in the header read the HTTP_AUTHORIZATION
+            # and try to load the tey from there
+            auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+            if not auth_header:
+                raise Unauthorized()
+
+            try:
+                key = auth_header.split()[1]
+            except:
+                raise Unauthorized()
+
         try:
-            key = request.META["HTTP_AUTHORIZATION"].split()[1]
             api_key = AccountAPIKey.objects.get_from_key(key)
-
             user_account = api_key.account
-
             if user_account:
                 request.user = user_account.user
                 return user_account
@@ -191,12 +202,13 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
         raise InvalidCommunityScoreRequestException()
 
 
-@router.get("/score/{int:community_id}", auth=ApiKey(), response=List[DetailedScoreResponse])
+@router.get(
+    "/score/{int:community_id}", auth=ApiKey(), response=List[DetailedScoreResponse]
+)
 @paginate(pass_parameter="pagination_info")
 def get_scores(
     request, community_id: int, address: str = "", **kwargs
 ) -> List[DetailedScoreResponse]:
-
     if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
 

@@ -2,9 +2,12 @@ import pytest
 from account.models import Account, AccountAPIKey, Community
 from django.test import Client
 from django.contrib.auth.models import Group
-from registry.models import Passport, Score, Stamp
+from registry.models import Passport, Score
 from web3 import Web3
 from django.conf import settings
+from django.test import Client
+from registry.models import Passport, Score
+from web3 import Web3
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
