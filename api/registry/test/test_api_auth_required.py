@@ -81,6 +81,6 @@ def test_authentication_works_with_api_key(api_path_that_requires_auth, scorer_u
 
     response = method_fn(
         path,
-        **{"X-API-Key": "some bad API_KEY"},
+        **{"HTTP_X-API-Key": secret},
     )
-    assert response.status_code == 401
+    assert response.status_code != 401
