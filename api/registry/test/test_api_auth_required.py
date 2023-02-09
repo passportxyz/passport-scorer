@@ -61,7 +61,7 @@ def test_authentication_is_required_api_key(api_path_that_requires_auth):
 
 def test_authentication_works_with_api_key(api_path_that_requires_auth, scorer_user):
     """
-    Test that API key is required for exposed APIs"""
+    Test that API key is accepted if it is valid and present in HTTP_X-API-Key header"""
     method, path = api_path_that_requires_auth
     client = Client()
 
