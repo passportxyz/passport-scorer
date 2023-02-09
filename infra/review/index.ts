@@ -284,6 +284,14 @@ const secrets = [
     name: "SECRET_KEY",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:SECRET_KEY::`,
   },
+  {
+    name: "GOOGLE_OAUTH_CLIENT_ID",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:GOOGLE_OAUTH_CLIENT_ID::`,
+  },
+  {
+    name: "GOOGLE_CLIENT_SECRET",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:GOOGLE_CLIENT_SECRET::`,
+  },
 ];
 const environment = [
   {
