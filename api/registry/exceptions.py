@@ -1,4 +1,4 @@
-from ninja_extra import NinjaExtraAPI, status
+from ninja_extra import status
 from ninja_extra.exceptions import APIException
 
 
@@ -40,3 +40,13 @@ class InvalidCommunityScoreRequestException(APIException):
 class InvalidLimitException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Invalid limit."
+
+
+class NoRequiredPermissionsException(APIException):
+    status_code = status.HTTP_403_FORBIDDEN
+    default_detail = "You are not allowed to access this endpoint."
+
+
+class InternalServerErrorException(APIException):
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    default_detail = "Internal Server Error."

@@ -1,14 +1,17 @@
+from functools import wraps
 import json
 import logging
 from datetime import datetime
+from urllib.parse import urlencode
 
 import didkit
 from asgiref.sync import async_to_sync
-from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.urls import reverse_lazy
 from eth_account.messages import encode_defunct
 from reader.passport_reader import TRUSTED_IAM_ISSUER
+from registry.exceptions import NoRequiredPermissionsException
 from registry.models import Passport, Stamp
 
 # from registry.serializers import PassportSerializer, StampSerializer
@@ -202,3 +205,27 @@ def submit_passport(request):
         response_data["affected_passports"] = affected_passports
 
     return JsonResponse(response_data, status=status)
+
+
+def reverse_lazy_with_query(view, urlconf=None, args=None, kwargs=None, current_app=None, query_kwargs=None):
+    '''Custom lazy reverse to handle query strings.
+    Usage:
+        reverse_lazy('app.views.my_view', kwargs={'pk': 123}, query_kwargs={'search': 'Bob'})
+    '''
+    base_url = reverse_lazy(view, urlconf=urlconf, args=args, kwargs=kwargs, current_app=current_app)
+    if query_kwargs:
+        return '{}?{}'.format(base_url, urlencode(query_kwargs))
+    return str(base_url)
+
+
+def permissions_required(permission_classes):
+    def decorator(func):
+        @wraps(func)
+        def wrapped(request, *args, **kwargs):
+            for permission_class in permission_classes:
+                permission = permission_class()
+                if not permission.has_permission(request, None):
+                    raise NoRequiredPermissionsException()
+            return func(request, *args, **kwargs)
+        return wrapped
+    return decorator

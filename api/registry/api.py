@@ -9,9 +9,11 @@ from ninja import Router, Schema
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
 from registry.models import Passport, Score
-from registry.utils import get_signer, get_signing_message
+from registry.permissions import ResearcherPermission
+from registry.utils import get_signer, get_signing_message, reverse_lazy_with_query, permissions_required
 
 from .exceptions import (
+    InternalServerErrorException,
     InvalidCommunityScoreRequestException,
     InvalidNonceException,
     InvalidSignerException,
@@ -61,9 +63,9 @@ class DetailedScoreResponse(Schema):
         return obj.passport.address
 
 
-class GetScoresResponse(Schema):
+class CursorPaginatedScoreResponse(Schema):
+    next: Optional[str]
     items: List[DetailedScoreResponse]
-    count: int
 
 
 class SimpleScoreResponse(Schema):
@@ -90,6 +92,7 @@ class ApiKey(APIKeyHeader):
             user_account = api_key.account
 
             if user_account:
+                request.user = user_account.user
                 return user_account
         except AccountAPIKey.DoesNotExist:
             raise Unauthorized()
@@ -196,13 +199,19 @@ def get_scores(
 
     if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
+
     try:
         # Get community object
-        user_community = get_object_or_404(
-            Community, id=community_id, account=request.auth
-        )
+        researcher_permission = ResearcherPermission()
 
-        scores = Score.objects.filter(passport__community__id=user_community.pk).prefetch_related(
+        if researcher_permission.has_permission(request, None):
+            user_community = get_object_or_404(Community, id=community_id)
+        else:
+            user_community = get_object_or_404(
+                Community, id=community_id, account=request.auth
+            )
+
+        scores = Score.objects.filter(passport__community__id=user_community.id).prefetch_related(
             "passport"
         )
 
@@ -218,3 +227,34 @@ def get_scores(
             exc_info=True,
         )
         raise InvalidCommunityScoreRequestException()
+
+
+@router.get(
+    "/score/", auth=ApiKey(), response=CursorPaginatedScoreResponse
+)
+@permissions_required([ResearcherPermission])
+def get_scores(
+    request, last_id: int = None, limit: int = 1000
+) -> CursorPaginatedScoreResponse:
+    query = Score.objects.order_by("id")
+
+    if limit and limit > 1000:
+        limit = 1000
+
+    if last_id:
+        query = query.filter(id__gt=last_id)
+
+    last_score = query[limit-1:limit].first() if limit and len(query) >= limit else query.last()
+
+    scores = query[:limit]
+
+    next_url = reverse_lazy_with_query("api-1.0.0:get_scores", query_kwargs={
+        "last_id": last_score.id
+    }) if last_score else None
+
+    response = CursorPaginatedScoreResponse(
+        next=next_url,
+        items=scores
+    )
+
+    return response
