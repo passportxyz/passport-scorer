@@ -201,7 +201,7 @@ class TestPassportGetScore:
     def test_get_scores_request_throws_403_for_non_researcher(self, scorer_api_key):
         client = Client()
         response = client.get(
-            f"/registry/score/",
+            f"/analytics/score/",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         assert response.status_code == 403
@@ -209,20 +209,75 @@ class TestPassportGetScore:
             "detail": "You are not allowed to access this endpoint.",
         }
 
-    def test_get_scores_request_for_researcher(self, scorer_api_key, scorer_account, passport_holder_addresses, paginated_scores):
+    def test_get_first_page_scores_for_researcher(self, scorer_api_key, scorer_account, passport_holder_addresses, paginated_scores):
         group, _ = Group.objects.get_or_create(name="Researcher")
         scorer_account.user.groups.add(group)
 
+        limit = 2
+
         client = Client()
         response = client.get(
-            f"/registry/score/",
+            f"/analytics/score/?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
         response_data = response.json()
 
         assert response.status_code == 200
-        for i in range(0, 5):
+        assert response_data["next"] == f"/analytics/score/?last_id=2"
+        for i in range(0, 1):
+            assert (
+                response_data["items"][i]["address"]
+                == passport_holder_addresses[i]["address"].lower()
+            )
+
+    def test_get_second_page_scores_for_researcher(self, scorer_api_key, scorer_account, passport_holder_addresses, paginated_scores):
+        group, _ = Group.objects.get_or_create(name="Researcher")
+        scorer_account.user.groups.add(group)
+
+        last_id = 2
+        limit = 2
+
+        client = Client()
+        response = client.get(
+            f"/analytics/score/?limit={limit}&last_id={last_id}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        response_data = response.json()
+
+        assert response.status_code == 200
+        assert response_data["next"] == f"/analytics/score/?last_id=4"
+        for i in range(0, 1):
+            assert (
+                response_data["items"][i]["address"]
+                == passport_holder_addresses[last_id + i]["address"].lower()
+            )
+
+    def test_get_first_page_scores_by_community_id_for_researcher(
+        self,
+        scorer_api_key,
+        scorer_account,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        group, _ = Group.objects.get_or_create(name="Researcher")
+        scorer_account.user.groups.add(group)
+
+        limit = 2
+
+        client = Client()
+        response = client.get(
+            f"/analytics/score/{scorer_community.id}?limit={limit}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        assert response.status_code == 200
+        assert response_data["next"] == f"/analytics/score/{scorer_community.id}?last_id=2"
+
+        for i in range(0, 1):
             assert (
                 response_data["items"][i]["address"]
                 == passport_holder_addresses[i]["address"].lower()

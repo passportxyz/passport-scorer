@@ -26,6 +26,8 @@ log = logging.getLogger(__name__)
 # api = NinjaExtraAPI(urls_namespace="registry")
 router = Router()
 
+analytics_router = Router()
+
 
 class SubmitPassportPayload(Schema):
     address: str
@@ -214,15 +216,9 @@ def get_scores(
 
     try:
         # Get community object
-        researcher_permission = ResearcherPermission()
-
-        if researcher_permission.has_permission(request, None):
-            user_community = get_object_or_404(Community, id=community_id)
-        else:
-            user_community = get_object_or_404(
-                Community, id=community_id, account=request.auth
-            )
-
+        user_community = get_object_or_404(
+            Community, id=community_id, account=request.auth
+        )
         scores = Score.objects.filter(passport__community__id=user_community.id).prefetch_related(
             "passport"
         )
@@ -241,11 +237,11 @@ def get_scores(
         raise InvalidCommunityScoreRequestException()
 
 
-@router.get(
+@analytics_router.get(
     "/score/", auth=ApiKey(), response=CursorPaginatedScoreResponse
 )
 @permissions_required([ResearcherPermission])
-def get_scores(
+def get_scores_analytics(
     request, last_id: int = None, limit: int = 1000
 ) -> CursorPaginatedScoreResponse:
     query = Score.objects.order_by("id")
@@ -256,11 +252,57 @@ def get_scores(
     if last_id:
         query = query.filter(id__gt=last_id)
 
-    last_score = query[limit-1:limit].first() if limit and len(query) >= limit else query.last()
+    if limit and len(query) >= limit:
+        last_score = query[limit-1:limit][0]
+    else:
+        last_score = query.last()
 
     scores = query[:limit]
 
-    next_url = reverse_lazy_with_query("api-1.0.0:get_scores", query_kwargs={
+    next_url = reverse_lazy_with_query("analytics:get_scores_analytics", query_kwargs={
+        "last_id": last_score.id
+    }) if last_score else None
+
+    response = CursorPaginatedScoreResponse(
+        next=next_url,
+        items=scores
+    )
+
+    return response
+
+
+@analytics_router.get("/score/{int:community_id}", auth=ApiKey(), response=CursorPaginatedScoreResponse)
+@permissions_required([ResearcherPermission])
+def get_scores_by_community_id_analytics(
+    request, community_id: int, address: str = "", last_id: int = None, limit: int = 1000
+) -> CursorPaginatedScoreResponse:
+    user_community = get_object_or_404(Community, id=community_id)
+
+    query = Score.objects.order_by("id")
+
+    if limit and limit > 1000:
+        limit = 1000
+
+    if last_id:
+        query = query.filter(id__gt=last_id, passport__community__id=user_community.id).prefetch_related(
+            "passport"
+        )
+    else:
+        query = query.filter(passport__community__id=user_community.id).prefetch_related(
+            "passport"
+        )
+
+    if address:
+        query = query.filter(passport__address=address.lower())
+
+    if limit and len(query) >= limit:
+        last_score = query[limit-1:limit][0]
+    else:
+        last_score = query.last()
+
+    scores = query[:limit]
+
+    next_url = reverse_lazy_with_query("analytics:get_scores_by_community_id_analytics", query_kwargs={
         "last_id": last_score.id
     }) if last_score else None
 
