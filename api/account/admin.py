@@ -1,9 +1,10 @@
-from django.utils.safestring import mark_safe
-from django.urls import reverse
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.safestring import mark_safe
+from rest_framework_api_key.admin import APIKeyAdmin
+from scorer_weighted.models import Scorer
 
 from .models import Account, AccountAPIKey, Community
-from scorer_weighted.models import Scorer
 
 
 class AccountAdmin(admin.ModelAdmin):
@@ -42,9 +43,8 @@ class CommunityAdmin(admin.ModelAdmin):
     scorer_link.short_description = "Scorer Link"
 
 
-class AccountAPIKeyAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "prefix", "created", "expiry_date", "revoked")
-    search_fields = ("id", "name", "prefix")
+class AccountAPIKeyAdmin(APIKeyAdmin):
+    pass
 
 
 admin.site.register(Account, AccountAdmin)
