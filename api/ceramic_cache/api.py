@@ -128,17 +128,21 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
         for p in payload:
             if request.did.lower() != get_did(p.address):
                 raise InvalidSessionException()
-        stamps = []
+        stamp_objects = []
         for p in payload:
-            stamp, created = CeramicCache.objects.update_or_create(
+            stamp_object = CeramicCache(
                 address=p.address,
                 provider=p.provider,
-                defaults=dict(
-                    stamp=p.stamp,
-                ),
+                stamp=p.stamp,
             )
-            stamps.append(stamp)
-        return stamps
+            stamp_objects.append(stamp_object)
+        created = CeramicCache.objects.bulk_create(
+            stamp_objects,
+            update_conflicts=True,
+            update_fields=["stamp"],
+            unique_fields=["address", "provider"],
+        )
+        return created
     except Exception as e:
         raise e
 
