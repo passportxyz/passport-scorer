@@ -1,5 +1,5 @@
-from ninja_extra.exceptions import APIException
 from ninja_extra import status
+from ninja_extra.exceptions import APIException
 
 
 class InvalidDeleteCacheRequestException(APIException):
@@ -16,4 +16,4 @@ class InvalidSessionException(APIException):
 
 class TooManyStampsException(APIException):
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
-    default_detail = "You can not submit more than 50 stamps at a time."
+    default_detail = "You have submitted too many stamps."

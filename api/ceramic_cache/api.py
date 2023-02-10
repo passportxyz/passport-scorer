@@ -6,10 +6,18 @@ from typing import Any, Dict, List, Optional, Type
 
 import requests
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
+from django.http import HttpRequest
 from ninja import Router, Schema
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
-from ninja_jwt.tokens import RefreshToken
+from ninja_extra.security import HttpBearer
+from ninja_jwt.authentication import InvalidToken
+from ninja_jwt.schema import RefreshToken
+from ninja_jwt.settings import api_settings
+from ninja_jwt.tokens import RefreshToken, Token, TokenError
+from ninja_schema import Schema
 
 from .exceptions import (
     InvalidDeleteCacheRequestException,
@@ -17,20 +25,6 @@ from .exceptions import (
     TooManyStampsException,
 )
 from .models import CeramicCache
-
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from ninja import Schema
-from ninja_extra import status
-from ninja_extra.exceptions import APIException
-from ninja_jwt.schema import RefreshToken
-from ninja_schema import Schema
-from ninja_jwt.tokens import Token, TokenError
-from ninja_jwt.authentication import InvalidToken
-from django.contrib.auth.models import AbstractUser
-from ninja_extra.security import HttpBearer
-from django.http import HttpRequest
-from ninja_jwt.settings import api_settings
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +37,10 @@ def get_utc_time():
 
 def get_did(address: str):
     return f"did:pkh:eip155:1:{address.lower()}"
+
+
+def get_address_from_did(did: str):
+    return did.split(":")[-1]
 
 
 class JWTDidAuthentication:
@@ -99,13 +97,13 @@ class JWTDidAuth(JWTDidAuthentication, HttpBearer):
 
 
 class CacheStampPayload(Schema):
-    address: str
+    address: Optional[str]
     provider: str
     stamp: Any
 
 
 class DeleteStampPayload(Schema):
-    address: str
+    address: Optional[str]
     provider: str
 
 
@@ -117,7 +115,6 @@ class DeleteStampResponse(Schema):
 
 class BulkDeleteResponse(Schema):
     status: str
-    detail: Optional[str]
 
 
 class CachedStampResponse(Schema):
@@ -131,18 +128,19 @@ class GetStampResponse(Schema):
     stamps: List[CachedStampResponse]
 
 
-@router.post("stamps", response={201: List[CachedStampResponse]}, auth=JWTDidAuth())
+@router.post(
+    "stamps/bulk", response={201: List[CachedStampResponse]}, auth=JWTDidAuth()
+)
 def cache_stamps(request, payload: List[CacheStampPayload]):
     try:
-        if len(payload) > 50:
+        if len(payload) > settings.MAX_BULK_CACHE_SIZE:
             raise TooManyStampsException()
-        for p in payload:
-            if request.did.lower() != get_did(p.address):
-                raise InvalidSessionException()
+
+        address = get_address_from_did(request.did)
         stamp_objects = []
         for p in payload:
             stamp_object = CeramicCache(
-                address=p.address,
+                address=address,
                 provider=p.provider,
                 stamp=p.stamp,
             )
@@ -158,34 +156,21 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
         raise e
 
 
-@router.delete("stamps", response=BulkDeleteResponse, auth=JWTDidAuth())
+@router.delete("stamps/bulk", response=BulkDeleteResponse, auth=JWTDidAuth())
 def delete_stamps(request, payload: List[DeleteStampPayload]):
     try:
-        if len(payload) > 50:
+        if len(payload) > settings.MAX_BULK_CACHE_SIZE:
             raise TooManyStampsException()
-        for p in payload:
-            if request.did.lower() != get_did(p.address):
-                raise InvalidSessionException()
+
         stamps = CeramicCache.objects.filter(
-            address__in=[p.address for p in payload],
+            address=get_address_from_did(request.did),
             provider__in=[p.provider for p in payload],
         )
         if not stamps:
             raise InvalidDeleteCacheRequestException()
-        deleted_stamps = stamps.delete()
+        stamps.delete()
 
-        status = ""
-        detail = ""
-
-        deleted_stamp_count = deleted_stamps[0]
-        if deleted_stamp_count == len(payload):
-            status = "success"
-            detail = "All stamps deleted"
-        elif deleted_stamp_count > 0 and deleted_stamp_count < len(payload):
-            status = "partially deleted"
-            detail = f"{deleted_stamp_count} stamps deleted out of {len(payload)}"
-
-        return {"status": status, "detail": detail}
+        return {"status": "success"}
     except Exception as e:
         raise e
 
