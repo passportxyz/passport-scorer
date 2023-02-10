@@ -3,54 +3,19 @@ from sysconfig import get_default_scheme
 
 import pytest
 from account.models import Account, Community
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client
 from ninja_jwt.schema import RefreshToken
 from scorer_weighted.models import Scorer, get_default_threshold
 from web3 import Web3
-from django.conf import settings
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
 
-# TODO: Load from fixture file
 pytestmark = pytest.mark.django_db
 
 my_mnemonic = settings.TEST_MNEMONIC
-
-
-@pytest.fixture
-def scorer_user():
-    user = User.objects.create_user(username="testuser-1", password="12345")
-    return user
-
-
-@pytest.fixture
-def scorer_account(scorer_user):
-    web3_account = web3.eth.account.from_mnemonic(
-        my_mnemonic, account_path="m/44'/60'/0'/0/0"
-    )
-
-    print("scorer_user", scorer_user)
-    print("web3_account.address", web3_account.address)
-    account = Account.objects.create(user=scorer_user, address=web3_account.address)
-    return account
-
-
-@pytest.fixture
-def scorer_community(scorer_account):
-    community = Community.objects.create(
-        name="My Community",
-        description="My Community description",
-        account=scorer_account,
-    )
-    return community
-
-
-@pytest.fixture
-def access_token(scorer_user):
-    refresh = RefreshToken.for_user(scorer_user)
-    return refresh.access_token
 
 
 class TestScorer:

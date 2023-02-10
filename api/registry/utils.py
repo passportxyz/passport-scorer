@@ -33,7 +33,6 @@ def index(request):
 
 async def validate_credential(did, credential):
     # pylint: disable=fixme
-    # TODO: break this out in an utils module
     stamp_return_errors = []
     credential_subject = credential.get("credentialSubject")
     stamp_hash = credential_subject.get("hash")
@@ -115,106 +114,18 @@ def verify_expiration(passport) -> bool:
     return True
 
 
-def submit_passport(request):
-    # pylint: disable=fixme
-    # TODO: verify expiration date
-    errors = []
-    stamp_returns = []
-    # passport = json.loads(request.body)
-    passport = request.data
-    log.error("data: %s", passport)
-    did = passport.get("did").lower()
-    stamps = passport.get("stamps", [])
-    # pylint: disable=fixme
-    status = 200  # TODO: what is the proper status code ??? 204?
-
-    if not did:
-        errors.append("Missing attribute: did")
-
-    sorted_passports = Passport.objects.order_by("-version")
-    if sorted_passports.exists():
-        last_version = sorted_passports[0].version
-    else:
-        last_version = 0
-
-    new_version = last_version + 1
-    passports_to_update = {}
-    if not errors:
-        db_passport = Passport.objects.get_or_create(
-            did=did, defaults={"passport": passport, "version": new_version}
-        )[0]
-
-        # Variable to record all passports affected by this submission. This
-        # will also passports that have duplicate stamps removed as part of de-duping
-        passports_to_update[db_passport.id] = db_passport
-
-        for stamp in stamps:
-
-            stamp_return_errors = []
-            credential = stamp.get("credential")
-            stamp_return_errors = async_to_sync(validate_credential)(did, credential)
-
-            credential_subject = credential.get("credentialSubject")
-            stamp_hash = credential_subject.get("hash")
-
-            duplicate_passport = get_duplicate_passport(did, stamp_hash)
-            if duplicate_passport:
-                passports_to_update[duplicate_passport.id] = duplicate_passport
-
-            db_stamp = None
-            if not stamp_return_errors:
-                # This will create the stamp or update the previous stamp, and link it to the
-                # the current passport if it is the case.
-                log.debug("Saving stamp '%s' to passport '%s'", stamp_hash, db_passport)
-                db_stamp = Stamp.objects.update_or_create(
-                    hash=stamp_hash,
-                    defaults=dict(
-                        provider=credential_subject.get("provider"),
-                        credential=credential,
-                        passport=db_passport,
-                    ),
-                )[0]
-
-            stamp_return = {}
-            if db_stamp:
-                stamp_return["id"] = db_stamp.id
-
-            if stamp_return_errors:
-                stamp_return["errors"] = stamp_return_errors
-
-            stamp_returns.append(stamp_return)
-
-        if passports_to_update:
-            passport_list = []
-            for passport_to_update in passports_to_update.values():
-                passport_to_update.version = new_version
-                passport_list.append(passport_to_update)
-
-            Passport.objects.bulk_update(passport_list, ["version"])
-
-    response_data = {"stamps": stamp_returns}
-
-    if errors:
-        log.debug("errors occured, not sending signal. Errors %s", errors)
-        status = 400
-        response_data["errors"] = errors
-    else:
-        affected_passports = list(passports_to_update.keys())
-        log.debug("sending registry_updated signal for %s", affected_passports)
-        registry_updated.send(Passport, passport_ids=affected_passports)
-        response_data["affected_passports"] = affected_passports
-
-    return JsonResponse(response_data, status=status)
-
-
-def reverse_lazy_with_query(view, urlconf=None, args=None, kwargs=None, current_app=None, query_kwargs=None):
-    '''Custom lazy reverse to handle query strings.
+def reverse_lazy_with_query(
+    view, urlconf=None, args=None, kwargs=None, current_app=None, query_kwargs=None
+):
+    """Custom lazy reverse to handle query strings.
     Usage:
         reverse_lazy('app.views.my_view', kwargs={'pk': 123}, query_kwargs={'search': 'Bob'})
-    '''
-    base_url = reverse_lazy(view, urlconf=urlconf, args=args, kwargs=kwargs, current_app=current_app)
+    """
+    base_url = reverse_lazy(
+        view, urlconf=urlconf, args=args, kwargs=kwargs, current_app=current_app
+    )
     if query_kwargs:
-        return '{}?{}'.format(base_url, urlencode(query_kwargs))
+        return "{}?{}".format(base_url, urlencode(query_kwargs))
     return str(base_url)
 
 
@@ -227,5 +138,7 @@ def permissions_required(permission_classes):
                 if not permission.has_permission(request, None):
                     raise NoRequiredPermissionsException()
             return func(request, *args, **kwargs)
+
         return wrapped
+
     return decorator

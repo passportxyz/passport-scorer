@@ -1,9 +1,13 @@
+from decimal import Decimal
 from unittest.mock import patch
 
+import pytest
 from account.models import Account, Community
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
+from parameterized import parameterized
+from registry.api import SubmitPassportPayload, get_score, submit_passport
 from registry.models import Passport, Score, Stamp
 from registry.tasks import score_passport
 from web3 import Web3
@@ -11,6 +15,42 @@ from web3 import Web3
 my_mnemonic = settings.TEST_MNEMONIC
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
+
+mock_passport_data = {
+    "stamps": [
+        {
+            "provider": "Ens",
+            "credential": {
+                "type": ["VerifiableCredential"],
+                "credentialSubject": {
+                    "id": "did:pkh:eip155:1:0xa6Cf54ec56BaD8288Ee4559098c48b8D78C05468",
+                    "hash": "v0.0.0:1Vzw/OyM9CBUkVi/3mb+BiwFnHzsSRZhVH1gaQIyHvM=",
+                    "provider": "Ens",
+                },
+                "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                "issuanceDate": "2023-02-06T23:22:58.848Z",
+                "expirationDate": "2099-02-06T23:22:58.848Z",
+            },
+        },
+        {
+            "provider": "Gitcoin",
+            "credential": {
+                "type": ["VerifiableCredential"],
+                "credentialSubject": {
+                    "id": "did:pkh:eip155:1:0xa6Cf54ec56BaD8288Ee4559098c48b8D78C05468",
+                    "hash": "0x45678",
+                    "provider": "Gitcoin",
+                },
+                "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                "expirationDate": "2099-02-06T23:22:58.848Z",
+            },
+        },
+    ]
+}
+
+
+def mock_validate(*args, **kwargs):
+    return []
 
 
 class TestScorePassportTestCase(TransactionTestCase):
@@ -50,7 +90,6 @@ class TestScorePassportTestCase(TransactionTestCase):
         self.client = Client()
 
     def test_no_passport(self):
-
         with patch("registry.tasks.get_passport", return_value=None):
             score_passport(self.community.pk, self.account.address)
 
@@ -66,6 +105,33 @@ class TestScorePassportTestCase(TransactionTestCase):
             self.assertEqual(score.status, Score.Status.ERROR)
             self.assertEqual(score.error, "No Passport found for this address.")
 
+    @parameterized.expand([(lambda a: a,), (lambda a: a.lower(),)])
+    def test_address_checksummed_or_not(self, parseAddress):
+        address = parseAddress(self.account.address)
+
+        class MockRequest:
+            def __init__(self, account):
+                self.auth = account
+
+        mock_request = MockRequest(self.user_account)
+
+        with patch("registry.api.score_passport.delay", return_value=None):
+            submit_passport(
+                mock_request,
+                SubmitPassportPayload(
+                    address=address,
+                    community=self.community.pk,
+                ),
+            )
+
+        with patch("registry.tasks.get_passport", return_value=mock_passport_data):
+            with patch("registry.tasks.async_to_sync", return_value=mock_validate):
+                score_passport(self.community.pk, address)
+
+        score = get_score(mock_request, address, self.community.pk)
+        assert score.score == Decimal("1")
+        assert score.status == "DONE"
+
     def test_cleaning_stale_stamps(self):
         passport, _ = Passport.objects.update_or_create(
             address=self.account.address, community_id=self.community.pk
@@ -80,41 +146,6 @@ class TestScorePassportTestCase(TransactionTestCase):
         )
 
         assert Stamp.objects.filter(passport=passport).count() == 1
-
-        mock_passport_data = {
-            "stamps": [
-                {
-                    "provider": "Ens",
-                    "credential": {
-                        "type": ["VerifiableCredential"],
-                        "credentialSubject": {
-                            "id": "did:pkh:eip155:1:0xa6Cf54ec56BaD8288Ee4559098c48b8D78C05468",
-                            "hash": "v0.0.0:1Vzw/OyM9CBUkVi/3mb+BiwFnHzsSRZhVH1gaQIyHvM=",
-                            "provider": "Ens",
-                        },
-                        "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
-                        "issuanceDate": "2023-02-06T23:22:58.848Z",
-                        "expirationDate": "2099-02-06T23:22:58.848Z",
-                    },
-                },
-                {
-                    "provider": "Gitcoin",
-                    "credential": {
-                        "type": ["VerifiableCredential"],
-                        "credentialSubject": {
-                            "id": "did:pkh:eip155:1:0xa6Cf54ec56BaD8288Ee4559098c48b8D78C05468",
-                            "hash": "0x45678",
-                            "provider": "Gitcoin",
-                        },
-                        "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
-                        "expirationDate": "2099-02-06T23:22:58.848Z",
-                    },
-                },
-            ]
-        }
-
-        def mock_validate(*args, **kwargs):
-            return []
 
         with patch("registry.tasks.get_passport", return_value=mock_passport_data):
             with patch("registry.tasks.async_to_sync", return_value=mock_validate):

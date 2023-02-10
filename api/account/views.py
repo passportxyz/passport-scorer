@@ -2,7 +2,7 @@ import hashlib
 import logging
 import random
 import string
-from typing import List, Optional, cast
+from typing import Dict, List, Optional, cast
 
 from account.models import Account, AccountAPIKey, Community, Nonce
 from django.conf import settings
@@ -29,6 +29,7 @@ class SiweVerifySubmit(Schema):
 
 
 CHALLENGE_STATEMENT = "I authorize the passport scorer.\n\nnonce:"
+
 
 # Returns a random username to be used in the challenge
 def get_random_username():
@@ -152,7 +153,6 @@ class CommunityApiSchema(ModelSchema):
 
 @api.post("/verify", response=TokenObtainPairOutSchema)
 def submit_signed_challenge(request, payload: SiweVerifySubmit):
-
     payload.message["chain_id"] = payload.message["chainId"]
     payload.message["issued_at"] = payload.message["issuedAt"]
 
@@ -341,14 +341,15 @@ def delete_community(request, community_id):
     return {"ok": True}
 
 
-# TODO - type list if dicts response
-# class ScorerResponse(Schema):
-#     ok: bool
-#     current_scorer: str
-#     scorers: List[Dict[str, str]]
+class ScorersResponse(Schema):
+    ok: bool
+    current_scorer: str
+    scorers: List[Dict[str, str]]
 
 
-@api.get("/communities/{community_id}/scorers", auth=JWTAuth())
+@api.get(
+    "/communities/{community_id}/scorers", auth=JWTAuth(), response=ScorersResponse
+)
 def get_community_scorers(request, community_id):
     try:
         community = get_object_or_404(

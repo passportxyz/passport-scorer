@@ -10,45 +10,7 @@ web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
 my_mnemonic = settings.TEST_MNEMONIC
 
-# TODO: Load from fixture file
 pytestmark = pytest.mark.django_db
-
-
-@pytest.fixture
-def scorer_account(scorer_user):
-    web3_account = web3.eth.account.from_mnemonic(
-        my_mnemonic, account_path="m/44'/60'/0'/0/0"
-    )
-
-    account = Account.objects.create(user=scorer_user, address=web3_account.address)
-    return account
-
-
-@pytest.fixture
-def scorer_api_key(scorer_account):
-    (_, secret) = AccountAPIKey.objects.create_key(
-        account=scorer_account, name="Token for user 1"
-    )
-    return secret
-
-
-@pytest.fixture
-def scorer_passport(scorer_account, scorer_community):
-    passport = Passport.objects.create(
-        address=scorer_account.address,
-        passport={"name": "John Doe"},
-        community=scorer_community,
-    )
-    return passport
-
-
-@pytest.fixture
-def scorer_score(scorer_passport):
-    stamp = Score.objects.create(
-        passport=scorer_passport,
-        score="0.650000000",
-    )
-    return stamp
 
 
 @pytest.fixture

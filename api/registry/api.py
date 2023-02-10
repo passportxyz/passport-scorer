@@ -36,7 +36,7 @@ analytics_router = Router()
 
 class SubmitPassportPayload(Schema):
     address: str
-    community: str  # TODO: gerald: community_id ???, and make it int
+    community: str
     signature: str = ""
     nonce: str = ""
 
@@ -131,10 +131,7 @@ def community_requires_signature(_):
 
 
 @router.post("/submit-passport", auth=ApiKey(), response=DetailedScoreResponse)
-def submit_passport(
-    request, payload: SubmitPassportPayload
-) -> List[DetailedScoreResponse]:
-    # TODO: gerald - test that checksummed & non-checksummed addresses work
+def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
     address_lower = payload.address.lower()
 
     # Get DID from address

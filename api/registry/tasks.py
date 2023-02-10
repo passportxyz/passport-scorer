@@ -50,7 +50,7 @@ def score_passport(community_id: int, address: str):
                     status=Score.Status.ERROR,
                     last_score_timestamp=None,
                     evidence=None,
-                    error=e.detail,
+                    error=str(e),
                 ),
             )
     except Exception as e:
@@ -174,7 +174,6 @@ def calculate_score(passport: Passport, community_id: int):
             score=scoreData.score,
             status=Score.Status.DONE,
             last_score_timestamp=get_utc_time(),
-            # TODO: check: does scoreData.evidence need to be an array?
             evidence=scoreData.evidence[0].as_dict() if scoreData.evidence else None,
             error=None,
         ),
