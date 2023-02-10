@@ -1,13 +1,13 @@
 # pylint: disable=redefined-outer-name
 import pytest
 from account.models import Account, AccountAPIKey, Community
+from ceramic_cache.api import DbCacheToken
+from django.conf import settings
 from django.contrib.auth.models import User
 from ninja_jwt.schema import RefreshToken
 from registry.models import Passport, Score
 from scorer_weighted.models import BinaryWeightedScorer, Scorer
 from web3 import Web3
-from django.conf import settings
-from ceramic_cache.api import DbCacheToken
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -28,16 +28,6 @@ def scorer_user():
 def access_token(scorer_user):
     refresh = RefreshToken.for_user(scorer_user)
     return refresh.access_token
-
-
-@pytest.fixture
-def scorer_community(scorer_account):
-    community = Community.objects.create(
-        name="My Community",
-        description="My Community description",
-        account=scorer_account,
-    )
-    return community
 
 
 @pytest.fixture
@@ -102,6 +92,16 @@ def scorer_community_with_binary_scorer(mocker, scorer_account):
 
 
 @pytest.fixture
+def scorer_community(scorer_account):
+    community = Community.objects.create(
+        name="My Community",
+        description="My Community description",
+        account=scorer_account,
+    )
+    return community
+
+
+@pytest.fixture
 def scorer_passport(passport_holder_addresses, scorer_community):
     passport = Passport.objects.create(
         address=passport_holder_addresses[0]["address"],
@@ -148,14 +148,18 @@ def no_account_db_response():
 
 
 @pytest.fixture
-def api_key_object(scorer_account):
-    (account_api_key, secret) = AccountAPIKey.objects.create_key(
-        account=scorer_account, name="The Key"
+def api_key():
+    user = User.objects.create_user(username="testuser-1", password="12345")
+    web3_account = web3.eth.account.from_mnemonic(
+        my_mnemonic, account_path="m/44'/60'/0'/0/0"
     )
-    return {
-        "name": account_api_key,
-        "api_key": secret,
-    }
+
+    account = Account.objects.create(user=user, address=web3_account.address)
+    (_, secret) = AccountAPIKey.objects.create_key(
+        account=account, name="Token for user 1"
+    )
+
+    return secret
 
 
 @pytest.fixture

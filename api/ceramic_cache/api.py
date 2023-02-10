@@ -2,31 +2,29 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Type
+from typing import Any, Dict, List, Optional, Type
 
 import requests
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
+from django.http import HttpRequest
 from ninja import Router, Schema
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
-from ninja_jwt.tokens import RefreshToken
-
-from .exceptions import InvalidDeleteCacheRequestException, InvalidSessionException
-from .models import CeramicCache
-
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from ninja import Schema
-from ninja_extra import status
-from ninja_extra.exceptions import APIException
-from ninja_jwt.schema import RefreshToken
-from ninja_schema import Schema
-from ninja_jwt.tokens import Token, TokenError
-from ninja_jwt.authentication import InvalidToken
-from django.contrib.auth.models import AbstractUser
 from ninja_extra.security import HttpBearer
-from django.http import HttpRequest
+from ninja_jwt.authentication import InvalidToken
+from ninja_jwt.schema import RefreshToken
 from ninja_jwt.settings import api_settings
+from ninja_jwt.tokens import RefreshToken, Token, TokenError
+from ninja_schema import Schema
+
+from .exceptions import (
+    InvalidDeleteCacheRequestException,
+    InvalidSessionException,
+    TooManyStampsException,
+)
+from .models import CeramicCache
 
 log = logging.getLogger(__name__)
 
@@ -39,6 +37,10 @@ def get_utc_time():
 
 def get_did(address: str):
     return f"did:pkh:eip155:1:{address.lower()}"
+
+
+def get_address_from_did(did: str):
+    return did.split(":")[-1]
 
 
 class JWTDidAuthentication:
@@ -95,19 +97,23 @@ class JWTDidAuth(JWTDidAuthentication, HttpBearer):
 
 
 class CacheStampPayload(Schema):
-    address: str
+    address: Optional[str]
     provider: str
     stamp: Any
 
 
 class DeleteStampPayload(Schema):
-    address: str
+    address: Optional[str]
     provider: str
 
 
 class DeleteStampResponse(Schema):
     address: str
     provider: str
+    status: str
+
+
+class BulkDeleteResponse(Schema):
     status: str
 
 
@@ -120,6 +126,53 @@ class CachedStampResponse(Schema):
 class GetStampResponse(Schema):
     success: bool
     stamps: List[CachedStampResponse]
+
+
+@router.post(
+    "stamps/bulk", response={201: List[CachedStampResponse]}, auth=JWTDidAuth()
+)
+def cache_stamps(request, payload: List[CacheStampPayload]):
+    try:
+        if len(payload) > settings.MAX_BULK_CACHE_SIZE:
+            raise TooManyStampsException()
+
+        address = get_address_from_did(request.did)
+        stamp_objects = []
+        for p in payload:
+            stamp_object = CeramicCache(
+                address=address,
+                provider=p.provider,
+                stamp=p.stamp,
+            )
+            stamp_objects.append(stamp_object)
+        created = CeramicCache.objects.bulk_create(
+            stamp_objects,
+            update_conflicts=True,
+            update_fields=["stamp"],
+            unique_fields=["address", "provider"],
+        )
+        return created
+    except Exception as e:
+        raise e
+
+
+@router.delete("stamps/bulk", response=BulkDeleteResponse, auth=JWTDidAuth())
+def delete_stamps(request, payload: List[DeleteStampPayload]):
+    try:
+        if len(payload) > settings.MAX_BULK_CACHE_SIZE:
+            raise TooManyStampsException()
+
+        stamps = CeramicCache.objects.filter(
+            address=get_address_from_did(request.did),
+            provider__in=[p.provider for p in payload],
+        )
+        if not stamps:
+            raise InvalidDeleteCacheRequestException()
+        stamps.delete()
+
+        return {"status": "success"}
+    except Exception as e:
+        raise e
 
 
 @router.post(

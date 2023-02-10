@@ -10,8 +10,9 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
-from .env import BASE_DIR, env
 import os
+
+from .env import BASE_DIR, env
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
@@ -231,3 +232,5 @@ TEST_MNEMONIC = env("TEST_MNEMONIC")
 CERAMIC_CACHE_CACAO_VALIDATION_URL = env(
     "CERAMIC_CACHE_CACAO_VALIDATION_URL", default="http://127.0.0.1:8001/verify"
 )
+
+MAX_BULK_CACHE_SIZE = 100
