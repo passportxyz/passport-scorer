@@ -20,10 +20,12 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from django.views.generic import TemplateView
 
-from .api import api
+from .api import analytics_api, ceramic_cache_api, registry_api
 
 urlpatterns = [
-    path("", api.urls),
+    path("", registry_api.urls),
+    path("ceramic-cache/", ceramic_cache_api.urls),
+    path("analytics/", analytics_api.urls),
     path("health/", health, {}, "health-check"),
     path(
         "admin/login/",
