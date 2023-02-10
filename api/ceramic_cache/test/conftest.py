@@ -28,19 +28,6 @@ def sample_stamps():
     ]
 
 
-@pytest.fixture
-def bulk_stamp_payload(sample_address, sample_provider):
-    return {
-        "address": sample_address,
-        "provider": sample_provider,
-        "stamps": [
-            {"address": sample_address, "provider": sample_provider, "stamp": 1},
-            {"address": sample_address, "provider": sample_provider, "stamp": 1},
-            {"address": sample_address, "provider": sample_provider, "stamp": 1},
-        ],
-    }
-
-
 def pytest_configure():
     try:
         settings.CERAMIC_CACHE_API_KEY = "supersecret"

@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Type
+from typing import Any, Dict, List, Optional, Type
 
 import requests
 from django.conf import settings
@@ -11,7 +11,11 @@ from ninja_extra import status
 from ninja_extra.exceptions import APIException
 from ninja_jwt.tokens import RefreshToken
 
-from .exceptions import InvalidDeleteCacheRequestException, InvalidSessionException
+from .exceptions import (
+    InvalidDeleteCacheRequestException,
+    InvalidSessionException,
+    TooManyStampsException,
+)
 from .models import CeramicCache
 
 from django.conf import settings
@@ -111,6 +115,11 @@ class DeleteStampResponse(Schema):
     status: str
 
 
+class BulkDeleteResponse(Schema):
+    status: str
+    detail: Optional[str]
+
+
 class CachedStampResponse(Schema):
     address: str
     provider: str
@@ -125,6 +134,8 @@ class GetStampResponse(Schema):
 @router.post("stamps", response={201: List[CachedStampResponse]}, auth=JWTDidAuth())
 def cache_stamps(request, payload: List[CacheStampPayload]):
     try:
+        if len(payload) > 50:
+            raise TooManyStampsException()
         for p in payload:
             if request.did.lower() != get_did(p.address):
                 raise InvalidSessionException()
@@ -143,6 +154,38 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
             unique_fields=["address", "provider"],
         )
         return created
+    except Exception as e:
+        raise e
+
+
+@router.delete("stamps", response=BulkDeleteResponse, auth=JWTDidAuth())
+def delete_stamps(request, payload: List[DeleteStampPayload]):
+    try:
+        if len(payload) > 50:
+            raise TooManyStampsException()
+        for p in payload:
+            if request.did.lower() != get_did(p.address):
+                raise InvalidSessionException()
+        stamps = CeramicCache.objects.filter(
+            address__in=[p.address for p in payload],
+            provider__in=[p.provider for p in payload],
+        )
+        if not stamps:
+            raise InvalidDeleteCacheRequestException()
+        deleted_stamps = stamps.delete()
+
+        status = ""
+        detail = ""
+
+        deleted_stamp_count = deleted_stamps[0]
+        if deleted_stamp_count == len(payload):
+            status = "success"
+            detail = "All stamps deleted"
+        elif deleted_stamp_count > 0 and deleted_stamp_count < len(payload):
+            status = "partially deleted"
+            detail = f"{deleted_stamp_count} stamps deleted out of {len(payload)}"
+
+        return {"status": status, "detail": detail}
     except Exception as e:
         raise e
 

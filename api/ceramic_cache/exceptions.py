@@ -12,3 +12,8 @@ class InvalidSessionException(APIException):
     default_detail = (
         "You are unable to modify a stamp that is not associated with your session"
     )
+
+
+class TooManyStampsException(APIException):
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    default_detail = "You can not submit more than 50 stamps at a time."
