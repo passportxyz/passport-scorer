@@ -122,6 +122,27 @@ class GetStampResponse(Schema):
     stamps: List[CachedStampResponse]
 
 
+@router.post("stamps", response={201: List[CachedStampResponse]}, auth=JWTDidAuth())
+def cache_stamps(request, payload: List[CacheStampPayload]):
+    try:
+        for p in payload:
+            if request.did.lower() != get_did(p.address):
+                raise InvalidSessionException()
+        stamps = []
+        for p in payload:
+            stamp, created = CeramicCache.objects.update_or_create(
+                address=p.address,
+                provider=p.provider,
+                defaults=dict(
+                    stamp=p.stamp,
+                ),
+            )
+            stamps.append(stamp)
+        return stamps
+    except Exception as e:
+        raise e
+
+
 @router.post(
     "stamp",
     response={201: CachedStampResponse},

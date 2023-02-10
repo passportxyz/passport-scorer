@@ -31,16 +31,6 @@ def access_token(scorer_user):
 
 
 @pytest.fixture
-def scorer_community(scorer_account):
-    community = Community.objects.create(
-        name="My Community",
-        description="My Community description",
-        account=scorer_account,
-    )
-    return community
-
-
-@pytest.fixture
 def scorer_account(scorer_user):
     web3_account = web3.eth.account.from_mnemonic(
         my_mnemonic, account_path="m/44'/60'/0'/0/0"
@@ -148,14 +138,18 @@ def no_account_db_response():
 
 
 @pytest.fixture
-def api_key_object(scorer_account):
-    (account_api_key, secret) = AccountAPIKey.objects.create_key(
-        account=scorer_account, name="The Key"
+def api_key():
+    user = User.objects.create_user(username="testuser-1", password="12345")
+    web3_account = web3.eth.account.from_mnemonic(
+        my_mnemonic, account_path="m/44'/60'/0'/0/0"
     )
-    return {
-        "name": account_api_key,
-        "api_key": secret,
-    }
+
+    account = Account.objects.create(user=user, address=web3_account.address)
+    (_, secret) = AccountAPIKey.objects.create_key(
+        account=account, name="Token for user 1"
+    )
+
+    return secret
 
 
 @pytest.fixture
