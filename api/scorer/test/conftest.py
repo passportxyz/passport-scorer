@@ -102,9 +102,9 @@ def scorer_community(scorer_account):
 
 
 @pytest.fixture
-def scorer_passport(passport_holder_addresses, scorer_community):
+def scorer_passport(scorer_account, scorer_community):
     passport = Passport.objects.create(
-        address=passport_holder_addresses[0]["address"],
+        address=scorer_account.address,
         passport={"name": "John Doe"},
         community=scorer_community,
     )

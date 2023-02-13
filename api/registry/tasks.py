@@ -50,7 +50,7 @@ def score_passport(community_id: int, address: str):
                     status=Score.Status.ERROR,
                     last_score_timestamp=None,
                     evidence=None,
-                    error=str(e),
+                    error=e.detail,
                 ),
             )
     except Exception as e:

@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -6,7 +7,6 @@ from account.models import Account, Community
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
-from parameterized import parameterized
 from registry.api import SubmitPassportPayload, get_score, submit_passport
 from registry.models import Passport, Score, Stamp
 from registry.tasks import score_passport
@@ -105,10 +105,19 @@ class TestScorePassportTestCase(TransactionTestCase):
             self.assertEqual(score.status, Score.Status.ERROR)
             self.assertEqual(score.error, "No Passport found for this address.")
 
-    @parameterized.expand([(lambda a: a,), (lambda a: a.lower(),)])
-    def test_address_checksummed_or_not(self, parseAddress):
-        address = parseAddress(self.account.address)
+    def test_score_checksummed_address(self):
+        address = self.account.address
+        assert re.search("[A-Z]", address) is not None
 
+        self._score_address(address)
+
+    def test_score_nonchecksummed_address(self):
+        address = self.account.address.lower()
+        assert re.search("[A-Z]", address) is None
+
+        self._score_address(address)
+
+    def _score_address(self, address):
         class MockRequest:
             def __init__(self, account):
                 self.auth = account
