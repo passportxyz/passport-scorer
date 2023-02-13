@@ -1,10 +1,7 @@
 # pylint: disable=unused-import
 from scorer.test.conftest import (
-    passport_holder_addresses,
+    access_token,
     scorer_account,
-    scorer_api_key,
     scorer_community,
-    scorer_passport,
-    scorer_score,
     scorer_user,
 )

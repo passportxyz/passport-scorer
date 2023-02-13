@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from account.models import Account, AccountAPIKey, Community, Nonce
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
 from eth_account.messages import encode_defunct
@@ -12,7 +13,6 @@ from registry.models import Passport, Stamp
 from registry.tasks import score_passport
 from registry.utils import get_signer, get_signing_message, verify_issuer
 from web3 import Web3
-from django.conf import settings
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -251,7 +251,6 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "Ens": 1,
             },
         ):
-
             self.community = Community.objects.create(
                 name="My Community",
                 description="My Community description",
@@ -329,21 +328,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         signer = get_signer(self.nonce_2, signature)
         self.assertNotEqual(signer, self.account.address)
 
-    # TODO: this should be checked in score_passport
-    # def test_invalid_address_throws_exception(self):
-    #     payload = {
-    #         "address": "0x0",
-    #         "community": self.community.id,
-    #     }
-
-    #     response = self.client.post(
-    #         "/registry/submit-passport",
-    #         json.dumps(payload),
-    #         content_type="application/json",
-    #         HTTP_AUTHORIZATION=f"Token {self.secret}",
-    #     )
-    #     self.assertEqual(response.status_code, 404)
-
     @patch("registry.tasks.validate_credential", side_effect=[[], []])
     @patch("registry.tasks.get_passport", return_value=mock_passport)
     def test_signature_not_needed_by_default(self, get_passport, validate_credential):
@@ -390,8 +374,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        # TODO: check that task was triggered
-        # Trigger the task
         score_passport(self.community.id, self.account.address)
 
         # Check if the passport data was saved to the database (data that we mock)
@@ -440,7 +422,6 @@ class ValidatePassportTestCase(TransactionTestCase):
     @patch("registry.tasks.validate_credential", side_effect=[[], []])
     @patch("registry.tasks.get_passport", return_value={})
     def test_submitting_without_passport(self, get_passport, validate_credential):
-
         payload = {
             "community": self.community.id,
             "address": self.account.address,
@@ -458,8 +439,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        # TODO: check that task was triggered
-        # Trigger the task
         score_passport(self.community.id, self.account.address)
 
         # Check if the passport data was saved to the database (data that we mock)
@@ -539,8 +518,6 @@ class ValidatePassportTestCase(TransactionTestCase):
             expectedResponse,
         )
 
-        # TODO: check that task was triggered
-        # Trigger the task
         score_passport(self.community.id, self.account.address)
 
         # 2nd submission
@@ -573,8 +550,6 @@ class ValidatePassportTestCase(TransactionTestCase):
             expected2ndResponse,
         )
 
-        # TODO: check that task was triggered
-        # Trigger the task
         score_passport(self.community.id, self.account.address)
 
         # Check that the stamps have only been recorded once
@@ -650,8 +625,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        # TODO: check that task was triggered
-        # Trigger the task
         score_passport(self.community.id, self.account.address)
 
         # Check if the passport data was saved to the database (data that we mock)
@@ -697,8 +670,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        # TODO: check that task was triggered
-        # Trigger the task
         score_passport(self.community.id, self.account.address)
 
         # Check if the passport data was saved to the database (data that we mock)
@@ -744,8 +715,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        # TODO: check that task was triggered
-        # Trigger the task
         score_passport(self.community.id, self.account.address)
 
         # Check if the passport data was saved to the database (data that we mock)
@@ -830,9 +799,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
 
-        # TODO: check that task was triggered
-        # Trigger the task
-        score_passport(self.community.id, self.mock_account.address)
+        score_passport(self.community.pk, self.mock_account.address)
 
         self.assertEqual(submission_response.status_code, 200)
 
