@@ -192,7 +192,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
   release:
-    needs: [deploy-review]
+    needs: [deploy-production]
 
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
