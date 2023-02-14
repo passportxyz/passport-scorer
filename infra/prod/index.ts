@@ -376,6 +376,10 @@ const environment = [
     name: "CERAMIC_CACHE_CACAO_VALIDATION_URL",
     value: "http://localhost:8001/verify",
   },
+  {
+    name: "SECURE_SSL_REDIRECT",
+    value: true,
+  },
 ];
 
 //////////////////////////////////////////////////////////////
