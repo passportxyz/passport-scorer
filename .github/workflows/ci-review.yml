@@ -251,3 +251,61 @@ jobs:
           DB_USER: ${{ secrets.DB_USER }}
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+
+  release:
+    needs: [deploy-review]
+
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Version
+        # https://github.com/marketplace/actions/git-semantic-version
+        id: version
+        uses: paulhatch/semantic-version@v5.0.2
+        with:
+          tag_prefix: "v"
+          major_pattern: "(MAJOR)"
+          major_regexp_flags: ""
+          minor_pattern: "(MINOR)"
+          minor_regexp_flags: ""
+          bump_each_commit: false
+          search_commit_body: true
+          user_format_type: "csv"
+          namespace: api
+
+      - name: Release Info
+        run: |
+          echo "## Changelog" > ${{ github.workspace }}-CHANGELOG.txt
+          git log ${{ steps.version.outputs.previous_commit}}..${{ steps.version.outputs.current_commit}} --pretty="- %s" >> ${{ github.workspace }}-CHANGELOG.txt
+          echo "" >> ${{ github.workspace }}-CHANGELOG.txt
+          echo "**[Full Changelog]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/${{ steps.version.outputs.previous_commit}}...${{ steps.version.outputs.current_commit}})**" >> ${{ github.workspace }}-CHANGELOG.txt
+          echo "" >> ${{ github.workspace }}-CHANGELOG.txt
+          echo "## Authors" >> ${{ github.workspace }}-CHANGELOG.txt
+          echo "${{ steps.version.outputs.authors }}" >> ${{ github.workspace }}-CHANGELOG.txt
+
+      - name: Debug
+        run: |
+          echo "Version tag : ${{ steps.version.outputs.version_tag }}"
+          echo "Version     : ${{ steps.version.outputs.version }}"
+          echo "Authors     : ${{ steps.version.outputs.authors }}"
+          cat ${{ github.workspace }}-CHANGELOG.txt
+
+      - name: Release
+        # https://github.com/ncipollo/release-action
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          bodyFile: ${{ github.workspace }}-CHANGELOG.txt
+          generateReleaseNotes: true
+          name: Name ${{ steps.version.outputs.version }}
+          tag: ${{ steps.version.outputs.version_tag }}
+          draft: true
