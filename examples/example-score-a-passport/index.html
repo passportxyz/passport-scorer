@@ -64,7 +64,7 @@
 
       const endpoint = "https://api.scorer.gitcoin.co";
       // const endpoint = "https://api.scorer.dpopp.gitcoin.co";
-      // const endpoint = "http://127.0.0.1:8000";
+      // const endpoint = "http://127.0.0.1:8002";
       const ethereumButton = document.querySelector(".enableEthereumButton");
       const submitForScoringButton = document.querySelector(
         "#scoringWithSignature .submitForScoringButton"
@@ -98,6 +98,11 @@
         const communityId = document.querySelector("#scoringWithoutSignature #communityId").value;
         const apiKey = document.querySelector("#scoringWithoutSignature #apiKey").value;
 
+        if(!account) {
+          passportScoreDisplay.innerHTML = "Please connect to your wallet first.";
+          return;
+        }
+
         try {
           const response = await axios.post(
             endpoint + "/registry/submit-passport",
@@ -108,7 +113,7 @@
             {
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
+                "X-API-Key": apiKey,
               },
             }
           );
@@ -123,7 +128,7 @@
                 {
                   headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${apiKey}`,
+                    "X-API-Key": apiKey,
                   },
                 }
               );
@@ -159,13 +164,18 @@
         const communityId = document.querySelector("#scoringWithSignature #communityId").value;
         const apiKey = document.querySelector("#scoringWithSignature #apiKey").value;
 
+        if(!account) {
+          passportScoreDisplay.innerHTML = "Please connect to your wallet first.";
+          return;
+        }
+
         try {
           const message_response = await axios.get(
             endpoint + "/registry/signing-message",
             {
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
+                "X-API-Key": apiKey,
               },
             }
           );
@@ -190,7 +200,7 @@
             {
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
+                "X-API-Key": apiKey,
               },
             }
           );
@@ -205,7 +215,7 @@
                 {
                   headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${apiKey}`,
+                    "X-API-Key": apiKey,
                   },
                 }
               );
