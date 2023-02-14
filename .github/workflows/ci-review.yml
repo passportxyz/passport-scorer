@@ -203,7 +203,6 @@ jobs:
         with:
           allowUpdates: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          # bodyFile: ${{ github.workspace }}-CHANGELOG.txt
           generateReleaseNotes: true
           name: Scorer API ${{ steps.version.outputs.version }}
           tag: ${{ steps.version.outputs.version_tag }}
