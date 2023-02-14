@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
 from registry.api import SubmitPassportPayload, get_score, submit_passport
 from registry.models import Passport, Score, Stamp
-from registry.tasks import score_passport
+from registry.tasks import score_passport, validate_and_save_stamps
 from web3 import Web3
 
 my_mnemonic = settings.TEST_MNEMONIC
@@ -166,3 +166,41 @@ class TestScorePassportTestCase(TransactionTestCase):
                 gitcoin_stamps = my_stamps.filter(provider="Gitcoin")
                 assert len(gitcoin_stamps) == 1
                 assert gitcoin_stamps[0].hash == "0x45678"
+
+    def test_validate_stamps_does_not_score_duplicate_providers(self):
+        mock_passport_data_with_duplicates = {}
+        mock_passport_data_with_duplicates["stamps"] = mock_passport_data["stamps"]
+        mock_passport_data_with_duplicates["stamps"].append(
+            {
+                "provider": "Gitcoin",
+                "credential": {
+                    "type": ["VerifiableCredential"],
+                    "credentialSubject": {
+                        "id": "did:pkh:eip155:1:0xa6Cf54ec56BaD8288Ee4559098c48b8D78C05468",
+                        "hash": "0xNEWHASH",
+                        "provider": "Gitcoin",
+                    },
+                    "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                    "expirationDate": "2099-02-06T23:22:58.848Z",
+                },
+            }
+        )
+
+        passport, _ = Passport.objects.update_or_create(
+            address=self.account.address,
+            community_id=self.community.pk,
+            passport=mock_passport_data_with_duplicates,
+        )
+
+        with patch(
+            "registry.tasks.get_passport",
+            return_value=mock_passport_data_with_duplicates,
+        ):
+            with patch("registry.tasks.async_to_sync", return_value=mock_validate):
+                validate_and_save_stamps(passport)
+                created_stamps = Stamp.objects.filter(passport=passport)
+
+                assert (
+                    len(created_stamps)
+                    == len(mock_passport_data_with_duplicates["stamps"]) - 1
+                )

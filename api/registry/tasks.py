@@ -113,6 +113,8 @@ def validate_and_save_stamps(passport: Passport):
 
     did = get_did(passport.address)
 
+    validated_providers = []
+
     for stamp in passport.passport["stamps"]:
         stamp_return_errors = async_to_sync(validate_credential)(
             did, stamp["credential"]
@@ -135,6 +137,7 @@ def validate_and_save_stamps(passport: Passport):
             len(stamp_return_errors) == 0
             and not stamp_is_expired
             and is_issuer_verified
+            and stamp["provider"] not in validated_providers
         ):
             Stamp.objects.update_or_create(
                 hash=stamp["credential"]["credentialSubject"]["hash"],
@@ -144,6 +147,7 @@ def validate_and_save_stamps(passport: Passport):
                     "credential": stamp["credential"],
                 },
             )
+            validated_providers.append(stamp["provider"])
         else:
             log.info(
                 "Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s is_issuer_verified=%s",
