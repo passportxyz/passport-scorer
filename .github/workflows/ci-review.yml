@@ -170,7 +170,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
   release:
-    # needs: [deploy-review]
+    needs: [deploy-review]
 
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
@@ -196,12 +196,6 @@ jobs:
           search_commit_body: true
           user_format_type: "csv"
           namespace: api
-
-      - name: Debug
-        run: |
-          echo "Version tag : ${{ steps.version.outputs.version_tag }}"
-          echo "Version     : ${{ steps.version.outputs.version }}"
-          echo "Authors     : ${{ steps.version.outputs.authors }}"
 
       - name: Release
         # https://github.com/ncipollo/release-action
