@@ -378,7 +378,7 @@ const environment = [
   },
   {
     name: "SECURE_SSL_REDIRECT",
-    value: true,
+    value: "on",
   },
 ];
 
