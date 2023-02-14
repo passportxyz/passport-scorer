@@ -13,17 +13,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
-    # Run a local ceramic nod to test against
-    # services:
-    #   ceramic:
-    #     image: ceramicnetwork/js-ceramic:2.6.0-rc.1
-    #     ports:
-    #       - 7007:7007
-
-    # env:
-    #  CERAMIC_CLIENT_URL: http://127.0.0.1:7007
-
     services:
       redis:
         image: redis
@@ -60,78 +49,6 @@ jobs:
       - name: Run API unittests
         working-directory: ./api
         run: pytest
-      # - name: Run API unittests
-      #   working-directory: ./api
-      #   run: coverage run --source='.' manage.py test
-
-      # - name: Python code coverage report
-      #   working-directory: ./api
-      #   run: coverage report --fail-under=70
-
-  # cypress-install:
-  #   runs-on: ubuntu-latest
-  #   container: cypress/browsers:node18.12.0-chrome107
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
-
-  #     - name: Cypress install
-  #       uses: cypress-io/github-action@v4.2.2 # use the explicit version number
-  #       with:
-  #         # Disable running of tests within install job
-  #         runTests: false
-  #         install-command: yarn --frozen-lockfile
-  #         build: yarn build
-  #         working-directory: test
-
-  #     - name: Save build folder
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: build
-  #         if-no-files-found: error
-  #         path: test/build
-
-  # cypress-tests:
-  #   runs-on: ubuntu-latest
-  #   container: cypress/browsers:node18.12.0-chrome107
-  #   needs: cypress-install
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       # run copies of the current job in parallel
-  #       containers: [1, 2]
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
-
-  #     - name: Download the build folders
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: build
-  #         path: test/build
-
-  #     - name: 'UI Tests - Chrome'
-  #       uses: cypress-io/github-action@v4.2.2 # use the explicit version number
-  #       with:
-  #         # we have already installed all dependencies above
-  #         install: false
-  #         start: yarn start:ci
-  #         start: |
-  #           npm run api
-  #           npm run web
-  #         wait-on: 'http://localhost:3000, http://localhost:8000'
-  #         wait-on-timeout: 120
-  #         browser: chrome
-  #         record: true
-  #         parallel: true
-  #         group: 'UI - Chrome'
-  #         spec: cypress/tests/ui/*
-  #         working-directory: test
-  #       env:
-  #         CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
-  #         # Recommended: pass the GitHub token lets this action correctly
-  #         # determine the unique run id necessary to re-run the checks
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-api:
     runs-on: ubuntu-latest
@@ -252,9 +169,8 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
-
   release:
-    needs: [deploy-review]
+    # needs: [deploy-review]
 
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
@@ -281,22 +197,11 @@ jobs:
           user_format_type: "csv"
           namespace: api
 
-      - name: Release Info
-        run: |
-          echo "## Changelog" > ${{ github.workspace }}-CHANGELOG.txt
-          git log ${{ steps.version.outputs.previous_commit}}..${{ steps.version.outputs.current_commit}} --pretty="- %s" >> ${{ github.workspace }}-CHANGELOG.txt
-          echo "" >> ${{ github.workspace }}-CHANGELOG.txt
-          echo "**[Full Changelog]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/${{ steps.version.outputs.previous_commit}}...${{ steps.version.outputs.current_commit}})**" >> ${{ github.workspace }}-CHANGELOG.txt
-          echo "" >> ${{ github.workspace }}-CHANGELOG.txt
-          echo "## Authors" >> ${{ github.workspace }}-CHANGELOG.txt
-          echo "${{ steps.version.outputs.authors }}" >> ${{ github.workspace }}-CHANGELOG.txt
-
       - name: Debug
         run: |
           echo "Version tag : ${{ steps.version.outputs.version_tag }}"
           echo "Version     : ${{ steps.version.outputs.version }}"
           echo "Authors     : ${{ steps.version.outputs.authors }}"
-          cat ${{ github.workspace }}-CHANGELOG.txt
 
       - name: Release
         # https://github.com/ncipollo/release-action
@@ -304,7 +209,7 @@ jobs:
         with:
           allowUpdates: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          bodyFile: ${{ github.workspace }}-CHANGELOG.txt
+          # bodyFile: ${{ github.workspace }}-CHANGELOG.txt
           generateReleaseNotes: true
           name: Name ${{ steps.version.outputs.version }}
           tag: ${{ steps.version.outputs.version_tag }}
