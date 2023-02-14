@@ -1,5 +1,6 @@
 import logging
 from decimal import Decimal
+from enum import Enum
 from typing import List, Optional
 
 # --- Deduplication Modules
@@ -8,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from ninja import Router, Schema
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
+from ninja_extra.exceptions import APIException
 from registry.models import Passport, Score
 from registry.permissions import ResearcherPermission
 from registry.utils import (
@@ -51,10 +53,16 @@ class ThresholdScoreEvidenceResponse(ScoreEvidenceResponse):
     threshold: Decimal
 
 
+class StatusEnum(str, Enum):
+    processing = Score.Status.PROCESSING
+    error = Score.Status.ERROR
+    done = Score.Status.DONE
+
+
 class DetailedScoreResponse(Schema):
     address: str
     score: Optional[str]
-    status: Optional[str]
+    status: Optional[StatusEnum]
     last_score_timestamp: Optional[str]
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
@@ -83,6 +91,10 @@ class SimpleScoreResponse(Schema):
 class SigningMessageResponse(Schema):
     message: str
     nonce: str
+
+
+class ErrorMessageResponse(Schema):
+    message: str
 
 
 class ApiKey(APIKeyHeader):
@@ -130,7 +142,20 @@ def community_requires_signature(_):
     return False
 
 
-@router.post("/submit-passport", auth=ApiKey(), response=DetailedScoreResponse)
+@router.post(
+    "/submit-passport",
+    auth=ApiKey(),
+    response={
+        200: DetailedScoreResponse,
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+    },
+    summary="Submit passport for scoring",
+    description="""Use this API to submit your passport for scoring.\n
+This API will return a `DetailedScoreResponse` structure with status **PROCESSING** immediatly while your passport is being pulled from storage and the scoring algorithm is run.\n
+You need to check for the status of the operation by calling the `/score/{int:community_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
+""",
+)
 def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
     address_lower = payload.address.lower()
 
