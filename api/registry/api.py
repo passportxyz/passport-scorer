@@ -94,7 +94,7 @@ class SigningMessageResponse(Schema):
 
 
 class ErrorMessageResponse(Schema):
-    message: str
+    detail: str
 
 
 class ApiKey(APIKeyHeader):
@@ -128,7 +128,17 @@ class ApiKey(APIKeyHeader):
             raise Unauthorized()
 
 
-@router.get("/signing-message", auth=ApiKey(), response=SigningMessageResponse)
+@router.get(
+    "/signing-message",
+    auth=ApiKey(),
+    response={
+        200: SigningMessageResponse,
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+    },
+    summary="Submit passport for scoring",
+    description="""Use this API to get a message to sign and a nonce to use when submitting your passport for scoring.""",
+)
 def signing_message(_request) -> SigningMessageResponse:
     nonce = Nonce.create_nonce().nonce
     return {
@@ -149,6 +159,7 @@ def community_requires_signature(_):
         200: DetailedScoreResponse,
         401: ErrorMessageResponse,
         400: ErrorMessageResponse,
+        404: ErrorMessageResponse,
     },
     summary="Submit passport for scoring",
     description="""Use this API to submit your passport for scoring.\n
@@ -212,7 +223,15 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
 @router.get(
     "/score/{int:community_id}/{str:address}",
     auth=ApiKey(),
-    response=DetailedScoreResponse,
+    response={
+        200: DetailedScoreResponse,
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+    },
+    summary="Get score for an address that is associated with a community",
+    description="""Use this endpoint to fetch the score for a specific address that is associated with a community\n
+This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
+""",
 )
 def get_score(request, address: str, community_id: int) -> DetailedScoreResponse:
     try:
@@ -232,7 +251,19 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
 
 
 @router.get(
-    "/score/{int:community_id}", auth=ApiKey(), response=List[DetailedScoreResponse]
+    "/score/{int:community_id}",
+    auth=ApiKey(),
+    response={
+        200: List[DetailedScoreResponse],
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+        404: ErrorMessageResponse,
+    },
+    summary="Get scores for all addresses that are associated with a community",
+    description="""Use this endpoint to fetch the scores for all addresses that are associated with a community\n
+This API will return a list of `DetailedScoreResponse` objects. The endpoint supports pagination and will return a maximum of 1000 scores per request.\n
+Pass a limit and offset query parameter to paginate the results. For example: `/score/1?limit=100&offset=100` will return the second page of 100 scores.\n
+""",
 )
 @paginate(pass_parameter="pagination_info")
 def get_scores(
@@ -261,7 +292,7 @@ def get_scores(
             community_id,
             exc_info=True,
         )
-        raise InvalidCommunityScoreRequestException()
+        raise e
 
 
 @analytics_router.get("/score/", auth=ApiKey(), response=CursorPaginatedScoreResponse)
