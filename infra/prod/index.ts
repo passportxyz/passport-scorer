@@ -378,7 +378,11 @@ const environment = [
   },
   {
     name: "SECURE_SSL_REDIRECT",
-    value: "on",
+    value: "off",
+  },
+  {
+    name: "HTTP_X_FORWARDED_PROTO",
+    value: "https",
   },
 ];
 
