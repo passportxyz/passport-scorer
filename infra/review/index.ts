@@ -324,7 +324,11 @@ const environment = [
   },
   {
     name: "SECURE_SSL_REDIRECT",
-    value: "on",
+    value: "off",
+  },
+  {
+    name: "SECURE_PROXY_SSL_HEADER",
+    value: "https",
   },
 ];
 
