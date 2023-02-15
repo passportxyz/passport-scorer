@@ -1,7 +1,8 @@
+from decimal import Decimal
+
 import pytest
 from registry.models import Passport, Stamp
 from scorer_weighted.models import BinaryWeightedScorer
-from decimal import Decimal
 
 pytestmark = pytest.mark.django_db
 
@@ -19,6 +20,13 @@ def fixture_weighted_scorer_passports(
         passport=passport,
         provider="Facebook",
         hash="0x1234",
+        credential={},
+    )
+
+    Stamp.objects.create(
+        passport=passport,
+        provider="Facebook",
+        hash="0x12345",
         credential={},
     )
 
