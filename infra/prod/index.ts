@@ -381,7 +381,7 @@ const environment = [
     value: "off",
   },
   {
-    name: "HTTP_X_FORWARDED_PROTO",
+    name: "SECURE_PROXY_SSL_HEADER",
     value: "https",
   },
 ];
