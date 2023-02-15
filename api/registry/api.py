@@ -1,5 +1,6 @@
 import logging
 from decimal import Decimal
+from enum import Enum
 from typing import List, Optional
 
 # --- Deduplication Modules
@@ -8,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from ninja import Router, Schema
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
+from ninja_extra.exceptions import APIException
 from registry.models import Passport, Score
 from registry.permissions import ResearcherPermission
 from registry.utils import (
@@ -24,6 +26,7 @@ from .exceptions import (
     InvalidNonceException,
     InvalidSignerException,
     Unauthorized,
+    api_get_object_or_404,
 )
 from .tasks import score_passport
 
@@ -51,10 +54,16 @@ class ThresholdScoreEvidenceResponse(ScoreEvidenceResponse):
     threshold: Decimal
 
 
+class StatusEnum(str, Enum):
+    processing = Score.Status.PROCESSING
+    error = Score.Status.ERROR
+    done = Score.Status.DONE
+
+
 class DetailedScoreResponse(Schema):
     address: str
     score: Optional[str]
-    status: Optional[str]
+    status: Optional[StatusEnum]
     last_score_timestamp: Optional[str]
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
@@ -83,6 +92,10 @@ class SimpleScoreResponse(Schema):
 class SigningMessageResponse(Schema):
     message: str
     nonce: str
+
+
+class ErrorMessageResponse(Schema):
+    detail: str
 
 
 class ApiKey(APIKeyHeader):
@@ -116,7 +129,17 @@ class ApiKey(APIKeyHeader):
             raise Unauthorized()
 
 
-@router.get("/signing-message", auth=ApiKey(), response=SigningMessageResponse)
+@router.get(
+    "/signing-message",
+    auth=ApiKey(),
+    response={
+        200: SigningMessageResponse,
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+    },
+    summary="Submit passport for scoring",
+    description="""Use this API to get a message to sign and a nonce to use when submitting your passport for scoring.""",
+)
 def signing_message(_request) -> SigningMessageResponse:
     nonce = Nonce.create_nonce().nonce
     return {
@@ -130,7 +153,21 @@ def community_requires_signature(_):
     return False
 
 
-@router.post("/submit-passport", auth=ApiKey(), response=DetailedScoreResponse)
+@router.post(
+    "/submit-passport",
+    auth=ApiKey(),
+    response={
+        200: DetailedScoreResponse,
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+        404: ErrorMessageResponse,
+    },
+    summary="Submit passport for scoring",
+    description="""Use this API to submit your passport for scoring.\n
+This API will return a `DetailedScoreResponse` structure with status **PROCESSING** immediatly while your passport is being pulled from storage and the scoring algorithm is run.\n
+You need to check for the status of the operation by calling the `/score/{int:community_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
+""",
+)
 def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
     address_lower = payload.address.lower()
 
@@ -187,7 +224,15 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
 @router.get(
     "/score/{int:community_id}/{str:address}",
     auth=ApiKey(),
-    response=DetailedScoreResponse,
+    response={
+        200: DetailedScoreResponse,
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+    },
+    summary="Get score for an address that is associated with a community",
+    description="""Use this endpoint to fetch the score for a specific address that is associated with a community\n
+This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
+""",
 )
 def get_score(request, address: str, community_id: int) -> DetailedScoreResponse:
     try:
@@ -195,6 +240,7 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
         lower_address = address.lower()
         community = Community.objects.get(id=community_id)
         passport = Passport.objects.get(address=lower_address, community=community)
+
         score = Score.objects.get(passport=passport)
         return score
     except Exception as e:
@@ -207,7 +253,19 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
 
 
 @router.get(
-    "/score/{int:community_id}", auth=ApiKey(), response=List[DetailedScoreResponse]
+    "/score/{int:community_id}",
+    auth=ApiKey(),
+    response={
+        200: List[DetailedScoreResponse],
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+        404: ErrorMessageResponse,
+    },
+    summary="Get scores for all addresses that are associated with a community",
+    description="""Use this endpoint to fetch the scores for all addresses that are associated with a community\n
+This API will return a list of `DetailedScoreResponse` objects. The endpoint supports pagination and will return a maximum of 1000 scores per request.\n
+Pass a limit and offset query parameter to paginate the results. For example: `/score/1?limit=100&offset=100` will return the second page of 100 scores.\n
+""",
 )
 @paginate(pass_parameter="pagination_info")
 def get_scores(
@@ -216,11 +274,12 @@ def get_scores(
     if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
 
+    # Get community object
+    user_community = api_get_object_or_404(
+        Community, id=community_id, account=request.auth
+    )
+
     try:
-        # Get community object
-        user_community = get_object_or_404(
-            Community, id=community_id, account=request.auth
-        )
         scores = Score.objects.filter(
             passport__community__id=user_community.id
         ).prefetch_related("passport")
@@ -236,7 +295,7 @@ def get_scores(
             community_id,
             exc_info=True,
         )
-        raise InvalidCommunityScoreRequestException()
+        raise e
 
 
 @analytics_router.get("/score/", auth=ApiKey(), response=CursorPaginatedScoreResponse)
@@ -283,7 +342,7 @@ def get_scores_by_community_id_analytics(
     last_id: int = None,
     limit: int = 1000,
 ) -> CursorPaginatedScoreResponse:
-    user_community = get_object_or_404(Community, id=community_id)
+    user_community = api_get_object_or_404(Community, id=community_id)
 
     query = Score.objects.order_by("id")
 

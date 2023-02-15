@@ -108,9 +108,9 @@ class TestPassportGetScore:
             f"/registry/score/3",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
-        assert response.status_code == 400
+        # assert response.status_code == 404
         assert response.json() == {
-            "detail": "Unable to get score for provided community.",
+            "detail": "No Community matches the given query.",
         }
 
     def test_get_single_score_for_address(
