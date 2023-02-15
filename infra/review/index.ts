@@ -328,7 +328,7 @@ const environment = [
   },
   {
     name: "SECURE_PROXY_SSL_HEADER",
-    value: "https",
+    value: JSON.stringify(["HTTP_X_FORWARDED_PROTO", "https"]),
   },
 ];
 
