@@ -23,13 +23,6 @@ def fixture_weighted_scorer_passports(
         credential={},
     )
 
-    Stamp.objects.create(
-        passport=passport,
-        provider="Facebook",
-        hash="0x12345",
-        credential={},
-    )
-
     passport1 = Passport.objects.create(
         address=passport_holder_addresses[1]["address"],
         passport={},
@@ -89,3 +82,24 @@ class TestBinaraWeightedScorer:
             for s in scorer.compute_score([p.id for p in weighted_scorer_passports])
         ]
         assert scores == [Decimal(0), Decimal(1), Decimal(1)]
+
+    def test_duplicate_score_not_counted(
+        self,
+        weighted_scorer_passports,
+    ):
+        # Add a duplicate stamp
+
+        Stamp.objects.create(
+            passport=weighted_scorer_passports[0],
+            provider="Facebook",
+            hash="0x12345",
+            credential={},
+        )
+
+        scorer = BinaryWeightedScorer(
+            threshold=2, weights={"Facebook": 1, "Google": 1, "Ens": 1}
+        )
+        scorer.save()
+
+        scores = [s.score for s in scorer.compute_score([weighted_scorer_passports[0]])]
+        assert scores == [Decimal(0)]

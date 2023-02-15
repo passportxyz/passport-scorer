@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
 from registry.api import SubmitPassportPayload, get_score, submit_passport
 from registry.models import Passport, Score, Stamp
-from registry.tasks import score_passport, validate_and_save_stamps
+from registry.tasks import score_passport
 from web3 import Web3
 
 my_mnemonic = settings.TEST_MNEMONIC
