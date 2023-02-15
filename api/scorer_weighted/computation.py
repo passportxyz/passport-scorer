@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
-from typing import List
 from decimal import Decimal
+from typing import List
 
 from scorer_weighted.models import WeightedScorer
 
@@ -28,7 +28,10 @@ def calculate_weighted_score(
     weights = scorer.weights
     for passport_id in passport_ids:
         sum_of_weights: Decimal = Decimal(0)
+        scored_providers = []
         for stamp in Stamp.objects.filter(passport_id=passport_id):
-            sum_of_weights += Decimal(weights.get(stamp.provider, 0))
+            if stamp.provider not in scored_providers:
+                sum_of_weights += Decimal(weights.get(stamp.provider, 0))
+                scored_providers.append(stamp.provider)
         ret.append(sum_of_weights)
     return ret

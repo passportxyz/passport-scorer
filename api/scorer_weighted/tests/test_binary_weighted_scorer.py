@@ -1,7 +1,8 @@
+from decimal import Decimal
+
 import pytest
 from registry.models import Passport, Stamp
 from scorer_weighted.models import BinaryWeightedScorer
-from decimal import Decimal
 
 pytestmark = pytest.mark.django_db
 
@@ -81,3 +82,24 @@ class TestBinaraWeightedScorer:
             for s in scorer.compute_score([p.id for p in weighted_scorer_passports])
         ]
         assert scores == [Decimal(0), Decimal(1), Decimal(1)]
+
+    def test_duplicate_score_not_counted(
+        self,
+        weighted_scorer_passports,
+    ):
+        # Add a duplicate stamp
+
+        Stamp.objects.create(
+            passport=weighted_scorer_passports[0],
+            provider="Facebook",
+            hash="0x12345",
+            credential={},
+        )
+
+        scorer = BinaryWeightedScorer(
+            threshold=2, weights={"Facebook": 1, "Google": 1, "Ens": 1}
+        )
+        scorer.save()
+
+        scores = [s.score for s in scorer.compute_score([weighted_scorer_passports[0]])]
+        assert scores == [Decimal(0)]
