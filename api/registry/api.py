@@ -26,6 +26,7 @@ from .exceptions import (
     InvalidNonceException,
     InvalidSignerException,
     Unauthorized,
+    api_get_object_or_404,
 )
 from .tasks import score_passport
 
@@ -239,6 +240,7 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
         lower_address = address.lower()
         community = Community.objects.get(id=community_id)
         passport = Passport.objects.get(address=lower_address, community=community)
+
         score = Score.objects.get(passport=passport)
         return score
     except Exception as e:
@@ -272,11 +274,12 @@ def get_scores(
     if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
 
+    # Get community object
+    user_community = api_get_object_or_404(
+        Community, id=community_id, account=request.auth
+    )
+
     try:
-        # Get community object
-        user_community = get_object_or_404(
-            Community, id=community_id, account=request.auth
-        )
         scores = Score.objects.filter(
             passport__community__id=user_community.id
         ).prefetch_related("passport")
@@ -339,7 +342,7 @@ def get_scores_by_community_id_analytics(
     last_id: int = None,
     limit: int = 1000,
 ) -> CursorPaginatedScoreResponse:
-    user_community = get_object_or_404(Community, id=community_id)
+    user_community = api_get_object_or_404(Community, id=community_id)
 
     query = Score.objects.order_by("id")
 
