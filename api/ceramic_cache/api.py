@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Type
 
 import requests
+from account.models import Nonce
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -21,7 +22,6 @@ from ninja_jwt.tokens import RefreshToken, Token, TokenError
 from ninja_schema import Schema
 
 from .exceptions import InvalidDeleteCacheRequestException, InvalidSessionException
-
 from .models import CeramicCache
 from .utils import validate_dag_jws_payload
 
@@ -281,16 +281,21 @@ def authenticate(request, payload: CacaoVerifySubmit):
     """
     # First validate the payload
     # This will ensure that the payload signature was made for our unique nonce
-    # TODO: make sure the nonce was issued by us (check the nonce table)
     try:
+
+        if not Nonce.use_nonce(payload.nonce):
+            log.error("Invalid or expired nonce: '%s'", payload.nonce)
+            raise FailedVerificationException(detail="Invalid nonce!")
+
         if not validate_dag_jws_payload({"nonce": payload.nonce}, payload.payload):
-            raise FailedVerificationException(detail=f"Invalid nonce or payload!")
+            log.error("Failed to validate nonce: '%s'", payload.nonce)
+            raise FailedVerificationException(detail="Invalid nonce or payload!")
+
     except Exception as exc:
         log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
         raise FailedVerificationException(detail="Invalid nonce or payload!") from exc
 
     try:
-
         r = requests.post(
             settings.CERAMIC_CACHE_CACAO_VALIDATION_URL, json=payload.dict(), timeout=30
         )
