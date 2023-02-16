@@ -3,7 +3,6 @@ name: Deploy API to Staging
 on:
   workflow_dispatch:
     inputs:
-      # commit hash (for frontend deploy to fleek)
       commit:
         description: "Branch/Commit ref"
         default: "origin/main"
