@@ -50,6 +50,7 @@ jobs:
         run: pytest
 
   build-api:
+    environment: Staging
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
