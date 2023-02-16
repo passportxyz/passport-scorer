@@ -21,7 +21,11 @@ from ninja_jwt.settings import api_settings
 from ninja_jwt.tokens import RefreshToken, Token, TokenError
 from ninja_schema import Schema
 
-from .exceptions import InvalidDeleteCacheRequestException, InvalidSessionException
+from .exceptions import (
+    InvalidDeleteCacheRequestException,
+    InvalidSessionException,
+    TooManyStampsException,
+)
 from .models import CeramicCache
 from .utils import validate_dag_jws_payload
 
@@ -282,7 +286,6 @@ def authenticate(request, payload: CacaoVerifySubmit):
     # First validate the payload
     # This will ensure that the payload signature was made for our unique nonce
     try:
-
         if not Nonce.use_nonce(payload.nonce):
             log.error("Invalid or expired nonce: '%s'", payload.nonce)
             raise FailedVerificationException(detail="Invalid nonce!")

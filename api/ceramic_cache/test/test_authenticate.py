@@ -3,6 +3,7 @@ import json
 from collections import namedtuple
 
 import pytest
+from account.models import Nonce
 from ceramic_cache.api import DbCacheToken
 from django.test import Client
 from ninja_jwt.tokens import AccessToken
@@ -21,7 +22,6 @@ sample_authenticate_payload = {
         }
     ],
     "payload": "AXESIJ-t3oi3FWOnXzz1JomHf4BeT-DVOaW5-RtZGPf_miHs",
-    "nonce": "super-secure-nonce",
     "cid": [
         1,
         113,
@@ -29,6 +29,7 @@ sample_authenticate_payload = {
     ],
     "cacao": [163, 97, 104],
     "issuer": "did:pkh:eip155:1:0xffffffffffffffffffffffffffffffffffffffff",
+    "nonce": "TODO - add unique nonce here",
 }
 
 
@@ -45,22 +46,27 @@ class TestAuthenticate:
         with mocker.patch(
             "ceramic_cache.api.requests.post", return_value=MockedRequestResponse(200)
         ):
+            with mocker.patch(
+                "ceramic_cache.api.validate_dag_jws_payload", return_value=True
+            ):
+                payload = copy.deepcopy(sample_authenticate_payload)
+                payload["nonce"] = Nonce.create_nonce().nonce
 
-            auth_response = client.post(
-                "/ceramic-cache/authenticate",
-                json.dumps(sample_authenticate_payload),
-                content_type="application/json",
-            )
+                auth_response = client.post(
+                    "/ceramic-cache/authenticate",
+                    json.dumps(payload),
+                    content_type="application/json",
+                )
 
-            json_data = auth_response.json()
+                json_data = auth_response.json()
 
-            assert auth_response.status_code == 200
-            assert "access" in json_data
+                assert auth_response.status_code == 200
+                assert "access" in json_data
 
-            token = AccessToken(json_data["access"])
-            assert token["did"] == sample_authenticate_payload["issuer"]
+                token = AccessToken(json_data["access"])
+                assert token["did"] == payload["issuer"]
 
-    def test_authenticate_fails_to_validate_invalid_payload(self):
+    def test_authenticate_fails_to_validate_invalid_payload(self, mocker):
         """
         We expect that the authenticate request:
         1. validates the payload against the nonce
@@ -68,22 +74,21 @@ class TestAuthenticate:
 
         The test should fail at step 1 as we will corupt the payload
         """
-        sample_payload = copy.deepcopy(sample_authenticate_payload)
-        # we corrupt the payload
-        sample_payload["nonce"] = "bad-nonce"
+        with mocker.patch(
+            "ceramic_cache.api.validate_dag_jws_payload", return_value=False
+        ):
+            auth_response = client.post(
+                "/ceramic-cache/authenticate",
+                json.dumps(sample_authenticate_payload),
+                content_type="application/json",
+                # **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
+            )
 
-        auth_response = client.post(
-            "/ceramic-cache/authenticate",
-            json.dumps(sample_payload),
-            content_type="application/json",
-            # **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
-        )
+            json_data = auth_response.json()
 
-        json_data = auth_response.json()
-
-        assert auth_response.status_code == 400
-        assert "detail" in json_data
-        assert json_data["detail"] == "Invalid nonce or payload!"
+            assert auth_response.status_code == 400
+            assert "detail" in json_data
+            assert json_data["detail"] == "Invalid nonce or payload!"
 
     def test_authenticate_fails_when_validating_payload_throws(self, mocker):
         """
@@ -125,19 +130,23 @@ class TestAuthenticate:
             "ceramic_cache.api.requests.post",
             return_value=MockedRequestResponse(400, "this failed"),
         ):
+            with mocker.patch(
+                "ceramic_cache.api.validate_dag_jws_payload", return_value=True
+            ):
+                payload = copy.deepcopy(sample_authenticate_payload)
+                payload["nonce"] = Nonce.create_nonce().nonce
+                auth_response = client.post(
+                    "/ceramic-cache/authenticate",
+                    json.dumps(payload),
+                    content_type="application/json",
+                )
 
-            auth_response = client.post(
-                "/ceramic-cache/authenticate",
-                json.dumps(sample_authenticate_payload),
-                content_type="application/json",
-            )
+                json_data = auth_response.json()
 
-            json_data = auth_response.json()
+                assert auth_response.status_code == 400
 
-            assert auth_response.status_code == 400
-
-            assert "detail" in json_data
-            assert json_data["detail"].startswith("Verifier response")
+                assert "detail" in json_data
+                assert json_data["detail"].startswith("Verifier response")
 
     def test_authenticate_fails_when_validating_jws_throws(self, mocker):
         """
@@ -151,15 +160,19 @@ class TestAuthenticate:
         with mocker.patch(
             "ceramic_cache.api.requests.post", side_effect=Exception("this is broken")
         ):
+            with mocker.patch(
+                "ceramic_cache.api.validate_dag_jws_payload", return_value=True
+            ):
+                payload = copy.deepcopy(sample_authenticate_payload)
+                payload["nonce"] = Nonce.create_nonce().nonce
+                auth_response = client.post(
+                    "/ceramic-cache/authenticate",
+                    json.dumps(payload),
+                    content_type="application/json",
+                )
 
-            auth_response = client.post(
-                "/ceramic-cache/authenticate",
-                json.dumps(sample_authenticate_payload),
-                content_type="application/json",
-            )
+                json_data = auth_response.json()
+                assert auth_response.status_code == 500
 
-            json_data = auth_response.json()
-            assert auth_response.status_code == 500
-
-            assert "detail" in json_data
-            assert json_data["detail"].startswith("Failed authenticate request")
+                assert "detail" in json_data
+                assert json_data["detail"].startswith("Failed authenticate request")
