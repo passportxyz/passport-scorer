@@ -25,12 +25,12 @@ export default function Home() {
               <p className="-ml-1 text-5xl sm:text-7xl">Passport Scorer</p>
             </div>
             <div className="py-6">
-              We all know that Sybil attackers want to sabotage your project's
-              future, but stopping them is really hard and expensive if you want
-              to do it on your own. Gitcoin Passport is a free, open source tool
-              that gives you Gitcoin-grade Sybil protection with only a few
-              lines of code, so you can focus your time, money, and attention on
-              growing your business.
+              We all know that Sybil attackers want to sabotage your
+              project&apos;s future, but stopping them is really hard and
+              expensive if you want to do it on your own. Gitcoin Passport is a
+              free, open source tool that gives you Gitcoin-grade Sybil
+              protection with only a few lines of code, so you can focus your
+              time, money, and attention on growing your business.
             </div>
             {/* TODO this can be simpler, this is just temporary as we switch wallet connectors */}
             {/* TODO once ready to switch just pull out the button component and change onClick */}
