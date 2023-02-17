@@ -29,8 +29,8 @@ export default function Home() {
               future, but stopping them is really hard and expensive if you want
               to do it on your own. Gitcoin Passport is a free, open source tool
               that gives you Gitcoin-grade Sybil protection with only a few
-              lines of code, so you can focus their time, money, and attention
-              on growing your business.
+              lines of code, so you can focus your time, money, and attention on
+              growing your business.
             </div>
             {/* TODO this can be simpler, this is just temporary as we switch wallet connectors */}
             {/* TODO once ready to switch just pull out the button component and change onClick */}
