@@ -39,7 +39,7 @@ export default function Dashboard({
   return (
     <>
       <div>
-        <Header authenticationStatus={authenticationStatus} />
+        <Header authenticationStatus={authenticationStatus} className="px-5" />
         <div>
           <div className="mt-0 w-full border-b border-gray-300 p-6 pb-6 text-black">
             <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
@@ -52,7 +52,7 @@ export default function Dashboard({
             </p>
           </div>
           <div className="flex bg-gray-bluegray px-6">
-            <div className="my-4 min-h-full w-1/5 flex-col border-r border-gray-lightgray">
+            <div className="min-h-full my-4 w-1/5 flex-col border-r border-gray-lightgray">
               <button
                 data-testid="communities-tab"
                 onClick={() => router.push("/dashboard/community")}
@@ -69,7 +69,7 @@ export default function Dashboard({
                 <SettingsIcon className="mr-2" /> API Keys
               </button>
             </div>
-            <div className="flex min-h-full w-full flex-col p-6 md:h-screen">
+            <div className="min-h-full flex w-full flex-col p-6 md:h-screen">
               {children}
             </div>
           </div>

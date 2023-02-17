@@ -1,5 +1,6 @@
 // --- React methods
-import React from "react";
+import React, { useCallback, useMemo } from "react";
+import { UIMode } from "../utils/dark-mode";
 
 // --- Components
 import { ConnectButton } from "@rainbow-me/rainbowkit";
@@ -9,29 +10,64 @@ import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
 
 type HeaderProps = {
   authenticationStatus?: AuthenticationStatus;
-}
+  mode?: UIMode;
+  className?: string;
+};
 
-const Header = ({ authenticationStatus }: HeaderProps): JSX.Element => {
+const getAssets = (mode?: UIMode) => {
+  const darkMode = mode === "dark";
+  return {
+    gitcoinLogo: darkMode
+      ? "/assets/gitcoinLogoWhite.svg"
+      : "/assets/gitcoinLogoDark.svg",
+    logoLine: "/assets/logoLine.svg",
+    emphasisColor: darkMode ? "white" : "black",
+  };
+};
+
+const Logo = () => (
+  <div className="relative w-9">
+    <img
+      className="absolute -top-[.8rem] left-0 max-w-none"
+      src="/assets/logo1.svg"
+    />
+    <img
+      className="absolute -top-[.8rem] left-1 max-w-none"
+      src="/assets/logo2.svg"
+    />
+    <img
+      className="absolute -top-2 left-2 max-w-none"
+      src="/assets/logo3.svg"
+    />
+  </div>
+);
+
+const Header = ({
+  authenticationStatus,
+  mode,
+  className,
+}: HeaderProps): JSX.Element => {
+  const assets = useMemo(() => getAssets(mode), [mode]);
 
   return (
-    <div className="flex flex-row border-gray-lightgray border-b-2 flex-wrap px-5 items-center w-full">
+    <div className={`flex items-center justify-between py-3 ${className}`}>
       {/* Left side row */}
-      <div className="flex flex-col flex-wrap py-2 sm:p-5">
-        <div className="h-9 mb-0 flex flex-row items-center font-medium text-gray-900">
-          <img className="" src="/assets/gitcoinLogoDark.svg" alt="Gitcoin Logo" />
-          <img className="md:mx-6 mx-3" src="/assets/logoLine.svg" alt="Logo Line" />
-          <img className="" src="/assets/passportLogoBlack.svg" alt="Passport Logo" />
-        </div>
+      <div className="flex items-center">
+        <img className="" src={assets.gitcoinLogo} alt="Gitcoin Logo" />
+        <img className="mx-3 md:mx-6" src={assets.logoLine} alt="Logo Line" />
+        <Logo />
+        <span className={`text-${assets.emphasisColor} font-futura text-lg`}>
+          SCORER
+        </span>
       </div>
       {/* Right side row  */}
-      <div className="flex flex-col ml-auto py-2 sm:py-0 items-center pr-1 sm:pr-5">
-        <div className="flex flex-row items-center justify-end">
-          {
-            authenticationStatus === "authenticated"
-            ? <ConnectButton showBalance={false} accountStatus={{ smallScreen: "avatar", largeScreen: "full" }} />
-            : <div></div>
-          }
-        </div>
+      <div>
+        {authenticationStatus === "authenticated" && (
+          <ConnectButton
+            showBalance={false}
+            accountStatus={{ smallScreen: "avatar", largeScreen: "full" }}
+          />
+        )}
       </div>
     </div>
   );
