@@ -22,7 +22,7 @@ export default function Home() {
                 alt="Gitcoin Logo"
                 className="py-4"
               />
-              <p className="text-5xl sm:text-7xl">Passport Scorer</p>
+              <p className="-ml-1 text-5xl sm:text-7xl">Passport Scorer</p>
             </div>
             <div className="py-6">
               We all know that Sybil attackers want to sabotage your project's
