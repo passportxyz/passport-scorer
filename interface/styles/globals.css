@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css?family=Libre+Franklin:400,600|Miriam+Libre:400");
+@import url("https://fonts.googleapis.com/css?family=Libre+Franklin:400,600|Miriam+Libre:400|Futura:700");
 
 @tailwind base;
 @tailwind components;
@@ -10,4 +10,8 @@
 
 .font-miriam-libre {
   font-family: "Miriam Libre";
+}
+
+.font-futura {
+  font-family: "Futura";
 }
