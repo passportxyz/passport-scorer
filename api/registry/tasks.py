@@ -101,7 +101,7 @@ def populate_passport_record(passport: Passport):
     log.debug("deduplicating ...")
 
     # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
-    passport.passport = lifo(passport_data, passport.address)
+    passport.passport = lifo(passport.community, passport_data, passport.address)
 
     passport.save()
 
