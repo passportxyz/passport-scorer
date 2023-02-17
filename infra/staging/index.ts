@@ -5,7 +5,7 @@ import * as awsx from "@pulumi/awsx";
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
 let route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
-export const domain = `api.scorer.${process.env["DOMAIN"]}`;
+export const domain = `api.staging.${process.env["DOMAIN"]}`;
 export const publicServiceUrl = `https://${domain}`;
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
@@ -155,7 +155,7 @@ export const clusterId = cluster.id;
 const certificate = new aws.acm.Certificate("cert", {
   domainName: domain,
   tags: {
-    Environment: "review",
+    Environment: "staging",
   },
   validationMethod: "DNS",
 });
@@ -333,16 +333,6 @@ const environment = [
 ];
 
 //////////////////////////////////////////////////////////////
-// Set up log groups for API service and worker
-//////////////////////////////////////////////////////////////
-const serviceLogGroup = new aws.cloudwatch.LogGroup("scorer-service", {
-  retentionInDays: 90,
-});
-const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
-  retentionInDays: 90,
-});
-
-//////////////////////////////////////////////////////////////
 // Set up the Scorer ECS service
 //////////////////////////////////////////////////////////////
 const service = new awsx.ecs.FargateService("scorer", {
@@ -350,7 +340,6 @@ const service = new awsx.ecs.FargateService("scorer", {
   desiredCount: 1,
   subnets: vpc.privateSubnetIds,
   taskDefinitionArgs: {
-    logGroup: serviceLogGroup,
     executionRole: dpoppEcsRole,
     containers: {
       scorer: {
@@ -455,7 +444,6 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
   desiredCount: 1,
   subnets: vpc.privateSubnetIds,
   taskDefinitionArgs: {
-    logGroup: workerLogGroup,
     executionRole: workerRole,
     containers: {
       worker1: {
