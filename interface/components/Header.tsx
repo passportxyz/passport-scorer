@@ -56,7 +56,7 @@ const Header = ({
         <img className="" src={assets.gitcoinLogo} alt="Gitcoin Logo" />
         <img className="mx-3 md:mx-6" src={assets.logoLine} alt="Logo Line" />
         <Logo />
-        <span className={`text-${assets.emphasisColor} font-futura text-lg`}>
+        <span className={`text-${assets.emphasisColor} font-nunito text-xl`}>
           SCORER
         </span>
       </div>

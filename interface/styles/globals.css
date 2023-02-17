@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css?family=Libre+Franklin:400,600|Miriam+Libre:400|Futura:700");
+@import url("https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600&family=Miriam+Libre:wght@400;700&family=Nunito:wght@900&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -12,6 +12,6 @@
   font-family: "Miriam Libre";
 }
 
-.font-futura {
-  font-family: "Futura";
+.font-nunito {
+  font-family: "Nunito";
 }
