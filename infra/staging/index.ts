@@ -5,7 +5,7 @@ import * as awsx from "@pulumi/awsx";
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
 let route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
-export const domain = `staging.api.scorer.${process.env["DOMAIN"]}`;
+export const domain = `api.staging.${process.env["DOMAIN"]}`;
 export const publicServiceUrl = `https://${domain}`;
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
@@ -78,7 +78,7 @@ const postgresql = new aws.rds.Instance(
     allocatedStorage: 10,
     engine: "postgres",
     // engineVersion: "5.7",
-    instanceClass: "db.t3.large",
+    instanceClass: "db.t3.micro",
     dbName: dbName,
     password: dbPassword,
     username: dbUsername,
@@ -441,7 +441,7 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
 
 const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
   cluster,
-  desiredCount: 3,
+  desiredCount: 1,
   subnets: vpc.privateSubnetIds,
   taskDefinitionArgs: {
     executionRole: workerRole,
