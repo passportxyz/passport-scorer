@@ -1,5 +1,5 @@
 from django.contrib import admin
-from registry.models import Passport, Stamp
+from registry.models import Passport, Score, Stamp
 
 
 class PassportAdmin(admin.ModelAdmin):
@@ -14,5 +14,12 @@ class StampAdmin(admin.ModelAdmin):
     raw_id_fields = ["passport"]
 
 
+class ScoreAdmin(admin.ModelAdmin):
+    list_display = ["passport", "score", "last_score_timestamp", "status", "error"]
+    search_fields = ["passport__address", "score", "status", "error"]
+    raw_id_fields = ["passport"]
+
+
 admin.site.register(Passport, PassportAdmin)
 admin.site.register(Stamp, StampAdmin)
+admin.site.register(Score, ScoreAdmin)
