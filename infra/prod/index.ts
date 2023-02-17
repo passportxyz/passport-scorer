@@ -387,6 +387,16 @@ const environment = [
 ];
 
 //////////////////////////////////////////////////////////////
+// Set up log groups for API service and worker
+//////////////////////////////////////////////////////////////
+const serviceLogGroup = new aws.cloudwatch.LogGroup("scorer-service", {
+  retentionInDays: 90,
+});
+const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
+  retentionInDays: 90,
+});
+
+//////////////////////////////////////////////////////////////
 // Set up the Scorer ECS service
 //////////////////////////////////////////////////////////////
 const service = new awsx.ecs.FargateService("scorer", {
@@ -394,6 +404,7 @@ const service = new awsx.ecs.FargateService("scorer", {
   desiredCount: 1,
   subnets: vpc.privateSubnetIds,
   taskDefinitionArgs: {
+    logGroup: serviceLogGroup,
     executionRole: dpoppEcsRole,
     containers: {
       scorer: {
@@ -534,6 +545,7 @@ const celeryWorker = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
   desiredCount: 2,
   subnets: vpc.privateSubnetIds,
   taskDefinitionArgs: {
+    logGroup: workerLogGroup,
     executionRole: workerRole,
     containers: {
       worker1: {
