@@ -3,13 +3,15 @@ import json
 from account.deduplication import Rules
 from account.deduplication.lifo import lifo
 from account.models import Account, Community
-from django.contrib.auth.models import User
+from django.conf import settings
 from django.test import TestCase
 from ninja_jwt.schema import RefreshToken
 from registry.models import Passport, Stamp
 from scorer_weighted.models import Scorer, WeightedScorer
 
 mock_community_body = {"name": "test", "description": "test"}
+
+User = settings.AUTH_USER_MODEL
 
 
 class LifoDeduplicationTestCase(TestCase):
@@ -22,7 +24,7 @@ class LifoDeduplicationTestCase(TestCase):
         refresh = RefreshToken.for_user(self.user)
         self.access_token = refresh.access_token
 
-        (self.account1, _created) = Account.objects.get_or_create(
+        (self.account1, _) = Account.objects.get_or_create(
             user=self.user, defaults={"address": "0x0"}
         )
         scorer1 = WeightedScorer.objects.create(
@@ -32,7 +34,7 @@ class LifoDeduplicationTestCase(TestCase):
             name="Community1", scorer=scorer1, rules=Rules.LIFO, account=self.account1
         )
 
-        (self.account2, _created) = Account.objects.get_or_create(
+        (self.account2, _) = Account.objects.get_or_create(
             user=self.user2, defaults={"address": "0x0"}
         )
         scorer2 = WeightedScorer.objects.create(
@@ -42,7 +44,7 @@ class LifoDeduplicationTestCase(TestCase):
             name="Community2", scorer=scorer2, rules=Rules.LIFO, account=self.account2
         )
 
-    def test_lifo_no_deduplicate_acrosss_cummunities(self):
+    def test_lifo_no_deduplicate_across_cummunities(self):
         """
         Test that the deduplication method is not deduplicating stamps across communities.
         This means the user can submit the same stamps to different communities, and they will not
@@ -63,6 +65,44 @@ class LifoDeduplicationTestCase(TestCase):
         # We create 1 passport for each community, and add 1 stamps to it
         passport2 = Passport.objects.create(
             address="0xaddress_2", passport={}, community=self.community2
+        )
+        Stamp.objects.create(
+            passport=passport2,
+            hash="test_hash",
+            provider="test_provider",
+            credential=credential,
+        )
+
+        deduped_passport = lifo(
+            passport1.community, {"stamps": [credential]}, passport1.address
+        )
+
+        # We expect the passport not to be deduped, as the duplicate hash is
+        # contained in a different community
+        self.assertEqual(len(deduped_passport["stamps"]), 1)
+
+    def test_lifo_no_deduplicate_same_passport_address_across_cummunities(self):
+        """
+        Test that the deduplication method is not deduplicating stamps owned by the
+        same address across communities.
+        This means the user can submit the same stamps to different communities with the
+        same ETH address, and they will not be discarded by the `lifo` deduplication method
+        """
+        # We create 1 passport for each community, and add 1 stamps to it
+        credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
+        passport1 = Passport.objects.create(
+            address="0xaddress_1", passport={}, community=self.community1
+        )
+        Stamp.objects.create(
+            passport=passport1,
+            hash="test_hash",
+            provider="test_provider",
+            credential=credential,
+        )
+
+        # We create the 2nd passport, owned by the same addres and add the same stamp to it
+        passport2 = Passport.objects.create(
+            address=passport1.address, passport={}, community=self.community2
         )
         Stamp.objects.create(
             passport=passport2,
