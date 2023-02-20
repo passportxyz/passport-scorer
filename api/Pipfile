@@ -25,6 +25,8 @@ djangorestframework-api-key = "==2.*"
 celery = {extras = ["redis"], version = "*"}
 requests = "*"
 social-auth-app-django = "*"
+dag-cbor = "*"
+py-cid = "*"
 
 [dev-packages]
 black = "*"
