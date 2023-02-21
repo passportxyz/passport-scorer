@@ -7,8 +7,8 @@ from .models import CeramicCache
 
 
 class CeramicCacheAdmin(admin.ModelAdmin):
-    list_display = ("id", "address", "provider")
-    search_fields = ("address", "provider")
+    list_display = ("id", "address", "provider", "stamp")
+    search_fields = ("address", "provider", "stamp")
 
 
 class AccountAPIKeyAdmin(admin.ModelAdmin):

@@ -190,14 +190,30 @@ CORS_ALLOW_HEADERS = [
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "require_debug_true": {
+            "()": "django.utils.log.RequireDebugTrue",
+        }
+    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
+        },
+        "debugConsole": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "filters": ["require_debug_true"],
         },
     },
     "root": {
         "handlers": ["console"],
         "level": "DEBUG",
+    },
+    "loggers": {
+        "django.db.backends": {
+            "level": "DEBUG",
+            "handlers": ["debugConsole"],
+        }
     },
 }
 

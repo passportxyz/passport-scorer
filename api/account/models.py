@@ -1,8 +1,9 @@
 from __future__ import annotations
-from datetime import datetime, timedelta, timezone
+
 import logging
 import secrets
-from typing import Type, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Optional, Type
 
 from django.conf import settings
 from django.db import models
@@ -115,6 +116,12 @@ class Community(models.Model):
     scorer = models.ForeignKey(
         Scorer, on_delete=models.PROTECT, default=get_default_community_scorer
     )
+
+    def __repr__(self):
+        return f"<Community {self.name}>"
+
+    def __str__(self):
+        return f"Community - {self.name}"
 
     def get_scorer(self) -> Scorer:
         if self.scorer.type == Scorer.Type.WEIGHTED:

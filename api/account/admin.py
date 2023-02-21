@@ -44,6 +44,7 @@ class CommunityAdmin(admin.ModelAdmin):
 
 
 class AccountAPIKeyAdmin(APIKeyAdmin):
+    raw_id_fields = ("account",)
     pass
 
 
