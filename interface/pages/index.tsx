@@ -67,7 +67,7 @@ export default function Home() {
               protection with only a few lines of code, so you can focus your
               time, money, and attention on growing your business.
             </div>
-            <SIWEButton className="content hidden sm:block" />
+            <SIWEButton className="hidden sm:block" />
           </div>
         </div>
       </div>
