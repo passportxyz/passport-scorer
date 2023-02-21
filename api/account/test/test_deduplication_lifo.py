@@ -4,14 +4,15 @@ from account.deduplication import Rules
 from account.deduplication.lifo import lifo
 from account.models import Account, Community
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from ninja_jwt.schema import RefreshToken
 from registry.models import Passport, Stamp
 from scorer_weighted.models import Scorer, WeightedScorer
 
-mock_community_body = {"name": "test", "description": "test"}
+User = get_user_model()
 
-User = settings.AUTH_USER_MODEL
+mock_community_body = {"name": "test", "description": "test"}
 
 
 class LifoDeduplicationTestCase(TestCase):
