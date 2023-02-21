@@ -1,4 +1,6 @@
 """Configuration for the gitcoin scorer"""
+
+# Weight values for each stamp based on its perceived significance in assessing the unique humanity of the Passport holder
 GITCOIN_PASSPORT_WEIGHTS = {
     "Brightid": "1.5761509563103948",
     "CommunityStakingBronze": "2.5470857307445187",
@@ -60,4 +62,5 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "gtcPossessionsGte#100": "1.7013983520605491",
 }
 
+# The Boolean scorer deems Passport holders unique humans if they meet or exceed the below thresholdold
 GITCOIN_PASSPORT_THRESHOLD = "21.758119658119657"
