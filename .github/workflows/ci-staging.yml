@@ -129,9 +129,9 @@ jobs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
 
   deploy-staging:
-    environment: Staging
     needs: [test, build-api, build-verifier]
     runs-on: ubuntu-latest
+    environment: Staging
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js
