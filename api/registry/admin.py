@@ -2,11 +2,7 @@ from django.contrib import admin
 from registry.models import Passport, Score, Stamp
 
 
-class PrefetchCommunityModelAdmin(admin.ModelAdmin):
-    pass
-
-
-class PassportAdmin(PrefetchCommunityModelAdmin):
+class PassportAdmin(admin.ModelAdmin):
     list_display = ["address", "community"]
     search_fields = ["address"]
 
@@ -16,7 +12,7 @@ class PassportAdmin(PrefetchCommunityModelAdmin):
         return queryset
 
 
-class StampAdmin(PrefetchCommunityModelAdmin):
+class StampAdmin(admin.ModelAdmin):
     list_display = ["passport", "community", "provider", "hash"]
     search_fields = ["passport__address", "provider", "hash"]
     raw_id_fields = ["passport"]
@@ -30,7 +26,7 @@ class StampAdmin(PrefetchCommunityModelAdmin):
         return queryset
 
 
-class ScoreAdmin(PrefetchCommunityModelAdmin):
+class ScoreAdmin(admin.ModelAdmin):
     list_display = [
         "passport",
         "community",
