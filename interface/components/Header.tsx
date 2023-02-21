@@ -20,6 +20,9 @@ const getAssets = (mode?: UIMode) => {
     gitcoinLogo: darkMode
       ? "/assets/gitcoinLogoWhite.svg"
       : "/assets/gitcoinLogoDark.svg",
+    scorerWord: darkMode
+      ? "/assets/scorerWordWhite.svg"
+      : "/assets/scorerWordBlack.svg",
     logoLine: "/assets/logoLine.svg",
     emphasisColor: darkMode ? "white" : "black",
   };
@@ -56,9 +59,11 @@ const Header = ({
         <img className="" src={assets.gitcoinLogo} alt="Gitcoin Logo" />
         <img className="mx-3 md:mx-6" src={assets.logoLine} alt="Logo Line" />
         <Logo />
-        <span className={`text-${assets.emphasisColor} font-futura text-lg`}>
-          SCORER
-        </span>
+        <img
+          className="mx-3 hidden sm:block"
+          src={assets.scorerWord}
+          alt="Scorer"
+        />
       </div>
       {/* Right side row  */}
       <div>
