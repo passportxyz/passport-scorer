@@ -1,12 +1,14 @@
 import copy
 import logging
 
+from account.models import Community
 from registry.models import Stamp
 
 log = logging.getLogger(__name__)
 
+
 # --> LIFO deduplication
-def lifo(lifo_passport: dict, address: str) -> dict:
+def lifo(community: Community, lifo_passport: dict, address: str) -> dict:
     deduped_passport = copy.deepcopy(lifo_passport)
     deduped_passport["stamps"] = []
     if "stamps" in lifo_passport:
@@ -15,7 +17,7 @@ def lifo(lifo_passport: dict, address: str) -> dict:
 
             # query db to see if hash already exists, if so remove stamp from passport
             if (
-                not Stamp.objects.filter(hash=stamp_hash)
+                not Stamp.objects.filter(hash=stamp_hash, passport__community=community)
                 .exclude(passport__address=address)
                 .exists()
             ):
