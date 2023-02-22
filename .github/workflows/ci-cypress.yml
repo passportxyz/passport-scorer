@@ -44,8 +44,8 @@ jobs:
         with:
           working-directory: ./test
           start: |
-            cd ../interface && yarn dev
-            cd ../api && uvicorn scorer.asgi:application --reload --port 8002
+            yarn start:api
+            yarn start:ui
           wait-on: "http://localhost:3000, http://localhost:8002"
           # config: 'baseUrl=http://localhost:8000'
 
