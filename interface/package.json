@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:fix": "next lint && prettier --write .",
     "test": "jest"
   },
   "dependencies": {
@@ -17,6 +18,12 @@
     "@rainbow-me/rainbowkit": "^0.8.0",
     "@rainbow-me/rainbowkit-siwe-next-auth": "^0.1.5",
     "@testing-library/user-event": "^14.4.3",
+    "@web3-onboard/coinbase": "^2.2.0",
+    "@web3-onboard/core": "^2.15.2",
+    "@web3-onboard/injected-wallets": "^2.8.0",
+    "@web3-onboard/ledger": "^2.4.2",
+    "@web3-onboard/react": "^2.6.4",
+    "@web3-onboard/walletconnect": "^2.2.2",
     "axios": "^1.2.0",
     "ethers": "^5.7.2",
     "framer-motion": "^6",
