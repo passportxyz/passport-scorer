@@ -53,7 +53,7 @@ const Header = ({
   const assets = useMemo(() => getAssets(mode), [mode]);
 
   return (
-    <div className={`flex items-center justify-between py-3 ${className}`}>
+    <div className={`flex items-center justify-between pt-3 ${className}`}>
       {/* Left side row */}
       <div className="flex items-center">
         <img className="" src={assets.gitcoinLogo} alt="Gitcoin Logo" />

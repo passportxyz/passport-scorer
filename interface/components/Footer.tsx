@@ -22,7 +22,7 @@ const Footer = ({ mode }: FooterProps): JSX.Element => {
   const assets = useMemo(() => getAssets(mode), [mode]);
 
   return (
-    <div className="flex justify-between pt-8 pb-20 text-base">
+    <div className="mt-12 mb-12 flex justify-between text-base sm:mt-8">
       <div className="">
         Available on
         <a

@@ -46,29 +46,23 @@ export default function Home() {
   return (
     <div className="font-libre-franklin flex h-full min-h-default flex-col justify-between bg-purple-darkpurple px-4 text-gray-400 sm:px-24">
       <Header mode="dark" />
-      <div className="container pb-10">
-        <div className="flex flex-wrap">
-          <div className="pb-6 sm:w-2/3 xl:w-1/2">
-            <div className="font-miriam-libre text-white">
-              <img
-                src="/assets/gitcoinWordLogo.svg"
-                alt="Gitcoin Logo"
-                className="py-4"
-              />
-              <p className="-ml-1 text-5xl leading-normal sm:text-7xl">
-                Passport Scorer
-              </p>
-            </div>
-            <div className="py-6">
-              We all know that Sybil attackers want to sabotage your
-              project&apos;s future, but stopping them is really hard and
-              expensive if you want to do it on your own. Gitcoin Passport is a
-              free, open source tool that gives you Gitcoin-grade Sybil
-              protection with only a few lines of code, so you can focus your
-              time, money, and attention on growing your business.
-            </div>
-            <SIWEButton className="hidden sm:block" />
+      <div className="container mt-6 grow sm:grow-0">
+        <div className="mb-14 sm:w-2/3 xl:w-1/2">
+          <div className="font-miriam-libre text-white">
+            <img src="/assets/gitcoinWordLogo.svg" alt="Gitcoin Logo" />
+            <p className="my-2 -ml-1 text-5xl leading-normal sm:text-7xl">
+              Passport Scorer
+            </p>
           </div>
+          <div>
+            We all know that Sybil attackers want to sabotage your
+            project&apos;s future, but stopping them is really hard and
+            expensive if you want to do it on your own. Gitcoin Passport is a
+            free, open source tool that gives you Gitcoin-grade Sybil protection
+            with only a few lines of code, so you can focus your time, money,
+            and attention on growing your business.
+          </div>
+          <SIWEButton className="mt-10 hidden sm:block" />
         </div>
       </div>
       <SIWEButton fullWidth={true} className="block w-full sm:hidden" />
