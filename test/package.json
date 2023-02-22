@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "start:api": "cd ../api && uvicorn scorer.asgi:application --reload --port 8002",
+    "start:ui": "cd ../interface && yarn start"
+  },
   "dependencies": {
     "@badeball/cypress-cucumber-preprocessor": "latest",
     "@bahmutov/cypress-esbuild-preprocessor": "latest",
