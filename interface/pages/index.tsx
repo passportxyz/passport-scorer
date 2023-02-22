@@ -1,13 +1,12 @@
 // --- React Methods
-import React, { useState, useRef } from "react";
-
-// --- Wagmi
-import { useAccount, useConnect } from "wagmi";
+import React, { useState, useRef, useContext } from "react";
 
 // --- Components
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+
+// --- Context
+import { UserContext } from "../context/userContext";
 
 const SIWEButton = ({
   className,
@@ -15,19 +14,16 @@ const SIWEButton = ({
 }: {
   className?: string;
   fullWidth?: boolean;
-}) => (
-  <div className={className}>
-    {/* TODO this can be simpler, this is just temporary as we switch wallet connectors */}
-    {/* TODO once ready to switch just pull out the button component and change onClick */}
-    <ConnectButton.Custom>
-      {({ openConnectModal }) => {
-        return (
-          <button
+  }) => {
+    const { loggedIn, login } = useContext(UserContext);
+    return (
+      <div className={className}>
+        <button
             data-testid="connectWalletButton"
             className={`rounded bg-purple-gitcoinpurple px-8 py-3 text-lg text-white ${
               fullWidth ? "w-full" : ""
             }`}
-            onClick={openConnectModal}
+            onClick={login}
           >
             <img
               src="/assets/ethLogo.svg"
@@ -36,11 +32,9 @@ const SIWEButton = ({
             />
             <span className="inline">Sign-in with Ethereum</span>
           </button>
-        );
-      }}
-    </ConnectButton.Custom>
-  </div>
-);
+      </div>
+    );
+}
 
 export default function Home() {
   return (

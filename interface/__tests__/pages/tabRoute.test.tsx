@@ -18,11 +18,6 @@ mockRouter.useParser(
 
 jest.mock("next/router", () => require("next-router-mock"));
 
-jest.mock("@rainbow-me/rainbowkit", () => {
-  return {
-    ConnectButton: jest.fn(() => <div>ConnectButton</div>),
-  };
-});
 
 describe("Dashboard", () => {
   beforeEach(() => {

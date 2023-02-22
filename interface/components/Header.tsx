@@ -2,14 +2,8 @@
 import React, { useCallback, useMemo } from "react";
 import { UIMode } from "../utils/dark-mode";
 
-// --- Components
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-
-// --- Types
-import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
 
 type HeaderProps = {
-  authenticationStatus?: AuthenticationStatus;
   mode?: UIMode;
   className?: string;
 };
@@ -46,7 +40,6 @@ const Logo = () => (
 );
 
 const Header = ({
-  authenticationStatus,
   mode,
   className,
 }: HeaderProps): JSX.Element => {
@@ -67,12 +60,7 @@ const Header = ({
       </div>
       {/* Right side row  */}
       <div>
-        {authenticationStatus === "authenticated" && (
-          <ConnectButton
-            showBalance={false}
-            accountStatus={{ smallScreen: "avatar", largeScreen: "full" }}
-          />
-        )}
+        Should be Blocknative Wallet Btn
       </div>
     </div>
   );

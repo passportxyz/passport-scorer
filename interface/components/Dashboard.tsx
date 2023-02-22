@@ -1,8 +1,6 @@
 // --- React components/methods
 import React, { useState, useEffect, useCallback } from "react";
 
-// --- Wagmi
-// import { useAccount, useConnect } from "wagmi";
 import { useRouter } from "next/router";
 
 // --- Components
@@ -11,22 +9,12 @@ import CommunityList from "../components/CommunityList";
 import { SettingsIcon, Icon } from "@chakra-ui/icons";
 import { GoInbox } from "react-icons/go";
 
-// --- Types
-import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
-
 type DashboardProps = {
-  // setAuthenticationStatus?: Function;
-  authenticationStatus: AuthenticationStatus;
   activeTab: string;
   children: React.ReactNode;
 };
 
-export default function Dashboard({
-  // setAuthenticationStatus,
-  authenticationStatus,
-  activeTab,
-  children,
-}: DashboardProps) {
+export default function Dashboard({ activeTab, children }: DashboardProps) {
   const router = useRouter();
 
   const tabbedClasses = (tab: string) => {
@@ -39,7 +27,7 @@ export default function Dashboard({
   return (
     <>
       <div>
-        <Header authenticationStatus={authenticationStatus} className="px-5" />
+        <Header className="px-5" />
         <div>
           <div className="mt-0 w-full border-b border-gray-300 p-6 pb-6 text-black">
             <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
