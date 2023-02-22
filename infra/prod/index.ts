@@ -358,7 +358,7 @@ const environment = [
   },
   {
     name: "UI_DOMAIN",
-    value: "scorer." + process.env["DOMAIN"],
+    value: "www.scorer." + process.env["DOMAIN"],
   },
   {
     name: "ALLOWED_HOSTS",
