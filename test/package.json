@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "start:api": "cd ../api && uvicorn scorer.asgi:application --reload --port 8002",
+    "start:api": "cd ../api && uvicorn scorer.asgi:application --reload --host 0.0.0.0 --port 8002",
     "start:ui": "cd ../interface && yarn start"
   },
   "dependencies": {
