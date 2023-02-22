@@ -35,14 +35,20 @@ const CommunityCard = ({
     <div className="grid w-full auto-cols-auto grid-cols-2 items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50">
       {/* first column */}
       <div className="grid-rows grid">
-        <p id="community-name" className="mb-2 cursor-pointer font-librefranklin font-semibold text-blue-darkblue">
+        <p
+          id="community-name"
+          className="mb-2 cursor-pointer font-librefranklin font-semibold text-blue-darkblue"
+        >
           <a
             onClick={() => router.push(`/dashboard/community/${community.id}`)}
           >
             {community.name}
           </a>
         </p>
-        <p id="community-description" className="font-librefranklin text-purple-softpurple">
+        <p
+          id="community-description"
+          className="font-librefranklin text-purple-softpurple"
+        >
           {community.description}
         </p>
       </div>
