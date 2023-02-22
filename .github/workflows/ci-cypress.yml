@@ -37,7 +37,7 @@ jobs:
 
       - name: Install Interface Dependencies
         working-directory: ./interface
-        run: yarn && yarn build
+        run: yarn --frozen-lockfile && yarn build
 
       - name: Run Cypress tests
         uses: cypress-io/github-action@v5
@@ -47,6 +47,8 @@ jobs:
             yarn start:api
             yarn start:ui
           wait-on: "http://localhost:3000, http://localhost:8002"
+        env:
+          NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY }}
           # config: 'baseUrl=http://localhost:8000'
 
       # - name: Upload test results
