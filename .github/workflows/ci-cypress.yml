@@ -1,41 +1,56 @@
-# name: Cypress Tests
+name: Cypress Tests
 
-# on:
-#   push:
-#     branches: []
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit ref"
+        required: true
+        type: string
 
-# jobs:
-#   build:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v2
-#       - name: Set up Python "3.10"
-#         uses: actions/setup-python@v2
-#         with:
-#           python-version: "3.10"
-#       - name: Install pipenv
-#         run: pip3 install pipenv
+jobs:
+  cypress-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python "3.10"
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
 
-#       - name: Generate requirements.txt
-#         working-directory: ./api
-#         run: pipenv requirements --dev > requirements.txt
+      - name: Install pipenv
+        run: pip3 install pipenv
 
-#       - name: Install API dependencies
-#         working-directory: ./api
-#         run: pip3 install -r requirements.txt
+      - name: Setup backend
+        working-directory: ./api
+        run: |
+          pipenv requirements --dev > requirements.txt
+          pip3 install -r requirements.txt
+          python manage.py migrate
 
-#       - name: Build and run the api
-#         working-directory: ./api
-#         run: |
-#           gunicorn -w 4 -k uvicorn.workers.UvicornWorker scorer.asgi:application &
+      # - name: Build and run the api
+      #   working-directory: ./api
+      #   run: |
+      #     gunicorn -w 4 -k uvicorn.workers.UvicornWorker scorer.asgi:application &
 
-#       - name: Install Interface Dependencies
-#         working-directory: ./interface
-#         run: yarn & yarn build
-#       - name: Run Cypress tests
-#         run: yarn cypress run
-#       - name: Upload test results
-#         uses: actions/upload-artifact@v2
-#         with:
-#           name: test-results
-#           path: cypress/results
+      - name: Install Interface Dependencies
+        working-directory: ./interface
+        run: yarn & yarn build
+
+      - name: Run Cypress tests
+        uses: cypress-io/github-action@v5
+        with:
+          working-directory: ./test
+          start: |
+            cd ../interface && yarn dev
+            cd ../api && uvicorn scorer.asgi:application --reload --port 8002
+          wait-on: "http://localhost:3000, http://localhost:8002"
+          # config: 'baseUrl=http://localhost:8000'
+
+      # - name: Upload test results
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: test-results
+      #     path: cypress/results
