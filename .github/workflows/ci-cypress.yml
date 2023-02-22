@@ -37,7 +37,7 @@ jobs:
 
       - name: Install Interface Dependencies
         working-directory: ./interface
-        run: yarn & yarn build
+        run: yarn && yarn build
 
       - name: Run Cypress tests
         uses: cypress-io/github-action@v5
