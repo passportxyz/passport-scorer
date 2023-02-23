@@ -245,28 +245,28 @@ const SelectUseCase = ({
 
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         {useCases.map((item, index) => (
-          <a key={index} href="#" className="focus:outline-none">
-            <div
-              onClick={() => setUseCase(item)}
-              className={
-                "rounded border bg-white px-6 py-5 shadow-sm hover:border-purple-gitcoinpurple md:mt-2 " +
-                (useCase?.title === item?.title
-                  ? "border-purple-gitcoinpurple"
-                  : "border-gray-300")
-              }
-            >
-              <div className="relative flex space-x-3">
-                <div>
-                  <Icon boxSize={19.5}>{item.icon()}</Icon>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="absolute inset-0" aria-hidden="true" />
-                  <p className="text-sm text-purple-darkpurple">{item.title}</p>
-                  <p className="text-sm text-gray-500">{item.description}</p>
-                </div>
+          <div
+            key={index}
+            onClick={() => setUseCase(item)}
+            data-testid="use-case-item"
+            className={
+              "cursor-pointer rounded border bg-white px-6 py-5 shadow-sm hover:border-purple-gitcoinpurple focus:outline-none md:mt-2 " +
+              (useCase?.title === item?.title
+                ? "border-purple-gitcoinpurple"
+                : "border-gray-300")
+            }
+          >
+            <div className="relative flex space-x-3">
+              <div>
+                <Icon boxSize={19.5}>{item.icon()}</Icon>
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="absolute inset-0" aria-hidden="true" />
+                <p className="text-sm text-purple-darkpurple">{item.title}</p>
+                <p className="text-sm text-gray-500">{item.description}</p>
               </div>
             </div>
-          </a>
+          </div>
         ))}
       </div>
       <button
@@ -320,7 +320,7 @@ const UseCaseDetails = ({
           Name
         </label>
         <Input
-          data-testid="update-community-name-input"
+          data-testid="use-case-name-input"
           className="mt-2 mb-4 text-blue-darkblue"
           value={useCaseName}
           onChange={(name) => setUseCaseName(name.target.value)}
@@ -331,7 +331,7 @@ const UseCaseDetails = ({
         </label>
         <Input
           className="mt-2 text-blue-darkblue"
-          data-testid="update-community-description-input"
+          data-testid="use-case-description-input"
           value={useCaseDescription}
           onChange={(description) =>
             setUseCaseDescription(description.target.value)
