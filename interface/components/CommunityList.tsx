@@ -369,9 +369,8 @@ const SelectUseCase = ({
 
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         {usecases.map((item, index) => (
-          <a href="#" className="focus:outline-none">
+          <a key={index} href="#" className="focus:outline-none">
             <div
-              key={index}
               onClick={() => setUseCase(item)}
               className={
                 "rounded border bg-white px-6 py-5 shadow-sm hover:border-purple-gitcoinpurple md:mt-2 " +
@@ -395,7 +394,7 @@ const SelectUseCase = ({
         ))}
       </div>
       <button
-        className="mb-8 mt-auto w-full md:mt-8 rounded-md bg-purple-gitcoinpurple py-3 text-white"
+        className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
         onClick={() => setWizardStep(2)}
       >
         Continue
@@ -464,7 +463,7 @@ const UseCaseDetails = ({
         />
       </div>
       <button
-        className="mb-8 mt-auto w-full md:mt-8 rounded-md bg-purple-gitcoinpurple py-3 text-white"
+        className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
         onClick={switchToSelectMechanism}
         disabled={!updatedUseCaseName || !updatedUseCaseDescription}
       >
