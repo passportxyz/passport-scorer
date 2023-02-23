@@ -83,7 +83,7 @@ const APIKeyList = () => {
           }
         />
       ) : (
-        <div className="flex h-[40rem] md:h-[45rem]">
+        <div className="flex">
           <div className="flex w-full">
             <div className="flex w-3/4 flex-col">
               {apiKeys.map((key, i) => (
