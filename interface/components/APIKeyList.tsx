@@ -73,14 +73,9 @@ const APIKeyList = () => {
         <NoValues
           title="Create a key"
           description="Communicate between applications by connecting a key to request service from the community or organization."
+          addActionText="Key"
           addRequest={() => setModalOpen(true)}
-          icon={
-            <SettingsIcon
-              viewBox="-2 -2 18 18"
-              boxSize="1.9em"
-              color="#757087"
-            />
-          }
+          icon={<SettingsIcon />}
         />
       ) : (
         <div className="flex">
