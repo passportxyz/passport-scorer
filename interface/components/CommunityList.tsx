@@ -3,11 +3,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 
 // --- Components
-import {
-  ArrowBackIcon,
-  RepeatIcon,
-  SmallCloseIcon,
-} from "@chakra-ui/icons";
+import { ArrowBackIcon, RepeatIcon, SmallCloseIcon } from "@chakra-ui/icons";
 import CommunityCard from "./CommunityCard";
 import NoValues from "./NoValues";
 
@@ -232,6 +228,7 @@ const CommunityList = () => {
           addRequest={() => {
             setUseCaseName("");
             setUseCaseDescription("");
+            setWizardStep(1);
             setSelectUseCaseModalOpen(true);
           }}
           icon={
@@ -290,6 +287,7 @@ const CommunityList = () => {
           <ModalBody className="flex h-screen w-full flex-col">
             {wizardStep === 1 && (
               <SelectUseCase
+                usecase={usecase}
                 setUseCase={setUseCase}
                 setWizardStep={setWizardStep}
               />
@@ -314,11 +312,16 @@ const CommunityList = () => {
 };
 
 interface SelectUseCaseProps {
+  usecase: UseCaseInterface | undefined;
   setUseCase: (usecase: UseCaseInterface) => void;
   setWizardStep: (wizardStep: number) => void;
 }
 
-const SelectUseCase = ({ setUseCase, setWizardStep }: SelectUseCaseProps) => {
+const SelectUseCase = ({
+  usecase,
+  setUseCase,
+  setWizardStep,
+}: SelectUseCaseProps) => {
   return (
     <>
       <Center>
@@ -365,23 +368,26 @@ const SelectUseCase = ({ setUseCase, setWizardStep }: SelectUseCaseProps) => {
       </Center>
 
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-        {usecases.map((usecase, index) => (
+        {usecases.map((item, index) => (
           <a href="#" className="focus:outline-none">
             <div
               key={index}
-              onClick={() => setUseCase(usecase)}
-              className={"rounded border bg-white px-6 py-5 shadow-sm hover:border-purple-gitcoinpurple md:mt-2" + (usecases.indexOf(usecase) == index ? 'border-purple-gitcoinpurple' : 'border-gray-300')}
+              onClick={() => setUseCase(item)}
+              className={
+                "rounded border bg-white px-6 py-5 shadow-sm hover:border-purple-gitcoinpurple md:mt-2 " +
+                (usecase?.title === item?.title
+                  ? "border-purple-gitcoinpurple"
+                  : "border-gray-300")
+              }
             >
               <div className="relative flex space-x-3">
                 <div>
-                  <Icon boxSize={19.5}>{usecase.icon()}</Icon>
+                  <Icon boxSize={19.5}>{item.icon()}</Icon>
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="absolute inset-0" aria-hidden="true" />
-                  <p className="text-sm text-purple-darkpurple">
-                    {usecase.title}
-                  </p>
-                  <p className="text-sm text-gray-500">{usecase.description}</p>
+                  <p className="text-sm text-purple-darkpurple">{item.title}</p>
+                  <p className="text-sm text-gray-500">{item.description}</p>
                 </div>
               </div>
             </div>
@@ -389,7 +395,7 @@ const SelectUseCase = ({ setUseCase, setWizardStep }: SelectUseCaseProps) => {
         ))}
       </div>
       <button
-        className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
+        className="mb-8 mt-auto w-full md:mt-8 rounded-md bg-purple-gitcoinpurple py-3 text-white"
         onClick={() => setWizardStep(2)}
       >
         Continue
@@ -424,7 +430,7 @@ const UseCaseDetails = ({
 
   return (
     <>
-      <p className="mt-10 text-xs">UseCase</p>
+      <p className="mt-10 text-xs">Use Case</p>
       <div>
         <p className="my-2 text-purple-gitcoinpurple">
           <Icon boxSize={19.5}>{usecase?.icon("#6F3FF5")}</Icon>{" "}
@@ -439,27 +445,28 @@ const UseCaseDetails = ({
         </label>
         <Input
           data-testid="update-community-name-input"
-          className="mt-2 mb-4"
+          className="mt-2 mb-4 text-blue-darkblue"
           value={updatedUseCaseName}
           onChange={(name) => setUpdatedUseCaseName(name.target.value)}
-          placeholder="App / UseCase Name"
+          placeholder="App / Use Case Name"
         />
         <label className="text-gray-softgray font-librefranklin text-xs">
           Description
         </label>
         <Input
-          className="mt-2"
+          className="mt-2 text-blue-darkblue"
           data-testid="update-community-description-input"
           value={updatedUseCaseDescription}
           onChange={(description) =>
             setUpdatedUseCaseDescription(description.target.value)
           }
-          placeholder="Enter UseCase Description"
+          placeholder="Enter Use Case Description"
         />
       </div>
       <button
-        className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
+        className="mb-8 mt-auto w-full md:mt-8 rounded-md bg-purple-gitcoinpurple py-3 text-white"
         onClick={switchToSelectMechanism}
+        disabled={!updatedUseCaseName || !updatedUseCaseDescription}
       >
         Continue
       </button>
