@@ -4,12 +4,8 @@ import { useConnectWallet } from "@web3-onboard/react";
 import { OnboardAPI, WalletState } from "@web3-onboard/core";
 import { initWeb3Onboard } from "../utils/onboard";
 
-import { SiweMessage } from "siwe";
-import { ethers } from "ethers";
 import { initiateSIWE } from "../utils/siwe";
 import { authenticate } from "../utils/account-requests";
-
-const SCORER_BACKEND = process.env.NEXT_PUBLIC_PASSPORT_SCORER_BACKEND;
 
 export interface UserState {
   connected: boolean;

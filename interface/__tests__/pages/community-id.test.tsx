@@ -16,6 +16,7 @@ jest.mock("next/router", () => ({
   useRouter: () => ({
     pathname: "/dashboard/community/2",
     query: { tabRoute: ["community", "2"] },
+    push: jest.fn(),
   }),
 }));
 

@@ -1,6 +1,8 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Dashboard from "../../components/Dashboard";
+import { renderWithContext, makeTestUserContext } from "../../__test-fixtures__/userContextTestHelper";
+import { UserState } from "../../context/userContext";
 
 jest.mock("next/router", () => require("next-router-mock"));
 
@@ -10,9 +12,12 @@ jest.mock("../../components/Header", () => {
   return () => <div></div>;
 });
 
+const mockUserContext: UserState = makeTestUserContext();
+
 describe("Dashboard", () => {
   it("should render the header", async () => {
-    render(
+    renderWithContext(
+      mockUserContext,
       <Dashboard activeTab="api-keys">
         <div></div>
       </Dashboard>

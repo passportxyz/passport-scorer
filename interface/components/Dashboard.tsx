@@ -5,7 +5,6 @@ import { useRouter } from "next/router";
 
 // --- Components
 import Header from "../components/Header";
-import CommunityList from "../components/CommunityList";
 import { SettingsIcon, Icon } from "@chakra-ui/icons";
 import { GoInbox } from "react-icons/go";
 import { UserContext } from "../context/userContext";
@@ -17,13 +16,13 @@ type DashboardProps = {
 
 export default function Dashboard({ activeTab, children }: DashboardProps) {
   const router = useRouter();
-  const { connected, login } = useContext(UserContext);
+  const { connected } = useContext(UserContext);
 
   useEffect(() => {
     if (!connected) {
       router.push("/");
     }
-  }, [connected, router]);
+  }, [connected]);
 
   const tabbedClasses = (tab: string) => {
     const base = "my-4 flex leading-4 cursor-pointer";
