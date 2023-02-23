@@ -15,17 +15,19 @@ const TabButton = ({
   token,
   selected,
   router,
+  className,
 }: {
   icon: React.ReactNode;
   text: React.ReactNode;
   token: TabToken;
   selected?: boolean;
   router: any;
+  className?: string;
 }) => (
   <button
     onClick={() => router.push(`/dashboard/${token}`)}
-    className={`m-2 flex w-full items-center justify-start rounded-sm border p-3 text-blue-darkblue ${
-      selected ? "border-gray-300 bg-white" : "border-gray-100 "
+    className={`mx-2 flex w-full items-center justify-start rounded-sm border p-3 text-blue-darkblue ${
+      (selected ? "border-gray-200 bg-white " : "border-gray-100 ") + className
     }`}
   >
     <span className={`mr-2 ${selected ? "text-purple-gitcoinpurple" : ""}`}>
@@ -45,6 +47,7 @@ export const DashboardTabs = ({ activeTab }: { activeTab: TabToken }) => {
         token="scorer"
         selected={activeTab === "scorer"}
         router={router}
+        className="mb-2"
       />
       <TabButton
         icon={<SettingsIcon />}
