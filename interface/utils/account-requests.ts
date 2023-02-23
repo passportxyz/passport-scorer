@@ -1,4 +1,5 @@
 import axios from "axios";
+import { SiweMessage } from "siwe";
 
 const SCORER_BACKEND = process.env.NEXT_PUBLIC_PASSPORT_SCORER_BACKEND;
 
@@ -197,3 +198,21 @@ export const updateCommunityScorers = async (
     throw error;
   }
 };
+
+export const getNonce = async () => {
+  const response = await axios.get(`${SCORER_BACKEND}account/nonce`);
+  const { data } = response;
+  return data.nonce;
+}
+
+export const authenticate = async (message: SiweMessage, signature: string) => {
+  try {
+    const response = await axios.post(`${SCORER_BACKEND}account/verify`, {
+      message,
+      signature,
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+}

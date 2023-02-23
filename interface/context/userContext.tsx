@@ -6,6 +6,8 @@ import { initWeb3Onboard } from "../utils/onboard";
 
 import { SiweMessage } from "siwe";
 import { ethers } from "ethers";
+import { initiateSIWE } from "../utils/siwe";
+import { authenticate } from "../utils/account-requests";
 
 const SCORER_BACKEND = process.env.NEXT_PUBLIC_PASSPORT_SCORER_BACKEND;
 
@@ -76,27 +78,6 @@ export const UserProvider = ({ children }: { children: any }) => {
     });
   };
 
-  const getNonce = async () => {
-    const response = await fetch(`${SCORER_BACKEND}account/nonce`);
-    return (await response.json()).nonce;
-  }
-
-  const getSiweMessage = async (wallet: WalletState, address: string) => {
-    const nonce = await getNonce();
-
-    const message = new SiweMessage({
-      domain: window.location.host,
-      address,
-      statement: "Sign in with Ethereum to the app.",
-      uri: window.location.origin,
-      version: "1",
-      chainId: Number(wallet.chains[0].id),
-      nonce,
-    });
-
-    return message;
-  }
-
   // Restore wallet connection from localStorage
   const setWalletFromLocalStorage = async (): Promise<void> => {
     const previouslyConnectedWallets = JSON.parse(
@@ -123,32 +104,21 @@ export const UserProvider = ({ children }: { children: any }) => {
   };
 
   const authenticateWithScorerApi = async (wallet: WalletState) => {
-    const provider = new ethers.providers.Web3Provider(wallet.provider, 'any')
-    const signer = provider.getSigner()
-    const address = await signer.getAddress()
+    try {
+      const { siweMessage, signature } = await initiateSIWE(wallet)
+      const tokens = await authenticate(siweMessage, signature)
 
-    const siweMessage = await getSiweMessage(wallet, address);
-    const preparedMessage = siweMessage.prepareMessage();
-
-    const signature = await signer.signMessage(preparedMessage);
-
-    const verifyRes = await fetch(`${SCORER_BACKEND}account/verify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: siweMessage, signature }),
-    });
-
-    if (verifyRes.ok) {
-      const data = await verifyRes.json();
       window.localStorage.setItem("connectedWallets", JSON.stringify([wallet.label]));
 
       // store JWT access token in LocalStorage
-      localStorage.setItem("access-token", data.access);
+      localStorage.setItem("access-token", tokens.access);
 
       dispatch({
         type: UserActions.CONNECTED,
         payload: true,
       })
+    } catch (e) {
+      // Indicate error authenticating?
     }
   }
 
