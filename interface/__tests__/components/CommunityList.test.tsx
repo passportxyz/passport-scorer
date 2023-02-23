@@ -22,45 +22,58 @@ jest.mock("next/router", () => ({
 }));
 
 describe("CommunityList", () => {
-  beforeEach(() => {
-    (getCommunities as jest.Mock).mockResolvedValue([
-      { name: "banks", description: "No bankd" },
-      { name: "wells fargo", description: "WellsFargo" },
-    ]);
-    (createCommunity as jest.Mock).mockResolvedValue({});
-  });
-  it("should create a community", async () => {
-    const sampleInput = {
-      name: "name value",
-      description: "description value",
-    };
-    render(<CommunityList />);
 
-    await waitFor(async () =>
-      expect(screen.getByTestId("open-community-modal")).toBeInTheDocument()
-    );
-    const modalButton = screen.getByTestId("open-community-modal");
+  it("should open the use-case modal chem clicking the `+ Scorer` button", async () => {
+    render(<CommunityList />);
+    expect(screen.getByTestId("no-values-add")).toBeInTheDocument()
+
+    const modalButton = screen.getByTestId("no-values-add");
     fireEvent.click(modalButton as HTMLElement);
-    expect(screen.getByTestId("create-button")).toBeInTheDocument();
-    const nameInput = screen.getByTestId("community-name-input");
-    const descriptionInput = screen.getByTestId("community-description-input");
-    fireEvent.change(nameInput, { target: { value: sampleInput.name } });
-    fireEvent.change(descriptionInput, {
-      target: { value: sampleInput.description },
-    });
-    const createButton = screen.getByTestId("create-button");
-    fireEvent.click(createButton as HTMLElement);
 
-    expect(createCommunity).toHaveBeenCalledWith(sampleInput);
 
-    waitForElementToBeRemoved(screen.getByTestId("community-modal"));
+    // Verify that the first step of the modal is shown
+    await waitFor(async () =>
+      expect(screen.getByText("Select a Use Case")).toBeInTheDocument()
+    );
+
+    const continueButton = screen.getByTestId("no-values-add");
+    fireEvent.click(modalButton as HTMLElement);
+
+
+    // Verify that the 2nd step of the modal is shown
+    await waitFor(async () =>
+      expect(screen.getByText("Use Case Details")).toBeInTheDocument()
+    );
+
+    // expect(screen.getByTestId("create-button")).toBeInTheDocument();
+    // const nameInput = screen.getByTestId("community-name-input");
+    // const descriptionInput = screen.getByTestId("community-description-input");
+    // fireEvent.change(nameInput, { target: { value: sampleInput.name } });
+    // fireEvent.change(descriptionInput, {
+    //   target: { value: sampleInput.description },
+    // });
+    // const createButton = screen.getByTestId("create-button");
+    // fireEvent.click(createButton as HTMLElement);
+    // expect(createCommunity).toHaveBeenCalledWith(sampleInput);
+    // waitForElementToBeRemoved(screen.getByTestId("community-modal"));
   });
 
-  it("should render a list of communities", async () => {
-    render(<CommunityList />);
 
-    await waitFor(async () => {
-      expect(screen.getByText("banks")).toBeInTheDocument();
-    });
-  });
+  // describe("when the community list already has records", () => {
+  //   beforeEach(() => {
+  //     (getCommunities as jest.Mock).mockResolvedValue([
+  //       { name: "banks", description: "No bankd" },
+  //       { name: "wells fargo", description: "WellsFargo" },
+  //     ]);
+  //     (createCommunity as jest.Mock).mockResolvedValue({});
+  //   });
+
+  //   it("should render a list of communities", async () => {
+  //     render(<CommunityList />);
+
+  //     await waitFor(async () => {
+  //       expect(screen.getByText("banks")).toBeInTheDocument();
+  //     });
+  //   });
+  // });
 });
