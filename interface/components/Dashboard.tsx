@@ -17,6 +17,27 @@ type DashboardProps = {
   children: React.ReactNode;
 };
 
+const QuickLink = ({
+  text,
+  icon,
+  url,
+  className,
+}: {
+  text: React.ReactNode;
+  icon?: React.ReactNode;
+  url?: string;
+  className?: string;
+}) => (
+  <div
+    className={`flex w-full flex-row items-center justify-start border-x border-t border-gray-200 bg-white p-5 ${
+      (url ? "cursor-pointer " : " ") + className
+    }`}
+  >
+    <span className="mr-2">{icon}</span>
+    {text}
+  </div>
+);
+
 export default function Dashboard({
   // setAuthenticationStatus,
   authenticationStatus,
@@ -28,7 +49,7 @@ export default function Dashboard({
       <div className="bg-white">
         <Header
           authenticationStatus={authenticationStatus}
-          className="mx-4 border-b border-b-gray-300 bg-white pb-4 sm:mx-20"
+          className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20"
         />
         <div className="w-full bg-red-100">{/* ERROR ALERT HERE */}</div>
         <div className="my-6 w-full bg-white px-4 sm:px-20">
@@ -41,11 +62,35 @@ export default function Dashboard({
           </p>
         </div>
       </div>
-      <div className="flex grow border-t border-gray-300 px-4 sm:px-20">
+      <div className="flex grow border-t border-gray-300 px-4 pt-2 sm:px-20">
         <div className="w-64 flex-col">
           <DashboardTabs activeTab={activeTab} />
         </div>
         <div className="flex w-full flex-col p-6">{children}</div>
+        <div className="w-96 flex-col text-xs">
+          <QuickLink text="Quick Links" />
+          <QuickLink
+            text="Quick Start Guide"
+            url="/"
+            icon={<img src="/assets/flagIcon.svg" />}
+          />
+          <QuickLink
+            text="Passport Documentation"
+            url="/"
+            icon={<img src="/assets/terminalIcon.svg" />}
+          />
+          <QuickLink
+            text="Video Introduction"
+            url="/"
+            icon={<img src="/assets/playIcon.svg" />}
+          />
+          <QuickLink
+            text="Scorer Documentation"
+            url="/"
+            icon={<img src="/assets/bookIcon.svg" />}
+            className="border-b"
+          />
+        </div>
       </div>
       <Footer className="px-4 sm:px-20" />
     </div>
