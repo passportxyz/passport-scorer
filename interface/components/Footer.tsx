@@ -16,13 +16,16 @@ const getAssets = (mode?: UIMode) => {
 
 type FooterProps = {
   mode?: UIMode;
+  className?: string;
 };
 
-const Footer = ({ mode }: FooterProps): JSX.Element => {
+const Footer = ({ mode, className }: FooterProps): JSX.Element => {
   const assets = useMemo(() => getAssets(mode), [mode]);
 
   return (
-    <div className="mt-12 mb-12 flex justify-between text-base sm:mt-8">
+    <div
+      className={`mt-12 mb-12 flex justify-between text-base sm:mt-8 ${className}`}
+    >
       <div className="">
         Available on
         <a

@@ -6,7 +6,7 @@ const nextConfig = {
     return [
       {
         source: "/dashboard",
-        destination: "/dashboard/community",
+        destination: "/dashboard/scorer",
         permanent: true,
       },
     ];

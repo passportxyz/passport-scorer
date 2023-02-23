@@ -15,7 +15,7 @@ const NoValues = ({
   icon,
 }: NoValuesProps): JSX.Element => {
   return (
-    <div className="flex h-[40rem] flex-col justify-center md:h-[45rem]">
+    <div className="flex flex-col justify-center">
       <div className="w-13 mx-auto mb-8 flex justify-center rounded-full border bg-white p-2 text-center text-gray-lightgray">
         {icon}
       </div>
