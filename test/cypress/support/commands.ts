@@ -5,7 +5,7 @@
 import { Wallet } from "ethers";
 import { SiweMessage } from "siwe";
 
-const SCORER_BACKEND = "http://localhost:8000/";
+const SCORER_BACKEND = Cypress.env("serverUrl");
 
 console.log("DEFINING COMMANDS ...");
 Cypress.Commands.add("siwe", async () => {

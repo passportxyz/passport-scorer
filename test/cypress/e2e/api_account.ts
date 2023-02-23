@@ -9,13 +9,13 @@ Given("I don't have an API ACCOUNT", () => {
 });
 
 When("I hit create account", () => {
-  cy.visit("http://localhost:3000/");
-  cy.get("button").contains("Connect Wallet").click();
+  cy.visit("");
+  cy.get("button").contains("Sign-in with Ethereum").click();
 });
 
 When("I Sign-in-with-Ethereum", () => {});
 
 Then("I will have an account created", () => {});
 Then("be taken to the config dashboard", () => {
-  cy.visit("http://localhost:3000/dashboard");
+  cy.visit("/dashboard");
 });
