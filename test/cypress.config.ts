@@ -31,6 +31,6 @@ export default defineConfig({
   },
   env: {
     // serverUrl should end with '/'
-    serverUrl: 'http://localhost:8002/',
+    serverUrl: 'http://localhost:8000/',
   }
 });
