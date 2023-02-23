@@ -7,15 +7,17 @@ import Footer from "../components/Footer";
 
 // --- Context
 import { UserContext } from "../context/userContext";
+import { useRouter } from "next/router";
 
 const SIWEButton = ({
   className,
   fullWidth,
+  login
 }: {
   className?: string;
   fullWidth?: boolean;
+  login: () => void;
   }) => {
-    const { loggedIn, login } = useContext(UserContext);
     return (
       <div className={className}>
         <button
@@ -37,6 +39,13 @@ const SIWEButton = ({
 }
 
 export default function Home() {
+  const { connected, login } = useContext(UserContext);
+  const router = useRouter();
+
+  if (connected) {
+    router.push("/dashboard/community");
+  }
+
   return (
     <div className="font-libre-franklin flex h-full min-h-default flex-col justify-between bg-purple-darkpurple px-4 text-gray-400 sm:px-24">
       <Header mode="dark" />
@@ -56,10 +65,10 @@ export default function Home() {
             with only a few lines of code, so you can focus your time, money,
             and attention on growing your business.
           </div>
-          <SIWEButton className="mt-10 hidden sm:block" />
+          <SIWEButton className="mt-10 hidden sm:block" login={login} />
         </div>
       </div>
-      <SIWEButton fullWidth={true} className="block w-full sm:hidden" />
+      <SIWEButton fullWidth={true} className="block w-full sm:hidden" login={login} />
       <Footer mode="dark" />
     </div>
   );

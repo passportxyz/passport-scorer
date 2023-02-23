@@ -58,10 +58,6 @@ const Header = ({
           alt="Scorer"
         />
       </div>
-      {/* Right side row  */}
-      <div>
-        Should be Blocknative Wallet Btn
-      </div>
     </div>
   );
 };

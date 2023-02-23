@@ -7,16 +7,17 @@ import { initWeb3Onboard } from "../utils/onboard";
 import { SiweMessage } from "siwe";
 
 export interface UserState {
-  loggedIn: boolean;
+  connected: boolean;
   message: string;
   signature: string;
   login: () => Promise<void>;
   logout: (wallet: WalletState) => Promise<void>;
   web3OnBoard?: OnboardAPI;
+  userWallet?: WalletState;
 }
 
 export const initialState: UserState = {
-  loggedIn: false,
+  connected: false,
   message: "",
   signature: "",
   login: async () => {},
@@ -24,8 +25,7 @@ export const initialState: UserState = {
 };
 
 enum UserActions {
-  LOGIN = "LOGIN",
-  LOGOUT = "LOGOUT",
+  CONNECTED = "CONNECTED",
   SET_WEB3_ONBOARD = "SET_WEB3_ONBOARD",
 }
 
@@ -34,15 +34,10 @@ const userReducer = (
   action: { type: UserActions; payload: any }
 ) => {
   switch (action.type) {
-    case UserActions.LOGIN:
+    case UserActions.CONNECTED:
       return {
         ...state,
-        loggedIn: true,
-      };
-    case UserActions.LOGOUT:
-      return {
-        ...state,
-        loggedIn: false,
+        connected: action.payload,
       };
     case UserActions.SET_WEB3_ONBOARD:
       return {
@@ -58,29 +53,41 @@ export const UserContext = createContext(initialState);
 
 export const UserProvider = ({ children }: { children: any }) => {
   const [state, dispatch] = useReducer(userReducer, initialState);
-  const [{ wallet, connecting }, connect, disconnect] = useConnectWallet();
+  const [{ wallet, connecting }, connect, connected, disconnect] = useConnectWallet();
 
   const login = async () => {
-    await connect();
-    // const siwe = new SiweMessage();
-    // const message = siwe.createMessage();
-    // const signature = await siwe.signMessage(message);
-    // dispatch({
-    //   type: UserActions.LOGIN,
-    //   payload: {
-    //     message,
-    //     signature,
-    //   }
-    // })
+    try {
+      await connect();
+      dispatch({
+        type: UserActions.CONNECTED,
+        payload: true,
+      })
+    } catch (e) {
+      console.log(e)
+    }
   };
 
-  const logout = async (wallet: WalletState) => {
-    await disconnect(wallet);
+  const logout = async () => {
+    await disconnect();
     dispatch({
-      type: UserActions.LOGOUT,
-      payload: null,
+      type: UserActions.CONNECTED,
+      payload: false,
     });
   };
+
+  useEffect(() => {
+    if (wallet) {
+      dispatch({
+        type: UserActions.CONNECTED,
+        payload: true,
+      })
+    } else {
+      dispatch({
+        type: UserActions.CONNECTED,
+        payload: false,
+      })
+    }
+   }, [wallet]);
 
   // Init onboard to enable hooks
   useEffect((): void => {
