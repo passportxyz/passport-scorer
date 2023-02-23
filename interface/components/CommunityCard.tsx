@@ -11,8 +11,8 @@ import { DeleteIcon, EditIcon } from "@chakra-ui/icons";
 import { useRouter } from "next/router";
 
 type CommunityCardProps = {
-  setUpdatedCommunityName: Function;
-  setUpdatedCommunityDescription: Function;
+  setUpdatedUsecaseName: Function;
+  setUpdatedUsecaseDescription: Function;
   setUpdatedCommunityId: Function;
   community: Community;
   communityId: Community["id"];
@@ -25,8 +25,8 @@ const CommunityCard = ({
   handleDeleteCommunity,
   communityId,
   setUpdateCommunityModalOpen,
-  setUpdatedCommunityName,
-  setUpdatedCommunityDescription,
+  setUpdatedUsecaseName,
+  setUpdatedUsecaseDescription,
   setUpdatedCommunityId,
 }: CommunityCardProps): JSX.Element => {
   const router = useRouter();
@@ -53,8 +53,8 @@ const CommunityCard = ({
           className="mr-2 justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
           onClick={async () => {
             setUpdatedCommunityId(community.id);
-            setUpdatedCommunityName(community.name);
-            setUpdatedCommunityDescription(community.description);
+            setUpdatedUsecaseName(community.name);
+            setUpdatedUsecaseDescription(community.description);
             setUpdateCommunityModalOpen(true);
           }}
         >
