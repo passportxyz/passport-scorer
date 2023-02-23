@@ -4,10 +4,18 @@ import React from "react";
 import { useRouter } from "next/router";
 
 // --- Components
-import { SettingsIcon, Icon } from "@chakra-ui/icons";
-import { GoInbox } from "react-icons/go";
+import { SettingsIcon, Icon, StarIcon } from "@chakra-ui/icons";
 
 export type TabToken = "scorer" | "api-keys";
+
+type TabButtonProps = {
+  icon: React.ReactNode;
+  text: React.ReactNode;
+  token: TabToken;
+  selected?: boolean;
+  router: any;
+  className?: string;
+};
 
 const TabButton = ({
   icon,
@@ -16,17 +24,10 @@ const TabButton = ({
   selected,
   router,
   className,
-}: {
-  icon: React.ReactNode;
-  text: React.ReactNode;
-  token: TabToken;
-  selected?: boolean;
-  router: any;
-  className?: string;
-}) => (
+}: TabButtonProps) => (
   <button
     onClick={() => router.push(`/dashboard/${token}`)}
-    className={`mx-2 flex w-full items-center justify-start rounded-sm border p-3 text-blue-darkblue ${
+    className={`flex w-full items-center justify-start rounded-sm border p-3 text-blue-darkblue ${
       (selected ? "border-gray-200 bg-white " : "border-gray-100 ") + className
     }`}
   >
@@ -36,27 +37,83 @@ const TabButton = ({
     {text}
   </button>
 );
+
+type TabProps = {
+  icon: React.ReactNode;
+  text: string;
+  token: TabToken;
+};
+
+const tabInfo: TabProps[] = [
+  {
+    icon: <StarIcon />,
+    text: "Scorer",
+    token: "scorer",
+  },
+  {
+    icon: <SettingsIcon />,
+    text: "API Keys",
+    token: "api-keys",
+  },
+];
+
+const TabButtonList = ({
+  activeTab,
+  router,
+}: {
+  activeTab: TabToken;
+  router: any;
+}) => (
+  <div>
+    {tabInfo.map(({ icon, text, token }, idx) => (
+      <TabButton
+        icon={icon}
+        text={text}
+        data-testid={`${token}-tab`}
+        token={token}
+        selected={activeTab === token}
+        router={router}
+        className={idx === 0 ? "mb-2" : ""}
+      />
+    ))}
+  </div>
+);
+
+const TabSelect = ({
+  activeTab,
+  router,
+}: {
+  activeTab: TabToken;
+  router: any;
+}) => (
+  <div className="flex items-center rounded-sm border border-gray-200 bg-white py-1 pr-1 md:hidden">
+    <div className="ml-3 -mt-1 text-purple-gitcoinpurple">
+      {tabInfo.find((tab) => tab.token === activeTab)?.icon}
+    </div>
+    <select
+      value={activeTab}
+      onChange={(e) => router.push(`/dashboard/${e.target.value}`)}
+      className="flex w-full justify-around bg-white py-3 pl-2 text-blue-darkblue"
+    >
+      {tabInfo.map(({ text, token }, idx) => (
+        <option color="purple" value={token} className="text-blue-darkblue">
+          {text}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
 export const DashboardTabs = ({ activeTab }: { activeTab: TabToken }) => {
   const router = useRouter();
   return (
     <>
-      <TabButton
-        icon={<Icon as={GoInbox} />}
-        text="Scorer"
-        data-testid="scorer-tab"
-        token="scorer"
-        selected={activeTab === "scorer"}
-        router={router}
-        className="mb-2"
-      />
-      <TabButton
-        icon={<SettingsIcon />}
-        text="API Keys"
-        data-testid="api-keys-tab"
-        token="api-keys"
-        selected={activeTab === "api-keys"}
-        router={router}
-      />
+      <div className="block md:hidden">
+        <TabSelect activeTab={activeTab} router={router} />
+      </div>
+      <div className="hidden md:block">
+        <TabButtonList activeTab={activeTab} router={router} />
+      </div>
     </>
   );
 };
