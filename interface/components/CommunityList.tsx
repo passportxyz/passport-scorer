@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 
 // --- Components
-import { RepeatIcon } from "@chakra-ui/icons";
+import { StarIcon } from "@chakra-ui/icons";
 import CommunityCard from "./CommunityCard";
 import ModalTemplate from "./ModalTemplate";
 import NoValues from "./NoValues";
@@ -105,17 +105,15 @@ const CommunityList = () => {
     <>
       {communities.length === 0 ? (
         <NoValues
-          title="My Communities"
-          description="Manage how your dapps interact with the Gitcoin Passport by creating a
-        key that will connect to any community."
+          title="Create a Scorer"
+          description="Select unique scoring mechanisms that align with your application’s goals."
+          addActionText="Scorer"
           addRequest={() => {
             setCommunityName("");
             setCommunityDescription("");
             setCreateCommunityModalOpen(true);
           }}
-          icon={
-            <RepeatIcon viewBox="0 0 25 25" boxSize="1.9em" color="#757087" />
-          }
+          icon={<img src="/assets/outlineStarIcon.svg" />}
         />
       ) : (
         <div className="mx-5 mt-4">

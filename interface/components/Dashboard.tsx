@@ -29,7 +29,7 @@ const QuickLink = ({
   className?: string;
 }) => (
   <div
-    className={`flex w-full flex-row items-center justify-start border-x border-t border-gray-200 bg-white p-5 ${
+    className={`flex w-full flex-row items-center justify-start  border-gray-200 bg-white p-5 ${
       (url ? "cursor-pointer " : " ") + className
     }`}
   >
@@ -37,6 +37,54 @@ const QuickLink = ({
     {text}
   </div>
 );
+
+const QuickLinks = () => {
+  const className = "border-x border-t";
+  return (
+    <div className="w-full">
+      <QuickLink text="Quick Links" className={className} />
+      <QuickLink
+        text="Quick Start Guide"
+        url="/"
+        icon={<img src="/assets/flagIcon.svg" />}
+        className={className}
+      />
+      <QuickLink
+        text="Passport Documentation"
+        url="/"
+        icon={<img src="/assets/terminalIcon.svg" />}
+        className={className}
+      />
+      <QuickLink
+        text="Video Introduction"
+        url="/"
+        icon={<img src="/assets/playIcon.svg" />}
+        className={className}
+      />
+      <QuickLink
+        text="Scorer Documentation"
+        url="/"
+        icon={<img src="/assets/bookIcon.svg" />}
+        className={className + " border-b"}
+      />
+    </div>
+  );
+};
+
+const SampleApplications = () => {
+  const className = "text-base";
+  return (
+    <div className="mt-12">
+      <QuickLink text="Sample Applications" />
+      <QuickLink
+        text="Gitcoin Passports Sample App"
+        url="/"
+        className={className}
+      />
+      <QuickLink text="Gitcoin Allo Protocol" url="/" className={className} />
+    </div>
+  );
+};
 
 export default function Dashboard({
   // setAuthenticationStatus,
@@ -62,34 +110,14 @@ export default function Dashboard({
           </p>
         </div>
       </div>
-      <div className="flex grow border-t border-gray-300 px-4 pt-2 sm:px-20">
-        <div className="w-64 flex-col">
+      <div className="flex grow flex-col items-center border-t border-gray-300 px-4 pt-2 sm:px-20 md:flex-row md:items-start">
+        <div className="w-48 flex-col self-start md:w-96">
           <DashboardTabs activeTab={activeTab} />
         </div>
-        <div className="flex w-full flex-col p-6">{children}</div>
-        <div className="w-96 flex-col text-xs">
-          <QuickLink text="Quick Links" />
-          <QuickLink
-            text="Quick Start Guide"
-            url="/"
-            icon={<img src="/assets/flagIcon.svg" />}
-          />
-          <QuickLink
-            text="Passport Documentation"
-            url="/"
-            icon={<img src="/assets/terminalIcon.svg" />}
-          />
-          <QuickLink
-            text="Video Introduction"
-            url="/"
-            icon={<img src="/assets/playIcon.svg" />}
-          />
-          <QuickLink
-            text="Scorer Documentation"
-            url="/"
-            icon={<img src="/assets/bookIcon.svg" />}
-            className="border-b"
-          />
+        <div className="w-full p-6">{children}</div>
+        <div className="h-full w-full flex-col self-stretch text-sm leading-[18px] md:max-w-xs">
+          <QuickLinks />
+          <SampleApplications />
         </div>
       </div>
       <Footer className="px-4 sm:px-20" />

@@ -6,6 +6,7 @@ type NoValuesProps = {
   title: string;
   description: string;
   icon: JSX.Element;
+  addActionText: React.ReactNode;
 };
 
 const NoValues = ({
@@ -13,25 +14,24 @@ const NoValues = ({
   title,
   description,
   icon,
+  addActionText,
 }: NoValuesProps): JSX.Element => {
   return (
-    <div className="flex flex-col justify-center">
-      <div className="w-13 mx-auto mb-8 flex justify-center rounded-full border bg-white p-2 text-center text-gray-lightgray">
-        {icon}
-      </div>
-      <div className="mx-auto flex flex-col justify-center text-center align-middle">
-        <h2 className="mx-auto font-miriamlibre text-xl text-purple-softpurple">
-          {title}
-        </h2>
-        <p className="mx-auto mt-2 w-9/12 font-librefranklin text-purple-softpurple">
-          {description}
-        </p>
-        <button
-          onClick={addRequest}
-          className="mx-auto mt-6 w-40 rounded-md bg-purple-softpurple pt-1 pb-2 text-white"
-        >
-          <span className="text-xl">+</span> Add
-        </button>
+    <div className="flex h-full flex-col justify-around">
+      <div className="flex flex-col items-center justify-center">
+        <div className="mb-8 w-fit rounded-full bg-white p-3 text-purple-gitcoinpurple">
+          <div className="w-6">{icon}</div>
+        </div>
+        <div className="flex flex-col items-center justify-center text-center">
+          <h2 className="text-xl text-gray-500">{title}</h2>
+          <p className="mt-2">{description}</p>
+          <button
+            onClick={addRequest}
+            className="mt-6 flex items-center justify-center rounded-md bg-purple-gitcoinpurple px-6 py-2 font-medium text-white"
+          >
+            <span className="mr-1 text-xl">+</span> {addActionText}
+          </button>
+        </div>
       </div>
     </div>
   );
