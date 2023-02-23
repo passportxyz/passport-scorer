@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  api-test:
     runs-on: ubuntu-latest
 
     services:
@@ -46,75 +46,57 @@ jobs:
       - name: Run API unittests
         working-directory: ./api
         run: pytest
-      # - name: Run API unittests
-      #   working-directory: ./api
-      #   run: coverage run --source='.' manage.py test
 
-      # - name: Python code coverage report
-      #   working-directory: ./api
-      #   run: coverage report --fail-under=70
+  ui-test:
+    runs-on: ubuntu-latest
 
-  # cypress-install:
-  #   runs-on: ubuntu-latest
-  #   container: cypress/browsers:node18.12.0-chrome107
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
+    steps:
+      - uses: actions/checkout@v3
 
-  #     - name: Cypress install
-  #       uses: cypress-io/github-action@v4.2.2 # use the explicit version number
-  #       with:
-  #         # Disable running of tests within install job
-  #         runTests: false
-  #         install-command: yarn --frozen-lockfile
-  #         build: yarn build
-  #         working-directory: test
+      - name: Install UI dependencies
+        working-directory: ./interface
+        run: yarn --frozen-lockfile && yarn build
 
-  #     - name: Save build folder
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: build
-  #         if-no-files-found: error
-  #         path: test/build
+      - name: Run tests
+        working-directory: ./interface
+        run: yarn test
 
-  # cypress-tests:
-  #   runs-on: ubuntu-latest
-  #   container: cypress/browsers:node18.12.0-chrome107
-  #   needs: cypress-install
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       # run copies of the current job in parallel
-  #       containers: [1, 2]
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
+  cypress-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python "3.10"
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
 
-  #     - name: Download the build folders
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: build
-  #         path: test/build
+      - name: Install pipenv
+        run: pip3 install pipenv
 
-  #     - name: 'UI Tests - Chrome'
-  #       uses: cypress-io/github-action@v4.2.2 # use the explicit version number
-  #       with:
-  #         # we have already installed all dependencies above
-  #         install: false
-  #         start: yarn start:ci
-  #         start: |
-  #           npm run api
-  #           npm run web
-  #         wait-on: 'http://localhost:3000, http://localhost:8000'
-  #         wait-on-timeout: 120
-  #         browser: chrome
-  #         record: true
-  #         parallel: true
-  #         group: 'UI - Chrome'
-  #         spec: cypress/tests/ui/*
-  #         working-directory: test
-  #       env:
-  #         CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
-  #         # Recommended: pass the GitHub token lets this action correctly
-  #         # determine the unique run id necessary to re-run the checks
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup backend
+        working-directory: ./api
+        run: |
+          pipenv requirements --dev > requirements.txt
+          pip3 install -r requirements.txt
+          python manage.py migrate
+
+      - name: Install Interface Dependencies
+        working-directory: ./interface
+        run: yarn --frozen-lockfile && yarn build
+
+      - name: Run Cypress tests
+        uses: cypress-io/github-action@v5
+        with:
+          working-directory: ./test
+          start: |
+            yarn start:api
+            yarn start:ui
+          wait-on: "http://127.0.0.1:3000,http://127.0.0.1:8000/health/"
+          record: true
+        env:
+          NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY }}
+          config: "baseUrl=http://localhost:8000"
+          # pass the Cypress Cloud record key as an environment variable
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+          # pass GitHub token to allow accurately detecting a build vs a re-run build
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
