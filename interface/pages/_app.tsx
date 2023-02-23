@@ -12,8 +12,6 @@ import { useRouter } from "next/router";
 
 import { UserProvider } from "../context/userContext";
 
-const SCORER_BACKEND = process.env.NEXT_PUBLIC_PASSPORT_SCORER_BACKEND;
-
 const passportScorerApp = {
   appName: "Passport Scorer as a Service",
 };

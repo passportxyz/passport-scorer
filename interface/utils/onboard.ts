@@ -4,7 +4,7 @@ import coinbaseModule from "@web3-onboard/coinbase";
 import ledgerModule from "@web3-onboard/ledger";
 import injectedModule from "@web3-onboard/injected-wallets";
 
-const alchemyRpc =
+const alchemyApiKey =
   process.env.NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY || "";
 
 const walletConnect = walletConnectModule();
@@ -19,7 +19,7 @@ const chains = [
     id: "0x1",
     token: "ETH",
     label: "Ethereum Mainnet",
-    rpcUrl: alchemyRpc,
+    rpcUrl: `https://eth-mainnet.g.alchemy.com/v2/${alchemyApiKey}`,
   },
 ];
 
