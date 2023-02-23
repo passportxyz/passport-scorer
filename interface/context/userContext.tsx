@@ -58,17 +58,15 @@ export const UserProvider = ({ children }: { children: any }) => {
   const [{ wallet, connecting }, connect, connected, disconnect] = useConnectWallet();
 
   const login = async () => {
-    try {
-      await connect();
-    } catch (e) {
-      console.log(e)
-    }
+    connect().then((wallets) => {
+      const firstWallet = wallets[0]
+      authenticateWithScorerApi(firstWallet)
+    }).catch((e) => {
+      // Indicate error connecting?
+    });
   };
 
   const logout = async () => {
-    // const addresses = await wallet?.accounts.map((a) => a.address);
-    // await disconnect(addresses);
-
     localStorage.removeItem("access-token");
     localStorage.removeItem("connectedWallets");
 
@@ -114,6 +112,7 @@ export const UserProvider = ({ children }: { children: any }) => {
       }).catch((e): void => {
         // remove localstorage state
         window.localStorage.removeItem("connectedWallets");
+        localStorage.removeItem("access-token");
       }).finally(() => {
         dispatch({
           type: UserActions.CONNECTED,
@@ -123,57 +122,40 @@ export const UserProvider = ({ children }: { children: any }) => {
     }
   };
 
-  // Connect wallet on reload
+  const authenticateWithScorerApi = async (wallet: WalletState) => {
+    const provider = new ethers.providers.Web3Provider(wallet.provider, 'any')
+    const signer = provider.getSigner()
+    const address = await signer.getAddress()
+
+    const siweMessage = await getSiweMessage(wallet, address);
+    const preparedMessage = siweMessage.prepareMessage();
+
+    const signature = await signer.signMessage(preparedMessage);
+
+    const verifyRes = await fetch(`${SCORER_BACKEND}account/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: siweMessage, signature }),
+    });
+
+    if (verifyRes.ok) {
+      const data = await verifyRes.json();
+      window.localStorage.setItem("connectedWallets", JSON.stringify([wallet.label]));
+
+      // store JWT access token in LocalStorage
+      localStorage.setItem("access-token", data.access);
+
+      dispatch({
+        type: UserActions.CONNECTED,
+        payload: true,
+      })
+    }
+  }
+
+  // On load check localstorage for loggedin credentials
   useEffect((): void => {
     setWalletFromLocalStorage();
   }, []);
-
-  useEffect(() => {
-    if (wallet) {
-      const previouslyConnectedWallets = JSON.parse(
-      // retrieve localstorage state
-        window.localStorage.getItem("connectedWallets") || "[]"
-      ) as string[];
-      const accessToken = localStorage.getItem("access-token");
-      if (previouslyConnectedWallets?.length && accessToken) {
-        dispatch({
-          type: UserActions.CONNECTED,
-          payload: true,
-        })
-        return
-      }
-
-      (async () => {
-        const provider = new ethers.providers.Web3Provider(wallet.provider, 'any')
-        const signer = provider.getSigner()
-        const address = await signer.getAddress()
-
-        const siweMessage = await getSiweMessage(wallet, address);
-        const preparedMessage = siweMessage.prepareMessage();
-
-        const signature = await signer.signMessage(preparedMessage);
-
-        const verifyRes = await fetch(`${SCORER_BACKEND}account/verify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: siweMessage, signature }),
-        });
-
-        if (verifyRes.ok) {
-          const data = await verifyRes.json();
-          window.localStorage.setItem("connectedWallets", JSON.stringify([wallet.label]));
-
-          // store JWT access token in LocalStorage
-          localStorage.setItem("access-token", data.access);
-
-          dispatch({
-            type: UserActions.CONNECTED,
-            payload: true,
-          })
-        }
-      })();
-    }
-  }, [wallet]);
 
   // Init onboard to enable hooks
   useEffect((): void => {
@@ -182,6 +164,13 @@ export const UserProvider = ({ children }: { children: any }) => {
       payload: initWeb3Onboard,
     });
   }, []);
+
+  // Used to listen to disconnect event from web3Onboard widget
+  useEffect(() => {
+    if (!wallet && state.connected) {
+      logout()
+    }
+  }, [wallet, state.connected]);
 
   return (
     <UserContext.Provider value={{ ...state, login, logout }}>

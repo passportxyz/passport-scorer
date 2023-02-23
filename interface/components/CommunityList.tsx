@@ -1,6 +1,9 @@
 // --- React components/methods
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useContext } from "react";
 import { useRouter } from "next/router";
+
+// --- Context
+import { UserContext } from "../context/userContext";
 
 // --- Components
 import { RepeatIcon } from "@chakra-ui/icons";
@@ -34,6 +37,9 @@ const CommunityList = () => {
   const [error, setError] = useState<undefined | string>();
   const [communities, setCommunities] = useState<Community[]>([]);
 
+  // TODO - it might be worth moving community state into context as well as 401 logout
+  const { logout } = useContext(UserContext);
+
   const handleCreateCommunity = async () => {
     try {
       await createCommunity({
@@ -44,7 +50,10 @@ const CommunityList = () => {
       setCommunityDescription("");
       await fetchCommunities();
       setCreateCommunityModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.response.status === 401) {
+        logout();
+      }
       console.log({ error });
     }
   };
@@ -52,9 +61,12 @@ const CommunityList = () => {
   const fetchCommunities = useCallback(async () => {
     try {
       setCommunities(await getCommunities());
-    } catch (error) {
+    } catch (error: any) {
       console.log({ error });
       setError("There was an error fetching your Communities.");
+      if (error.response.status === 401) {
+        logout();
+      }
     }
   }, []);
 
