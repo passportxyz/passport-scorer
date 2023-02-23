@@ -5,15 +5,17 @@ import { OnboardAPI, WalletState } from "@web3-onboard/core";
 import { initWeb3Onboard } from "../utils/onboard";
 
 import { SiweMessage } from "siwe";
+import { ethers } from "ethers";
+
+const SCORER_BACKEND = process.env.NEXT_PUBLIC_PASSPORT_SCORER_BACKEND;
 
 export interface UserState {
   connected: boolean;
   message: string;
   signature: string;
   login: () => Promise<void>;
-  logout: (wallet: WalletState) => Promise<void>;
+  logout: () => Promise<void>;
   web3OnBoard?: OnboardAPI;
-  userWallet?: WalletState;
 }
 
 export const initialState: UserState = {
@@ -21,7 +23,7 @@ export const initialState: UserState = {
   message: "",
   signature: "",
   login: async () => {},
-  logout: async (wallet: WalletState) => {},
+  logout: async () => {},
 };
 
 enum UserActions {
@@ -58,36 +60,120 @@ export const UserProvider = ({ children }: { children: any }) => {
   const login = async () => {
     try {
       await connect();
-      dispatch({
-        type: UserActions.CONNECTED,
-        payload: true,
-      })
     } catch (e) {
       console.log(e)
     }
   };
 
   const logout = async () => {
-    await disconnect();
+    // const addresses = await wallet?.accounts.map((a) => a.address);
+    // await disconnect(addresses);
+
+    localStorage.removeItem("access-token");
+    localStorage.removeItem("connectedWallets");
+
     dispatch({
       type: UserActions.CONNECTED,
       payload: false,
     });
   };
 
+  const getNonce = async () => {
+    const response = await fetch(`${SCORER_BACKEND}account/nonce`);
+    return (await response.json()).nonce;
+  }
+
+  const getSiweMessage = async (wallet: WalletState, address: string) => {
+    const nonce = await getNonce();
+
+    const message = new SiweMessage({
+      domain: window.location.host,
+      address,
+      statement: "Sign in with Ethereum to the app.",
+      uri: window.location.origin,
+      version: "1",
+      chainId: Number(wallet.chains[0].id),
+      nonce,
+    });
+
+    return message;
+  }
+
+  // Restore wallet connection from localStorage
+  const setWalletFromLocalStorage = async (): Promise<void> => {
+    const previouslyConnectedWallets = JSON.parse(
+      // retrieve localstorage state
+      window.localStorage.getItem("connectedWallets") || "[]"
+    ) as string[];
+    if (previouslyConnectedWallets?.length) {
+      connect({
+        autoSelect: {
+          label: previouslyConnectedWallets[0],
+          disableModals: true,
+        },
+      }).catch((e): void => {
+        // remove localstorage state
+        window.localStorage.removeItem("connectedWallets");
+      }).finally(() => {
+        dispatch({
+          type: UserActions.CONNECTED,
+          payload: true,
+        })
+      });
+    }
+  };
+
+  // Connect wallet on reload
+  useEffect((): void => {
+    setWalletFromLocalStorage();
+  }, []);
+
   useEffect(() => {
     if (wallet) {
-      dispatch({
-        type: UserActions.CONNECTED,
-        payload: true,
-      })
-    } else {
-      dispatch({
-        type: UserActions.CONNECTED,
-        payload: false,
-      })
+      const previouslyConnectedWallets = JSON.parse(
+      // retrieve localstorage state
+        window.localStorage.getItem("connectedWallets") || "[]"
+      ) as string[];
+      const accessToken = localStorage.getItem("access-token");
+      if (previouslyConnectedWallets?.length && accessToken) {
+        dispatch({
+          type: UserActions.CONNECTED,
+          payload: true,
+        })
+        return
+      }
+
+      (async () => {
+        const provider = new ethers.providers.Web3Provider(wallet.provider, 'any')
+        const signer = provider.getSigner()
+        const address = await signer.getAddress()
+
+        const siweMessage = await getSiweMessage(wallet, address);
+        const preparedMessage = siweMessage.prepareMessage();
+
+        const signature = await signer.signMessage(preparedMessage);
+
+        const verifyRes = await fetch(`${SCORER_BACKEND}account/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: siweMessage, signature }),
+        });
+
+        if (verifyRes.ok) {
+          const data = await verifyRes.json();
+          window.localStorage.setItem("connectedWallets", JSON.stringify([wallet.label]));
+
+          // store JWT access token in LocalStorage
+          localStorage.setItem("access-token", data.access);
+
+          dispatch({
+            type: UserActions.CONNECTED,
+            payload: true,
+          })
+        }
+      })();
     }
-   }, [wallet]);
+  }, [wallet]);
 
   // Init onboard to enable hooks
   useEffect((): void => {
