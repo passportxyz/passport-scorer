@@ -4,17 +4,17 @@ import binascii
 import json
 from copy import deepcopy
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 from account.models import Account, Nonce
+from django.conf import settings
 from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when
 from siwe import SiweMessage
 from web3 import Web3
 from web3.auto import w3
-from django.conf import settings
-from unittest.mock import patch
 
 pytestmark = pytest.mark.django_db
 
@@ -52,11 +52,12 @@ def _():
     response = c.get("/account/nonce")
 
     data = response.json()
+    nonce = data["nonce"]
 
     siwe_data = {
         "domain": "localhost:3000",
         "address": account.address,
-        "statement": "Sign in with Ethereum to the app.",
+        "statement": f"Welcome to Gitcoin Passport Scorer! This request will not trigger a blockchain transaction or cost any gas fees. Your authentication status will reset in 24 hours. Wallet Address: ${account.address}. Nonce: ${nonce}",
         "uri": "http://localhost/",
         "version": "1",
         "chainId": "1",
@@ -131,11 +132,12 @@ def _(mocker):
         nonceMock.assert_called()
 
     data = response.json()
+    nonce = data["nonce"]
 
     siwe_data = {
         "domain": "localhost",
         "address": account.address,
-        "statement": "Sign in with Ethereum to the app.",
+        "statement": f"Welcome to Gitcoin Passport Scorer! This request will not trigger a blockchain transaction or cost any gas fees. Your authentication status will reset in 24 hours. Wallet Address: ${account.address}. Nonce: ${nonce}",
         "uri": "http://localhost/",
         "version": "1",
         "chainId": "1",
