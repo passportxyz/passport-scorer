@@ -29,6 +29,7 @@ const TabRoute = (props: any) => {
   }, [router, component, tab]);
 
   return (
+    // TODO - fix dashboard is being rendered twice
     <Dashboard {...props} activeTab={tab}>
       {component}
     </Dashboard>

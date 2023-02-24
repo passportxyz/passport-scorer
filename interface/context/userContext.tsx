@@ -1,25 +1,26 @@
 import { createContext, useState, useReducer, useEffect } from "react";
 
-import { useConnectWallet } from "@web3-onboard/react";
+import { useConnectWallet, useAccountCenter } from "@web3-onboard/react";
 import { OnboardAPI, WalletState } from "@web3-onboard/core";
-import { initWeb3Onboard } from "../utils/onboard";
+import "../utils/onboard";
 
 import { initiateSIWE } from "../utils/siwe";
 import { authenticate } from "../utils/account-requests";
 
 export interface UserState {
   connected: boolean;
-  message: string;
-  signature: string;
+  authenticationError: boolean;
+  authenticating: boolean;
+  loginComplete: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
-  web3OnBoard?: OnboardAPI;
 }
 
 export const initialState: UserState = {
   connected: false,
-  message: "",
-  signature: "",
+  authenticationError: false,
+  authenticating: false,
+  loginComplete: false,
   login: async () => {},
   logout: async () => {},
 };
@@ -27,6 +28,9 @@ export const initialState: UserState = {
 enum UserActions {
   CONNECTED = "CONNECTED",
   SET_WEB3_ONBOARD = "SET_WEB3_ONBOARD",
+  AUTHENTICATION_ERROR = "AUTHENTICATION_ERROR",
+  AUTHENTICATING = "AUTHENTICATING",
+  LOGIN_COMPLETED = "LOGIN_COMPLETED",
 }
 
 const userReducer = (
@@ -39,10 +43,20 @@ const userReducer = (
         ...state,
         connected: action.payload,
       };
-    case UserActions.SET_WEB3_ONBOARD:
+    case UserActions.AUTHENTICATION_ERROR:
       return {
         ...state,
-        web3OnBoard: action.payload,
+        authenticationError: action.payload,
+      };
+    case UserActions.AUTHENTICATING:
+      return {
+        ...state,
+        authenticating: action.payload,
+      };
+    case UserActions.LOGIN_COMPLETED:
+      return {
+        ...state,
+        loginComplete: action.payload,
       };
     default:
       return state;
@@ -53,7 +67,7 @@ export const UserContext = createContext(initialState);
 
 export const UserProvider = ({ children }: { children: any }) => {
   const [state, dispatch] = useReducer(userReducer, initialState);
-  const [{ wallet, connecting }, connect, connected, disconnect] = useConnectWallet();
+  const [{ wallet }, connect] = useConnectWallet();
 
   const login = async () => {
     connect().then((wallets) => {
@@ -101,6 +115,10 @@ export const UserProvider = ({ children }: { children: any }) => {
 
   const authenticateWithScorerApi = async (wallet: WalletState) => {
     try {
+      dispatch({
+        type: UserActions.AUTHENTICATING,
+        payload: true,
+      })
       const { siweMessage, signature } = await initiateSIWE(wallet)
       const tokens = await authenticate(siweMessage, signature)
 
@@ -113,8 +131,23 @@ export const UserProvider = ({ children }: { children: any }) => {
         type: UserActions.CONNECTED,
         payload: true,
       })
+      dispatch({
+        type: UserActions.AUTHENTICATING,
+        payload: false,
+      })
+      dispatch({
+        type: UserActions.LOGIN_COMPLETED,
+        payload: true,
+      });
     } catch (e) {
-      // Indicate error authenticating?
+      dispatch({
+        type: UserActions.AUTHENTICATION_ERROR,
+        payload: true,
+      })
+      dispatch({
+        type: UserActions.AUTHENTICATING,
+        payload: false,
+      })
     }
   }
 
@@ -123,13 +156,6 @@ export const UserProvider = ({ children }: { children: any }) => {
     setWalletFromLocalStorage();
   }, []);
 
-  // Init onboard to enable hooks
-  useEffect((): void => {
-    dispatch({
-      type: UserActions.SET_WEB3_ONBOARD,
-      payload: initWeb3Onboard,
-    });
-  }, []);
 
   // Used to listen to disconnect event from web3Onboard widget
   useEffect(() => {
