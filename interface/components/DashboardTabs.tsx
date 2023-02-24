@@ -74,6 +74,7 @@ const TabButtonList = ({
         selected={activeTab === token}
         router={router}
         className={idx === 0 ? "mb-2" : ""}
+        key={token}
       />
     ))}
   </div>
@@ -86,6 +87,8 @@ const TabSelect = ({
   activeTab: TabToken;
   router: any;
 }) => (
+  // Mobile doesn't respect py on the select element, so adding some here on this div. But leaving
+  // most on the select element b/c much better experience on desktop b/c of bounding box
   <div className="flex items-center rounded-sm border border-gray-200 bg-white py-1 pr-1 md:hidden">
     <div className="ml-3 -mt-1 text-purple-gitcoinpurple">
       {tabInfo.find((tab) => tab.token === activeTab)?.icon}
@@ -96,7 +99,12 @@ const TabSelect = ({
       className="flex w-full justify-around bg-white py-3 pl-2 text-blue-darkblue"
     >
       {tabInfo.map(({ text, token }, idx) => (
-        <option color="purple" value={token} className="text-blue-darkblue">
+        <option
+          color="purple"
+          value={token}
+          key={token}
+          className="text-blue-darkblue"
+        >
           {text}
         </option>
       ))}
