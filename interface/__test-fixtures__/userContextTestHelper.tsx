@@ -25,8 +25,9 @@ export const makeTestUserContext = (
 ): UserState => {
   return {
     connected: false,
-    message: "",
-    signature: "",
+    authenticationError: false,
+    authenticating: false,
+    loginComplete: false,
     login: async () => {},
     logout: async () => {},
     ...initialState,
