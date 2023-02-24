@@ -1,7 +1,10 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Dashboard from "../../components/Dashboard";
-import { renderWithContext, makeTestUserContext } from "../../__test-fixtures__/userContextTestHelper";
+import {
+  renderWithContext,
+  makeTestUserContext,
+} from "../../__test-fixtures__/userContextTestHelper";
 import { UserState } from "../../context/userContext";
 
 jest.mock("next/router", () => require("next-router-mock"));

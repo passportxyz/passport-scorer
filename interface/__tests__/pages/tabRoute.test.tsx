@@ -18,7 +18,6 @@ mockRouter.useParser(
 
 jest.mock("next/router", () => require("next-router-mock"));
 
-
 describe("Dashboard", () => {
   beforeEach(() => {
     (getCommunities as jest.Mock).mockResolvedValue([

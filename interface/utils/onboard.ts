@@ -47,6 +47,6 @@ init({
     mobile: {
       enabled: true,
       minimal: true,
-    }
+    },
   },
 });

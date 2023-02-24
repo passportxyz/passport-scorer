@@ -2,7 +2,6 @@
 import React, { useCallback, useMemo } from "react";
 import { UIMode } from "../utils/dark-mode";
 
-
 type HeaderProps = {
   mode?: UIMode;
   className?: string;
@@ -39,10 +38,7 @@ const Logo = () => (
   </div>
 );
 
-const Header = ({
-  mode,
-  className,
-}: HeaderProps): JSX.Element => {
+const Header = ({ mode, className }: HeaderProps): JSX.Element => {
   const assets = useMemo(() => getAssets(mode), [mode]);
 
   return (

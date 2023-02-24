@@ -1,7 +1,7 @@
-import { WalletState } from '@web3-onboard/core';
-import { ethers } from 'ethers';
-import { SiweMessage } from 'siwe';
-import {getNonce} from './account-requests'
+import { WalletState } from "@web3-onboard/core";
+import { ethers } from "ethers";
+import { SiweMessage } from "siwe";
+import { getNonce } from "./account-requests";
 
 const getSiweMessage = async (wallet: WalletState, address: string) => {
   try {
@@ -21,13 +21,13 @@ const getSiweMessage = async (wallet: WalletState, address: string) => {
   } catch (error) {
     throw error;
   }
-}
+};
 
 export const initiateSIWE = async (wallet: WalletState) => {
   try {
-    const provider = new ethers.providers.Web3Provider(wallet.provider, 'any')
-    const signer = provider.getSigner()
-    const address = await signer.getAddress()
+    const provider = new ethers.providers.Web3Provider(wallet.provider, "any");
+    const signer = provider.getSigner();
+    const address = await signer.getAddress();
 
     const siweMessage = await getSiweMessage(wallet, address);
     const preparedMessage = siweMessage.prepareMessage();
@@ -37,4 +37,4 @@ export const initiateSIWE = async (wallet: WalletState) => {
   } catch (error) {
     throw error;
   }
-}
+};

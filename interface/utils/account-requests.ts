@@ -203,7 +203,7 @@ export const getNonce = async () => {
   const response = await axios.get(`${SCORER_BACKEND}account/nonce`);
   const { data } = response;
   return data.nonce;
-}
+};
 
 export const authenticate = async (message: SiweMessage, signature: string) => {
   try {
@@ -215,4 +215,4 @@ export const authenticate = async (message: SiweMessage, signature: string) => {
   } catch (error) {
     throw error;
   }
-}
+};
