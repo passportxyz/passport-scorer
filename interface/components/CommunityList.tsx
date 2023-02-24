@@ -84,8 +84,11 @@ const CommunityList = () => {
       setUpdatedCommunityDescription("");
       await fetchCommunities();
       setUpdateCommunityModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.log({ error });
+      if (error.response.status === 401) {
+        logout();
+      }
     }
   };
 
@@ -93,8 +96,11 @@ const CommunityList = () => {
     try {
       await deleteCommunity(communityId);
       await fetchCommunities();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      if (error.response.status === 401) {
+        logout();
+      }
     }
   };
 
