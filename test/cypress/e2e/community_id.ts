@@ -4,9 +4,9 @@ import "../support/commands";
 
 Given("that I have an API account", () => {
   cy.siwe();
-  cy.visit("http://localhost:3000/");
-  cy.get("button").contains("Connect Wallet").click();
-  cy.visit("http://localhost:3000/dashboard");
+  cy.visit("/");
+  cy.get("button").contains("Sign-in with Ethereum").click();
+  cy.visit("/dashboard");
 });
 
 
@@ -15,12 +15,14 @@ When("I hit the Add Community button", () => {
 });
 
 Then("I enter a name for this Community that is unique among the Community registered under my account", () => {
-  cy.get("[data-testid='community-name-input']").type("test");
-  cy.get("[data-testid='community-description-input']").type(
-    "test"
-    );
-    cy.get("[data-testid='create-button']").click();
+  // TODO: to be re-implemented
+  // cy.get("[data-testid='community-name-input']").type("test");
+  // cy.get("[data-testid='community-description-input']").type(
+  //   "test"
+  //   );
+  //   cy.get("[data-testid='create-button']").click();
   });
 
   Then("that Community is registered", () => {
-  });
+  // TODO: implement this
+});

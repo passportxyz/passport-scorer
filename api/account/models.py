@@ -105,7 +105,7 @@ class Community(models.Model):
         blank=False,
         null=False,
         default=Rules.LIFO,
-        choices=[(Rules.LIFO, "LIFO"), (Rules.FIFO, "FIFO")],
+        choices=Rules.choices(),
     )
     description = models.CharField(
         max_length=100, blank=False, null=False, default="My community"
@@ -122,6 +122,13 @@ class Community(models.Model):
 
     def __str__(self):
         return f"Community - {self.name}"
+
+    use_case = models.CharField(
+        blank=True,
+        null=True,
+        max_length=100,
+        help_text="The use case that the creator of this community (Scorer) would like to cover",
+    )
 
     def get_scorer(self) -> Scorer:
         if self.scorer.type == Scorer.Type.WEIGHTED:

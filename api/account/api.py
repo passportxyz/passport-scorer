@@ -249,12 +249,16 @@ def health(request):
 class CommunitiesPayload(Schema):
     name: str
     description: str
+    use_case: str = None
 
 
 @api.post("/communities", auth=JWTAuth())
 def create_community(request, payload: CommunitiesPayload):
     try:
         account = request.user.account
+        if payload == None:
+            raise CommunityHasNoBodyException()
+
         if Community.objects.filter(account=account).count() >= 5:
             raise TooManyCommunitiesException()
 
@@ -267,11 +271,11 @@ def create_community(request, payload: CommunitiesPayload):
         if len(payload.description) == 0:
             raise CommunityHasNoDescriptionException()
 
-        if payload == None:
-            raise CommunityHasNoBodyException()
-
         Community.objects.create(
-            account=account, name=payload.name, description=payload.description
+            account=account,
+            name=payload.name,
+            description=payload.description,
+            use_case=payload.use_case,
         )
 
     except Account.DoesNotExist:

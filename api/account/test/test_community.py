@@ -5,7 +5,11 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from ninja_jwt.schema import RefreshToken
 
-mock_community_body = {"name": "test", "description": "test"}
+mock_community_body = {
+    "name": "test",
+    "description": "test",
+    "use_case": "sybill protection",
+}
 
 
 class CommunityTestCase(TestCase):
@@ -38,7 +42,7 @@ class CommunityTestCase(TestCase):
         self.assertEqual(invalid_response.status_code, 401)
 
     def test_create_community(self):
-        """Test that creation of a community works"""
+        """Test that creation of a community works and that attributes are saved correctly"""
         client = Client()
         community_response = client.post(
             "/account/communities",
@@ -52,6 +56,10 @@ class CommunityTestCase(TestCase):
         all_communities = list(Community.objects.all())
         self.assertEqual(len(all_communities), 1)
         self.assertEqual(all_communities[0].account.user.username, self.user.username)
+        c = all_communities[0]
+        self.assertEqual(c.use_case, mock_community_body["use_case"])
+        self.assertEqual(c.name, mock_community_body["name"])
+        self.assertEqual(c.description, mock_community_body["description"])
 
     def test_create_community_with_no_name(self):
         """Test that creation of a community with no name fails"""

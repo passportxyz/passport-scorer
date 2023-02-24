@@ -12,7 +12,7 @@ const NoValues = ({
   addRequest,
   title,
   description,
-  icon,
+  icon
 }: NoValuesProps): JSX.Element => {
   return (
     <div className="flex h-[40rem] flex-col justify-center md:h-[45rem]">
@@ -27,6 +27,7 @@ const NoValues = ({
           {description}
         </p>
         <button
+          data-testid="no-values-add"
           onClick={addRequest}
           className="mx-auto mt-6 w-40 rounded-md bg-purple-softpurple pt-1 pb-2 text-white"
         >
