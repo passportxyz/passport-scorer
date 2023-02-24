@@ -123,6 +123,11 @@ describe("UserProvider", () => {
       mockComponent()
     );
 
+    await waitFor(() => {
+      // click the login button
+      screen.getByText("Login").click();
+    });
+
     (useConnectWallet as jest.Mock).mockReturnValue([
       { wallet: null },
       connect,
@@ -134,7 +139,29 @@ describe("UserProvider", () => {
     expect(screen.getByTestId("authenticationError")).toHaveTextContent(
       "false"
     );
-    expect(screen.getByTestId("authenticating")).toHaveTextContent("false");
+    expect(screen.getByTestId("loginComplete")).toHaveTextContent("false");
+  });
+  it("resets state if user rejects signature", async () => {
+    const connect = jest.fn().mockResolvedValue([mockWallet]);
+    (useConnectWallet as jest.Mock).mockReturnValue([
+      { wallet: mockWallet },
+      connect,
+    ]);
+
+    (initiateSIWE as jest.Mock).mockRejectedValue({
+      detail: "User rejected signature",
+    });
+
+
+    await render(
+      mockComponent()
+    );
+
+    await waitFor(() => {
+      // click the login button
+      screen.getByText("Login").click();
+    });
+    expect(screen.getByTestId("connected")).toHaveTextContent("false");
     expect(screen.getByTestId("loginComplete")).toHaveTextContent("false");
   });
 });
