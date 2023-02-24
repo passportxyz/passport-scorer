@@ -11,3 +11,14 @@
 .font-miriam-libre {
   font-family: "Miriam Libre";
 }
+
+:root {
+  --onboard-shadow-3:none;
+  --onboard-connect-content-height: 500px;
+  --account-center-position-bottom: 0;
+  --account-center-border-radius: 16px;
+}
+
+onboard-v2 .account-center-with-notify {
+  background: purple;
+}
