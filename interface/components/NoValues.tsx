@@ -17,10 +17,10 @@ const NoValues = ({
   addActionText,
 }: NoValuesProps): JSX.Element => {
   return (
-    <div className="flex h-full flex-col justify-around">
+    <div className="mb-24 mt-4 flex max-w-sm flex-col justify-around md:max-w-md">
       <div className="flex flex-col items-center justify-center">
         <div className="mb-8 w-fit rounded-full bg-white p-3 text-purple-gitcoinpurple">
-          <div className="w-6">{icon}</div>
+          <div className="flex w-6 justify-around">{icon}</div>
         </div>
         <div className="flex flex-col items-center justify-center text-center">
           <h2 className="text-xl text-gray-500">{title}</h2>

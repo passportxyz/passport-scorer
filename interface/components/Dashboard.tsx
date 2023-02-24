@@ -71,17 +71,21 @@ const QuickLinks = () => {
   );
 };
 
-const SampleApplications = () => {
-  const className = "text-base";
+const SampleApplications = ({ className }: { className?: string }) => {
+  const linkClassName = "text-base";
   return (
-    <div className="mt-12">
+    <div className={className}>
       <QuickLink text="Sample Applications" />
       <QuickLink
         text="Gitcoin Passports Sample App"
         url="/"
-        className={className}
+        className={linkClassName}
       />
-      <QuickLink text="Gitcoin Allo Protocol" url="/" className={className} />
+      <QuickLink
+        text="Gitcoin Allo Protocol"
+        url="/"
+        className={linkClassName}
+      />
     </div>
   );
 };
@@ -93,7 +97,7 @@ export default function Dashboard({
   children,
 }: DashboardProps) {
   return (
-    <div className="font-libre-franklin flex h-full min-h-default flex-col justify-between bg-gray-bluegray text-gray-400">
+    <div className="font-libre-franklin flex min-h-default flex-col justify-between bg-gray-bluegray text-gray-400">
       <div className="bg-white">
         <Header
           authenticationStatus={authenticationStatus}
@@ -110,14 +114,14 @@ export default function Dashboard({
           </p>
         </div>
       </div>
-      <div className="flex grow flex-col items-center border-t border-gray-300 px-4 pt-2 sm:px-20 md:flex-row md:items-start">
-        <div className="w-48 flex-col self-start md:w-96">
+      <div className="flex grow flex-col items-center justify-between border-t border-gray-300 px-4 pt-2 sm:px-20 md:flex-row md:items-start">
+        <div className="w-48 flex-col items-start self-start md:w-96">
           <DashboardTabs activeTab={activeTab} />
         </div>
-        <div className="w-full p-6">{children}</div>
-        <div className="h-full w-full flex-col self-stretch text-sm leading-[18px] md:max-w-xs">
+        <div className="self-center p-6">{children}</div>
+        <div className="w-full flex-col self-stretch text-sm leading-[18px] md:max-w-xs">
           <QuickLinks />
-          <SampleApplications />
+          <SampleApplications className="mt-6" />
         </div>
       </div>
       <Footer className="px-4 sm:px-20" />
