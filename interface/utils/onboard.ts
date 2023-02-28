@@ -35,18 +35,19 @@ const appMetadata = {
   ],
 };
 
+const accountCenter = {
+  desktop: {
+    enabled: true,
+  },
+  mobile: {
+    enabled: true,
+    minimal: true,
+  },
+}
+
 init({
   wallets,
   chains,
   appMetadata,
-  accountCenter: {
-    desktop: {
-      enabled: true,
-      // minimal: false,
-    },
-    mobile: {
-      enabled: true,
-      minimal: true,
-    },
-  },
+  accountCenter
 });
