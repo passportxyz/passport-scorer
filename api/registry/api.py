@@ -130,6 +130,7 @@ class ApiKey(APIKeyHeader):
 
 @router.get(
     "/signing-message",
+    auth=ApiKey(),
     response={
         200: SigningMessageResponse,
         401: ErrorMessageResponse,
