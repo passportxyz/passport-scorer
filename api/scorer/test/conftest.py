@@ -3,11 +3,13 @@ import pytest
 from account.models import Account, AccountAPIKey, Community
 from ceramic_cache.api import DbCacheToken
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from ninja_jwt.schema import RefreshToken
 from registry.models import Passport, Score
 from scorer_weighted.models import BinaryWeightedScorer, Scorer
 from web3 import Web3
+
+User = get_user_model()
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -20,7 +22,6 @@ my_mnemonic = settings.TEST_MNEMONIC
 @pytest.fixture
 def scorer_user():
     user = User.objects.create_user(username="testuser-1", password="12345")
-    print("scorer_user user", user)
     return user
 
 
@@ -36,8 +37,6 @@ def scorer_account(scorer_user):
         my_mnemonic, account_path="m/44'/60'/0'/0/0"
     )
 
-    print("scorer_user", scorer_user)
-    print("web3_account.address", web3_account.address)
     account = Account.objects.create(user=scorer_user, address=web3_account.address)
     return account
 

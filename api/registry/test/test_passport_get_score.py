@@ -1,11 +1,13 @@
 import pytest
 from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import Client
-from registry.models import Passport, Score, Stamp
+from registry.models import Passport, Score
 from web3 import Web3
 
+User = get_user_model()
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
 my_mnemonic = settings.TEST_MNEMONIC
@@ -132,6 +134,55 @@ class TestPassportGetScore:
             == passport_holder_addresses[0]["address"].lower()
         )
 
+    def test_get_single_score_for_address_in_path(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}/{passport_holder_addresses[0]['address']}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+
+        assert (
+            response.json()["address"]
+            == passport_holder_addresses[0]["address"].lower()
+        )
+
+    def test_get_single_score_for_address_in_path_for_other_community(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        """
+        Test that a user can't get scores for a community they don't belong to.
+        """
+        # Create another user, account & api key
+        user = User.objects.create_user(username="anoter-test-user", password="12345")
+        web3_account = web3.eth.account.from_mnemonic(
+            my_mnemonic, account_path="m/44'/60'/0'/0/0"
+        )
+
+        account = Account.objects.create(user=user, address=web3_account.address)
+        (_, api_key) = AccountAPIKey.objects.create_key(
+            account=account, name="Token for user 1"
+        )
+
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}/{passport_holder_addresses[0]['address']}",
+            HTTP_AUTHORIZATION="Token " + api_key,
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "No Community matches the given query."}
+
     def test_limit_greater_than_1000_throws_an_error(
         self, scorer_community, passport_holder_addresses, scorer_api_key
     ):
@@ -156,6 +207,28 @@ class TestPassportGetScore:
         )
 
         assert response.status_code == 200
+
+    def test_get_score_for_other_community(self, scorer_community, scorer_api_key):
+        """Test that a user can't get scores for a community they don't belong to."""
+        # Create another user, account & api key
+        user = User.objects.create_user(username="anoter-test-user", password="12345")
+        web3_account = web3.eth.account.from_mnemonic(
+            my_mnemonic, account_path="m/44'/60'/0'/0/0"
+        )
+
+        account = Account.objects.create(user=user, address=web3_account.address)
+        (_, api_key) = AccountAPIKey.objects.create_key(
+            account=account, name="Token for user 1"
+        )
+
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?limit=1000",
+            HTTP_AUTHORIZATION="Token " + api_key,
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "No Community matches the given query."}
 
     def test_get_scores_request_throws_403_for_non_researcher(self, scorer_api_key):
         client = Client()
