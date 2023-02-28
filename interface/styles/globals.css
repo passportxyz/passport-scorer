@@ -14,11 +14,14 @@
 
 :root {
   --onboard-shadow-3: none;
-  --onboard-connect-content-height: 500px;
   --account-center-position-bottom: 0;
   --account-center-border-radius: 16px;
 }
 
-onboard-v2 .account-center-with-notify {
-  background: purple;
+/* Mobile media Query */
+@media (max-width: 800px) {
+  :root {
+    --onboard-modal-top: 0;
+    --account-center-border-radius: 0;
+  }
 }
