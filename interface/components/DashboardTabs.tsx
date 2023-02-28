@@ -26,6 +26,7 @@ const TabButton = ({
   className,
 }: TabButtonProps) => (
   <button
+    data-testid={`${token}-tab`}
     onClick={() => router.push(`/dashboard/${token}`)}
     className={`flex w-full items-center justify-start rounded-sm border p-3 text-blue-darkblue ${
       (selected ? "border-gray-200 bg-white " : "border-gray-100 ") + className
@@ -69,7 +70,6 @@ const TabButtonList = ({
       <TabButton
         icon={icon}
         text={text}
-        data-testid={`${token}-tab`}
         token={token}
         selected={activeTab === token}
         router={router}
@@ -89,11 +89,15 @@ const TabSelect = ({
 }) => (
   // Mobile doesn't respect py on the select element, so adding some here on this div. But leaving
   // most on the select element b/c much better experience on desktop b/c of bounding box
-  <div className="flex items-center rounded-sm border border-gray-200 bg-white py-1 pr-1 md:hidden">
+  <label
+    htmlFor="tabSelect"
+    className="flex items-center rounded-sm border border-gray-200 bg-white py-1 pr-1 md:hidden"
+  >
     <div className="ml-3 -mt-1 text-purple-gitcoinpurple">
       {tabInfo.find((tab) => tab.token === activeTab)?.icon}
     </div>
     <select
+      id="tabSelect"
       value={activeTab}
       onChange={(e) => router.push(`/dashboard/${e.target.value}`)}
       className="flex w-full justify-around bg-white py-3 pl-2 text-blue-darkblue"
@@ -109,7 +113,7 @@ const TabSelect = ({
         </option>
       ))}
     </select>
-  </div>
+  </label>
 );
 
 export const DashboardTabs = ({ activeTab }: { activeTab: TabToken }) => {

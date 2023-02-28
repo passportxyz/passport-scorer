@@ -13,16 +13,15 @@ jest.mock("../../components/Header", () => {
 describe("Dashboard", () => {
   it("should render the header", async () => {
     render(
-      <Dashboard activeTab="api-keys">
+      <Dashboard activeTab="api-keys" authenticationStatus="authenticated">
         <div></div>
       </Dashboard>
     );
     const activeTab = screen.getByTestId("api-keys-tab");
-    const notActiveTab = screen.getByTestId("communities-tab");
+    const notActiveTab = screen.getByTestId("scorer-tab");
     await waitFor(async () => {
-      expect(activeTab).toHaveClass("font-bold font-blue-darkblue");
-      expect(notActiveTab).toHaveClass("text-purple-softpurple");
+      expect(activeTab).toHaveClass("border-gray-200 bg-white");
+      expect(notActiveTab).toHaveClass("border-gray-100");
     });
   });
 });
-
