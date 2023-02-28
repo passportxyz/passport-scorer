@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest"
+    "test": "jest",
+    "static": "next build && next export",
+    "surge": "surge out"
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.0.12",
