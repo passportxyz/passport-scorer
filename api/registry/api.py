@@ -6,10 +6,10 @@ from typing import List, Optional
 # --- Deduplication Modules
 from account.models import AccountAPIKey, Community, Nonce
 from django.shortcuts import get_object_or_404
+from django_ratelimit.decorators import ratelimit
 from ninja import Router, Schema
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
-from ninja_extra.exceptions import APIException
 from registry.models import Passport, Score
 from registry.permissions import ResearcherPermission
 from registry.utils import (
@@ -20,7 +20,6 @@ from registry.utils import (
 )
 
 from .exceptions import (
-    InternalServerErrorException,
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
     InvalidNonceException,
@@ -131,7 +130,6 @@ class ApiKey(APIKeyHeader):
 
 @router.get(
     "/signing-message",
-    auth=ApiKey(),
     response={
         200: SigningMessageResponse,
         401: ErrorMessageResponse,
@@ -140,6 +138,7 @@ class ApiKey(APIKeyHeader):
     summary="Submit passport for scoring",
     description="""Use this API to get a message to sign and a nonce to use when submitting your passport for scoring.""",
 )
+@ratelimit(key="header:X-Api-Key", rate="10/s")
 def signing_message(_request) -> SigningMessageResponse:
     nonce = Nonce.create_nonce().nonce
     return {
@@ -168,6 +167,7 @@ This API will return a `DetailedScoreResponse` structure with status **PROCESSIN
 You need to check for the status of the operation by calling the `/score/{int:community_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
 """,
 )
+@ratelimit(key="header:X-Api-Key", rate="10/s")
 def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
     address_lower = payload.address.lower()
 
@@ -235,6 +235,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
 This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
 """,
 )
+@ratelimit(key="header:X-Api-Key", rate="10/s")
 def get_score(request, address: str, community_id: int) -> DetailedScoreResponse:
     # Get community object
     user_community = api_get_object_or_404(
@@ -273,6 +274,7 @@ Pass a limit and offset query parameter to paginate the results. For example: `/
 """,
 )
 @paginate(pass_parameter="pagination_info")
+@ratelimit(key="header:X-Api-Key", rate="10/s")
 def get_scores(
     request, community_id: int, address: str = "", **kwargs
 ) -> List[DetailedScoreResponse]:
