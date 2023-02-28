@@ -16,7 +16,7 @@ def service_unavailable(request, _exc):
     return registry_api.create_response(
         request,
         {"detail": "You have been rate limited!"},
-        status=403,
+        status=429,
     )
 
 
