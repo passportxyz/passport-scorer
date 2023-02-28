@@ -115,7 +115,7 @@ export default function Dashboard({
         </div>
       </div>
       <div className="flex grow flex-col items-center justify-between border-t border-gray-300 px-4 pt-2 sm:px-20 md:flex-row md:items-start">
-        <div className="w-48 flex-col items-start self-start md:w-96">
+        <div className="w-48 flex-col items-start self-start">
           <DashboardTabs activeTab={activeTab} />
         </div>
         <div className="self-center p-6">{children}</div>

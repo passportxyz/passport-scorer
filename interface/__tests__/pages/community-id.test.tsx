@@ -14,8 +14,8 @@ jest.mock("../../components/Header", () => {
 // mock next router
 jest.mock("next/router", () => ({
   useRouter: () => ({
-    pathname: "/dashboard/community/2",
-    query: { tabRoute: ["community", "2"] },
+    pathname: "/dashboard/scorer/2",
+    query: { tabRoute: ["scorer", "2"] },
   }),
 }));
 

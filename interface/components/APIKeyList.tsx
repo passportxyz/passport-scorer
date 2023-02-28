@@ -73,7 +73,7 @@ const APIKeyList = () => {
         <NoValues
           title="Create a key"
           description="Communicate between applications by connecting a key to request service from the community or organization."
-          addActionText="Key"
+          addActionText="API Key"
           addRequest={() => setModalOpen(true)}
           icon={<SettingsIcon />}
         />
