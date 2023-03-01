@@ -116,19 +116,18 @@ class Community(models.Model):
     scorer = models.ForeignKey(
         Scorer, on_delete=models.PROTECT, default=get_default_community_scorer
     )
-
-    def __repr__(self):
-        return f"<Community {self.name}>"
-
-    def __str__(self):
-        return f"Community - {self.name}"
-
     use_case = models.CharField(
         blank=True,
         null=True,
         max_length=100,
         help_text="The use case that the creator of this community (Scorer) would like to cover",
     )
+
+    def __repr__(self):
+        return f"<Community {self.name}>"
+
+    def __str__(self):
+        return f"Community - {self.name}"
 
     def get_scorer(self) -> Scorer:
         if self.scorer.type == Scorer.Type.WEIGHTED:

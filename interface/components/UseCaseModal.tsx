@@ -23,13 +23,13 @@ import {
   StatusOnlineIcon,
 } from "./CustomIcons";
 
-interface UseCaseInterface {
+export interface UseCaseInterface {
   icon: (fill?: string) => JSX.Element;
   title: string;
   description: string;
 }
 
-const useCases: Array<UseCaseInterface> = [
+export const useCases: Array<UseCaseInterface> = [
   {
     icon: (fill: string = "#111827"): JSX.Element => (
       <StatusOnlineIcon fill={fill} />
@@ -69,12 +69,12 @@ const UseCaseModal = ({ isOpen, onClose }: UseCaseModalProps): JSX.Element => {
   const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
     undefined
   );
-  const [useCaseName, setUseCaseName] = useState("");
-  const [useCaseDescription, setUseCaseDescription] = useState("");
+  const [scorerName, setScorerName] = useState("");
+  const [scorerDescription, setScorerDescription] = useState("");
 
   const closeModal = () => {
-    setUseCaseName("");
-    setUseCaseDescription("");
+    setScorerName("");
+    setScorerDescription("");
     setUseCase(undefined);
     setWizardStep(1);
     onClose();
@@ -115,10 +115,10 @@ const UseCaseModal = ({ isOpen, onClose }: UseCaseModalProps): JSX.Element => {
           {wizardStep === 2 && (
             <UseCaseDetails
               useCase={useCase}
-              useCaseName={useCaseName}
-              useCaseDescription={useCaseDescription}
-              setUseCaseName={setUseCaseName}
-              setUseCaseDescription={setUseCaseDescription}
+              scorerName={scorerName}
+              scorerDescription={scorerDescription}
+              setScorerName={setScorerName}
+              setScorerDescription={setScorerDescription}
               setWizardStep={setWizardStep}
               closeModal={closeModal}
             />
@@ -224,25 +224,36 @@ const SelectUseCase = ({
 
 interface UseCaseDetailsProps {
   useCase: UseCaseInterface | undefined;
-  useCaseName: string;
-  useCaseDescription: string;
-  setUseCaseName: (name: string) => void;
-  setUseCaseDescription: (description: string) => void;
+  scorerName: string;
+  scorerDescription: string;
+  setScorerName: (name: string) => void;
+  setScorerDescription: (description: string) => void;
   setWizardStep: (wizardStep: number) => void;
   closeModal: () => void;
 }
 
 const UseCaseDetails = ({
   useCase,
-  useCaseName,
-  useCaseDescription,
-  setUseCaseName,
-  setUseCaseDescription,
+  scorerName,
+  scorerDescription,
+  setScorerName,
+  setScorerDescription,
   closeModal,
 }: UseCaseDetailsProps) => {
+  const router = useRouter();
+
   const switchToSelectMechanism = () => {
     // TODO: save the use case details in local storage
-    // TODO: navigate to mechanism selection route
+    localStorage.setItem(
+      "tempScorer",
+      JSON.stringify({
+        useCase: useCases.indexOf(useCase!),
+        name: scorerName,
+        description: scorerDescription,
+      })
+    );
+    // TODO: navigate to mechanism selection route with useRouter
+    router.push("/dashboard/new-scorer");
     closeModal();
   };
 
@@ -264,8 +275,8 @@ const UseCaseDetails = ({
         <Input
           data-testid="use-case-name-input"
           className="mt-2 mb-4 text-blue-darkblue"
-          value={useCaseName}
-          onChange={(name) => setUseCaseName(name.target.value)}
+          value={scorerName}
+          onChange={(name) => setScorerName(name.target.value)}
           placeholder="App / Use Case Name"
         />
         <label className="text-gray-softgray font-librefranklin text-xs">
@@ -274,9 +285,9 @@ const UseCaseDetails = ({
         <Input
           className="mt-2 text-blue-darkblue"
           data-testid="use-case-description-input"
-          value={useCaseDescription}
+          value={scorerDescription}
           onChange={(description) =>
-            setUseCaseDescription(description.target.value)
+            setScorerDescription(description.target.value)
           }
           placeholder="Enter Use Case Description"
         />
@@ -284,7 +295,7 @@ const UseCaseDetails = ({
       <button
         className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
         onClick={switchToSelectMechanism}
-        disabled={!useCaseName || !useCaseDescription}
+        disabled={!scorerName || !scorerDescription}
       >
         Continue
       </button>

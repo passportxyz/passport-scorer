@@ -22,9 +22,8 @@ const CommunityList = () => {
   const [selectUseCaseModalOpen, setSelectUseCaseModalOpen] = useState(false);
   const [updateCommunityModalOpen, setUpdateCommunityModalOpen] =
     useState(false);
-  const [updatedUseCaseDescription, setUpdatedUseCaseDescription] =
-    useState("");
-  const [updatedUseCaseName, setUpdatedUseCaseName] = useState("");
+  const [updatedScorerDescription, setUpdatedScorerDescription] = useState("");
+  const [updatedScorerName, setUpdatedScorerName] = useState("");
   const [updatedCommunityId, setUpdatedCommunityId] =
     useState<Community["id"]>();
   const [error, setError] = useState<undefined | string>();
@@ -46,8 +45,8 @@ const CommunityList = () => {
   const handleUpdateCommunity = async (communityId: Community["id"]) => {
     try {
       await updateCommunity(communityId, {
-        name: updatedUseCaseName,
-        description: updatedUseCaseDescription,
+        name: updatedScorerName,
+        description: updatedScorerDescription,
       });
       await fetchCommunities();
       setUpdateCommunityModalOpen(false);
@@ -74,8 +73,8 @@ const CommunityList = () => {
         setUpdateCommunityModalOpen={setUpdateCommunityModalOpen}
         handleDeleteCommunity={handleDeleteCommunity}
         setUpdatedCommunityId={setUpdatedCommunityId}
-        setUpdatedUseCaseName={setUpdatedUseCaseName}
-        setUpdatedUseCaseDescription={setUpdatedUseCaseDescription}
+        setUpdatedScorerName={setUpdatedScorerName}
+        setUpdatedScorerDescription={setUpdatedScorerDescription}
       />
     );
   });
