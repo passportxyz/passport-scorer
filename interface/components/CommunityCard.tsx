@@ -32,47 +32,30 @@ const CommunityCard = ({
   const router = useRouter();
 
   return (
-    <div className="grid w-full auto-cols-auto grid-cols-2 items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50">
-      {/* first column */}
-      <div className="grid-rows grid">
-        <p
-          id="community-name"
-          className="mb-2 cursor-pointer font-librefranklin font-semibold text-blue-darkblue"
-        >
-          <a
-            onClick={() => router.push(`/dashboard/community/${community.id}`)}
-          >
-            {community.name}
-          </a>
-        </p>
-        <p
-          id="community-description"
-          className="font-librefranklin text-purple-softpurple"
-        >
-          {community.description}
-        </p>
-      </div>
-      {/* second column */}
-      <div className="grid grid-cols-2 justify-self-end">
-        <button
-          data-testid="edit-community-button"
-          className="mr-2 justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
-          onClick={async () => {
-            setUpdatedCommunityId(community.id);
-            setUpdatedScorerName(community.name);
-            setUpdatedScorerDescription(community.description);
-            setUpdateCommunityModalOpen(true);
-          }}
-        >
-          <EditIcon color="#757087" />
-        </button>
-        <button
-          data-testid="delete-community-button"
-          className="justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
-          onClick={async () => await handleDeleteCommunity(communityId)}
-        >
-          <DeleteIcon color="#757087" />
-        </button>
+    <div className="flex items-center px-4 py-4 sm:px-6">
+      <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-3 md:gap-4">
+        <div>
+          <p className="truncate text-base font-medium">{community.name}</p>
+          <p className="mt-2 flex items-center text-sm text-gray-500">
+            <span className="truncate">{community.description}</span>
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="mt-2 flex flex-row-reverse text-sm text-gray-500">
+            Created:
+          </p>
+          <p className="flex flex-row-reverse text-sm text-gray-500">
+            {new Date(community.created_at).toDateString()}
+          </p>
+        </div>
+        <div>
+          <p className="mt-2 flex flex-row-reverse text-right text-sm text-gray-500">
+            Scorer ID:
+          </p>
+          <p className="flex flex-row-reverse text-sm text-gray-500">
+            {community.id}
+          </p>
+        </div>
       </div>
     </div>
   );

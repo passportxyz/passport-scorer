@@ -2,6 +2,7 @@ import hashlib
 import logging
 import random
 import string
+from datetime import datetime
 from typing import Dict, List, Optional, cast
 
 from account.models import Account, AccountAPIKey, Community, Nonce
@@ -150,7 +151,7 @@ class AccountApiSchema(ModelSchema):
 class CommunityApiSchema(ModelSchema):
     class Config:
         model = Community
-        model_fields = ["name", "description", "id"]
+        model_fields = ["name", "description", "id", "created_at", "use_case"]
 
 
 @api.post("/verify", response=TokenObtainPairOutSchema)
