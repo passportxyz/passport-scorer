@@ -16,12 +16,12 @@
   --onboard-shadow-3: none;
   --account-center-position-bottom: 0;
   --account-center-border-radius: 16px;
+  --onboard-action-required-btn-text-color: #fff;
 }
 
 /* Mobile media Query */
 @media (max-width: 800px) {
   :root {
     --onboard-modal-top: 0;
-    --account-center-border-radius: 0;
   }
 }
