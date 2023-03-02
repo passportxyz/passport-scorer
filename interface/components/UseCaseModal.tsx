@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
 // --- Components
@@ -71,6 +71,10 @@ const UseCaseModal = ({ isOpen, onClose }: UseCaseModalProps): JSX.Element => {
   );
   const [scorerName, setScorerName] = useState("");
   const [scorerDescription, setScorerDescription] = useState("");
+
+  useEffect(() => {
+    localStorage.removeItem("tempScorer");
+  }, []);
 
   const closeModal = () => {
     setScorerName("");
@@ -193,7 +197,7 @@ const SelectUseCase = ({
             data-testid="use-case-item"
             className={
               "cursor-pointer rounded border bg-white px-6 py-5 shadow-sm hover:border-purple-gitcoinpurple focus:outline-none md:mt-2 " +
-              (useCase?.title === item?.title
+              (useCase?.title === item.title
                 ? "border-purple-gitcoinpurple"
                 : "border-gray-300")
             }
@@ -243,7 +247,6 @@ const UseCaseDetails = ({
   const router = useRouter();
 
   const switchToSelectMechanism = () => {
-    // TODO: save the use case details in local storage
     localStorage.setItem(
       "tempScorer",
       JSON.stringify({
@@ -252,9 +255,7 @@ const UseCaseDetails = ({
         description: scorerDescription,
       })
     );
-    // TODO: navigate to mechanism selection route with useRouter
     router.push("/dashboard/new-scorer");
-    closeModal();
   };
 
   return (
