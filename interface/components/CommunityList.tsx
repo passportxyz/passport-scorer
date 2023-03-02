@@ -126,17 +126,19 @@ const CommunityList = () => {
   return (
     <>
       {communities.length === 0 ? (
-        <NoValues
-          title="Create a Scorer"
-          description="Select unique scoring mechanisms that align with your application’s goals."
-          addActionText="Scorer"
-          addRequest={() => {
-            setSelectUseCaseModalOpen(true);
-          }}
-          icon={<img src="/assets/outlineStarIcon.svg" />}
-        />
+        <div className="h-full">
+          <NoValues
+            title="Create a Scorer"
+            description="Select unique scoring mechanisms that align with your application’s goals."
+            addActionText="Scorer"
+            addRequest={() => {
+              setSelectUseCaseModalOpen(true);
+            }}
+            icon={<img src="/assets/outlineStarIcon.svg" />}
+          />
+        </div>
       ) : (
-        <div className="mx-0 mt-t">
+        <div className="mt-t mx-0">
           {communityList}
 
           <div className="mt-5 flex flex-wrap">
@@ -151,7 +153,9 @@ const CommunityList = () => {
             >
               <AddIcon className="mr-1" /> Scorer
             </button>
-            <p className="ml-5 py-3 text-purple-softpurple">The scorer limit is 5</p>
+            <p className="ml-5 py-3 text-purple-softpurple">
+              The scorer limit is 5
+            </p>
           </div>
           {error && <div>{error}</div>}
         </div>

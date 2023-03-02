@@ -123,7 +123,7 @@ export default function Dashboard({
         </div>
 
         {/* Main content - center */}
-        <div className="px-6 grow">{children}</div>
+        <div className="px-6 grow self-stretch">{children}</div>
 
         {/* Main content - right */}
         <div className="w-full flex-col self-stretch text-sm leading-[18px] md:max-w-xs">
