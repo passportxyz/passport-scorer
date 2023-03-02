@@ -136,7 +136,7 @@ const CommunityList = () => {
           icon={<img src="/assets/outlineStarIcon.svg" />}
         />
       ) : (
-        <div className="mx-5 mt-4">
+        <div className="mx-0 mt-t">
           {communityList}
 
           <div className="mt-5 flex flex-wrap">

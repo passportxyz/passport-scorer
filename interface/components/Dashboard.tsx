@@ -98,6 +98,7 @@ export default function Dashboard({
 }: DashboardProps) {
   return (
     <div className="font-libre-franklin flex min-h-default flex-col justify-between bg-gray-bluegray text-gray-400">
+      {/* The top part of the page */}
       <div className="bg-white">
         <Header
           authenticationStatus={authenticationStatus}
@@ -114,16 +115,23 @@ export default function Dashboard({
           </p>
         </div>
       </div>
-      <div className="flex grow flex-col items-center justify-between border-t border-gray-300 px-4 pt-2 sm:px-20 md:flex-row md:items-start">
+      {/* The mid part of the page */}
+      <div className="flex grow flex-row items-center justify-between border-t border-gray-300 px-4 pt-2 sm:px-20 md:flex-row md:items-start">
+        {/* Main content - left */}
         <div className="w-48 flex-col items-start self-start">
           <DashboardTabs activeTab={activeTab} />
         </div>
-        <div className="self-center p-6">{children}</div>
+
+        {/* Main content - center */}
+        <div className="px-6 grow">{children}</div>
+
+        {/* Main content - right */}
         <div className="w-full flex-col self-stretch text-sm leading-[18px] md:max-w-xs">
           <QuickLinks />
           <SampleApplications className="mt-6" />
         </div>
       </div>
+      {/* Bottom */}
       <Footer className="px-4 sm:px-20" />
     </div>
   );
