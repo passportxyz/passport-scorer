@@ -8,6 +8,7 @@ import {
   CloseIcon,
   RepeatIcon,
   AddIcon,
+  StarIcon,
 } from "@chakra-ui/icons";
 import CommunityCard from "./CommunityCard";
 import NoValues from "./NoValues";
@@ -126,18 +127,16 @@ const CommunityList = () => {
     <>
       {communities.length === 0 ? (
         <NoValues
-          title="My Communities"
-          description="Manage how your dapps interact with the Gitcoin Passport by creating a
-        key that will connect to any community."
+          title="Create a Scorer"
+          description="Select unique scoring mechanisms that align with your application’s goals."
+          addActionText="Scorer"
           addRequest={() => {
             setSelectUseCaseModalOpen(true);
           }}
-          icon={
-            <RepeatIcon viewBox="0 0 25 25" boxSize="1.9em" color="#757087" />
-          }
+          icon={<img src="/assets/outlineStarIcon.svg" />}
         />
       ) : (
-        <div className="mx-5 mt-4">
+        <div className="mt-t mx-0">
           {communityList}
 
           <div className="mt-5 flex flex-wrap">
@@ -152,7 +151,9 @@ const CommunityList = () => {
             >
               <AddIcon className="mr-1" /> Scorer
             </button>
-            <p className="ml-5 py-3 text-gray-500">The scorer limit is 5</p>
+            <p className="ml-5 py-3 text-purple-softpurple">
+              The scorer limit is 5
+            </p>
           </div>
           {error && <div>{error}</div>}
         </div>

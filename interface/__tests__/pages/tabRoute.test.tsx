@@ -32,25 +32,28 @@ describe("Dashboard", () => {
     (getApiKeys as jest.Mock).mockResolvedValue([]);
   });
 
-  it("should render the community dashboard", async () => {
-    await act(() => mockRouter.push("/dashboard/community"));
+  it("should render the scorer dashboard", async () => {
+    await act(() => mockRouter.push("/dashboard/scorer"));
 
     const { getByText } = render(
       <TabRoute authenticationStatus="authenticated" />
     );
 
     await waitFor(() =>
-      expect(getByText("My Communities")).toBeInTheDocument()
+      expect(getByText("Create a Scorer")).toBeInTheDocument()
     );
   });
 
   it("should show API key content when tab is clicked", async () => {
-    await act(() => mockRouter.push("/dashboard/community"));
+    await act(() => mockRouter.push("/dashboard/scorer"));
 
-    const { getByText } = render(
+    const { getAllByText, getByText } = render(
       <TabRoute authenticationStatus="authenticated" />
     );
-    const apiKeyTab = getByText("API Keys");
+    const apiKeyElements = getAllByText("API Keys");
+    expect(apiKeyElements.length).toBe(2);
+    const apiKeyTab = apiKeyElements[1];
+
     fireEvent.click(apiKeyTab);
 
     expect(mockRouter).toMatchObject({

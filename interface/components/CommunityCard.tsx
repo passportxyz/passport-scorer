@@ -5,10 +5,13 @@ import React from "react";
 import { Community } from "../utils/account-requests";
 
 // Components
-import { DeleteIcon, EditIcon } from "@chakra-ui/icons";
+import { Icon } from "@chakra-ui/icons";
 
 // --- Next
 import { useRouter } from "next/router";
+
+// -- Other
+import { useCaseByName } from "./UseCaseModal";
 
 type CommunityCardProps = {
   setUpdatedScorerName: Function;
@@ -31,28 +34,37 @@ const CommunityCard = ({
 }: CommunityCardProps): JSX.Element => {
   const router = useRouter();
 
+  const useCaseByNamee = useCaseByName;
+  const useCase = useCaseByName.get(community.use_case);
+  const useCaseIcon = useCase ? (
+    <Icon boxSize={19.5}>{useCase.icon("#6F3FF5")}</Icon>
+  ) : null;
   return (
     <div className="flex items-center px-4 py-4 sm:px-6">
-      <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-3 md:gap-4">
+      <div className="min-w-0 flex-1 md:grid md:grid-cols-3 md:gap-4">
         <div>
-          <p className="truncate text-base font-medium">{community.name}</p>
-          <p className="mt-2 flex items-center text-sm text-gray-500">
+          <p className="my-2 text-sm text-purple-gitcoinpurple">
+            {useCaseIcon}
+            {community.use_case}
+          </p>
+          <p className="truncate text-base font-medium text-purple-darkpurple">{community.name}</p>
+          <p className="mt-2 flex items-center text-sm text-purple-softpurple">
             <span className="truncate">{community.description}</span>
           </p>
         </div>
-        <div className="text-right">
-          <p className="mt-2 flex flex-row-reverse text-sm text-gray-500">
+        <div className="pt-5">
+          <p className="mt-2 flex flex-row-reverse text-sm text-purple-softpurple">
             Created:
           </p>
-          <p className="flex flex-row-reverse text-sm text-gray-500">
-            {new Date(community.created_at).toDateString()}
+          <p className="flex flex-row-reverse text-sm text-purple-softpurple">
+            {community.created_at?new Date(community.created_at).toDateString():"unknown"}
           </p>
         </div>
-        <div>
-          <p className="mt-2 flex flex-row-reverse text-right text-sm text-gray-500">
+        <div className="pt-5">
+          <p className="mt-2 flex flex-row-reverse text-sm text-purple-softpurple">
             Scorer ID:
           </p>
-          <p className="flex flex-row-reverse text-sm text-gray-500">
+          <p className="flex flex-row-reverse text-sm text-purple-softpurple">
             {community.id}
           </p>
         </div>

@@ -59,6 +59,15 @@ export const useCases: Array<UseCaseInterface> = [
   },
 ];
 
+export const useCaseByName: Map<string, UseCaseInterface> = new Map<
+  string,
+  UseCaseInterface
+>(
+  useCases.map((obj) => {
+    return [obj.title, obj];
+  })
+);
+
 interface UseCaseModalProps {
   isOpen: boolean;
   onClose: () => void;

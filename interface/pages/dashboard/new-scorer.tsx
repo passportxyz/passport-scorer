@@ -94,7 +94,7 @@ const NewScorer = ({
 
   const handleCancellation = () => {
     localStorage.removeItem("tempScorer");
-    router.push("/dashboard");
+    router.push("/dashboard/scorer");
   };
 
   const createScorer = async () => {
@@ -108,7 +108,7 @@ const NewScorer = ({
         scorer: gitcoinScoringMechanism!.apiTitle,
       });
       localStorage.setItem("scorerCreated", "true");
-      router.push("/dashboard");
+      router.push("/dashboard/scorer");
     } catch (e) {
       console.error(e);
     }

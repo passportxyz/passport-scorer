@@ -118,7 +118,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
         setAuthenticationStatus("authenticated");
 
-        router.push("/dashboard/community");
+        router.push("/dashboard/scorer");
       }
 
       return Boolean(verifyRes.ok);
