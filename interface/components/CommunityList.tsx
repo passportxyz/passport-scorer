@@ -35,11 +35,16 @@ const CommunityList = () => {
     useState<Community["id"]>();
   const [error, setError] = useState<undefined | string>();
   const [communities, setCommunities] = useState<Community[]>([]);
+  const [communityLoadingStatus, setCommunityLoadingStatus] =
+    useState<string>("initial");
 
   const fetchCommunities = useCallback(async () => {
     try {
+      setCommunityLoadingStatus("loading");
       setCommunities(await getCommunities());
+      setCommunityLoadingStatus("done");
     } catch (error) {
+      setCommunityLoadingStatus("error");
       console.log({ error });
       setError("There was an error fetching your Communities.");
     }
@@ -80,7 +85,7 @@ const CommunityList = () => {
           </div>
         ),
       });
-      localStorage.removeItem("scoreCreated");
+      localStorage.removeItem("scorerCreated");
     }
 
     fetchCommunities();
@@ -141,7 +146,9 @@ const CommunityList = () => {
               onClick={() => {
                 setSelectUseCaseModalOpen(true);
               }}
-              disabled={false}
+              disabled={
+                communityLoadingStatus !== "done" || communities.length >= 5
+              }
             >
               <AddIcon className="mr-1" /> Scorer
             </button>
