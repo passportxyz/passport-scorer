@@ -70,13 +70,19 @@ const APIKeyList = () => {
   return (
     <>
       {apiKeys.length === 0 ? (
-        <NoValues
-          title="Create a key"
-          description="Communicate between applications by connecting a key to request service from the community or organization."
-          addActionText="API Key"
-          addRequest={() => setModalOpen(true)}
-          icon={<SettingsIcon />}
-        />
+        <div className="h-full">
+          <div className="mx-auto text-purple-softpurple text-center">
+            The API’s keys are unique to your wallet address and can be used to
+            access created Scorers.
+          </div>
+          <NoValues
+            title="Create a key"
+            description="Communicate between applications by connecting a key to request service from the community or organization."
+            addActionText="API Key"
+            addRequest={() => setModalOpen(true)}
+            icon={<SettingsIcon />}
+          />
+        </div>
       ) : (
         <div className="flex">
           <div className="flex w-full">

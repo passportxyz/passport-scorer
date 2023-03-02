@@ -126,17 +126,15 @@ const CommunityList = () => {
   return (
     <>
       {communities.length === 0 ? (
-        <div className="h-full">
-          <NoValues
-            title="Create a Scorer"
-            description="Select unique scoring mechanisms that align with your application’s goals."
-            addActionText="Scorer"
-            addRequest={() => {
-              setSelectUseCaseModalOpen(true);
-            }}
-            icon={<img src="/assets/outlineStarIcon.svg" />}
-          />
-        </div>
+        <NoValues
+          title="Create a Scorer"
+          description="Select unique scoring mechanisms that align with your application’s goals."
+          addActionText="Scorer"
+          addRequest={() => {
+            setSelectUseCaseModalOpen(true);
+          }}
+          icon={<img src="/assets/outlineStarIcon.svg" />}
+        />
       ) : (
         <div className="mt-t mx-0">
           {communityList}
