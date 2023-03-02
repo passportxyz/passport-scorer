@@ -1,5 +1,18 @@
-import { Icon, Select, useToast } from "@chakra-ui/react";
-import { ExclamationCircleIcon } from "@heroicons/react/24/outline";
+import {
+  Icon,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalHeader,
+  ModalOverlay,
+  Select,
+  useToast,
+} from "@chakra-ui/react";
+import {
+  ExclamationCircleIcon,
+  NoSymbolIcon,
+} from "@heroicons/react/24/outline";
 import {
   ChartPieIcon,
   ScaleIcon,
@@ -15,6 +28,7 @@ import { UseCaseInterface, useCases } from "../../components/UseCaseModal";
 import { createCommunity } from "../../utils/account-requests";
 import { CloseIcon } from "@chakra-ui/icons";
 import PopoverInfo from "../../components/PopoverInfo";
+import ModalTemplate from "../../components/ModalTemplate";
 
 type DeduplicationType = "FIFO" | "LIFO";
 
@@ -81,6 +95,7 @@ const NewScorer = ({
   >(undefined);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [cancelModal, setCancelModal] = useState(false);
 
   useEffect(() => {
     const scorer =
@@ -338,7 +353,7 @@ const NewScorer = ({
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <button
                 className="order-last w-full rounded border border-gray-lightgray py-3 px-6 text-sm md:order-first md:w-[139px]"
-                onClick={handleCancellation}
+                onClick={() => setCancelModal(true)}
               >
                 Cancel
               </button>
@@ -353,6 +368,46 @@ const NewScorer = ({
               </button>
             </div>
           </div>
+          <Modal
+            isOpen={cancelModal}
+            isCentered={true}
+            size={{ base: "xs", md: "lg", lg: "lg", xl: "lg" }}
+            onClose={() => {}}
+          >
+            <ModalOverlay />
+            <ModalContent>
+              <ModalBody>
+                <div className="py-6 text-purple-darkpurple">
+                  <div className="flex items-center justify-center">
+                    <div className="mb-4 flex h-12 w-12 justify-center rounded-full bg-[#FDDEE4]">
+                      <NoSymbolIcon className="w-7 text-[#D44D6E]" />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-bold">Are you sure?</p>
+                    <p className="mt-2 text-purple-softpurple">
+                      Your scorer has not been saved, if you exit now your
+                      changes will not be saved.
+                    </p>
+                  </div>
+                  <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <button
+                      className="order-last w-full rounded border border-gray-lightgray py-2 px-6 text-base md:order-first"
+                      onClick={handleCancellation}
+                    >
+                      Exit Scorer
+                    </button>
+                    <button
+                      className="w-full rounded bg-purple-gitcoinpurple py-2 px-6 text-base text-white"
+                      onClick={() => setCancelModal(false)}
+                    >
+                      Continue Editing
+                    </button>
+                  </div>
+                </div>
+              </ModalBody>
+            </ModalContent>
+          </Modal>
         </footer>
       </div>
     </>
