@@ -60,9 +60,13 @@ export const deleteApiKey = async (apiKeyId: ApiKeys["id"]): Promise<void> => {
 };
 
 export type Community = {
+  id?: number;
   name: string;
   description: string;
-  id?: number;
+  use_case: string;
+  rule: string;
+  scorer: string;
+  created_at?: string;
 };
 
 export const createCommunity = async (community: Community) => {

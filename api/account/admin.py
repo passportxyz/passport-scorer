@@ -14,7 +14,7 @@ class AccountAdmin(admin.ModelAdmin):
 
 
 class CommunityAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "description", "account", "scorer_link")
+    list_display = ("id", "name", "description", "account", "scorer_link", "use_case")
     raw_id_fields = ("account", "scorer")
     search_fields = ("name", "description", "account__address")
     readonly_fields = ("scorer_link",)

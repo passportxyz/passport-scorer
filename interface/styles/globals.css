@@ -4,6 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  button:disabled {
+    @apply bg-purple-200 py-3 text-[#5932C4];
+  }
+}
+
 .font-libre-franklin {
   font-family: "Libre Franklin";
 }

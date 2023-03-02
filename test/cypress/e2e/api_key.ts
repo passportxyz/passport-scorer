@@ -3,9 +3,9 @@ import "../support/commands";
 
 Given("that I have an API account", () => {
   cy.siwe();
-  cy.visit("http://localhost:3000/");
-  cy.get("button").contains("Connect Wallet").click();
-  cy.visit("http://localhost:3000/dashboard");
+  cy.visit("/");
+  cy.get("button").contains("Sign-in with Ethereum").click();
+  cy.visit("/dashboard");
 });
 
 When("I hit to create an API key", () => {

@@ -5,14 +5,17 @@ import React from "react";
 import { Community } from "../utils/account-requests";
 
 // Components
-import { DeleteIcon, EditIcon } from "@chakra-ui/icons";
+import { Icon } from "@chakra-ui/icons";
 
 // --- Next
 import { useRouter } from "next/router";
 
+// -- Other
+import { useCaseByName } from "./UseCaseModal";
+
 type CommunityCardProps = {
-  setUpdatedCommunityName: Function;
-  setUpdatedCommunityDescription: Function;
+  setUpdatedScorerName: Function;
+  setUpdatedScorerDescription: Function;
   setUpdatedCommunityId: Function;
   community: Community;
   communityId: Community["id"];
@@ -25,48 +28,46 @@ const CommunityCard = ({
   handleDeleteCommunity,
   communityId,
   setUpdateCommunityModalOpen,
-  setUpdatedCommunityName,
-  setUpdatedCommunityDescription,
+  setUpdatedScorerName,
+  setUpdatedScorerDescription,
   setUpdatedCommunityId,
 }: CommunityCardProps): JSX.Element => {
   const router = useRouter();
 
+  const useCaseByNamee = useCaseByName;
+  const useCase = useCaseByName.get(community.use_case);
+  const useCaseIcon = useCase ? (
+    <Icon boxSize={19.5}>{useCase.icon("#6F3FF5")}</Icon>
+  ) : null;
   return (
-    <div className="grid w-full auto-cols-auto grid-cols-2 items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50">
-      {/* first column */}
-      <div className="grid-rows grid">
-        <p id="community-name" className="mb-2 cursor-pointer font-librefranklin font-semibold text-blue-darkblue">
-          <a
-            onClick={() => router.push(`/dashboard/community/${community.id}`)}
-          >
-            {community.name}
-          </a>
-        </p>
-        <p id="community-description" className="font-librefranklin text-purple-softpurple">
-          {community.description}
-        </p>
-      </div>
-      {/* second column */}
-      <div className="grid grid-cols-2 justify-self-end">
-        <button
-          data-testid="edit-community-button"
-          className="mr-2 justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
-          onClick={async () => {
-            setUpdatedCommunityId(community.id);
-            setUpdatedCommunityName(community.name);
-            setUpdatedCommunityDescription(community.description);
-            setUpdateCommunityModalOpen(true);
-          }}
-        >
-          <EditIcon color="#757087" />
-        </button>
-        <button
-          data-testid="delete-community-button"
-          className="justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
-          onClick={async () => await handleDeleteCommunity(communityId)}
-        >
-          <DeleteIcon color="#757087" />
-        </button>
+    <div className="flex items-center px-4 py-4 sm:px-6">
+      <div className="min-w-0 flex-1 md:grid md:grid-cols-3 md:gap-4">
+        <div>
+          <p className="my-2 text-sm text-purple-gitcoinpurple">
+            {useCaseIcon}
+            {community.use_case}
+          </p>
+          <p className="truncate text-base font-medium text-purple-darkpurple">{community.name}</p>
+          <p className="mt-2 flex items-center text-sm text-purple-softpurple">
+            <span className="truncate">{community.description}</span>
+          </p>
+        </div>
+        <div className="pt-5">
+          <p className="mt-2 flex flex-row-reverse text-sm text-purple-softpurple">
+            Created:
+          </p>
+          <p className="flex flex-row-reverse text-sm text-purple-softpurple">
+            {community.created_at?new Date(community.created_at).toDateString():"unknown"}
+          </p>
+        </div>
+        <div className="pt-5">
+          <p className="mt-2 flex flex-row-reverse text-sm text-purple-softpurple">
+            Scorer ID:
+          </p>
+          <p className="flex flex-row-reverse text-sm text-purple-softpurple">
+            {community.id}
+          </p>
+        </div>
       </div>
     </div>
   );

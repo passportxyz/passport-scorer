@@ -7,13 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest"
+    "test": "jest",
+    "static": "next build && next export",
+    "surge": "surge out"
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.0.12",
     "@chakra-ui/react": "^2.4.1",
     "@emotion/react": "^11",
     "@emotion/styled": "^11",
+    "@heroicons/react": "^2.0.16",
     "@rainbow-me/rainbowkit": "^0.8.0",
     "@rainbow-me/rainbowkit-siwe-next-auth": "^0.1.5",
     "@testing-library/user-event": "^14.4.3",

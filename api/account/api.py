@@ -2,6 +2,7 @@ import hashlib
 import logging
 import random
 import string
+from datetime import datetime
 from typing import Dict, List, Optional, cast
 
 from account.models import Account, AccountAPIKey, Community, Nonce
@@ -17,6 +18,8 @@ from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
 from scorer_weighted.models import BinaryWeightedScorer, WeightedScorer
 from siwe import SiweMessage, siwe
+
+from .deduplication import Rules
 
 log = logging.getLogger(__name__)
 
@@ -148,7 +151,7 @@ class AccountApiSchema(ModelSchema):
 class CommunityApiSchema(ModelSchema):
     class Config:
         model = Community
-        model_fields = ["name", "description", "id"]
+        model_fields = ["name", "description", "id", "created_at", "use_case"]
 
 
 @api.post("/verify", response=TokenObtainPairOutSchema)
@@ -249,12 +252,18 @@ def health(request):
 class CommunitiesPayload(Schema):
     name: str
     description: str
+    use_case: str
+    rule: str = Rules.LIFO
+    scorer: str
 
 
 @api.post("/communities", auth=JWTAuth())
 def create_community(request, payload: CommunitiesPayload):
     try:
         account = request.user.account
+        if payload == None:
+            raise CommunityHasNoBodyException()
+
         if Community.objects.filter(account=account).count() >= 5:
             raise TooManyCommunitiesException()
 
@@ -267,11 +276,22 @@ def create_community(request, payload: CommunitiesPayload):
         if len(payload.description) == 0:
             raise CommunityHasNoDescriptionException()
 
-        if payload == None:
-            raise CommunityHasNoBodyException()
+        scorer = None
+
+        if payload.scorer == "WEIGHTED_BINARY":
+            scorer = BinaryWeightedScorer(type="WEIGHTED_BINARY")
+        else:
+            scorer = WeightedScorer()
+
+        scorer.save()
 
         Community.objects.create(
-            account=account, name=payload.name, description=payload.description
+            account=account,
+            name=payload.name,
+            description=payload.description,
+            use_case=payload.use_case,
+            rule=payload.rule,
+            scorer=scorer,
         )
 
     except Account.DoesNotExist:

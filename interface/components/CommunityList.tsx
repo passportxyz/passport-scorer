@@ -3,79 +3,94 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 
 // --- Components
-import { RepeatIcon } from "@chakra-ui/icons";
+import {
+  CheckCircleIcon,
+  CloseIcon,
+  RepeatIcon,
+  AddIcon,
+  StarIcon,
+} from "@chakra-ui/icons";
 import CommunityCard from "./CommunityCard";
-import ModalTemplate from "./ModalTemplate";
 import NoValues from "./NoValues";
 
 // --- Utils
 import {
-  createCommunity,
   getCommunities,
   updateCommunity,
   deleteCommunity,
   Community,
 } from "../utils/account-requests";
-import { Input } from "@chakra-ui/react";
+
+import UseCaseModal from "./UseCaseModal";
+import { useToast } from "@chakra-ui/react";
 
 const CommunityList = () => {
   const router = useRouter();
-  const [createCommunityModalOpen, setCreateCommunityModalOpen] =
-    useState(false);
+  const toast = useToast();
+  const [selectUseCaseModalOpen, setSelectUseCaseModalOpen] = useState(false);
   const [updateCommunityModalOpen, setUpdateCommunityModalOpen] =
     useState(false);
-  const [communityName, setCommunityName] = useState("");
-  const [communityDescription, setCommunityDescription] = useState("");
-  const [updatedCommunityDescription, setUpdatedCommunityDescription] =
-    useState("");
-  const [updatedCommunityName, setUpdatedCommunityName] = useState("");
+  const [updatedScorerDescription, setUpdatedScorerDescription] = useState("");
+  const [updatedScorerName, setUpdatedScorerName] = useState("");
   const [updatedCommunityId, setUpdatedCommunityId] =
     useState<Community["id"]>();
   const [error, setError] = useState<undefined | string>();
   const [communities, setCommunities] = useState<Community[]>([]);
-
-  const handleCreateCommunity = async () => {
-    try {
-      await createCommunity({
-        name: communityName,
-        description: communityDescription,
-      });
-      setCommunityName("");
-      setCommunityDescription("");
-      await fetchCommunities();
-      setCreateCommunityModalOpen(false);
-    } catch (error) {
-      console.log({ error });
-    }
-  };
+  const [communityLoadingStatus, setCommunityLoadingStatus] =
+    useState<string>("initial");
 
   const fetchCommunities = useCallback(async () => {
     try {
+      setCommunityLoadingStatus("loading");
       setCommunities(await getCommunities());
+      setCommunityLoadingStatus("done");
     } catch (error) {
+      setCommunityLoadingStatus("error");
       console.log({ error });
       setError("There was an error fetching your Communities.");
     }
   }, []);
 
   useEffect(() => {
+    const scorerCreated = Boolean(localStorage.getItem("scorerCreated"));
+
+    if (scorerCreated) {
+      toast({
+        title: "Success!",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        variant: "solid",
+        position: "bottom",
+        render: () => (
+          <div
+            style={{
+              backgroundColor: "#0E0333",
+              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              padding: "16px",
+            }}
+          >
+            <CheckCircleIcon color="#02E2AC" boxSize={6} mr={4} />
+            <span style={{ color: "white", fontSize: "16px" }}>
+              Your Scorer has been created.
+            </span>
+            <CloseIcon
+              color="white"
+              boxSize={3}
+              ml="8"
+              cursor="pointer"
+              onClick={() => toast.closeAll()}
+            />
+          </div>
+        ),
+      });
+      localStorage.removeItem("scorerCreated");
+    }
+
     fetchCommunities();
   }, []);
-
-  const handleUpdateCommunity = async (communityId: Community["id"]) => {
-    try {
-      await updateCommunity(communityId, {
-        name: updatedCommunityName,
-        description: updatedCommunityDescription,
-      });
-      setUpdatedCommunityName("");
-      setUpdatedCommunityDescription("");
-      await fetchCommunities();
-      setUpdateCommunityModalOpen(false);
-    } catch (error) {
-      console.log({ error });
-    }
-  };
 
   const handleDeleteCommunity = async (communityId: Community["id"]) => {
     try {
@@ -86,7 +101,7 @@ const CommunityList = () => {
     }
   };
 
-  const communityList = communities.map((community: Community, i: number) => {
+  const communityItems = communities.map((community: Community, i: number) => {
     return (
       <CommunityCard
         key={i}
@@ -95,134 +110,58 @@ const CommunityList = () => {
         setUpdateCommunityModalOpen={setUpdateCommunityModalOpen}
         handleDeleteCommunity={handleDeleteCommunity}
         setUpdatedCommunityId={setUpdatedCommunityId}
-        setUpdatedCommunityName={setUpdatedCommunityName}
-        setUpdatedCommunityDescription={setUpdatedCommunityDescription}
+        setUpdatedScorerName={setUpdatedScorerName}
+        setUpdatedScorerDescription={setUpdatedScorerDescription}
       />
     );
   });
 
+  const communityList = (
+    <div className="overflow-hidden bg-white shadow sm:rounded-md">
+      <ul role="list" className="divide-y divide-gray-200">
+        {communityItems}
+      </ul>
+    </div>
+  );
   return (
     <>
       {communities.length === 0 ? (
         <NoValues
-          title="My Communities"
-          description="Manage how your dapps interact with the Gitcoin Passport by creating a
-        key that will connect to any community."
+          title="Create a Scorer"
+          description="Select unique scoring mechanisms that align with your application’s goals."
+          addActionText="Scorer"
           addRequest={() => {
-            setCommunityName("");
-            setCommunityDescription("");
-            setCreateCommunityModalOpen(true);
+            setSelectUseCaseModalOpen(true);
           }}
-          icon={
-            <RepeatIcon viewBox="0 0 25 25" boxSize="1.9em" color="#757087" />
-          }
+          icon={<img src="/assets/outlineStarIcon.svg" />}
         />
       ) : (
-        <div className="mx-5 mt-4">
+        <div className="mt-t mx-0">
           {communityList}
-          <button
-            onClick={() => router.push("/dashboard/api-keys")}
-            className="text-md mt-5 mr-5 rounded-sm bg-purple-softpurple  py-1 px-6 font-librefranklin text-white"
-          >
-            <span className="text-lg">+</span> Configure API Keys
-          </button>
-          <button
-            data-testid="open-community-modal"
-            onClick={() => {
-              setCommunityName("");
-              setCommunityDescription("");
-              setUpdatedCommunityName("");
-              setUpdatedCommunityDescription("");
-              setCreateCommunityModalOpen(true);
-            }}
-            className="text-md mt-5 rounded-sm border-2 border-gray-lightgray py-1 px-6 font-librefranklin text-blue-darkblue "
-            disabled={communities.length >= 5}
-          >
-            <span className="text-lg">+</span> Create a Community
-          </button>
+
+          <div className="mt-5 flex flex-wrap">
+            <button
+              className="rounded-md bg-purple-gitcoinpurple px-5 py-2 py-3 text-white"
+              onClick={() => {
+                setSelectUseCaseModalOpen(true);
+              }}
+              disabled={
+                communityLoadingStatus !== "done" || communities.length >= 5
+              }
+            >
+              <AddIcon className="mr-1" /> Scorer
+            </button>
+            <p className="ml-5 py-3 text-purple-softpurple">
+              The scorer limit is 5
+            </p>
+          </div>
           {error && <div>{error}</div>}
         </div>
       )}
-      <ModalTemplate
-        title="Create a Community"
-        isOpen={createCommunityModalOpen}
-        onClose={() => setCreateCommunityModalOpen(false)}
-      >
-        <div className="flex flex-col" data-testid="community-modal">
-          <label className="text-gray-softgray font-librefranklin text-xs">
-            Community Name
-          </label>
-          <Input
-            data-testid="community-name-input"
-            className="mb-4"
-            value={communityName}
-            onChange={(name) => setCommunityName(name.target.value)}
-            placeholder="Community name"
-          />
-          <label className="text-gray-softgray font-librefranklin text-xs">
-            Community Description
-          </label>
-          <Input
-            data-testid="community-description-input"
-            value={communityDescription}
-            onChange={(description) =>
-              setCommunityDescription(description.target.value)
-            }
-            placeholder="Community Description"
-          />
-          <div className="flex w-full justify-end">
-            <button
-              disabled={!communityName && !communityDescription}
-              data-testid="create-button"
-              className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
-              onClick={() => handleCreateCommunity()}
-            >
-              Create
-            </button>
-            {error && <div>{error}</div>}
-          </div>
-        </div>
-      </ModalTemplate>
-      <ModalTemplate
-        title="Update Community"
-        isOpen={updateCommunityModalOpen}
-        onClose={() => setUpdateCommunityModalOpen(false)}
-      >
-        <div className="flex flex-col">
-          <label className="text-gray-softgray font-librefranklin text-xs">
-            Community Name
-          </label>
-          <Input
-            data-testid="update-community-name-input"
-            className="mb-4"
-            value={updatedCommunityName}
-            onChange={(name) => setUpdatedCommunityName(name.target.value)}
-            placeholder="Community name"
-          />
-          <label className="text-gray-softgray font-librefranklin text-xs">
-            Community Description
-          </label>
-          <Input
-            data-testid="update-community-description-input"
-            value={updatedCommunityDescription}
-            onChange={(description) =>
-              setUpdatedCommunityDescription(description.target.value)
-            }
-            placeholder="Community Description"
-          />
-          <div className="flex w-full justify-end">
-            <button
-              disabled={!updatedCommunityName && !updatedCommunityDescription}
-              data-testid="save-button"
-              className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
-              onClick={() => handleUpdateCommunity(updatedCommunityId)}
-            >
-              Save
-            </button>
-            {error && <div>{error}</div>}
-          </div>
-        </div>
-      </ModalTemplate>
+      <UseCaseModal
+        isOpen={selectUseCaseModalOpen}
+        onClose={() => setSelectUseCaseModalOpen(false)}
+      />
     </>
   );
 };

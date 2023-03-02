@@ -13,7 +13,7 @@ const TabRoute = (props: any) => {
   const findComponent = useCallback(
     (tab: string, id?: string): React.ReactNode | void => {
       switch (tab) {
-        case "community":
+        case "scorer":
           return id ? <Community id={id} /> : <CommunityList />;
         case "api-keys":
           return <APIKeyList />;
