@@ -114,7 +114,7 @@ class Community(models.Model):
         Account, on_delete=models.CASCADE, related_name="community", default=None
     )
     scorer = models.ForeignKey(
-        Scorer, on_delete=models.PROTECT, default=get_default_community_scorer
+        Scorer, on_delete=models.CASCADE, default=get_default_community_scorer
     )
     use_case = models.CharField(
         blank=True,

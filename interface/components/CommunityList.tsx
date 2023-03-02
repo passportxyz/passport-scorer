@@ -47,9 +47,9 @@ const CommunityList = () => {
   }, []);
 
   useEffect(() => {
-    const scoreCreated = Boolean(localStorage.getItem("scoreCreated"));
+    const scorerCreated = Boolean(localStorage.getItem("scorerCreated"));
 
-    if (scoreCreated) {
+    if (scorerCreated) {
       toast({
         title: "Success!",
         status: "success",
