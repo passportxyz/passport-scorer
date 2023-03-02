@@ -18,6 +18,8 @@ from ninja_schema import Schema
 from scorer_weighted.models import BinaryWeightedScorer, WeightedScorer
 from siwe import SiweMessage, siwe
 
+from .deduplication import Rules
+
 log = logging.getLogger(__name__)
 
 api = NinjaExtraAPI(urls_namespace="account")
@@ -249,7 +251,9 @@ def health(request):
 class CommunitiesPayload(Schema):
     name: str
     description: str
-    use_case: str = None
+    use_case: str
+    rule: str = Rules.LIFO
+    scorer: str
 
 
 @api.post("/communities", auth=JWTAuth())
@@ -271,11 +275,22 @@ def create_community(request, payload: CommunitiesPayload):
         if len(payload.description) == 0:
             raise CommunityHasNoDescriptionException()
 
+        scorer = None
+
+        if payload.scorer == "WEIGHTED_BINARY":
+            scorer = BinaryWeightedScorer(type="WEIGHTED_BINARY")
+        else:
+            scorer = WeightedScorer()
+
+        scorer.save()
+
         Community.objects.create(
             account=account,
             name=payload.name,
             description=payload.description,
             use_case=payload.use_case,
+            rule=payload.rule,
+            scorer=scorer,
         )
 
     except Account.DoesNotExist:
