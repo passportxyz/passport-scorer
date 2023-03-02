@@ -1,5 +1,5 @@
-import { Icon, Select } from "@chakra-ui/react";
-import { InformationCircleIcon } from "@heroicons/react/24/solid";
+import { Icon, Select, useToast } from "@chakra-ui/react";
+import { ExclamationCircleIcon } from "@heroicons/react/24/outline";
 import {
   ChartPieIcon,
   ScaleIcon,
@@ -9,10 +9,12 @@ import {
 import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
 
 import { useRouter } from "next/router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Header from "../../components/Header";
 import { UseCaseInterface, useCases } from "../../components/UseCaseModal";
 import { createCommunity } from "../../utils/account-requests";
+import { CloseIcon } from "@chakra-ui/icons";
+import PopoverInfo from "../../components/PopoverInfo";
 
 type DeduplicationType = "FIFO" | "LIFO";
 
@@ -67,6 +69,7 @@ const NewScorer = ({
   authenticationStatus: AuthenticationStatus;
 }) => {
   const router = useRouter();
+  const toast = useToast();
   const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
     undefined
   );
@@ -110,7 +113,37 @@ const NewScorer = ({
       localStorage.setItem("scorerCreated", "true");
       router.push("/dashboard/scorer");
     } catch (e) {
-      console.error(e);
+      toast({
+        title: "Warning!",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+        variant: "solid",
+        position: "bottom",
+        render: () => (
+          <div
+            style={{
+              backgroundColor: "#FDDEE4",
+              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              padding: "16px",
+            }}
+          >
+            <ExclamationCircleIcon className="mr-3 w-6 text-[#D44D6E]" />
+            <span style={{ color: "#0E0333", fontSize: "16px" }}>
+              Something went wrong. Please try again.
+            </span>
+            <CloseIcon
+              color="#0E0333"
+              boxSize={3}
+              ml="8"
+              cursor="pointer"
+              onClick={() => toast.closeAll()}
+            />
+          </div>
+        ),
+      });
     }
   };
 
@@ -150,11 +183,25 @@ const NewScorer = ({
               <div className="hidden gap-2 sm:grid-cols-1 md:grid md:grid-cols-3 md:gap-6 lg:grid-cols-4">
                 <span className="text-xs">
                   Select Deduplication{" "}
-                  <InformationCircleIcon className="inline w-4 text-purple-softpurple" />
+                  <PopoverInfo>
+                    <span className="text-sm text-white">
+                      Gitcoin scoring uses binary logic to verify stamp/account
+                      ownership, encrypted for privacy and to decrease
+                      deduplication risk.{" "}
+                      <a href="#" className="text-green-jade underline">
+                        Learn More
+                      </a>
+                    </span>
+                  </PopoverInfo>
                 </span>
                 <p className="text-xs">
                   Gitcoin Scoring Mechanism{" "}
-                  <InformationCircleIcon className="inline w-4 text-purple-softpurple" />
+                  <PopoverInfo>
+                    <span className="text-sm text-white">
+                      The scoring rules evaluate Passports based on the
+                      "Verifiable Credentials" (VCs), or "Stamps" they hold.
+                    </span>
+                  </PopoverInfo>
                 </p>
                 <div></div>
                 <div></div>
@@ -163,7 +210,16 @@ const NewScorer = ({
                 <div className="grid gap-2 sm:grid-cols-1 md:grid-cols-3 md:gap-6 lg:grid-cols-4">
                   <span className="visible text-xs md:hidden">
                     Select Deduplication{" "}
-                    <InformationCircleIcon className="inline w-4 text-purple-softpurple" />
+                    <PopoverInfo>
+                      <span className="text-sm text-white">
+                        Gitcoin scoring uses binary logic to verify
+                        stamp/account ownership, encrypted for privacy and to
+                        decrease deduplication risk.{" "}
+                        <a href="#" className="text-green-jade underline">
+                          Learn More
+                        </a>
+                      </span>
+                    </PopoverInfo>
                   </span>
                   <div className="mt-2 h-[166px] w-full rounded border border-gray-lightgray bg-white p-6 text-purple-softpurple">
                     <p className="mb-6 text-xs">
@@ -181,7 +237,12 @@ const NewScorer = ({
                   </div>
                   <p className="visible mt-6 text-xs md:hidden">
                     Gitcoin Scoring Mechanism{" "}
-                    <InformationCircleIcon className="inline w-4 text-purple-softpurple" />
+                    <PopoverInfo>
+                      <span className="text-sm text-white">
+                        The scoring rules evaluate Passports based on the
+                        "Verifiable Credentials" (VCs), or "Stamps" they hold.
+                      </span>
+                    </PopoverInfo>
                   </p>
                   {gitcoinScoringMechanisms.map((mechanism, index) => (
                     <div
@@ -242,7 +303,11 @@ const NewScorer = ({
                   <div>
                     <p className="text-xs">
                       Custom Scoring Mechanisms{" "}
-                      <InformationCircleIcon className="inline w-4 text-purple-softpurple" />
+                      <PopoverInfo>
+                        <span className="text-sm text-white">
+                          This needs a rewording...
+                        </span>
+                      </PopoverInfo>
                     </p>
                     <div className="mt-2 w-full cursor-not-allowed rounded border border-gray-lightgray bg-white p-6">
                       <div className="flex items-center justify-between">
