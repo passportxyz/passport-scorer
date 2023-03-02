@@ -100,6 +100,7 @@ class Community(models.Model):
         verbose_name_plural = "Communities"
 
     name = models.CharField(max_length=100, blank=False, null=False)
+    created_at = models.DateTimeField(auto_now_add=False, null=True, blank=True)
     rule = models.CharField(
         max_length=100,
         blank=False,

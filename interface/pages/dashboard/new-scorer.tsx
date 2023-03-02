@@ -107,7 +107,7 @@ const NewScorer = ({
         rule: deduplication,
         scorer: gitcoinScoringMechanism!.apiTitle,
       });
-      localStorage.setItem("scoreCreated", "true");
+      localStorage.setItem("scorerCreated", "true");
       router.push("/dashboard");
     } catch (e) {
       console.error(e);

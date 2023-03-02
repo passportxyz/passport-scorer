@@ -4,11 +4,10 @@ import { useRouter } from "next/router";
 
 // --- Components
 import {
-  ArrowBackIcon,
   CheckCircleIcon,
   CloseIcon,
   RepeatIcon,
-  SmallCloseIcon,
+  AddIcon,
 } from "@chakra-ui/icons";
 import CommunityCard from "./CommunityCard";
 import NoValues from "./NoValues";
@@ -36,11 +35,16 @@ const CommunityList = () => {
     useState<Community["id"]>();
   const [error, setError] = useState<undefined | string>();
   const [communities, setCommunities] = useState<Community[]>([]);
+  const [communityLoadingStatus, setCommunityLoadingStatus] =
+    useState<string>("initial");
 
   const fetchCommunities = useCallback(async () => {
     try {
+      setCommunityLoadingStatus("loading");
       setCommunities(await getCommunities());
+      setCommunityLoadingStatus("done");
     } catch (error) {
+      setCommunityLoadingStatus("error");
       console.log({ error });
       setError("There was an error fetching your Communities.");
     }
@@ -81,7 +85,7 @@ const CommunityList = () => {
           </div>
         ),
       });
-      localStorage.removeItem("scoreCreated");
+      localStorage.removeItem("scorerCreated");
     }
 
     fetchCommunities();
@@ -96,7 +100,7 @@ const CommunityList = () => {
     }
   };
 
-  const communityList = communities.map((community: Community, i: number) => {
+  const communityItems = communities.map((community: Community, i: number) => {
     return (
       <CommunityCard
         key={i}
@@ -111,6 +115,13 @@ const CommunityList = () => {
     );
   });
 
+  const communityList = (
+    <div className="overflow-hidden bg-white shadow sm:rounded-md">
+      <ul role="list" className="divide-y divide-gray-200">
+        {communityItems}
+      </ul>
+    </div>
+  );
   return (
     <>
       {communities.length === 0 ? (
@@ -128,22 +139,21 @@ const CommunityList = () => {
       ) : (
         <div className="mx-5 mt-4">
           {communityList}
-          <button
-            onClick={() => router.push("/dashboard/api-keys")}
-            className="text-md mt-5 mr-5 rounded-sm bg-purple-softpurple  py-1 px-6 font-librefranklin text-white"
-          >
-            <span className="text-lg">+</span> Configure API Keys
-          </button>
-          <button
-            data-testid="open-community-modal"
-            onClick={() => {
-              setSelectUseCaseModalOpen(true);
-            }}
-            className="text-md mt-5 rounded-sm border-2 border-gray-lightgray py-1 px-6 font-librefranklin text-blue-darkblue "
-            disabled={communities.length >= 5}
-          >
-            <span className="text-lg">+</span> Create a Community
-          </button>
+
+          <div className="mt-5 flex flex-wrap">
+            <button
+              className="rounded-md bg-purple-gitcoinpurple px-5 py-2 py-3 text-white"
+              onClick={() => {
+                setSelectUseCaseModalOpen(true);
+              }}
+              disabled={
+                communityLoadingStatus !== "done" || communities.length >= 5
+              }
+            >
+              <AddIcon className="mr-1" /> Scorer
+            </button>
+            <p className="ml-5 py-3 text-gray-500">The scorer limit is 5</p>
+          </div>
           {error && <div>{error}</div>}
         </div>
       )}
