@@ -62,6 +62,9 @@ export const deleteApiKey = async (apiKeyId: ApiKeys["id"]): Promise<void> => {
 export type Community = {
   name: string;
   description: string;
+  use_case: string;
+  rule: string;
+  scorer: string;
   id?: number;
 };
 

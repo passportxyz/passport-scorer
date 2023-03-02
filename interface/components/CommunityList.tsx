@@ -3,7 +3,13 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 
 // --- Components
-import { ArrowBackIcon, RepeatIcon, SmallCloseIcon } from "@chakra-ui/icons";
+import {
+  ArrowBackIcon,
+  CheckCircleIcon,
+  CloseIcon,
+  RepeatIcon,
+  SmallCloseIcon,
+} from "@chakra-ui/icons";
 import CommunityCard from "./CommunityCard";
 import NoValues from "./NoValues";
 
@@ -16,9 +22,11 @@ import {
 } from "../utils/account-requests";
 
 import UseCaseModal from "./UseCaseModal";
+import { useToast } from "@chakra-ui/react";
 
 const CommunityList = () => {
   const router = useRouter();
+  const toast = useToast();
   const [selectUseCaseModalOpen, setSelectUseCaseModalOpen] = useState(false);
   const [updateCommunityModalOpen, setUpdateCommunityModalOpen] =
     useState(false);
@@ -39,21 +47,45 @@ const CommunityList = () => {
   }, []);
 
   useEffect(() => {
+    const scoreCreated = Boolean(localStorage.getItem("scoreCreated"));
+
+    if (scoreCreated) {
+      toast({
+        title: "Success!",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        variant: "solid",
+        position: "bottom",
+        render: () => (
+          <div
+            style={{
+              backgroundColor: "#0E0333",
+              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              padding: "16px",
+            }}
+          >
+            <CheckCircleIcon color="#02E2AC" boxSize={6} mr={4} />
+            <span style={{ color: "white", fontSize: "16px" }}>
+              Your Scorer has been created.
+            </span>
+            <CloseIcon
+              color="white"
+              boxSize={3}
+              ml="8"
+              cursor="pointer"
+              onClick={() => toast.closeAll()}
+            />
+          </div>
+        ),
+      });
+      localStorage.removeItem("scoreCreated");
+    }
+
     fetchCommunities();
   }, []);
-
-  const handleUpdateCommunity = async (communityId: Community["id"]) => {
-    try {
-      await updateCommunity(communityId, {
-        name: updatedScorerName,
-        description: updatedScorerDescription,
-      });
-      await fetchCommunities();
-      setUpdateCommunityModalOpen(false);
-    } catch (error) {
-      console.log({ error });
-    }
-  };
 
   const handleDeleteCommunity = async (communityId: Community["id"]) => {
     try {
