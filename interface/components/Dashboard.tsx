@@ -7,7 +7,6 @@ import { useRouter } from "next/router";
 
 // --- Components
 import Header from "../components/Header";
-import CommunityList from "../components/CommunityList";
 import { SettingsIcon, Icon } from "@chakra-ui/icons";
 import { GoInbox } from "react-icons/go";
 

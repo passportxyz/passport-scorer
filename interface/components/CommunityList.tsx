@@ -3,7 +3,13 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 
 // --- Components
-import { ArrowBackIcon, RepeatIcon, SmallCloseIcon } from "@chakra-ui/icons";
+import {
+  ArrowBackIcon,
+  CheckCircleIcon,
+  CloseIcon,
+  RepeatIcon,
+  SmallCloseIcon,
+} from "@chakra-ui/icons";
 import CommunityCard from "./CommunityCard";
 import NoValues from "./NoValues";
 
@@ -16,15 +22,16 @@ import {
 } from "../utils/account-requests";
 
 import UseCaseModal from "./UseCaseModal";
+import { useToast } from "@chakra-ui/react";
 
 const CommunityList = () => {
   const router = useRouter();
+  const toast = useToast();
   const [selectUseCaseModalOpen, setSelectUseCaseModalOpen] = useState(false);
   const [updateCommunityModalOpen, setUpdateCommunityModalOpen] =
     useState(false);
-  const [updatedUseCaseDescription, setUpdatedUseCaseDescription] =
-    useState("");
-  const [updatedUseCaseName, setUpdatedUseCaseName] = useState("");
+  const [updatedScorerDescription, setUpdatedScorerDescription] = useState("");
+  const [updatedScorerName, setUpdatedScorerName] = useState("");
   const [updatedCommunityId, setUpdatedCommunityId] =
     useState<Community["id"]>();
   const [error, setError] = useState<undefined | string>();
@@ -40,21 +47,45 @@ const CommunityList = () => {
   }, []);
 
   useEffect(() => {
+    const scorerCreated = Boolean(localStorage.getItem("scorerCreated"));
+
+    if (scorerCreated) {
+      toast({
+        title: "Success!",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        variant: "solid",
+        position: "bottom",
+        render: () => (
+          <div
+            style={{
+              backgroundColor: "#0E0333",
+              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              padding: "16px",
+            }}
+          >
+            <CheckCircleIcon color="#02E2AC" boxSize={6} mr={4} />
+            <span style={{ color: "white", fontSize: "16px" }}>
+              Your Scorer has been created.
+            </span>
+            <CloseIcon
+              color="white"
+              boxSize={3}
+              ml="8"
+              cursor="pointer"
+              onClick={() => toast.closeAll()}
+            />
+          </div>
+        ),
+      });
+      localStorage.removeItem("scoreCreated");
+    }
+
     fetchCommunities();
   }, []);
-
-  const handleUpdateCommunity = async (communityId: Community["id"]) => {
-    try {
-      await updateCommunity(communityId, {
-        name: updatedUseCaseName,
-        description: updatedUseCaseDescription,
-      });
-      await fetchCommunities();
-      setUpdateCommunityModalOpen(false);
-    } catch (error) {
-      console.log({ error });
-    }
-  };
 
   const handleDeleteCommunity = async (communityId: Community["id"]) => {
     try {
@@ -74,8 +105,8 @@ const CommunityList = () => {
         setUpdateCommunityModalOpen={setUpdateCommunityModalOpen}
         handleDeleteCommunity={handleDeleteCommunity}
         setUpdatedCommunityId={setUpdatedCommunityId}
-        setUpdatedUseCaseName={setUpdatedUseCaseName}
-        setUpdatedUseCaseDescription={setUpdatedUseCaseDescription}
+        setUpdatedScorerName={setUpdatedScorerName}
+        setUpdatedScorerDescription={setUpdatedScorerDescription}
       />
     );
   });

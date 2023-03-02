@@ -100,7 +100,7 @@ class Community(models.Model):
         verbose_name_plural = "Communities"
 
     name = models.CharField(max_length=100, blank=False, null=False)
-    rules = models.CharField(
+    rule = models.CharField(
         max_length=100,
         blank=False,
         null=False,
@@ -114,7 +114,13 @@ class Community(models.Model):
         Account, on_delete=models.CASCADE, related_name="community", default=None
     )
     scorer = models.ForeignKey(
-        Scorer, on_delete=models.PROTECT, default=get_default_community_scorer
+        Scorer, on_delete=models.CASCADE, default=get_default_community_scorer
+    )
+    use_case = models.CharField(
+        blank=True,
+        null=True,
+        max_length=100,
+        help_text="The use case that the creator of this community (Scorer) would like to cover",
     )
 
     def __repr__(self):
@@ -122,13 +128,6 @@ class Community(models.Model):
 
     def __str__(self):
         return f"Community - {self.name}"
-
-    use_case = models.CharField(
-        blank=True,
-        null=True,
-        max_length=100,
-        help_text="The use case that the creator of this community (Scorer) would like to cover",
-    )
 
     def get_scorer(self) -> Scorer:
         if self.scorer.type == Scorer.Type.WEIGHTED:

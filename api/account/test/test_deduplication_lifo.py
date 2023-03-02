@@ -32,7 +32,7 @@ class LifoDeduplicationTestCase(TestCase):
             type=Scorer.Type.WEIGHTED, weights={"test_provider": 10}
         )
         self.community1 = Community.objects.create(
-            name="Community1", scorer=scorer1, rules=Rules.LIFO, account=self.account1
+            name="Community1", scorer=scorer1, rule=Rules.LIFO, account=self.account1
         )
 
         (self.account2, _) = Account.objects.get_or_create(
@@ -42,7 +42,7 @@ class LifoDeduplicationTestCase(TestCase):
             type=Scorer.Type.WEIGHTED, weights={"test_provider": 10}
         )
         self.community2 = Community.objects.create(
-            name="Community2", scorer=scorer2, rules=Rules.LIFO, account=self.account2
+            name="Community2", scorer=scorer2, rule=Rules.LIFO, account=self.account2
         )
 
     def test_lifo_no_deduplicate_across_cummunities(self):
