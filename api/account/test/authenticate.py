@@ -3,12 +3,12 @@ import json
 from copy import deepcopy
 from datetime import datetime
 
+from django.conf import settings
 from django.test import Client, TestCase
 from eth_account.messages import encode_defunct
 from siwe import SiweMessage
 from web3 import Web3
 from web3.auto import w3
-from django.conf import settings
 
 # Create your tests here.
 
@@ -30,15 +30,16 @@ def authenticate(client):
     response = c.get("/account/nonce")
 
     data = response.json()
+    nonce = data["nonce"]
 
     siwe_data = {
         "domain": "localhost",
         "address": account.address,
-        "statement": "Sign in with Ethereum to the app.",
+        "statement": f"Welcome to Gitcoin Passport Scorer! This request will not trigger a blockchain transaction or cost any gas fees. Your authentication status will reset in 24 hours. Wallet Address: ${account.address}. Nonce: ${nonce}",
         "uri": "http://localhost/",
         "version": "1",
         "chainId": "1",
-        "nonce": data["nonce"],
+        "nonce": nonce,
         "issuedAt": datetime.utcnow().isoformat(),
     }
 
@@ -84,15 +85,16 @@ class AccountTestCase(TestCase):
         self.assertEqual(200, response.status_code)
 
         data = response.json()
+        nonce = data["nonce"]
 
         siwe_data = {
             "domain": "localhost",
             "address": account.address,
-            "statement": "Sign in with Ethereum to the app.",
+            "statement": f"Welcome to Gitcoin Passport Scorer!\nThis request will not trigger a blockchain transaction or cost any gas fees.\nYou authentication status will reset in 24 hours.\nWallet Address:\n {account.address}\nNonce: {nonce}",
             "uri": "http://localhost/",
             "version": "1",
             "chainId": "1",
-            "nonce": data["nonce"],
+            "nonce": nonce,
             "issuedAt": datetime.utcnow().isoformat(),
         }
 

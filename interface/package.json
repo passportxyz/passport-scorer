@@ -9,17 +9,21 @@
     "lint": "next lint",
     "test": "jest",
     "static": "next build && next export",
-    "surge": "surge out"
+    "surge": "surge out",
+    "lint:fix": "next lint && prettier --write ."
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.0.12",
     "@chakra-ui/react": "^2.4.1",
     "@emotion/react": "^11",
     "@emotion/styled": "^11",
-    "@heroicons/react": "^2.0.16",
-    "@rainbow-me/rainbowkit": "^0.8.0",
-    "@rainbow-me/rainbowkit-siwe-next-auth": "^0.1.5",
     "@testing-library/user-event": "^14.4.3",
+    "@web3-onboard/coinbase": "^2.2.0",
+    "@web3-onboard/core": "^2.15.2",
+    "@web3-onboard/injected-wallets": "^2.8.0",
+    "@web3-onboard/ledger": "^2.4.2",
+    "@web3-onboard/react": "^2.6.4",
+    "@web3-onboard/walletconnect": "^2.2.2",
     "axios": "^1.2.0",
     "ethers": "^5.7.2",
     "framer-motion": "^6",
@@ -27,8 +31,7 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-icons": "^4.7.1",
-    "siwe": "^1.1.6",
-    "wagmi": "^0.8.6"
+    "siwe": "^1.1.6"
   },
   "devDependencies": {
     "@badeball/cypress-cucumber-preprocessor": "^14.0.0",

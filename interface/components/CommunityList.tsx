@@ -1,6 +1,9 @@
 // --- React components/methods
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useContext } from "react";
 import { useRouter } from "next/router";
+
+// --- Context
+import { UserContext } from "../context/userContext";
 
 // --- Components
 import {
@@ -48,6 +51,9 @@ const CommunityList = () => {
       setCommunityLoadingStatus("error");
       console.log({ error });
       setError("There was an error fetching your Communities.");
+      if (error.response.status === 401) {
+        logout();
+      }
     }
   }, []);
 
@@ -96,8 +102,11 @@ const CommunityList = () => {
     try {
       await deleteCommunity(communityId);
       await fetchCommunities();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      if (error.response.status === 401) {
+        logout();
+      }
     }
   };
 

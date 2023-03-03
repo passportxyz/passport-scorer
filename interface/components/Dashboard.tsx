@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 
 // --- Components
 import Header from "./Header";
@@ -82,7 +82,7 @@ const SampleApplications = ({ className }: { className?: string }) => {
         className={linkClassName}
       />
       <QuickLink
-        text="Gitcoin Allo Protocol"
+        text="Gitcoin Allo Protoc ol"
         url="/"
         className={linkClassName}
       />
