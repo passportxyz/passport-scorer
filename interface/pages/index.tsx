@@ -47,7 +47,7 @@ export default function Home() {
   const toast = useToast();
 
   if (connected) {
-    router.push("/dashboard/community");
+    router.push("/dashboard/scorer");
   }
 
   useEffect(() => {

@@ -41,6 +41,7 @@ const CommunityList = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [communityLoadingStatus, setCommunityLoadingStatus] =
     useState<string>("initial");
+  const { logout } = useContext(UserContext);
 
   const fetchCommunities = useCallback(async () => {
     try {
