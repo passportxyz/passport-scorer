@@ -98,6 +98,7 @@ def get_default_community_scorer():
 class Community(models.Model):
     class Meta:
         verbose_name_plural = "Communities"
+        unique_together = [["account", "name"]]
 
     name = models.CharField(max_length=100, blank=False, null=False)
     created_at = models.DateTimeField(auto_now_add=False, null=True, blank=True)

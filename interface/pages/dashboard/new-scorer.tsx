@@ -28,7 +28,6 @@ import { UseCaseInterface, useCases } from "../../components/UseCaseModal";
 import { createCommunity } from "../../utils/account-requests";
 import { CloseIcon } from "@chakra-ui/icons";
 import PopoverInfo from "../../components/PopoverInfo";
-import ModalTemplate from "../../components/ModalTemplate";
 
 type DeduplicationType = "FIFO" | "LIFO";
 
@@ -89,7 +88,7 @@ const NewScorer = ({
   );
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [deduplication, setDeduplication] = useState<DeduplicationType>("FIFO");
+  const [deduplication, setDeduplication] = useState<DeduplicationType>("LIFO");
   const [gitcoinScoringMechanism, setGitcoinScoringMechanism] = useState<
     GitcoinScoringMechanismInterface | undefined
   >(undefined);
@@ -101,7 +100,6 @@ const NewScorer = ({
     const scorer =
       JSON.parse(localStorage.getItem("tempScorer") || "null") || {};
 
-    console.log("step 2");
     if (Object.keys(scorer).length > 0) {
       const useCase = useCases[scorer.useCase];
       setUseCase(useCase);
@@ -214,7 +212,7 @@ const NewScorer = ({
                   <PopoverInfo>
                     <span className="text-sm text-white">
                       The scoring rules evaluate Passports based on the
-                      &ldquo;Verifiable Credentials&rdquo; (VCs), or &ldquo;Stamps&ldquo; they hold.
+                      &quot;Verifiable Credentials&quot; (VCs), or &quot;Stamps&quot; they hold.
                     </span>
                   </PopoverInfo>
                 </p>
@@ -255,13 +253,14 @@ const NewScorer = ({
                     <PopoverInfo>
                       <span className="text-sm text-white">
                         The scoring rules evaluate Passports based on the
-                        &ldquo;Verifiable Credentials&rdquo; (VCs), or &ldquo;Stamps&ldquo; they hold.
+                        &quot;Verifiable Credentials&quot; (VCs), or &quot;Stamps&quot; they hold.
                       </span>
                     </PopoverInfo>
                   </p>
                   {gitcoinScoringMechanisms.map((mechanism, index) => (
                     <div
                       key={index}
+                      data-testid={`scoring-mechanism-${index}`}
                       onClick={() => setGitcoinScoringMechanism(mechanism)}
                       className={
                         "mt-2 w-full rounded border border-gray-lightgray bg-white p-6 md:max-w-[450px] " +

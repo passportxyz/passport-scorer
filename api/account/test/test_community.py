@@ -1,14 +1,17 @@
 import json
 
 from account.models import Account, Community
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from ninja_jwt.schema import RefreshToken
+
+User = get_user_model()
 
 mock_community_body = {
     "name": "test",
     "description": "test",
     "use_case": "sybill protection",
+    "scorer": "WEIGHTED",
 }
 
 
@@ -78,7 +81,7 @@ class CommunityTestCase(TestCase):
         # create first community
         community_response = client.post(
             "/account/communities",
-            json.dumps({"name": "test", "description": "first community"}),
+            json.dumps(mock_community_body),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
         )
@@ -86,11 +89,15 @@ class CommunityTestCase(TestCase):
 
         community_response1 = client.post(
             "/account/communities",
-            json.dumps({"name": "test", "description": "another community"}),
+            json.dumps(mock_community_body),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
         )
         self.assertEqual(community_response1.status_code, 400)
+        response_data = community_response1.json()
+        self.assertEqual(
+            response_data, {"detail": "A community with this name already exists"}
+        )
 
     def test_create_community_with_no_description(self):
         """Test that creation of a community with no description fails"""
@@ -119,9 +126,11 @@ class CommunityTestCase(TestCase):
 
         # Create 5 communities
         for i in range(5):
+            community_body = dict(**mock_community_body)
+            community_body["name"] = f"test {i}"
             community_response = client.post(
                 "/account/communities",
-                json.dumps({"name": f"test {i}", "description": "test"}),
+                json.dumps(community_body),
                 content_type="application/json",
                 **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
             )
@@ -172,13 +181,15 @@ class CommunityTestCase(TestCase):
 
         # Create Community
         account_community = Community.objects.create(
-            account=self.account, name="Community 1", description="test"
+            account=self.account,
+            name="OLD - " + mock_community_body["name"],
+            description="OLD - " + mock_community_body["description"],
         )
 
         # Edit the community
         community_response = client.put(
             f"/account/communities/{account_community.id}",
-            json.dumps({"name": "New Name", "description": "New Description"}),
+            json.dumps(mock_community_body),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
@@ -187,8 +198,45 @@ class CommunityTestCase(TestCase):
         # Check that the community was updated
         community = list(Community.objects.all())
         self.assertEqual(len(community), 1)
-        self.assertEqual(community[0].name, "New Name")
-        self.assertEqual(community[0].description, "New Description")
+        self.assertEqual(community[0].name, mock_community_body["name"])
+        self.assertEqual(community[0].description, mock_community_body["description"])
+
+    def test_update_community_with_duplicate_name(self):
+        """Test successfully editing a community's name and description"""
+        client = Client()
+
+        name_1 = "OLD - " + mock_community_body["name"]
+        name_2 = "OLD-2 - " + mock_community_body["name"]
+
+        # Create Community 1
+        account_community = Community.objects.create(
+            account=self.account,
+            name=name_1,
+            description="OLD - " + mock_community_body["description"],
+        )
+
+        # Create Community 2
+        Community.objects.create(
+            account=self.account,
+            name=name_2,
+            description="OLD-2 - " + mock_community_body["description"],
+        )
+
+        # Edit the community
+        community_body = dict(**mock_community_body)
+        community_body["name"] = name_2
+        community_response = client.put(
+            f"/account/communities/{account_community.id}",
+            json.dumps(community_body),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+
+        self.assertEqual(community_response.status_code, 400)
+        response_data = community_response.json()
+        self.assertEqual(
+            response_data, {"detail": "A community with this name already exists"}
+        )
 
     def test_update_community_when_max_reached(self):
         """Test that a user is only allowed to create maximum 5 communities"""
@@ -196,26 +244,29 @@ class CommunityTestCase(TestCase):
 
         # Create 5 communities
         for i in range(5):
+            community_body = dict(**mock_community_body)
+            community_body["name"] = f"test {i}"
             community_response = client.post(
                 "/account/communities",
-                json.dumps({"name": f"test {i}", "description": "test"}),
+                json.dumps(community_body),
                 content_type="application/json",
                 **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
             )
             self.assertEqual(community_response.status_code, 200)
 
         # check that we are throwing a 401 if they have already created an account
+        community_body = dict(**mock_community_body)
+        community_body["name"] = "New Name"
+        community_body["description"] = "New Description"
         community_response = client.put(
             "/account/communities/3",
-            json.dumps({"name": "New Name", "description": "New Description"}),
+            json.dumps(community_body),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
         self.assertEqual(community_response.status_code, 200)
         # Check that the community was updated
         community = list(Community.objects.all())
-        for i in community:
-            print("**** community: ", i.id, i.name, i.description)
         self.assertEqual(len(community), 5)
         self.assertEqual(community[2].name, "New Name")
         self.assertEqual(community[2].description, "New Description")

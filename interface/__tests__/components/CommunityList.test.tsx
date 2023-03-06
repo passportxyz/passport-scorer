@@ -4,10 +4,9 @@ import {
   render,
   screen,
   waitFor,
-  waitForElementToBeRemoved,
 } from "@testing-library/react";
 import CommunityList from "../../components/CommunityList";
-import { getCommunities, createCommunity } from "../../utils/account-requests";
+import { getCommunities } from "../../utils/account-requests";
 
 jest.mock("../../utils/account-requests.ts", () => ({
   getCommunities: jest.fn(),
@@ -23,26 +22,16 @@ jest.mock("next/router", () => ({
 
 describe("CommunityList", () => {
 
-  it("should open the use-case modal chem clicking the `+ Scorer` button", async () => {
+  it("should open the use-case modal after clicking the `+ Scorer` button", async () => {
     render(<CommunityList />);
     expect(screen.getByTestId("no-values-add")).toBeInTheDocument()
 
     const modalButton = screen.getByTestId("no-values-add");
     fireEvent.click(modalButton as HTMLElement);
 
-
     // Verify that the first step of the modal is shown
     await waitFor(async () =>
       expect(screen.getByText("Select a Use Case")).toBeInTheDocument()
-    );
-
-    const continueButton = screen.getByTestId("no-values-add");
-    fireEvent.click(modalButton as HTMLElement);
-
-
-    // Verify that the 2nd step of the modal is shown
-    await waitFor(async () =>
-      expect(screen.getByText("Use Case Details")).toBeInTheDocument()
     );
 
     // expect(screen.getByTestId("create-button")).toBeInTheDocument();
@@ -59,21 +48,21 @@ describe("CommunityList", () => {
   });
 
 
-  // describe("when the community list already has records", () => {
-  //   beforeEach(() => {
-  //     (getCommunities as jest.Mock).mockResolvedValue([
-  //       { name: "banks", description: "No bankd" },
-  //       { name: "wells fargo", description: "WellsFargo" },
-  //     ]);
-  //     (createCommunity as jest.Mock).mockResolvedValue({});
-  //   });
+  describe("when the community list already has records", () => {
+    beforeEach(() => {
+      (getCommunities as jest.Mock).mockResolvedValue([
+        { name: "banks", description: "No bankd" },
+        { name: "wells fargo", description: "WellsFargo" },
+      ]);
+      // (createCommunity as jest.Mock).mockResolvedValue({});
+    });
 
-  //   it("should render a list of communities", async () => {
-  //     render(<CommunityList />);
+    it("should render a list of communities", async () => {
+      render(<CommunityList />);
 
-  //     await waitFor(async () => {
-  //       expect(screen.getByText("banks")).toBeInTheDocument();
-  //     });
-  //   });
-  // });
+      await waitFor(async () => {
+        expect(screen.getByText("banks")).toBeInTheDocument();
+      });
+    });
+  });
 });
