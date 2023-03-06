@@ -6,9 +6,9 @@ export default class DashboardCommunities extends Page {
   }
 
   visit() {
-    cy.visit("/dashboard/community");
+    cy.visit("/dashboard/scorer");
 
     // Check that the *highlighted* tab is visible
-    cy.get('button[data-testid="communities-tab"].font-bold.font-blue-darkblue').should("be.visible");
+    cy.get('button[data-testid="scorer-tab"].text-blue-darkblue').should("be.visible");
   }
 }

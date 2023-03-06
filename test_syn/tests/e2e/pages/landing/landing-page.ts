@@ -45,7 +45,7 @@ export default class LandingPage extends Page {
 
   waitUntilSignedIn() {
     cy.waitUntil(() => {
-      return cy.contains("Dashboard");
+      return cy.contains("Gitcoin Passport Scorer");
       // const walletAddress = this.header.getWalletAddress();
       // return walletAddress.should("exist");
     });
