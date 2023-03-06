@@ -214,7 +214,7 @@ const NewScorer = ({
                   <PopoverInfo>
                     <span className="text-sm text-white">
                       The scoring rules evaluate Passports based on the
-                      "Verifiable Credentials" (VCs), or "Stamps" they hold.
+                      &ldquo;Verifiable Credentials&rdquo; (VCs), or &ldquo;Stamps&ldquo; they hold.
                     </span>
                   </PopoverInfo>
                 </p>
@@ -255,7 +255,7 @@ const NewScorer = ({
                     <PopoverInfo>
                       <span className="text-sm text-white">
                         The scoring rules evaluate Passports based on the
-                        "Verifiable Credentials" (VCs), or "Stamps" they hold.
+                        &ldquo;Verifiable Credentials&rdquo; (VCs), or &ldquo;Stamps&ldquo; they hold.
                       </span>
                     </PopoverInfo>
                   </p>

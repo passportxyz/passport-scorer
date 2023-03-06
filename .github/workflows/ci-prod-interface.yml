@@ -26,6 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.commit }}
+
       - name: Set up Python "3.10"
         uses: actions/setup-python@v2
         with:
@@ -40,20 +43,20 @@ jobs:
           pipenv requirements --dev > requirements.txt
           pip3 install -r requirements.txt
           python manage.py migrate
-
-      - name: Setup UI
+      - name: Install Interface Dependencies
         working-directory: ./interface
         run: yarn --frozen-lockfile && yarn build
 
       - name: Run Cypress tests
         uses: cypress-io/github-action@v5
         with:
-          working-directory: ./test
+          working-directory: ./test_syn
           start: |
             yarn start:api
             yarn start:ui
           wait-on: "http://127.0.0.1:3000,http://127.0.0.1:8000/health/"
           record: true
+          command: yarn test:e2e:local
         env:
           NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY }}
           config: "baseUrl=http://localhost:8000"
@@ -63,7 +66,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-app:
-    needs: [ui-test,cypress-test]
+    needs: [ui-test, cypress-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
