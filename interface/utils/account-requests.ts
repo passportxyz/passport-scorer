@@ -154,6 +154,10 @@ export type ScorerResponse = {
   currentScorer: string;
 };
 
+export type TokenValidationResponse = {
+  expDate: Date;
+};
+
 export const getCommunityScorers = async (
   communityId: string
 ): Promise<ScorerResponse> => {
@@ -216,6 +220,27 @@ export const authenticate = async (message: SiweMessage, signature: string) => {
       signature,
     });
     return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const verifyToken = async (
+  token: string
+): Promise<TokenValidationResponse> => {
+  try {
+    const response = await axios.post(
+      `${SCORER_BACKEND}account/validate_token`,
+      { token },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    const exp = response.data.exp;
+    const expDate = new Date(exp * 1000);
+    return { expDate };
   } catch (error) {
     throw error;
   }
