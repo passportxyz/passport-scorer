@@ -1,8 +1,6 @@
-import hashlib
 import logging
 import random
 import string
-from datetime import datetime
 from typing import Dict, List, Optional, cast
 
 from account.models import Account, AccountAPIKey, Community, Nonce
@@ -267,7 +265,7 @@ def create_community(request, payload: CommunitiesPayload):
         if Community.objects.filter(account=account).count() >= 5:
             raise TooManyCommunitiesException()
 
-        if Community.objects.filter(name=payload.name).count() == 1:
+        if Community.objects.filter(name=payload.name, account=account).exists():
             raise CommunityExistsException()
 
         if len(payload.name) == 0:
@@ -315,34 +313,30 @@ class APIKeyId(Schema):
     id: str
 
 
+class CommunitiesUpdatePayload(Schema):
+    name: str
+    description: str
+    use_case: str
+
+
 @api.put("/communities/{community_id}", auth=JWTAuth())
-def update_community(request, community_id, payload: CommunitiesPayload):
+def update_community(request, community_id, payload: CommunitiesUpdatePayload):
     try:
+        account = request.user.account
         community = get_object_or_404(
             Community, id=community_id, account=request.user.account
         )
 
-        name = payload.name
-        description = payload.description
-        db_name = community.name
-        db_description = community.description
-
-        if len(name) == 0:
-            raise CommunityHasNoNameException()
-
-        if len(description) == 0:
-            raise CommunityHasNoDescriptionException()
-
-        if name == db_name:
-            raise SameCommunityNameException()
-
-        if Community.objects.filter(name=payload.name).count() == 1:
+        # Check for duplicates in other communities within the same account
+        if Community.objects.filter(name=payload.name, account=account).exclude(id=community_id).exists():
             raise CommunityExistsException()
 
-        for attr, value in payload.dict().items():
-            setattr(community, attr, value)
+        Community.objects.filter(pk=community_id).update(
+            name=payload.name,
+            description=payload.description,
+            use_case=payload.use_case,
+        )
 
-        community.save()
     except Account.DoesNotExist:
         raise UnauthorizedException()
 
