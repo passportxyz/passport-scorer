@@ -1,6 +1,13 @@
 name: CI - WIP for 972
 
 on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit ref"
+        required: true
+        type: string
+        
   push:
     branches: [972-implement-blocknative]
 
