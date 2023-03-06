@@ -328,7 +328,11 @@ def update_community(request, community_id, payload: CommunitiesUpdatePayload):
         )
 
         # Check for duplicates in other communities within the same account
-        if Community.objects.filter(name=payload.name, account=account).exclude(id=community_id).exists():
+        if (
+            Community.objects.filter(name=payload.name, account=account)
+            .exclude(id=community_id)
+            .exists()
+        ):
             raise CommunityExistsException()
 
         Community.objects.filter(pk=community_id).update(

@@ -95,7 +95,9 @@ class CommunityTestCase(TestCase):
         )
         self.assertEqual(community_response1.status_code, 400)
         response_data = community_response1.json()
-        self.assertEqual(response_data, {"detail":"A community with this name already exists"})
+        self.assertEqual(
+            response_data, {"detail": "A community with this name already exists"}
+        )
 
     def test_create_community_with_no_description(self):
         """Test that creation of a community with no description fails"""
@@ -232,7 +234,9 @@ class CommunityTestCase(TestCase):
 
         self.assertEqual(community_response.status_code, 400)
         response_data = community_response.json()
-        self.assertEqual(response_data, {"detail":"A community with this name already exists"})
+        self.assertEqual(
+            response_data, {"detail": "A community with this name already exists"}
+        )
 
     def test_update_community_when_max_reached(self):
         """Test that a user is only allowed to create maximum 5 communities"""
@@ -250,7 +254,7 @@ class CommunityTestCase(TestCase):
             )
             self.assertEqual(community_response.status_code, 200)
 
-        # check that we are throwing a 401 if they have already created an account            
+        # check that we are throwing a 401 if they have already created an account
         community_body = dict(**mock_community_body)
         community_body["name"] = "New Name"
         community_body["description"] = "New Description"
