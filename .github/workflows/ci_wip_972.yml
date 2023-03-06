@@ -1,0 +1,48 @@
+name: CI - WIP for 972
+
+on:
+  push:
+    branches: [972-implement-blocknative]
+
+jobs:
+
+  cypress-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python "3.10"
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+
+      - name: Install pipenv
+        run: pip3 install pipenv
+
+      - name: Setup backend
+        working-directory: ./api
+        run: |
+          pipenv requirements --dev > requirements.txt
+          pip3 install -r requirements.txt
+          python manage.py migrate
+      - name: Install Interface Dependencies
+        working-directory: ./interface
+        run: yarn --frozen-lockfile && yarn build
+
+      - name: Run Cypress tests
+        uses: cypress-io/github-action@v5
+        with:
+          working-directory: ./test
+          start: |
+            yarn start:api
+            yarn start:ui
+          wait-on: "http://127.0.0.1:3000,http://127.0.0.1:8000/health/"
+          record: true
+          command: yarn test:e2e:local
+        env:
+          NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY }}
+          config: "baseUrl=http://localhost:8000"
+          # pass the Cypress Cloud record key as an environment variable
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+          # pass GitHub token to allow accurately detecting a build vs a re-run build
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
