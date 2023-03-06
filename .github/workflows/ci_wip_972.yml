@@ -41,7 +41,7 @@ jobs:
       - name: Run Cypress tests
         uses: cypress-io/github-action@v5
         with:
-          working-directory: ./test
+          working-directory: ./test_syn
           start: |
             yarn start:api
             yarn start:ui
