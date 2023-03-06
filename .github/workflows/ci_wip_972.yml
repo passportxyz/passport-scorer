@@ -15,7 +15,7 @@ jobs:
   cypress-test:
     runs-on: ubuntu-latest
     container:
-      image: synthetixio/docker-e2e
+      image: synthetixio/docker-e2e:18.13-ubuntu
     steps:
       - uses: actions/checkout@v3
         with:
