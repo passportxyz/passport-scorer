@@ -14,8 +14,6 @@ on:
 jobs:
   cypress-test:
     runs-on: ubuntu-latest
-    container:
-      image: synthetixio/docker-sec-tools:18.13-alpine
     steps:
       - uses: actions/checkout@v3
         with:
@@ -49,6 +47,8 @@ jobs:
           wait-on: "http://127.0.0.1:3000,http://127.0.0.1:8000/health/"
           record: true
           command: yarn test:e2e:local
+          browser: chrome
+          headed: true
         env:
           NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY }}
           config: "baseUrl=http://localhost:8000"
