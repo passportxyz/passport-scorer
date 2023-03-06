@@ -2,6 +2,9 @@ version: "3.9" # optional since v1.27.0
 services:
   redis:
     image: redis
+    restart: unless-stopped
+    ports:
+      - 6379:6379
 
   api:
     build: api
