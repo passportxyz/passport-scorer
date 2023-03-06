@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useContext, useEffect } from "react";
 import { useRouter } from "next/router";
 
 import Dashboard from "../../components/Dashboard";
 import Community from "../../components/Community";
 import CommunityList from "../../components/CommunityList";
 import APIKeyList from "../../components/APIKeyList";
+import { UserContext } from "../../context/userContext";
 
 const TabRoute = (props: any) => {
   const router = useRouter();
@@ -27,6 +28,14 @@ const TabRoute = (props: any) => {
   useEffect(() => {
     if (tab && !component) router.push("/404");
   }, [router, component, tab]);
+
+  const { connected } = useContext(UserContext);
+
+  useEffect(() => {
+    if (!connected) {
+      router.push("/");
+    }
+  }, [connected]);
 
   return (
     // TODO - fix dashboard is being rendered twice
