@@ -17,6 +17,7 @@
     "@chakra-ui/react": "^2.4.1",
     "@emotion/react": "^11",
     "@emotion/styled": "^11",
+    "@heroicons/react": "^2.0.16",
     "@testing-library/user-event": "^14.4.3",
     "@web3-onboard/coinbase": "^2.2.0",
     "@web3-onboard/core": "^2.15.2",

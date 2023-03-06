@@ -19,7 +19,6 @@ import {
   CurrencyDollarIcon,
   AdjustmentsVerticalIcon,
 } from "@heroicons/react/24/outline";
-import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
 
 import { useRouter } from "next/router";
 import React, { useEffect, useState } from "react";
@@ -78,9 +77,9 @@ export const gitcoinScoringMechanisms: Array<GitcoinScoringMechanismInterface> =
   ];
 
 const NewScorer = ({
-  authenticationStatus,
+  // authenticationStatus,
 }: {
-  authenticationStatus: AuthenticationStatus;
+  // authenticationStatus: AuthenticationStatus;
 }) => {
   const router = useRouter();
   const toast = useToast();
@@ -166,7 +165,9 @@ const NewScorer = ({
     <>
       <div className="h-screen text-purple-darkpurple">
         <header className="container mx-auto px-4 md:px-0">
-          <Header authenticationStatus={authenticationStatus} />
+          <Header
+          // authenticationStatus={authenticationStatus}
+          />
           <hr className="mt-5" />
           <div className="mt-0 flex w-full justify-between py-4">
             <div>
@@ -213,8 +214,9 @@ const NewScorer = ({
                   Gitcoin Scoring Mechanism{" "}
                   <PopoverInfo>
                     <span className="text-sm text-white">
-                      The scoring rules evaluate Passports based on the
-                      "Verifiable Credentials" (VCs), or "Stamps" they hold.
+                      {
+                        'The scoring rules evaluate Passports based on the "Verifiable Credentials" (VCs), or "Stamps" they hold.'
+                      }
                     </span>
                   </PopoverInfo>
                 </p>
@@ -254,8 +256,9 @@ const NewScorer = ({
                     Gitcoin Scoring Mechanism{" "}
                     <PopoverInfo>
                       <span className="text-sm text-white">
-                        The scoring rules evaluate Passports based on the
-                        "Verifiable Credentials" (VCs), or "Stamps" they hold.
+                        {
+                          'The scoring rules evaluate Passports based on the "Verifiable Credentials" (VCs), or "Stamps" they hold.'
+                        }
                       </span>
                     </PopoverInfo>
                   </p>

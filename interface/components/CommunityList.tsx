@@ -48,7 +48,8 @@ const CommunityList = () => {
       setCommunityLoadingStatus("loading");
       setCommunities(await getCommunities());
       setCommunityLoadingStatus("done");
-    } catch (error) {
+    } catch (exc) {
+      const error = exc as { response: { status: number } };
       setCommunityLoadingStatus("error");
       console.log({ error });
       setError("There was an error fetching your Communities.");

@@ -7,12 +7,10 @@ import Footer from "./Footer";
 
 import { DashboardTabs, TabToken } from "./DashboardTabs";
 
-// --- Types
-import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
 
 type DashboardProps = {
   // setAuthenticationStatus?: Function;
-  authenticationStatus: AuthenticationStatus;
+  // authenticationStatus: AuthenticationStatus;
   activeTab: TabToken;
   children: React.ReactNode;
 };
@@ -92,7 +90,7 @@ const SampleApplications = ({ className }: { className?: string }) => {
 
 export default function Dashboard({
   // setAuthenticationStatus,
-  authenticationStatus,
+  // authenticationStatus,
   activeTab,
   children,
 }: DashboardProps) {
@@ -101,7 +99,7 @@ export default function Dashboard({
       {/* The top part of the page */}
       <div className="bg-white">
         <Header
-          authenticationStatus={authenticationStatus}
+          // authenticationStatus={authenticationStatus}
           className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20"
         />
         <div className="w-full bg-red-100">{/* ERROR ALERT HERE */}</div>
