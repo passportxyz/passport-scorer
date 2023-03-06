@@ -4,10 +4,9 @@ import {
   render,
   screen,
   waitFor,
-  waitForElementToBeRemoved,
 } from "@testing-library/react";
 import CommunityList from "../../components/CommunityList";
-import { getCommunities, createCommunity } from "../../utils/account-requests";
+import { getCommunities } from "../../utils/account-requests";
 
 jest.mock("../../utils/account-requests.ts", () => ({
   getCommunities: jest.fn(),
@@ -49,21 +48,21 @@ describe("CommunityList", () => {
   });
 
 
-  // describe("when the community list already has records", () => {
-  //   beforeEach(() => {
-  //     (getCommunities as jest.Mock).mockResolvedValue([
-  //       { name: "banks", description: "No bankd" },
-  //       { name: "wells fargo", description: "WellsFargo" },
-  //     ]);
-  //     (createCommunity as jest.Mock).mockResolvedValue({});
-  //   });
+  describe("when the community list already has records", () => {
+    beforeEach(() => {
+      (getCommunities as jest.Mock).mockResolvedValue([
+        { name: "banks", description: "No bankd" },
+        { name: "wells fargo", description: "WellsFargo" },
+      ]);
+      // (createCommunity as jest.Mock).mockResolvedValue({});
+    });
 
-  //   it("should render a list of communities", async () => {
-  //     render(<CommunityList />);
+    it("should render a list of communities", async () => {
+      render(<CommunityList />);
 
-  //     await waitFor(async () => {
-  //       expect(screen.getByText("banks")).toBeInTheDocument();
-  //     });
-  //   });
-  // });
+      await waitFor(async () => {
+        expect(screen.getByText("banks")).toBeInTheDocument();
+      });
+    });
+  });
 });
