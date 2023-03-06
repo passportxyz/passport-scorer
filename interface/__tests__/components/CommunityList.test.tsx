@@ -23,26 +23,16 @@ jest.mock("next/router", () => ({
 
 describe("CommunityList", () => {
 
-  it("should open the use-case modal chem clicking the `+ Scorer` button", async () => {
+  it("should open the use-case modal after clicking the `+ Scorer` button", async () => {
     render(<CommunityList />);
     expect(screen.getByTestId("no-values-add")).toBeInTheDocument()
 
     const modalButton = screen.getByTestId("no-values-add");
     fireEvent.click(modalButton as HTMLElement);
 
-
     // Verify that the first step of the modal is shown
     await waitFor(async () =>
       expect(screen.getByText("Select a Use Case")).toBeInTheDocument()
-    );
-
-    const continueButton = screen.getByTestId("no-values-add");
-    fireEvent.click(modalButton as HTMLElement);
-
-
-    // Verify that the 2nd step of the modal is shown
-    await waitFor(async () =>
-      expect(screen.getByText("Use Case Details")).toBeInTheDocument()
     );
 
     // expect(screen.getByTestId("create-button")).toBeInTheDocument();

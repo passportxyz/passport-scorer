@@ -29,6 +29,7 @@ const NoValues = ({
           <h2 className="text-xl text-gray-500">{title}</h2>
           <p className="mt-2">{description}</p>
           <button
+            data-testid="no-values-add"
             onClick={addRequest}
             className="mt-6 flex items-center rounded-md bg-purple-gitcoinpurple px-6 py-2 font-medium text-white"
           >

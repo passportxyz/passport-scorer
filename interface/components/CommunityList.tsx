@@ -128,7 +128,7 @@ const CommunityList = () => {
       {communities.length === 0 ? (
         <NoValues
           title="Create a Scorer"
-          description="Select unique scoring mechanisms that align with your application’s goals."
+          description="Select unique scoring mechanisms that align with your application's goals."
           addActionText="Scorer"
           addRequest={() => {
             setSelectUseCaseModalOpen(true);
@@ -141,7 +141,7 @@ const CommunityList = () => {
 
           <div className="mt-5 flex flex-wrap">
             <button
-              className="rounded-md bg-purple-gitcoinpurple px-5 py-2 py-3 text-white"
+              className="rounded-md bg-purple-gitcoinpurple px-5 py-2 text-white"
               onClick={() => {
                 setSelectUseCaseModalOpen(true);
               }}
