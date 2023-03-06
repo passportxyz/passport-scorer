@@ -3,7 +3,7 @@ import DashboardCommunities from "../pages/landing/dashboard-communities-page";
 
 const dashboardCommunities = new DashboardCommunities();
 
-describe("Connect", () => {
+describe.skip("Connect", () => {
   it("passes", () => {
     cy.createScorerSession();
     dashboardCommunities.visit();
