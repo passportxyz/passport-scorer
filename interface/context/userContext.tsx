@@ -104,10 +104,14 @@ export const UserProvider = ({ children }: { children: any }) => {
     const accessToken = window.localStorage.getItem("access-token");
     console.log({ accessToken });
     if (accessToken) {
-      const { expDate } = await verifyToken(accessToken);
-      // We want the token to be valid for at least 24 hours
-      const minExpirationData = new Date(Date.now() + 1000 * 60 * 60 * 24)
-      if (expDate < minExpirationData) {
+      try {
+        const { expDate } = await verifyToken(accessToken);
+        // We want the token to be valid for at least 24 hours
+        const minExpirationData = new Date(Date.now() + 1000 * 60 * 60 * 24)
+        if (expDate < minExpirationData) {
+          window.localStorage.removeItem("access-token");
+        }
+      } catch (e) {
         window.localStorage.removeItem("access-token");
       }
     }
