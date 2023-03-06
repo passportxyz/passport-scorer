@@ -7,19 +7,20 @@ on:
         description: "Commit ref"
         required: true
         type: string
-        
+
   push:
     branches: [972-implement-blocknative]
 
 jobs:
-
   cypress-test:
     runs-on: ubuntu-latest
+    container:
+      image: synthetixio/docker-sec-tools:18.13-alpine
     steps:
       - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.inputs.commit }}
-          
+
       - name: Set up Python "3.10"
         uses: actions/setup-python@v2
         with:
@@ -55,4 +56,3 @@ jobs:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
           # pass GitHub token to allow accurately detecting a build vs a re-run build
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
