@@ -30,11 +30,19 @@ jobs:
           pipenv requirements --dev > requirements.txt
           pip3 install -r requirements.txt
           python manage.py migrate
+
       - name: Install linux deps
         run: |
           sudo apt-get install --no-install-recommends -y \
           fluxbox \
           xvfb
+
+      - name: Run xvfb and fluxbox
+        run: |
+          Xvfb :0 -screen 0 1024x768x24 -listen tcp -ac &
+          fluxbox &
+        env:
+          DISPLAY: :0.0
 
       - name: Install Interface Dependencies
         working-directory: ./interface
