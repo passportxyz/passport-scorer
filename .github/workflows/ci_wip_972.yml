@@ -12,31 +12,15 @@ on:
     branches: [972-implement-blocknative]
 
 jobs:
-  run-api:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.inputs.commit }}
-      - name: Set up Python "3.10"
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.10"
-      - name: Install pipenv
-        run: pip3 install pipenv
-
-      - name: Setup backend
-        working-directory: ./api
-        run: |
-          pipenv requirements --dev > requirements.txt
-          pip3 install -r requirements.txt
-          python manage.py migrate
-
   cypress-test:
     runs-on: ubuntu-latest
-    container:
-      image: synthetixio/docker-e2e:18.13-ubuntu
     steps:
+      - name: Install linux deps
+        run: |
+          sudo apt-get install --no-install-recommends -y \
+          fluxbox \
+          xvfb
+
       - name: Install Interface Dependencies
         working-directory: ./interface
         run: yarn --frozen-lockfile && yarn build
@@ -59,3 +43,4 @@ jobs:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
           # pass GitHub token to allow accurately detecting a build vs a re-run build
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISPLAY: :0.0
