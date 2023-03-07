@@ -49,7 +49,7 @@ jobs:
         run: yarn --frozen-lockfile && yarn build
 
       - name: Run Cypress tests
-        uses: cypress-io/github-action@v5
+        uses: cypress-io/github-action@cdbbcd60fb5d967d7a37d8eb148add76a7ded7b6 # pin@v5.1.0
         with:
           working-directory: ./test_syn
           start: |
