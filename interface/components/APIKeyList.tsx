@@ -35,7 +35,6 @@ const APIKeyList = () => {
           keysFetched = true;
           setApiKeys(apiKeys);
         } catch (error: any) {
-          console.log({ error });
           setError("There was an error fetching your API keys.");
           if (error.response.status === 401) {
             logout();
@@ -67,7 +66,6 @@ const APIKeyList = () => {
       await deleteApiKey(apiKeyId);
       setApiKeys(await getApiKeys());
     } catch (error: any) {
-      console.error(error);
       if (error.response.status === 401) {
         logout();
       }

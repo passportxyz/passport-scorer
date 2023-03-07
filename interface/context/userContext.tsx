@@ -95,14 +95,11 @@ export const UserProvider = ({ children }: { children: any }) => {
 
   // Restore wallet connection from localStorage
   const setWalletFromLocalStorage = async (): Promise<void> => {
-    console.log("setWalletFromLocalStorage", 1);
     const previouslyConnectedWallets = JSON.parse(
       // retrieve localstorage state
       window.localStorage.getItem("connectedWallets") || "[]"
     ) as string[];
-    console.log("setWalletFromLocalStorage", 2);
     const accessToken = window.localStorage.getItem("access-token");
-    console.log({ accessToken });
     if (accessToken) {
       try {
         const { expDate } = await verifyToken(accessToken);
@@ -137,23 +134,18 @@ export const UserProvider = ({ children }: { children: any }) => {
   };
 
   const authenticateWithScorerApi = async (wallet: WalletState) => {
-    console.log("authenticateWithScorerApi", 1);
     try {
       dispatch({
         type: UserActions.AUTHENTICATING,
         payload: true,
       });
-      console.log("authenticateWithScorerApi", 2);
       const { siweMessage, signature } = await initiateSIWE(wallet);
-      console.log("authenticateWithScorerApi", 3);
       const tokens = await authenticate(siweMessage, signature);
 
-      console.log("authenticateWithScorerApi", 4);
       window.localStorage.setItem(
         "connectedWallets",
         JSON.stringify([wallet.label])
       );
-      console.log("authenticateWithScorerApi", 5);
 
       // store JWT access token in LocalStorage
       localStorage.setItem("access-token", tokens.access);

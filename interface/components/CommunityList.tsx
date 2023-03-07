@@ -51,7 +51,6 @@ const CommunityList = () => {
     } catch (exc) {
       const error = exc as { response: { status: number } };
       setCommunityLoadingStatus("error");
-      console.log({ error });
       setError("There was an error fetching your Communities.");
       if (error.response.status === 401) {
         logout();
@@ -105,7 +104,6 @@ const CommunityList = () => {
       await deleteCommunity(communityId);
       await fetchCommunities();
     } catch (error: any) {
-      console.error(error);
       if (error.response.status === 401) {
         logout();
       }
@@ -153,6 +151,7 @@ const CommunityList = () => {
           <div className="mt-5 flex flex-wrap">
             <button
               className="rounded-md bg-purple-gitcoinpurple px-5 py-2 py-3 text-white"
+              data-testid="add-scorer-button"
               onClick={() => {
                 setSelectUseCaseModalOpen(true);
               }}
