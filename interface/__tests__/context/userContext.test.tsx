@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { UserProvider, UserContext } from "../../context/userContext";
 import { useConnectWallet } from "@web3-onboard/react";
 import { EIP1193Provider, WalletState } from "@web3-onboard/core";
@@ -62,6 +62,11 @@ const mockComponent = () => (
 )
 
 describe("UserProvider", () => {
+  beforeEach(() => {
+    // @ts-ignore - https://testing-library.com/docs/react-testing-library/api/#act
+    global.IS_REACT_ACT_ENVIRONMENT = false;
+    jest.clearAllMocks();
+  });
   it("renders with initial state values", async () => {
     (useConnectWallet as jest.Mock).mockReturnValue([
       { wallet: null },
@@ -99,10 +104,9 @@ describe("UserProvider", () => {
       mockComponent()
     );
 
-    await waitFor(() => {
-      // click the login button
-      screen.getByText("Login").click();
+    screen.getByText("Login").click();
 
+    await waitFor(async () => {
       expect(screen.getByTestId("connected")).toHaveTextContent("true");
       expect(screen.getByTestId("authenticationError")).toHaveTextContent(
         "false"
@@ -112,6 +116,10 @@ describe("UserProvider", () => {
     });
   });
   it("logs out a user", async () => {
+    (initiateSIWE as jest.Mock).mockResolvedValue({
+      siweMessage: {},
+      signature: "signature",
+    });
     const connect = jest.fn().mockResolvedValue([mockWallet]);
     (useConnectWallet as jest.Mock).mockReturnValue([
       { wallet: mockWallet },
@@ -119,14 +127,12 @@ describe("UserProvider", () => {
     ]);
 
 
-    const { rerender } = await render(
+    const { rerender } = render(
       mockComponent()
     );
 
-    await waitFor(() => {
-      // click the login button
-      screen.getByText("Login").click();
-    });
+    // click the login button
+    screen.getByText("Login").click();
 
     (useConnectWallet as jest.Mock).mockReturnValue([
       { wallet: null },
@@ -153,14 +159,12 @@ describe("UserProvider", () => {
     });
 
 
-    await render(
+    render(
       mockComponent()
     );
 
-    await waitFor(() => {
-      // click the login button
-      screen.getByText("Login").click();
-    });
+    // click the login button
+    screen.getByText("Login").click();
     expect(screen.getByTestId("connected")).toHaveTextContent("false");
     expect(screen.getByTestId("loginComplete")).toHaveTextContent("false");
   });
