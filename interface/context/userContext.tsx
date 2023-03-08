@@ -1,4 +1,4 @@
-import { createContext, useReducer, useEffect } from "react";
+import { createContext, useEffect, useState } from "react";
 
 import { useConnectWallet } from "@web3-onboard/react";
 import { WalletState } from "@web3-onboard/core";
@@ -66,8 +66,11 @@ const userReducer = (
 export const UserContext = createContext(initialState);
 
 export const UserProvider = ({ children }: { children: any }) => {
-  const [state, dispatch] = useReducer(userReducer, initialState);
   const [{ wallet }, connect] = useConnectWallet();
+  const [connected, setConnected] = useState(false);
+  const [authenticating, setAuthenticating] = useState(false);
+  const [loginComplete, setLoginComplete] = useState(false);
+  const [authenticationError, setAuthenticationError] = useState(false);
 
   const login = async () => {
     connect()
@@ -83,14 +86,8 @@ export const UserProvider = ({ children }: { children: any }) => {
   const logout = async () => {
     localStorage.removeItem("access-token");
     localStorage.removeItem("connectedWallets");
-    dispatch({
-      type: UserActions.LOGIN_COMPLETED,
-      payload: false,
-    });
-    dispatch({
-      type: UserActions.CONNECTED,
-      payload: false,
-    });
+    setLoginComplete(false);
+    setConnected(false);
   };
 
   // Restore wallet connection from localStorage
@@ -121,10 +118,7 @@ export const UserProvider = ({ children }: { children: any }) => {
           },
         });
 
-        dispatch({
-          type: UserActions.CONNECTED,
-          payload: true,
-        });
+        setConnected(true);
       } catch (e) {
         // remove localstorage state
         window.localStorage.removeItem("connectedWallets");
@@ -135,10 +129,7 @@ export const UserProvider = ({ children }: { children: any }) => {
 
   const authenticateWithScorerApi = async (wallet: WalletState) => {
     try {
-      dispatch({
-        type: UserActions.AUTHENTICATING,
-        payload: true,
-      });
+      setAuthenticating(true);
       const { siweMessage, signature } = await initiateSIWE(wallet);
       const tokens = await authenticate(siweMessage, signature);
 
@@ -150,27 +141,12 @@ export const UserProvider = ({ children }: { children: any }) => {
       // store JWT access token in LocalStorage
       localStorage.setItem("access-token", tokens.access);
 
-      dispatch({
-        type: UserActions.CONNECTED,
-        payload: true,
-      });
-      dispatch({
-        type: UserActions.AUTHENTICATING,
-        payload: false,
-      });
-      dispatch({
-        type: UserActions.LOGIN_COMPLETED,
-        payload: true,
-      });
+      setConnected(true);
+      setAuthenticating(false);
+      setLoginComplete(true);
     } catch (e) {
-      dispatch({
-        type: UserActions.AUTHENTICATION_ERROR,
-        payload: true,
-      });
-      dispatch({
-        type: UserActions.AUTHENTICATING,
-        payload: false,
-      });
+      setAuthenticationError(true);
+      setAuthenticating(false);
     }
   };
 
@@ -181,13 +157,13 @@ export const UserProvider = ({ children }: { children: any }) => {
 
   // Used to listen to disconnect event from web3Onboard widget
   useEffect(() => {
-    if (!wallet && state.connected) {
+    if (!wallet && connected) {
       logout();
     }
-  }, [wallet, state.connected]);
+  }, [wallet, connected]);
 
   return (
-    <UserContext.Provider value={{ ...state, login, logout }}>
+    <UserContext.Provider value={{ connected, authenticating, loginComplete, authenticationError, login, logout }}>
       {children}
     </UserContext.Provider>
   );
