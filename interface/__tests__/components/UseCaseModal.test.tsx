@@ -2,6 +2,8 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import UseCaseModal from "../../components/UseCaseModal";
 
+jest.mock("next/router", () => require("next-router-mock"));
+
 describe("UseCaseModal", () => {
   it("should display a list of use cases", async () => {
     render(<UseCaseModal isOpen={true} onClose={() => {}} />);

@@ -189,7 +189,12 @@ CORS_ALLOW_HEADERS = [
 
 LOGGING = {
     "version": 1,
-    "disable_existing_loggers": False,
+    "disable_existing_loggers": True,
+    "formatters": {
+        "rootFormatter": {
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(thread)d - %(pathname)s:%(lineno)d %(message)s",
+        }
+    },
     "filters": {
         "require_debug_true": {
             "()": "django.utils.log.RequireDebugTrue",
@@ -198,11 +203,13 @@ LOGGING = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
+            "formatter": "rootFormatter",
         },
         "debugConsole": {
             "class": "logging.StreamHandler",
             "level": "DEBUG",
             "filters": ["require_debug_true"],
+            "formatter": "rootFormatter",
         },
     },
     "root": {
@@ -210,10 +217,16 @@ LOGGING = {
         "level": "DEBUG",
     },
     "loggers": {
+        "django": {
+            "level": "DEBUG",
+            "handlers": [],
+            "propagate": False,
+        },
         "django.db.backends": {
             "level": "DEBUG",
-            "handlers": ["debugConsole"],
-        }
+            "handlers": [],
+            "propagate": False,
+        },
     },
 }
 
