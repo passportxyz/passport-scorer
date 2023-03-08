@@ -5,7 +5,12 @@ import React, { useState, useEffect } from "react";
 import { Community } from "../utils/account-requests";
 
 // Components
-import { ArrowBackIcon, SmallCloseIcon } from "@chakra-ui/icons";
+
+import {
+  NoSymbolIcon,
+  ExclamationCircleIcon,
+} from "@heroicons/react/24/outline";
+
 // --- Next
 import { useRouter } from "next/router";
 
@@ -23,10 +28,11 @@ import {
   ModalBody,
   ModalFooter,
   ModalCloseButton,
+  useToast,
+  UseToastOptions,
 } from "@chakra-ui/react";
+import { CloseIcon } from "@chakra-ui/icons";
 import { UseCaseInterface, useCases } from "./UseCaseModal";
-
-import { updateCommunity } from "../utils/account-requests";
 
 interface UseCaseMap {
   [k: string]: UseCaseInterface;
@@ -41,13 +47,15 @@ const useCasesByName = useCases.reduce(
 );
 
 type CommunityCardProps = {
-  setUpdatedScorerName: Function;
-  setUpdatedScorerDescription: Function;
-  setUpdatedCommunityId: Function;
   community: Community;
-  communityId: Community["id"];
-  handleDeleteCommunity: Function;
-  setUpdateCommunityModalOpen: Function;
+  onCommunityDeleted: () => void;
+
+  handleUpdateCommunity: (
+    communityId: number,
+    name: string,
+    description: string
+  ) => void;
+  handleDeleteCommunity: (communityId: number) => void;
 };
 
 interface RenameModalProps {
@@ -65,10 +73,6 @@ const RenameModal = ({
   name,
   description,
 }: RenameModalProps): JSX.Element => {
-  const [wizardStep, setWizardStep] = useState(1);
-  const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
-    undefined
-  );
   const [scorerName, setScorerName] = useState("");
   const [scorerDescription, setScorerDescription] = useState("");
 
@@ -85,7 +89,6 @@ const RenameModal = ({
 
   const saveChanges = () => {
     onSaveChanges(scorerName, scorerDescription);
-    onClose();
   };
 
   return (
@@ -139,19 +142,109 @@ const RenameModal = ({
   );
 };
 
+interface DeleteConfirmationModalProps {
+  isOpen: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  community: Community;
+}
+
+const DeleteConfirmationModal = ({
+  isOpen,
+  onCancel,
+  onConfirm,
+}: DeleteConfirmationModalProps): JSX.Element => {
+  return (
+    <Modal
+      isOpen={isOpen}
+      isCentered={true}
+      size={{ base: "xs", md: "lg", lg: "lg", xl: "lg" }}
+      onClose={() => {}}
+    >
+      <ModalOverlay />
+      <ModalContent>
+        <ModalBody>
+          <div className="py-6 text-purple-darkpurple">
+            <div className="flex items-center justify-center">
+              <div className="mb-4 flex h-12 w-12 justify-center rounded-full bg-[#FDDEE4]">
+                <NoSymbolIcon className="w-7 text-[#D44D6E]" />
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="font-bold">Are you sure?</p>
+              <p className="mt-2 text-purple-softpurple">
+                This will permanantly delete your scorer.
+                <br />
+                Are you sure you want to continue?
+              </p>
+            </div>
+            <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <button
+                className="order-last w-full rounded border border-gray-lightgray py-2 px-6 text-base md:order-first"
+                onClick={onCancel}
+              >
+                Cancel
+              </button>
+              <button
+                className="w-full rounded bg-purple-gitcoinpurple py-2 px-6 text-base text-white"
+                onClick={onConfirm}
+              >
+                Confirm Deletion
+              </button>
+            </div>
+          </div>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
+  );
+};
+
+const getErrorToast = (toast: ReturnType<typeof useToast>): UseToastOptions => {
+  return {
+    title: "Warning!",
+    status: "warning",
+    duration: 3000,
+    isClosable: true,
+    variant: "solid",
+    position: "bottom",
+    render: () => (
+      <div
+        style={{
+          backgroundColor: "#FDDEE4",
+          borderRadius: "4px",
+          display: "flex",
+          alignItems: "center",
+          padding: "16px",
+        }}
+      >
+        <ExclamationCircleIcon className="mr-3 w-6 text-[#D44D6E]" />
+        <span style={{ color: "#0E0333", fontSize: "16px" }}>
+          Something went wrong. Please try again.
+        </span>
+        <CloseIcon
+          color="#0E0333"
+          boxSize={3}
+          ml="8"
+          cursor="pointer"
+          onClick={() => toast.closeAll()}
+        />
+      </div>
+    ),
+  };
+};
+
 const CommunityCard = ({
   community,
+  handleUpdateCommunity,
   handleDeleteCommunity,
-  communityId,
-  setUpdateCommunityModalOpen,
-  setUpdatedScorerName,
-  setUpdatedScorerDescription,
-  setUpdatedCommunityId,
 }: CommunityCardProps): JSX.Element => {
-  const router = useRouter();
+  const toast = useToast();
   let useCase = useCasesByName[community.use_case];
-  let [isrenameModalOpen, setIsRenameModalOpen] = useState(false);
-  const handleRename = (event) => {
+  let [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  let [isDeleteConfirmationModalOpen, setIsDeleteConfirmationModalOpen] =
+    useState(false);
+
+  const handleRename = () => {
     setIsRenameModalOpen(true);
   };
 
@@ -159,34 +252,55 @@ const CommunityCard = ({
     setIsRenameModalOpen(false);
   };
 
-  const handleSaveRename = (name: string, description: string) => {
-    updateCommunity(communityId, { name, description });
-    community.name = name;
-    community.description = description;
+  const handleDelete = () => {
+    setIsDeleteConfirmationModalOpen(true);
+  };
+  const handleCancelDelete = () => {
+    try {
+      setIsDeleteConfirmationModalOpen(false);
+    } catch (e) {}
   };
 
-  const handleDelete = (event) => {};
+  const saveChanges = async (name: string, description: string) => {
+    try {
+      await handleUpdateCommunity(community.id, name, description);
+      setIsRenameModalOpen(false);
+    } catch (e) {
+      toast(getErrorToast(toast));
+    }
+  };
 
-  const useCaseByNamee = useCaseByName;
-  const useCase = useCaseByName.get(community.use_case);
+  const deleteCommunity = async () => {
+    try {
+      await handleDeleteCommunity(community.id);
+      setIsDeleteConfirmationModalOpen(false);
+    } catch (e) {
+      toast(getErrorToast(toast));
+    }
+  };
+
   const useCaseIcon = useCase ? (
     <Icon boxSize={19.5}>{useCase.icon("#6F3FF5")}</Icon>
   ) : null;
   return (
     <div className="flex-col px-4 py-4 sm:px-6">
       <RenameModal
-        isOpen={isrenameModalOpen}
+        isOpen={isRenameModalOpen}
         onClose={handleCloseRenameModal}
-        onSaveChanges={handleSaveRename}
+        onSaveChanges={saveChanges}
         name={community.name}
         description={community.description}
       ></RenameModal>
+      <DeleteConfirmationModal
+        isOpen={isDeleteConfirmationModalOpen}
+        onCancel={handleCancelDelete}
+        onConfirm={deleteCommunity}
+        community={community}
+      ></DeleteConfirmationModal>
       <div className="relative min-w-0 md:static md:flex">
         <div className="flex-auto md:basis-5/12">
           <p className="text-sm text-purple-gitcoinpurple">
-            <Icon boxSize={19.5} className="mt-1">
-              {useCase?.icon("#6F3FF5")}
-            </Icon>
+            {useCaseIcon}
             {useCase?.title}
           </p>
           <p className="truncate text-base font-medium text-purple-darkpurple">

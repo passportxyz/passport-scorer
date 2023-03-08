@@ -347,6 +347,28 @@ def update_community(request, community_id, payload: CommunitiesUpdatePayload):
     return {"ok": True}
 
 
+class CommunitiesPatchPayload(Schema):
+    name: str = None
+    description: str = None
+
+
+@api.patch("/communities/{community_id}", auth=JWTAuth())
+def patch_community(request, community_id, payload: CommunitiesPatchPayload):
+    try:
+        community = get_object_or_404(
+            Community, id=community_id, account=request.user.account
+        )
+
+        community.name = payload.name
+        community.description = payload.description
+
+        community.save()
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
+
+    return {"ok": True}
+
+
 @api.delete("/communities/{community_id}", auth=JWTAuth())
 def delete_community(request, community_id):
     try:

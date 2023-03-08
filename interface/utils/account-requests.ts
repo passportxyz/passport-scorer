@@ -59,14 +59,18 @@ export const deleteApiKey = async (apiKeyId: ApiKeys["id"]): Promise<void> => {
   }
 };
 
-export type Community = {
-  id?: number;
+export type DraftCommunity = {
   name: string;
   description: string;
   use_case: string;
   rule: string;
   scorer: string;
-  created_at?: string;
+};
+
+
+export type Community = DraftCommunity &{
+  id: number;
+  created_at: string;
 };
 
 export type CommunityPatch = {
