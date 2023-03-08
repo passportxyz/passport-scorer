@@ -75,6 +75,7 @@ const RenameModal = ({
 }: RenameModalProps): JSX.Element => {
   const [scorerName, setScorerName] = useState("");
   const [scorerDescription, setScorerDescription] = useState("");
+  const [inProgress, setInProgress] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -87,10 +88,30 @@ const RenameModal = ({
     onClose();
   };
 
-  const saveChanges = () => {
-    onSaveChanges(scorerName, scorerDescription);
+  const saveChanges = async () => {
+    setInProgress(true);
+    try {
+      await onSaveChanges(scorerName, scorerDescription);
+    } catch (e) {}
+    setInProgress(false);
   };
 
+  const spinner = inProgress ? (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      className="h-6 w-6 animate-spin"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+      />
+    </svg>
+  ) : null;
   return (
     <Modal
       isOpen={isOpen}
@@ -130,10 +151,11 @@ const RenameModal = ({
         </ModalBody>
         <ModalFooter>
           <button
-            className="mb-2 w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-4"
-            disabled={!scorerName || !scorerDescription}
+            className="mb-2 flex w-full justify-center rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-4"
+            disabled={(!scorerName || !scorerDescription) || inProgress}
             onClick={saveChanges}
           >
+            {spinner}
             Save Changes
           </button>
         </ModalFooter>
@@ -154,6 +176,30 @@ const DeleteConfirmationModal = ({
   onCancel,
   onConfirm,
 }: DeleteConfirmationModalProps): JSX.Element => {
+  const [inProgress, setInProgress] = useState(false);
+  const spinner = inProgress ? (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      className="h-6 w-6 animate-spin"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+      />
+    </svg>
+  ) : null;
+  const handleDeleteConfirm = async () => {
+    setInProgress(true);
+    try {
+      await onConfirm();
+    } catch (e) {}
+    setInProgress(false);
+  }
   return (
     <Modal
       isOpen={isOpen}
@@ -186,9 +232,11 @@ const DeleteConfirmationModal = ({
                 Cancel
               </button>
               <button
-                className="w-full rounded bg-purple-gitcoinpurple py-2 px-6 text-base text-white"
-                onClick={onConfirm}
+                className="w-full flex justify-center rounded bg-purple-gitcoinpurple py-2 px-6 text-base text-white"
+                onClick={handleDeleteConfirm}
+                disabled={inProgress}
               >
+                {spinner}
                 Confirm Deletion
               </button>
             </div>
