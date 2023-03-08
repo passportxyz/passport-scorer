@@ -69,6 +69,11 @@ export type Community = {
   created_at?: string;
 };
 
+export type CommunityPatch = {
+  name: string | undefined;
+  description: string | undefined;
+};
+
 export const createCommunity = async (community: Community) => {
   try {
     const token = localStorage.getItem("access-token");
@@ -106,11 +111,11 @@ export const getCommunities = async (): Promise<Community[]> => {
 
 export const updateCommunity = async (
   communityId: Community["id"],
-  community: Community
+  community: CommunityPatch
 ) => {
   try {
     const token = localStorage.getItem("access-token");
-    const response = await axios.put(
+    const response = await axios.patch(
       `${SCORER_BACKEND}account/communities/${communityId}`,
       { ...community },
       {
