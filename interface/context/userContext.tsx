@@ -101,7 +101,7 @@ export const UserProvider = ({ children }: { children: any }) => {
       try {
         const { expDate } = await verifyToken(accessToken);
         // We want the token to be valid for at least 24 hours
-        const minExpirationData = new Date(Date.now() + 1000 * 60 * 60 * 24)
+        const minExpirationData = new Date(Date.now() + 1000 * 60 * 60 * 12)
         if (expDate < minExpirationData) {
           window.localStorage.removeItem("access-token");
         }
