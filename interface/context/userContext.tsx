@@ -104,9 +104,11 @@ export const UserProvider = ({ children }: { children: any }) => {
         const minExpirationData = new Date(Date.now() + 1000 * 60 * 60 * 12)
         if (expDate < minExpirationData) {
           window.localStorage.removeItem("access-token");
+          return
         }
       } catch (e) {
         window.localStorage.removeItem("access-token");
+        return
       }
     }
     if (previouslyConnectedWallets?.length) {
