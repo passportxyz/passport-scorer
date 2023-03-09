@@ -9,7 +9,7 @@ on:
         type: string
 
   push:
-    branches: [972-implement-blocknative]
+    branches: [synpress-github-ci]
 
 jobs:
   cypress-test:
