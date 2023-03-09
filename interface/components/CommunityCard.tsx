@@ -33,6 +33,7 @@ import {
 } from "@chakra-ui/react";
 import { CloseIcon } from "@chakra-ui/icons";
 import { UseCaseInterface, useCases } from "./UseCaseModal";
+import { SpinnerIcon } from "./CustomIcons";
 
 interface UseCaseMap {
   [k: string]: UseCaseInterface;
@@ -96,22 +97,6 @@ const RenameModal = ({
     setInProgress(false);
   };
 
-  const spinner = inProgress ? (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.5}
-      stroke="currentColor"
-      className="h-6 w-6 animate-spin"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-      />
-    </svg>
-  ) : null;
   return (
     <Modal
       isOpen={isOpen}
@@ -152,10 +137,10 @@ const RenameModal = ({
         <ModalFooter>
           <button
             className="mb-2 flex w-full justify-center rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-4"
-            disabled={(!scorerName || !scorerDescription) || inProgress}
+            disabled={!scorerName || !scorerDescription || inProgress}
             onClick={saveChanges}
           >
-            {spinner}
+            <SpinnerIcon inProgress={inProgress}></SpinnerIcon>
             Save Changes
           </button>
         </ModalFooter>
@@ -177,29 +162,14 @@ const DeleteConfirmationModal = ({
   onConfirm,
 }: DeleteConfirmationModalProps): JSX.Element => {
   const [inProgress, setInProgress] = useState(false);
-  const spinner = inProgress ? (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.5}
-      stroke="currentColor"
-      className="h-6 w-6 animate-spin"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-      />
-    </svg>
-  ) : null;
+
   const handleDeleteConfirm = async () => {
     setInProgress(true);
     try {
       await onConfirm();
     } catch (e) {}
     setInProgress(false);
-  }
+  };
   return (
     <Modal
       isOpen={isOpen}
@@ -232,11 +202,11 @@ const DeleteConfirmationModal = ({
                 Cancel
               </button>
               <button
-                className="w-full flex justify-center rounded bg-purple-gitcoinpurple py-2 px-6 text-base text-white"
+                className="flex w-full justify-center rounded bg-purple-gitcoinpurple py-2 px-6 text-base text-white"
                 onClick={handleDeleteConfirm}
                 disabled={inProgress}
               >
-                {spinner}
+                <SpinnerIcon inProgress={inProgress}></SpinnerIcon>
                 Confirm Deletion
               </button>
             </div>
@@ -345,7 +315,10 @@ const CommunityCard = ({
         onConfirm={deleteCommunity}
         community={community}
       ></DeleteConfirmationModal>
-      <div className="relative min-w-0 md:static md:flex">
+      <div
+        data-testid={`scorer-item-${community.id}`}
+        className="relative min-w-0 md:static md:flex"
+      >
         <div className="flex-auto md:basis-5/12">
           <p className="text-sm text-purple-gitcoinpurple">
             {useCaseIcon}
@@ -395,8 +368,18 @@ const CommunityCard = ({
               </div>
             </MenuButton>{" "}
             <MenuList>
-              <MenuItem onClick={handleRename}>Rename</MenuItem>
-              <MenuItem onClick={handleDelete}>Delete</MenuItem>
+              <MenuItem
+                data-testid={`menu-rename-${community.id}`}
+                onClick={handleRename}
+              >
+                Rename
+              </MenuItem>
+              <MenuItem
+                data-testid={`menu-delete-${community.id}`}
+                onClick={handleDelete}
+              >
+                Delete
+              </MenuItem>
             </MenuList>
           </Menu>
         </div>

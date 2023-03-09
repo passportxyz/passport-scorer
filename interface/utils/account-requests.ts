@@ -67,8 +67,7 @@ export type DraftCommunity = {
   scorer: string;
 };
 
-
-export type Community = DraftCommunity &{
+export type Community = DraftCommunity & {
   id: number;
   created_at: string;
 };

@@ -359,8 +359,11 @@ def patch_community(request, community_id, payload: CommunitiesPatchPayload):
             Community, id=community_id, account=request.user.account
         )
 
-        community.name = payload.name
-        community.description = payload.description
+        if payload.name:
+            community.name = payload.name
+
+        if payload.description:
+            community.description = payload.description
 
         community.save()
     except Account.DoesNotExist:
