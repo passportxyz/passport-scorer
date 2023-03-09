@@ -390,7 +390,7 @@
     tunnel-agent "^0.6.0"
     uuid "^8.3.2"
 
-"@cypress/webpack-dev-server@^3.2.3":
+"@cypress/webpack-dev-server@^3.3.0":
   version "3.3.0"
   resolved "https://registry.yarnpkg.com/@cypress/webpack-dev-server/-/webpack-dev-server-3.3.0.tgz#97f206aaad65c8e7709a85a62efb368140977d82"
   integrity sha512-jOXvKo4I7U89cdKtuoD98VR2PJpueKgHBMbX/uH++SojE0xlUji8n/EFyZUBW/Eds+yPC4keupF8y/ViywP4QQ==
@@ -1077,13 +1077,13 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@playwright/test@^1.30.0":
-  version "1.31.1"
-  resolved "https://registry.yarnpkg.com/@playwright/test/-/test-1.31.1.tgz#39d6873dc46af135f12451d79707db7d1357455d"
-  integrity sha512-IsytVZ+0QLDh1Hj83XatGp/GsI1CDJWbyDaBGbainsh0p2zC7F4toUocqowmjS6sQff2NGT3D9WbDj/3K2CJiA==
+"@playwright/test@^1.31.1":
+  version "1.31.2"
+  resolved "https://registry.yarnpkg.com/@playwright/test/-/test-1.31.2.tgz#426d8545143a97a6fed250a2a27aa1c8e5e2548e"
+  integrity sha512-BYVutxDI4JeZKV1+ups6dt5WiqKhjBtIYowyZIJ3kBDmJgsuPKsqqKNIMFbUePLSCmp2cZu+BDL427RcNKTRYw==
   dependencies:
     "@types/node" "*"
-    playwright-core "1.31.1"
+    playwright-core "1.31.2"
   optionalDependencies:
     fsevents "2.3.2"
 
@@ -1194,20 +1194,20 @@
     synthetix "2.41.0"
     web3-utils "1.2.11"
 
-"@synthetixio/synpress@3.1.0":
-  version "3.1.0"
-  resolved "https://registry.yarnpkg.com/@synthetixio/synpress/-/synpress-3.1.0.tgz#d8d4558bf3c19b9a9e858cbaa3bf297865d5f896"
-  integrity sha512-ttX8Fpxw8Q9iFpJY94/BznekNmpRY6bcd5fD4iEyz17c/iIIDjerhTQqDFniU1/WLmUFqWYRtGBK47+HSrcuQg==
+"@synthetixio/synpress@3.3.1":
+  version "3.3.1"
+  resolved "https://registry.yarnpkg.com/@synthetixio/synpress/-/synpress-3.3.1.tgz#e596f5ea8e9bc438306ce969dcf35b2e790f0da0"
+  integrity sha512-RGE8X4FEcHUROhat6jatY+H9PGTPfmNY8/Cp3YoGHrxFnt0bB0kQ8BCvxctP6WDjfChGkkxagpe7l4FhrIAGGQ==
   dependencies:
     "@cypress/code-coverage" "^3.10.0"
-    "@cypress/webpack-dev-server" "^3.2.3"
+    "@cypress/webpack-dev-server" "^3.3.0"
     "@drptbl/gremlins.js" "^2.2.1"
-    "@playwright/test" "^1.30.0"
+    "@playwright/test" "^1.31.1"
     "@synthetixio/js" "^2.41.0"
     "@testing-library/cypress" "^9.0.0"
-    "@testing-library/react" "^13.4.0"
+    "@testing-library/react" "^14.0.0"
     "@types/testing-library__cypress" "^5.0.9"
-    axios "^1.3.2"
+    axios "^1.3.4"
     babel-plugin-istanbul "^6.1.1"
     babel-plugin-react-generate-property "^1.1.2"
     babel-plugin-react-remove-properties "^0.3.0"
@@ -1215,7 +1215,7 @@
     babel-plugin-transform-react-styled-components-qa "^2.1.0"
     bytes32 "^0.0.3"
     commander "^10.0.0"
-    cypress "^12.5.1"
+    cypress "^12.7.0"
     cypress-wait-until "^1.7.2"
     debug "^4.3.4"
     dotenv "^16.0.3"
@@ -1231,16 +1231,16 @@
     eslint-plugin-prettier "^4.2.1"
     eslint-plugin-promise "^6.1.1"
     eslint-plugin-standard "^4.1.0"
-    eslint-plugin-testing-library "^5.10.1"
+    eslint-plugin-testing-library "^5.10.2"
     eslint-plugin-ui-testing "^2.0.1"
     eslint-plugin-unicorn "^45.0.2"
-    ethers "^6.0.2"
+    ethers "^6.0.8"
     etherscan-api "^10.3.0"
     find-config "^1.0.0"
     node-fetch "^2.6.1"
     prettier "^2.8.4"
     serve "^14.2.0"
-    start-server-and-test "^1.15.3"
+    start-server-and-test "^1.15.4"
     synthetix-js "^2.74.1"
 
 "@szmarczak/http-timer@^4.0.5":
@@ -1279,7 +1279,7 @@
     lz-string "^1.4.4"
     pretty-format "^26.6.2"
 
-"@testing-library/dom@^8.1.0", "@testing-library/dom@^8.5.0":
+"@testing-library/dom@^8.1.0":
   version "8.20.0"
   resolved "https://registry.yarnpkg.com/@testing-library/dom/-/dom-8.20.0.tgz#914aa862cef0f5e89b98cc48e3445c4c921010f6"
   integrity sha512-d9ULIT+a4EXLX3UU8FBjauG9NnsZHkHztXoIcTsOKoOw030fyjheN9svkTULjJxtYag9DZz5Jz5qkWZDPxTFwA==
@@ -1293,13 +1293,27 @@
     lz-string "^1.4.4"
     pretty-format "^27.0.2"
 
-"@testing-library/react@^13.4.0":
-  version "13.4.0"
-  resolved "https://registry.yarnpkg.com/@testing-library/react/-/react-13.4.0.tgz#6a31e3bf5951615593ad984e96b9e5e2d9380966"
-  integrity sha512-sXOGON+WNTh3MLE9rve97ftaZukN3oNf2KjDy7YTx6hcTO2uuLHuCGynMDhFwGw/jYf4OJ2Qk0i4i79qMNNkyw==
+"@testing-library/dom@^9.0.0":
+  version "9.0.1"
+  resolved "https://registry.yarnpkg.com/@testing-library/dom/-/dom-9.0.1.tgz#fb9e3837fe2a662965df1536988f0863f01dbf51"
+  integrity sha512-fTOVsMY9QLFCCXRHG3Ese6cMH5qIWwSbgxZsgeF5TNsy81HKaZ4kgehnSF8FsR3OF+numlIV2YcU79MzbnhSig==
+  dependencies:
+    "@babel/code-frame" "^7.10.4"
+    "@babel/runtime" "^7.12.5"
+    "@types/aria-query" "^5.0.1"
+    aria-query "^5.0.0"
+    chalk "^4.1.0"
+    dom-accessibility-api "^0.5.9"
+    lz-string "^1.5.0"
+    pretty-format "^27.0.2"
+
+"@testing-library/react@^14.0.0":
+  version "14.0.0"
+  resolved "https://registry.yarnpkg.com/@testing-library/react/-/react-14.0.0.tgz#59030392a6792450b9ab8e67aea5f3cc18d6347c"
+  integrity sha512-S04gSNJbYE30TlIMLTzv6QCTzt9AqIF5y6s6SzVFILNcNvbV/jU96GeiTPillGQo+Ny64M/5PV7klNYYgv5Dfg==
   dependencies:
     "@babel/runtime" "^7.12.5"
-    "@testing-library/dom" "^8.5.0"
+    "@testing-library/dom" "^9.0.0"
     "@types/react-dom" "^18.0.0"
 
 "@truffle/abi-utils@^0.3.8":
@@ -2470,7 +2484,7 @@ axios@^0.27.2:
     follow-redirects "^1.14.9"
     form-data "^4.0.0"
 
-axios@^1.3.2:
+axios@^1.3.4:
   version "1.3.4"
   resolved "https://registry.yarnpkg.com/axios/-/axios-1.3.4.tgz#f5760cefd9cfb51fd2481acf88c05f67c4523024"
   integrity sha512-toYm+Bsyl6VC5wSkfkbbNB6ROv7KY93PEBBL6xyDczaIHasAiv4wPqQ/c4RjoQzipxRD2W5g21cOqQulZ7rHwQ==
@@ -4236,7 +4250,7 @@ cypress-wait-until@^1.7.2:
   resolved "https://registry.yarnpkg.com/cypress-wait-until/-/cypress-wait-until-1.7.2.tgz#7f534dd5a11c89b65359e7a0210f20d3dfc22107"
   integrity sha512-uZ+M8/MqRcpf+FII/UZrU7g1qYZ4aVlHcgyVopnladyoBrpoaMJ4PKZDrdOJ05H5RHbr7s9Tid635X3E+ZLU/Q==
 
-cypress@*, cypress@^12.5.1:
+cypress@*, cypress@^12.7.0:
   version "12.7.0"
   resolved "https://registry.yarnpkg.com/cypress/-/cypress-12.7.0.tgz#69900f82af76cf3ba0ddb9b59ec3b0d38222ab22"
   integrity sha512-7rq+nmhzz0u6yabCFyPtADU2OOrYt6pvUau9qV7xyifJ/hnsaw/vkr0tnLlcuuQKUAOC1v1M1e4Z0zG7S0IAvA==
@@ -5268,7 +5282,7 @@ eslint-plugin-standard@^4.1.0:
   resolved "https://registry.yarnpkg.com/eslint-plugin-standard/-/eslint-plugin-standard-4.1.0.tgz#0c3bf3a67e853f8bbbc580fb4945fbf16f41b7c5"
   integrity sha512-ZL7+QRixjTR6/528YNGyDotyffm5OQst/sGxKDwGb9Uqs4In5Egi4+jbobhqJoyoCM6/7v/1A5fhQ7ScMtDjaQ==
 
-eslint-plugin-testing-library@^5.10.1:
+eslint-plugin-testing-library@^5.10.2:
   version "5.10.2"
   resolved "https://registry.yarnpkg.com/eslint-plugin-testing-library/-/eslint-plugin-testing-library-5.10.2.tgz#12f231ad9b52b6aef45c801fd00aa129a932e0c2"
   integrity sha512-f1DmDWcz5SDM+IpCkEX0lbFqrrTs8HRsEElzDEqN/EBI0hpRj8Cns5+IVANXswE8/LeybIJqPAOQIFu2j5Y5sw==
@@ -5950,10 +5964,10 @@ ethers@^5.0.13, ethers@^5.7.2:
     "@ethersproject/web" "5.7.1"
     "@ethersproject/wordlists" "5.7.0"
 
-ethers@^6.0.2:
-  version "6.0.8"
-  resolved "https://registry.yarnpkg.com/ethers/-/ethers-6.0.8.tgz#a02e31f2771b66ecab6c731c1141b30d9de09174"
-  integrity sha512-j5smdMwn4t4vEARcfUv54mTJ2NMCorYLL51wPjFInEnrRr2SF5Sl9a7Z4DXS8UO1fBJVGHnjDDrF1b7msY3f7Q==
+ethers@^6.0.8:
+  version "6.1.0"
+  resolved "https://registry.yarnpkg.com/ethers/-/ethers-6.1.0.tgz#de9c3acbb865fda6c080e80ec88ae0aada046947"
+  integrity sha512-aC45YGbvgXt7Nses5WsdQwc1cUIrrQt32zeFShNW7ZT3RQCIHBnd4nmbE5sJmrp70uTdwkRHkr4cZr1D/YwFPg==
   dependencies:
     "@adraffy/ens-normalize" "1.8.9"
     "@noble/hashes" "1.1.2"
@@ -8407,6 +8421,11 @@ lz-string@^1.4.4:
   resolved "https://registry.yarnpkg.com/lz-string/-/lz-string-1.4.4.tgz#c0d8eaf36059f705796e1e344811cf4c498d3a26"
   integrity sha512-0ckx7ZHRPqb0oUm8zNr+90mtf9DQB60H1wMCjBtfi62Kl3a7JbHob6gA2bC+xRvZoOL+1hzUK8jeuEIQE8svEQ==
 
+lz-string@^1.5.0:
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/lz-string/-/lz-string-1.5.0.tgz#c1ab50f77887b712621201ba9fd4e3a6ed099941"
+  integrity sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==
+
 make-dir@^1.0.0:
   version "1.3.0"
   resolved "https://registry.yarnpkg.com/make-dir/-/make-dir-1.3.0.tgz#79c1033b80515bd6d24ec9933e860ca75ee27f0c"
@@ -9418,10 +9437,10 @@ pkg-dir@^4.1.0:
   dependencies:
     find-up "^4.0.0"
 
-playwright-core@1.31.1:
-  version "1.31.1"
-  resolved "https://registry.yarnpkg.com/playwright-core/-/playwright-core-1.31.1.tgz#4deeebbb8fb73b512593fe24bea206d8fd85ff7f"
-  integrity sha512-JTyX4kV3/LXsvpHkLzL2I36aCdml4zeE35x+G5aPc4bkLsiRiQshU5lWeVpHFAuC8xAcbI6FDcw/8z3q2xtJSQ==
+playwright-core@1.31.2:
+  version "1.31.2"
+  resolved "https://registry.yarnpkg.com/playwright-core/-/playwright-core-1.31.2.tgz#debf4b215d14cb619adb7e511c164d068075b2ed"
+  integrity sha512-a1dFgCNQw4vCsG7bnojZjDnPewZcw7tZUNFN0ZkcLYKj+mPmXvg4MpaaKZ5SgqPsOmqIf2YsVRkgqiRDxD+fDQ==
 
 plugin-error@^1.0.1:
   version "1.0.1"
@@ -10735,7 +10754,7 @@ stackframe@^1.3.4:
   resolved "https://registry.yarnpkg.com/stackframe/-/stackframe-1.3.4.tgz#b881a004c8c149a5e8efef37d51b16e412943310"
   integrity sha512-oeVtt7eWQS+Na6F//S4kJ2K2VbRlS9D43mAlMyVpVWovy9o+jfgH8O9agzANzaiLjclA0oYzUXEM4PurhSUChw==
 
-start-server-and-test@^1.15.3:
+start-server-and-test@^1.15.4:
   version "1.15.5"
   resolved "https://registry.yarnpkg.com/start-server-and-test/-/start-server-and-test-1.15.5.tgz#5c9103bd87c06678fc62658fbe97d09501714011"
   integrity sha512-o3EmkX0++GV+qsvIJ/OKWm3w91fD8uS/bPQVPrh/7loaxkpXSuAIHdnmN/P/regQK9eNAK76aBJcHt+OSTk+nA==

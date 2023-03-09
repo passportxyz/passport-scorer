@@ -13,11 +13,7 @@ export default class LandingPage extends Page {
     cy.clearLocalStorage();
     this.initiateSignInWithEthereum();
     this.selectMetamaskWallet();
-    // cy.switchToMetamaskWindow();
-    if (Cypress.env("SKIP_METAMASK_CONNECT") != "1") {
-      cy.acceptMetamaskAccess().should("be.true");
-    }
-    cy.confirmMetamaskSignatureRequest().should("be.true");
+    cy.acceptMetamaskAccess({ signInSignature: true });
   }
 
   initiateSignInWithEthereum() {
