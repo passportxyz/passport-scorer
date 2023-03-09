@@ -355,12 +355,18 @@ class CommunitiesPatchPayload(Schema):
 @api.patch("/communities/{community_id}", auth=JWTAuth())
 def patch_community(request, community_id, payload: CommunitiesPatchPayload):
     try:
-        community = get_object_or_404(
-            Community, id=community_id, account=request.user.account
-        )
+        account = request.user.account
+        community = get_object_or_404(Community, id=community_id, account=account)
 
         if payload.name:
             community.name = payload.name
+            # Check for duplicates in other communities within the same account
+            if (
+                Community.objects.filter(name=payload.name, account=account)
+                .exclude(id=community_id)
+                .exists()
+            ):
+                raise CommunityExistsException()
 
         if payload.description:
             community.description = payload.description

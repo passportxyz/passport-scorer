@@ -297,3 +297,74 @@ class CommunityTestCase(TestCase):
         all_communities = list(Community.objects.all())
         self.assertEqual(len(all_communities), 1)
         self.assertEqual(all_communities[0].name, "Community2")
+
+    def test_patch_community(self):
+        """Test successfully editing a community's name and description"""
+        client = Client()
+
+        # Create Community
+        account_community = Community.objects.create(
+            account=self.account,
+            name="OLD - " + mock_community_body["name"],
+            description="OLD - " + mock_community_body["description"],
+        )
+
+        # Edit the community
+        community_response = client.patch(
+            f"/account/communities/{account_community.id}",
+            json.dumps(
+                {
+                    "name": mock_community_body["name"],
+                    "description": mock_community_body["description"],
+                }
+            ),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+
+        self.assertEqual(community_response.status_code, 200)
+        # Check that the community was updated
+        community = list(Community.objects.all())
+        self.assertEqual(len(community), 1)
+        self.assertEqual(community[0].name, mock_community_body["name"])
+        self.assertEqual(community[0].description, mock_community_body["description"])
+
+    def test_patch_community_with_duplicate_name(self):
+        """Test successfully editing a community's name and description"""
+        client = Client()
+
+        name_1 = "OLD - " + mock_community_body["name"]
+        name_2 = "OLD-2 - " + mock_community_body["name"]
+
+        # Create Community 1
+        account_community = Community.objects.create(
+            account=self.account,
+            name=name_1,
+            description="OLD - " + mock_community_body["description"],
+        )
+
+        # Create Community 2
+        Community.objects.create(
+            account=self.account,
+            name=name_2,
+            description="OLD-2 - " + mock_community_body["description"],
+        )
+
+        # Edit the community
+        community_response = client.patch(
+            f"/account/communities/{account_community.id}",
+            json.dumps(
+                {
+                    "name": name_2,
+                    "description": mock_community_body["description"],
+                }
+            ),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+
+        self.assertEqual(community_response.status_code, 400)
+        response_data = community_response.json()
+        self.assertEqual(
+            response_data, {"detail": "A community with this name already exists"}
+        )
