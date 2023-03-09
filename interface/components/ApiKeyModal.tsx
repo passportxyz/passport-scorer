@@ -2,16 +2,31 @@ import { ArrowBackIcon, SmallCloseIcon } from "@chakra-ui/icons";
 import { Center, Input, Text } from "@chakra-ui/react";
 import Image from "next/image";
 import { useState } from "react";
+import { ApiKeys, createApiKey } from "../utils/account-requests";
 import ModalTemplate from "./ModalTemplate";
 import { PrimaryBtn } from "./PrimrayBtn";
 
 export type ApiKeyModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  onApiKeyCreated: (apiKey: ApiKeys) => void;
 };
 
-export function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
+export function ApiKeyModal({ isOpen, onClose, onApiKeyCreated }: ApiKeyModalProps) {
   const [keyName, setKeyName] = useState("");
+  const [creationError, setError] = useState<string>("");
+
+  const handleCreateApiKey = async () => {
+    try {
+      const apiKeyResponse = await createApiKey(keyName);
+      onApiKeyCreated(apiKeyResponse);
+      onClose();
+    } catch (error: any) {
+      const msg = error?.response?.data?.detail || "There was an error creating your API key. Please try again.";
+      setError(msg);
+    }
+  };
+
   return (
     <ModalTemplate isOpen={isOpen} onClose={onClose}>
       <>
@@ -51,8 +66,11 @@ export function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
           Academy testing’, etc.
         </p>
         <hr />
+        {creationError.length > 0 && (
+          <p className="text-red-700 pt-4">{creationError}</p>
+        )}
         <PrimaryBtn
-          onClick={() => console.log("creating")}
+          onClick={handleCreateApiKey}
           disabled={keyName.length === 0}
         >
           Create

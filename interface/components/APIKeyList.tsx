@@ -41,18 +41,6 @@ const APIKeyList = () => {
     fetchApiKeys();
   }, []);
 
-  const handleCreateApiKey = async () => {
-    try {
-      const apiKey = await createApiKey(keyName);
-      setNewApiKey(apiKey.api_key);
-      setKeyName("");
-      setApiKeys(await getApiKeys());
-      setCreateApiKeyModal(false);
-    } catch (error) {
-      setError("There was an error creating your API key.");
-    }
-  };
-
   const handleDeleteApiKey = async (apiKeyId: ApiKeys["id"]) => {
     try {
       await deleteApiKey(apiKeyId);
@@ -123,6 +111,7 @@ const APIKeyList = () => {
       <ApiKeyModal
         isOpen={createApiKeyModal}
         onClose={() => setCreateApiKeyModal(false)}
+        onApiKeyCreated={(apiKey: ApiKeys) => setApiKeys([...apiKeys, apiKey])}
       />
     </>
   );
