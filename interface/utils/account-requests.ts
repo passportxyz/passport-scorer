@@ -77,7 +77,7 @@ export type CommunityPatch = {
   description: string | undefined;
 };
 
-export const createCommunity = async (community: Community) => {
+export const createCommunity = async (community: DraftCommunity) => {
   try {
     const token = localStorage.getItem("access-token");
     const response = await axios.post(
