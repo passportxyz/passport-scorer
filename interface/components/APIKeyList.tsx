@@ -15,12 +15,12 @@ import {
   deleteApiKey,
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
+import { ApiKeyModal } from "./ApiKeyModal";
 
 const APIKeyList = () => {
   const [error, setError] = useState<undefined | string>();
   const [apiKeys, setApiKeys] = useState<ApiKeys[]>([]);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
+  const [createApiKeyModal, setCreateApiKeyModal] = useState(false);
   const [newApiKey, setNewApiKey] = useState();
   const [keyName, setKeyName] = useState("");
 
@@ -47,8 +47,7 @@ const APIKeyList = () => {
       setNewApiKey(apiKey.api_key);
       setKeyName("");
       setApiKeys(await getApiKeys());
-      setModalOpen(false);
-      setApiKeyModalOpen(true);
+      setCreateApiKeyModal(false);
     } catch (error) {
       setError("There was an error creating your API key.");
     }
@@ -71,7 +70,7 @@ const APIKeyList = () => {
     <>
       {apiKeys.length === 0 ? (
         <div className="h-full">
-          <div className="mx-auto text-purple-softpurple text-center">
+          <div className="mx-auto text-center text-purple-softpurple">
             The API’s keys are unique to your wallet address and can be used to
             access created Scorers.
           </div>
@@ -79,7 +78,7 @@ const APIKeyList = () => {
             title="Create a key"
             description="Communicate between applications by connecting a key to request service from the community or organization."
             addActionText="API Key"
-            addRequest={() => setModalOpen(true)}
+            addRequest={() => setCreateApiKeyModal(true)}
             icon={<SettingsIcon />}
           />
         </div>
@@ -111,60 +110,20 @@ const APIKeyList = () => {
               <button
                 data-testid="open-api-key-modal"
                 className="rounded bg-purple-softpurple py-2 px-4 text-white"
-                onClick={() => setModalOpen(true)}
+                onClick={() => setCreateApiKeyModal(true)}
               >
                 <span className="mr-2 text-lg">+</span>Create a key
               </button>
             </div>
-            {modalOpen}
+            {createApiKeyModal}
             {error && <div>{error}</div>}
           </div>
         </div>
       )}
-      <ModalTemplate
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Create a key"
-      >
-        <div className="flex flex-col">
-          <label className="text-gray-softgray font-librefranklin text-xs">
-            Key name
-          </label>
-          <Input
-            data-testid="key-name-input"
-            value={keyName}
-            onChange={(name) => setKeyName(name.target.value)}
-            placeholder="Key name"
-          />
-          <div className="flex w-full justify-end">
-            <button
-              disabled={!keyName}
-              data-testid="create-button"
-              className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
-              onClick={handleCreateApiKey}
-            >
-              Create
-            </button>
-          </div>
-        </div>
-      </ModalTemplate>
-      <ModalTemplate
-        isOpen={apiKeyModalOpen}
-        onClose={() => setApiKeyModalOpen(false)}
-        title="Copy your API Key"
-      >
-        <div className="flex flex-col">
-          <label className="text-gray-softgray font-librefranklin text-xs">
-            API Key
-          </label>
-          <Input
-            className="mb-6"
-            data-testid="key-name-input"
-            value={newApiKey}
-            readOnly={true}
-          />
-        </div>
-      </ModalTemplate>
+      <ApiKeyModal
+        isOpen={createApiKeyModal}
+        onClose={() => setCreateApiKeyModal(false)}
+      />
     </>
   );
 };
