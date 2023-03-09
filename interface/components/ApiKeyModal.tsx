@@ -20,12 +20,17 @@ export function ApiKeyModal({
   const [keyName, setKeyName] = useState("");
   const [creationError, setError] = useState<string>("");
 
+  const closeAndReset = () => {
+    setKeyName("");
+    setError("");
+    onClose();
+  }
+
   const handleCreateApiKey = async () => {
     try {
       const apiKeyResponse = await createApiKey(keyName);
       onApiKeyCreated(apiKeyResponse);
-      setKeyName("");
-      onClose();
+      closeAndReset();
     } catch (error: any) {
       const msg =
         error?.response?.data?.detail ||
@@ -35,7 +40,7 @@ export function ApiKeyModal({
   };
 
   return (
-    <ModalTemplate isOpen={isOpen} onClose={onClose}>
+    <ModalTemplate isOpen={isOpen} onClose={closeAndReset}>
       <>
         <Center>
           <img

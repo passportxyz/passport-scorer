@@ -16,7 +16,7 @@ import {
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
 import { ApiKeyModal } from "./ApiKeyModal";
-import { EllipsisVerticalIcon } from "@heroicons/react/24/solid";
+import { ClipboardDocumentIcon, EllipsisVerticalIcon } from "@heroicons/react/24/solid";
 
 export type ApiKeyDisplay = ApiKeys & {
   api_key?: string;
@@ -85,13 +85,22 @@ const APIKeyList = () => {
                   <p>{key.name}</p>
                 </div>
 
-                {/* Remove delete and use dropdown */}
-                <button
-                  className="justify-self-end rounded-md px-3 pt-1"
-                  onClick={async () => await handleDeleteApiKey(key.id)}
-                >
-                  <EllipsisVerticalIcon height={25} color={"#0E0333"} />
-                </button>
+                <div className="flex">
+                  {key.api_key && (
+                    <div className="flex mt-1.5 pr-5">
+                      <p className="flex text-purple-darkpurple text-xs pr-3">
+                        {key.api_key}
+                      </p>
+                      <ClipboardDocumentIcon height={14} color={"#0E0333"} />
+                    </div>
+                  )}
+                  <button
+                    className="justify-self-end rounded-md"
+                    onClick={async () => await handleDeleteApiKey(key.id)}
+                  >
+                    <EllipsisVerticalIcon height={25} color={"#0E0333"} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
