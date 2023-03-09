@@ -1,4 +1,10 @@
-import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  waitFor,
+  waitForElementToBeRemoved,
+} from "@testing-library/react";
 import TabRoute from "../../pages/dashboard/[...tabRoute]";
 import mockRouter from "next-router-mock";
 import { createDynamicRouteParser } from "next-router-mock/dynamic-routes";
@@ -34,7 +40,11 @@ jest.mock("@rainbow-me/rainbowkit", () => {
 
 describe("Dashboard Scorer", () => {
   beforeEach(() => {
-    (getCommunities as jest.Mock).mockResolvedValue([
+    (deleteCommunity as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it("should render all the scorers returned by the backend", async () => {
+    (getCommunities as jest.Mock).mockClear().mockResolvedValue([
       // give me an iso datetime string for testing
       {
         id: 1,
@@ -58,12 +68,7 @@ describe("Dashboard Scorer", () => {
         use_case: "Airdrop Protection",
       },
     ]);
-    (getApiKeys as jest.Mock).mockResolvedValue([]);
-    (updateCommunity as jest.Mock).mockResolvedValue(undefined);
-    (deleteCommunity as jest.Mock).mockResolvedValue(undefined);
-  });
 
-  it("should render all the scorers returned by the backend", async () => {
     await act(() => mockRouter.push("/dashboard/scorer"));
 
     const { getByText } = render(
@@ -79,6 +84,45 @@ describe("Dashboard Scorer", () => {
   });
 
   it("should make an update request to the scorer when user initiates a change", async () => {
+    const promise = Promise.resolve();
+    const communitiesPromises: Promise<any>[] = [];
+
+    // This is a list of mock data. We'll pop an element form the list for each
+    // invocation of getCommunities
+    const scorerLists = [
+      [
+        // give me an iso datetime string for testing
+        {
+          id: 1,
+          name: "Test Scorer 1",
+          description: "Test 1 Description",
+          created_at: "2021-01-10T00:00:00.000Z",
+          use_case: "Airdrop Protection",
+        },
+      ],
+      [
+        // give me an iso datetime string for testing
+        {
+          id: 1,
+          name: "Test Scorer 2",
+          description: "Test 2 Description",
+          created_at: "2021-01-10T00:00:00.000Z",
+          use_case: "Airdrop Protection",
+        },
+      ],
+    ];
+
+    (getCommunities as jest.Mock).mockClear().mockImplementation(() => {
+      const scorerList = scorerLists.shift();
+      const communitiesPromise = Promise.resolve(scorerList);
+      communitiesPromises.push(communitiesPromise);
+      return communitiesPromise;
+    });
+
+    (updateCommunity as jest.Mock)
+      .mockClear()
+      .mockImplementation(() => promise);
+
     await act(() => mockRouter.push("/dashboard/scorer"));
 
     const { getByText, getByTestId } = render(
@@ -90,8 +134,6 @@ describe("Dashboard Scorer", () => {
     );
 
     await waitFor(() => expect(getByText("Test Scorer 1")).toBeInTheDocument());
-
-    console.log(getByText("Test Scorer 1"));
 
     const scorerItem = getByTestId("scorer-item-1");
     const menuButton = scorerItem.querySelector(
@@ -116,55 +158,91 @@ describe("Dashboard Scorer", () => {
     await waitFor(() => expect(getByText("Rename Scorer")).toBeVisible());
 
     const saveChangeBtn = getByText("Save Changes");
-    act(() => {
-      saveChangeBtn.click();
-    });
+    act(() => saveChangeBtn.click());
+
+    // Make sure new results are pulled from the server
+    await waitFor(() => expect(getByText("Test Scorer 2")).toBeInTheDocument());
 
     expect((updateCommunity as jest.Mock).mock.calls).toHaveLength(1);
+    expect((getCommunities as jest.Mock).mock.calls).toHaveLength(2);
   });
 
-//   it("should make an delete request to the scorer when user initiates a delete", async () => {
-//     await act(() => mockRouter.push("/dashboard/scorer"));
+  it("should make a delete request to the scorer when user initiates a delete", async () => {
+    const promise = Promise.resolve();
+    const communitiesPromises: Promise<any>[] = [];
 
-//     const { getByText, getByTestId } = render(
-//       <TabRoute authenticationStatus="authenticated" />
-//     );
+    // This is a list of mock data. We'll pop an element form the list for each
+    // invocation of getCommunities
+    const scorerLists = [
+      [
+        {
+          id: 1,
+          name: "Test Scorer 1",
+          description: "Test 1 Description",
+          created_at: "2021-01-10T00:00:00.000Z",
+          use_case: "Airdrop Protection",
+        },
+      ],
+      // Empty list for after the delete
+      [],
+    ];
 
-//     await waitFor(() =>
-//       expect(getByText("Create a Scorer")).toBeInTheDocument()
-//     );
+    (getCommunities as jest.Mock).mockClear().mockImplementation(() => {
+      const scorerList = scorerLists.shift();
+      const communitiesPromise = Promise.resolve(scorerList);
+      communitiesPromises.push(communitiesPromise);
+      return communitiesPromise;
+    });
 
-//     await waitFor(() => expect(getByText("Test Scorer 1")).toBeInTheDocument());
+    (updateCommunity as jest.Mock)
+      .mockClear()
+      .mockImplementation(() => promise);
 
-//     console.log(getByText("Test Scorer 1"));
+    await act(() => mockRouter.push("/dashboard/scorer"));
 
-//     const scorerItem = getByTestId("scorer-item-1");
-//     const menuButton = scorerItem.querySelector(
-//       '[data-testid="card-menu-button"]'
-//     );
+    const { getByText, getByTestId } = render(
+      <TabRoute authenticationStatus="authenticated" />
+    );
 
-//     expect(menuButton).toBeInTheDocument();
+    await waitFor(() =>
+      expect(getByText("Create a Scorer")).toBeInTheDocument()
+    );
 
-//     if (menuButton) {
-//       act(() => {
-//         menuButton.click();
-//       });
-//     }
+    await waitFor(() => expect(getByText("Test Scorer 1")).toBeInTheDocument());
 
-//     await waitFor(() => expect(getByTestId("menu-delete-1")).toBeVisible());
+    const scorerItem = getByTestId("scorer-item-1");
+    const menuButton = scorerItem.querySelector(
+      '[data-testid="card-menu-button"]'
+    );
 
-//     const deleteMenuItem = getByTestId("menu-delete-1");
-//     act(() => {
-//       deleteMenuItem.click();
-//     });
+    expect(menuButton).toBeInTheDocument();
 
-//     await waitFor(() => expect(getByText("Are you sure?")).toBeVisible());
+    if (menuButton) {
+      act(() => {
+        menuButton.click();
+      });
+    }
 
-//     const confirmDeletionBtn = getByText("Confirm Deletion");
-//     act(() => {
-//       confirmDeletionBtn.click();
-//     });
+    await waitFor(() => expect(getByTestId("menu-delete-1")).toBeVisible());
 
-//     expect((deleteCommunity as jest.Mock).mock.calls).toHaveLength(1);
-//   });
+    const deleteMenuItem = getByTestId("menu-delete-1");
+    act(() => {
+      deleteMenuItem.click();
+    });
+
+    await waitFor(() => expect(getByText("Are you sure?")).toBeVisible());
+
+    const confirmDeletionBtn = getByText("Confirm Deletion");
+    act(() => {
+      confirmDeletionBtn.click();
+    });
+
+    // Make sure the empty page is displayed
+    await waitFor(() =>
+      expect(getByText("Create a Scorer")).toBeInTheDocument()
+    );
+
+    expect((deleteCommunity as jest.Mock).mock.calls).toHaveLength(1);
+    expect((getCommunities as jest.Mock).mock.calls).toHaveLength(2);
+  });
 });

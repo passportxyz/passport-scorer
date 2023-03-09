@@ -84,12 +84,12 @@ const CommunityList = () => {
     description: string
   ) => {
     await updateCommunity(communityId, { name, description });
-    fetchCommunities();
+    await fetchCommunities();
   };
 
   const handleDeleteCommunity = async (communityId: number) => {
     await deleteCommunity(communityId);
-    fetchCommunities();
+    await fetchCommunities();
   };
 
   const communityItems = communities.map((community: Community, i: number) => {
