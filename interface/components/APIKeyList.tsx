@@ -16,13 +16,16 @@ import {
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
 import { ApiKeyModal } from "./ApiKeyModal";
+import { EllipsisVerticalIcon } from "@heroicons/react/24/solid";
+
+export type ApiKeyDisplay = ApiKeys & {
+  api_key?: string;
+};
 
 const APIKeyList = () => {
   const [error, setError] = useState<undefined | string>();
-  const [apiKeys, setApiKeys] = useState<ApiKeys[]>([]);
+  const [apiKeys, setApiKeys] = useState<ApiKeyDisplay[]>([]);
   const [createApiKeyModal, setCreateApiKeyModal] = useState(false);
-  const [newApiKey, setNewApiKey] = useState();
-  const [keyName, setKeyName] = useState("");
 
   useEffect(() => {
     let keysFetched = false;
@@ -71,47 +74,49 @@ const APIKeyList = () => {
           />
         </div>
       ) : (
-        <div className="flex">
-          <div className="flex w-full">
-            <div className="flex w-3/4 flex-col">
-              {apiKeys.map((key, i) => (
-                <div
-                  key={`${key.id}-${i}`}
-                  className="grid w-full auto-cols-auto grid-cols-4 items-center justify-between gap-3 border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50"
-                >
-                  <div className="justify-self-center font-semibold md:justify-self-start">
-                    <p>{key.name}</p>
-                  </div>
-                  <div className="justify-self-center rounded-full bg-gray-lightgray px-3 py-1">
-                    <p>Connected</p>
-                  </div>
-                  <button
-                    className="justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
-                    onClick={async () => await handleDeleteApiKey(key.id)}
-                  >
-                    <DeleteIcon color="#757087" />
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="flex w-1/4 flex-col p-4">
-              <button
-                data-testid="open-api-key-modal"
-                className="rounded bg-purple-softpurple py-2 px-4 text-white"
-                onClick={() => setCreateApiKeyModal(true)}
+        <>
+          <div className="flex w-full flex-col">
+            {apiKeys.map((key, i) => (
+              <div
+                key={`${key.id}-${i}`}
+                className="flex w-full items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50"
               >
-                <span className="mr-2 text-lg">+</span>Create a key
-              </button>
-            </div>
-            {createApiKeyModal}
-            {error && <div>{error}</div>}
+                <div className="justify-self-center text-purple-darkpurple md:justify-self-start">
+                  <p>{key.name}</p>
+                </div>
+
+                {/* Remove delete and use dropdown */}
+                <button
+                  className="justify-self-end rounded-md px-3 pt-1"
+                  onClick={async () => await handleDeleteApiKey(key.id)}
+                >
+                  <EllipsisVerticalIcon height={25} color={"#0E0333"} />
+                </button>
+              </div>
+            ))}
           </div>
-        </div>
+          <div className="flex items-center py-4">
+            <button
+              data-testid="open-api-key-modal"
+              className="rounded bg-gray-lightgray py-2 px-4 text-purple-darkpurple"
+              onClick={() => setCreateApiKeyModal(true)}
+            >
+              <span className="mr-2 text-lg">+</span>API Key
+            </button>
+            <p className="pl-4 text-xs text-purple-softpurple">
+              The key limit is five.
+            </p>
+          </div>
+          {createApiKeyModal}
+          {error && <div>{error}</div>}
+        </>
       )}
       <ApiKeyModal
         isOpen={createApiKeyModal}
         onClose={() => setCreateApiKeyModal(false)}
-        onApiKeyCreated={(apiKey: ApiKeys) => setApiKeys([...apiKeys, apiKey])}
+        onApiKeyCreated={(apiKey: ApiKeyDisplay) =>
+          setApiKeys([...apiKeys, apiKey])
+        }
       />
     </>
   );

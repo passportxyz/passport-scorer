@@ -28,7 +28,7 @@ const TabButton = ({
   <button
     data-testid={`${token}-tab`}
     onClick={() => router.push(`/dashboard/${token}`)}
-    className={`flex w-full items-center justify-start rounded-sm border p-3 text-blue-darkblue ${
+    className={`flex w-full items-center justify-start rounded-sm p-3 text-blue-darkblue ${
       (selected ? "border-gray-200 bg-white " : "border-gray-100 ") + className
     }`}
   >

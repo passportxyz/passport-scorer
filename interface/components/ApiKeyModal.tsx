@@ -12,7 +12,11 @@ export type ApiKeyModalProps = {
   onApiKeyCreated: (apiKey: ApiKeys) => void;
 };
 
-export function ApiKeyModal({ isOpen, onClose, onApiKeyCreated }: ApiKeyModalProps) {
+export function ApiKeyModal({
+  isOpen,
+  onClose,
+  onApiKeyCreated,
+}: ApiKeyModalProps) {
   const [keyName, setKeyName] = useState("");
   const [creationError, setError] = useState<string>("");
 
@@ -20,9 +24,12 @@ export function ApiKeyModal({ isOpen, onClose, onApiKeyCreated }: ApiKeyModalPro
     try {
       const apiKeyResponse = await createApiKey(keyName);
       onApiKeyCreated(apiKeyResponse);
+      setKeyName("");
       onClose();
     } catch (error: any) {
-      const msg = error?.response?.data?.detail || "There was an error creating your API key. Please try again.";
+      const msg =
+        error?.response?.data?.detail ||
+        "There was an error creating your API key. Please try again.";
       setError(msg);
     }
   };
@@ -67,7 +74,7 @@ export function ApiKeyModal({ isOpen, onClose, onApiKeyCreated }: ApiKeyModalPro
         </p>
         <hr />
         {creationError.length > 0 && (
-          <p className="text-red-700 pt-4">{creationError}</p>
+          <p className="pt-4 text-red-700">{creationError}</p>
         )}
         <PrimaryBtn
           onClick={handleCreateApiKey}
