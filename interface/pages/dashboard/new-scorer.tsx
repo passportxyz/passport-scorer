@@ -70,7 +70,7 @@ export const gitcoinScoringMechanisms: Array<GitcoinScoringMechanismInterface> =
       title: "Cost of Forgery",
       apiTitle: "COST_OF_FORGERY",
       description:
-        "Stamp data is verified in a binary system, the data is aggregated, and scored relative to all other verifications.",
+        "This is the USD  value of a Passport and can be used to determine  rewards/access in app. Setting a threshold equal to the value being delivered will reduce bad actors.",
       badge: "Coming Soon",
       disabled: true,
     },
@@ -201,7 +201,12 @@ const NewScorer = ({
                       Gitcoin scoring uses binary logic to verify stamp/account
                       ownership, encrypted for privacy and to decrease
                       deduplication risk.{" "}
-                      <a href="#" className="text-green-jade underline">
+                      <a
+                        href="https://docs.passport.gitcoin.co"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-green-jade underline"
+                      >
                         Learn More
                       </a>
                     </span>
@@ -212,7 +217,8 @@ const NewScorer = ({
                   <PopoverInfo>
                     <span className="text-sm text-white">
                       The scoring rules evaluate Passports based on the
-                      &quot;Verifiable Credentials&quot; (VCs), or &quot;Stamps&quot; they hold.
+                      &quot;Verifiable Credentials&quot; (VCs), or
+                      &quot;Stamps&quot; they hold.
                     </span>
                   </PopoverInfo>
                 </p>
@@ -253,7 +259,8 @@ const NewScorer = ({
                     <PopoverInfo>
                       <span className="text-sm text-white">
                         The scoring rules evaluate Passports based on the
-                        &quot;Verifiable Credentials&quot; (VCs), or &quot;Stamps&quot; they hold.
+                        &quot;Verifiable Credentials&quot; (VCs), or
+                        &quot;Stamps&quot; they hold.
                       </span>
                     </PopoverInfo>
                   </p>
@@ -319,7 +326,10 @@ const NewScorer = ({
                       Custom Scoring Mechanisms{" "}
                       <PopoverInfo>
                         <span className="text-sm text-white">
-                          This needs a rewording...
+                          This scoring rule enables communities to evaluate
+                          Passports based on the &quot;Verifiable
+                          Credentials&quot; (VCs), or &quot;Stamps&quot;, they
+                          hold with custom weighting or importance.
                         </span>
                       </PopoverInfo>
                     </p>
