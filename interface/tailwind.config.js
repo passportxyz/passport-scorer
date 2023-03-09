@@ -23,6 +23,7 @@ module.exports = {
           lightgray: "#E2E0E7",
           purplegray: "",
           bluegray: "#F3F4F6",
+          extralightgray: "#EAEAEA",
         },
       },
     },
