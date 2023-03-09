@@ -1,0 +1,70 @@
+name: CI - WIP for 972
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit ref"
+        required: true
+        type: string
+
+  push:
+    branches: [972-implement-blocknative]
+
+jobs:
+  cypress-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python "3.10"
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+
+      - name: Install pipenv
+        run: pip3 install pipenv
+
+      - name: Setup backend
+        working-directory: ./api
+        run: |
+          pipenv requirements --dev > requirements.txt
+          pip3 install -r requirements.txt
+          python manage.py migrate
+
+      - name: Install linux deps
+        run: |
+          sudo apt-get install --no-install-recommends -y \
+          fluxbox \
+          xvfb
+
+      - name: Run xvfb and fluxbox
+        run: |
+          Xvfb :0 -screen 0 1024x768x24 -listen tcp -ac &
+          fluxbox -display :0.0 &
+        env:
+          DISPLAY: :0.0
+
+      - name: Install Interface Dependencies
+        working-directory: ./interface
+        run: yarn --frozen-lockfile && yarn build
+
+      - name: Run Cypress tests
+        uses: cypress-io/github-action@cdbbcd60fb5d967d7a37d8eb148add76a7ded7b6 # pin@v5.1.0
+        with:
+          install-command: yarn --frozen-lockfile
+          working-directory: ./test_syn
+          start: |
+            yarn start:api
+            yarn start:ui
+          wait-on: "http://127.0.0.1:3000,http://127.0.0.1:8000/health/"
+          record: true
+          command: yarn test:e2e:local
+          headed: true
+        env:
+          NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY: ${{ secrets.NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY }}
+          config: "baseUrl=http://localhost:8000"
+          # pass the Cypress Cloud record key as an environment variable
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+          # pass GitHub token to allow accurately detecting a build vs a re-run build
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISPLAY: :0.0
