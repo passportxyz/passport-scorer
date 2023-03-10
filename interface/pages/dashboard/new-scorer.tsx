@@ -159,9 +159,7 @@ const NewScorer = () => {
     <>
       <div className="h-screen text-purple-darkpurple">
         <header className="container mx-auto px-4 md:px-0">
-          <Header
-          // authenticationStatus={authenticationStatus}
-          />
+          <Header />
           <hr className="mt-5" />
           <div className="mt-0 flex w-full justify-between py-4">
             <div>

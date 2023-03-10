@@ -9,8 +9,6 @@ import { DashboardTabs, TabToken } from "./DashboardTabs";
 
 
 type DashboardProps = {
-  // setAuthenticationStatus?: Function;
-  // authenticationStatus: AuthenticationStatus;
   activeTab: TabToken;
   children: React.ReactNode;
 };
@@ -79,7 +77,7 @@ const SampleApplications = ({ className }: { className?: string }) => {
         className={linkClassName}
       />
       <QuickLink
-        text="Gitcoin Allo Protoc ol"
+        text="Gitcoin Allo Protocol"
         url="/"
         className={linkClassName}
       />
@@ -96,7 +94,6 @@ export default function Dashboard({
       {/* The top part of the page */}
       <div className="bg-white">
         <Header
-          // authenticationStatus={authenticationStatus}
           className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20"
         />
         <div className="w-full bg-red-100">{/* ERROR ALERT HERE */}</div>
