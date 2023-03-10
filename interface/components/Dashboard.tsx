@@ -9,6 +9,7 @@ import { DashboardTabs, TabToken } from "./DashboardTabs";
 
 // --- Types
 import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
+import { Warning } from "./Warning";
 
 type DashboardProps = {
   // setAuthenticationStatus?: Function;
@@ -29,9 +30,8 @@ const QuickLink = ({
   className?: string;
 }) => (
   <div
-    className={`flex w-full flex-row items-center justify-start  border-gray-200 bg-white p-5 ${
-      (url ? "cursor-pointer " : " ") + className
-    }`}
+    className={`flex w-full flex-row items-center justify-start  border-gray-200 bg-white p-5 ${(url ? "cursor-pointer " : " ") + className
+      }`}
   >
     <span className="mr-2">{icon}</span>
     {text}
@@ -104,7 +104,9 @@ export default function Dashboard({
           authenticationStatus={authenticationStatus}
           className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20"
         />
-        <div className="w-full bg-red-100">{/* ERROR ALERT HERE */}</div>
+        <div className="w-full bg-red-100">
+          <Warning text={"Make sure to paste your API key somewhere safe, as it will be forever hidden after you copy it."} onDismiss={() => { }} />
+        </div>
         <div className="my-6 w-full bg-white px-4 sm:px-20">
           <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
             Gitcoin Passport Scorer
