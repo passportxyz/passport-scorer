@@ -27,7 +27,7 @@ ALLOWED_HOSTS = env.json("ALLOWED_HOSTS", default=[])
 
 CERAMIC_CACHE_API_KEY = env("CERAMIC_CACHE_API_KEY", default="")
 
-UI_DOMAIN = env("UI_DOMAIN")
+UI_DOMAINS = env("UI_DOMAINS")
 
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
@@ -224,7 +224,7 @@ LOGGING = {
         },
         "django.db.backends": {
             "level": "DEBUG",
-            "handlers": [],
+            "handlers": ["debugConsole"],
             "propagate": False,
         },
     },
