@@ -167,8 +167,14 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
             # See note in /nonce function above
             # "nonce": request.session["nonce"],
         }
+
         if not settings.DEBUG:
-            verifyParams["domain"] = settings.UI_DOMAIN
+            payload_domain = payload.message["domain"]
+            # Accept www. and non-www. domains (e.g. https://scorer.gitcoin.co and https://www.scorer.gitcoin.co)
+            if payload_domain in settings.UI_DOMAINS:
+                verifyParams["domain"] = payload_domain
+            else:
+                verifyParams["domain"] = settings.UI_DOMAINS[0]
 
         message.verify(**verifyParams)
     except siwe.DomainMismatch:
@@ -356,6 +362,37 @@ def update_community(request, community_id, payload: CommunitiesUpdatePayload):
             use_case=payload.use_case,
         )
 
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
+
+    return {"ok": True}
+
+
+class CommunitiesPatchPayload(Schema):
+    name: str = None
+    description: str = None
+
+
+@api.patch("/communities/{community_id}", auth=JWTAuth())
+def patch_community(request, community_id, payload: CommunitiesPatchPayload):
+    try:
+        account = request.user.account
+        community = get_object_or_404(Community, id=community_id, account=account)
+
+        if payload.name:
+            community.name = payload.name
+            # Check for duplicates in other communities within the same account
+            if (
+                Community.objects.filter(name=payload.name, account=account)
+                .exclude(id=community_id)
+                .exists()
+            ):
+                raise CommunityExistsException()
+
+        if payload.description:
+            community.description = payload.description
+
+        community.save()
     except Account.DoesNotExist:
         raise UnauthorizedException()
 

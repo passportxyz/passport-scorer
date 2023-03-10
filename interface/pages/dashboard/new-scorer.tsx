@@ -69,7 +69,7 @@ export const gitcoinScoringMechanisms: Array<GitcoinScoringMechanismInterface> =
       title: "Cost of Forgery",
       apiTitle: "COST_OF_FORGERY",
       description:
-        "Stamp data is verified in a binary system, the data is aggregated, and scored relative to all other verifications.",
+        "This is the USD  value of a Passport and can be used to determine  rewards/access in app. Setting a threshold equal to the value being delivered will reduce bad actors.",
       badge: "Coming Soon",
       disabled: true,
     },
@@ -78,8 +78,8 @@ export const gitcoinScoringMechanisms: Array<GitcoinScoringMechanismInterface> =
 const NewScorer = ({
   // authenticationStatus,
 }: {
-  // authenticationStatus: AuthenticationStatus;
-}) => {
+    // authenticationStatus: AuthenticationStatus;
+  }) => {
   const router = useRouter();
   const toast = useToast();
   const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
@@ -202,7 +202,12 @@ const NewScorer = ({
                       Gitcoin scoring uses binary logic to verify stamp/account
                       ownership, encrypted for privacy and to decrease
                       deduplication risk.{" "}
-                      <a href="#" className="text-green-jade underline">
+                      <a
+                        href="https://docs.passport.gitcoin.co"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-green-jade underline"
+                      >
                         Learn More
                       </a>
                     </span>
@@ -269,9 +274,9 @@ const NewScorer = ({
                         "mt-2 w-full rounded border border-gray-lightgray bg-white p-6 md:max-w-[450px] " +
                         (!mechanism.disabled
                           ? "cursor-pointer hover:border-purple-gitcoinpurple " +
-                            (gitcoinScoringMechanism?.title === mechanism.title
-                              ? "border-purple-gitcoinpurple"
-                              : "")
+                          (gitcoinScoringMechanism?.title === mechanism.title
+                            ? "border-purple-gitcoinpurple"
+                            : "")
                           : "cursor-not-allowed")
                       }
                     >
@@ -285,10 +290,9 @@ const NewScorer = ({
                           }
                         >
                           {mechanism.icon(
-                            `w-7 ${
-                              mechanism.recommended
-                                ? "text-purple-gitcoinpurple"
-                                : "text-purple-darkpurple"
+                            `w-7 ${mechanism.recommended
+                              ? "text-purple-gitcoinpurple"
+                              : "text-purple-darkpurple"
                             }`
                           )}
                         </div>
@@ -322,7 +326,10 @@ const NewScorer = ({
                       Custom Scoring Mechanisms{" "}
                       <PopoverInfo>
                         <span className="text-sm text-white">
-                          This needs a rewording...
+                          This scoring rule enables communities to evaluate
+                          Passports based on the &quot;Verifiable
+                          Credentials&quot; (VCs), or &quot;Stamps&quot;, they
+                          hold with custom weighting or importance.
                         </span>
                       </PopoverInfo>
                     </p>
@@ -374,7 +381,7 @@ const NewScorer = ({
             isOpen={cancelModal}
             isCentered={true}
             size={{ base: "xs", md: "lg", lg: "lg", xl: "lg" }}
-            onClose={() => {}}
+            onClose={() => { }}
           >
             <ModalOverlay />
             <ModalContent>

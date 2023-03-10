@@ -1,24 +1,16 @@
-from functools import wraps
 import json
 import logging
 from datetime import datetime
+from functools import wraps
 from urllib.parse import urlencode
 
 import didkit
-from asgiref.sync import async_to_sync
-from django.http import JsonResponse
 from django.shortcuts import render
 from django.urls import reverse_lazy
 from eth_account.messages import encode_defunct
 from reader.passport_reader import TRUSTED_IAM_ISSUER
 from registry.exceptions import NoRequiredPermissionsException
-from registry.models import Passport, Stamp
-
-# from registry.serializers import PassportSerializer, StampSerializer
-from registry.signals import registry_updated
-
-# from rest_framework import viewsets
-# from rest_framework.decorators import api_view
+from registry.models import Stamp
 from web3 import Web3
 
 log = logging.getLogger(__name__)

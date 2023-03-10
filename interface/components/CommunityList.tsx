@@ -1,18 +1,11 @@
 // --- React components/methods
 import React, { useEffect, useState, useCallback, useContext } from "react";
-import { useRouter } from "next/router";
 
 // --- Context
 import { UserContext } from "../context/userContext";
 
 // --- Components
-import {
-  CheckCircleIcon,
-  CloseIcon,
-  RepeatIcon,
-  AddIcon,
-  StarIcon,
-} from "@chakra-ui/icons";
+import { CheckCircleIcon, CloseIcon, AddIcon } from "@chakra-ui/icons";
 import CommunityCard from "./CommunityCard";
 import NoValues from "./NoValues";
 
@@ -28,15 +21,8 @@ import UseCaseModal from "./UseCaseModal";
 import { useToast } from "@chakra-ui/react";
 
 const CommunityList = () => {
-  const router = useRouter();
   const toast = useToast();
   const [selectUseCaseModalOpen, setSelectUseCaseModalOpen] = useState(false);
-  const [updateCommunityModalOpen, setUpdateCommunityModalOpen] =
-    useState(false);
-  const [updatedScorerDescription, setUpdatedScorerDescription] = useState("");
-  const [updatedScorerName, setUpdatedScorerName] = useState("");
-  const [updatedCommunityId, setUpdatedCommunityId] =
-    useState<Community["id"]>();
   const [error, setError] = useState<undefined | string>();
   const [communities, setCommunities] = useState<Community[]>([]);
   const [communityLoadingStatus, setCommunityLoadingStatus] =
@@ -99,15 +85,18 @@ const CommunityList = () => {
     fetchCommunities();
   }, []);
 
-  const handleDeleteCommunity = async (communityId: Community["id"]) => {
-    try {
-      await deleteCommunity(communityId);
-      await fetchCommunities();
-    } catch (error: any) {
-      if (error.response.status === 401) {
-        logout();
-      }
-    }
+  const handleUpdateCommunity = async (
+    communityId: number,
+    name: string,
+    description: string
+  ) => {
+    await updateCommunity(communityId, { name, description });
+    await fetchCommunities();
+  };
+
+  const handleDeleteCommunity = async (communityId: number) => {
+    await deleteCommunity(communityId);
+    await fetchCommunities();
   };
 
   const communityItems = communities.map((community: Community, i: number) => {
@@ -115,12 +104,9 @@ const CommunityList = () => {
       <CommunityCard
         key={i}
         community={community}
-        communityId={community.id}
-        setUpdateCommunityModalOpen={setUpdateCommunityModalOpen}
+        onCommunityDeleted={fetchCommunities}
+        handleUpdateCommunity={handleUpdateCommunity}
         handleDeleteCommunity={handleDeleteCommunity}
-        setUpdatedCommunityId={setUpdatedCommunityId}
-        setUpdatedScorerName={setUpdatedScorerName}
-        setUpdatedScorerDescription={setUpdatedScorerDescription}
       />
     );
   });
@@ -132,6 +118,7 @@ const CommunityList = () => {
       </ul>
     </div>
   );
+
   return (
     <>
       {communities.length === 0 ? (

@@ -60,17 +60,25 @@ export const deleteApiKey = async (apiKeyId: ApiKeys["id"]): Promise<void> => {
   }
 };
 
-export type Community = {
-  id?: number;
+export type DraftCommunity = {
   name: string;
   description: string;
   use_case: string;
   rule: string;
   scorer: string;
-  created_at?: string;
 };
 
-export const createCommunity = async (community: Community) => {
+export type Community = DraftCommunity & {
+  id: number;
+  created_at: string;
+};
+
+export type CommunityPatch = {
+  name: string | undefined;
+  description: string | undefined;
+};
+
+export const createCommunity = async (community: DraftCommunity) => {
   try {
     const token = localStorage.getItem("access-token");
     const response = await axios.post(
@@ -107,11 +115,11 @@ export const getCommunities = async (): Promise<Community[]> => {
 
 export const updateCommunity = async (
   communityId: Community["id"],
-  community: Community
+  community: CommunityPatch
 ) => {
   try {
     const token = localStorage.getItem("access-token");
-    const response = await axios.put(
+    const response = await axios.patch(
       `${SCORER_BACKEND}account/communities/${communityId}`,
       { ...community },
       {
