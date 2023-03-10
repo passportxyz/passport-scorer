@@ -88,7 +88,8 @@ const TabSelect = ({
   router: any;
 }) => (
   // Mobile doesn't respect py on the select element, so adding some here on this div. But leaving
-  // most on the select element b/c much better experience on desktop b/c of bounding box
+  // most on the select element b/c much better experience on desktop b/c of bounding box.
+  // Some browsers will use this "label" element area all as a click target, which is ideal.
   <label
     htmlFor="tabSelect"
     className="flex items-center rounded-sm border border-gray-200 bg-white py-1 pr-1 md:hidden"
@@ -102,7 +103,7 @@ const TabSelect = ({
       onChange={(e) => router.push(`/dashboard/${e.target.value}`)}
       className="flex w-full justify-around bg-white py-3 pl-2 text-blue-darkblue"
     >
-      {tabInfo.map(({ text, token }, idx) => (
+      {tabInfo.map(({ text, token }) => (
         <option
           color="purple"
           value={token}
