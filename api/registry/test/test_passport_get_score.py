@@ -153,7 +153,7 @@ class TestPassportGetScore:
             == passport_holder_addresses[0]["address"].lower()
         )
 
-    def test_get_single_score_for_address_in_path_for_other_community(
+    def test_cannot_get_single_score_for_address_in_path_for_other_community(
         self,
         scorer_api_key,
         passport_holder_addresses,
@@ -208,7 +208,9 @@ class TestPassportGetScore:
 
         assert response.status_code == 200
 
-    def test_get_score_for_other_community(self, scorer_community, scorer_api_key):
+    def test_cannot_get_score_for_other_community(
+        self, scorer_community, scorer_api_key
+    ):
         """Test that a user can't get scores for a community they don't belong to."""
         # Create another user, account & api key
         user = User.objects.create_user(username="anoter-test-user", password="12345")
