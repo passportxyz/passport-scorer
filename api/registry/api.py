@@ -228,6 +228,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
         200: DetailedScoreResponse,
         401: ErrorMessageResponse,
         400: ErrorMessageResponse,
+        404: ErrorMessageResponse,
     },
     summary="Get score for an address that is associated with a community",
     description="""Use this endpoint to fetch the score for a specific address that is associated with a community\n
@@ -235,13 +236,17 @@ This endpoint will return a `DetailedScoreResponse`. This endpoint will also ret
 """,
 )
 def get_score(request, address: str, community_id: int) -> DetailedScoreResponse:
-    try:
-        # TODO: validate that community belongs to the account holding the ApiKey
-        lower_address = address.lower()
-        community = Community.objects.get(id=community_id)
-        passport = Passport.objects.get(address=lower_address, community=community)
+    # Get community object
+    user_community = api_get_object_or_404(
+        Community, id=community_id, account=request.auth
+    )
 
-        score = Score.objects.get(passport=passport)
+    try:
+        lower_address = address.lower()
+
+        score = Score.objects.get(
+            passport__address=lower_address, passport__community=user_community
+        )
         return score
     except Exception as e:
         log.error(
