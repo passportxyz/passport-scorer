@@ -75,6 +75,7 @@ const APIKeyList = () => {
         </div>
       ) : (
         <>
+          <p className="py-3">Use these API keys to programmatically access a Scorer.</p>
           <div className="flex w-full flex-col">
             {apiKeys.map((key, i) => (
               <div
