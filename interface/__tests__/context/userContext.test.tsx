@@ -63,8 +63,6 @@ const mockComponent = () => (
 
 describe("UserProvider", () => {
   beforeEach(() => {
-    // @ts-ignore - https://testing-library.com/docs/react-testing-library/api/#act
-    global.IS_REACT_ACT_ENVIRONMENT = false;
     jest.clearAllMocks();
   });
   it("renders with initial state values", async () => {
@@ -140,12 +138,13 @@ describe("UserProvider", () => {
     ]);
 
     rerender(mockComponent());
-
-    expect(screen.getByTestId("connected")).toHaveTextContent("false");
-    expect(screen.getByTestId("authenticationError")).toHaveTextContent(
-      "false"
-    );
-    expect(screen.getByTestId("loginComplete")).toHaveTextContent("false");
+    await waitFor(async () => {
+      expect(screen.getByTestId("connected")).toHaveTextContent("false");
+      expect(screen.getByTestId("authenticationError")).toHaveTextContent(
+        "false"
+      );
+      expect(screen.getByTestId("loginComplete")).toHaveTextContent("false");
+    });
   });
   it("resets state if user rejects signature", async () => {
     const connect = jest.fn().mockResolvedValue([mockWallet]);
