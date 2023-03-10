@@ -16,10 +16,11 @@ import {
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
 import { ApiKeyModal } from "./ApiKeyModal";
-import { ClipboardDocumentIcon, EllipsisVerticalIcon } from "@heroicons/react/24/solid";
+import { CheckIcon, ClipboardDocumentIcon, EllipsisVerticalIcon } from "@heroicons/react/24/solid";
 
 export type ApiKeyDisplay = ApiKeys & {
   api_key?: string;
+  copied?: boolean;
 };
 
 const APIKeyList = () => {
@@ -36,7 +37,6 @@ const APIKeyList = () => {
           keysFetched = true;
           setApiKeys(apiKeys);
         } catch (error) {
-          console.log({ error });
           setError("There was an error fetching your API keys.");
         }
       }
@@ -88,14 +88,28 @@ const APIKeyList = () => {
                 <div className="flex">
                   {key.api_key && (
                     <div className="flex mt-1.5 pr-5">
-                      <p className="flex text-purple-darkpurple text-xs pr-3">
-                        {key.api_key}
-                      </p>
-                      <ClipboardDocumentIcon height={14} color={"#0E0333"} />
+                      {key.copied ? (
+                        <p className="text-purple-gitcoinpurple flex text-xs">Copied! <CheckIcon height={14} color={"6f3ff5"} /></p>
+                      ) : (
+                        <>
+                          <p className="flex text-purple-darkpurple text-xs pr-3">
+                            {key.api_key}
+                          </p>
+                          <button
+                            className="mb-1"
+                            onClick={async () => {
+                              await navigator.clipboard.writeText(key.api_key!);
+                              const updatedKeys = apiKeys.map((k) => k.api_key === key.api_key ? { ...k, copied: true } : k);
+                              setApiKeys(updatedKeys);
+                            }}
+                          >
+                            <ClipboardDocumentIcon height={14} color={"#0E0333"} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                   <button
-                    className="justify-self-end rounded-md"
                     onClick={async () => await handleDeleteApiKey(key.id)}
                   >
                     <EllipsisVerticalIcon height={25} color={"#0E0333"} />
