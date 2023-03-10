@@ -5,6 +5,6 @@ from .env import env
 
 NINJA_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(
-        minutes=env.int("SCORER_UI_REFRESH_TOKEN_LIFETIME", default=10440)
+        minutes=env.int("SCORER_UI_ACCESS_TOKEN_LIFETIME", default=1440)
     ),
 }
