@@ -12,6 +12,7 @@ from ninja import ModelSchema, Schema
 from ninja_extra import NinjaExtraAPI, status
 from ninja_extra.exceptions import APIException
 from ninja_jwt.authentication import JWTAuth
+from ninja_jwt.exceptions import InvalidToken
 from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
 from scorer_weighted.models import BinaryWeightedScorer, WeightedScorer
@@ -40,7 +41,6 @@ def get_random_username():
 class TokenObtainPairOutSchema(Schema):
     refresh: str
     access: str
-    # user: UserSchema
 
 
 class UserSchema(Schema):
@@ -196,6 +196,21 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
     refresh = cast(RefreshToken, refresh)
 
     return {"ok": True, "refresh": str(refresh), "access": str(refresh.access_token)}
+
+
+class TokenValidationRequest(Schema):
+    token: str
+
+
+class TokenValidationResponse(Schema):
+    exp: str = ""
+
+
+@api.post("/validate_token", response=TokenValidationResponse)
+def validate_token(request, payload: TokenValidationRequest):
+    jwtAuth = JWTAuth()
+    token = jwtAuth.get_validated_token(payload.token)
+    return {"exp": token["exp"]}
 
 
 class APIKeyName(Schema):

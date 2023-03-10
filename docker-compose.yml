@@ -17,13 +17,33 @@ services:
 
     command: uvicorn scorer.asgi:application --reload --host 0.0.0.0 --port 8002
 
-  worker:
-    build: api
+  # worker:
+  #   build: api
 
-    volumes:
-      - ./api:/app
+  #   volumes:
+  #     - ./api:/app
 
-    command: celery -A scorer worker -l DEBUG
+  #   command: celery -A scorer worker -l DEBUG
+
+  interface:
+    build: interface
+
+    ports:
+      - "127.0.0.1:3000:3000"
+
 
   verifier:
     build: verifier
+
+  postgres:
+    image: postgres:12.3-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: passport_scorer
+      POSTGRES_PASSWORD: passport_scorer_pwd
+      POSTGRES_DB: passport_scorer
+      PGDATA: /db_data
+
+    volumes:
+      - ./postgres_db_data:/db_data

@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 // --- Components
 import { Input } from "@chakra-ui/react";
@@ -15,6 +15,7 @@ import {
   deleteApiKey,
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
+import { UserContext } from "../context/userContext";
 
 const APIKeyList = () => {
   const [error, setError] = useState<undefined | string>();
@@ -23,6 +24,7 @@ const APIKeyList = () => {
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [newApiKey, setNewApiKey] = useState();
   const [keyName, setKeyName] = useState("");
+  const { logout } = useContext(UserContext);
 
   useEffect(() => {
     let keysFetched = false;
@@ -32,9 +34,11 @@ const APIKeyList = () => {
           const apiKeys = await getApiKeys();
           keysFetched = true;
           setApiKeys(apiKeys);
-        } catch (error) {
-          console.log({ error });
+        } catch (error: any) {
           setError("There was an error fetching your API keys.");
+          if (error.response.status === 401) {
+            logout();
+          }
         }
       }
     };
@@ -49,8 +53,11 @@ const APIKeyList = () => {
       setApiKeys(await getApiKeys());
       setModalOpen(false);
       setApiKeyModalOpen(true);
-    } catch (error) {
+    } catch (error: any) {
       setError("There was an error creating your API key.");
+      if (error.response.status === 401) {
+        logout();
+      }
     }
   };
 
@@ -58,8 +65,10 @@ const APIKeyList = () => {
     try {
       await deleteApiKey(apiKeyId);
       setApiKeys(await getApiKeys());
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      if (error.response.status === 401) {
+        logout();
+      }
     }
   };
 
@@ -159,7 +168,7 @@ const APIKeyList = () => {
           </label>
           <Input
             className="mb-6"
-            data-testid="key-name-input"
+            data-testid="key-name-input-read"
             value={newApiKey}
             readOnly={true}
           />

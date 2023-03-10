@@ -36,11 +36,12 @@ class AccountTestCase(TestCase):
         self.assertEqual(200, response.status_code)
 
         data = response.json()
+        nonce = data["nonce"]
 
         siwe_data = {
             "domain": "localhost:3000",
             "address": account.address,
-            "statement": "Sign in with Ethereum to the app.",
+            "statement": f"Welcome to Gitcoin Passport Scorer! This request will not trigger a blockchain transaction or cost any gas fees. Your authentication status will reset in 24 hours. Wallet Address: ${account.address}. Nonce: ${nonce}",
             "uri": "http://localhost/",
             "version": "1",
             "chainId": "1",

@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 
 // --- Components
 import Header from "./Header";
@@ -7,12 +7,8 @@ import Footer from "./Footer";
 
 import { DashboardTabs, TabToken } from "./DashboardTabs";
 
-// --- Types
-import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
 
 type DashboardProps = {
-  // setAuthenticationStatus?: Function;
-  authenticationStatus: AuthenticationStatus;
   activeTab: TabToken;
   children: React.ReactNode;
 };
@@ -29,9 +25,8 @@ const QuickLink = ({
   className?: string;
 }) => (
   <div
-    className={`flex w-full flex-row items-center justify-start  border-gray-200 bg-white p-5 ${
-      (url ? "cursor-pointer " : " ") + className
-    }`}
+    className={`flex w-full flex-row items-center justify-start  border-gray-200 bg-white p-5 ${(url ? "cursor-pointer " : " ") + className
+      }`}
   >
     <span className="mr-2">{icon}</span>
     {text}
@@ -91,8 +86,6 @@ const SampleApplications = ({ className }: { className?: string }) => {
 };
 
 export default function Dashboard({
-  // setAuthenticationStatus,
-  authenticationStatus,
   activeTab,
   children,
 }: DashboardProps) {
@@ -101,7 +94,6 @@ export default function Dashboard({
       {/* The top part of the page */}
       <div className="bg-white">
         <Header
-          authenticationStatus={authenticationStatus}
           className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20"
         />
         <div className="w-full bg-red-100">{/* ERROR ALERT HERE */}</div>

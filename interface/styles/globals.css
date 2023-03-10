@@ -17,3 +17,18 @@
 .font-miriam-libre {
   font-family: "Miriam Libre";
 }
+
+:root {
+  --onboard-shadow-3: none;
+  --account-center-position-top: -4px;
+  --account-center-position-right: 4.1rem;
+  --account-center-border-radius: 16px;
+  --onboard-action-required-btn-text-color: #fff;
+}
+
+/* Mobile media Query */
+@media (max-width: 800px) {
+  :root {
+    --onboard-modal-top: 0;
+  }
+}

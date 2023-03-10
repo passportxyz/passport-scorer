@@ -1,5 +1,8 @@
 // --- React components/methods
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useContext } from "react";
+
+// --- Context
+import { UserContext } from "../context/userContext";
 
 // --- Components
 import { CheckCircleIcon, CloseIcon, AddIcon } from "@chakra-ui/icons";
@@ -24,16 +27,20 @@ const CommunityList = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [communityLoadingStatus, setCommunityLoadingStatus] =
     useState<string>("initial");
+  const { logout } = useContext(UserContext);
 
   const fetchCommunities = useCallback(async () => {
     try {
       setCommunityLoadingStatus("loading");
       setCommunities(await getCommunities());
       setCommunityLoadingStatus("done");
-    } catch (error) {
+    } catch (exc) {
+      const error = exc as { response: { status: number } };
       setCommunityLoadingStatus("error");
-      console.log({ error });
       setError("There was an error fetching your Communities.");
+      if (error.response.status === 401) {
+        logout();
+      }
     }
   }, []);
 

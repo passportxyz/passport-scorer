@@ -1,15 +1,10 @@
 // --- React methods
-import React, { useCallback, useMemo } from "react";
+import { useRouter } from "next/router";
+import React, { useContext, useEffect, useMemo } from "react";
+import { UserContext } from "../context/userContext";
 import { UIMode } from "../utils/dark-mode";
 
-// --- Components
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-
-// --- Types
-import { AuthenticationStatus } from "@rainbow-me/rainbowkit";
-
 type HeaderProps = {
-  authenticationStatus?: AuthenticationStatus;
   mode?: UIMode;
   className?: string;
 };
@@ -45,15 +40,20 @@ const Logo = () => (
   </div>
 );
 
-const Header = ({
-  authenticationStatus,
-  mode,
-  className,
-}: HeaderProps): JSX.Element => {
+const Header = ({ mode, className }: HeaderProps): JSX.Element => {
   const assets = useMemo(() => getAssets(mode), [mode]);
+  const router = useRouter();
+
+  const { connected } = useContext(UserContext);
+
+  useEffect(() => {
+    if (!connected) {
+      router.push("/");
+    }
+  }, [connected]);
 
   return (
-    <div className={`flex items-center justify-between pt-3 ${className}`}>
+    <div className={`flex items-center justify-between pt-7 ${className}`}>
       {/* Left side row */}
       <div className="flex items-center">
         <img className="" src={assets.gitcoinLogo} alt="Gitcoin Logo" />
@@ -64,15 +64,6 @@ const Header = ({
           src={assets.scorerWord}
           alt="Scorer"
         />
-      </div>
-      {/* Right side row  */}
-      <div>
-        {authenticationStatus === "authenticated" && (
-          <ConnectButton
-            showBalance={false}
-            accountStatus={{ smallScreen: "avatar", largeScreen: "full" }}
-          />
-        )}
       </div>
     </div>
   );
