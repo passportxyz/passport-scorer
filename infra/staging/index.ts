@@ -303,8 +303,8 @@ const environment = [
     value: rdsConnectionUrl,
   },
   {
-    name: "UI_DOMAIN",
-    value: "scorer." + process.env["DOMAIN"],
+    name: "UI_DOMAINS",
+    value: JSON.stringify(["scorer." + process.env["DOMAIN"], "www.scorer." + process.env["DOMAIN"]]),
   },
   {
     name: "ALLOWED_HOSTS",
