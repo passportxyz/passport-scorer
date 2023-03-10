@@ -75,11 +75,7 @@ export const gitcoinScoringMechanisms: Array<GitcoinScoringMechanismInterface> =
     },
   ];
 
-const NewScorer = ({
-  // authenticationStatus,
-}: {
-    // authenticationStatus: AuthenticationStatus;
-  }) => {
+const NewScorer = () => {
   const router = useRouter();
   const toast = useToast();
   const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(

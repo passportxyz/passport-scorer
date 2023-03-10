@@ -27,9 +27,8 @@ const QuickLink = ({
   className?: string;
 }) => (
   <div
-    className={`flex w-full flex-row items-center justify-start  border-gray-200 bg-white p-5 ${
-      (url ? "cursor-pointer " : " ") + className
-    }`}
+    className={`flex w-full flex-row items-center justify-start  border-gray-200 bg-white p-5 ${(url ? "cursor-pointer " : " ") + className
+      }`}
   >
     <span className="mr-2">{icon}</span>
     {text}
@@ -89,8 +88,6 @@ const SampleApplications = ({ className }: { className?: string }) => {
 };
 
 export default function Dashboard({
-  // setAuthenticationStatus,
-  // authenticationStatus,
   activeTab,
   children,
 }: DashboardProps) {
