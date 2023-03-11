@@ -22,33 +22,8 @@ jobs:
         working-directory: ./interface
         run: yarn test
 
-  cypress-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.inputs.commit }}
-
-      - name: Set up Python "3.10"
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.10"
-
-      - name: Install pipenv
-        run: pip3 install pipenv
-
-      - name: Setup backend
-        working-directory: ./api
-        run: |
-          pipenv requirements --dev > requirements.txt
-          pip3 install -r requirements.txt
-          python manage.py migrate
-      - name: Install Interface Dependencies
-        working-directory: ./interface
-        run: yarn --frozen-lockfile && yarn build
-
   deploy-app:
-    needs: [ui-test, cypress-test]
+    needs: [ui-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
