@@ -3,3 +3,4 @@ from .base import *
 from .celery import *
 from .feature_flags import *
 from .gitcoin_passport_weights import *
+from .ninja_jwt import *

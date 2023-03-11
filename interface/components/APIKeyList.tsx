@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 // --- Components
 import { Input } from "@chakra-ui/react";
@@ -10,11 +10,11 @@ import { MdFileCopy } from "react-icons/md";
 // --- Utils
 import {
   ApiKeys,
-  createApiKey,
   getApiKeys,
   deleteApiKey,
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
+import { UserContext } from "../context/userContext";
 import { ApiKeyModal } from "./ApiKeyModal";
 import { CheckIcon, ClipboardDocumentIcon, EllipsisVerticalIcon } from "@heroicons/react/24/solid";
 
@@ -27,6 +27,7 @@ const APIKeyList = () => {
   const [error, setError] = useState<undefined | string>();
   const [apiKeys, setApiKeys] = useState<ApiKeyDisplay[]>([]);
   const [createApiKeyModal, setCreateApiKeyModal] = useState(false);
+  const { logout } = useContext(UserContext);
 
   useEffect(() => {
     let keysFetched = false;
@@ -36,8 +37,11 @@ const APIKeyList = () => {
           const apiKeys = await getApiKeys();
           keysFetched = true;
           setApiKeys(apiKeys);
-        } catch (error) {
+        } catch (error: any) {
           setError("There was an error fetching your API keys.");
+          if (error.response.status === 401) {
+            logout();
+          }
         }
       }
     };
@@ -48,8 +52,10 @@ const APIKeyList = () => {
     try {
       await deleteApiKey(apiKeyId);
       setApiKeys(await getApiKeys());
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      if (error.response.status === 401) {
+        logout();
+      }
     }
   };
 

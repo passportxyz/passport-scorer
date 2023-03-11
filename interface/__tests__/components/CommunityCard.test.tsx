@@ -2,7 +2,12 @@ import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import CommunityList from "../../components/CommunityList";
 import CommunityCard from "../../components/CommunityCard";
-import { getCommunities, createCommunity, updateCommunity, deleteCommunity } from "../../utils/account-requests";
+import {
+  getCommunities,
+  createCommunity,
+  updateCommunity,
+  deleteCommunity,
+} from "../../utils/account-requests";
 
 jest.mock("../../utils/account-requests.ts", () => ({
   getCommunities: jest.fn(),
@@ -20,7 +25,6 @@ describe("CommunityCard", () => {
 
   it("should render a single community with a delete button", async () => {
     // render(<CommunityCard />);
-
     // await waitFor(async () => {
     //   expect(screen.getByText("banks")).toBeInTheDocument();
     // });
@@ -28,7 +32,6 @@ describe("CommunityCard", () => {
 
   it("should render a single community with a edit button", async () => {
     // render(<CommunityCard />);
-
     // await waitFor(async () => {
     //   expect(screen.getByText("banks")).toBeInTheDocument();
     // });

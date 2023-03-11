@@ -10,14 +10,10 @@ env = environ.Env(
         str,
         "chief loud snack trend chief net field husband vote message decide replace",
     ),
-    UI_DOMAIN=(
-        str,
-        "localhost:3000",
-    ),
 )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Take environment variables from .env file
-environ.Env.read_env(os.path.join(BASE_DIR, ".env"), overwrite=True)
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
