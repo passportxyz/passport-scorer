@@ -14,6 +14,8 @@ export interface UserState {
   loginComplete: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
+  userWarning?: string;
+  setUserWarning: (warning?: string) => void;
 }
 
 export const initialState: UserState = {
@@ -21,8 +23,9 @@ export const initialState: UserState = {
   authenticationError: false,
   authenticating: false,
   loginComplete: false,
-  login: async () => {},
-  logout: async () => {},
+  login: async () => { },
+  logout: async () => { },
+  setUserWarning: (warning?: string) => { },
 };
 
 enum UserActions {
@@ -33,36 +36,6 @@ enum UserActions {
   LOGIN_COMPLETED = "LOGIN_COMPLETED",
 }
 
-const userReducer = (
-  state: UserState,
-  action: { type: UserActions; payload: any }
-) => {
-  switch (action.type) {
-    case UserActions.CONNECTED:
-      return {
-        ...state,
-        connected: action.payload,
-      };
-    case UserActions.AUTHENTICATION_ERROR:
-      return {
-        ...state,
-        authenticationError: action.payload,
-      };
-    case UserActions.AUTHENTICATING:
-      return {
-        ...state,
-        authenticating: action.payload,
-      };
-    case UserActions.LOGIN_COMPLETED:
-      return {
-        ...state,
-        loginComplete: action.payload,
-      };
-    default:
-      return state;
-  }
-};
-
 export const UserContext = createContext(initialState);
 
 export const UserProvider = ({ children }: { children: any }) => {
@@ -71,6 +44,7 @@ export const UserProvider = ({ children }: { children: any }) => {
   const [authenticating, setAuthenticating] = useState(false);
   const [loginComplete, setLoginComplete] = useState(false);
   const [authenticationError, setAuthenticationError] = useState(false);
+  const [userWarning, setUserWarning] = useState<string | undefined>();
 
   const login = async () => {
     connect()
@@ -165,7 +139,7 @@ export const UserProvider = ({ children }: { children: any }) => {
   }, [wallet, connected]);
 
   return (
-    <UserContext.Provider value={{ connected, authenticating, loginComplete, authenticationError, login, logout }}>
+    <UserContext.Provider value={{ connected, authenticating, loginComplete, authenticationError, login, logout, userWarning, setUserWarning }}>
       {children}
     </UserContext.Provider>
   );

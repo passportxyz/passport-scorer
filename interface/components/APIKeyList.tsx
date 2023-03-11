@@ -26,7 +26,7 @@ const APIKeyList = () => {
   const [error, setError] = useState<undefined | string>();
   const [apiKeys, setApiKeys] = useState<ApiKeyDisplay[]>([]);
   const [createApiKeyModal, setCreateApiKeyModal] = useState(false);
-  const { logout } = useContext(UserContext);
+  const { logout, setUserWarning } = useContext(UserContext);
   const toast = useToast();
 
   useEffect(() => {
@@ -108,6 +108,7 @@ const APIKeyList = () => {
                               await navigator.clipboard.writeText(key.api_key!);
                               const updatedKeys = apiKeys.map((k) => k.api_key === key.api_key ? { ...k, copied: true } : k);
                               setApiKeys(updatedKeys);
+                              setUserWarning()
                             }}
                           >
                             <ClipboardDocumentIcon height={14} color={"#0E0333"} />
@@ -128,7 +129,7 @@ const APIKeyList = () => {
           <div className="flex items-center py-4">
             <button
               data-testid="open-api-key-modal"
-              className="rounded bg-gray-lightgray py-2 px-4 text-purple-darkpurple"
+              className="rounded-md bg-purple-gitcoinpurple px-5 py-2 text-white"
               onClick={() => setCreateApiKeyModal(true)}
             >
               <span className="mr-2 text-lg">+</span>API Key
@@ -146,6 +147,7 @@ const APIKeyList = () => {
         onClose={() => setCreateApiKeyModal(false)}
         onApiKeyCreated={(apiKey: ApiKeyDisplay) => {
           toast(successToast("API Key created successfully!", toast));
+          setUserWarning("Make sure to paste your API key somewhere safe, as it will be forever hidden after you copy it.");
           setApiKeys([...apiKeys, apiKey]);
         }}
       />

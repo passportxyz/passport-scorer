@@ -8,6 +8,7 @@ import Footer from "./Footer";
 import { DashboardTabs, TabToken } from "./DashboardTabs";
 
 import { Warning } from "./Warning";
+import { UserContext } from "../context/userContext";
 
 type DashboardProps = {
   activeTab: TabToken;
@@ -90,6 +91,7 @@ export default function Dashboard({
   activeTab,
   children,
 }: DashboardProps) {
+  const { userWarning, setUserWarning } = useContext(UserContext);
   return (
     <div className="font-libre-franklin flex min-h-default flex-col justify-between bg-gray-bluegray text-gray-400">
       {/* The top part of the page */}
@@ -97,9 +99,11 @@ export default function Dashboard({
         <Header
           className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20"
         />
-        <div className="w-full bg-red-100">
-          <Warning text={"Make sure to paste your API key somewhere safe, as it will be forever hidden after you copy it."} onDismiss={() => { }} />
-        </div>
+        {userWarning && (
+          <div className="w-full bg-red-100">
+            <Warning text={userWarning} onDismiss={() => setUserWarning()} />
+          </div>
+        )}
         <div className="my-6 w-full bg-white px-4 sm:px-20">
           <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
             Gitcoin Passport Scorer
