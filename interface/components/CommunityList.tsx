@@ -19,6 +19,7 @@ import {
 
 import UseCaseModal from "./UseCaseModal";
 import { useToast } from "@chakra-ui/react";
+import { successToast } from "./Toasts";
 
 const CommunityList = () => {
   const toast = useToast();
@@ -48,37 +49,7 @@ const CommunityList = () => {
     const scorerCreated = Boolean(localStorage.getItem("scorerCreated"));
 
     if (scorerCreated) {
-      toast({
-        title: "Success!",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-        variant: "solid",
-        position: "bottom",
-        render: () => (
-          <div
-            style={{
-              backgroundColor: "#0E0333",
-              borderRadius: "4px",
-              display: "flex",
-              alignItems: "center",
-              padding: "16px",
-            }}
-          >
-            <CheckCircleIcon color="#02E2AC" boxSize={6} mr={4} />
-            <span style={{ color: "white", fontSize: "16px" }}>
-              Your Scorer has been created.
-            </span>
-            <CloseIcon
-              color="white"
-              boxSize={3}
-              ml="8"
-              cursor="pointer"
-              onClick={() => toast.closeAll()}
-            />
-          </div>
-        ),
-      });
+      toast(successToast("Your Scorer has been created.", toast));
       localStorage.removeItem("scorerCreated");
     }
 

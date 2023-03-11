@@ -2,10 +2,7 @@
 import React, { useContext, useEffect, useState } from "react";
 
 // --- Components
-import { Input } from "@chakra-ui/react";
-import ModalTemplate from "./ModalTemplate";
-import { SettingsIcon, DeleteIcon, Icon } from "@chakra-ui/icons";
-import { MdFileCopy } from "react-icons/md";
+import { SettingsIcon } from "@chakra-ui/icons";
 
 // --- Utils
 import {
@@ -17,6 +14,8 @@ import NoValues from "./NoValues";
 import { UserContext } from "../context/userContext";
 import { ApiKeyModal } from "./ApiKeyModal";
 import { CheckIcon, ClipboardDocumentIcon, EllipsisVerticalIcon } from "@heroicons/react/24/solid";
+import { useToast } from "@chakra-ui/react";
+import { successToast } from "./Toasts";
 
 export type ApiKeyDisplay = ApiKeys & {
   api_key?: string;
@@ -28,6 +27,7 @@ const APIKeyList = () => {
   const [apiKeys, setApiKeys] = useState<ApiKeyDisplay[]>([]);
   const [createApiKeyModal, setCreateApiKeyModal] = useState(false);
   const { logout } = useContext(UserContext);
+  const toast = useToast();
 
   useEffect(() => {
     let keysFetched = false;
@@ -144,9 +144,10 @@ const APIKeyList = () => {
       <ApiKeyModal
         isOpen={createApiKeyModal}
         onClose={() => setCreateApiKeyModal(false)}
-        onApiKeyCreated={(apiKey: ApiKeyDisplay) =>
-          setApiKeys([...apiKeys, apiKey])
-        }
+        onApiKeyCreated={(apiKey: ApiKeyDisplay) => {
+          toast(successToast("API Key created successfully!", toast));
+          setApiKeys([...apiKeys, apiKey]);
+        }}
       />
     </>
   );
