@@ -92,7 +92,7 @@ const TabSelect = ({
   // Some browsers will use this "label" element area all as a click target, which is ideal.
   <label
     htmlFor="tabSelect"
-    className="flex items-center rounded-sm border border-gray-200 bg-white py-1 pr-1 md:hidden"
+    className="flex items-center rounded-sm border border-gray-200 bg-white py-1 pr-1 mb-6 md:hidden"
   >
     <div className="ml-3 -mt-1 text-purple-gitcoinpurple">
       {tabInfo.find((tab) => tab.token === activeTab)?.icon}

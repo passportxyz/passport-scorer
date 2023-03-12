@@ -17,19 +17,21 @@ import {
 type ModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title?: string;
+  size?: {};
   children?: React.ReactNode;
 };
 
 const ModalTemplate = ({
   isOpen,
   onClose,
+  size,
   title,
   children,
 }: ModalProps): JSX.Element => {
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose}>
+      <Modal isOpen={isOpen} size={size} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>{title}</ModalHeader>

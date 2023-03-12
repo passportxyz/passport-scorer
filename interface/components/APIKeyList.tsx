@@ -4,7 +4,7 @@ import React, { useContext, useEffect, useState } from "react";
 // --- Components
 import { Input } from "@chakra-ui/react";
 import ModalTemplate from "./ModalTemplate";
-import { SettingsIcon, DeleteIcon, Icon } from "@chakra-ui/icons";
+import { DeleteIcon, Icon } from "@chakra-ui/icons";
 import { MdFileCopy } from "react-icons/md";
 
 // --- Utils
@@ -16,6 +16,7 @@ import {
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
 import { UserContext } from "../context/userContext";
+import { KeyIcon } from "@heroicons/react/24/outline";
 
 const APIKeyList = () => {
   const [error, setError] = useState<undefined | string>();
@@ -78,18 +79,17 @@ const APIKeyList = () => {
 
   return (
     <>
+      <div className="mx-auto mb-12 text-purple-softpurple">
+        Use these API keys to programmatically access a Scorer.
+      </div>
       {apiKeys.length === 0 ? (
         <div className="h-full">
-          <div className="mx-auto text-purple-softpurple text-center">
-            The API’s keys are unique to your wallet address and can be used to
-            access created Scorers.
-          </div>
           <NoValues
-            title="Create a key"
-            description="Communicate between applications by connecting a key to request service from the community or organization."
+            title="Generate API Keys"
+            description="Interact with the Scorer(s) created via your API key. The key limit is five."
             addActionText="API Key"
             addRequest={() => setModalOpen(true)}
-            icon={<SettingsIcon />}
+            icon={<KeyIcon />}
           />
         </div>
       ) : (
@@ -127,34 +127,86 @@ const APIKeyList = () => {
             </div>
             {modalOpen}
             {error && <div>{error}</div>}
+
+            <div className="flex items-center px-4 py-4 sm:px-6">
+              <div className="min-w-0 flex-1 md:grid md:grid-cols-3 md:gap-4">
+                <div>
+                  <p className="my-2 text-sm text-purple-gitcoinpurple">
+                    Usecase
+                  </p>
+                  <p className="truncate text-base font-medium text-purple-darkpurple">
+                    Community Name
+                  </p>
+                  <p className="mt-2 flex items-center text-sm text-purple-softpurple">
+                    <span className="truncate">Community Description</span>
+                  </p>
+                </div>
+                <div className="pt-5">
+                  <p className="mt-2 flex flex-row-reverse text-sm text-purple-softpurple">
+                    Created:
+                  </p>
+                  <p className="flex flex-row-reverse text-sm text-purple-softpurple">
+                    {/* {community.created_at
+                      ? new Date(community.created_at).toDateString()
+                      : "unknown"} */}
+                    Community date
+                  </p>
+                </div>
+                <div className="pt-5">
+                  <p className="mt-2 flex flex-row-reverse text-sm text-purple-softpurple">
+                    Scorer ID:
+                  </p>
+                  <p className="flex flex-row-reverse text-sm text-purple-softpurple">
+                    12
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
       <ModalTemplate
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title="Create a key"
+        size={{ base: "full", md: "xl", lg: "xl", xl: "xl" }}
       >
-        <div className="flex flex-col">
+        <div className="flex h-screen flex-col">
+          <div className="w-100 flex flex-col items-center">
+            <div className="mb-6 w-fit rounded-full bg-[#F0EBFF] p-3 text-purple-gitcoinpurple">
+              <div className="flex w-6 justify-around">
+                <KeyIcon />
+              </div>
+            </div>
+          </div>
+          <div className="mb-6 items-center text-center">
+            <h2 className="text-purple-darkpurple">Generate API Key</h2>
+            <p className="mt-2 text-purple-softpurple">
+              Name your API key to help identify it in the future.
+            </p>
+          </div>
           <label className="text-gray-softgray font-librefranklin text-xs">
-            Key name
+            Key Name
           </label>
           <Input
             data-testid="key-name-input"
             value={keyName}
             onChange={(name) => setKeyName(name.target.value)}
-            placeholder="Key name"
+            placeholder="Enter the key's name/identifier"
+            className="mt-2"
           />
-          <div className="flex w-full justify-end">
-            <button
-              disabled={!keyName}
-              data-testid="create-button"
-              className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
-              onClick={handleCreateApiKey}
-            >
-              Create
-            </button>
-          </div>
+          <p className="mt-6 mb-1 text-xs italic text-purple-softpurple">
+            i.e. 'Gitcoin dApp - Prod', or 'Snapshot discord bot', or 'Bankless
+            Academy testing', etc.
+          </p>
+          <hr />
+          <button
+            disabled={!keyName}
+            data-testid="create-button"
+            className="mt-auto mb-4 w-full rounded bg-purple-gitcoinpurple py-2 px-4 text-sm text-white disabled:opacity-25 md:mt-11"
+            onClick={handleCreateApiKey}
+          >
+            Create
+          </button>
         </div>
       </ModalTemplate>
       <ModalTemplate
@@ -174,6 +226,7 @@ const APIKeyList = () => {
           />
         </div>
       </ModalTemplate>
+      <hr className="md:hidden" />
     </>
   );
 };
