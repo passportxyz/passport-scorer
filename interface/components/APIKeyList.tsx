@@ -104,6 +104,7 @@ const APIKeyList = () => {
                           </p>
                           <button
                             className="mb-1"
+                            data-testid="copy-api-key"
                             onClick={async () => {
                               await navigator.clipboard.writeText(key.api_key!);
                               const updatedKeys = apiKeys.map((k) => k.api_key === key.api_key ? { ...k, copied: true } : k);
