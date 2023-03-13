@@ -26,8 +26,14 @@
   --onboard-action-required-btn-text-color: #fff;
 }
 
+@media (max-width: 640px /* sm */) {
+  :root {
+    --account-center-position-right: 0rem;
+  }
+}
+
 /* Mobile media Query */
-@media (max-width: 800px) {
+@media (max-width: 768px /* md */) {
   :root {
     --onboard-modal-top: 0;
   }
