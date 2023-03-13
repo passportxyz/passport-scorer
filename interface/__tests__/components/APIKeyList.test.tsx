@@ -3,6 +3,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import APIKeyList, { ApiKeyDisplay } from "../../components/APIKeyList";
 import { ApiKeys, getApiKeys } from "../../utils/account-requests";
 
+// @ts-ignore
+global.navigator.clipboard = {
+  writeText: jest.fn(),
+};
 
 jest.mock("../../utils/account-requests.ts", () => ({
   getApiKeys: jest.fn(),
@@ -10,7 +14,7 @@ jest.mock("../../utils/account-requests.ts", () => ({
 }));
 
 jest.mock("../../components/ApiKeyModal", () => ({
-  ApiKeyModal: (onApiKeyCreated: (apiKey: ApiKeyDisplay) => void) => {
+  ApiKeyModal: ({ onApiKeyCreated }: { onApiKeyCreated: (apiKey: ApiKeyDisplay) => void }) => {
     return (
       <div onClick={() => onApiKeyCreated({
         id: '1',
@@ -57,6 +61,22 @@ describe("APIKeyList", () => {
       expect(screen.getByText("Mock API Key")).toBeInTheDocument();
       expect(screen.getByText("api-key-0")).toBeInTheDocument();
       expect(screen.getByTestId("copy-api-key")).toBeInTheDocument();
+    });
+  });
+  it("should hide api key after it is copied", async () => {
+    render(<APIKeyList />);
+    await waitFor(async () => {
+      const apiKeyBtn = screen.getByTestId("generate-api-key");
+      fireEvent.click(apiKeyBtn as HTMLElement);
+    })
+    await waitFor(async () => {
+      const copyBtn = screen.getByTestId("copy-api-key");
+      fireEvent.click(copyBtn as HTMLElement);
+    });
+
+    await waitFor(async () => {
+      expect(screen.queryByText("api-key-0")).not.toBeInTheDocument();
+      expect(screen.getByText("Copied!")).toBeInTheDocument();
     });
   });
 });
