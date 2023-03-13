@@ -1,5 +1,6 @@
 import { ArrowBackIcon, SmallCloseIcon } from "@chakra-ui/icons";
 import { Center, Input, Text } from "@chakra-ui/react";
+import { KeyIcon } from "@heroicons/react/24/outline";
 import Image from "next/image";
 import { useState } from "react";
 import { ApiKeys, createApiKey } from "../utils/account-requests";
@@ -42,14 +43,13 @@ export function ApiKeyModal({
   return (
     <ModalTemplate isOpen={isOpen} onClose={closeAndReset}>
       <>
-        <Center>
-          <img
-            src="/assets/api-key-logo.svg"
-            alt="API Key Logo"
-            width={50}
-            height={50}
-          />
-        </Center>
+        <div className="w-100 flex flex-col items-center">
+          <div className="mb-6 w-fit rounded-full bg-[#F0EBFF] p-3 text-purple-gitcoinpurple">
+            <div className="flex w-6 justify-around">
+              <KeyIcon />
+            </div>
+          </div>
+        </div>
         <Center className="mt-6">
           <Text className="text-purple-darkpurple">Generate API Key</Text>
         </Center>
@@ -73,7 +73,7 @@ export function ApiKeyModal({
           focusBorderColor="#6f3ff5"
         />
 
-        <p className="text-xs text-purple-softpurple">
+        <p className="text-xs text-purple-softpurple italic">
           i.e. ‘Gitcoin dApp - Prod’, or ‘Snapshot discord bot’, or ‘Bankless
           Academy testing’, etc.
         </p>
