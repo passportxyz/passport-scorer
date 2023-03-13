@@ -121,6 +121,7 @@ class TestScorePassportTestCase(TransactionTestCase):
         class MockRequest:
             def __init__(self, account):
                 self.auth = account
+                self.user = account.user
 
         mock_request = MockRequest(self.user_account)
 

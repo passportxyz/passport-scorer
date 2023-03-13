@@ -5,8 +5,12 @@ from typing import List, Optional
 
 # --- Deduplication Modules
 from account.models import AccountAPIKey, Community, Nonce
+from django.conf import settings
 from django.shortcuts import get_object_or_404
-from django_ratelimit.decorators import ratelimit
+from django.utils.module_loading import import_string
+from django_ratelimit.core import is_ratelimited
+from django_ratelimit.decorators import ALL
+from django_ratelimit.exceptions import Ratelimited
 from ninja import Router, Schema
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
@@ -97,6 +101,29 @@ class ErrorMessageResponse(Schema):
     detail: str
 
 
+def check_rate_limit(request):
+    """
+    Check the rate limit for the API.
+    This is based on the original ratelimit decorator from django_ratelimit
+    """
+    old_limited = getattr(request, "limited", False)
+    rate = request.user.account.rate_limit
+    print("rate limit: ", rate)
+    ratelimited = is_ratelimited(
+        request=request,
+        group="registry",
+        fn=None,
+        key="user",
+        rate=rate,
+        method=ALL,
+        increment=True,
+    )
+    request.limited = ratelimited or old_limited
+    if ratelimited:
+        cls = getattr(settings, "RATELIMIT_EXCEPTION_CLASS", Ratelimited)
+        raise (import_string(cls) if isinstance(cls, str) else cls)()
+
+
 class ApiKey(APIKeyHeader):
     param_name = "X-API-Key"
 
@@ -139,8 +166,8 @@ class ApiKey(APIKeyHeader):
     summary="Submit passport for scoring",
     description="""Use this API to get a message to sign and a nonce to use when submitting your passport for scoring.""",
 )
-@ratelimit(key="header:X-Api-Key", rate="10/s")
-def signing_message(_request) -> SigningMessageResponse:
+def signing_message(request) -> SigningMessageResponse:
+    check_rate_limit(request)
     nonce = Nonce.create_nonce().nonce
     return {
         "message": get_signing_message(nonce),
@@ -168,8 +195,8 @@ This API will return a `DetailedScoreResponse` structure with status **PROCESSIN
 You need to check for the status of the operation by calling the `/score/{int:community_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
 """,
 )
-@ratelimit(key="header:X-Api-Key", rate="10/s")
 def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
+    check_rate_limit(request)
     address_lower = payload.address.lower()
 
     # Get DID from address
@@ -236,8 +263,9 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
 This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
 """,
 )
-@ratelimit(key="header:X-Api-Key", rate="10/s")
 def get_score(request, address: str, community_id: int) -> DetailedScoreResponse:
+    check_rate_limit(request)
+
     # Get community object
     user_community = api_get_object_or_404(
         Community, id=community_id, account=request.auth
@@ -256,7 +284,7 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
             community_id,
             exc_info=True,
         )
-        raise InvalidCommunityScoreRequestException()
+        raise InvalidCommunityScoreRequestException() from e
 
 
 @router.get(
@@ -275,10 +303,10 @@ Pass a limit and offset query parameter to paginate the results. For example: `/
 """,
 )
 @paginate(pass_parameter="pagination_info")
-@ratelimit(key="header:X-Api-Key", rate="10/s")
 def get_scores(
     request, community_id: int, address: str = "", **kwargs
 ) -> List[DetailedScoreResponse]:
+    check_rate_limit(request)
     if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
 
