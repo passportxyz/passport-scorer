@@ -7,10 +7,10 @@ import Footer from "./Footer";
 
 import { DashboardTabs, TabToken } from "./DashboardTabs";
 
-
 type DashboardProps = {
   activeTab: TabToken;
   children: React.ReactNode;
+  accountCenterContainerRef: React.RefObject<HTMLDivElement>;
 };
 
 const QuickLink = ({
@@ -25,8 +25,9 @@ const QuickLink = ({
   className?: string;
 }) => (
   <div
-    className={`flex w-full flex-row items-center justify-start  border-gray-200 bg-white p-5 ${(url ? "cursor-pointer " : " ") + className
-      }`}
+    className={`flex w-full flex-row items-center justify-start  border-gray-200 bg-white p-5 ${
+      (url ? "cursor-pointer " : " ") + className
+    }`}
   >
     <span className="mr-2">{icon}</span>
     {text}
@@ -88,6 +89,7 @@ const SampleApplications = ({ className }: { className?: string }) => {
 export default function Dashboard({
   activeTab,
   children,
+  accountCenterContainerRef,
 }: DashboardProps) {
   return (
     <div className="font-libre-franklin flex min-h-default flex-col justify-between bg-gray-bluegray text-gray-400">
@@ -95,6 +97,7 @@ export default function Dashboard({
       <div className="bg-white">
         <Header
           className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20"
+          accountCenterContainerRef={accountCenterContainerRef}
         />
         <div className="w-full bg-red-100">{/* ERROR ALERT HERE */}</div>
         <div className="my-6 w-full bg-white px-4 sm:px-20">

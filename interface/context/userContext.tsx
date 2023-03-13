@@ -1,8 +1,13 @@
-import { createContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useEffect,
+  useState,
+  useMemo,
+} from "react";
 
 import { useConnectWallet } from "@web3-onboard/react";
 import { WalletState } from "@web3-onboard/core";
-import "../utils/onboard";
 
 import { initiateSIWE } from "../utils/siwe";
 import { authenticate, verifyToken } from "../utils/account-requests";
@@ -66,11 +71,17 @@ const userReducer = (
 export const UserContext = createContext(initialState);
 
 export const UserProvider = ({ children }: { children: any }) => {
+  // const init = useMemo(() => initOnboard("account-center-container"), []);
   const [{ wallet }, connect] = useConnectWallet();
   const [connected, setConnected] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
   const [loginComplete, setLoginComplete] = useState(false);
   const [authenticationError, setAuthenticationError] = useState(false);
+
+  const onAccountCenterContainerMount = useCallback(
+    (accountCenterContainerId: string) => {},
+    []
+  );
 
   const login = async () => {
     connect()
@@ -101,14 +112,14 @@ export const UserProvider = ({ children }: { children: any }) => {
       try {
         const { expDate } = await verifyToken(accessToken);
         // We want the token to be valid for at least 6 hours
-        const minExpirationData = new Date(Date.now() + 1000 * 60 * 60 * 6)
+        const minExpirationData = new Date(Date.now() + 1000 * 60 * 60 * 6);
         if (expDate < minExpirationData) {
           window.localStorage.removeItem("access-token");
-          return
+          return;
         }
       } catch (e) {
         window.localStorage.removeItem("access-token");
-        return
+        return;
       }
     }
     if (previouslyConnectedWallets?.length) {
@@ -165,7 +176,16 @@ export const UserProvider = ({ children }: { children: any }) => {
   }, [wallet, connected]);
 
   return (
-    <UserContext.Provider value={{ connected, authenticating, loginComplete, authenticationError, login, logout }}>
+    <UserContext.Provider
+      value={{
+        connected,
+        authenticating,
+        loginComplete,
+        authenticationError,
+        login,
+        logout,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );

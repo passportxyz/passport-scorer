@@ -43,11 +43,35 @@ const accountCenter = {
     enabled: true,
     minimal: true,
   },
-}
+};
 
+/*
 init({
   wallets,
   chains,
   appMetadata,
-  accountCenter
+  accountCenter,
+  containerElements: {
+    accountCenter: `#account-center-container`,
+  },
 });
+*/
+let onboardInitialized = false;
+export const initOnboard = (accountCenterContainerId: string) => {
+  console.log(
+    "initOnboard!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+    onboardInitialized
+  );
+  if (onboardInitialized) return;
+  onboardInitialized = true;
+  init({
+    wallets,
+    chains,
+    appMetadata,
+    accountCenter,
+    containerElements: {
+      accountCenter: `#${accountCenterContainerId}`,
+    },
+  });
+  console.log("init done", onboardInitialized);
+};
