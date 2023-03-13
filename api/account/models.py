@@ -87,11 +87,6 @@ class Account(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="account"
     )
-    rate_limit = models.CharField(
-        max_length=20,
-        choices=[(limit.value, limit) for limit in RateLimits],
-        default=RateLimits.TIER_1.value,
-    )
 
     def __str__(self):
         return f"{self.address} - {self.user}"
@@ -99,7 +94,12 @@ class Account(models.Model):
 
 class AccountAPIKey(AbstractAPIKey):
     account = models.ForeignKey(
-        Account, on_delete=models.CASCADE, related_name="api_key", default=None
+        Account, on_delete=models.CASCADE, related_name="api_keys", default=None
+    )
+    rate_limit = models.CharField(
+        max_length=20,
+        choices=[(limit.value, limit) for limit in RateLimits],
+        default=RateLimits.TIER_1.value,
     )
 
 

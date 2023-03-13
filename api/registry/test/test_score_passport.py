@@ -2,16 +2,16 @@ import re
 from decimal import Decimal
 from unittest.mock import patch
 
-import pytest
-from account.models import Account, Community
+from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.test import Client, TransactionTestCase
 from registry.api import SubmitPassportPayload, get_score, submit_passport
 from registry.models import Passport, Score, Stamp
 from registry.tasks import score_passport
 from web3 import Web3
 
+User = get_user_model()
 my_mnemonic = settings.TEST_MNEMONIC
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -73,6 +73,10 @@ class TestScorePassportTestCase(TransactionTestCase):
             user=self.user, address=account.address
         )
 
+        AccountAPIKey.objects.create_key(
+            account=self.user_account, name="Token for user 1"
+        )
+
         # Mock the default weights for new communities that are created
         with patch(
             "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
@@ -121,7 +125,7 @@ class TestScorePassportTestCase(TransactionTestCase):
         class MockRequest:
             def __init__(self, account):
                 self.auth = account
-                self.user = account.user
+                self.api_key = account.api_keys.all()[0]
 
         mock_request = MockRequest(self.user_account)
 

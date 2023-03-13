@@ -107,13 +107,12 @@ def check_rate_limit(request):
     This is based on the original ratelimit decorator from django_ratelimit
     """
     old_limited = getattr(request, "limited", False)
-    rate = request.user.account.rate_limit
-    print("rate limit: ", rate)
+    rate = request.api_key.rate_limit
     ratelimited = is_ratelimited(
         request=request,
         group="registry",
         fn=None,
-        key="user",
+        key="header:x-api-key",
         rate=rate,
         method=ALL,
         increment=True,
@@ -147,6 +146,7 @@ class ApiKey(APIKeyHeader):
 
         try:
             api_key = AccountAPIKey.objects.get_from_key(key)
+            request.api_key = api_key
             user_account = api_key.account
             if user_account:
                 request.user = user_account.user
