@@ -183,6 +183,10 @@ const certificateValidation = new aws.acm.CertificateValidation(
 // Creates an ALB associated with our custom VPC.
 const alb = new awsx.lb.ApplicationLoadBalancer(`scorer-service`, { vpc });
 
+const albProtection = new aws.shield.Protection("ScorerProtection", {
+  resourceArn: alb.urn,
+})
+
 // Listen to HTTP traffic on port 80 and redirect to 443
 const httpListener = alb.createListener("web-listener", {
   port: 80,
