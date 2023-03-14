@@ -55,11 +55,12 @@ const mockComponent = () => (
           <span data-testid="loginComplete">
             {value.loginComplete.toString()}
           </span>
+          <span data-testid="ready">{value.ready.toString()}</span>
         </div>
       )}
     </UserContext.Consumer>
   </UserProvider>
-)
+);
 
 describe("UserProvider", () => {
   beforeEach(() => {
@@ -70,10 +71,7 @@ describe("UserProvider", () => {
       { wallet: null },
       connect,
     ]);
-    render(
-      mockComponent()
-    );
-
+    render(mockComponent());
 
     expect(screen.getByTestId("connected")).toHaveTextContent("false");
     expect(screen.getByTestId("authenticationError")).toHaveTextContent(
@@ -81,6 +79,9 @@ describe("UserProvider", () => {
     );
     expect(screen.getByTestId("authenticating")).toHaveTextContent("false");
     expect(screen.getByTestId("loginComplete")).toHaveTextContent("false");
+    await waitFor(() =>
+      expect(screen.getByTestId("ready")).toHaveTextContent("true")
+    );
   });
 
   it("logs in a user", async () => {
@@ -95,17 +96,16 @@ describe("UserProvider", () => {
       signature: "signature",
     });
     (authenticate as jest.Mock).mockResolvedValue({
-      access: "token"
-    })
+      access: "token",
+    });
 
-    render(
-      mockComponent()
-    );
+    render(mockComponent());
 
     screen.getByText("Login").click();
 
     await waitFor(async () => {
       expect(screen.getByTestId("connected")).toHaveTextContent("true");
+      expect(screen.getByTestId("ready")).toHaveTextContent("true");
       expect(screen.getByTestId("authenticationError")).toHaveTextContent(
         "false"
       );
@@ -113,6 +113,7 @@ describe("UserProvider", () => {
       expect(screen.getByTestId("loginComplete")).toHaveTextContent("true");
     });
   });
+
   it("logs out a user", async () => {
     (initiateSIWE as jest.Mock).mockResolvedValue({
       siweMessage: {},
@@ -124,13 +125,22 @@ describe("UserProvider", () => {
       connect,
     ]);
 
+    (initiateSIWE as jest.Mock).mockResolvedValue({
+      siweMessage: {},
+      signature: "signature",
+    });
+    (authenticate as jest.Mock).mockResolvedValue({
+      access: "token",
+    });
 
-    const { rerender } = render(
-      mockComponent()
-    );
+    const { rerender } = render(mockComponent());
 
     // click the login button
     screen.getByText("Login").click();
+
+    await waitFor(async () => {
+      expect(screen.getByTestId("connected")).toHaveTextContent("true");
+    });
 
     (useConnectWallet as jest.Mock).mockReturnValue([
       { wallet: null },
@@ -146,6 +156,7 @@ describe("UserProvider", () => {
       expect(screen.getByTestId("loginComplete")).toHaveTextContent("false");
     });
   });
+
   it("resets state if user rejects signature", async () => {
     const connect = jest.fn().mockResolvedValue([mockWallet]);
     (useConnectWallet as jest.Mock).mockReturnValue([
@@ -157,13 +168,13 @@ describe("UserProvider", () => {
       detail: "User rejected signature",
     });
 
-
-    render(
-      mockComponent()
-    );
+    render(mockComponent());
 
     // click the login button
     screen.getByText("Login").click();
+    await waitFor(() =>
+      expect(screen.getByTestId("ready")).toHaveTextContent("true")
+    );
     expect(screen.getByTestId("connected")).toHaveTextContent("false");
     expect(screen.getByTestId("loginComplete")).toHaveTextContent("false");
   });
