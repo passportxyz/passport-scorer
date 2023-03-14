@@ -11,8 +11,7 @@ registry_api = NinjaAPI(urls_namespace="registry", title="Scorer API")
 
 
 @registry_api.exception_handler(Ratelimited)
-def service_unavailable(request, _exc):
-    # pylint: disable=unused-argument,invalid-name
+def service_unavailable(request, _):
     return registry_api.create_response(
         request,
         {"detail": "You have been rate limited!"},

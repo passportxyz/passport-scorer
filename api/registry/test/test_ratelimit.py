@@ -70,19 +70,10 @@ def test_rate_limit_is_applied(scorer_api_key, api_path_that_requires_rate_limit
                     "HTTP_AUTHORIZATION": f"Token {scorer_api_key}",
                 },
             )
-            print("-" * 80)
-            print(method)
-            print(path)
-            print(payload)
-            print(response.content)
-            print("-" * 80)
             assert response.status_code == 429
         else:
             response = client.get(
                 path,
                 HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
             )
-            print("-" * 80)
-            print(response.content)
-            print("-" * 80)
             assert response.status_code == 429
