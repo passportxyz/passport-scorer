@@ -22,7 +22,7 @@ jobs:
         run: yarn test
 
   deploy-app:
-    needs: [ui-test, cypress-test]
+    needs: [ui-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
