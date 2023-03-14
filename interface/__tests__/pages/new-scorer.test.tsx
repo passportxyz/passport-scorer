@@ -5,7 +5,7 @@ import {
   waitFor,
   screen,
 } from "@testing-library/react";
-import NewScorerRoute from "../../pages/dashboard/new-scorer";
+import NewScorerRoute from "../../pages/new-scorer";
 import mockRouter from "next-router-mock";
 import { createDynamicRouteParser } from "next-router-mock/dynamic-routes";
 import { createCommunity } from "../../utils/account-requests";

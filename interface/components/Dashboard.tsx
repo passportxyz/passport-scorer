@@ -7,7 +7,6 @@ import Footer from "./Footer";
 
 import { DashboardTabs, TabToken } from "./DashboardTabs";
 
-
 type DashboardProps = {
   activeTab: TabToken;
   children: React.ReactNode;
@@ -25,8 +24,9 @@ const QuickLink = ({
   className?: string;
 }) => (
   <div
-    className={`flex w-full flex-row items-center justify-start  border-gray-200 bg-white p-5 ${(url ? "cursor-pointer " : " ") + className
-      }`}
+    className={`flex w-full flex-row items-center justify-start border-gray-200  bg-white p-5 ${
+      (url ? "cursor-pointer " : " ") + className
+    }`}
   >
     <span className="mr-2">{icon}</span>
     {text}
@@ -37,7 +37,10 @@ const QuickLinks = () => {
   const className = "border-x border-t";
   return (
     <div className="w-full">
-      <QuickLink text="Quick Links" className={className} />
+      <QuickLink
+        text="Quick Links"
+        className={className + " text-xs text-gray-500"}
+      />
       <QuickLink
         text="Quick Start Guide"
         url="/"
@@ -67,35 +70,21 @@ const QuickLinks = () => {
 };
 
 const SampleApplications = ({ className }: { className?: string }) => {
-  const linkClassName = "text-base";
   return (
-    <div className={className}>
-      <QuickLink text="Sample Applications" />
-      <QuickLink
-        text="Gitcoin Passports Sample App"
-        url="/"
-        className={linkClassName}
-      />
-      <QuickLink
-        text="Gitcoin Allo Protocol"
-        url="/"
-        className={linkClassName}
-      />
+    <div className={"text-base " + className}>
+      <QuickLink text="Sample Applications" className="text-xs text-gray-500" />
+      <QuickLink text="Gitcoin Passports Sample App" url="/" />
+      <QuickLink text="Gitcoin Allo Protocol" url="/" />
     </div>
   );
 };
 
-export default function Dashboard({
-  activeTab,
-  children,
-}: DashboardProps) {
+export default function Dashboard({ activeTab, children }: DashboardProps) {
   return (
     <div className="font-libre-franklin flex min-h-default flex-col justify-between bg-gray-bluegray text-gray-400">
       {/* The top part of the page */}
       <div className="bg-white">
-        <Header
-          className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20"
-        />
+        <Header className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20" />
         <div className="w-full bg-red-100">{/* ERROR ALERT HERE */}</div>
         <div className="my-6 w-full bg-white px-4 sm:px-20">
           <h1 className="font-miriamlibre text-2xl text-blue-darkblue">

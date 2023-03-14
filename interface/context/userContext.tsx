@@ -8,6 +8,7 @@ import { initiateSIWE } from "../utils/siwe";
 import { authenticate, verifyToken } from "../utils/account-requests";
 
 export interface UserState {
+  ready: boolean;
   connected: boolean;
   authenticationError: boolean;
   authenticating: boolean;
@@ -68,6 +69,7 @@ export const UserContext = createContext(initialState);
 export const UserProvider = ({ children }: { children: any }) => {
   const [{ wallet }, connect] = useConnectWallet();
   const [connected, setConnected] = useState(false);
+  const [ready, setReady] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
   const [loginComplete, setLoginComplete] = useState(false);
   const [authenticationError, setAuthenticationError] = useState(false);
@@ -101,14 +103,14 @@ export const UserProvider = ({ children }: { children: any }) => {
       try {
         const { expDate } = await verifyToken(accessToken);
         // We want the token to be valid for at least 6 hours
-        const minExpirationData = new Date(Date.now() + 1000 * 60 * 60 * 6)
+        const minExpirationData = new Date(Date.now() + 1000 * 60 * 60 * 6);
         if (expDate < minExpirationData) {
           window.localStorage.removeItem("access-token");
-          return
+          return;
         }
       } catch (e) {
         window.localStorage.removeItem("access-token");
-        return
+        return;
       }
     }
     if (previouslyConnectedWallets?.length) {
@@ -153,8 +155,11 @@ export const UserProvider = ({ children }: { children: any }) => {
   };
 
   // On load check localstorage for loggedin credentials
-  useEffect((): void => {
-    setWalletFromLocalStorage();
+  useEffect(() => {
+    (async () => {
+      await setWalletFromLocalStorage();
+      setReady(true);
+    })();
   }, []);
 
   // Used to listen to disconnect event from web3Onboard widget
@@ -165,7 +170,17 @@ export const UserProvider = ({ children }: { children: any }) => {
   }, [wallet, connected]);
 
   return (
-    <UserContext.Provider value={{ connected, authenticating, loginComplete, authenticationError, login, logout }}>
+    <UserContext.Provider
+      value={{
+        ready,
+        connected,
+        authenticating,
+        loginComplete,
+        authenticationError,
+        login,
+        logout,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );

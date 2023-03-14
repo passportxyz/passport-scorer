@@ -264,7 +264,7 @@ const UseCaseDetails = ({
         description: scorerDescription,
       })
     );
-    router.push("/dashboard/new-scorer");
+    router.push("/new-scorer");
   };
 
   return (
