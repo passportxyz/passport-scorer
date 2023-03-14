@@ -9,6 +9,12 @@ import { DashboardTabs, TabToken } from "./DashboardTabs";
 
 import { Warning } from "./Warning";
 import { UserContext } from "../context/userContext";
+import {
+  BookOpenIcon,
+  CommandLineIcon,
+  FlagIcon,
+  PlayCircleIcon,
+} from "@heroicons/react/24/solid";
 
 type DashboardProps = {
   activeTab: TabToken;
@@ -26,79 +32,81 @@ const QuickLink = ({
   url?: string;
   className?: string;
 }) => (
-  <div
-    className={`flex w-full flex-row items-center justify-start  border-gray-200 bg-white p-5 ${(url ? "cursor-pointer " : " ") + className
-      }`}
+  <a
+    href={url}
+    target="_blank"
+    rel="noopener noreferrer"
+    className={`flex w-full flex-row items-center justify-start border-gray-200 bg-white p-4 text-xs ${
+      (url ? "cursor-pointer text-purple-softpurple " : " ") +
+      (url ? "" : "text-purple-darkpurple ") +
+      className
+    }`}
   >
-    <span className="mr-2">{icon}</span>
+    {icon}
     {text}
-  </div>
+  </a>
 );
 
 const QuickLinks = () => {
-  const className = "border-x border-t";
+  const className = "border-b";
+  const iconClassName = "mr-2 w-3.5";
   return (
-    <div className="w-full">
+    <div className="w-full rounded border">
       <QuickLink text="Quick Links" className={className} />
       <QuickLink
         text="Quick Start Guide"
-        url="/"
-        icon={<img src="/assets/flagIcon.svg" />}
+        url="https://docs.passport.gitcoin.co/building-with-passport/quick-start-guide"
+        icon={<FlagIcon className={iconClassName} />}
         className={className}
       />
       <QuickLink
         text="Passport Documentation"
-        url="/"
-        icon={<img src="/assets/terminalIcon.svg" />}
+        url="https://docs.passport.gitcoin.co/"
+        icon={<CommandLineIcon className={iconClassName} />}
         className={className}
       />
       <QuickLink
         text="Video Introduction"
         url="/"
-        icon={<img src="/assets/playIcon.svg" />}
+        icon={<PlayCircleIcon className={iconClassName} />}
         className={className}
       />
       <QuickLink
         text="Scorer Documentation"
-        url="/"
-        icon={<img src="/assets/bookIcon.svg" />}
-        className={className + " border-b"}
+        url="https://docs.passport.gitcoin.co/building-with-passport/scorer-api"
+        icon={<BookOpenIcon className={iconClassName} />}
+        className={className + " border-b-0"}
       />
     </div>
   );
 };
 
 const SampleApplications = ({ className }: { className?: string }) => {
-  const linkClassName = "text-base";
+  const linkClassName = "text-base py-2";
   return (
-    <div className={className}>
-      <QuickLink text="Sample Applications" />
+    <div className={className + " rounded border bg-white pb-24"}>
+      <QuickLink text="Sample Applications" className="pb-2" />
       <QuickLink
         text="Gitcoin Passports Sample App"
-        url="/"
+        url="https://github.com/gitcoinco/passport-scorer/tree/main/examples/example-score-a-passport"
         className={linkClassName}
       />
       <QuickLink
         text="Gitcoin Allo Protocol"
-        url="/"
+        url="https://github.com/gitcoinco/grants-stack/blob/45b6a3a00beb05090e039be2551a06636e873fbc/packages/grant-explorer/src/features/round/PassportConnect.tsx"
         className={linkClassName}
       />
     </div>
   );
 };
 
-export default function Dashboard({
-  activeTab,
-  children,
-}: DashboardProps) {
+export default function Dashboard({ activeTab, children }: DashboardProps) {
   const { userWarning, setUserWarning } = useContext(UserContext);
   return (
     <div className="font-libre-franklin flex min-h-default flex-col justify-between bg-gray-bluegray text-gray-400">
       {/* The top part of the page */}
       <div className="bg-white">
-        <Header
-          className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20"
-        />
+        <Header className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20" />
         {userWarning && (
           <div className="w-full bg-red-100">
             <Warning text={userWarning} onDismiss={() => setUserWarning()} />
@@ -122,7 +130,7 @@ export default function Dashboard({
         </div>
 
         {/* Main content - center */}
-        <div className="px-6 grow self-stretch">{children}</div>
+        <div className="grow self-stretch px-6">{children}</div>
 
         {/* Main content - right */}
         <div className="w-full flex-col self-stretch text-sm leading-[18px] md:max-w-xs">

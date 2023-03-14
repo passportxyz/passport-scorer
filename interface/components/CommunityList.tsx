@@ -20,6 +20,7 @@ import {
 import UseCaseModal from "./UseCaseModal";
 import { useToast } from "@chakra-ui/react";
 import { successToast } from "./Toasts";
+import { StarIcon } from "@heroicons/react/24/outline";
 
 const CommunityList = () => {
   const toast = useToast();
@@ -100,7 +101,7 @@ const CommunityList = () => {
           addRequest={() => {
             setSelectUseCaseModalOpen(true);
           }}
-          icon={<img src="/assets/outlineStarIcon.svg" />}
+          icon={<StarIcon className="w-6"  />}
         />
       ) : (
         <div className="mt-t mx-0">

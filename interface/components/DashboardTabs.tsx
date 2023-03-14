@@ -4,7 +4,9 @@ import React from "react";
 import { useRouter } from "next/router";
 
 // --- Components
-import { SettingsIcon, Icon, StarIcon } from "@chakra-ui/icons";
+import { SettingsIcon, Icon } from "@chakra-ui/icons";
+
+import { StarIcon } from "@heroicons/react/24/solid";
 
 export type TabToken = "scorer" | "api-keys";
 
@@ -47,7 +49,7 @@ type TabProps = {
 
 const tabInfo: TabProps[] = [
   {
-    icon: <StarIcon />,
+    icon: <StarIcon className="w-4" />,
     text: "Scorer",
     token: "scorer",
   },
