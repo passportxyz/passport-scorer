@@ -5,15 +5,16 @@ import React, { useContext, useEffect, useState } from "react";
 import { SettingsIcon } from "@chakra-ui/icons";
 
 // --- Utils
-import {
-  ApiKeys,
-  getApiKeys,
-  deleteApiKey,
-} from "../utils/account-requests";
+import { ApiKeys, getApiKeys, deleteApiKey } from "../utils/account-requests";
 import NoValues from "./NoValues";
 import { UserContext } from "../context/userContext";
 import { ApiKeyModal } from "./ApiKeyModal";
-import { CheckIcon, ClipboardDocumentIcon, EllipsisVerticalIcon } from "@heroicons/react/24/solid";
+import {
+  CheckIcon,
+  ClipboardDocumentIcon,
+  EllipsisVerticalIcon,
+  PlusIcon,
+} from "@heroicons/react/24/solid";
 import { useToast } from "@chakra-ui/react";
 import { successToast } from "./Toasts";
 
@@ -68,7 +69,7 @@ const APIKeyList = () => {
       {apiKeys.length === 0 ? (
         <div className="h-full">
           <div className="mx-auto text-center text-purple-softpurple">
-            The API’s keys are unique to your wallet address and can be used to
+            The API's keys are unique to your wallet address and can be used to
             access created Scorers.
           </div>
           <NoValues
@@ -81,7 +82,9 @@ const APIKeyList = () => {
         </div>
       ) : (
         <>
-          <p className="py-3">Use these API keys to programmatically access a Scorer.</p>
+          <p className="pb-6">
+            Use these API keys to programmatically access a Scorer.
+          </p>
           <div className="flex w-full flex-col">
             {apiKeys.map((key, i) => (
               <div
@@ -94,12 +97,14 @@ const APIKeyList = () => {
 
                 <div className="flex">
                   {key.api_key && (
-                    <div className="flex mt-1.5 pr-5">
+                    <div className="mt-1.5 flex pr-5">
                       {key.copied ? (
-                        <p className="text-purple-gitcoinpurple flex text-xs">Copied! <CheckIcon height={14} color={"6f3ff5"} /></p>
+                        <p className="flex text-xs text-purple-gitcoinpurple">
+                          Copied! <CheckIcon height={14} color={"6f3ff5"} />
+                        </p>
                       ) : (
                         <>
-                          <p className="flex text-purple-darkpurple text-xs pr-3">
+                          <p className="flex pr-3 text-xs text-purple-darkpurple">
                             {key.api_key}
                           </p>
                           <button
@@ -107,12 +112,19 @@ const APIKeyList = () => {
                             data-testid="copy-api-key"
                             onClick={async () => {
                               await navigator.clipboard.writeText(key.api_key!);
-                              const updatedKeys = apiKeys.map((k) => k.api_key === key.api_key ? { ...k, copied: true } : k);
+                              const updatedKeys = apiKeys.map((k) =>
+                                k.api_key === key.api_key
+                                  ? { ...k, copied: true }
+                                  : k
+                              );
                               setApiKeys(updatedKeys);
-                              setUserWarning()
+                              setUserWarning();
                             }}
                           >
-                            <ClipboardDocumentIcon height={14} color={"#0E0333"} />
+                            <ClipboardDocumentIcon
+                              height={14}
+                              color={"#0E0333"}
+                            />
                           </button>
                         </>
                       )}
@@ -121,21 +133,22 @@ const APIKeyList = () => {
                   <button
                     onClick={async () => await handleDeleteApiKey(key.id)}
                   >
-                    <EllipsisVerticalIcon height={25} color={"#0E0333"} />
+                    <EllipsisVerticalIcon className="h-6 text-purple-darkpurple" />
                   </button>
                 </div>
               </div>
             ))}
           </div>
-          <div className="flex items-center py-4">
+          <div className="my-4 flex items-center md:my-6">
             <button
               data-testid="open-api-key-modal"
-              className="rounded-md bg-purple-gitcoinpurple px-5 py-2 text-white"
+              className="rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white"
               onClick={() => setCreateApiKeyModal(true)}
             >
-              <span className="mr-2 text-lg">+</span>API Key
+              <PlusIcon className="mr-2 inline w-6 align-middle" />
+              API Key
             </button>
-            <p className="pl-4 text-xs text-purple-softpurple">
+            <p className="ml-6 text-xs text-purple-softpurple">
               The key limit is five.
             </p>
           </div>
@@ -148,7 +161,9 @@ const APIKeyList = () => {
         onClose={() => setCreateApiKeyModal(false)}
         onApiKeyCreated={(apiKey: ApiKeyDisplay) => {
           toast(successToast("API Key created successfully!", toast));
-          setUserWarning("Make sure to paste your API key somewhere safe, as it will be forever hidden after you copy it.");
+          setUserWarning(
+            "Make sure to paste your API key somewhere safe, as it will be forever hidden after you copy it."
+          );
           setApiKeys([...apiKeys, apiKey]);
         }}
       />

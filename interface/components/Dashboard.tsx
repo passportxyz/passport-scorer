@@ -123,14 +123,16 @@ export default function Dashboard({ activeTab, children }: DashboardProps) {
         </div>
       </div>
       {/* The mid part of the page */}
-      <div className="flex grow flex-col items-center justify-between border-t border-gray-300 px-4 pt-2 sm:px-20 md:flex-row md:items-start">
+      <div className="flex grow flex-col items-center justify-between border-t border-gray-300 px-4 pt-4 sm:px-20 md:flex-row md:items-start md:pt-6">
         {/* Main content - left */}
         <div className="w-48 flex-col items-start self-start">
           <DashboardTabs activeTab={activeTab} />
         </div>
 
         {/* Main content - center */}
-        <div className="my-6 grow self-stretch md:mx-6 md:my-0">{children}</div>
+        <div className="my-6 grow self-stretch md:mx-6 md:my-0">
+          {children} <hr className="mt-8 mb-2 md:hidden" />
+        </div>
 
         {/* Main content - right */}
         <div className="w-full flex-col self-stretch text-sm leading-[18px] md:max-w-xs">

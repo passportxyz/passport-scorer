@@ -4,9 +4,7 @@ import React from "react";
 import { useRouter } from "next/router";
 
 // --- Components
-import { SettingsIcon, Icon } from "@chakra-ui/icons";
-
-import { StarIcon } from "@heroicons/react/24/solid";
+import { Cog8ToothIcon, StarIcon } from "@heroicons/react/24/solid";
 
 export type TabToken = "scorer" | "api-keys";
 
@@ -30,7 +28,7 @@ const TabButton = ({
   <button
     data-testid={`${token}-tab`}
     onClick={() => router.push(`/dashboard/${token}`)}
-    className={`flex w-full items-center justify-start rounded-sm p-3 text-blue-darkblue ${
+    className={`flex w-full items-center justify-start rounded-sm px-3 py-2 text-blue-darkblue ${
       (selected ? "border-gray-200 bg-white " : "border-gray-100 ") + className
     }`}
   >
@@ -49,12 +47,12 @@ type TabProps = {
 
 const tabInfo: TabProps[] = [
   {
-    icon: <StarIcon className="w-4" />,
+    icon: <StarIcon className="w-5" />,
     text: "Scorer",
     token: "scorer",
   },
   {
-    icon: <SettingsIcon />,
+    icon: <Cog8ToothIcon className="w-5" />,
     text: "API Keys",
     token: "api-keys",
   },
@@ -103,7 +101,7 @@ const TabSelect = ({
       id="tabSelect"
       value={activeTab}
       onChange={(e) => router.push(`/dashboard/${e.target.value}`)}
-      className="flex w-full justify-around bg-white py-3 pl-2 text-blue-darkblue"
+      className="flex w-full justify-around bg-white py-2 ml-2 text-blue-darkblue"
     >
       {tabInfo.map(({ text, token }) => (
         <option
