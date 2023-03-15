@@ -29,7 +29,9 @@ const TabButton = ({
     data-testid={`${token}-tab`}
     onClick={() => router.push(`/dashboard/${token}`)}
     className={`flex w-full items-center justify-start rounded-sm px-3 py-2 text-blue-darkblue ${
-      (selected ? "border-gray-200 bg-white " : "border-gray-100 ") + className
+      (selected
+        ? "rounded border border-gray-lightgray bg-white "
+        : " ") + className
     }`}
   >
     <span className={`mr-2 ${selected ? "text-purple-gitcoinpurple" : ""}`}>
@@ -101,7 +103,7 @@ const TabSelect = ({
       id="tabSelect"
       value={activeTab}
       onChange={(e) => router.push(`/dashboard/${e.target.value}`)}
-      className="flex w-full justify-around bg-white py-2 ml-2 text-blue-darkblue"
+      className="ml-2 flex w-full justify-around bg-white py-2 text-blue-darkblue"
     >
       {tabInfo.map(({ text, token }) => (
         <option

@@ -2,21 +2,35 @@
 import React, { useContext, useEffect, useState } from "react";
 
 // --- Components
-import { SettingsIcon } from "@chakra-ui/icons";
+import { ChevronDownIcon, Icon, SettingsIcon } from "@chakra-ui/icons";
 
 // --- Utils
-import { ApiKeys, getApiKeys, deleteApiKey } from "../utils/account-requests";
+import {
+  ApiKeys,
+  getApiKeys,
+  deleteApiKey,
+  createApiKey,
+} from "../utils/account-requests";
 import NoValues from "./NoValues";
 import { UserContext } from "../context/userContext";
-import { ApiKeyModal } from "./ApiKeyModal";
+import { ApiKeyCreateModal } from "./ApiKeyModals";
 import {
   CheckIcon,
   ClipboardDocumentIcon,
   EllipsisVerticalIcon,
   PlusIcon,
 } from "@heroicons/react/24/solid";
-import { useToast } from "@chakra-ui/react";
+import {
+  Button,
+  IconButton,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+  useToast,
+} from "@chakra-ui/react";
 import { successToast } from "./Toasts";
+import { KeyIcon } from "@heroicons/react/24/outline";
 
 export type ApiKeyDisplay = ApiKeys & {
   api_key?: string;
@@ -49,6 +63,23 @@ const APIKeyList = () => {
     fetchApiKeys();
   }, []);
 
+  const handleCreateApiKey = async (keyName: ApiKeys["name"]) => {
+    try {
+      const apiKey: ApiKeyDisplay = await createApiKey(keyName);
+      setCreateApiKeyModal(false);
+      toast(successToast("API Key created successfully!", toast));
+      setUserWarning(
+        "Make sure to paste your API key somewhere safe, as it will be forever hidden after you copy it."
+      );
+      setApiKeys([...apiKeys, apiKey]);
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.detail ||
+        "There was an error creating your API key. Please try again.";
+      setError(msg);
+    }
+  };
+
   const handleDeleteApiKey = async (apiKeyId: ApiKeys["id"]) => {
     try {
       await deleteApiKey(apiKeyId);
@@ -73,11 +104,11 @@ const APIKeyList = () => {
             access created Scorers.
           </div>
           <NoValues
-            title="Create a key"
-            description="Communicate between applications by connecting a key to request service from the community or organization."
+            title="Generate API Keys"
+            description="Interact with the Scorer(s) created via your API key. The key limit is five."
             addActionText="API Key"
             addRequest={() => setCreateApiKeyModal(true)}
-            icon={<SettingsIcon />}
+            icon={<KeyIcon />}
           />
         </div>
       ) : (
@@ -97,10 +128,10 @@ const APIKeyList = () => {
 
                 <div className="flex">
                   {key.api_key && (
-                    <div className="mt-1.5 flex pr-5">
+                    <div className="mt-1.5 flex items-center pr-5">
                       {key.copied ? (
                         <p className="flex text-xs text-purple-gitcoinpurple">
-                          Copied! <CheckIcon height={14} color={"6f3ff5"} />
+                          Copied! <CheckIcon className="ml-3 w-3.5" />
                         </p>
                       ) : (
                         <>
@@ -130,11 +161,32 @@ const APIKeyList = () => {
                       )}
                     </div>
                   )}
-                  <button
-                    onClick={async () => await handleDeleteApiKey(key.id)}
-                  >
-                    <EllipsisVerticalIcon className="h-6 text-purple-darkpurple" />
-                  </button>
+                  <Menu>
+                    <MenuButton
+                      as={IconButton}
+                      icon={
+                        <EllipsisVerticalIcon className="h-8 text-purple-darkpurple" />
+                      }
+                      variant="ghost"
+                      _hover={{ bg: "transparent" }}
+                      _expanded={{ bg: "transparent" }}
+                      _focus={{ bg: "transparent" }}
+                    />
+                    <MenuList color={"#0E0333"}>
+                      <MenuItem
+                        onClick={() => {
+                          setCreateApiKeyModal(true);
+                        }}
+                      >
+                        Rename
+                      </MenuItem>
+                      <MenuItem
+                        onClick={async () => await handleDeleteApiKey(key.id)}
+                      >
+                        Delete
+                      </MenuItem>
+                    </MenuList>
+                  </Menu>
                 </div>
               </div>
             ))}
@@ -156,16 +208,10 @@ const APIKeyList = () => {
           {error && <div>{error}</div>}
         </>
       )}
-      <ApiKeyModal
+      <ApiKeyCreateModal
         isOpen={createApiKeyModal}
         onClose={() => setCreateApiKeyModal(false)}
-        onApiKeyCreated={(apiKey: ApiKeyDisplay) => {
-          toast(successToast("API Key created successfully!", toast));
-          setUserWarning(
-            "Make sure to paste your API key somewhere safe, as it will be forever hidden after you copy it."
-          );
-          setApiKeys([...apiKeys, apiKey]);
-        }}
+        onCreateApiKey={handleCreateApiKey}
       />
     </>
   );

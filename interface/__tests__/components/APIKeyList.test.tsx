@@ -13,19 +13,30 @@ jest.mock("../../utils/account-requests.ts", () => ({
   createApiKey: jest.fn(),
 }));
 
-jest.mock("../../components/ApiKeyModal", () => ({
-  ApiKeyModal: ({ onApiKeyCreated }: { onApiKeyCreated: (apiKey: ApiKeyDisplay) => void }) => {
+jest.mock("../../components/ApiKeyModals", () => ({
+  ApiKeyCreateModal: ({
+    onApiKeyCreated,
+  }: {
+    onApiKeyCreated: (apiKey: ApiKeyDisplay) => void;
+  }) => {
     return (
-      <div onClick={() => onApiKeyCreated({
-        id: '1',
-        name: 'Mock API Key',
-        prefix: '1',
-        created: '1',
-        api_key: 'api-key-0',
-      })} data-testid="generate-api-key">Generate API Key</div>
-    )
+      <div
+        onClick={() =>
+          onApiKeyCreated({
+            id: "1",
+            name: "Mock API Key",
+            prefix: "1",
+            created: "1",
+            api_key: "api-key-0",
+          })
+        }
+        data-testid="generate-api-key"
+      >
+        Generate API Key
+      </div>
+    );
   },
-}))
+}));
 
 describe("APIKeyList", () => {
   beforeEach(() => {
@@ -56,7 +67,7 @@ describe("APIKeyList", () => {
     await waitFor(async () => {
       const apiKeyBtn = screen.getByTestId("generate-api-key");
       fireEvent.click(apiKeyBtn as HTMLElement);
-    })
+    });
     await waitFor(async () => {
       expect(screen.getByText("Mock API Key")).toBeInTheDocument();
       expect(screen.getByText("api-key-0")).toBeInTheDocument();
@@ -68,7 +79,7 @@ describe("APIKeyList", () => {
     await waitFor(async () => {
       const apiKeyBtn = screen.getByTestId("generate-api-key");
       fireEvent.click(apiKeyBtn as HTMLElement);
-    })
+    });
     await waitFor(async () => {
       const copyBtn = screen.getByTestId("copy-api-key");
       fireEvent.click(copyBtn as HTMLElement);

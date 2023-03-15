@@ -19,16 +19,16 @@ const NoValues = ({
   addActionText,
 }: NoValuesProps): JSX.Element => {
   return (
-    <div className="grid h-full grid-cols-1 place-items-center mb-10">
+    <div className="grid h-full grid-cols-1 place-items-center mb-10 mt-12">
       <div className="flex flex-col md:max-w-md">
         <div className="w-100 flex flex-col items-center">
-          <div className="mb-8 w-fit rounded-full bg-white p-3 text-purple-gitcoinpurple">
+          <div className="mb-6 w-fit rounded-full bg-white p-3 text-purple-gitcoinpurple">
             <div className="flex w-6 justify-around">{icon}</div>
           </div>
         </div>
         <div className="flex flex-col items-center text-center">
-          <h2 className="text-xl text-gray-500">{title}</h2>
-          <p className="mt-2">{description}</p>
+          <h2 className="text-xl text-purple-darkpurple">{title}</h2>
+          <p className="mt-2 text-purple-softpurple">{description}</p>
           <button
             data-testid="no-values-add"
             onClick={addRequest}
