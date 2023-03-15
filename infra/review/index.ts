@@ -292,6 +292,10 @@ const secrets = [
     name: "GOOGLE_CLIENT_SECRET",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:GOOGLE_CLIENT_SECRET::`,
   },
+  {
+    name: "RATELIMIT_ENABLE",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:RATELIMIT_ENABLE::`,
+  },
 ];
 const environment = [
   {
@@ -304,7 +308,10 @@ const environment = [
   },
   {
     name: "UI_DOMAINS",
-    value: JSON.stringify(["scorer." + process.env["DOMAIN"], "www.scorer." + process.env["DOMAIN"]]),
+    value: JSON.stringify([
+      "scorer." + process.env["DOMAIN"],
+      "www.scorer." + process.env["DOMAIN"],
+    ]),
   },
   {
     name: "ALLOWED_HOSTS",

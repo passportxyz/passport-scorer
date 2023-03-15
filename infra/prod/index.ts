@@ -346,6 +346,10 @@ const secrets = [
     name: "GOOGLE_CLIENT_SECRET",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:GOOGLE_CLIENT_SECRET::`,
   },
+  {
+    name: "RATELIMIT_ENABLE",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:RATELIMIT_ENABLE::`,
+  },
 ];
 const environment = [
   {
