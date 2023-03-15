@@ -1,8 +1,10 @@
 import { CheckCircleIcon, CloseIcon } from "@chakra-ui/icons";
 import { useToast, UseToastOptions } from "@chakra-ui/react";
 
-
-export const successToast = (message: string, toast: ReturnType<typeof useToast>): UseToastOptions => {
+export const successToast = (
+  message: string,
+  toast: ReturnType<typeof useToast>
+): UseToastOptions => {
   return {
     title: "Success!",
     status: "success",
@@ -21,9 +23,7 @@ export const successToast = (message: string, toast: ReturnType<typeof useToast>
         }}
       >
         <CheckCircleIcon color="#02E2AC" boxSize={6} mr={4} />
-        <span style={{ color: "white", fontSize: "16px" }}>
-          {message}
-        </span>
+        <span style={{ color: "white", fontSize: "16px" }}>{message}</span>
         <CloseIcon
           color="white"
           boxSize={3}
@@ -34,4 +34,4 @@ export const successToast = (message: string, toast: ReturnType<typeof useToast>
       </div>
     ),
   };
-}
+};

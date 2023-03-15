@@ -14,7 +14,7 @@ const SIWEButton = ({
   className,
   fullWidth,
   login,
-  testId
+  testId,
 }: {
   className?: string;
   fullWidth?: boolean;
@@ -42,7 +42,8 @@ const SIWEButton = ({
 };
 
 export default function Home() {
-  const { connected, authenticating, login, loginComplete } = useContext(UserContext);
+  const { connected, authenticating, login, loginComplete } =
+    useContext(UserContext);
   const router = useRouter();
   const toast = useToast();
 
@@ -103,7 +104,11 @@ export default function Home() {
               protection with only a few lines of code, so you can focus your
               time, money, and attention on growing your business.
             </div>
-            <SIWEButton className="mt-10 hidden sm:block" login={login} testId="connectWalletButtonDesktop" />
+            <SIWEButton
+              className="mt-10 hidden sm:block"
+              login={login}
+              testId="connectWalletButtonDesktop"
+            />
           </div>
         </div>
         <SIWEButton

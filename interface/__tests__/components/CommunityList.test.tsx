@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import CommunityList from "../../components/CommunityList";
 import { getCommunities } from "../../utils/account-requests";
 
@@ -21,10 +16,9 @@ jest.mock("next/router", () => ({
 }));
 
 describe("CommunityList", () => {
-
   it("should open the use-case modal after clicking the `+ Scorer` button", async () => {
     render(<CommunityList />);
-    expect(screen.getByTestId("no-values-add")).toBeInTheDocument()
+    expect(screen.getByTestId("no-values-add")).toBeInTheDocument();
 
     const modalButton = screen.getByTestId("no-values-add");
     fireEvent.click(modalButton as HTMLElement);
@@ -46,7 +40,6 @@ describe("CommunityList", () => {
     // expect(createCommunity).toHaveBeenCalledWith(sampleInput);
     // waitForElementToBeRemoved(screen.getByTestId("community-modal"));
   });
-
 
   describe("when the community list already has records", () => {
     beforeEach(() => {

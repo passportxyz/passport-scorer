@@ -23,9 +23,9 @@ export const initialState: UserState = {
   authenticationError: false,
   authenticating: false,
   loginComplete: false,
-  login: async () => { },
-  logout: async () => { },
-  setUserWarning: (warning?: string) => { },
+  login: async () => {},
+  logout: async () => {},
+  setUserWarning: (warning?: string) => {},
 };
 
 enum UserActions {
@@ -75,14 +75,14 @@ export const UserProvider = ({ children }: { children: any }) => {
       try {
         const { expDate } = await verifyToken(accessToken);
         // We want the token to be valid for at least 6 hours
-        const minExpirationData = new Date(Date.now() + 1000 * 60 * 60 * 6)
+        const minExpirationData = new Date(Date.now() + 1000 * 60 * 60 * 6);
         if (expDate < minExpirationData) {
           window.localStorage.removeItem("access-token");
-          return
+          return;
         }
       } catch (e) {
         window.localStorage.removeItem("access-token");
-        return
+        return;
       }
     }
     if (previouslyConnectedWallets?.length) {
@@ -139,7 +139,18 @@ export const UserProvider = ({ children }: { children: any }) => {
   }, [wallet, connected]);
 
   return (
-    <UserContext.Provider value={{ connected, authenticating, loginComplete, authenticationError, login, logout, userWarning, setUserWarning }}>
+    <UserContext.Provider
+      value={{
+        connected,
+        authenticating,
+        loginComplete,
+        authenticationError,
+        login,
+        logout,
+        userWarning,
+        setUserWarning,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );

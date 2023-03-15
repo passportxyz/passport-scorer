@@ -101,7 +101,7 @@ const CommunityList = () => {
           addRequest={() => {
             setSelectUseCaseModalOpen(true);
           }}
-          icon={<StarIcon className="w-6"  />}
+          icon={<StarIcon className="w-6" />}
         />
       ) : (
         <div className="mt-t mx-0">

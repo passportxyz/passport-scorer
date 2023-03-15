@@ -28,9 +28,9 @@ export const makeTestUserContext = (
     authenticationError: false,
     authenticating: false,
     loginComplete: false,
-    login: async () => { },
-    logout: async () => { },
-    setUserWarning: (warning?: string) => { },
+    login: async () => {},
+    logout: async () => {},
+    setUserWarning: (warning?: string) => {},
     ...initialState,
   };
 };

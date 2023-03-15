@@ -59,7 +59,7 @@ const mockComponent = () => (
       )}
     </UserContext.Consumer>
   </UserProvider>
-)
+);
 
 describe("UserProvider", () => {
   beforeEach(() => {
@@ -70,10 +70,7 @@ describe("UserProvider", () => {
       { wallet: null },
       connect,
     ]);
-    render(
-      mockComponent()
-    );
-
+    render(mockComponent());
 
     expect(screen.getByTestId("connected")).toHaveTextContent("false");
     expect(screen.getByTestId("authenticationError")).toHaveTextContent(
@@ -95,12 +92,10 @@ describe("UserProvider", () => {
       signature: "signature",
     });
     (authenticate as jest.Mock).mockResolvedValue({
-      access: "token"
-    })
+      access: "token",
+    });
 
-    render(
-      mockComponent()
-    );
+    render(mockComponent());
 
     screen.getByText("Login").click();
 
@@ -124,10 +119,7 @@ describe("UserProvider", () => {
       connect,
     ]);
 
-
-    const { rerender } = render(
-      mockComponent()
-    );
+    const { rerender } = render(mockComponent());
 
     // click the login button
     screen.getByText("Login").click();
@@ -157,10 +149,7 @@ describe("UserProvider", () => {
       detail: "User rejected signature",
     });
 
-
-    render(
-      mockComponent()
-    );
+    render(mockComponent());
 
     // click the login button
     screen.getByText("Login").click();

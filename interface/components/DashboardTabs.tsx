@@ -29,9 +29,8 @@ const TabButton = ({
     data-testid={`${token}-tab`}
     onClick={() => router.push(`/dashboard/${token}`)}
     className={`flex w-full items-center justify-start rounded-sm px-3 py-2 text-blue-darkblue ${
-      (selected
-        ? "rounded border border-gray-lightgray bg-white "
-        : " ") + className
+      (selected ? "rounded border border-gray-lightgray bg-white " : " ") +
+      className
     }`}
   >
     <span className={`mr-2 ${selected ? "text-purple-gitcoinpurple" : ""}`}>

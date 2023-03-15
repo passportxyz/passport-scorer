@@ -120,8 +120,8 @@ const APIKeyList = () => {
       {apiKeys.length === 0 ? (
         <div className="h-full">
           <div className="mx-auto text-center text-purple-softpurple">
-            The API's keys are unique to your wallet address and can be used to
-            access created Scorers.
+            The API&#39;s keys are unique to your wallet address and can be used
+            to access created Scorers.
           </div>
           <NoValues
             title="Generate API Keys"

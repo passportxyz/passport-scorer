@@ -43,11 +43,11 @@ const accountCenter = {
     enabled: true,
     minimal: true,
   },
-}
+};
 
 init({
   wallets,
   chains,
   appMetadata,
-  accountCenter
+  accountCenter,
 });
