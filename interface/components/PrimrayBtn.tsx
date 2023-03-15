@@ -10,7 +10,7 @@ export function PrimaryBtn({
 }: PrimaryBtnProps): JSX.Element {
   return (
     <button
-      className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
+      className="mb-8 mt-auto w-full rounded bg-purple-gitcoinpurple py-3 text-white md:mt-8"
       onClick={onClick}
       disabled={disabled}
     >

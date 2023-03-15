@@ -252,9 +252,7 @@ def get_api_keys(request):
     return api_keys
 
 
-@api.patch(
-    "/api-key/{path:api_key_id}", auth=JWTAuth(), response=List[AccountApiSchema]
-)
+@api.patch("/api-key/{path:api_key_id}", auth=JWTAuth())
 def patch_api_keys(request, api_key_id, payload: APIKeyName):
     try:
         api_key = get_object_or_404(

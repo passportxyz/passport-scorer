@@ -1,19 +1,17 @@
 // --- React components/methods
 import React, { useContext, useEffect, useState } from "react";
 
-// --- Components
-import { ChevronDownIcon, Icon, SettingsIcon } from "@chakra-ui/icons";
-
 // --- Utils
 import {
   ApiKeys,
   getApiKeys,
   deleteApiKey,
   createApiKey,
+  updateApiKey,
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
 import { UserContext } from "../context/userContext";
-import { ApiKeyCreateModal } from "./ApiKeyModals";
+import { ApiKeyCreateModal, ApiKeyUpdateModal } from "./ApiKeyModals";
 import {
   CheckIcon,
   ClipboardDocumentIcon,
@@ -21,7 +19,6 @@ import {
   PlusIcon,
 } from "@heroicons/react/24/solid";
 import {
-  Button,
   IconButton,
   Menu,
   MenuButton,
@@ -41,6 +38,7 @@ const APIKeyList = () => {
   const [error, setError] = useState<undefined | string>();
   const [apiKeys, setApiKeys] = useState<ApiKeyDisplay[]>([]);
   const [createApiKeyModal, setCreateApiKeyModal] = useState(false);
+  const [updateApiKeyModal, setUpdateApiKeyModal] = useState(false);
   const { logout, setUserWarning } = useContext(UserContext);
   const toast = useToast();
 
@@ -80,9 +78,31 @@ const APIKeyList = () => {
     }
   };
 
-  const handleDeleteApiKey = async (apiKeyId: ApiKeys["id"]) => {
+  const handleUpdateApiKey = async (
+    id: ApiKeys["id"],
+    name: ApiKeys["name"]
+  ) => {
     try {
-      await deleteApiKey(apiKeyId);
+      const apiKey: ApiKeyDisplay = await updateApiKey(id, name);
+      setUpdateApiKeyModal(false);
+      toast(successToast("API Key updated successfully!", toast));
+
+      const apiKeyIndex = apiKeys.findIndex((apiKey) => apiKey.id === id);
+      const newApiKeys = [...apiKeys];
+      newApiKeys[apiKeyIndex].name = name;
+
+      setApiKeys(newApiKeys);
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.detail ||
+        "There was an error updating your API key. Please try again.";
+      setError(msg);
+    }
+  };
+
+  const handleDeleteApiKey = async (id: ApiKeys["id"]) => {
+    try {
+      await deleteApiKey(id);
       setApiKeys(await getApiKeys());
     } catch (error: any) {
       if (error.response.status === 401) {
@@ -173,11 +193,7 @@ const APIKeyList = () => {
                       _focus={{ bg: "transparent" }}
                     />
                     <MenuList color={"#0E0333"}>
-                      <MenuItem
-                        onClick={() => {
-                          setCreateApiKeyModal(true);
-                        }}
-                      >
+                      <MenuItem onClick={() => setUpdateApiKeyModal(true)}>
                         Rename
                       </MenuItem>
                       <MenuItem
@@ -187,6 +203,13 @@ const APIKeyList = () => {
                       </MenuItem>
                     </MenuList>
                   </Menu>
+                  <ApiKeyUpdateModal
+                    isOpen={updateApiKeyModal}
+                    onClose={() => setUpdateApiKeyModal(false)}
+                    oldName={key.name}
+                    apiKeyId={key.id}
+                    onUpdateApiKey={handleUpdateApiKey}
+                  />
                 </div>
               </div>
             ))}

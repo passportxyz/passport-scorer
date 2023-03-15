@@ -31,13 +31,13 @@ export const createApiKey = async (name: ApiKeys["name"]) => {
 };
 
 export const updateApiKey = async (
-  apiKeyId: ApiKeys["id"],
+  id: ApiKeys["id"],
   name: ApiKeys["name"]
 ) => {
   try {
     const token = localStorage.getItem("access-token");
     const response = await axios.patch(
-      `${SCORER_BACKEND}account/api-key/${apiKeyId}`,
+      `${SCORER_BACKEND}account/api-key/${id}`,
       { name },
       {
         headers: {
@@ -71,10 +71,10 @@ export const getApiKeys = async (): Promise<ApiKeys[]> => {
   }
 };
 
-export const deleteApiKey = async (apiKeyId: ApiKeys["id"]): Promise<void> => {
+export const deleteApiKey = async (id: ApiKeys["id"]): Promise<void> => {
   try {
     const token = localStorage.getItem("access-token");
-    await axios.delete(`${SCORER_BACKEND}account/api-key/${apiKeyId}`, {
+    await axios.delete(`${SCORER_BACKEND}account/api-key/${id}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
