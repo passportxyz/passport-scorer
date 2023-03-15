@@ -5,11 +5,15 @@ from typing import List, Optional
 
 # --- Deduplication Modules
 from account.models import AccountAPIKey, Community, Nonce
+from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.utils.module_loading import import_string
+from django_ratelimit.core import is_ratelimited
+from django_ratelimit.decorators import ALL
+from django_ratelimit.exceptions import Ratelimited
 from ninja import Router, Schema
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
-from ninja_extra.exceptions import APIException
 from registry.models import Passport, Score
 from registry.permissions import ResearcherPermission
 from registry.utils import (
@@ -20,7 +24,6 @@ from registry.utils import (
 )
 
 from .exceptions import (
-    InternalServerErrorException,
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
     InvalidNonceException,
@@ -98,6 +101,28 @@ class ErrorMessageResponse(Schema):
     detail: str
 
 
+def check_rate_limit(request):
+    """
+    Check the rate limit for the API.
+    This is based on the original ratelimit decorator from django_ratelimit
+    """
+    old_limited = getattr(request, "limited", False)
+    rate = request.api_key.rate_limit
+    ratelimited = is_ratelimited(
+        request=request,
+        group="registry",
+        fn=None,
+        key="header:x-api-key",
+        rate=rate,
+        method=ALL,
+        increment=True,
+    )
+    request.limited = ratelimited or old_limited
+    if ratelimited:
+        cls = getattr(settings, "RATELIMIT_EXCEPTION_CLASS", Ratelimited)
+        raise (import_string(cls) if isinstance(cls, str) else cls)()
+
+
 class ApiKey(APIKeyHeader):
     param_name = "X-API-Key"
 
@@ -121,6 +146,7 @@ class ApiKey(APIKeyHeader):
 
         try:
             api_key = AccountAPIKey.objects.get_from_key(key)
+            request.api_key = api_key
             user_account = api_key.account
             if user_account:
                 request.user = user_account.user
@@ -140,7 +166,8 @@ class ApiKey(APIKeyHeader):
     summary="Submit passport for scoring",
     description="""Use this API to get a message to sign and a nonce to use when submitting your passport for scoring.""",
 )
-def signing_message(_request) -> SigningMessageResponse:
+def signing_message(request) -> SigningMessageResponse:
+    check_rate_limit(request)
     nonce = Nonce.create_nonce().nonce
     return {
         "message": get_signing_message(nonce),
@@ -169,6 +196,7 @@ You need to check for the status of the operation by calling the `/score/{int:co
 """,
 )
 def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
+    check_rate_limit(request)
     address_lower = payload.address.lower()
 
     # Get DID from address
@@ -236,6 +264,8 @@ This endpoint will return a `DetailedScoreResponse`. This endpoint will also ret
 """,
 )
 def get_score(request, address: str, community_id: int) -> DetailedScoreResponse:
+    check_rate_limit(request)
+
     # Get community object
     user_community = api_get_object_or_404(
         Community, id=community_id, account=request.auth
@@ -254,7 +284,7 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
             community_id,
             exc_info=True,
         )
-        raise InvalidCommunityScoreRequestException()
+        raise InvalidCommunityScoreRequestException() from e
 
 
 @router.get(
@@ -276,6 +306,7 @@ Pass a limit and offset query parameter to paginate the results. For example: `/
 def get_scores(
     request, community_id: int, address: str = "", **kwargs
 ) -> List[DetailedScoreResponse]:
+    check_rate_limit(request)
     if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
 
