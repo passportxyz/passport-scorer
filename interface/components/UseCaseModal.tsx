@@ -215,10 +215,10 @@ const SelectUseCase = ({
               <div>
                 <Icon boxSize={19.5}>{item.icon()}</Icon>
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 text-xs">
                 <span className="absolute inset-0" aria-hidden="true" />
-                <p className="text-sm text-purple-darkpurple">{item.title}</p>
-                <p className="text-sm text-gray-500">{item.description}</p>
+                <p className="text-purple-darkpurple">{item.title}</p>
+                <p className="text-gray-500">{item.description}</p>
               </div>
             </div>
           </div>

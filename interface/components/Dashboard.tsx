@@ -107,7 +107,7 @@ export default function Dashboard({ activeTab, children }: DashboardProps) {
         <div className="my-6 grow self-stretch md:mx-6 md:my-0">{children}</div>
 
         {/* Main content - right */}
-        <div className="w-full flex-col self-stretch text-sm leading-[18px] md:max-w-xs">
+        <div className="w-full flex-col self-stretch text-sm md:max-w-xs">
           <QuickLinks />
           <SampleApplications className="mt-6" />
         </div>

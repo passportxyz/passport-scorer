@@ -14,7 +14,7 @@ const SIWEButton = ({
   className,
   fullWidth,
   login,
-  testId
+  testId,
 }: {
   className?: string;
   fullWidth?: boolean;
@@ -42,7 +42,8 @@ const SIWEButton = ({
 };
 
 export default function Home() {
-  const { connected, authenticating, login, loginComplete } = useContext(UserContext);
+  const { connected, authenticating, login, loginComplete } =
+    useContext(UserContext);
   const router = useRouter();
   const toast = useToast();
 
@@ -91,9 +92,7 @@ export default function Home() {
           <div className="mb-14 sm:w-2/3 xl:w-1/2">
             <div className="font-miriam-libre text-white">
               <img src="/assets/gitcoinWordLogo.svg" alt="Gitcoin Logo" />
-              <p className="my-2 -ml-1 text-5xl leading-normal sm:text-7xl">
-                Passport Scorer
-              </p>
+              <p className="sm:text-7xl my-2 -ml-1 text-5xl">Passport Scorer</p>
             </div>
             <div>
               We all know that Sybil attackers want to sabotage your
@@ -103,7 +102,11 @@ export default function Home() {
               protection with only a few lines of code, so you can focus your
               time, money, and attention on growing your business.
             </div>
-            <SIWEButton className="mt-10 hidden sm:block" login={login} testId="connectWalletButtonDesktop" />
+            <SIWEButton
+              className="mt-10 hidden sm:block"
+              login={login}
+              testId="connectWalletButtonDesktop"
+            />
           </div>
         </div>
         <SIWEButton
