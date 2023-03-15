@@ -3,7 +3,14 @@ import { SiweMessage } from "siwe";
 
 const SCORER_BACKEND = process.env.NEXT_PUBLIC_PASSPORT_SCORER_BACKEND;
 
-export const createApiKey = async (name: string) => {
+export type ApiKeys = {
+  id: string;
+  name: string;
+  prefix: string;
+  created: string;
+};
+
+export const createApiKey = async (name: ApiKeys["name"]) => {
   try {
     const token = localStorage.getItem("access-token");
     const response = await axios.post(
@@ -23,11 +30,28 @@ export const createApiKey = async (name: string) => {
   }
 };
 
-export type ApiKeys = {
-  id: string;
-  name: string;
-  prefix: string;
-  created: string;
+export const updateApiKey = async (
+  apiKeyId: ApiKeys["id"],
+  name: ApiKeys["name"]
+) => {
+  try {
+    const token = localStorage.getItem("access-token");
+    const response = await axios.patch(
+      `${SCORER_BACKEND}account/api-key/${apiKeyId}`,
+      { name },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const { data } = response;
+    return data;
+  } catch (error) {
+    throw error;
+  }
 };
 
 export const getApiKeys = async (): Promise<ApiKeys[]> => {

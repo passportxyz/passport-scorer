@@ -252,6 +252,25 @@ def get_api_keys(request):
     return api_keys
 
 
+@api.patch(
+    "/api-key/{path:api_key_id}", auth=JWTAuth(), response=List[AccountApiSchema]
+)
+def patch_api_keys(request, api_key_id, payload: APIKeyName):
+    try:
+        api_key = get_object_or_404(
+            AccountAPIKey, id=api_key_id, account=request.user.account
+        )
+
+        if payload.name:
+            api_key.name = payload.name
+            api_key.save()
+
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
+
+    return {"ok": True}
+
+
 @api.delete("/api-key/{path:api_key_id}", auth=JWTAuth())
 def delete_api_key(request, api_key_id):
     try:
