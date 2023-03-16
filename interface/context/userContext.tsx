@@ -158,8 +158,11 @@ export const UserProvider = ({ children }: { children: any }) => {
   // On load check localstorage for loggedin credentials
   useEffect(() => {
     (async () => {
-      await setWalletFromLocalStorage();
-      setReady(true);
+      try {
+        await setWalletFromLocalStorage();
+      } finally {
+        setReady(true);
+      }
     })();
   }, []);
 
