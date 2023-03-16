@@ -19,6 +19,7 @@ type ModalProps = {
   isOpen: boolean;
   onClose: () => void;
   header?: () => JSX.Element;
+  footer?: () => JSX.Element;
   children?: React.ReactNode;
 };
 
@@ -26,6 +27,7 @@ const ModalTemplate = ({
   isOpen,
   onClose,
   header,
+  footer,
   children,
 }: ModalProps): JSX.Element => {
   return (
@@ -48,6 +50,7 @@ const ModalTemplate = ({
           <ModalBody className="flex h-screen w-full flex-col">
             {children}
           </ModalBody>
+          {footer && <ModalFooter>{footer()}</ModalFooter>}
         </ModalContent>
       </Modal>
     </>

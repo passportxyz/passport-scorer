@@ -12,6 +12,7 @@ import {
 import { KeyIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import { ApiKeys } from "../utils/account-requests";
+import ModalTemplate from "./ModalTemplate";
 
 export type ApiKeyCreateModalProps = {
   isOpen: boolean;
@@ -132,44 +133,14 @@ export function ApiKeyUpdateModal({
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      isCentered={true}
-      size={{ base: "full", md: "xl", lg: "xl", xl: "xl" }}
-      onClose={closeAndReset}
-    >
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader className="flex justify-center">
+    <>
+      <ModalTemplate
+        isOpen={isOpen}
+        onClose={closeAndReset}
+        header={() => (
           <span className="text-base font-normal">Rename API Key</span>
-        </ModalHeader>
-        <ModalCloseButton onClick={closeAndReset} />
-        <ModalBody className="mt-4 flex h-screen w-full flex-col">
-          <div className="flex flex-col">
-            <label className="mb-2 font-librefranklin text-xs text-purple-darkpurple">
-              Key Name
-            </label>
-            <Input
-              className="mb-6"
-              data-testid="key-name-input"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={"Enter the key's name/identifier"}
-              // chakra can't find purple-gitcoinpurple from tailwind :(
-              focusBorderColor="#6f3ff5"
-            />
-
-            <p className="mb-1 text-xs italic text-purple-softpurple">
-              i.e. &#39;Gitcoin dApp - Prod&#39;, or &#39;Snapshot discord
-              bot&#39;, or &#39;Bankless Academy testing&#39;, etc.
-            </p>
-            <hr />
-            {updateError.length > 0 && (
-              <p className="pt-4 text-red-700">{updateError}</p>
-            )}
-          </div>
-        </ModalBody>
-        <ModalFooter>
+        )}
+        footer={() => (
           <button
             className="mb-6 mt-auto w-full rounded bg-purple-gitcoinpurple py-3 text-white md:mt-8"
             onClick={updateApiKey}
@@ -177,8 +148,32 @@ export function ApiKeyUpdateModal({
           >
             Save Changes
           </button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+        )}
+      >
+        <div className="flex flex-col">
+          <label className="mb-2 font-librefranklin text-xs text-purple-darkpurple">
+            Key Name
+          </label>
+          <Input
+            className="mb-6"
+            data-testid="key-name-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={"Enter the key's name/identifier"}
+            // chakra can't find purple-gitcoinpurple from tailwind :(
+            focusBorderColor="#6f3ff5"
+          />
+
+          <p className="mb-1 text-xs italic text-purple-softpurple">
+            i.e. &#39;Gitcoin dApp - Prod&#39;, or &#39;Snapshot discord
+            bot&#39;, or &#39;Bankless Academy testing&#39;, etc.
+          </p>
+          <hr />
+          {updateError.length > 0 && (
+            <p className="pt-4 text-red-700">{updateError}</p>
+          )}
+        </div>
+      </ModalTemplate>
+    </>
   );
 }
