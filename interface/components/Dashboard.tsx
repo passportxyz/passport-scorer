@@ -100,21 +100,21 @@ const Dashboard = ({ activeTab, children, setSubheader }: DashboardProps) => {
   useEffect(() => setSubheader(<Subheader />), []);
 
   return (
-    <div className="flex grow flex-col items-center justify-between border-t border-gray-300 px-4 pt-2 sm:px-20 md:flex-row md:items-start">
+    <>
       {/* Main content - left */}
-      <div className="w-48 flex-col items-start self-start">
+      <div className="col-span-4 flex-col items-start sm:col-span-2">
         <DashboardTabs activeTab={activeTab} />
       </div>
 
       {/* Main content - center */}
-      <div className="my-6 grow self-stretch md:mx-6 md:my-0">{children}</div>
+      <div className="col-span-4 sm:col-span-7 ">{children}</div>
 
       {/* Main content - right */}
-      <div className="w-full flex-col self-stretch text-sm md:max-w-xs">
+      <div className="col-span-4 flex-col text-sm sm:col-span-3">
         <QuickLinks />
         <SampleApplications className="mt-6" />
       </div>
-    </div>
+    </>
   );
 };
 

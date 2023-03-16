@@ -10,21 +10,20 @@ const PageWidthGrid = ({
   className?: string;
 }) => (
   <div
-    className={
-      `col-span-12 grid grid-cols-4 sm:grid-cols-8 md:grid-cols-12` +
-      (className ? ` ${className}` : "")
-    }
+    className={`col-span-12 grid max-w-screen-xl grid-cols-4 gap-4 justify-self-center sm:grid-cols-8 md:grid-cols-12 ${className} ${pagePadding}`}
   >
     {children}
   </div>
 );
+
+export const pagePadding = "px-4 sm:px-20";
 
 export const HeaderContentFooterGrid = ({
   children,
 }: {
   children: React.ReactNode;
 }) => (
-  <div className="grid h-full min-h-default grid-cols-1 grid-rows-[auto_1fr_auto] items-center px-4 sm:px-24">
+  <div className="grid h-full min-h-default w-full grid-cols-1 grid-rows-[auto_1fr_auto] items-center">
     {children}
   </div>
 );
@@ -39,11 +38,11 @@ export const withHomePageLayout =
       <GlobalLayout>
         <div className="bg-purple-darkpurple">
           <HeaderContentFooterGrid>
-            <Header mode="dark" />
-            <PageWidthGrid className="container mt-6 self-stretch sm:self-auto">
+            <Header mode="dark" className={pagePadding} />
+            <PageWidthGrid className="mt-6">
               <PageComponent {...props} />
             </PageWidthGrid>
-            <Footer />
+            <Footer className={pagePadding} />
           </HeaderContentFooterGrid>
         </div>
       </GlobalLayout>
@@ -60,19 +59,19 @@ export const withPageLayout =
       <GlobalLayout>
         <div className="bg-gray-bluegray">
           <HeaderContentFooterGrid>
-            <div className="bg-white">
-              <Header className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20" />
+            <div className={"border-b border-gray-300 bg-white " + pagePadding}>
+              <Header className="mx-4 border-b border-b-gray-200 bg-white" />
               <div className="w-full bg-red-100">{error}</div>
               {subheader}
             </div>
-            <PageWidthGrid className="container mt-6 self-stretch sm:self-auto">
+            <PageWidthGrid className="">
               <PageComponent
                 {...props}
                 onUserError={setError}
                 setSubheader={setSubheader}
               />
             </PageWidthGrid>
-            <Footer className="px-4 sm:px-20" />
+            <Footer className={pagePadding} />
           </HeaderContentFooterGrid>
         </div>
       </GlobalLayout>

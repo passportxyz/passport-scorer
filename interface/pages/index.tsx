@@ -79,7 +79,7 @@ const Home = () => {
     <div className="absolute top-0 left-0 z-10 h-screen w-full bg-black bg-opacity-60" />
   );
 
-  const titleSection = (
+  const mainContent = (
     <>
       <div className="font-miriam-libre text-white">
         <img src="/assets/gitcoinWordLogo.svg" alt="Gitcoin Logo" />
@@ -103,7 +103,7 @@ const Home = () => {
   return (
     <>
       {authenticationOverlay}
-      <div className="col-span-4 mb-14 sm:col-span-6">{titleSection}</div>
+      <div className="col-span-4 mb-14 sm:col-span-6">{mainContent}</div>
       <SIWEButton
         className="col-span-4 block h-fit self-end sm:hidden"
         login={login}
