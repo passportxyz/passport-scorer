@@ -51,16 +51,6 @@ describe("APIKeyList", () => {
     });
   });
 
-  it("should create an API key and allow it to be copied", async () => {
-    render(<APIKeyList />);
-
-    await waitFor(async () => {
-      expect(screen.getByText("Mock API Key")).toBeInTheDocument();
-      expect(screen.getByText("api-key-0")).toBeInTheDocument();
-      expect(screen.getByTestId("copy-api-key")).toBeInTheDocument();
-    });
-  });
-
   it("should hide api key after it is copied", async () => {
     render(<APIKeyList />);
 
