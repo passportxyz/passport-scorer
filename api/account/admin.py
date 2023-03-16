@@ -14,9 +14,17 @@ class AccountAdmin(admin.ModelAdmin):
 
 
 class CommunityAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "description", "account", "scorer_link", "use_case")
+    list_display = (
+        "id",
+        "name",
+        "created_at",
+        "description",
+        "account",
+        "scorer_link",
+        "use_case",
+    )
     raw_id_fields = ("account", "scorer")
-    search_fields = ("name", "description", "account__address")
+    search_fields = ("name", "description", "account__address", "created_at")
     readonly_fields = ("scorer_link",)
 
     def scorer_link(self, obj):
@@ -30,22 +38,24 @@ class CommunityAdmin(admin.ModelAdmin):
                 category = "scorer_weighted"
                 field = "binaryweightedscorer"
 
-        return mark_safe(
-            '<a href="{}">Scorer #{}</a>'.format(
-                reverse(
-                    "admin:%s_%s_change" % (category, field),
-                    args=[obj.get_scorer().pk],
-                ),
-                obj.scorer.id,
-            )
+        href = reverse(
+            f"admin:{category}_{field}_change",
+            args=[obj.get_scorer().pk],
         )
+        return mark_safe(f'<a href="{href}">Scorer #{obj.scorer.id}</a>')
 
     scorer_link.short_description = "Scorer Link"
 
 
 class AccountAPIKeyAdmin(APIKeyAdmin):
     raw_id_fields = ("account",)
-    pass
+    search_fields = (
+        "id",
+        "name",
+        "prefix",
+        "account__user__username",
+        "account__address",
+    )
 
 
 admin.site.register(Account, AccountAdmin)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 from typing import Optional, Type
 
 from django.conf import settings
@@ -72,6 +73,15 @@ class Nonce(models.Model):
             return False
 
 
+class RateLimits(str, Enum):
+    TIER_1 = "125/15m"
+    TIER_2 = "350/15m"
+    TIER_3 = "2000/15m"
+
+    def __str__(self):
+        return f"{self.name} - {self.value}"
+
+
 class Account(models.Model):
     address = EthAddressField(max_length=100, blank=False, null=False, db_index=True)
     user = models.OneToOneField(
@@ -84,7 +94,12 @@ class Account(models.Model):
 
 class AccountAPIKey(AbstractAPIKey):
     account = models.ForeignKey(
-        Account, on_delete=models.CASCADE, related_name="api_key", default=None
+        Account, on_delete=models.CASCADE, related_name="api_keys", default=None
+    )
+    rate_limit = models.CharField(
+        max_length=20,
+        choices=[(limit.value, limit) for limit in RateLimits],
+        default=RateLimits.TIER_1.value,
     )
 
 
@@ -101,7 +116,7 @@ class Community(models.Model):
         unique_together = [["account", "name"]]
 
     name = models.CharField(max_length=100, blank=False, null=False)
-    created_at = models.DateTimeField(auto_now_add=False, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     rule = models.CharField(
         max_length=100,
         blank=False,

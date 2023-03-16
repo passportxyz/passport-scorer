@@ -1,10 +1,8 @@
-from unittest.mock import patch
-
 from account.models import Account, AccountAPIKey
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
 from web3 import Web3
-from django.conf import settings
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()

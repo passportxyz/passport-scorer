@@ -92,9 +92,7 @@ export default function Home() {
           <div className="mb-14 sm:w-2/3 xl:w-1/2">
             <div className="font-miriam-libre text-white">
               <img src="/assets/gitcoinWordLogo.svg" alt="Gitcoin Logo" />
-              <p className="my-2 -ml-1 text-5xl leading-normal sm:text-7xl">
-                Passport Scorer
-              </p>
+              <p className="sm:text-7xl my-2 -ml-1 text-5xl">Passport Scorer</p>
             </div>
             <div>
               We all know that Sybil attackers want to sabotage your

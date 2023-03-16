@@ -27,6 +27,19 @@ module.exports = {
         },
       },
     },
+    fontSize: {
+      // Set line-height to 150%
+      // for all font sizes
+      xs: ["12px", "1.5em"],
+      sm: ["14px", "1.5em"],
+      base: ["16px", "1.5em"],
+      lg: ["18px", "1.5em"],
+      xl: ["20px", "1.5em"],
+      "2xl": ["24px", "1.5em"],
+      "3xl": ["30px", "1.5em"],
+      "4xl": ["36px", "1.5em"],
+      "5xl": ["48px", "1.5em"],
+    },
     fontFamily: {
       miriamlibre: ["miriam libre"],
       librefranklin: ["Libre Franklin"],

@@ -340,7 +340,7 @@ def create_community(request, payload: CommunitiesPayload):
 def get_communities(request):
     try:
         account = request.user.account
-        communities = Community.objects.filter(account=account).all()
+        communities = Community.objects.filter(account=account).order_by("id").all()
 
     except Account.DoesNotExist:
         raise UnauthorizedException()

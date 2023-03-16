@@ -8,6 +8,7 @@ import { initiateSIWE } from "../utils/siwe";
 import { authenticate, verifyToken } from "../utils/account-requests";
 
 export interface UserState {
+  ready: boolean;
   connected: boolean;
   authenticationError: boolean;
   authenticating: boolean;
@@ -20,6 +21,7 @@ export interface UserState {
 
 export const initialState: UserState = {
   connected: false,
+  ready: false,
   authenticationError: false,
   authenticating: false,
   loginComplete: false,
@@ -33,6 +35,7 @@ export const UserContext = createContext(initialState);
 export const UserProvider = ({ children }: { children: any }) => {
   const [{ wallet }, connect] = useConnectWallet();
   const [connected, setConnected] = useState(false);
+  const [ready, setReady] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
   const [loginComplete, setLoginComplete] = useState(false);
   const [authenticationError, setAuthenticationError] = useState(false);
@@ -119,8 +122,14 @@ export const UserProvider = ({ children }: { children: any }) => {
   };
 
   // On load check localstorage for loggedin credentials
-  useEffect((): void => {
-    setWalletFromLocalStorage();
+  useEffect(() => {
+    (async () => {
+      try {
+        await setWalletFromLocalStorage();
+      } finally {
+        setReady(true);
+      }
+    })();
   }, []);
 
   // Used to listen to disconnect event from web3Onboard widget
@@ -133,6 +142,7 @@ export const UserProvider = ({ children }: { children: any }) => {
   return (
     <UserContext.Provider
       value={{
+        ready,
         connected,
         authenticating,
         loginComplete,

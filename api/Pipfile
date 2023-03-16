@@ -27,6 +27,7 @@ requests = "*"
 social-auth-app-django = "*"
 dag-cbor = "*"
 py-cid = "*"
+django-ratelimit = "*"
 
 [dev-packages]
 black = "*"

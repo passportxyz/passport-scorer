@@ -336,7 +336,9 @@ const CommunityCard = ({
             Created:
           </p>
           <p className="text-sm text-purple-softpurple md:flex md:flex-row-reverse">
-            {new Date(community.created_at).toDateString()}
+            {community.created_at
+              ? new Date(community.created_at).toDateString()
+              : ""}
           </p>
         </div>
         <div className="mt-1 flex md:mt-5 md:block md:basis-3/12">

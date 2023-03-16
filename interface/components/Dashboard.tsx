@@ -32,27 +32,24 @@ const QuickLink = ({
   url?: string;
   className?: string;
 }) => (
-  <a
-    href={url}
-    target="_blank"
-    rel="noopener noreferrer"
-    className={`flex w-full flex-row items-center justify-start border-gray-200 bg-white p-4 text-xs ${
-      (url ? "cursor-pointer text-purple-softpurple " : " ") +
-      (url ? "" : "text-purple-darkpurple ") +
-      className
-    }`}
+  <div
+    className={`flex w-full flex-row items-center justify-start border-gray-200  bg-white p-5 ${(url ? "cursor-pointer " : " ") + className
+      }`}
   >
     {icon}
     {text}
-  </a>
+  </div>
 );
 
 const QuickLinks = () => {
   const className = "border-b";
   const iconClassName = "mr-2 w-3.5";
   return (
-    <div className="w-full rounded border">
-      <QuickLink text="Quick Links" className={className} />
+    <div className="w-full">
+      <QuickLink
+        text="Quick Links"
+        className={className + " text-xs text-gray-500"}
+      />
       <QuickLink
         text="Quick Start Guide"
         url="https://docs.passport.gitcoin.co/building-with-passport/quick-start-guide"
@@ -82,20 +79,11 @@ const QuickLinks = () => {
 };
 
 const SampleApplications = ({ className }: { className?: string }) => {
-  const linkClassName = "text-base py-2";
   return (
-    <div className={className + " rounded border bg-white pb-24"}>
-      <QuickLink text="Sample Applications" className="pb-2" />
-      <QuickLink
-        text="Gitcoin Passports Sample App"
-        url="https://github.com/gitcoinco/passport-scorer/tree/main/examples/example-score-a-passport"
-        className={linkClassName}
-      />
-      <QuickLink
-        text="Gitcoin Allo Protocol"
-        url="https://github.com/gitcoinco/grants-stack/blob/45b6a3a00beb05090e039be2551a06636e873fbc/packages/grant-explorer/src/features/round/PassportConnect.tsx"
-        className={linkClassName}
-      />
+    <div className={"text-base " + className}>
+      <QuickLink text="Sample Applications" className="text-xs text-gray-500" />
+      <QuickLink text="Gitcoin Passports Sample App" url="/" />
+      <QuickLink text="Gitcoin Allo Protocol" url="/" />
     </div>
   );
 };
@@ -135,7 +123,7 @@ export default function Dashboard({ activeTab, children }: DashboardProps) {
         </div>
 
         {/* Main content - right */}
-        <div className="w-full flex-col self-stretch text-sm leading-[18px] md:max-w-xs">
+        <div className="w-full flex-col self-stretch text-sm md:max-w-xs">
           <QuickLinks />
           <SampleApplications className="mt-6" />
         </div>
