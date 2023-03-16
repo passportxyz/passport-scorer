@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useEffect, useState, useContext } from "react";
+import React from "react";
 
 // --- Styling & UI
 import "../styles/globals.css";
@@ -11,7 +11,7 @@ import Head from "next/head";
 import ManageAccountCenter from "../components/ManageAccountCenter";
 import RequireAuth from "../components/RequireAuth";
 
-import { UserProvider, UserContext } from "../context/userContext";
+import { UserProvider } from "../context/userContext";
 
 const passportScorerApp = {
   appName: "Passport Scorer as a Service",
