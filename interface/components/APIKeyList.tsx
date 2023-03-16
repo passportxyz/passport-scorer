@@ -83,7 +83,7 @@ const APIKeyList = () => {
     name: ApiKeys["name"]
   ) => {
     try {
-      const apiKey: ApiKeyDisplay = await updateApiKey(id, name);
+      await updateApiKey(id, name);
       setUpdateApiKeyModal(false);
       toast(successToast("API Key updated successfully!", toast));
 
@@ -206,7 +206,6 @@ const APIKeyList = () => {
                   <ApiKeyUpdateModal
                     isOpen={updateApiKeyModal}
                     onClose={() => setUpdateApiKeyModal(false)}
-                    oldName={key.name}
                     apiKeyId={key.id}
                     onUpdateApiKey={handleUpdateApiKey}
                   />
@@ -217,8 +216,14 @@ const APIKeyList = () => {
           <div className="my-4 flex items-center md:my-6">
             <button
               data-testid="open-api-key-modal"
-              className="rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white"
+              className={
+                "rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white" +
+                (apiKeys.length >= 5
+                  ? " cursor-not-allowed disabled:bg-gray-lightgray disabled:text-purple-darkpurple"
+                  : "")
+              }
               onClick={() => setCreateApiKeyModal(true)}
+              disabled={apiKeys.length >= 5}
             >
               <PlusIcon className="mr-2 inline w-6 align-middle" />
               API Key

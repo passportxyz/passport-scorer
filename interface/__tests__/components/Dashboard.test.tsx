@@ -28,8 +28,12 @@ describe("Dashboard", () => {
     const activeTab = screen.getByTestId("api-keys-tab");
     const notActiveTab = screen.getByTestId("scorer-tab");
     await waitFor(async () => {
-      expect(activeTab).toHaveClass("border-gray-200 bg-white");
-      expect(notActiveTab).toHaveClass("border-gray-100");
+      expect(activeTab).toHaveClass(
+        "flex w-full items-center justify-start rounded-sm px-3 py-2 text-blue-darkblue rounded border border-gray-lightgray bg-white"
+      );
+      expect(notActiveTab).toHaveClass(
+        "flex w-full items-center justify-start rounded-sm px-3 py-2 text-blue-darkblue mb-2"
+      );
     });
   });
 });

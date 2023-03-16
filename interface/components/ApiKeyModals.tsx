@@ -12,8 +12,6 @@ import {
 import { KeyIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import { ApiKeys } from "../utils/account-requests";
-import ModalTemplate from "./ModalTemplate";
-import { PrimaryBtn } from "./PrimrayBtn";
 
 export type ApiKeyCreateModalProps = {
   isOpen: boolean;
@@ -106,7 +104,6 @@ export function ApiKeyCreateModal({
 
 export type ApiKeyUpdateModalProps = {
   isOpen: boolean;
-  oldName: string;
   apiKeyId: ApiKeys["id"];
   onClose: () => void;
   onUpdateApiKey: (apiKeyId: ApiKeys["id"], name: ApiKeys["name"]) => void;
@@ -114,12 +111,11 @@ export type ApiKeyUpdateModalProps = {
 
 export function ApiKeyUpdateModal({
   isOpen,
-  oldName,
   apiKeyId,
   onClose,
   onUpdateApiKey,
 }: ApiKeyUpdateModalProps) {
-  const [name, setName] = useState(oldName);
+  const [name, setName] = useState("");
   const [updateError, setError] = useState<string>("");
   const [inProgress, setInProgress] = useState(false);
 

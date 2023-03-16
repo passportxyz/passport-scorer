@@ -8,13 +8,13 @@ jest.mock("../../utils/account-requests.ts", () => ({
   createApiKey: jest.fn(),
 }));
 
-describe("APIKeyModal", () => {
+describe("APIKeyCreateModal", () => {
   it("should render", () => {
     render(
       <ApiKeyCreateModal
         isOpen={true}
         onClose={() => {}}
-        onApiKeyCreated={function (apiKey: ApiKeys): void {
+        onCreateApiKey={function (keyName: ApiKeys["name"]): void {
           throw new Error("Function not implemented.");
         }}
       />
@@ -32,7 +32,7 @@ describe("APIKeyModal", () => {
       <ApiKeyCreateModal
         isOpen={true}
         onClose={() => {}}
-        onApiKeyCreated={() => {}}
+        onCreateApiKey={createApiKey}
       />
     );
     const input = screen.getByTestId("key-name-input");
@@ -41,23 +41,6 @@ describe("APIKeyModal", () => {
     fireEvent.click(createButton as HTMLElement);
     await waitFor(() => {
       expect(createApiKey).toHaveBeenCalledWith(value);
-    });
-  });
-
-  it("should call onApiKeyCreated when the create button is clicked", async () => {
-    const mockOnApiKeyCreated = (res: { name: string }) => jest.fn();
-    render(
-      <ApiKeyCreateModal
-        isOpen={true}
-        onClose={() => {}}
-        onApiKeyCreated={mockOnApiKeyCreated}
-      />
-    );
-
-    const createButton = screen.getByText("Create");
-    fireEvent.click(createButton as HTMLElement);
-    await waitFor(() => {
-      expect(createApiKey).toHaveBeenCalled();
     });
   });
 });
