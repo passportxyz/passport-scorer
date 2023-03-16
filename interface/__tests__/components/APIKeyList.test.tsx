@@ -13,7 +13,7 @@ jest.mock("../../utils/account-requests.ts", () => ({
   createApiKey: jest.fn(),
 }));
 
-jest.mock("../../components/ApiKeyModals", () => ({
+jest.mock("../../components/ApiKeyModal", () => ({
   ApiKeyCreateModal: () => {
     return <div data-testid="generate-api-key">Generate API Key</div>;
   },

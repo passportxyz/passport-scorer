@@ -1,6 +1,6 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { ApiKeyCreateModal } from "../../components/ApiKeyModals";
+import { ApiKeyCreateModal } from "../../components/ApiKeyModal";
 import { ApiKeys } from "../../utils/account-requests";
 import { createApiKey } from "../../utils/account-requests";
 

@@ -11,7 +11,7 @@ import {
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
 import { UserContext } from "../context/userContext";
-import { ApiKeyCreateModal, ApiKeyUpdateModal } from "./ApiKeyModals";
+import { ApiKeyCreateModal, ApiKeyUpdateModal } from "./ApiKeyModal";
 import {
   CheckIcon,
   ClipboardDocumentIcon,
