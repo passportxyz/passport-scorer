@@ -38,7 +38,7 @@ const APIKeyList = () => {
   const [error, setError] = useState<undefined | string>();
   const [apiKeys, setApiKeys] = useState<ApiKeyDisplay[]>([]);
   const [createApiKeyModal, setCreateApiKeyModal] = useState(false);
-  const [updateApiKeyModal, setUpdateApiKeyModal] = useState(false);
+  const [apiKeyToUpdate, setApiKeyToUpdate] = useState<string | undefined>();
   const { logout, setUserWarning } = useContext(UserContext);
   const toast = useToast();
 
@@ -80,7 +80,7 @@ const APIKeyList = () => {
   ) => {
     try {
       await updateApiKey(id, name);
-      setUpdateApiKeyModal(false);
+      setApiKeyToUpdate(undefined);
       toast(successToast("API Key updated successfully!", toast));
 
       const apiKeyIndex = apiKeys.findIndex((apiKey) => apiKey.id === id);
@@ -190,7 +190,7 @@ const APIKeyList = () => {
                         _focus={{ bg: "transparent" }}
                       />
                       <MenuList color={"#0E0333"}>
-                        <MenuItem onClick={() => setUpdateApiKeyModal(true)}>
+                        <MenuItem onClick={() => setApiKeyToUpdate(key.id)}>
                           Rename
                         </MenuItem>
                         <MenuItem
@@ -200,12 +200,6 @@ const APIKeyList = () => {
                         </MenuItem>
                       </MenuList>
                     </Menu>
-                    <ApiKeyUpdateModal
-                      isOpen={updateApiKeyModal}
-                      onClose={() => setUpdateApiKeyModal(false)}
-                      apiKeyId={key.id}
-                      onUpdateApiKey={handleUpdateApiKey}
-                    />
                   </div>
                 </div>
                 <p className="block md:hidden max-w-[100%] overflow-hidden">
@@ -249,6 +243,12 @@ const APIKeyList = () => {
         isOpen={createApiKeyModal}
         onClose={() => setCreateApiKeyModal(false)}
         onCreateApiKey={handleCreateApiKey}
+      />
+      <ApiKeyUpdateModal
+        isOpen={apiKeyToUpdate !== undefined}
+        onClose={() => setApiKeyToUpdate(undefined)}
+        apiKeyId={apiKeyToUpdate ?? ""}
+        onUpdateApiKey={handleUpdateApiKey}
       />
     </>
   );
