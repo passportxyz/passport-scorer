@@ -190,3 +190,33 @@ class ApiKeyTestCase(TestCase):
         self.assertEqual(len(all_api_keys), 1)
         # Make sure the API key was deleted
         self.assertEqual(AccountAPIKey.objects.filter(pk=account_api_key.id).count(), 0)
+
+    def test_successful_patch_api_key(self):
+        client = Client()
+        # Create API key for first account
+        (account_api_key, secret) = AccountAPIKey.objects.create_key(
+            account=self.account, name="Token for user 1"
+        )
+
+        valid_response = client.patch(
+            f"/account/api-key/{account_api_key.id}",
+            json.dumps(mock_api_key_body),
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+
+        self.assertEqual(valid_response.status_code, 200)
+
+    def test_successful_patch_invalid_api_key(self):
+        client = Client()
+        # Create API key for first account
+        (account_api_key, secret) = AccountAPIKey.objects.create_key(
+            account=self.account, name="Token for user 1"
+        )
+
+        valid_response = client.patch(
+            "/account/api-key/bad-key",
+            json.dumps(mock_api_key_body),
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+
+        self.assertEqual(valid_response.status_code, 404)
