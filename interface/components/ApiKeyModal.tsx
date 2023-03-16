@@ -1,23 +1,18 @@
 import {
   Input,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
   Text,
 } from "@chakra-ui/react";
 import { KeyIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
-import { ApiKeys } from "../utils/account-requests";
+import { useContext, useState } from "react";
+import { UserContext } from "../context/userContext";
+import { ApiKeys, createApiKey } from "../utils/account-requests";
+import { ApiKeyDisplay } from "./APIKeyList";
 import ModalTemplate from "./ModalTemplate";
 
 export type ApiKeyCreateModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onCreateApiKey: (keyName: ApiKeys["name"]) => void;
+  onCreateApiKey: (keyName: ApiKeyDisplay) => void;
 };
 
 export function ApiKeyCreateModal({
@@ -28,6 +23,7 @@ export function ApiKeyCreateModal({
   const [keyName, setKeyName] = useState("");
   const [creationError, setError] = useState<string>("");
   const [inProgress, setInProgress] = useState(false);
+  const { setUserWarning } = useContext(UserContext);
 
   const closeAndReset = () => {
     setKeyName("");
@@ -35,10 +31,23 @@ export function ApiKeyCreateModal({
     onClose();
   };
 
-  const createApiKey = async () => {
-    setInProgress(true);
-    await onCreateApiKey(keyName);
-    setInProgress(false);
+  const handleCreateApiKey = async () => {
+    try {
+      setInProgress(true);
+      const apiKey: ApiKeyDisplay = await createApiKey(keyName);;
+      setInProgress(false);
+      setUserWarning(
+        "Make sure to paste your API key somewhere safe, as it will be forever hidden after you copy it."
+      );
+      onCreateApiKey(apiKey);
+      closeAndReset();
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.detail ||
+        "There was an error creating your API key. Please try again.";
+      setError(msg);
+      setInProgress(false);
+    }
   };
 
   return (
@@ -48,7 +57,7 @@ export function ApiKeyCreateModal({
       footer={() => (
         <button
           className="mb-6 mt-auto w-full rounded bg-purple-gitcoinpurple py-3 text-white md:mt-8"
-          onClick={createApiKey}
+          onClick={handleCreateApiKey}
           disabled={keyName.length === 0 || inProgress}
         >
           Create

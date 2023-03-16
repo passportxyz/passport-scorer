@@ -61,15 +61,11 @@ const APIKeyList = () => {
     fetchApiKeys();
   }, []);
 
-  const handleCreateApiKey = async (keyName: ApiKeys["name"]) => {
+  const handleCreateApiKey = async (key: ApiKeyDisplay) => {
     try {
-      const apiKey: ApiKeyDisplay = await createApiKey(keyName);
       setCreateApiKeyModal(false);
       toast(successToast("API Key created successfully!", toast));
-      setUserWarning(
-        "Make sure to paste your API key somewhere safe, as it will be forever hidden after you copy it."
-      );
-      setApiKeys([...apiKeys, apiKey]);
+      setApiKeys([...apiKeys, key]);
     } catch (error: any) {
       const msg =
         error?.response?.data?.detail ||
@@ -140,76 +136,89 @@ const APIKeyList = () => {
             {apiKeys.map((key, i) => (
               <div
                 key={`${key.id}-${i}`}
-                className="flex w-full items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50"
+                className={`flex ${key.api_key && "flex-col"} w-full items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50`}
               >
-                <div className="justify-self-center text-purple-darkpurple md:justify-self-start">
-                  <p>{key.name}</p>
-                </div>
+                <div className="flex w-full justify-between items-center">
+                  <div className="justify-self-center text-purple-darkpurple md:justify-self-start">
+                    <p>{key.name}</p>
+                  </div>
 
-                <div className="flex">
-                  {key.api_key && (
-                    <div className="mt-1.5 flex items-center pr-5">
-                      {key.copied ? (
-                        <p className="flex text-xs text-purple-gitcoinpurple">
-                          Copied! <CheckIcon className="ml-3 w-3.5" />
-                        </p>
-                      ) : (
-                        <>
-                          <p className="flex pr-3 text-xs text-purple-darkpurple">
-                            {key.api_key}
+                  <div className="flex">
+                    {key.api_key && (
+                      <div className="flex items-center pr-5 pl-1">
+                        {key.copied ? (
+                          <p className="flex text-xs text-purple-gitcoinpurple">
+                            Copied! <CheckIcon className="ml-3 w-3.5" />
                           </p>
-                          <button
-                            className="mb-1"
-                            data-testid="copy-api-key"
-                            onClick={async () => {
-                              await navigator.clipboard.writeText(key.api_key!);
-                              const updatedKeys = apiKeys.map((k) =>
-                                k.api_key === key.api_key
-                                  ? { ...k, copied: true }
-                                  : k
-                              );
-                              setApiKeys(updatedKeys);
-                              setUserWarning();
-                            }}
-                          >
-                            <ClipboardDocumentIcon
-                              height={14}
-                              color={"#0E0333"}
-                            />
-                          </button>
-                        </>
+                        ) : (
+                          <>
+                            <p className="pr-3 text-xs text-purple-darkpurple hidden md:inline-block">
+                              {key.api_key}
+                            </p>
+                            <button
+                              className="mb-1"
+                              data-testid="copy-api-key"
+                              onClick={async () => {
+                                await navigator.clipboard.writeText(key.api_key!);
+                                const updatedKeys = apiKeys.map((k) =>
+                                  k.api_key === key.api_key
+                                    ? { ...k, copied: true }
+                                    : k
+                                );
+                                setApiKeys(updatedKeys);
+                                setUserWarning();
+                              }}
+                            >
+                              <ClipboardDocumentIcon
+                                height={14}
+                                color={"#0E0333"}
+                              />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    <Menu>
+                      <MenuButton
+                        as={IconButton}
+                        icon={
+                          <EllipsisVerticalIcon className="h-8 text-purple-darkpurple" />
+                        }
+                        variant="ghost"
+                        _hover={{ bg: "transparent" }}
+                        _expanded={{ bg: "transparent" }}
+                        _focus={{ bg: "transparent" }}
+                      />
+                      <MenuList color={"#0E0333"}>
+                        <MenuItem onClick={() => setUpdateApiKeyModal(true)}>
+                          Rename
+                        </MenuItem>
+                        <MenuItem
+                          onClick={async () => await handleDeleteApiKey(key.id)}
+                        >
+                          Delete
+                        </MenuItem>
+                      </MenuList>
+                    </Menu>
+                    <ApiKeyUpdateModal
+                      isOpen={updateApiKeyModal}
+                      onClose={() => setUpdateApiKeyModal(false)}
+                      apiKeyId={key.id}
+                      onUpdateApiKey={handleUpdateApiKey}
+                    />
+                  </div>
+                </div>
+                <p className="block md:hidden max-w-[100%] overflow-hidden">
+                  {key.api_key && (
+                    <div className="flex items-center pr-5 pl-1">
+                      {!key.copied && (
+                        <p className="pr-3 text-xs text-purple-darkpurple">
+                          {key.api_key}
+                        </p>
                       )}
                     </div>
                   )}
-                  <Menu>
-                    <MenuButton
-                      as={IconButton}
-                      icon={
-                        <EllipsisVerticalIcon className="h-8 text-purple-darkpurple" />
-                      }
-                      variant="ghost"
-                      _hover={{ bg: "transparent" }}
-                      _expanded={{ bg: "transparent" }}
-                      _focus={{ bg: "transparent" }}
-                    />
-                    <MenuList color={"#0E0333"}>
-                      <MenuItem onClick={() => setUpdateApiKeyModal(true)}>
-                        Rename
-                      </MenuItem>
-                      <MenuItem
-                        onClick={async () => await handleDeleteApiKey(key.id)}
-                      >
-                        Delete
-                      </MenuItem>
-                    </MenuList>
-                  </Menu>
-                  <ApiKeyUpdateModal
-                    isOpen={updateApiKeyModal}
-                    onClose={() => setUpdateApiKeyModal(false)}
-                    apiKeyId={key.id}
-                    onUpdateApiKey={handleUpdateApiKey}
-                  />
-                </div>
+                </p>
               </div>
             ))}
           </div>
