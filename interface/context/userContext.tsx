@@ -23,18 +23,10 @@ export const initialState: UserState = {
   authenticationError: false,
   authenticating: false,
   loginComplete: false,
-  login: async () => {},
-  logout: async () => {},
-  setUserWarning: (warning?: string) => {},
+  login: async () => { },
+  logout: async () => { },
+  setUserWarning: (warning?: string) => { },
 };
-
-enum UserActions {
-  CONNECTED = "CONNECTED",
-  SET_WEB3_ONBOARD = "SET_WEB3_ONBOARD",
-  AUTHENTICATION_ERROR = "AUTHENTICATION_ERROR",
-  AUTHENTICATING = "AUTHENTICATING",
-  LOGIN_COMPLETED = "LOGIN_COMPLETED",
-}
 
 export const UserContext = createContext(initialState);
 
