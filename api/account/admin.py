@@ -14,9 +14,17 @@ class AccountAdmin(admin.ModelAdmin):
 
 
 class CommunityAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "description", "account", "scorer_link", "use_case")
+    list_display = (
+        "id",
+        "name",
+        "created_at",
+        "description",
+        "account",
+        "scorer_link",
+        "use_case",
+    )
     raw_id_fields = ("account", "scorer")
-    search_fields = ("name", "description", "account__address")
+    search_fields = ("name", "description", "account__address", "created_at")
     readonly_fields = ("scorer_link",)
 
     def scorer_link(self, obj):

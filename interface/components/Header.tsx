@@ -1,5 +1,4 @@
 // --- React methods
-import { useRouter } from "next/router";
 import React, { useContext, useEffect, useMemo } from "react";
 import { UserContext } from "../context/userContext";
 import { UIMode } from "../utils/dark-mode";
@@ -42,15 +41,6 @@ const Logo = () => (
 
 const Header = ({ mode, className }: HeaderProps): JSX.Element => {
   const assets = useMemo(() => getAssets(mode), [mode]);
-  const router = useRouter();
-
-  const { connected } = useContext(UserContext);
-
-  useEffect(() => {
-    if (!connected) {
-      router.push("/");
-    }
-  }, [connected]);
 
   return (
     <div className={`flex items-center justify-between pt-7 ${className}`}>
