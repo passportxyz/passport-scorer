@@ -7,9 +7,12 @@ import Footer from "./Footer";
 
 import { DashboardTabs, TabToken } from "./DashboardTabs";
 
+import { withPageLayout } from "./PageWidthGrid";
+
 type DashboardProps = {
   activeTab: TabToken;
   children: React.ReactNode;
+  setSubheader: (subheader: React.ReactNode) => void;
 };
 
 const QuickLink = ({
@@ -79,41 +82,40 @@ const SampleApplications = ({ className }: { className?: string }) => {
   );
 };
 
-export default function Dashboard({ activeTab, children }: DashboardProps) {
+export const Subheader = ({}) => {
   return (
-    <div className="font-libre-franklin flex min-h-default flex-col justify-between bg-gray-bluegray text-gray-400">
-      {/* The top part of the page */}
-      <div className="bg-white">
-        <Header className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20" />
-        <div className="w-full bg-red-100">{/* ERROR ALERT HERE */}</div>
-        <div className="my-6 w-full bg-white px-4 sm:px-20">
-          <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
-            Gitcoin Passport Scorer
-          </h1>
-          <p className="mt-2 font-librefranklin">
-            A Scorer is used to score Passports. An API key is required to
-            access those scores.
-          </p>
-        </div>
-      </div>
-      {/* The mid part of the page */}
-      <div className="flex grow flex-col items-center justify-between border-t border-gray-300 px-4 pt-2 sm:px-20 md:flex-row md:items-start">
-        {/* Main content - left */}
-        <div className="w-48 flex-col items-start self-start">
-          <DashboardTabs activeTab={activeTab} />
-        </div>
-
-        {/* Main content - center */}
-        <div className="my-6 grow self-stretch md:mx-6 md:my-0">{children}</div>
-
-        {/* Main content - right */}
-        <div className="w-full flex-col self-stretch text-sm md:max-w-xs">
-          <QuickLinks />
-          <SampleApplications className="mt-6" />
-        </div>
-      </div>
-      {/* Bottom */}
-      <Footer className="px-4 sm:px-20" />
+    <div className="my-6 w-full bg-white px-4 sm:px-20">
+      <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
+        Gitcoin Passport Scorer
+      </h1>
+      <p className="mt-2 font-librefranklin">
+        A Scorer is used to score Passports. An API key is required to access
+        those scores.
+      </p>
     </div>
   );
-}
+};
+
+const Dashboard = ({ activeTab, children, setSubheader }: DashboardProps) => {
+  useEffect(() => setSubheader(<Subheader />), []);
+
+  return (
+    <div className="flex grow flex-col items-center justify-between border-t border-gray-300 px-4 pt-2 sm:px-20 md:flex-row md:items-start">
+      {/* Main content - left */}
+      <div className="w-48 flex-col items-start self-start">
+        <DashboardTabs activeTab={activeTab} />
+      </div>
+
+      {/* Main content - center */}
+      <div className="my-6 grow self-stretch md:mx-6 md:my-0">{children}</div>
+
+      {/* Main content - right */}
+      <div className="w-full flex-col self-stretch text-sm md:max-w-xs">
+        <QuickLinks />
+        <SampleApplications className="mt-6" />
+      </div>
+    </div>
+  );
+};
+
+export default withPageLayout(Dashboard);

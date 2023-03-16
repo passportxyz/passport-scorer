@@ -1,14 +1,12 @@
 // --- React Methods
 import React, { useState, useRef, useContext, useEffect } from "react";
 
-// --- Components
-import Header from "../components/Header";
-import Footer from "../components/Footer";
-
 // --- Context
 import { UserContext } from "../context/userContext";
 import { useRouter } from "next/router";
 import { useToast } from "@chakra-ui/react";
+
+import PageWidthGrid, { withHomePageLayout } from "../components/PageWidthGrid";
 
 const SIWEButton = ({
   className,
@@ -22,26 +20,22 @@ const SIWEButton = ({
   testId: string;
 }) => {
   return (
-    <div className={className}>
-      <button
-        data-testid={testId}
-        className={`rounded bg-purple-gitcoinpurple px-8 py-3 text-lg text-white ${
-          fullWidth ? "w-full" : ""
-        }`}
-        onClick={login}
-      >
-        <img
-          src="/assets/ethLogo.svg"
-          alt="Ethereum Logo"
-          className="mr-3 inline h-auto w-4"
-        />
-        <span className="inline">Sign-in with Ethereum</span>
-      </button>
-    </div>
+    <button
+      data-testid={testId}
+      className={`rounded bg-purple-gitcoinpurple px-8 py-3 text-lg text-white ${className}`}
+      onClick={login}
+    >
+      <img
+        src="/assets/ethLogo.svg"
+        alt="Ethereum Logo"
+        className="mr-3 inline h-auto w-4"
+      />
+      <span className="inline">Sign-in with Ethereum</span>
+    </button>
   );
 };
 
-export default function Home() {
+const Home = () => {
   const { connected, authenticating, login, loginComplete } =
     useContext(UserContext);
   const router = useRouter();
@@ -81,42 +75,42 @@ export default function Home() {
     }
   }, [loginComplete]);
 
-  return (
+  const authenticationOverlay = authenticating && (
+    <div className="absolute top-0 left-0 z-10 h-screen w-full bg-black bg-opacity-60" />
+  );
+
+  const titleSection = (
     <>
-      {authenticating && (
-        <div className="absolute top-0 left-0 z-10 h-screen w-full bg-black bg-opacity-60" />
-      )}
-      <div className="font-libre-franklin flex h-full min-h-default flex-col justify-between bg-purple-darkpurple px-4 text-gray-400 sm:px-24">
-        <Header mode="dark" />
-        <div className="container mt-6 grow sm:grow-0">
-          <div className="mb-14 sm:w-2/3 xl:w-1/2">
-            <div className="font-miriam-libre text-white">
-              <img src="/assets/gitcoinWordLogo.svg" alt="Gitcoin Logo" />
-              <p className="sm:text-7xl my-2 -ml-1 text-5xl">Passport Scorer</p>
-            </div>
-            <div>
-              We all know that Sybil attackers want to sabotage your
-              project&apos;s future, but stopping them is really hard and
-              expensive if you want to do it on your own. Gitcoin Passport is a
-              free, open source tool that gives you Gitcoin-grade Sybil
-              protection with only a few lines of code, so you can focus your
-              time, money, and attention on growing your business.
-            </div>
-            <SIWEButton
-              className="mt-10 hidden sm:block"
-              login={login}
-              testId="connectWalletButtonDesktop"
-            />
-          </div>
-        </div>
-        <SIWEButton
-          fullWidth={true}
-          className="block w-full sm:hidden"
-          login={login}
-          testId="connectWalletButtonMobile"
-        />
-        <Footer mode="dark" />
+      <div className="font-miriam-libre text-white">
+        <img src="/assets/gitcoinWordLogo.svg" alt="Gitcoin Logo" />
+        <p className="sm:text-7xl my-2 -ml-1 text-5xl">Passport Scorer</p>
       </div>
+      <div>
+        We all know that Sybil attackers want to sabotage your project&apos;s
+        future, but stopping them is really hard and expensive if you want to do
+        it on your own. Gitcoin Passport is a free, open source tool that gives
+        you Gitcoin-grade Sybil protection with only a few lines of code, so you
+        can focus your time, money, and attention on growing your business.
+      </div>
+      <SIWEButton
+        className="mt-10 hidden sm:block"
+        login={login}
+        testId="connectWalletButtonDesktop"
+      />
     </>
   );
-}
+
+  return (
+    <>
+      {authenticationOverlay}
+      <div className="col-span-4 mb-14 sm:col-span-6">{titleSection}</div>
+      <SIWEButton
+        className="col-span-4 block h-fit self-end sm:hidden"
+        login={login}
+        testId="connectWalletButtonMobile"
+      />
+    </>
+  );
+};
+
+export default withHomePageLayout(Home);
