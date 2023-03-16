@@ -20,21 +20,15 @@
 
 :root {
   --onboard-shadow-3: none;
-  --account-center-position-top: -4px;
+  --account-center-position-top: -14px;
   --account-center-position-right: 4.1rem;
   --account-center-border-radius: 16px;
   --onboard-action-required-btn-text-color: #fff;
 }
 
-@media (max-width: 640px /* sm */) {
+@media (max-width: 480px /* sm */) {
   :root {
     --account-center-position-right: 0rem;
-  }
-}
-
-/* Mobile media Query */
-@media (max-width: 768px /* md */) {
-  :root {
     --onboard-modal-top: 0;
   }
 }

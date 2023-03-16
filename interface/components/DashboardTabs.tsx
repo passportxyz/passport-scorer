@@ -14,7 +14,7 @@ type TabButtonProps = {
   text: React.ReactNode;
   token: TabToken;
   selected?: boolean;
-  navigate: (to:string) => void;
+  navigate: (to: string) => void;
   className?: string;
 };
 
@@ -65,7 +65,7 @@ const TabButtonList = ({
   navigate,
 }: {
   activeTab: TabToken;
-  navigate: (to:string) => void;
+  navigate: (to: string) => void;
 }) => (
   <div>
     {tabInfo.map(({ icon, text, token }, idx) => (
@@ -87,14 +87,14 @@ const TabSelect = ({
   navigate,
 }: {
   activeTab: TabToken;
-  navigate: (to:string) => void;
+  navigate: (to: string) => void;
 }) => (
   // Mobile doesn't respect py on the select element, so adding some here on this div. But leaving
   // most on the select element b/c much better experience on desktop b/c of bounding box.
   // Some browsers will use this "label" element area all as a click target, which is ideal.
   <label
     htmlFor="tabSelect"
-    className="flex items-center rounded-sm border border-gray-200 bg-white py-1 pr-1 md:hidden"
+    className="flex items-center rounded-sm border border-gray-200 bg-white py-1 pr-1"
   >
     <div className="ml-3 -mt-1 text-purple-gitcoinpurple">
       {tabInfo.find((tab) => tab.token === activeTab)?.icon}
@@ -123,10 +123,10 @@ export const DashboardTabs = ({ activeTab }: { activeTab: TabToken }) => {
   const navigate = useNavigate();
   return (
     <>
-      <div className="block md:hidden">
+      <div className="block xl:hidden">
         <TabSelect activeTab={activeTab} navigate={navigate} />
       </div>
-      <div className="hidden md:block">
+      <div className="hidden xl:block">
         <TabButtonList activeTab={activeTab} navigate={navigate} />
       </div>
     </>
