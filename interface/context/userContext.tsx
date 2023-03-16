@@ -19,6 +19,7 @@ export interface UserState {
 
 export const initialState: UserState = {
   connected: false,
+  ready: false,
   authenticationError: false,
   authenticating: false,
   loginComplete: false,
