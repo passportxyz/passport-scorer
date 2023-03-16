@@ -25,7 +25,7 @@ environment up and running. Setup instructions are also provided below.
 
 ```shell
 # From inside the api/ directory
-cp .env-example .env
+cp .env-sample .env
 ```
 
 2. Run and build the `Dockerfile`. The first time you run this, it will take
