@@ -92,7 +92,7 @@ const TabSelect = ({
   // Some browsers will use this "label" element area all as a click target, which is ideal.
   <label
     htmlFor="tabSelect"
-    className="flex items-center rounded-sm border border-gray-200 bg-white py-1 pr-1 md:hidden"
+    className="flex items-center rounded-sm border border-gray-200 bg-white py-1 pr-1"
   >
     <div className="ml-3 -mt-1 text-purple-gitcoinpurple">
       {tabInfo.find((tab) => tab.token === activeTab)?.icon}
@@ -121,10 +121,10 @@ export const DashboardTabs = ({ activeTab }: { activeTab: TabToken }) => {
   const router = useRouter();
   return (
     <>
-      <div className="block md:hidden">
+      <div className="block xl:hidden">
         <TabSelect activeTab={activeTab} router={router} />
       </div>
-      <div className="hidden md:block">
+      <div className="hidden xl:block">
         <TabButtonList activeTab={activeTab} router={router} />
       </div>
     </>

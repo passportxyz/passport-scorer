@@ -36,37 +36,37 @@ const QuickLink = ({
   </div>
 );
 
-const QuickLinks = () => {
-  const className = "border-x border-t";
+const QuickLinks = ({ className }: { className: string }) => {
+  const linkClassName = "border-x border-t";
   return (
-    <div className="w-full">
+    <div className={`w-full ${className}`}>
       <QuickLink
         text="Quick Links"
-        className={className + " text-xs text-gray-500"}
+        className={linkClassName + " text-xs text-gray-500"}
       />
       <QuickLink
         text="Quick Start Guide"
         url="/"
         icon={<img src="/assets/flagIcon.svg" />}
-        className={className}
+        className={linkClassName}
       />
       <QuickLink
         text="Passport Documentation"
         url="/"
         icon={<img src="/assets/terminalIcon.svg" />}
-        className={className}
+        className={linkClassName}
       />
       <QuickLink
         text="Video Introduction"
         url="/"
         icon={<img src="/assets/playIcon.svg" />}
-        className={className}
+        className={linkClassName}
       />
       <QuickLink
         text="Scorer Documentation"
         url="/"
         icon={<img src="/assets/bookIcon.svg" />}
-        className={className + " border-b"}
+        className={linkClassName + " border-b"}
       />
     </div>
   );
@@ -84,7 +84,7 @@ const SampleApplications = ({ className }: { className?: string }) => {
 
 export const Subheader = ({}) => {
   return (
-    <div className="my-6 w-full bg-white px-4 sm:px-20">
+    <div className="sm:px-20 my-6 w-full bg-white px-4">
       <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
         Gitcoin Passport Scorer
       </h1>
@@ -101,19 +101,17 @@ const Dashboard = ({ activeTab, children, setSubheader }: DashboardProps) => {
 
   return (
     <>
-      {/* Main content - left */}
-      <div className="col-span-4 flex-col items-start sm:col-span-2">
+      <div className="col-span-2 col-start-1 flex-col items-start">
         <DashboardTabs activeTab={activeTab} />
       </div>
+      <div className="lg:col-span-6 xl:hidden" />
 
-      {/* Main content - center */}
-      <div className="col-span-4 sm:col-span-7 ">{children}</div>
-
-      {/* Main content - right */}
-      <div className="col-span-4 flex-col text-sm sm:col-span-3">
-        <QuickLinks />
-        <SampleApplications className="mt-6" />
+      <div className="col-span-4 md:col-span-6 lg:col-span-5 lg:row-span-2 xl:col-span-7">
+        {children}
       </div>
+
+      <QuickLinks className="col-span-4 md:col-span-3" />
+      <SampleApplications className="col-span-4 md:col-span-3" />
     </>
   );
 };

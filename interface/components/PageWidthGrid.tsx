@@ -10,7 +10,7 @@ const PageWidthGrid = ({
   className?: string;
 }) => (
   <div
-    className={`col-span-12 grid max-w-screen-xl grid-cols-4 gap-4 justify-self-center sm:grid-cols-8 md:grid-cols-12 ${className} ${pagePadding}`}
+    className={`col-span-12 grid max-w-screen-xl grid-cols-4 gap-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 ${className} ${pagePadding}`}
   >
     {children}
   </div>
@@ -64,7 +64,7 @@ export const withPageLayout =
               <div className="w-full bg-red-100">{error}</div>
               {subheader}
             </div>
-            <PageWidthGrid className="">
+            <PageWidthGrid className="mt-4">
               <PageComponent
                 {...props}
                 onUserError={setError}
