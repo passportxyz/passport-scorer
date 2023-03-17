@@ -43,14 +43,13 @@ const Header = ({ mode, className }: HeaderProps): JSX.Element => {
   const assets = useMemo(() => getAssets(mode), [mode]);
 
   return (
-    <div className={`flex items-center justify-between pt-7 ${className}`}>
-      {/* Left side row */}
+    <div className={`flex h-16 ${className}`}>
       <div className="flex items-center">
         <img className="" src={assets.gitcoinLogo} alt="Gitcoin Logo" />
         <img className="mx-3 md:mx-6" src={assets.logoLine} alt="Logo Line" />
         <Logo />
         <img
-          className="mx-3 hidden sm:block"
+          className="sm:block mx-3 hidden"
           src={assets.scorerWord}
           alt="Scorer"
         />

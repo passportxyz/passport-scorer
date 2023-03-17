@@ -83,7 +83,7 @@ const Home = () => {
     <>
       <div className="font-miriam-libre text-white">
         <img src="/assets/gitcoinWordLogo.svg" alt="Gitcoin Logo" />
-        <p className="sm:text-7xl my-2 -ml-1 text-5xl">Passport Scorer</p>
+        <p className="md:text-7xl my-2 -ml-1 text-5xl">Passport Scorer</p>
       </div>
       <div>
         We all know that Sybil attackers want to sabotage your project&apos;s
@@ -93,7 +93,7 @@ const Home = () => {
         can focus your time, money, and attention on growing your business.
       </div>
       <SIWEButton
-        className="mt-10 hidden sm:block"
+        className="mt-10 hidden md:block"
         login={login}
         testId="connectWalletButtonDesktop"
       />
@@ -103,12 +103,17 @@ const Home = () => {
   return (
     <>
       {authenticationOverlay}
-      <div className="col-span-4 mb-14 sm:col-span-6">{mainContent}</div>
-      <SIWEButton
-        className="col-span-4 block h-fit self-end sm:hidden"
-        login={login}
-        testId="connectWalletButtonMobile"
-      />
+      <div className="col-span-4 mb-14 md:self-center justify-self-center xl:col-span-6">
+        {mainContent}
+      </div>
+      <div className="col-span-4 h-full grid grid-rows-[1fr_auto] md:hidden">
+        <div></div>
+        <SIWEButton
+          className="col-span-4 block md:hidden"
+          login={login}
+          testId="connectWalletButtonMobile"
+        />
+      </div>
     </>
   );
 };

@@ -84,7 +84,7 @@ const SampleApplications = ({ className }: { className?: string }) => {
 
 export const Subheader = ({}) => {
   return (
-    <div className="sm:px-20 my-6 w-full bg-white px-4">
+    <div className="my-6 w-full bg-white">
       <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
         Gitcoin Passport Scorer
       </h1>
@@ -101,9 +101,11 @@ const Dashboard = ({ activeTab, children, setSubheader }: DashboardProps) => {
 
   return (
     <>
-      <div className="col-span-2 col-start-1 flex-col items-start">
+      <div className="col-span-2 col-start-1 xl:row-span-2 flex-col items-start">
         <DashboardTabs activeTab={activeTab} />
       </div>
+
+      {/* Spacer in lg */}
       <div className="lg:col-span-6 xl:hidden" />
 
       <div className="col-span-4 md:col-span-6 lg:col-span-5 lg:row-span-2 xl:col-span-7">
