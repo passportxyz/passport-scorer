@@ -6,7 +6,7 @@
 
 @layer components {
   button:disabled {
-    @apply bg-purple-200 py-3 text-[#5932C4];
+    @apply bg-[#F0EBFF] py-3 text-[#5932C4];
   }
 }
 

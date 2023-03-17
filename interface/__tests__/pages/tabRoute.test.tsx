@@ -55,6 +55,6 @@ describe("Dashboard", () => {
       pathname: "/dashboard/[tabRoute]",
       query: { tabRoute: "api-keys" },
     });
-    await waitFor(() => expect(getByText("Create a key")).toBeInTheDocument());
+    await waitFor(() => expect(getByText("Generate API Keys")).toBeInTheDocument());
   });
 });

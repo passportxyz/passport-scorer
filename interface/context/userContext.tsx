@@ -15,6 +15,8 @@ export interface UserState {
   loginComplete: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
+  userWarning?: string;
+  setUserWarning: (warning?: string) => void;
 }
 
 export const initialState: UserState = {
@@ -23,46 +25,9 @@ export const initialState: UserState = {
   authenticationError: false,
   authenticating: false,
   loginComplete: false,
-  login: async () => {},
-  logout: async () => {},
-};
-
-enum UserActions {
-  CONNECTED = "CONNECTED",
-  SET_WEB3_ONBOARD = "SET_WEB3_ONBOARD",
-  AUTHENTICATION_ERROR = "AUTHENTICATION_ERROR",
-  AUTHENTICATING = "AUTHENTICATING",
-  LOGIN_COMPLETED = "LOGIN_COMPLETED",
-}
-
-const userReducer = (
-  state: UserState,
-  action: { type: UserActions; payload: any }
-) => {
-  switch (action.type) {
-    case UserActions.CONNECTED:
-      return {
-        ...state,
-        connected: action.payload,
-      };
-    case UserActions.AUTHENTICATION_ERROR:
-      return {
-        ...state,
-        authenticationError: action.payload,
-      };
-    case UserActions.AUTHENTICATING:
-      return {
-        ...state,
-        authenticating: action.payload,
-      };
-    case UserActions.LOGIN_COMPLETED:
-      return {
-        ...state,
-        loginComplete: action.payload,
-      };
-    default:
-      return state;
-  }
+  login: async () => { },
+  logout: async () => { },
+  setUserWarning: (warning?: string) => { },
 };
 
 export const UserContext = createContext(initialState);
@@ -74,6 +39,7 @@ export const UserProvider = ({ children }: { children: any }) => {
   const [authenticating, setAuthenticating] = useState(false);
   const [loginComplete, setLoginComplete] = useState(false);
   const [authenticationError, setAuthenticationError] = useState(false);
+  const [userWarning, setUserWarning] = useState<string | undefined>();
 
   const login = async () => {
     connect()
@@ -183,6 +149,8 @@ export const UserProvider = ({ children }: { children: any }) => {
         authenticationError,
         login,
         logout,
+        userWarning,
+        setUserWarning,
       }}
     >
       {children}

@@ -1,11 +1,23 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import APIKeyList from "../../components/APIKeyList";
-import { getApiKeys, createApiKey } from "../../utils/account-requests";
+import APIKeyList, { ApiKeyDisplay } from "../../components/APIKeyList";
+import { ApiKeys, getApiKeys } from "../../utils/account-requests";
+
+// @ts-ignore
+global.navigator.clipboard = {
+  writeText: jest.fn(),
+};
 
 jest.mock("../../utils/account-requests.ts", () => ({
   getApiKeys: jest.fn(),
   createApiKey: jest.fn(),
+}));
+
+jest.mock("../../components/ApiKeyModal", () => ({
+  ApiKeyCreateModal: () => {
+    return <div data-testid="generate-api-key">Generate API Key</div>;
+  },
+  ApiKeyUpdateModal: () => {},
 }));
 
 describe("APIKeyList", () => {
@@ -13,21 +25,21 @@ describe("APIKeyList", () => {
     (getApiKeys as jest.Mock).mockResolvedValue([
       { name: "key1", prefix: "safasfasdf" },
       { name: "key2", prefix: "asdfasf" },
+      {
+        id: "1",
+        name: "Mock API Key",
+        prefix: "1",
+        created: "1",
+        api_key: "api-key-0",
+      },
     ]);
-    (createApiKey as jest.Mock).mockResolvedValue({});
   });
-  it("should create an API key", async () => {
+  it("should initiate creation of an API key", async () => {
     render(<APIKeyList />);
-
+    const modalButton = screen.getByTestId("no-values-add");
+    fireEvent.click(modalButton as HTMLElement);
     await waitFor(async () => {
-      const modalButton = screen.getByTestId("open-api-key-modal");
-      fireEvent.click(modalButton as HTMLElement);
-      expect(screen.getByTestId("create-button")).toBeInTheDocument();
-      const input = screen.getByTestId("key-name-input");
-      fireEvent.change(input, { target: { value: "test" } });
-      const createButton = screen.getByTestId("create-button");
-      fireEvent.click(createButton as HTMLElement);
-      expect(createApiKey).toHaveBeenCalledWith("test");
+      expect(screen.getByText("Generate API Key")).toBeInTheDocument();
     });
   });
 
@@ -36,6 +48,20 @@ describe("APIKeyList", () => {
 
     await waitFor(async () => {
       expect(screen.getByText("key2")).toBeInTheDocument();
+    });
+  });
+
+  it("should hide api key after it is copied", async () => {
+    render(<APIKeyList />);
+
+    await waitFor(async () => {
+      const copyBtn = screen.getByTestId("copy-api-key");
+      fireEvent.click(copyBtn as HTMLElement);
+    });
+
+    await waitFor(async () => {
+      expect(screen.queryByText("api-key-0")).not.toBeInTheDocument();
+      expect(screen.getByText("Copied!")).toBeInTheDocument();
     });
   });
 });

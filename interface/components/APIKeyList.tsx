@@ -1,30 +1,46 @@
 // --- React components/methods
 import React, { useContext, useEffect, useState } from "react";
 
-// --- Components
-import { Input } from "@chakra-ui/react";
-import ModalTemplate from "./ModalTemplate";
-import { SettingsIcon, DeleteIcon, Icon } from "@chakra-ui/icons";
-import { MdFileCopy } from "react-icons/md";
-
 // --- Utils
 import {
   ApiKeys,
-  createApiKey,
   getApiKeys,
   deleteApiKey,
+  createApiKey,
+  updateApiKey,
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
 import { UserContext } from "../context/userContext";
+import { ApiKeyCreateModal, ApiKeyUpdateModal } from "./ApiKeyModal";
+import {
+  CheckIcon,
+  ClipboardDocumentIcon,
+  EllipsisVerticalIcon,
+  PlusIcon,
+} from "@heroicons/react/24/solid";
+import {
+  IconButton,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+  useToast,
+} from "@chakra-ui/react";
+import { successToast } from "./Toasts";
+import { KeyIcon } from "@heroicons/react/24/outline";
+
+export type ApiKeyDisplay = ApiKeys & {
+  api_key?: string;
+  copied?: boolean;
+};
 
 const APIKeyList = () => {
   const [error, setError] = useState<undefined | string>();
-  const [apiKeys, setApiKeys] = useState<ApiKeys[]>([]);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
-  const [newApiKey, setNewApiKey] = useState();
-  const [keyName, setKeyName] = useState("");
-  const { logout } = useContext(UserContext);
+  const [apiKeys, setApiKeys] = useState<ApiKeyDisplay[]>([]);
+  const [createApiKeyModal, setCreateApiKeyModal] = useState(false);
+  const [apiKeyToUpdate, setApiKeyToUpdate] = useState<string | undefined>();
+  const { logout, setUserWarning } = useContext(UserContext);
+  const toast = useToast();
 
   useEffect(() => {
     let keysFetched = false;
@@ -45,25 +61,44 @@ const APIKeyList = () => {
     fetchApiKeys();
   }, []);
 
-  const handleCreateApiKey = async () => {
+  const handleCreateApiKey = async (key: ApiKeyDisplay) => {
     try {
-      const apiKey = await createApiKey(keyName);
-      setNewApiKey(apiKey.api_key);
-      setKeyName("");
-      setApiKeys(await getApiKeys());
-      setModalOpen(false);
-      setApiKeyModalOpen(true);
+      setCreateApiKeyModal(false);
+      toast(successToast("API Key created successfully!", toast));
+      setApiKeys([...apiKeys, key]);
     } catch (error: any) {
-      setError("There was an error creating your API key.");
-      if (error.response.status === 401) {
-        logout();
-      }
+      const msg =
+        error?.response?.data?.detail ||
+        "There was an error creating your API key. Please try again.";
+      setError(msg);
     }
   };
 
-  const handleDeleteApiKey = async (apiKeyId: ApiKeys["id"]) => {
+  const handleUpdateApiKey = async (
+    id: ApiKeys["id"],
+    name: ApiKeys["name"]
+  ) => {
     try {
-      await deleteApiKey(apiKeyId);
+      await updateApiKey(id, name);
+      setApiKeyToUpdate(undefined);
+      toast(successToast("API Key updated successfully!", toast));
+
+      const apiKeyIndex = apiKeys.findIndex((apiKey) => apiKey.id === id);
+      const newApiKeys = [...apiKeys];
+      newApiKeys[apiKeyIndex].name = name;
+
+      setApiKeys(newApiKeys);
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.detail ||
+        "There was an error updating your API key. Please try again.";
+      setError(msg);
+    }
+  };
+
+  const handleDeleteApiKey = async (id: ApiKeys["id"]) => {
+    try {
+      await deleteApiKey(id);
       setApiKeys(await getApiKeys());
     } catch (error: any) {
       if (error.response.status === 401) {
@@ -80,100 +115,141 @@ const APIKeyList = () => {
     <>
       {apiKeys.length === 0 ? (
         <div className="h-full">
-          <div className="mx-auto text-purple-softpurple text-center">
-            The API’s keys are unique to your wallet address and can be used to
-            access created Scorers.
+          <div className="mx-auto text-center text-purple-softpurple">
+            The API&#39;s keys are unique to your wallet address and can be used
+            to access created Scorers.
           </div>
           <NoValues
-            title="Create a key"
-            description="Communicate between applications by connecting a key to request service from the community or organization."
+            title="Generate API Keys"
+            description="Interact with the Scorer(s) created via your API key. The key limit is five."
             addActionText="API Key"
-            addRequest={() => setModalOpen(true)}
-            icon={<SettingsIcon />}
+            addRequest={() => setCreateApiKeyModal(true)}
+            icon={<KeyIcon />}
           />
         </div>
       ) : (
-        <div className="flex">
-          <div className="flex w-full">
-            <div className="flex w-3/4 flex-col">
-              {apiKeys.map((key, i) => (
-                <div
-                  key={`${key.id}-${i}`}
-                  className="grid w-full auto-cols-auto grid-cols-4 items-center justify-between gap-3 border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50"
-                >
-                  <div className="justify-self-center font-semibold md:justify-self-start">
+        <>
+          <p className="pb-6">
+            Use these API keys to programmatically access a Scorer.
+          </p>
+          <div className="flex w-full flex-col">
+            {apiKeys.map((key, i) => (
+              <div
+                key={`${key.id}-${i}`}
+                className={`flex ${key.api_key && "flex-col"} w-full items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50`}
+              >
+                <div className="flex w-full justify-between items-center">
+                  <div className="justify-self-center text-purple-darkpurple md:justify-self-start">
                     <p>{key.name}</p>
                   </div>
-                  <div className="justify-self-center rounded-full bg-gray-lightgray px-3 py-1">
-                    <p>Connected</p>
+
+                  <div className="flex">
+                    {key.api_key && (
+                      <div className="flex items-center pr-5 pl-1">
+                        {key.copied ? (
+                          <p className="flex text-xs text-purple-gitcoinpurple">
+                            Copied! <CheckIcon className="ml-3 w-3.5" />
+                          </p>
+                        ) : (
+                          <>
+                            <p className="pr-3 text-xs text-purple-darkpurple hidden md:inline-block">
+                              {key.api_key}
+                            </p>
+                            <button
+                              className="mb-1"
+                              data-testid="copy-api-key"
+                              onClick={async () => {
+                                await navigator.clipboard.writeText(key.api_key!);
+                                const updatedKeys = apiKeys.map((k) =>
+                                  k.api_key === key.api_key
+                                    ? { ...k, copied: true }
+                                    : k
+                                );
+                                setApiKeys(updatedKeys);
+                                setUserWarning();
+                              }}
+                            >
+                              <ClipboardDocumentIcon
+                                height={14}
+                                color={"#0E0333"}
+                              />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    <Menu>
+                      <MenuButton
+                        as={IconButton}
+                        icon={
+                          <EllipsisVerticalIcon className="h-8 text-purple-darkpurple" />
+                        }
+                        variant="ghost"
+                        _hover={{ bg: "transparent" }}
+                        _expanded={{ bg: "transparent" }}
+                        _focus={{ bg: "transparent" }}
+                      />
+                      <MenuList color={"#0E0333"}>
+                        <MenuItem onClick={() => setApiKeyToUpdate(key.id)}>
+                          Rename
+                        </MenuItem>
+                        <MenuItem
+                          onClick={async () => await handleDeleteApiKey(key.id)}
+                        >
+                          Delete
+                        </MenuItem>
+                      </MenuList>
+                    </Menu>
                   </div>
-                  <button
-                    className="justify-self-end rounded-md border border-gray-lightgray bg-white px-3 pt-1 pb-2 shadow-sm shadow-gray-100"
-                    onClick={async () => await handleDeleteApiKey(key.id)}
-                  >
-                    <DeleteIcon color="#757087" />
-                  </button>
                 </div>
-              ))}
-            </div>
-            <div className="flex w-1/4 flex-col p-4">
-              <button
-                data-testid="open-api-key-modal"
-                className="rounded bg-purple-softpurple py-2 px-4 text-white"
-                onClick={() => setModalOpen(true)}
-              >
-                <span className="mr-2 text-lg">+</span>Create a key
-              </button>
-            </div>
-            {modalOpen}
-            {error && <div>{error}</div>}
+                <p className="block md:hidden max-w-[100%] overflow-hidden">
+                  {key.api_key && (
+                    <div className="flex items-center pr-5 pl-1">
+                      {!key.copied && (
+                        <p className="pr-3 text-xs text-purple-darkpurple">
+                          {key.api_key}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </p>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
-      <ModalTemplate
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Create a key"
-      >
-        <div className="flex flex-col">
-          <label className="text-gray-softgray font-librefranklin text-xs">
-            Key name
-          </label>
-          <Input
-            data-testid="key-name-input"
-            value={keyName}
-            onChange={(name) => setKeyName(name.target.value)}
-            placeholder="Key name"
-          />
-          <div className="flex w-full justify-end">
+          <div className="my-4 flex items-center md:my-6">
             <button
-              disabled={!keyName}
-              data-testid="create-button"
-              className="mt-6 mb-2 rounded bg-purple-softpurple py-2 px-4 text-white disabled:opacity-25"
-              onClick={handleCreateApiKey}
+              data-testid="open-api-key-modal"
+              className={
+                "rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white" +
+                (apiKeys.length >= 5
+                  ? " cursor-not-allowed disabled:bg-gray-lightgray disabled:text-purple-darkpurple"
+                  : "")
+              }
+              onClick={() => setCreateApiKeyModal(true)}
+              disabled={apiKeys.length >= 5}
             >
-              Create
+              <PlusIcon className="mr-2 inline w-6 align-middle" />
+              API Key
             </button>
+            <p className="ml-6 text-xs text-purple-softpurple">
+              The key limit is five.
+            </p>
           </div>
-        </div>
-      </ModalTemplate>
-      <ModalTemplate
-        isOpen={apiKeyModalOpen}
-        onClose={() => setApiKeyModalOpen(false)}
-        title="Copy your API Key"
-      >
-        <div className="flex flex-col">
-          <label className="text-gray-softgray font-librefranklin text-xs">
-            API Key
-          </label>
-          <Input
-            className="mb-6"
-            data-testid="key-name-input-read"
-            value={newApiKey}
-            readOnly={true}
-          />
-        </div>
-      </ModalTemplate>
+          {createApiKeyModal}
+          {error && <div>{error}</div>}
+        </>
+      )}
+      <ApiKeyCreateModal
+        isOpen={createApiKeyModal}
+        onClose={() => setCreateApiKeyModal(false)}
+        onCreateApiKey={handleCreateApiKey}
+      />
+      <ApiKeyUpdateModal
+        isOpen={apiKeyToUpdate !== undefined}
+        onClose={() => setApiKeyToUpdate(undefined)}
+        apiKeyId={apiKeyToUpdate ?? ""}
+        onUpdateApiKey={handleUpdateApiKey}
+      />
     </>
   );
 };

@@ -22,6 +22,7 @@ import {
   HandIcon,
   StatusOnlineIcon,
 } from "./CustomIcons";
+import { PrimaryBtn } from "./PrimrayBtn";
 
 export interface UseCaseInterface {
   icon: (fill?: string) => JSX.Element;
@@ -224,13 +225,9 @@ const SelectUseCase = ({
           </div>
         ))}
       </div>
-      <button
-        className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
-        onClick={() => setWizardStep(2)}
-        disabled={!useCase}
-      >
+      <PrimaryBtn onClick={() => setWizardStep(2)} disabled={!useCase}>
         Continue
-      </button>
+      </PrimaryBtn>
     </>
   );
 };

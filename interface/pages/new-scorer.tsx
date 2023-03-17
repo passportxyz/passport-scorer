@@ -268,9 +268,9 @@ const NewScorer = () => {
                         "mt-2 w-full rounded border border-gray-lightgray bg-white p-6 md:max-w-[450px] " +
                         (!mechanism.disabled
                           ? "cursor-pointer " +
-                            (gitcoinScoringMechanism?.title === mechanism.title
-                              ? "outline outline-2 outline-purple-gitcoinpurple"
-                              : "hover:border-purple-gitcoinpurple")
+                          (gitcoinScoringMechanism?.title === mechanism.title
+                            ? "outline outline-2 outline-purple-gitcoinpurple"
+                            : "hover:border-purple-gitcoinpurple")
                           : "cursor-not-allowed")
                       }
                     >
@@ -284,10 +284,9 @@ const NewScorer = () => {
                           }
                         >
                           {mechanism.icon(
-                            `w-7 ${
-                              mechanism.recommended
-                                ? "text-purple-gitcoinpurple"
-                                : "text-purple-darkpurple"
+                            `w-7 ${mechanism.recommended
+                              ? "text-purple-gitcoinpurple"
+                              : "text-purple-darkpurple"
                             }`
                           )}
                         </div>
@@ -376,7 +375,7 @@ const NewScorer = () => {
             isOpen={cancelModal}
             isCentered={true}
             size={{ base: "xs", md: "lg", lg: "lg", xl: "lg" }}
-            onClose={() => {}}
+            onClose={() => { }}
           >
             <ModalOverlay />
             <ModalContent>

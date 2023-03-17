@@ -13,28 +13,44 @@ import {
   useDisclosure,
   Button,
 } from "@chakra-ui/react";
+import { SmallCloseIcon } from "@chakra-ui/icons";
 
 type ModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  header?: () => JSX.Element;
+  footer?: () => JSX.Element;
   children?: React.ReactNode;
 };
 
 const ModalTemplate = ({
   isOpen,
   onClose,
-  title,
+  header,
+  footer,
   children,
 }: ModalProps): JSX.Element => {
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose}>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        isCentered={true}
+        size={{ base: "full", md: "xl", lg: "xl", xl: "xl" }}
+      >
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader>{title}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>{children}</ModalBody>
+          {header ? (
+            <ModalHeader>{header()}</ModalHeader>
+          ) : (
+            <ModalHeader className="flex items-center justify-end">
+              <SmallCloseIcon className="cursor-pointer" onClick={onClose} />
+            </ModalHeader>
+          )}
+          <ModalBody className="flex h-screen w-full flex-col">
+            {children}
+          </ModalBody>
+          {footer && <ModalFooter>{footer()}</ModalFooter>}
         </ModalContent>
       </Modal>
     </>
