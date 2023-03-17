@@ -56,7 +56,11 @@ export const UserProvider = ({ children }: { children: any }) => {
   const logout = async () => {
     localStorage.removeItem("access-token");
     localStorage.removeItem("connectedWallets");
-    if (wallet) disconnect(wallet);
+    if (allWalletState.length > 0) {
+      allWalletState.forEach((wallet) => {
+        disconnect(wallet);
+      });
+    };
     setLoginComplete(false);
     setConnected(false);
   };
