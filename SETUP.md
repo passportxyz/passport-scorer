@@ -67,13 +67,13 @@ pipenv install --dev
 values (copy the `.env-sample` and adjust it). Then:
 
 ```shell
-gunicorn -w 4 -k uvicorn.workers.UvicornWorker scorer.asgi:application
+gunicorn -b 127.0.0.1:8002 -w 4 -k uvicorn.workers.UvicornWorker scorer.asgi:application
 ```
 
 or:
 
 ```shell
-uvicorn scorer.asgi:application --reload
+uvicorn scorer.asgi:application --reload --port 8002
 ```
 
 Start the celery worker:
