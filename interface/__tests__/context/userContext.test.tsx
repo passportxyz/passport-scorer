@@ -137,6 +137,11 @@ describe("UserProvider", () => {
     (useConnectWallet as jest.Mock).mockReturnValue([
       { wallet: mockWallet },
       connect,
+      disconnect,
+    ]);
+
+    (useWallets as jest.Mock).mockReturnValue([
+      { wallet: mockWallet },
     ]);
 
     const { rerender } = render(mockComponent());
@@ -151,6 +156,7 @@ describe("UserProvider", () => {
     (useConnectWallet as jest.Mock).mockReturnValue([
       { wallet: null },
       connect,
+      disconnect,
     ]);
 
     rerender(mockComponent());
@@ -187,8 +193,6 @@ describe("UserProvider", () => {
     (useWallets as jest.Mock).mockReturnValue([
       { wallet: mockWallet },
       { wallet: mockWallet2Accounts },
-      connect,
-      disconnect,
     ]);
 
     rerender(mockComponent());
