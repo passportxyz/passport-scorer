@@ -1,6 +1,6 @@
 import { createContext, useEffect, useState } from "react";
 
-import { useConnectWallet } from "@web3-onboard/react";
+import { useConnectWallet, useWallets } from "@web3-onboard/react";
 import { WalletState } from "@web3-onboard/core";
 import "../utils/onboard";
 
@@ -33,7 +33,8 @@ export const initialState: UserState = {
 export const UserContext = createContext(initialState);
 
 export const UserProvider = ({ children }: { children: any }) => {
-  const [{ wallet }, connect] = useConnectWallet();
+  const [{ wallet }, connect, disconnect] = useConnectWallet();
+  const allWalletState = useWallets();
   const [connected, setConnected] = useState(false);
   const [ready, setReady] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
@@ -55,6 +56,7 @@ export const UserProvider = ({ children }: { children: any }) => {
   const logout = async () => {
     localStorage.removeItem("access-token");
     localStorage.removeItem("connectedWallets");
+    if (wallet) disconnect(wallet);
     setLoginComplete(false);
     setConnected(false);
   };
@@ -132,8 +134,18 @@ export const UserProvider = ({ children }: { children: any }) => {
     })();
   }, []);
 
+  useEffect(() => {
+    if (allWalletState && allWalletState.length > 1) {
+      logout();
+    }
+  }, [allWalletState]);
+
   // Used to listen to disconnect event from web3Onboard widget
   useEffect(() => {
+    if (wallet && wallet.accounts.length > 1) {
+      logout();
+    }
+
     if (!wallet && connected) {
       logout();
     }
