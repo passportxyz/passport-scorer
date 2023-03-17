@@ -24,7 +24,7 @@ const Footer = ({ mode, className }: FooterProps): JSX.Element => {
 
   return (
     <div
-      className={`mt-12 mb-12 flex justify-between text-base sm:mt-8 ${className}`}
+      className={`mt-12 mb-12 flex justify-between text-base md:mt-8 ${className}`}
     >
       <div className="">
         Available on

@@ -49,7 +49,7 @@ const Header = ({ mode, className }: HeaderProps): JSX.Element => {
         <img className="mx-3 md:mx-6" src={assets.logoLine} alt="Logo Line" />
         <Logo />
         <img
-          className="sm:block mx-3 hidden"
+          className="md:block mx-3 hidden"
           src={assets.scorerWord}
           alt="Scorer"
         />

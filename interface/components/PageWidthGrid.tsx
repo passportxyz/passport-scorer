@@ -36,26 +36,28 @@ export const GlobalLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="font-libre-franklin text-gray-400">{children}</div>
 );
 
-export const withHomePageLayout =
-  (PageComponent: React.ComponentType) => (props: any) =>
-    (
-      <GlobalLayout>
-        <div className="bg-purple-darkpurple">
-          <HeaderContentFooterGrid>
-            <Header mode="dark" className={pagePadding} />
-            <PageWidthGrid className="mt-6 h-full">
-              <PageComponent {...props} />
-            </PageWidthGrid>
-            <Footer mode="dark" className={pagePadding} />
-          </HeaderContentFooterGrid>
-        </div>
-      </GlobalLayout>
-    );
+export const withHomePageLayout = (PageComponent: React.ComponentType) => {
+  const WrappedComponent = (props: any) => (
+    <GlobalLayout>
+      <div className="bg-purple-darkpurple">
+        <HeaderContentFooterGrid>
+          <Header mode="dark" className={pagePadding} />
+          <PageWidthGrid className="mt-6 h-full">
+            <PageComponent {...props} />
+          </PageWidthGrid>
+          <Footer mode="dark" className={pagePadding} />
+        </HeaderContentFooterGrid>
+      </div>
+    </GlobalLayout>
+  );
+
+  WrappedComponent.displayName = "withHomePageLayout";
+  return WrappedComponent;
+};
 
 // This is the way to use generics w/ arrow functions
-export const withPageLayout =
-  <P,>(PageComponent: React.ComponentType<P>) =>
-  (props: P) => {
+export const withPageLayout = <P,>(PageComponent: React.ComponentType<P>) => {
+  const WrappedComponent = (props: P) => {
     const [error, setError] = useState<string | null>(null);
     const [subheader, setSubheader] = useState<React.ReactNode>("");
 
@@ -83,5 +85,8 @@ export const withPageLayout =
       </GlobalLayout>
     );
   };
+  WrappedComponent.displayName = "withPageLayout";
+  return WrappedComponent;
+};
 
 export default PageWidthGrid;
