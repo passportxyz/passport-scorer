@@ -29,9 +29,8 @@ const TabButton = ({
   <button
     data-testid={`${token}-tab`}
     onClick={() => navigate(`/dashboard/${token}`)}
-    className={`flex w-full items-center justify-start rounded-sm px-3 py-2 text-blue-darkblue ${
-      (selected ? "rounded border border-gray-lightgray bg-white " : " ") +
-      className
+    className={`flex w-full items-center justify-start rounded-md px-3 py-2 text-blue-darkblue ${
+      (selected ? "border border-gray-lightgray bg-white " : " ") + className
     }`}
   >
     <span className={`mr-2 ${selected ? "text-purple-gitcoinpurple" : ""}`}>
@@ -94,7 +93,7 @@ const TabSelect = ({
   // Some browsers will use this "label" element area all as a click target, which is ideal.
   <label
     htmlFor="tabSelect"
-    className="flex items-center rounded-sm border border-gray-200 bg-white py-1 pr-1"
+    className="flex items-center rounded-md border border-gray-200 bg-white py-1 pr-1"
   >
     <div className="ml-3 -mt-1 text-purple-gitcoinpurple">
       {tabInfo.find((tab) => tab.token === activeTab)?.icon}

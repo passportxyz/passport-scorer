@@ -267,24 +267,20 @@ const NewScorer = () => {
           created.
         </p>
         <div className="col-span-4 md:col-span-6 lg:col-span-2 xl:col-span-3">
-          <span className="text-xs">
-            Select Deduplication
-            <PopoverInfo>
-              <span className="text-sm text-white">
-                Gitcoin scoring uses binary logic to verify stamp/account
-                ownership, encrypted for privacy and to decrease deduplication
-                risk.
-                <a
-                  href="https://docs.passport.gitcoin.co"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-green-jade underline"
-                >
-                  Learn More
-                </a>
-              </span>
-            </PopoverInfo>
-          </span>
+          <span className="mr-1 text-xs">Select Deduplication</span>
+          <PopoverInfo>
+            Gitcoin scoring uses binary logic to verify stamp/account ownership,
+            encrypted for privacy and to decrease deduplication risk.
+            <br />
+            <a
+              href="https://docs.passport.gitcoin.co"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-green-jade underline"
+            >
+              Learn More
+            </a>
+          </PopoverInfo>
         </div>
         <div className="col-span-4 md:col-span-3 md:row-start-3 lg:col-span-2 lg:row-end-5 xl:col-span-3">
           <div className="rounded border border-gray-lightgray bg-white p-6 text-purple-softpurple">
@@ -304,15 +300,11 @@ const NewScorer = () => {
         </div>
 
         <div className="col-span-4 md:col-span-6 xl:col-span-9">
-          <span className="text-xs">
-            Scoring Mechanisms
-            <PopoverInfo>
-              <span className="text-sm text-white">
-                The scoring rules evaluate Passports based on the "Verifiable
-                Credentials" (VCs), or "Stamps" they hold.
-              </span>
-            </PopoverInfo>
-          </span>
+          <span className="mr-1 text-xs">Scoring Mechanisms</span>
+          <PopoverInfo>
+            The scoring rules evaluate Passports based on the "Verifiable
+            Credentials" (VCs), or "Stamps" they hold.
+          </PopoverInfo>
         </div>
 
         {gitcoinScoringMechanisms.map((mechanism, index) => (
@@ -336,7 +328,7 @@ const NewScorer = () => {
                   "flex h-12 w-12 items-center justify-center rounded-full " +
                   (mechanism.recommended
                     ? "bg-[#F0EBFF]"
-                    : "border-2 border-gray-lightgray")
+                    : "border border-gray-lightgray")
                 }
               >
                 {mechanism.icon(
@@ -353,7 +345,7 @@ const NewScorer = () => {
                     "rounded-xl px-2 py-1 text-xs " +
                     (mechanism.recommended
                       ? "bg-[#F0EBFF] text-purple-gitcoinpurple"
-                      : "bg-gray-lightgray")
+                      : "bg-gray-lightgray text-blue-darkblue")
                   }
                 >
                   <span>{mechanism.badge}</span>
@@ -361,7 +353,9 @@ const NewScorer = () => {
               )}
             </div>
             <div>
-              <p className="mt-6 mb-2 text-sm">{mechanism.title}</p>
+              <p className="mt-6 mb-4 text-sm text-blue-darkblue">
+                {mechanism.title}
+              </p>
               <p className="text-xs text-purple-softpurple">
                 {mechanism.description}
               </p>
@@ -373,12 +367,12 @@ const NewScorer = () => {
             <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-lightgray">
               <AdjustmentsVerticalIcon className="w-7 text-purple-darkpurple" />
             </div>
-            <div className="rounded-xl bg-gray-lightgray px-2 py-1 text-xs">
+            <div className="rounded-xl bg-gray-lightgray px-2 py-1 text-xs text-blue-darkblue">
               <span>Coming soon</span>
             </div>
           </div>
           <div>
-            <p className="mt-6 mb-2 text-sm">Customize</p>
+            <p className="mt-6 mb-4 text-sm text-blue-darkblue">Customize</p>
             <p className="text-xs text-purple-softpurple">
               Configure stamp weights for you community and define a score that
               is truly customized to your use case (this is an advanced

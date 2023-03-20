@@ -30,11 +30,11 @@ const QuickLink = ({
 }) => (
   <a href={url} target="_blank" rel="noreferrer">
     <div
-      className={`flex w-full flex-row items-center justify-start border-gray-200  bg-white p-5 ${
+      className={`flex w-full flex-row items-center justify-start border-gray-lightgray  bg-white p-5 ${
         (url ? "cursor-pointer " : " ") + className
       }`}
     >
-      {icon}
+      <span className="mr-2">{icon}</span>
       {text}
     </div>
   </a>
@@ -47,7 +47,7 @@ const QuickLinks = ({ className }: { className: string }) => {
     <div className={`w-full ${className}`}>
       <QuickLink
         text="Quick Links"
-        className={linkClassName + " text-xs text-gray-500"}
+        className={linkClassName + " rounded-t-md pt-6 text-xs text-gray-500"}
       />
       <QuickLink
         text="Quick Start Guide"
@@ -71,7 +71,7 @@ const QuickLinks = ({ className }: { className: string }) => {
         text="Scorer Documentation"
         url="https://docs.passport.gitcoin.co/building-with-passport/scorer-api"
         icon={<BookOpenIcon className={iconClassName} />}
-        className={linkClassName + " border-b"}
+        className={linkClassName + " rounded-b-md border-b"}
       />
     </div>
   );
@@ -79,10 +79,21 @@ const QuickLinks = ({ className }: { className: string }) => {
 
 const SampleApplications = ({ className }: { className?: string }) => {
   return (
-    <div className={"text-base " + className}>
-      <QuickLink text="Sample Applications" className="text-xs text-gray-500" />
-      <QuickLink text="Gitcoin Passports Sample App" url="/" />
-      <QuickLink text="Gitcoin Allo Protocol" url="/" />
+    <div className={"border-gray-lightgray text-base " + className}>
+      <QuickLink
+        text="Sample Applications"
+        className="rounded-t-md border-x border-t pt-6 text-xs text-gray-500"
+      />
+      <QuickLink
+        text="Gitcoin Passports Sample App"
+        url="/"
+        className="border-x"
+      />
+      <QuickLink
+        text="Gitcoin Allo Protocol"
+        className="rounded-b-md border-x border-b"
+        url="/"
+      />
     </div>
   );
 };

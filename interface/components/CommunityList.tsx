@@ -84,8 +84,8 @@ const CommunityList = () => {
   });
 
   const communityList = (
-    <div className="overflow-hidden bg-white shadow md:rounded-md">
-      <ul role="list" className="divide-y divide-gray-200">
+    <div className="overflow-hidden rounded-md border border-gray-lightgray bg-white">
+      <ul role="list" className="divide-y divide-gray-lightgray">
         {communityItems}
       </ul>
     </div>
