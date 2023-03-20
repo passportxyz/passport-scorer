@@ -1,6 +1,6 @@
 // --- React components/methods
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/router";
+import { useNavigate } from "react-router-dom";
 
 // --- Components
 import { ArrowBackIcon, SmallCloseIcon } from "@chakra-ui/icons";
@@ -250,7 +250,7 @@ const UseCaseDetails = ({
   setScorerDescription,
   closeModal,
 }: UseCaseDetailsProps) => {
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const switchToSelectMechanism = () => {
     localStorage.setItem(
@@ -261,7 +261,7 @@ const UseCaseDetails = ({
         description: scorerDescription,
       })
     );
-    router.push("/new-scorer");
+    navigate("/new-scorer");
   };
 
   return (

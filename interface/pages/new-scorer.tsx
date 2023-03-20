@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import {
   Icon,
   Modal,
@@ -20,7 +21,6 @@ import {
   AdjustmentsVerticalIcon,
 } from "@heroicons/react/24/outline";
 
-import { useRouter } from "next/router";
 import React, { useEffect, useState } from "react";
 import Header from "../components/Header";
 import { UseCaseInterface, useCases } from "../components/UseCaseModal";
@@ -76,7 +76,7 @@ export const gitcoinScoringMechanisms: Array<GitcoinScoringMechanismInterface> =
   ];
 
 const NewScorer = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const toast = useToast();
   const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
     undefined
@@ -105,7 +105,7 @@ const NewScorer = () => {
 
   const handleCancellation = () => {
     localStorage.removeItem("tempScorer");
-    router.push("/dashboard/scorer");
+    navigate("/dashboard/scorer");
   };
 
   const createScorer = async () => {
@@ -119,7 +119,7 @@ const NewScorer = () => {
         scorer: gitcoinScoringMechanism!.apiTitle,
       });
       localStorage.setItem("scorerCreated", "true");
-      router.push("/dashboard/scorer");
+      navigate("/dashboard/scorer");
     } catch (e) {
       toast({
         title: "Warning!",
@@ -268,9 +268,9 @@ const NewScorer = () => {
                         "mt-2 w-full rounded border border-gray-lightgray bg-white p-6 md:max-w-[450px] " +
                         (!mechanism.disabled
                           ? "cursor-pointer " +
-                          (gitcoinScoringMechanism?.title === mechanism.title
-                            ? "outline outline-2 outline-purple-gitcoinpurple"
-                            : "hover:border-purple-gitcoinpurple")
+                            (gitcoinScoringMechanism?.title === mechanism.title
+                              ? "outline outline-2 outline-purple-gitcoinpurple"
+                              : "hover:border-purple-gitcoinpurple")
                           : "cursor-not-allowed")
                       }
                     >
@@ -284,9 +284,10 @@ const NewScorer = () => {
                           }
                         >
                           {mechanism.icon(
-                            `w-7 ${mechanism.recommended
-                              ? "text-purple-gitcoinpurple"
-                              : "text-purple-darkpurple"
+                            `w-7 ${
+                              mechanism.recommended
+                                ? "text-purple-gitcoinpurple"
+                                : "text-purple-darkpurple"
                             }`
                           )}
                         </div>
@@ -375,7 +376,7 @@ const NewScorer = () => {
             isOpen={cancelModal}
             isCentered={true}
             size={{ base: "xs", md: "lg", lg: "lg", xl: "lg" }}
-            onClose={() => { }}
+            onClose={() => {}}
           >
             <ModalOverlay />
             <ModalContent>

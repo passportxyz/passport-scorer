@@ -1,7 +1,8 @@
 // --- React components/methods
 import React from "react";
 
-import { useRouter } from "next/router";
+// --- React Router
+import { useNavigate } from "react-router-dom";
 
 // --- Components
 import { Cog8ToothIcon, StarIcon } from "@heroicons/react/24/solid";
@@ -13,7 +14,7 @@ type TabButtonProps = {
   text: React.ReactNode;
   token: TabToken;
   selected?: boolean;
-  router: any;
+  navigate: (to:string) => void;
   className?: string;
 };
 
@@ -22,12 +23,12 @@ const TabButton = ({
   text,
   token,
   selected,
-  router,
+  navigate,
   className,
 }: TabButtonProps) => (
   <button
     data-testid={`${token}-tab`}
-    onClick={() => router.push(`/dashboard/${token}`)}
+    onClick={() => navigate(`/dashboard/${token}`)}
     className={`flex w-full items-center justify-start rounded-sm px-3 py-2 text-blue-darkblue ${
       (selected ? "rounded border border-gray-lightgray bg-white " : " ") +
       className
@@ -61,10 +62,10 @@ const tabInfo: TabProps[] = [
 
 const TabButtonList = ({
   activeTab,
-  router,
+  navigate,
 }: {
   activeTab: TabToken;
-  router: any;
+  navigate: (to:string) => void;
 }) => (
   <div>
     {tabInfo.map(({ icon, text, token }, idx) => (
@@ -73,7 +74,7 @@ const TabButtonList = ({
         text={text}
         token={token}
         selected={activeTab === token}
-        router={router}
+        navigate={navigate}
         className={idx === 0 ? "mb-2" : ""}
         key={token}
       />
@@ -83,10 +84,10 @@ const TabButtonList = ({
 
 const TabSelect = ({
   activeTab,
-  router,
+  navigate,
 }: {
   activeTab: TabToken;
-  router: any;
+  navigate: (to:string) => void;
 }) => (
   // Mobile doesn't respect py on the select element, so adding some here on this div. But leaving
   // most on the select element b/c much better experience on desktop b/c of bounding box.
@@ -101,7 +102,7 @@ const TabSelect = ({
     <select
       id="tabSelect"
       value={activeTab}
-      onChange={(e) => router.push(`/dashboard/${e.target.value}`)}
+      onChange={(e) => navigate(`/dashboard/${e.target.value}`)}
       className="ml-2 flex w-full justify-around bg-white py-2 text-blue-darkblue"
     >
       {tabInfo.map(({ text, token }) => (
@@ -119,14 +120,14 @@ const TabSelect = ({
 );
 
 export const DashboardTabs = ({ activeTab }: { activeTab: TabToken }) => {
-  const router = useRouter();
+  const navigate = useNavigate();
   return (
     <>
       <div className="block md:hidden">
-        <TabSelect activeTab={activeTab} router={router} />
+        <TabSelect activeTab={activeTab} navigate={navigate} />
       </div>
       <div className="hidden md:block">
-        <TabButtonList activeTab={activeTab} router={router} />
+        <TabButtonList activeTab={activeTab} navigate={navigate} />
       </div>
     </>
   );
