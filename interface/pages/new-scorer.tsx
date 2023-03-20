@@ -20,10 +20,13 @@ import {
   AdjustmentsVerticalIcon,
 } from "@heroicons/react/24/outline";
 
-import { withPageLayout } from "../components/PageWidthGrid";
+import PageWidthGrid, {
+  withPageLayout,
+  TopLevelPageParams,
+} from "../components/PageWidthGrid";
 
 import { useRouter } from "next/router";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Header from "../components/Header";
 import { UseCaseInterface, useCases } from "../components/UseCaseModal";
 import { createCommunity } from "../utils/account-requests";
@@ -77,13 +80,7 @@ export const gitcoinScoringMechanisms: Array<GitcoinScoringMechanismInterface> =
     },
   ];
 
-type TopLevelPageParams = {
-  setSubheader: (subheader: React.ComponentType | null) => void;
-  setFooterOverride: (footer: React.ComponentType | null) => void;
-  onUserError: (error: string | null) => void;
-};
-
-const NewScorer = ({ setSubheader, setFooterOverride }: TopLevelPageParams) => {
+const NewScorer = ({ generateHeader, generateFooter }: TopLevelPageParams) => {
   const router = useRouter();
   const toast = useToast();
   const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
@@ -111,7 +108,7 @@ const NewScorer = ({ setSubheader, setFooterOverride }: TopLevelPageParams) => {
     }
   }, []);
 
-  useEffect(() => {
+  const PageHeader = useMemo(() => {
     const Subheader = () => (
       <div className="mt-0 flex w-full justify-between py-4">
         <div>
@@ -132,12 +129,8 @@ const NewScorer = ({ setSubheader, setFooterOverride }: TopLevelPageParams) => {
         </div>
       </div>
     );
-
-    setSubheader(Subheader);
-
-    const onDismount = () => setSubheader(null);
-    return onDismount;
-  }, [useCase, name, description]);
+    return generateHeader(Subheader);
+  }, [useCase, name, description, generateHeader]);
 
   const handleCancellation = useCallback(() => {
     localStorage.removeItem("tempScorer");
@@ -191,8 +184,8 @@ const NewScorer = ({ setSubheader, setFooterOverride }: TopLevelPageParams) => {
     }
   }, [name, description, useCase, deduplication, gitcoinScoringMechanism]);
 
-  useEffect(() => {
-    const ScorerFooter = ({ className }: { className?: string }) => (
+  const PageFooter = useMemo(() => {
+    const FooterOverride = ({ className }: { className?: string }) => (
       <footer
         className={
           `w-full border-t border-gray-lightgray bg-white py-6 ` + className
@@ -257,145 +250,147 @@ const NewScorer = ({ setSubheader, setFooterOverride }: TopLevelPageParams) => {
         </Modal>
       </footer>
     );
-
-    setFooterOverride(ScorerFooter);
-
-    const onDismount = () => setFooterOverride(null);
-    return onDismount;
+    return generateFooter(FooterOverride);
   }, [
     cancelModal,
     setCancelModal,
     handleCancellation,
     createScorer,
     isLoading,
+    generateFooter,
   ]);
 
   return (
     <>
-      <p className="col-span-4 text-purple-softpurple md:col-span-6 lg:col-span-8 xl:col-span-12">
-        Scoring mechanisms establish identity rules within Scorers. Scorers
-        cannot be changed after creating them, but multiple Scorers can be
-        created.
-      </p>
-      <div className="col-span-4 md:col-span-6 lg:col-span-2 xl:col-span-3">
-        <span className="text-xs">
-          Select Deduplication
-          <PopoverInfo>
-            <span className="text-sm text-white">
-              Gitcoin scoring uses binary logic to verify stamp/account
-              ownership, encrypted for privacy and to decrease deduplication
-              risk.
-              <a
-                href="https://docs.passport.gitcoin.co"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-green-jade underline"
-              >
-                Learn More
-              </a>
-            </span>
-          </PopoverInfo>
-        </span>
-      </div>
-      <div className="col-span-4 md:col-span-3 md:row-start-3 lg:col-span-2 lg:row-end-5 xl:col-span-3">
-        <div className="rounded border border-gray-lightgray bg-white p-6 text-purple-softpurple">
-          <p className="mb-6 text-xs">
-            If duplicate Verified Credentials s are found, should Passport score
-            through the first or last one created?
-          </p>
-          <Select
-            iconColor="#0E0333"
-            className="w-full rounded border border-gray-lightgray px-4"
-            onChange={(e: any) => setDeduplication(e.target.value)}
-          >
-            <option value="LIFO">Last in first out (default)</option>
-            <option value="FIFO">First in first out</option>
-          </Select>
+      <PageHeader />
+      <PageWidthGrid className="mt-4 h-fit">
+        <p className="col-span-4 text-purple-softpurple md:col-span-6 lg:col-span-8 xl:col-span-12">
+          Scoring mechanisms establish identity rules within Scorers. Scorers
+          cannot be changed after creating them, but multiple Scorers can be
+          created.
+        </p>
+        <div className="col-span-4 md:col-span-6 lg:col-span-2 xl:col-span-3">
+          <span className="text-xs">
+            Select Deduplication
+            <PopoverInfo>
+              <span className="text-sm text-white">
+                Gitcoin scoring uses binary logic to verify stamp/account
+                ownership, encrypted for privacy and to decrease deduplication
+                risk.
+                <a
+                  href="https://docs.passport.gitcoin.co"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-green-jade underline"
+                >
+                  Learn More
+                </a>
+              </span>
+            </PopoverInfo>
+          </span>
         </div>
-      </div>
-
-      <div className="col-span-4 md:col-span-6 xl:col-span-9">
-        <span className="text-xs">
-          Scoring Mechanisms
-          <PopoverInfo>
-            <span className="text-sm text-white">
-              The scoring rules evaluate Passports based on the "Verifiable
-              Credentials" (VCs), or "Stamps" they hold.
-            </span>
-          </PopoverInfo>
-        </span>
-      </div>
-
-      {gitcoinScoringMechanisms.map((mechanism, index) => (
-        <div
-          key={index}
-          data-testid={`scoring-mechanism-${index}`}
-          onClick={() => setGitcoinScoringMechanism(mechanism)}
-          className={
-            "col-span-4 rounded border border-gray-lightgray bg-white p-6 md:col-span-3 " +
-            (!mechanism.disabled
-              ? "cursor-pointer " +
-                (gitcoinScoringMechanism?.title === mechanism.title
-                  ? "outline outline-2 outline-purple-gitcoinpurple"
-                  : "hover:border-purple-gitcoinpurple")
-              : "cursor-not-allowed")
-          }
-        >
-          <div className="flex items-center justify-between">
-            <div
-              className={
-                "flex h-12 w-12 items-center justify-center rounded-full " +
-                (mechanism.recommended
-                  ? "bg-[#F0EBFF]"
-                  : "border-2 border-gray-lightgray")
-              }
+        <div className="col-span-4 md:col-span-3 md:row-start-3 lg:col-span-2 lg:row-end-5 xl:col-span-3">
+          <div className="rounded border border-gray-lightgray bg-white p-6 text-purple-softpurple">
+            <p className="mb-6 text-xs">
+              If duplicate Verified Credentials s are found, should Passport
+              score through the first or last one created?
+            </p>
+            <Select
+              iconColor="#0E0333"
+              className="w-full rounded border border-gray-lightgray px-4"
+              onChange={(e: any) => setDeduplication(e.target.value)}
             >
-              {mechanism.icon(
-                `w-7 ${
-                  mechanism.recommended
-                    ? "text-purple-gitcoinpurple"
-                    : "text-purple-darkpurple"
-                }`
-              )}
-            </div>
-            {mechanism.badge && (
+              <option value="LIFO">Last in first out (default)</option>
+              <option value="FIFO">First in first out</option>
+            </Select>
+          </div>
+        </div>
+
+        <div className="col-span-4 md:col-span-6 xl:col-span-9">
+          <span className="text-xs">
+            Scoring Mechanisms
+            <PopoverInfo>
+              <span className="text-sm text-white">
+                The scoring rules evaluate Passports based on the "Verifiable
+                Credentials" (VCs), or "Stamps" they hold.
+              </span>
+            </PopoverInfo>
+          </span>
+        </div>
+
+        {gitcoinScoringMechanisms.map((mechanism, index) => (
+          <div
+            key={index}
+            data-testid={`scoring-mechanism-${index}`}
+            onClick={() => setGitcoinScoringMechanism(mechanism)}
+            className={
+              "col-span-4 rounded border border-gray-lightgray bg-white p-6 md:col-span-3 " +
+              (!mechanism.disabled
+                ? "cursor-pointer " +
+                  (gitcoinScoringMechanism?.title === mechanism.title
+                    ? "outline outline-2 outline-purple-gitcoinpurple"
+                    : "hover:border-purple-gitcoinpurple")
+                : "cursor-not-allowed")
+            }
+          >
+            <div className="flex items-center justify-between">
               <div
                 className={
-                  "rounded-xl px-2 py-1 text-xs " +
+                  "flex h-12 w-12 items-center justify-center rounded-full " +
                   (mechanism.recommended
-                    ? "bg-[#F0EBFF] text-purple-gitcoinpurple"
-                    : "bg-gray-lightgray")
+                    ? "bg-[#F0EBFF]"
+                    : "border-2 border-gray-lightgray")
                 }
               >
-                <span>{mechanism.badge}</span>
+                {mechanism.icon(
+                  `w-7 ${
+                    mechanism.recommended
+                      ? "text-purple-gitcoinpurple"
+                      : "text-purple-darkpurple"
+                  }`
+                )}
               </div>
-            )}
+              {mechanism.badge && (
+                <div
+                  className={
+                    "rounded-xl px-2 py-1 text-xs " +
+                    (mechanism.recommended
+                      ? "bg-[#F0EBFF] text-purple-gitcoinpurple"
+                      : "bg-gray-lightgray")
+                  }
+                >
+                  <span>{mechanism.badge}</span>
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="mt-6 mb-2 text-sm">{mechanism.title}</p>
+              <p className="text-xs text-purple-softpurple">
+                {mechanism.description}
+              </p>
+            </div>
+          </div>
+        ))}
+        <div className="col-span-4 cursor-not-allowed rounded border border-gray-lightgray bg-white p-6 md:col-span-3">
+          <div className="flex items-center justify-between">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-lightgray">
+              <AdjustmentsVerticalIcon className="w-7 text-purple-darkpurple" />
+            </div>
+            <div className="rounded-xl bg-gray-lightgray px-2 py-1 text-xs">
+              <span>Coming soon</span>
+            </div>
           </div>
           <div>
-            <p className="mt-6 mb-2 text-sm">{mechanism.title}</p>
+            <p className="mt-6 mb-2 text-sm">Customize</p>
             <p className="text-xs text-purple-softpurple">
-              {mechanism.description}
+              Configure stamp weights for you community and define a score that
+              is truly customized to your use case (this is an advanced
+              scenario).
             </p>
           </div>
         </div>
-      ))}
-      <div className="col-span-4 cursor-not-allowed rounded border border-gray-lightgray bg-white p-6 md:col-span-3">
-        <div className="flex items-center justify-between">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-lightgray">
-            <AdjustmentsVerticalIcon className="w-7 text-purple-darkpurple" />
-          </div>
-          <div className="rounded-xl bg-gray-lightgray px-2 py-1 text-xs">
-            <span>Coming soon</span>
-          </div>
-        </div>
-        <div>
-          <p className="mt-6 mb-2 text-sm">Customize</p>
-          <p className="text-xs text-purple-softpurple">
-            Configure stamp weights for you community and define a score that is
-            truly customized to your use case (this is an advanced scenario).
-          </p>
-        </div>
-      </div>
+      </PageWidthGrid>
+      <PageFooter />
     </>
   );
 };

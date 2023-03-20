@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -56,40 +56,52 @@ export const withHomePageLayout = (PageComponent: React.ComponentType) => {
   return WrappedComponent;
 };
 
+export type TopLevelPageParams = {
+  onUserError: (error: string | null) => void;
+  generateHeader: (Subheader?: React.ComponentType) => React.ComponentType;
+  generateFooter: (FooterOverride?: React.ComponentType) => React.ComponentType;
+};
+
 // This is the way to use generics w/ arrow functions
 export const withPageLayout = <P,>(PageComponent: React.ComponentType<P>) => {
   const WrappedComponent = (props: P) => {
     const [error, setError] = useState<string | null>(null);
-    const [Subheader, setSubheader] = useState<React.ComponentType | null>(
-      null
-    );
-    const [FooterOverride, setFooterOverride] =
-      useState<React.ComponentType | null>(null);
 
-    const CurrentFooter = FooterOverride || Footer;
+    const generateHeader = useCallback(
+      (Subheader?: React.ComponentType) => {
+        return () => (
+          <div className={"border-b border-gray-300 bg-white " + PAGE_PADDING}>
+            <Header className="border-b border-b-gray-200 bg-white" />
+            <div className={"mx-auto w-full " + CONTENT_MAX_WIDTH}>
+              <div className="w-full bg-red-100">{error}</div>
+              {Subheader && <Subheader />}
+            </div>
+          </div>
+        );
+      },
+      [error]
+    );
+
+    const generateFooter = useCallback(
+      (FooterOverride?: React.ComponentType) => {
+        const CurrentFooter = FooterOverride || Footer;
+        return () => (
+          <CurrentFooter className={PAGE_PADDING + " " + FOOTER_HEIGHT} />
+        );
+      },
+      []
+    );
 
     return (
       <GlobalLayout>
         <div className="bg-gray-bluegray">
           <HeaderContentFooterGrid>
-            <div
-              className={"border-b border-gray-300 bg-white " + PAGE_PADDING}
-            >
-              <Header className="border-b border-b-gray-200 bg-white" />
-              <div className={"mx-auto w-full " + CONTENT_MAX_WIDTH}>
-                <div className="w-full bg-red-100">{error}</div>
-                {Subheader && <Subheader />}
-              </div>
-            </div>
-            <PageWidthGrid className="mt-4 h-fit">
-              <PageComponent
-                {...props}
-                onUserError={setError}
-                setSubheader={setSubheader}
-                setFooterOverride={setFooterOverride}
-              />
-            </PageWidthGrid>
-            <CurrentFooter className={PAGE_PADDING + " " + FOOTER_HEIGHT} />
+            <PageComponent
+              {...props}
+              onUserError={setError}
+              generateHeader={generateHeader}
+              generateFooter={generateFooter}
+            />
           </HeaderContentFooterGrid>
         </div>
       </GlobalLayout>

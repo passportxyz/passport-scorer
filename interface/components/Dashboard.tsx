@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useMemo } from "react";
 
 // --- Components
 import Header from "./Header";
@@ -7,12 +7,14 @@ import Footer from "./Footer";
 
 import { DashboardTabs, TabToken } from "./DashboardTabs";
 
-import { withPageLayout } from "./PageWidthGrid";
+import PageWidthGrid, {
+  withPageLayout,
+  TopLevelPageParams,
+} from "./PageWidthGrid";
 
-type DashboardProps = {
+type DashboardProps = TopLevelPageParams & {
   activeTab: TabToken;
   children: React.ReactNode;
-  setSubheader: (subheader: React.ReactNode) => void;
 };
 
 const QuickLink = ({
@@ -84,7 +86,7 @@ const SampleApplications = ({ className }: { className?: string }) => {
 
 export const Subheader = ({}) => {
   return (
-    <div className="my-6 w-full bg-white">
+    <div className="my-6 w-full">
       <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
         Gitcoin Passport Scorer
       </h1>
@@ -96,24 +98,34 @@ export const Subheader = ({}) => {
   );
 };
 
-const Dashboard = ({ activeTab, children, setSubheader }: DashboardProps) => {
-  useEffect(() => setSubheader(<Subheader />), []);
+const Dashboard = ({
+  activeTab,
+  children,
+  generateHeader,
+  generateFooter,
+}: DashboardProps) => {
+  const PageHeader = useMemo(() => generateHeader(Subheader), [generateHeader]);
+  const PageFooter = useMemo(() => generateFooter(), [generateFooter]);
 
   return (
     <>
-      <div className="col-span-2 col-start-1 xl:row-span-2 flex-col items-start">
-        <DashboardTabs activeTab={activeTab} />
-      </div>
+      <PageHeader />
+      <PageWidthGrid className="mt-4 h-fit">
+        <div className="col-span-2 col-start-1 flex-col items-start xl:row-span-2">
+          <DashboardTabs activeTab={activeTab} />
+        </div>
 
-      {/* Spacer in lg */}
-      <div className="lg:col-span-6 xl:hidden" />
+        {/* Spacer in lg */}
+        <div className="lg:col-span-6 xl:hidden" />
 
-      <div className="col-span-4 md:col-span-6 lg:col-span-5 lg:row-span-2 xl:col-span-7">
-        {children}
-      </div>
+        <div className="col-span-4 md:col-span-6 lg:col-span-5 lg:row-span-2 xl:col-span-7">
+          {children}
+        </div>
 
-      <QuickLinks className="col-span-4 md:col-span-3" />
-      <SampleApplications className="col-span-4 md:col-span-3" />
+        <QuickLinks className="col-span-4 md:col-span-3" />
+        <SampleApplications className="col-span-4 md:col-span-3" />
+      </PageWidthGrid>
+      <PageFooter />
     </>
   );
 };
