@@ -109,17 +109,17 @@ const NewScorer = ({ generateHeader, generateFooter }: TopLevelPageParams) => {
 
   const PageHeader = useMemo(() => {
     const Subheader = () => (
-      <div className="mt-0 flex w-full justify-between py-4">
+      <div className="my-6 flex w-full justify-between">
         <div>
           <p className="text-xs text-purple-softpurple">
             Select a Scoring Mechanism
           </p>
-          <p className="my-2 text-purple-gitcoinpurple">
+          <p className="mt-2 text-purple-gitcoinpurple">
             <Icon boxSize={19.5}>{useCase?.icon("#6F3FF5")}</Icon>{" "}
             {useCase?.title}
           </p>
 
-          <h1 className="mt-2.5 font-miriamlibre text-2xl">{name}</h1>
+          <h1 className="mt-2 font-miriamlibre text-2xl">{name}</h1>
           <p className="mt-2 text-purple-softpurple">{description}</p>
         </div>
         <div>
@@ -187,19 +187,20 @@ const NewScorer = ({ generateHeader, generateFooter }: TopLevelPageParams) => {
     const FooterOverride = ({ className }: { className?: string }) => (
       <footer
         className={
-          `w-full border-t border-gray-lightgray bg-white py-6 ` + className
+          `mt-6 w-full border-t border-gray-lightgray bg-white py-6 ` +
+          className
         }
       >
         <div className="mx-auto overflow-hidden md:flex md:justify-end">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <button
-              className="order-last w-full rounded border border-gray-lightgray py-3 px-6 text-sm md:order-first md:w-[139px]"
+              className="order-last h-10 w-full rounded border border-gray-lightgray px-6 text-sm md:order-first md:w-[139px]"
               onClick={() => setCancelModal(true)}
             >
               Cancel
             </button>
             <button
-              className="w-full rounded bg-purple-gitcoinpurple py-3 px-6 text-sm text-white md:w-[139px]"
+              className="h-10 w-full rounded bg-purple-gitcoinpurple text-sm text-white md:w-36"
               onClick={createScorer}
               disabled={!gitcoinScoringMechanism || !deduplication || isLoading}
             >

@@ -5,9 +5,14 @@ import Footer from "./Footer";
 import PageWidthGrid from "./PageWidthGrid";
 
 export const PAGE_PADDING = "px-4 md:px-20";
-export const FOOTER_HEIGHT = "h-[120px]";
 export const CONTENT_MAX_WIDTH_INCLUDING_PADDING = "max-w-[1440px]";
 const CONTENT_MAX_WIDTH = "max-w-screen-xl";
+
+export type TopLevelPageParams = {
+  onUserError: (error: string | null) => void;
+  generateHeader: (Subheader?: React.ComponentType) => React.ComponentType;
+  generateFooter: (FooterOverride?: React.ComponentType) => React.ComponentType;
+};
 
 export const HeaderContentFooterGrid = ({
   children,
@@ -22,31 +27,6 @@ export const HeaderContentFooterGrid = ({
 export const GlobalLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="font-libre-franklin text-gray-400">{children}</div>
 );
-
-export const withHomePageLayout = (PageComponent: React.ComponentType) => {
-  const WrappedComponent = (props: any) => (
-    <GlobalLayout>
-      <div className="bg-purple-darkpurple">
-        <HeaderContentFooterGrid>
-          <Header mode="dark" className={PAGE_PADDING} />
-          <PageWidthGrid className="mt-6 h-full">
-            <PageComponent {...props} />
-          </PageWidthGrid>
-          <Footer mode="dark" className={PAGE_PADDING + " " + FOOTER_HEIGHT} />
-        </HeaderContentFooterGrid>
-      </div>
-    </GlobalLayout>
-  );
-
-  WrappedComponent.displayName = "withHomePageLayout";
-  return WrappedComponent;
-};
-
-export type TopLevelPageParams = {
-  onUserError: (error: string | null) => void;
-  generateHeader: (Subheader?: React.ComponentType) => React.ComponentType;
-  generateFooter: (FooterOverride?: React.ComponentType) => React.ComponentType;
-};
 
 // This is the way to use generics w/ arrow functions
 const withPageLayout = <P,>(PageComponent: React.ComponentType<P>) => {
@@ -71,9 +51,7 @@ const withPageLayout = <P,>(PageComponent: React.ComponentType<P>) => {
     const generateFooter = useCallback(
       (FooterOverride?: React.ComponentType) => {
         const CurrentFooter = FooterOverride || Footer;
-        return () => (
-          <CurrentFooter className={PAGE_PADDING + " " + FOOTER_HEIGHT} />
-        );
+        return () => <CurrentFooter className={PAGE_PADDING} />;
       },
       []
     );

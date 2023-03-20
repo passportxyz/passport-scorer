@@ -23,7 +23,9 @@ const Footer = ({ mode, className }: FooterProps): JSX.Element => {
   const assets = useMemo(() => getAssets(mode), [mode]);
 
   return (
-    <div className={`flex justify-between text-base ${className}`}>
+    <div
+      className={`flex h-[120px] items-center justify-between text-base ${className}`}
+    >
       <div className="">
         Available on
         <a

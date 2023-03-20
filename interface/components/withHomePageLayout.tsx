@@ -5,7 +5,6 @@ import Footer from "./Footer";
 import PageWidthGrid from "./PageWidthGrid";
 import {
   PAGE_PADDING,
-  FOOTER_HEIGHT,
   HeaderContentFooterGrid,
   GlobalLayout,
 } from "./withPageLayout";
@@ -19,7 +18,7 @@ const withHomePageLayout = (PageComponent: React.ComponentType) => {
           <PageWidthGrid className="mt-6 h-full">
             <PageComponent {...props} />
           </PageWidthGrid>
-          <Footer mode="dark" className={PAGE_PADDING + " " + FOOTER_HEIGHT} />
+          <Footer mode="dark" className={PAGE_PADDING} />
         </HeaderContentFooterGrid>
       </div>
     </GlobalLayout>
