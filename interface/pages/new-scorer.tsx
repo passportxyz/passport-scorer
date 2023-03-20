@@ -23,7 +23,7 @@ import {
 import { withPageLayout } from "../components/PageWidthGrid";
 
 import { useRouter } from "next/router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Header from "../components/Header";
 import { UseCaseInterface, useCases } from "../components/UseCaseModal";
 import { createCommunity } from "../utils/account-requests";
@@ -77,7 +77,13 @@ export const gitcoinScoringMechanisms: Array<GitcoinScoringMechanismInterface> =
     },
   ];
 
-const NewScorer = () => {
+type TopLevelPageParams = {
+  setSubheader: (subheader: React.ComponentType | null) => void;
+  setFooterOverride: (footer: React.ComponentType | null) => void;
+  onUserError: (error: string | null) => void;
+};
+
+const NewScorer = ({ setSubheader, setFooterOverride }: TopLevelPageParams) => {
   const router = useRouter();
   const toast = useToast();
   const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
@@ -105,12 +111,40 @@ const NewScorer = () => {
     }
   }, []);
 
-  const handleCancellation = () => {
+  useEffect(() => {
+    const Subheader = () => (
+      <div className="mt-0 flex w-full justify-between py-4">
+        <div>
+          <p className="text-xs text-purple-softpurple">
+            Select a Scoring Mechanism
+          </p>
+          <p className="my-2 text-purple-gitcoinpurple">
+            <Icon boxSize={19.5}>{useCase?.icon("#6F3FF5")}</Icon>{" "}
+            {useCase?.title}
+          </p>
+
+          <h1 className="mt-2.5 font-miriamlibre text-2xl">{name}</h1>
+          <p className="mt-2 text-purple-softpurple">{description}</p>
+        </div>
+        <div>
+          <p className="mb-2 text-xs text-purple-softpurple">Scorer ID</p>
+          <p>N/A</p>
+        </div>
+      </div>
+    );
+
+    setSubheader(Subheader);
+
+    const onDismount = () => setSubheader(null);
+    return onDismount;
+  }, [useCase, name, description]);
+
+  const handleCancellation = useCallback(() => {
     localStorage.removeItem("tempScorer");
     router.push("/dashboard/scorer");
-  };
+  }, []);
 
-  const createScorer = async () => {
+  const createScorer = useCallback(async () => {
     try {
       setIsLoading(true);
       await createCommunity({
@@ -155,92 +189,86 @@ const NewScorer = () => {
         ),
       });
     }
-  };
+  }, [name, description, useCase, deduplication, gitcoinScoringMechanism]);
 
-  const subheader = (
-    <div className="mt-0 flex w-full justify-between py-4">
-      <div>
-        <p className="text-xs text-purple-softpurple">
-          Select a Scoring Mechanism
-        </p>
-        <p className="my-2 text-purple-gitcoinpurple">
-          <Icon boxSize={19.5}>{useCase?.icon("#6F3FF5")}</Icon>{" "}
-          {useCase?.title}
-        </p>
-
-        <h1 className="mt-2.5 font-miriamlibre text-2xl">{name}</h1>
-        <p className="mt-2 text-purple-softpurple">{description}</p>
-      </div>
-      <div>
-        <p className="mb-2 text-xs text-purple-softpurple">Scorer ID</p>
-        <p>N/A</p>
-      </div>
-    </div>
-  );
-
-  const footer = (
-    <footer className="sticky bottom-0 w-full border-t border-gray-lightgray bg-white px-4 md:px-0">
-      <div className="container mx-auto overflow-hidden py-6 md:flex md:justify-end">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <button
-            className="order-last w-full rounded border border-gray-lightgray py-3 px-6 text-sm md:order-first md:w-[139px]"
-            onClick={() => setCancelModal(true)}
-          >
-            Cancel
-          </button>
-          <button
-            className="w-full rounded bg-purple-gitcoinpurple py-3 px-6 text-sm text-white md:w-[139px]"
-            onClick={createScorer}
-            disabled={!gitcoinScoringMechanism || !deduplication || isLoading}
-          >
-            Create Scorer
-          </button>
-        </div>
-      </div>
-      <Modal
-        isOpen={cancelModal}
-        isCentered={true}
-        size={{ base: "xs", md: "lg", lg: "lg", xl: "lg" }}
-        onClose={() => {}}
+  useEffect(() => {
+    const ScorerFooter = ({ className }: { className?: string }) => (
+      <footer
+        className={
+          `w-full border-t border-gray-lightgray bg-white py-6 ` + className
+        }
       >
-        <ModalOverlay />
-        <ModalContent>
-          <ModalBody>
-            <div className="py-6 text-purple-darkpurple">
-              <div className="flex items-center justify-center">
-                <div className="mb-4 flex h-12 w-12 justify-center rounded-full bg-[#FDDEE4]">
-                  <NoSymbolIcon className="w-7 text-[#D44D6E]" />
+        <div className="mx-auto overflow-hidden md:flex md:justify-end">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <button
+              className="order-last w-full rounded border border-gray-lightgray py-3 px-6 text-sm md:order-first md:w-[139px]"
+              onClick={() => setCancelModal(true)}
+            >
+              Cancel
+            </button>
+            <button
+              className="w-full rounded bg-purple-gitcoinpurple py-3 px-6 text-sm text-white md:w-[139px]"
+              onClick={createScorer}
+              disabled={!gitcoinScoringMechanism || !deduplication || isLoading}
+            >
+              Create Scorer
+            </button>
+          </div>
+        </div>
+        <Modal
+          isOpen={cancelModal}
+          isCentered={true}
+          size={{ base: "xs", md: "lg", lg: "lg", xl: "lg" }}
+          onClose={() => {}}
+        >
+          <ModalOverlay />
+          <ModalContent>
+            <ModalBody>
+              <div className="py-6 text-purple-darkpurple">
+                <div className="flex items-center justify-center">
+                  <div className="mb-4 flex h-12 w-12 justify-center rounded-full bg-[#FDDEE4]">
+                    <NoSymbolIcon className="w-7 text-[#D44D6E]" />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <p className="font-bold">Are you sure?</p>
+                  <p className="mt-2 text-purple-softpurple">
+                    Your scorer has not been saved, if you exit now your changes
+                    will not be saved.
+                  </p>
+                </div>
+                <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <button
+                    className="order-last w-full rounded border border-gray-lightgray py-2 px-6 text-base md:order-first"
+                    onClick={handleCancellation}
+                  >
+                    Exit Scorer
+                  </button>
+                  <button
+                    className="w-full rounded bg-purple-gitcoinpurple py-2 px-6 text-base text-white"
+                    onClick={() => setCancelModal(false)}
+                  >
+                    Continue Editing
+                  </button>
                 </div>
               </div>
-              <div className="text-center">
-                <p className="font-bold">Are you sure?</p>
-                <p className="mt-2 text-purple-softpurple">
-                  Your scorer has not been saved, if you exit now your changes
-                  will not be saved.
-                </p>
-              </div>
-              <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <button
-                  className="order-last w-full rounded border border-gray-lightgray py-2 px-6 text-base md:order-first"
-                  onClick={handleCancellation}
-                >
-                  Exit Scorer
-                </button>
-                <button
-                  className="w-full rounded bg-purple-gitcoinpurple py-2 px-6 text-base text-white"
-                  onClick={() => setCancelModal(false)}
-                >
-                  Continue Editing
-                </button>
-              </div>
-            </div>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-    </footer>
-  );
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      </footer>
+    );
 
-  const hr = <hr className="my-6 ml-0 md:ml-[267px] lg:ml-[389px]" />;
+    setFooterOverride(ScorerFooter);
+
+    const onDismount = () => setFooterOverride(null);
+    return onDismount;
+  }, [
+    cancelModal,
+    setCancelModal,
+    handleCancellation,
+    createScorer,
+    isLoading,
+  ]);
 
   return (
     <>

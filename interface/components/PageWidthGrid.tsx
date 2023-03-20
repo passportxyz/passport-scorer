@@ -3,10 +3,11 @@ import React, { useState } from "react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
-export const pagePadding = "px-4 md:px-20";
+const PAGE_PADDING = "px-4 md:px-20";
 
-const contentMaxWidth = "max-w-screen-xl";
-const contentMaxWidthIncludingPadding = "max-w-[1440px]";
+const FOOTER_HEIGHT = "h-[120px]";
+const CONTENT_MAX_WIDTH = "max-w-screen-xl";
+const CONTENT_MAX_WIDTH_INCLUDING_PADDING = "max-w-[1440px]";
 
 const PageWidthGrid = ({
   children,
@@ -16,7 +17,7 @@ const PageWidthGrid = ({
   className?: string;
 }) => (
   <div
-    className={`col-span-12 grid w-full grid-cols-4 gap-4 justify-self-center md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 ${className} ${pagePadding} ${contentMaxWidthIncludingPadding}`}
+    className={`col-span-12 grid w-full grid-cols-4 gap-4 justify-self-center md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 ${className} ${PAGE_PADDING} ${CONTENT_MAX_WIDTH_INCLUDING_PADDING}`}
   >
     {children}
   </div>
@@ -41,11 +42,11 @@ export const withHomePageLayout = (PageComponent: React.ComponentType) => {
     <GlobalLayout>
       <div className="bg-purple-darkpurple">
         <HeaderContentFooterGrid>
-          <Header mode="dark" className={pagePadding} />
+          <Header mode="dark" className={PAGE_PADDING} />
           <PageWidthGrid className="mt-6 h-full">
             <PageComponent {...props} />
           </PageWidthGrid>
-          <Footer mode="dark" className={pagePadding} />
+          <Footer mode="dark" className={PAGE_PADDING + " " + FOOTER_HEIGHT} />
         </HeaderContentFooterGrid>
       </div>
     </GlobalLayout>
@@ -59,17 +60,25 @@ export const withHomePageLayout = (PageComponent: React.ComponentType) => {
 export const withPageLayout = <P,>(PageComponent: React.ComponentType<P>) => {
   const WrappedComponent = (props: P) => {
     const [error, setError] = useState<string | null>(null);
-    const [subheader, setSubheader] = useState<React.ReactNode>("");
+    const [Subheader, setSubheader] = useState<React.ComponentType | null>(
+      null
+    );
+    const [FooterOverride, setFooterOverride] =
+      useState<React.ComponentType | null>(null);
+
+    const CurrentFooter = FooterOverride || Footer;
 
     return (
       <GlobalLayout>
         <div className="bg-gray-bluegray">
           <HeaderContentFooterGrid>
-            <div className={"border-b border-gray-300 bg-white " + pagePadding}>
+            <div
+              className={"border-b border-gray-300 bg-white " + PAGE_PADDING}
+            >
               <Header className="border-b border-b-gray-200 bg-white" />
-              <div className={"mx-auto w-full " + contentMaxWidth}>
+              <div className={"mx-auto w-full " + CONTENT_MAX_WIDTH}>
                 <div className="w-full bg-red-100">{error}</div>
-                {subheader}
+                {Subheader && <Subheader />}
               </div>
             </div>
             <PageWidthGrid className="mt-4 h-fit">
@@ -77,9 +86,10 @@ export const withPageLayout = <P,>(PageComponent: React.ComponentType<P>) => {
                 {...props}
                 onUserError={setError}
                 setSubheader={setSubheader}
+                setFooterOverride={setFooterOverride}
               />
             </PageWidthGrid>
-            <Footer className={pagePadding} />
+            <CurrentFooter className={PAGE_PADDING + " " + FOOTER_HEIGHT} />
           </HeaderContentFooterGrid>
         </div>
       </GlobalLayout>
