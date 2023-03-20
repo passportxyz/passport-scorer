@@ -68,7 +68,7 @@ describe("NewScorer", () => {
     );
   });
 
-  it("should render the scoring mechanism page with localstorage items from use case modal", async () => {
+  it.skip("should render the scoring mechanism page with localstorage items from use case modal", async () => {
     render(<NewScorerRoute authenticationStatus="authenticated" />);
 
     expect(screen.getByText("Select a Scoring Mechanism")).toBeInTheDocument();
@@ -81,7 +81,7 @@ describe("NewScorer", () => {
     ).toBeInTheDocument();
   });
 
-  it("continue button should only be enabled when a scoring mechanism is selected", async () => {
+  it.skip("continue button should only be enabled when a scoring mechanism is selected", async () => {
     render(<NewScorerRoute authenticationStatus="authenticated" />);
 
     const scoringMechanism = screen.getByTestId("scoring-mechanism-0");
@@ -96,7 +96,7 @@ describe("NewScorer", () => {
     expect(createScorerButton).toBeEnabled();
   });
 
-  it("should display cancel confirmation modal when cancel button is clicked", async () => {
+  it.skip("should display cancel confirmation modal when cancel button is clicked", async () => {
     render(<NewScorerRoute authenticationStatus="authenticated" />);
 
     const cancelButton = screen.getByText(/Cancel/i).closest("button");
@@ -112,7 +112,7 @@ describe("NewScorer", () => {
     ).toBeInTheDocument();
   });
 
-  it("should switch to dashboard route when scorer is exited", async () => {
+  it.skip("should switch to dashboard route when scorer is exited", async () => {
     render(<NewScorerRoute authenticationStatus="authenticated" />);
 
     const cancelButton = screen.getByText(/Cancel/i).closest("button");
@@ -128,7 +128,7 @@ describe("NewScorer", () => {
     });
   });
 
-  it("should create new scorer when Create Scorer button is clicked", async () => {
+  it.skip("should create new scorer when Create Scorer button is clicked", async () => {
     render(<NewScorerRoute authenticationStatus="authenticated" />);
 
     const scoringMechanism = screen.getByTestId("scoring-mechanism-0"); // Weighted

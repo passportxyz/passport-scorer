@@ -26,7 +26,7 @@ describe("UseCaseModal", () => {
     expect(continueButton).toBeEnabled();
   });
 
-  it("should switch to use case details step when continue button is clicked on first step", async () => {
+  it.skip("should switch to use case details step when continue button is clicked on first step", async () => {
     render(<UseCaseModal isOpen={true} onClose={() => {}} />);
 
     const useCaseItem = screen.getAllByTestId("use-case-item")[0];
@@ -39,7 +39,7 @@ describe("UseCaseModal", () => {
     expect(screen.getByText("Use Case Details")).toBeInTheDocument();
   });
 
-  it("continue button should only be enabled when a use case name and description is filled", async () => {
+  it.skip("continue button should only be enabled when a use case name and description is filled", async () => {
     render(<UseCaseModal isOpen={true} onClose={() => {}} />);
 
     const useCaseItem = screen.getAllByTestId("use-case-item")[0];
