@@ -128,6 +128,7 @@ const CommunityList = () => {
       )}
       <UseCaseModal
         isOpen={selectUseCaseModalOpen}
+        existingScorers={communities}
         onClose={() => setSelectUseCaseModalOpen(false)}
       />
     </>

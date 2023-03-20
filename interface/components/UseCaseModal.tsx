@@ -23,6 +23,7 @@ import {
   StatusOnlineIcon,
 } from "./CustomIcons";
 import { PrimaryBtn } from "./PrimrayBtn";
+import { Community } from "../utils/account-requests";
 
 export interface UseCaseInterface {
   icon: (fill?: string) => JSX.Element;
@@ -60,21 +61,13 @@ export const useCases: Array<UseCaseInterface> = [
   },
 ];
 
-export const useCaseByName: Map<string, UseCaseInterface> = new Map<
-  string,
-  UseCaseInterface
->(
-  useCases.map((obj) => {
-    return [obj.title, obj];
-  })
-);
-
 interface UseCaseModalProps {
   isOpen: boolean;
+  existingScorers: Community[];
   onClose: () => void;
 }
 
-const UseCaseModal = ({ isOpen, onClose }: UseCaseModalProps): JSX.Element => {
+const UseCaseModal = ({ isOpen, existingScorers, onClose }: UseCaseModalProps): JSX.Element => {
   const [wizardStep, setWizardStep] = useState(1);
   const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
     undefined
@@ -135,6 +128,7 @@ const UseCaseModal = ({ isOpen, onClose }: UseCaseModalProps): JSX.Element => {
               setScorerDescription={setScorerDescription}
               setWizardStep={setWizardStep}
               closeModal={closeModal}
+              existingScorers={existingScorers}
             />
           )}
         </ModalBody>
@@ -236,6 +230,7 @@ interface UseCaseDetailsProps {
   useCase: UseCaseInterface | undefined;
   scorerName: string;
   scorerDescription: string;
+  existingScorers: Community[];
   setScorerName: (name: string) => void;
   setScorerDescription: (description: string) => void;
   setWizardStep: (wizardStep: number) => void;
@@ -246,22 +241,36 @@ const UseCaseDetails = ({
   useCase,
   scorerName,
   scorerDescription,
+  existingScorers,
   setScorerName,
   setScorerDescription,
-  closeModal,
 }: UseCaseDetailsProps) => {
   const navigate = useNavigate();
+  const [useCaseError, setUseCaseError] = useState<string>();
+
+  const hasDuplicateName = () => {
+    const existingScorer = existingScorers.find((scorer) => scorer.name === scorerName)
+    if (existingScorer) {
+      setUseCaseError("A scorer with this name already exists");
+      return true;
+    } else {
+      setUseCaseError("");
+      return false;
+    }
+  };
 
   const switchToSelectMechanism = () => {
-    localStorage.setItem(
-      "tempScorer",
-      JSON.stringify({
-        useCase: useCases.indexOf(useCase!),
-        name: scorerName,
-        description: scorerDescription,
-      })
-    );
-    navigate("/new-scorer");
+    if (!hasDuplicateName()) {
+      localStorage.setItem(
+        "tempScorer",
+        JSON.stringify({
+          useCase: useCases.indexOf(useCase!),
+          name: scorerName,
+          description: scorerDescription,
+        })
+      );
+      navigate("/new-scorer");
+    }
   };
 
   return (
@@ -299,6 +308,9 @@ const UseCaseDetails = ({
           placeholder="Enter Use Case Description"
         />
       </div>
+      {useCaseError && (
+        <p className="pt-4 text-red-700">{useCaseError}</p>
+      )}
       <button
         className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
         onClick={switchToSelectMechanism}
