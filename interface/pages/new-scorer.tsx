@@ -20,14 +20,13 @@ import {
   AdjustmentsVerticalIcon,
 } from "@heroicons/react/24/outline";
 
-import PageWidthGrid, {
-  withPageLayout,
+import PageWidthGrid from "../components/PageWidthGrid";
+import withPageLayout, {
   TopLevelPageParams,
-} from "../components/PageWidthGrid";
+} from "../components/withPageLayout";
 
 import { useRouter } from "next/router";
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import Header from "../components/Header";
 import { UseCaseInterface, useCases } from "../components/UseCaseModal";
 import { createCommunity } from "../utils/account-requests";
 import { CloseIcon } from "@chakra-ui/icons";

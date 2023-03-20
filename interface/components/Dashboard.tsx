@@ -1,16 +1,11 @@
 // --- React components/methods
 import React, { useMemo } from "react";
 
-// --- Components
-import Header from "./Header";
-import Footer from "./Footer";
-
 import { DashboardTabs, TabToken } from "./DashboardTabs";
-
-import PageWidthGrid, {
-  withPageLayout,
+import PageWidthGrid from "../components/PageWidthGrid";
+import withPageLayout, {
   TopLevelPageParams,
-} from "./PageWidthGrid";
+} from "../components/withPageLayout";
 
 type DashboardProps = TopLevelPageParams & {
   activeTab: TabToken;

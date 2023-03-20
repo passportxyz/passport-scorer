@@ -6,7 +6,7 @@ import { UserContext } from "../context/userContext";
 import { useRouter } from "next/router";
 import { useToast } from "@chakra-ui/react";
 
-import PageWidthGrid, { withHomePageLayout } from "../components/PageWidthGrid";
+import withHomePageLayout from "../components/withHomePageLayout";
 
 const SIWEButton = ({
   className,
@@ -103,10 +103,10 @@ const Home = () => {
   return (
     <>
       {authenticationOverlay}
-      <div className="col-span-4 mb-14 md:self-center justify-self-center xl:col-span-6">
+      <div className="col-span-4 mb-14 justify-self-center md:self-center xl:col-span-6">
         {mainContent}
       </div>
-      <div className="col-span-4 h-full grid grid-rows-[1fr_auto] md:hidden">
+      <div className="col-span-4 grid h-full grid-rows-[1fr_auto] md:hidden">
         <div></div>
         <SIWEButton
           className="col-span-4 block md:hidden"
