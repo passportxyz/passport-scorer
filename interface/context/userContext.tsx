@@ -25,9 +25,9 @@ export const initialState: UserState = {
   authenticationError: false,
   authenticating: false,
   loginComplete: false,
-  login: async () => { },
-  logout: async () => { },
-  setUserWarning: (warning?: string) => { },
+  login: async () => {},
+  logout: async () => {},
+  setUserWarning: (warning?: string) => {},
 };
 
 export const UserContext = createContext(initialState);
@@ -49,9 +49,10 @@ export const UserProvider = ({ children }: { children: any }) => {
         authenticateWithScorerApi(firstWallet);
       })
       .catch((e) => {
+        console.log("Error when logging in:", e);
         // Indicate error connecting?
       });
-  };
+    };
 
   const logout = async () => {
     localStorage.removeItem("access-token");
@@ -132,6 +133,8 @@ export const UserProvider = ({ children }: { children: any }) => {
     (async () => {
       try {
         await setWalletFromLocalStorage();
+      } catch (error) {
+        console.log("Error: ", error);
       } finally {
         setReady(true);
       }

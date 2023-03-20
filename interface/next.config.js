@@ -2,12 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: false,
-  async redirects() {
+  async rewrites() {
     return [
+      // Rewrite everything else to use `pages/index`
       {
-        source: "/dashboard",
-        destination: "/dashboard/scorer",
-        permanent: true,
+        source: "/:path*",
+        destination: "/",
       },
     ];
   },
