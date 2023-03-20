@@ -119,8 +119,8 @@ const CommunityList = () => {
             >
               <AddIcon className="mr-1" /> Scorer
             </button>
-            <p className="ml-5 py-3 text-purple-softpurple">
-              The scorer limit is 5
+            <p className="ml-5 py-3 text-purple-softpurple text-xs">
+              The scorer limit is five.
             </p>
           </div>
           {error && <div>{error}</div>}
