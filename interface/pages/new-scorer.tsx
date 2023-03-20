@@ -244,14 +244,12 @@ const NewScorer = () => {
 
   return (
     <>
-      <p className="col-span-4 text-purple-softpurple md:col-span-3">
+      <p className="col-span-4 text-purple-softpurple md:col-span-6 lg:col-span-8 xl:col-span-12">
         Scoring mechanisms establish identity rules within Scorers. Scorers
         cannot be changed after creating them, but multiple Scorers can be
         created.
       </p>
-      {/* Spacing */}
-      <div className="md:col-span-3 lg:hidden" />
-      <div className="col-span-4 md:col-span-3">
+      <div className="col-span-4 md:col-span-6 lg:col-span-2 xl:col-span-3">
         <span className="text-xs">
           Select Deduplication
           <PopoverInfo>
@@ -271,37 +269,35 @@ const NewScorer = () => {
           </PopoverInfo>
         </span>
       </div>
-      {/* Spacing */}
-      <div className="md:col-span-3 lg:hidden" />
-      <div className="col-span-4 rounded border border-gray-lightgray bg-white p-6 text-purple-softpurple md:col-span-3">
-        <p className="mb-6 text-xs">
-          If duplicate Verified Credentials s are found, should Passport score
-          through the first or last one created?
-        </p>
-        <Select
-          iconColor="#0E0333"
-          className="w-full rounded border border-gray-lightgray px-4"
-          onChange={(e: any) => setDeduplication(e.target.value)}
-        >
-          <option value="LIFO">Last in first out (default)</option>
-          <option value="FIFO">First in first out</option>
-        </Select>
+      <div className="col-span-4 md:col-span-3 md:row-start-3 lg:col-span-2 lg:row-end-5 xl:col-span-3">
+        <div className="rounded border border-gray-lightgray bg-white p-6 text-purple-softpurple">
+          <p className="mb-6 text-xs">
+            If duplicate Verified Credentials s are found, should Passport score
+            through the first or last one created?
+          </p>
+          <Select
+            iconColor="#0E0333"
+            className="w-full rounded border border-gray-lightgray px-4"
+            onChange={(e: any) => setDeduplication(e.target.value)}
+          >
+            <option value="LIFO">Last in first out (default)</option>
+            <option value="FIFO">First in first out</option>
+          </Select>
+        </div>
       </div>
-      {/* Spacing */}
-      <div className="md:col-span-3 lg:hidden" />
-      <div className="col-span-4 md:col-span-3">
-        <p className="text-xs">
-          Gitcoin Scoring Mechanisms
+
+      <div className="col-span-4 md:col-span-6 xl:col-span-9">
+        <span className="text-xs">
+          Scoring Mechanisms
           <PopoverInfo>
             <span className="text-sm text-white">
               The scoring rules evaluate Passports based on the "Verifiable
               Credentials" (VCs), or "Stamps" they hold.
             </span>
           </PopoverInfo>
-        </p>
+        </span>
       </div>
-      {/* Spacing */}
-      <div className="md:col-span-3 lg:hidden" />
+
       {gitcoinScoringMechanisms.map((mechanism, index) => (
         <div
           key={index}
@@ -355,18 +351,6 @@ const NewScorer = () => {
           </div>
         </div>
       ))}
-      <div className="col-span-4 md:col-span-3">
-        <p className="text-xs">
-          Custom Scoring Mechanisms{" "}
-          <PopoverInfo>
-            <span className="text-sm text-white">
-              This scoring rule enables communities to evaluate Passports based
-              on the &quot;Verifiable Credentials&quot; (VCs), or
-              &quot;Stamps&quot;, they hold with custom weighting or importance.
-            </span>
-          </PopoverInfo>
-        </p>
-      </div>
       <div className="col-span-4 cursor-not-allowed rounded border border-gray-lightgray bg-white p-6 md:col-span-3">
         <div className="flex items-center justify-between">
           <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-lightgray">
