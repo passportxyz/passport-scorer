@@ -6,6 +6,7 @@ import {
   Route,
   useNavigate,
 } from "react-router-dom";
+import RequireAuth from "../components/RequireAuth";
 
 // --- Components
 import Header from "../components/Header";
@@ -60,26 +61,28 @@ export default function Home() {
 
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route
-          path="/dashboard/scorer"
-          element={
-            <Dashboard activeTab="scorer">
-              <CommunityList />
-            </Dashboard>
-          }
-        />
-        <Route
-          path="/dashboard/api-keys"
-          element={
-            <Dashboard activeTab="api-keys">
-              <APIKeyList />
-            </Dashboard>
-          }
-        />
-        <Route path="/new-scorer" element={<NewScorer />} />
-      </Routes>
+      <RequireAuth>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route
+            path="/dashboard/scorer"
+            element={
+              <Dashboard activeTab="scorer">
+                <CommunityList />
+              </Dashboard>
+            }
+          />
+          <Route
+            path="/dashboard/api-keys"
+            element={
+              <Dashboard activeTab="api-keys">
+                <APIKeyList />
+              </Dashboard>
+            }
+          />
+          <Route path="/new-scorer" element={<NewScorer />} />
+        </Routes>
+      </RequireAuth>
     </Router>
   );
 }

@@ -1,20 +1,21 @@
 // --- React components/methods
 import React, { useEffect, useContext } from "react";
 
-import { useRouter } from "next/router";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import { UserContext } from "../context/userContext";
 
 const RequireAuth = ({ children }: { children: React.ReactNode }) => {
-  const { pathname, push } = useRouter();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { ready, connected } = useContext(UserContext);
 
   // If the user is not connected, redirect to the home page
   useEffect(() => {
     if (pathname !== "/" && ready && !connected) {
-      push("/");
+      navigate("/");
     }
-  }, [ready, connected, pathname, push]);
+  }, [ready, connected, pathname, navigate]);
 
   return <>{children}</>;
 };

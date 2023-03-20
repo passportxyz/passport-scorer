@@ -12,7 +12,6 @@ import { ChakraProvider } from "@chakra-ui/react";
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import ManageAccountCenter from "../components/ManageAccountCenter";
-import RequireAuth from "../components/RequireAuth";
 
 import { UserProvider } from "../context/userContext";
 
@@ -32,13 +31,11 @@ export default function App({ Component, pageProps }: AppProps) {
       <UserProvider>
         <ChakraProvider>
           <ManageAccountCenter>
-            <RequireAuth>
-              <div suppressHydrationWarning>
-                {typeof window === "undefined" ? null : (
-                  <Component {...pageProps} />
-                )}
-              </div>{" "}
-            </RequireAuth>
+            <div suppressHydrationWarning>
+              {typeof window === "undefined" ? null : (
+                <Component {...pageProps} />
+              )}
+            </div>{" "}
           </ManageAccountCenter>
         </ChakraProvider>
       </UserProvider>
