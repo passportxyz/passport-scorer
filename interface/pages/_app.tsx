@@ -17,6 +17,7 @@ import RequireAuth from "../components/RequireAuth";
 import { UserProvider } from "../context/userContext";
 
 export default function App({ Component, pageProps }: AppProps) {
+  //  Following guide from https://colinhacks.com/essays/building-a-spa-with-nextjs to turn nextjs app into spa
   const [isServer, setIsServer] = useState(true);
   useEffect(() => {
     setIsServer(false);
