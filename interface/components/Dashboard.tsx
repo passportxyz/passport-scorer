@@ -64,7 +64,7 @@ const QuickLinks = () => {
       />
       <QuickLink
         text="Video Introduction"
-        url="/"
+        url="https://www.youtube.com/watch?v=ni7HKq2LcgY"
         icon={<PlayCircleIcon className={iconClassName} />}
         className={className}
       />
