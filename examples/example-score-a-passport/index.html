@@ -22,10 +22,10 @@
       <div id="scoringWithoutSignature">
         <p class="mt-3">
           <h4>Score without required signature</h4>
-          Enter your community ID and API key, which you can get from your
+          Enter your scorer ID and API key, which you can get from your
           <a href="https://scorer.gitcoin.co/">scoring dashboard</a>
         </p>
-        <input type="text" id="communityId" placeholder="Community ID" />
+        <input type="text" id="scorerId" placeholder="Scorer ID" />
         <input type="text" id="apiKey" placeholder="API Key" />
         <button type="button" class="submitForScoringButton btn btn-primary">
           Submit for scoring without signature
@@ -35,10 +35,10 @@
       <div id="scoringWithSignature">
         <p class="mt-3">
           <h4>Score with required signature</h4>
-          Enter your community ID and API key, which you can get from your
+          Enter your scorer ID and API key, which you can get from your
           <a href="https://scorer.gitcoin.co/">scoring dashboard</a>
         </p>
-        <input type="text" id="communityId" placeholder="Community ID" />
+        <input type="text" id="scorerId" placeholder="Scorer ID" />
         <input type="text" id="apiKey" placeholder="API Key" />
         <button type="button" class="submitForScoringButton btn btn-primary">
           Submit for scoring
@@ -60,7 +60,7 @@
       type="application/javascript"
     ></script>
     <script>
-      let communityId, apiKey;
+      let scorerId, apiKey;
 
       const endpoint = "https://api.scorer.gitcoin.co";
       // const endpoint = "https://api.scorer.dpopp.gitcoin.co";
@@ -95,7 +95,7 @@
         const passportScoreDisplay = document.querySelector("#scoringWithoutSignature .passportScore");
 
         passportScoreDisplay.innerHTML = "Calculating your score ..."
-        const communityId = document.querySelector("#scoringWithoutSignature #communityId").value;
+        const scorerId = document.querySelector("#scoringWithoutSignature #scorerId").value;
         const apiKey = document.querySelector("#scoringWithoutSignature #apiKey").value;
 
         if(!account) {
@@ -108,7 +108,7 @@
             endpoint + "/registry/submit-passport",
             {
               address: account,
-              community: communityId,
+              community: scorerId,
             },
             {
               headers: {
@@ -124,7 +124,7 @@
           if (score) {
             async function updateScore() {
               const response = await axios.get(
-                endpoint + `/registry/score/${communityId}/${account}`,
+                endpoint + `/registry/score/${scorerId}/${account}`,
                 {
                   headers: {
                     "Content-Type": "application/json",
@@ -161,7 +161,7 @@
         const passportScoreDisplay = document.querySelector("#scoringWithSignature .passportScore");
 
         passportScoreDisplay.innerHTML = "Calculating your score ..."
-        const communityId = document.querySelector("#scoringWithSignature #communityId").value;
+        const scorerId = document.querySelector("#scoringWithSignature #scorerId").value;
         const apiKey = document.querySelector("#scoringWithSignature #apiKey").value;
 
         if(!account) {
@@ -193,7 +193,7 @@
             endpoint + "/registry/submit-passport",
             {
               address: account,
-              community: communityId,
+              community: scorerId,
               signature: signedMessage,
               nonce: nonce,
             },
@@ -211,7 +211,7 @@
 
             async function updateScore() {
               const response = await axios.get(
-                endpoint + `/registry/score/${communityId}/${account}`,
+                endpoint + `/registry/score/${scorerId}/${account}`,
                 {
                   headers: {
                     "Content-Type": "application/json",
