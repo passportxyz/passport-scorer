@@ -1,6 +1,6 @@
 import { ExclamationCircleIcon } from "@heroicons/react/24/outline";
 
-export function Warning({
+export default function Warning({
   text,
   onDismiss,
   className,

@@ -301,7 +301,7 @@ const CommunityCard = ({
     <Icon boxSize={19.5}>{useCase.icon("#6F3FF5")}</Icon>
   ) : null;
   return (
-    <div className="flex-col px-4 py-4 sm:px-6">
+    <div className="flex-col px-4 py-4 md:px-6">
       <RenameModal
         isOpen={isRenameModalOpen}
         onClose={handleCloseRenameModal}

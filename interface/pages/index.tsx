@@ -1,32 +1,30 @@
 // --- React Methods
-import React, { useState, useRef, useContext, useEffect } from "react";
+import React, { useContext, useEffect } from "react";
 import {
   HashRouter as Router,
   Routes,
   Route,
-  useNavigate,
+  redirect,
 } from "react-router-dom";
 import RequireAuth from "../components/RequireAuth";
 
 // --- Components
-import Header from "../components/Header";
-import Footer from "../components/Footer";
 import Dashboard from "../components/Dashboard";
-import Community from "../components/Community";
 import CommunityList from "../components/CommunityList";
 import APIKeyList from "../components/APIKeyList";
-import NewScorer from "../pages/new-scorer";
-
-// --- Pages
-import LandingPage from "./landing";
+import NewScorer from "../components/NewScorer";
+import LandingPage from "../components/LandingPage";
 
 // --- Context
 import { UserContext } from "../context/userContext";
 import { useToast } from "@chakra-ui/react";
 
-export default function Home() {
-  const { connected, authenticating, login, loginComplete } =
-    useContext(UserContext);
+import PageLayout from "../components/PageLayout";
+import HomePageLayout from "../components/HomePageLayout";
+import NoMatch from "../components/NoMatch";
+
+const PageRouter = () => {
+  const { loginComplete } = useContext(UserContext);
   const toast = useToast();
 
   useEffect(() => {
@@ -59,30 +57,27 @@ export default function Home() {
     }
   }, [loginComplete]);
 
+  // Layout pattern from https://reactrouter.com/en/main/start/concepts#layout-routes
+
   return (
     <Router>
       <RequireAuth>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route
-            path="/dashboard/scorer"
-            element={
-              <Dashboard activeTab="scorer">
-                <CommunityList />
-              </Dashboard>
-            }
-          />
-          <Route
-            path="/dashboard/api-keys"
-            element={
-              <Dashboard activeTab="api-keys">
-                <APIKeyList />
-              </Dashboard>
-            }
-          />
-          <Route path="/new-scorer" element={<NewScorer />} />
+          <Route element={<HomePageLayout />}>
+            <Route path="/" element={<LandingPage />} />
+          </Route>
+          <Route element={<PageLayout />}>
+            <Route path="/dashboard" element={<Dashboard />}>
+              <Route path="/dashboard/scorer" element={<CommunityList />} />
+              <Route path="/dashboard/api-keys" element={<APIKeyList />} />
+            </Route>
+            <Route path="/new-scorer" element={<NewScorer />} />
+          </Route>
+          <Route path="*" element={<NoMatch />} />
         </Routes>
       </RequireAuth>
     </Router>
   );
-}
+};
+
+export default PageRouter;

@@ -1,25 +1,18 @@
 // --- React components/methods
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useMemo } from "react";
 
-// --- Components
-import Header from "./Header";
-import Footer from "./Footer";
+import DashboardTabs from "./DashboardTabs";
+import PageWidthGrid from "../components/PageWidthGrid";
+import { useTopLevelPageContext } from "../components/PageLayout";
 
-import { DashboardTabs, TabToken } from "./DashboardTabs";
+import { Outlet } from "react-router-dom";
 
-import { Warning } from "./Warning";
-import { UserContext } from "../context/userContext";
 import {
   BookOpenIcon,
   CommandLineIcon,
   FlagIcon,
   PlayCircleIcon,
 } from "@heroicons/react/24/solid";
-
-type DashboardProps = {
-  activeTab: TabToken;
-  children: React.ReactNode;
-};
 
 const QuickLink = ({
   text,
@@ -32,47 +25,50 @@ const QuickLink = ({
   url?: string;
   className?: string;
 }) => (
-  <div
-    className={`flex w-full flex-row items-center justify-start border-gray-200  bg-white p-5 ${(url ? "cursor-pointer " : " ") + className
+  <a href={url} target="_blank" rel="noreferrer">
+    <div
+      className={`flex w-full flex-row items-center justify-start border-gray-lightgray  bg-white p-5 ${
+        (url ? "cursor-pointer " : " ") + className
       }`}
-  >
-    {icon}
-    {text}
-  </div>
+    >
+      <span className="mr-2">{icon}</span>
+      {text}
+    </div>
+  </a>
 );
 
-const QuickLinks = () => {
-  const className = "border-b";
+const QuickLinks = ({ className }: { className: string }) => {
+  const linkClassName = "border-x border-t";
   const iconClassName = "mr-2 w-3.5";
   return (
-    <div className="w-full">
+    <div className={`w-full ${className}`}>
       <QuickLink
         text="Quick Links"
-        className={className + " text-xs text-gray-500"}
+        className={linkClassName + " rounded-t-md pt-6 text-xs text-gray-500"}
       />
       <QuickLink
         text="Quick Start Guide"
         url="https://docs.passport.gitcoin.co/building-with-passport/quick-start-guide"
         icon={<FlagIcon className={iconClassName} />}
-        className={className}
+        className={linkClassName}
       />
       <QuickLink
         text="Passport Documentation"
         url="https://docs.passport.gitcoin.co/"
         icon={<CommandLineIcon className={iconClassName} />}
-        className={className}
+        className={linkClassName}
       />
       <QuickLink
         text="Video Introduction"
         url="https://www.youtube.com/watch?v=ni7HKq2LcgY"
         icon={<PlayCircleIcon className={iconClassName} />}
-        className={className}
+        className={linkClassName}
       />
       <QuickLink
         text="Scorer Documentation"
         url="https://docs.passport.gitcoin.co/building-with-passport/scorer-api"
         icon={<BookOpenIcon className={iconClassName} />}
-        className={className + " border-b-0"}
+        className={linkClassName + " rounded-b-md border-b"}
       />
     </div>
   );
@@ -80,56 +76,63 @@ const QuickLinks = () => {
 
 const SampleApplications = ({ className }: { className?: string }) => {
   return (
-    <div className={"text-base " + className}>
-      <QuickLink text="Sample Applications" className="text-xs text-gray-500" />
-      <QuickLink text="Gitcoin Passports Sample App" url="/" />
-      <QuickLink text="Gitcoin Allo Protocol" url="/" />
+    <div className={"border-gray-lightgray text-base " + className}>
+      <QuickLink
+        text="Sample Applications"
+        className="rounded-t-md border-x border-t pt-6 text-xs text-gray-500"
+      />
+      <QuickLink
+        text="Gitcoin Passport Sample App"
+        url="https://github.com/gitcoinco/passport-scorer/tree/main/examples/example-score-a-passport"
+        className="border-x"
+      />
+      <QuickLink
+        text="Gitcoin Allo Protocol"
+        className="rounded-b-md border-x border-b"
+        url="https://github.com/gitcoinco/grants-stack/blob/45b6a3a00beb05090e039be2551a06636e873fbc/packages/grant-explorer/src/features/round/PassportConnect.tsx"
+      />
     </div>
   );
 };
 
-export default function Dashboard({ activeTab, children }: DashboardProps) {
-  const { userWarning, setUserWarning } = useContext(UserContext);
+export const Subheader = ({}) => {
   return (
-    <div className="font-libre-franklin flex min-h-default flex-col justify-between bg-gray-bluegray text-gray-400">
-      {/* The top part of the page */}
-      <div className="bg-white">
-        <Header className="mx-4 border-b border-b-gray-200 bg-white pb-4 sm:mx-20" />
-        {userWarning && (
-          <div className="w-full bg-red-100">
-            <Warning text={userWarning} onDismiss={() => setUserWarning()} />
-          </div>
-        )}
-        <div className="my-6 w-full bg-white px-4 sm:px-20">
-          <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
-            Gitcoin Passport Scorer
-          </h1>
-          <p className="mt-2 font-librefranklin">
-            A Scorer is used to score Passports. An API key is required to
-            access those scores.
-          </p>
-        </div>
-      </div>
-      {/* The mid part of the page */}
-      <div className="flex grow flex-col items-center justify-between border-t border-gray-300 px-4 pt-4 sm:px-20 md:flex-row md:items-start md:pt-6">
-        {/* Main content - left */}
-        <div className="w-48 flex-col items-start self-start">
-          <DashboardTabs activeTab={activeTab} />
-        </div>
-
-        {/* Main content - center */}
-        <div className="my-6 grow self-stretch md:mx-6 md:my-0">
-          {children} <hr className="mt-8 mb-2 md:hidden" />
-        </div>
-
-        {/* Main content - right */}
-        <div className="w-full flex-col self-stretch text-sm md:max-w-xs">
-          <QuickLinks />
-          <SampleApplications className="mt-6" />
-        </div>
-      </div>
-      {/* Bottom */}
-      <Footer className="px-4 sm:px-20" />
+    <div className="my-6 w-full">
+      <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
+        Gitcoin Passport Scorer
+      </h1>
+      <p className="mt-2 font-librefranklin">
+        A Scorer is used to score Passports. An API key is required to access
+        those scores.
+      </p>
     </div>
   );
-}
+};
+
+const Dashboard = () => {
+  const { generateHeader, generateFooter } = useTopLevelPageContext();
+  const PageHeader = useMemo(() => generateHeader(Subheader), [generateHeader]);
+  const PageFooter = useMemo(() => generateFooter(), [generateFooter]);
+
+  return (
+    <>
+      <PageHeader />
+      <PageWidthGrid className="mt-4 h-fit">
+        <DashboardTabs className="col-span-2 col-start-1 flex-col items-start xl:row-span-2" />
+
+        {/* Spacer in lg */}
+        <div className="lg:col-span-6 xl:hidden" />
+
+        <div className="col-span-4 md:col-span-6 lg:col-span-5 lg:row-span-2 xl:col-span-7">
+          <Outlet />
+        </div>
+
+        <QuickLinks className="col-span-4 md:col-span-3" />
+        <SampleApplications className="col-span-4 md:col-span-3" />
+      </PageWidthGrid>
+      <PageFooter />
+    </>
+  );
+};
+
+export default Dashboard;

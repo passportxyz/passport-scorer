@@ -21,7 +21,7 @@ const PopoverInfo = ({ children }: { children: React.ReactNode }) => {
           <PopoverArrow bg="#0E0333" />
           <PopoverCloseButton />
           <PopoverBody bg="#0E0333" borderRadius={4}>
-            {children}
+            <div className="px-1 text-sm text-white">{children}</div>
           </PopoverBody>
         </PopoverContent>
       </Portal>

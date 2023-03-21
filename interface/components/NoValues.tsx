@@ -19,7 +19,7 @@ const NoValues = ({
   addActionText,
 }: NoValuesProps): JSX.Element => {
   return (
-    <div className="mb-10 mt-12 grid h-full grid-cols-1 place-items-center">
+    <div className="grid h-full grid-cols-1 place-items-center py-6">
       <div className="flex flex-col md:max-w-md">
         <div className="w-100 flex flex-col items-center">
           <div className="mb-6 w-fit rounded-full bg-white p-3 text-purple-gitcoinpurple">

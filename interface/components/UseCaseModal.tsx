@@ -200,7 +200,7 @@ const SelectUseCase = ({
             onClick={() => setUseCase(item)}
             data-testid="use-case-item"
             className={
-              "cursor-pointer rounded border bg-white px-6 py-5 shadow-sm hover:border-purple-gitcoinpurple focus:outline-none md:mt-2 " +
+              "cursor-pointer rounded border bg-white px-6 py-4 shadow-sm hover:border-purple-gitcoinpurple focus:outline-none md:mt-2 " +
               (useCase?.title === item.title
                 ? "border-purple-gitcoinpurple"
                 : "border-gray-300")
@@ -212,7 +212,7 @@ const SelectUseCase = ({
               </div>
               <div className="min-w-0 flex-1 text-xs">
                 <span className="absolute inset-0" aria-hidden="true" />
-                <p className="text-purple-darkpurple">{item.title}</p>
+                <p className="mb-2 text-purple-darkpurple">{item.title}</p>
                 <p className="text-gray-500">{item.description}</p>
               </div>
             </div>
