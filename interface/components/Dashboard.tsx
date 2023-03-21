@@ -82,14 +82,14 @@ const SampleApplications = ({ className }: { className?: string }) => {
         className="rounded-t-md border-x border-t pt-6 text-xs text-gray-500"
       />
       <QuickLink
-        text="Gitcoin Passports Sample App"
-        url="/"
+        text="Gitcoin Passport Sample App"
+        url="https://github.com/gitcoinco/passport-scorer/tree/main/examples/example-score-a-passport"
         className="border-x"
       />
       <QuickLink
         text="Gitcoin Allo Protocol"
         className="rounded-b-md border-x border-b"
-        url="/"
+        url="https://github.com/gitcoinco/grants-stack/blob/45b6a3a00beb05090e039be2551a06636e873fbc/packages/grant-explorer/src/features/round/PassportConnect.tsx"
       />
     </div>
   );
