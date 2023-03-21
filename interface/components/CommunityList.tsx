@@ -110,7 +110,7 @@ const CommunityList = () => {
           <div className="mt-5 flex flex-wrap">
             <button
               className={
-                "rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white flex" +
+                "flex rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white" +
                 (communities.length >= 5
                   ? " cursor-not-allowed disabled:bg-gray-lightgray disabled:text-purple-darkpurple"
                   : "")
@@ -124,7 +124,7 @@ const CommunityList = () => {
             >
               <AddIcon className="mr-3 self-center" /> Scorer
             </button>
-            <p className="ml-5 py-3 text-purple-softpurple text-xs self-center">
+            <p className="ml-5 self-center py-3 text-xs text-purple-softpurple">
               The scorer limit is five.
             </p>
           </div>

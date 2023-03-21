@@ -73,12 +73,18 @@ const PageLayout = () => {
   const generateHeader = useCallback(
     (Subheader?: React.ComponentType) => {
       return () => (
-        <div className={"border-b border-gray-300 bg-white " + PAGE_PADDING}>
-          <Header className="border-b border-b-gray-200 bg-white" />
-          <div className={"mx-auto w-full " + CONTENT_MAX_WIDTH}>
+        <div className={"border-b border-gray-300 bg-white"}>
+          <div className={`w-full bg-white ${PAGE_PADDING}`}>
+            <Header className={Subheader ? "border-b border-b-gray-200" : ""} />
+          </div>
+          <div className={`w-full bg-red-100 ${PAGE_PADDING}`}>
             {userWarning && (
               <Warning text={userWarning} onDismiss={() => setUserWarning()} />
             )}
+          </div>
+          <div
+            className={`mx-auto w-full ${PAGE_PADDING} ${CONTENT_MAX_WIDTH_INCLUDING_PADDING}`}
+          >
             {Subheader && <Subheader />}
           </div>
         </div>

@@ -11,7 +11,11 @@ import {
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
 import { UserContext } from "../context/userContext";
-import { ApiKeyCreateModal, ApiKeyUpdateModal, ApiKeyDeleteModal } from "./ApiKeyModal";
+import {
+  ApiKeyCreateModal,
+  ApiKeyUpdateModal,
+  ApiKeyDeleteModal,
+} from "./ApiKeyModal";
 import {
   CheckIcon,
   ClipboardDocumentIcon,
@@ -112,14 +116,17 @@ const APIKeyList = () => {
     return <div>{error}</div>;
   }
 
+  const userInstructions = (
+    <p className="pb-6">
+      Use these API keys to programmatically access a Scorer.
+    </p>
+  );
+
   return (
     <>
       {apiKeys.length === 0 ? (
-        <div className="h-full">
-          <div className="mx-auto text-center text-purple-softpurple">
-            The API&#39;s keys are unique to your wallet address and can be used
-            to access created Scorers.
-          </div>
+        <div className="lg:h-full">
+          {userInstructions}
           <NoValues
             title="Generate API Keys"
             description="Interact with the Scorer(s) created via your API key. The key limit is five."
@@ -130,16 +137,16 @@ const APIKeyList = () => {
         </div>
       ) : (
         <>
-          <p className="pb-6">
-            Use these API keys to programmatically access a Scorer.
-          </p>
           <div className="flex w-full flex-col">
+            {userInstructions}
             {apiKeys.map((key, i) => (
               <div
                 key={`${key.id}-${i}`}
-                className={`flex ${key.api_key && "flex-col"} w-full items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50`}
+                className={`flex ${
+                  key.api_key && "flex-col"
+                } w-full items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50`}
               >
-                <div className="flex w-full justify-between items-center">
+                <div className="flex w-full items-center justify-between">
                   <div className="justify-self-center text-purple-darkpurple md:justify-self-start">
                     <p>{key.name}</p>
                   </div>
@@ -153,14 +160,16 @@ const APIKeyList = () => {
                           </p>
                         ) : (
                           <>
-                            <p className="pr-3 text-xs text-purple-darkpurple hidden md:inline-block">
+                            <p className="hidden pr-3 text-xs text-purple-darkpurple md:inline-block">
                               {key.api_key}
                             </p>
                             <button
                               className="mb-1"
                               data-testid="copy-api-key"
                               onClick={async () => {
-                                await navigator.clipboard.writeText(key.api_key!);
+                                await navigator.clipboard.writeText(
+                                  key.api_key!
+                                );
                                 const updatedKeys = apiKeys.map((k) =>
                                   k.api_key === key.api_key
                                     ? { ...k, copied: true }
@@ -194,16 +203,14 @@ const APIKeyList = () => {
                         <MenuItem onClick={() => setApiKeyToUpdate(key.id)}>
                           Rename
                         </MenuItem>
-                        <MenuItem
-                          onClick={() => setApiKeyToDelete(key.id)}
-                        >
+                        <MenuItem onClick={() => setApiKeyToDelete(key.id)}>
                           Delete
                         </MenuItem>
                       </MenuList>
                     </Menu>
                   </div>
                 </div>
-                <p className="block md:hidden max-w-[100%] overflow-hidden">
+                <p className="block max-w-[100%] overflow-hidden md:hidden">
                   {key.api_key && (
                     <div className="flex items-center pr-5 pl-1">
                       {!key.copied && (
@@ -221,7 +228,7 @@ const APIKeyList = () => {
             <button
               data-testid="open-api-key-modal"
               className={
-                "rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white flex" +
+                "flex rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white" +
                 (apiKeys.length >= 5
                   ? " cursor-not-allowed disabled:bg-gray-lightgray disabled:text-purple-darkpurple"
                   : "")
@@ -229,7 +236,7 @@ const APIKeyList = () => {
               onClick={() => setCreateApiKeyModal(true)}
               disabled={apiKeys.length >= 5}
             >
-              <PlusIcon className="mr-2 inline w-6 align-middle self-center" />
+              <PlusIcon className="mr-2 inline w-6 self-center align-middle" />
               API Key
             </button>
             <p className="ml-6 text-xs text-purple-softpurple">
