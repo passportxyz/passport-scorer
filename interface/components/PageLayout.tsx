@@ -44,7 +44,7 @@ import Header from "./Header";
 import Footer from "./Footer";
 import Warning from "./Warning";
 
-export const PAGE_PADDING = "px-4 md:px-20";
+export const PAGE_PADDING = "px-4 md:px-10 lg:px-20";
 export const CONTENT_MAX_WIDTH_INCLUDING_PADDING = "max-w-[1440px]";
 const CONTENT_MAX_WIDTH = "max-w-screen-xl";
 
@@ -67,7 +67,6 @@ export const GlobalLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="font-libre-franklin text-gray-400">{children}</div>
 );
 
-// This is the way to use generics w/ arrow functions
 const PageLayout = () => {
   const { userWarning, setUserWarning } = useContext(UserContext);
 

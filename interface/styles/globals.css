@@ -26,9 +26,15 @@
   --onboard-action-required-btn-text-color: #fff;
 }
 
-@media (max-width: 480px /* sm */) {
+@media (max-width: 1020px /* md */) {
   :root {
-    --account-center-position-right: 0rem;
+    --account-center-position-right: 24px;
+  }
+}
+
+@media (max-width: 480px /* base */) {
+  :root {
+    --account-center-position-right: 0px;
     --onboard-modal-top: 0;
   }
 }
