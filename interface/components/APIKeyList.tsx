@@ -220,7 +220,7 @@ const APIKeyList = () => {
             <button
               data-testid="open-api-key-modal"
               className={
-                "rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white" +
+                "rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white flex" +
                 (apiKeys.length >= 5
                   ? " cursor-not-allowed disabled:bg-gray-lightgray disabled:text-purple-darkpurple"
                   : "")
@@ -228,7 +228,7 @@ const APIKeyList = () => {
               onClick={() => setCreateApiKeyModal(true)}
               disabled={apiKeys.length >= 5}
             >
-              <PlusIcon className="mr-2 inline w-6 align-middle" />
+              <PlusIcon className="mr-2 inline w-6 align-middle self-center" />
               API Key
             </button>
             <p className="ml-6 text-xs text-purple-softpurple">

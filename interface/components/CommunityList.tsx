@@ -109,7 +109,7 @@ const CommunityList = () => {
 
           <div className="mt-5 flex flex-wrap">
             <button
-              className="rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white cursor-not-allowed disabled:bg-gray-lightgray disabled:text-purple-darkpurple"
+              className="rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white cursor-not-allowed disabled:bg-gray-lightgray disabled:text-purple-darkpurple flex"
               onClick={() => {
                 setSelectUseCaseModalOpen(true);
               }}
@@ -117,9 +117,9 @@ const CommunityList = () => {
                 communityLoadingStatus !== "done" || communities.length >= 5
               }
             >
-              <AddIcon className="mr-1" /> Scorer
+              <AddIcon className="mr-3 self-center" /> Scorer
             </button>
-            <p className="ml-5 py-3 text-purple-softpurple text-xs">
+            <p className="ml-5 py-3 text-purple-softpurple text-xs self-center">
               The scorer limit is five.
             </p>
           </div>
