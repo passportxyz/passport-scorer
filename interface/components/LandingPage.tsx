@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 
 // --- Context
 import { UserContext } from "../context/userContext";
-import { useToast } from "@chakra-ui/react";
 
 const SIWEButton = ({
   className,
@@ -32,9 +31,7 @@ const SIWEButton = ({
 };
 
 const LandingPage = () => {
-  const { connected, authenticating, login, loginComplete } =
-    useContext(UserContext);
-  const toast = useToast();
+  const { connected, authenticating, login } = useContext(UserContext);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,36 +39,6 @@ const LandingPage = () => {
       navigate("dashboard/scorer");
     }
   }, [connected]);
-
-  useEffect(() => {
-    if (loginComplete) {
-      toast({
-        duration: 5000,
-        isClosable: true,
-        render: (result: any) => (
-          <div className="flex justify-between rounded-md bg-blue-darkblue p-4 text-white">
-            <span className="step-icon step-icon-completed flex h-9 items-center">
-              <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-teal-600">
-                <img
-                  alt="completed icon"
-                  className="sticky top-0 h-6"
-                  src="/assets/white-check-icon.svg"
-                />
-              </span>
-            </span>
-            <p className="py-1 px-3">Ethereum account has been validated.</p>
-            <button className="sticky top-0" onClick={result.onClose}>
-              <img
-                alt="close button"
-                className="rounded-lg hover:bg-gray-500"
-                src="/assets/x-icon.svg"
-              />
-            </button>
-          </div>
-        ),
-      });
-    }
-  }, [loginComplete]);
 
   const authenticationOverlay = authenticating && (
     <div className="absolute top-0 left-0 z-10 h-screen w-full bg-black bg-opacity-60" />
