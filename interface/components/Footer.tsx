@@ -47,7 +47,7 @@ const Footer = ({ mode, className }: FooterProps): JSX.Element => {
           <img src={assets.githubLogo} alt="Github Logo" />
         </a>
         <a
-          href="https://docs.passport.gitcoin.co/gitcoin-passport-sdk/getting-started"
+          href="https://docs.passport.gitcoin.co/building-with-passport/quick-start-guide"
           target="_blank"
           rel="noopener noreferrer"
           className=""
