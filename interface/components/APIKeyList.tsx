@@ -11,7 +11,7 @@ import {
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
 import { UserContext } from "../context/userContext";
-import { ApiKeyCreateModal, ApiKeyUpdateModal } from "./ApiKeyModal";
+import { ApiKeyCreateModal, ApiKeyUpdateModal, ApiKeyDeleteModal } from "./ApiKeyModal";
 import {
   CheckIcon,
   ClipboardDocumentIcon,
@@ -38,6 +38,7 @@ const APIKeyList = () => {
   const [error, setError] = useState<undefined | string>();
   const [apiKeys, setApiKeys] = useState<ApiKeyDisplay[]>([]);
   const [createApiKeyModal, setCreateApiKeyModal] = useState(false);
+  const [apiKeyToDelete, setApiKeyToDelete] = useState<string | undefined>();
   const [apiKeyToUpdate, setApiKeyToUpdate] = useState<string | undefined>();
   const { logout, setUserWarning } = useContext(UserContext);
   const toast = useToast();
@@ -194,7 +195,7 @@ const APIKeyList = () => {
                           Rename
                         </MenuItem>
                         <MenuItem
-                          onClick={async () => await handleDeleteApiKey(key.id)}
+                          onClick={() => setApiKeyToDelete(key.id)}
                         >
                           Delete
                         </MenuItem>
@@ -250,7 +251,14 @@ const APIKeyList = () => {
         apiKeyId={apiKeyToUpdate ?? ""}
         onUpdateApiKey={handleUpdateApiKey}
       />
+      <ApiKeyDeleteModal
+        isOpen={apiKeyToDelete !== undefined}
+        onClose={() => setApiKeyToDelete(undefined)}
+        apiKeyId={apiKeyToDelete ?? ""}
+        onDeleteApiKey={handleDeleteApiKey}
+      />
     </>
   );
 };
+
 export default APIKeyList;

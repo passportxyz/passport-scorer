@@ -109,7 +109,12 @@ const CommunityList = () => {
 
           <div className="mt-5 flex flex-wrap">
             <button
-              className="rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white cursor-not-allowed disabled:bg-gray-lightgray disabled:text-purple-darkpurple flex"
+              className={
+                "rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white flex" +
+                (communities.length >= 5
+                  ? " cursor-not-allowed disabled:bg-gray-lightgray disabled:text-purple-darkpurple"
+                  : "")
+              }
               onClick={() => {
                 setSelectUseCaseModalOpen(true);
               }}
