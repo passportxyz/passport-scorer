@@ -2,7 +2,8 @@ import {
   Input,
   Text,
 } from "@chakra-ui/react";
-import { KeyIcon } from "@heroicons/react/24/outline";
+import { KeyIcon, NoSymbolIcon } from "@heroicons/react/24/outline";
+import { SpinnerIcon } from "./CustomIcons";
 import { useContext, useState } from "react";
 import { UserContext } from "../context/userContext";
 import { ApiKeys, createApiKey } from "../utils/account-requests";
@@ -174,5 +175,78 @@ export function ApiKeyUpdateModal({
         )}
       </div>
     </ModalTemplate>
+  );
+}
+
+export type ApiKeyDeleteModalProps = {
+  isOpen: boolean;
+  apiKeyId: ApiKeys["id"];
+  onClose: () => void;
+  onDeleteApiKey: (apiKeyId: ApiKeys["id"]) => void;
+}
+
+export function ApiKeyDeleteModal({
+  isOpen,
+  apiKeyId,
+  onClose,
+  onDeleteApiKey,
+}: ApiKeyDeleteModalProps) {
+  const [deleteError, setError] = useState<string>("");
+  const [inProgress, setInProgress] = useState(false);
+
+  const closeAndReset = () => {
+    setError("");
+    onClose();
+  };
+
+  const deleteApiKey = async () => {
+    setInProgress(true);
+    try {
+      await onDeleteApiKey(apiKeyId);
+    } catch (e) { }
+    setInProgress(false);
+    onClose();
+  };
+
+  return (
+    <ModalTemplate
+      isOpen={isOpen}
+      onClose={closeAndReset}
+    >
+      <div className="-mt-8 py-6 text-purple-darkpurple">
+        <div className="flex items-center justify-center">
+          <div className="mb-4 flex h-12 w-12 justify-center rounded-full bg-[#FDDEE4]">
+            <NoSymbolIcon className="w-7 text-[#D44D6E]" />
+          </div>
+        </div>
+        <div className="text-center">
+          <p className="font-bold">Are you sure?</p>
+          <p className="mt-2 text-purple-softpurple">
+            This will permanantly delete your scorer.
+            <br />
+            Are you sure you want to continue?
+          </p>
+        </div>
+        <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <button
+            className="order-last w-full rounded border border-gray-lightgray py-2 px-6 text-base md:order-first"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            className="flex w-full justify-center rounded bg-purple-gitcoinpurple py-2 px-6 text-base text-white"
+            onClick={deleteApiKey}
+            disabled={inProgress}
+          >
+            <SpinnerIcon inProgress={inProgress}></SpinnerIcon>
+            Confirm Deletion
+          </button>
+          {deleteError.length > 0 && (
+            <p className="pt-4 text-red-700">{deleteError}</p>
+          )}
+        </div>
+      </div>
+    </ModalTemplate >
   );
 }
