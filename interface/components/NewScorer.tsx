@@ -131,7 +131,7 @@ const NewScorer = () => {
   const handleCancellation = useCallback(() => {
     localStorage.removeItem("tempScorer");
     navigate("/dashboard/scorer");
-  }, []);
+  }, [navigate]);
 
   const createScorer = useCallback(async () => {
     try {
@@ -178,7 +178,15 @@ const NewScorer = () => {
         ),
       });
     }
-  }, [name, description, useCase, deduplication, gitcoinScoringMechanism]);
+  }, [
+    name,
+    description,
+    useCase,
+    deduplication,
+    gitcoinScoringMechanism,
+    navigate,
+    toast,
+  ]);
 
   const PageFooter = useMemo(() => {
     const FooterOverride = ({ className }: { className?: string }) => (
@@ -255,6 +263,8 @@ const NewScorer = () => {
     createScorer,
     isLoading,
     generateFooter,
+    deduplication,
+    gitcoinScoringMechanism,
   ]);
 
   return (
@@ -302,8 +312,8 @@ const NewScorer = () => {
         <div className="col-span-4 md:col-span-6 xl:col-span-9">
           <span className="mr-1 text-xs">Scoring Mechanisms</span>
           <PopoverInfo>
-            The scoring rules evaluate Passports based on the "Verifiable
-            Credentials" (VCs), or "Stamps" they hold.
+            The scoring rules evaluate Passports based on the &quot;Verifiable
+            Credentials&quot; (VCs), or &quot;Stamps&quot; they hold.
           </PopoverInfo>
         </div>
 

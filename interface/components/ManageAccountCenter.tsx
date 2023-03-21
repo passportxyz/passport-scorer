@@ -41,7 +41,7 @@ const ManageAccountCenter = ({ children }: { children: React.ReactNode }) => {
       window.removeEventListener("scroll", onEvent);
       window.removeEventListener("resize", onEvent);
     };
-  }, []);
+  }, [updateAccountCenter]);
 
   return <>{children}</>;
 };

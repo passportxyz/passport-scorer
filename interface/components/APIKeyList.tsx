@@ -117,9 +117,9 @@ const APIKeyList = () => {
   }
 
   const userInstructions = (
-    <p className="pb-6">
+    <span className="pb-6">
       Use these API keys to programmatically access a Scorer.
-    </p>
+    </span>
   );
 
   return (
@@ -210,7 +210,7 @@ const APIKeyList = () => {
                     </Menu>
                   </div>
                 </div>
-                <p className="block max-w-[100%] overflow-hidden md:hidden">
+                <div className="block max-w-[100%] overflow-hidden md:hidden">
                   {key.api_key && (
                     <div className="flex items-center pr-5 pl-1">
                       {!key.copied && (
@@ -220,7 +220,7 @@ const APIKeyList = () => {
                       )}
                     </div>
                   )}
-                </p>
+                </div>
               </div>
             ))}
           </div>

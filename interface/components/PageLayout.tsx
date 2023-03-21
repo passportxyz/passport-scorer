@@ -72,7 +72,7 @@ const PageLayout = () => {
 
   const generateHeader = useCallback(
     (Subheader?: React.ComponentType) => {
-      return () => (
+      const GeneratedHeader = () => (
         <div className={"border-b border-gray-300 bg-white"}>
           <div className={`w-full bg-white ${PAGE_PADDING}`}>
             <Header className={Subheader ? "border-b border-b-gray-200" : ""} />
@@ -89,13 +89,15 @@ const PageLayout = () => {
           </div>
         </div>
       );
+      return GeneratedHeader;
     },
-    [userWarning]
+    [userWarning, setUserWarning]
   );
 
   const generateFooter = useCallback((FooterOverride?: React.ComponentType) => {
     const CurrentFooter = FooterOverride || Footer;
-    return () => <CurrentFooter className={PAGE_PADDING} />;
+    const GeneratedFooter = () => <CurrentFooter className={PAGE_PADDING} />;
+    return GeneratedFooter;
   }, []);
 
   const context: TopLevelPageContext = useMemo(

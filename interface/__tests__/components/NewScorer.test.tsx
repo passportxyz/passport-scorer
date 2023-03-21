@@ -5,10 +5,16 @@ import {
   waitFor,
   screen,
 } from "@testing-library/react";
-import NewScorerRoute from "../../pages/new-scorer";
+import NewScorer from "../../components/NewScorer";
 import mockRouter from "next-router-mock";
 import { createDynamicRouteParser } from "next-router-mock/dynamic-routes";
 import { createCommunity } from "../../utils/account-requests";
+
+// TODO temporary placeholder to let this compile until these tests are fixed
+// Should probably render within a mock router
+const NewScorerRoute = () => {
+  return <NewScorer />;
+};
 
 jest.mock("../../utils/account-requests.ts", () => ({
   createCommunity: jest.fn(),
@@ -51,7 +57,7 @@ const localStorageMock = (function () {
 
 Object.defineProperty(window, "localStorage", { value: localStorageMock });
 
-describe("NewScorer", () => {
+describe("NewScorerRoute", () => {
   beforeEach(() => {
     (createCommunity as jest.Mock).mockResolvedValue([
       { name: "Test", description: "Test" },
@@ -69,7 +75,7 @@ describe("NewScorer", () => {
   });
 
   it.skip("should render the scoring mechanism page with localstorage items from use case modal", async () => {
-    render(<NewScorerRoute authenticationStatus="authenticated" />);
+    render(<NewScorerRoute />);
 
     expect(screen.getByText("Select a Scoring Mechanism")).toBeInTheDocument();
     expect(screen.getByText("Airdrop Protection")).toBeInTheDocument();
@@ -82,7 +88,7 @@ describe("NewScorer", () => {
   });
 
   it.skip("continue button should only be enabled when a scoring mechanism is selected", async () => {
-    render(<NewScorerRoute authenticationStatus="authenticated" />);
+    render(<NewScorerRoute />);
 
     const scoringMechanism = screen.getByTestId("scoring-mechanism-0");
     const createScorerButton = screen
@@ -97,7 +103,7 @@ describe("NewScorer", () => {
   });
 
   it.skip("should display cancel confirmation modal when cancel button is clicked", async () => {
-    render(<NewScorerRoute authenticationStatus="authenticated" />);
+    render(<NewScorerRoute />);
 
     const cancelButton = screen.getByText(/Cancel/i).closest("button");
 
@@ -113,7 +119,7 @@ describe("NewScorer", () => {
   });
 
   it.skip("should switch to dashboard route when scorer is exited", async () => {
-    render(<NewScorerRoute authenticationStatus="authenticated" />);
+    render(<NewScorerRoute />);
 
     const cancelButton = screen.getByText(/Cancel/i).closest("button");
     fireEvent.click(cancelButton as HTMLElement);
@@ -129,7 +135,7 @@ describe("NewScorer", () => {
   });
 
   it.skip("should create new scorer when Create Scorer button is clicked", async () => {
-    render(<NewScorerRoute authenticationStatus="authenticated" />);
+    render(<NewScorerRoute />);
 
     const scoringMechanism = screen.getByTestId("scoring-mechanism-0"); // Weighted
     const createScorerButton = screen
