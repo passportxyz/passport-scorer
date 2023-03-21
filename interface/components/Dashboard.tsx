@@ -1,9 +1,11 @@
 // --- React components/methods
 import React, { useMemo } from "react";
 
-import { DashboardTabs, TabToken } from "./DashboardTabs";
+import DashboardTabs from "./DashboardTabs";
 import PageWidthGrid from "../components/PageWidthGrid";
 import { useTopLevelPageContext } from "../components/PageLayout";
+
+import { Outlet } from "react-router-dom";
 
 import {
   BookOpenIcon,
@@ -11,11 +13,6 @@ import {
   FlagIcon,
   PlayCircleIcon,
 } from "@heroicons/react/24/solid";
-
-type DashboardProps = {
-  activeTab: TabToken;
-  children: React.ReactNode;
-};
 
 const QuickLink = ({
   text,
@@ -112,7 +109,7 @@ export const Subheader = ({}) => {
   );
 };
 
-const Dashboard = ({ activeTab, children }: DashboardProps) => {
+const Dashboard = () => {
   const { generateHeader, generateFooter } = useTopLevelPageContext();
   const PageHeader = useMemo(() => generateHeader(Subheader), [generateHeader]);
   const PageFooter = useMemo(() => generateFooter(), [generateFooter]);
@@ -121,15 +118,13 @@ const Dashboard = ({ activeTab, children }: DashboardProps) => {
     <>
       <PageHeader />
       <PageWidthGrid className="mt-4 h-fit">
-        <div className="col-span-2 col-start-1 flex-col items-start xl:row-span-2">
-          <DashboardTabs activeTab={activeTab} />
-        </div>
+        <DashboardTabs className="col-span-2 col-start-1 flex-col items-start xl:row-span-2" />
 
         {/* Spacer in lg */}
         <div className="lg:col-span-6 xl:hidden" />
 
         <div className="col-span-4 md:col-span-6 lg:col-span-5 lg:row-span-2 xl:col-span-7">
-          {children}
+          <Outlet />
         </div>
 
         <QuickLinks className="col-span-4 md:col-span-3" />

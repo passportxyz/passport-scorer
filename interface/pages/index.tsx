@@ -17,8 +17,6 @@ import { useToast } from "@chakra-ui/react";
 import PageLayout from "../components/PageLayout";
 import HomePageLayout from "../components/HomePageLayout";
 
-// Layout pattern from https://reactrouter.com/en/main/start/concepts#layout-routes
-
 const PageRouter = () => {
   const { loginComplete } = useContext(UserContext);
   const toast = useToast();
@@ -53,6 +51,8 @@ const PageRouter = () => {
     }
   }, [loginComplete]);
 
+  // Layout pattern from https://reactrouter.com/en/main/start/concepts#layout-routes
+
   return (
     <Router>
       <RequireAuth>
@@ -61,22 +61,10 @@ const PageRouter = () => {
             <Route path="/" element={<LandingPage />} />
           </Route>
           <Route element={<PageLayout />}>
-            <Route
-              path="/dashboard/scorer"
-              element={
-                <Dashboard activeTab="scorer">
-                  <CommunityList />
-                </Dashboard>
-              }
-            />
-            <Route
-              path="/dashboard/api-keys"
-              element={
-                <Dashboard activeTab="api-keys">
-                  <APIKeyList />
-                </Dashboard>
-              }
-            />
+            <Route path="/dashboard" element={<Dashboard />}>
+              <Route path="/dashboard/scorer" element={<CommunityList />} />
+              <Route path="/dashboard/api-keys" element={<APIKeyList />} />
+            </Route>
             <Route path="/new-scorer" element={<NewScorer />} />
           </Route>
         </Routes>

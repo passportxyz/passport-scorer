@@ -1,8 +1,8 @@
 // --- React components/methods
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 // --- React Router
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 // --- Components
 import { Cog8ToothIcon, StarIcon } from "@heroicons/react/24/solid";
@@ -118,16 +118,23 @@ const TabSelect = ({
   </label>
 );
 
-export const DashboardTabs = ({ activeTab }: { activeTab: TabToken }) => {
+const DashboardTabs = ({ className }: { className?: string }) => {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [activeTab, setActiveTab] = useState<TabToken>("scorer");
+
+  useEffect(() => setActiveTab(pathname.split("/")[2] as TabToken), [pathname]);
+
   return (
-    <>
+    <div className={className}>
       <div className="block xl:hidden">
         <TabSelect activeTab={activeTab} navigate={navigate} />
       </div>
       <div className="hidden xl:block">
         <TabButtonList activeTab={activeTab} navigate={navigate} />
       </div>
-    </>
+    </div>
   );
 };
+
+export default DashboardTabs;

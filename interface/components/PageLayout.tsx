@@ -1,4 +1,41 @@
-import React, { useState, useCallback, useContext, useMemo } from "react";
+/*
+ * To use this layout for a new page, place the page within the
+ * PageLayout <Route /> in index.tsx
+ *
+ * The child page component should generate the header and footer using the
+ * context provided by this component. This is done by using the
+ * useTopLevelPageContext hook.
+ *
+ * The child page should render 3 sections: header, content, and footer.
+ * The content should be wrapped in a PageWidthGrid component.
+ *
+ * Example:
+ * const MyPage = () => {
+ *  const { generateHeader, generateFooter } = useTopLevelPageContext();
+ *
+ *  const Header = generateHeader();
+ *  const Footer = generateFooter();
+ *
+ *  return (
+ *    <>
+ *      <Header />
+ *      <PageWidthGrid>
+ *        <div>...content using grid columns...</div>
+ *      </PageWidthGrid>
+ *      <Footer />
+ *    </>
+ *  );
+ * }
+ *
+ *
+ * generateHeader and generateFooter can also take a component as an argument.
+ * For generateHeader, this component will be rendered in the subheader section
+ * of the header. For generateFooter, this component will be rendered instead
+ * of the default footer.
+ *
+ */
+
+import React, { useCallback, useContext, useMemo } from "react";
 import { Outlet, useOutletContext } from "react-router-dom";
 
 import { UserContext } from "../context/userContext";
