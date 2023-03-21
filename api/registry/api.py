@@ -250,7 +250,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
 
 
 @router.get(
-    "/score/{int:community_id}/{str:address}",
+    "/score/{int:scorer_id}/{str:address}",
     auth=ApiKey(),
     response={
         200: DetailedScoreResponse,
@@ -258,17 +258,17 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
     },
-    summary="Get score for an address that is associated with a community",
-    description="""Use this endpoint to fetch the score for a specific address that is associated with a community\n
+    summary="Get score for an address that is associated with a scorer",
+    description="""Use this endpoint to fetch the score for a specific address that is associated with a scorer\n
 This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
 """,
 )
-def get_score(request, address: str, community_id: int) -> DetailedScoreResponse:
+def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
     check_rate_limit(request)
 
     # Get community object
     user_community = api_get_object_or_404(
-        Community, id=community_id, account=request.auth
+        Community, id=scorer_id, account=request.auth
     )
 
     try:
@@ -280,15 +280,15 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
         return score
     except Exception as e:
         log.error(
-            "Error getting passport scores. community_id=%s",
-            community_id,
+            "Error getting passport scores. scorer_id=%s",
+            scorer_id,
             exc_info=True,
         )
         raise InvalidCommunityScoreRequestException() from e
 
 
 @router.get(
-    "/score/{int:community_id}",
+    "/score/{int:scorer_id}",
     auth=ApiKey(),
     response={
         200: List[DetailedScoreResponse],
@@ -296,15 +296,15 @@ def get_score(request, address: str, community_id: int) -> DetailedScoreResponse
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
     },
-    summary="Get scores for all addresses that are associated with a community",
-    description="""Use this endpoint to fetch the scores for all addresses that are associated with a community\n
+    summary="Get scores for all addresses that are associated with a scorer",
+    description="""Use this endpoint to fetch the scores for all addresses that are associated with a scorer\n
 This API will return a list of `DetailedScoreResponse` objects. The endpoint supports pagination and will return a maximum of 1000 scores per request.\n
 Pass a limit and offset query parameter to paginate the results. For example: `/score/1?limit=100&offset=100` will return the second page of 100 scores.\n
 """,
 )
 @paginate(pass_parameter="pagination_info")
 def get_scores(
-    request, community_id: int, address: str = "", **kwargs
+    request, scorer_id: int, address: str = "", **kwargs
 ) -> List[DetailedScoreResponse]:
     check_rate_limit(request)
     if kwargs["pagination_info"].limit > 1000:
@@ -312,7 +312,7 @@ def get_scores(
 
     # Get community object
     user_community = api_get_object_or_404(
-        Community, id=community_id, account=request.auth
+        Community, id=scorer_id, account=request.auth
     )
 
     try:
@@ -327,8 +327,8 @@ def get_scores(
 
     except Exception as e:
         log.error(
-            "Error getting passport scores. community_id=%s",
-            community_id,
+            "Error getting passport scores. scorer_id=%s",
+            scorer_id,
             exc_info=True,
         )
         raise e
@@ -368,17 +368,17 @@ def get_scores_analytics(
 
 
 @analytics_router.get(
-    "/score/{int:community_id}", auth=ApiKey(), response=CursorPaginatedScoreResponse
+    "/score/{int:scorer_id}", auth=ApiKey(), response=CursorPaginatedScoreResponse
 )
 @permissions_required([ResearcherPermission])
 def get_scores_by_community_id_analytics(
     request,
-    community_id: int,
+    scorer_id: int,
     address: str = "",
     last_id: int = None,
     limit: int = 1000,
 ) -> CursorPaginatedScoreResponse:
-    user_community = api_get_object_or_404(Community, id=community_id)
+    user_community = api_get_object_or_404(Community, id=scorer_id)
 
     query = Score.objects.order_by("id")
 
@@ -407,7 +407,7 @@ def get_scores_by_community_id_analytics(
     next_url = (
         reverse_lazy_with_query(
             "analytics:get_scores_by_community_id_analytics",
-            args=[community_id],
+            args=[scorer_id],
             query_kwargs={"last_id": last_score.id},
         )
         if last_score
