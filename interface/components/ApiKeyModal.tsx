@@ -222,7 +222,7 @@ export function ApiKeyDeleteModal({
         <div className="text-center">
           <p className="font-bold">Are you sure?</p>
           <p className="mt-2 text-purple-softpurple">
-            This will permanantly delete your scorer.
+            This will permanantly delete your API Key.
             <br />
             Are you sure you want to continue?
           </p>
