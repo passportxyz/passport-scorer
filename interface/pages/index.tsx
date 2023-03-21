@@ -1,13 +1,18 @@
 // --- React Methods
 import React, { useContext, useEffect } from "react";
-import { HashRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  HashRouter as Router,
+  Routes,
+  Route,
+  redirect,
+} from "react-router-dom";
 import RequireAuth from "../components/RequireAuth";
 
 // --- Components
 import Dashboard from "../components/Dashboard";
 import CommunityList from "../components/CommunityList";
 import APIKeyList from "../components/APIKeyList";
-import NewScorer from "../pages/new-scorer";
+import NewScorer from "../components/NewScorer";
 import LandingPage from "../components/LandingPage";
 
 // --- Context
@@ -16,6 +21,7 @@ import { useToast } from "@chakra-ui/react";
 
 import PageLayout from "../components/PageLayout";
 import HomePageLayout from "../components/HomePageLayout";
+import NoMatch from "../components/NoMatch";
 
 const PageRouter = () => {
   const { loginComplete } = useContext(UserContext);
@@ -67,6 +73,7 @@ const PageRouter = () => {
             </Route>
             <Route path="/new-scorer" element={<NewScorer />} />
           </Route>
+          <Route path="*" element={<NoMatch />} />
         </Routes>
       </RequireAuth>
     </Router>
