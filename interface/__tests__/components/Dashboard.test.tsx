@@ -1,32 +1,10 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import Dashboard from "../../components/Dashboard";
-import PageLayout from "../../components/PageLayout";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
-
-import {
-  renderWithContext,
-  makeTestUserContext,
-} from "../../__test-fixtures__/userContextTestHelper";
-import { UserState } from "../../context/userContext";
-
-const mockUserContext: UserState = makeTestUserContext();
+import { renderApp } from "../../__test-fixtures__/appHelpers";
 
 describe("Dashboard", () => {
-  it("should render the correct dashboard tab", async () => {
-    renderWithContext(
-      mockUserContext,
-      <MemoryRouter initialEntries={["/dashboard/api-keys"]}>
-        <Routes>
-          <Route element={<PageLayout />}>
-            <Route path="/dashboard" element={<Dashboard />}>
-              <Route path="/dashboard/scorer" element={<div />} />
-              <Route path="/dashboard/api-keys" element={<div />} />
-            </Route>
-          </Route>
-        </Routes>
-      </MemoryRouter>
-    );
+  it("should render the correct dashboard tab with navigation menu", async () => {
+    renderApp("/dashboard/api-keys");
+
     const activeTab = screen.getByTestId("api-keys-tab");
     const notActiveTab = screen.getByTestId("scorer-tab");
     await waitFor(async () => {
