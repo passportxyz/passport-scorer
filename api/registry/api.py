@@ -318,7 +318,7 @@ def get_scores(
     try:
         scores = Score.objects.filter(
             passport__community__id=user_community.id
-        ).prefetch_related("passport")
+        ).select_related("passport")
 
         if address:
             scores = scores.filter(passport__address=address.lower())
@@ -388,21 +388,18 @@ def get_scores_by_community_id_analytics(
     if last_id:
         query = query.filter(
             id__gt=last_id, passport__community__id=user_community.id
-        ).prefetch_related("passport")
+        ).select_related("passport")
     else:
-        query = query.filter(
-            passport__community__id=user_community.id
-        ).prefetch_related("passport")
+        query = query.filter(passport__community__id=user_community.id).select_related(
+            "passport"
+        )
 
     if address:
         query = query.filter(passport__address=address.lower())
 
-    if limit and len(query) >= limit:
-        last_score = query[limit - 1 : limit][0]
-    else:
-        last_score = query.last()
-
-    scores = query[:limit]
+    scores = list(query[:limit])
+    if scores:
+        last_score = scores[-1]
 
     next_url = (
         reverse_lazy_with_query(
