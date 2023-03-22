@@ -1,30 +1,12 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { getCommunities, getApiKeys } from "../../utils/account-requests";
 
-import { PageRoutes } from "../../pages/index";
-
-import { MemoryRouter, Routes, Route } from "react-router-dom";
-
-import {
-  renderWithContext,
-  makeTestUserContext,
-} from "../../__test-fixtures__/userContextTestHelper";
-import { UserState } from "../../context/userContext";
-
-const mockUserContext: UserState = makeTestUserContext();
+import { renderApp } from "../../__test-fixtures__/appHelpers";
 
 jest.mock("../../utils/account-requests.ts", () => ({
   getCommunities: jest.fn(),
   getApiKeys: jest.fn(),
 }));
-
-const renderApp = (startingPath: string) =>
-  renderWithContext(
-    mockUserContext,
-    <MemoryRouter initialEntries={[startingPath]}>
-      <PageRoutes />
-    </MemoryRouter>
-  );
 
 describe("Page routing", () => {
   beforeEach(() => {
@@ -42,7 +24,7 @@ describe("Page routing", () => {
     );
   });
 
-  it.skip("should show API key content when tab is clicked", async () => {
+  it("should show API key content when tab is clicked", async () => {
     const { getByText, getAllByText } = renderApp("/dashboard/scorer");
 
     const apiKeyElements = getAllByText("API Keys");
