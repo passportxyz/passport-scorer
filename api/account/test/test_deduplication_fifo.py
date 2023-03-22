@@ -1,13 +1,13 @@
 import json
 
 from account.deduplication import Rules
-from account.deduplication.fifo import fifo
+from account.deduplication.fifo import fifo, rescore_passport
 from account.models import Account, Community
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from ninja_jwt.schema import RefreshToken
-from registry.models import Passport, Stamp
+from registry.models import Passport, Score, Stamp
 from scorer_weighted.models import Scorer, WeightedScorer
 
 User = get_user_model()
@@ -121,7 +121,6 @@ class FifoDeduplication(TestCase):
             credential=credential,
         )
 
-        # We call the `fifo` deduplication method
         fifo(
             community=self.community1,
             fifo_passport={"stamps": [credential]},
@@ -140,3 +139,17 @@ class FifoDeduplication(TestCase):
             1,
             "The stamp should not have been deleted from the passpo",
         )
+
+    def test_rescore_passport(self):
+        passport1 = Passport.objects.create(
+            address="0xaddress_1", passport={}, community=self.community1
+        )
+        Score.objects.create(
+            passport=passport1,
+            score=10,
+        )
+
+        rescore_passport(self.community1, passport1.address)
+
+        updated_score = Score.objects.get(passport=passport1)
+        assert updated_score.score == None

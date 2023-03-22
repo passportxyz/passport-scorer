@@ -8,6 +8,15 @@ from registry.tasks import score_passport
 log = logging.getLogger(__name__)
 
 
+def rescore_passport(community: Community, address: str):
+    passport = Passport.objects.get(community=community, address=address)
+    Score.objects.update_or_create(
+        passport=passport,
+        defaults=dict(score=None, status=Score.Status.PROCESSING),
+    )
+    score_passport.delay(community.pk, address)
+
+
 # --> FIFO deduplication
 def fifo(community: Community, fifo_passport: dict, address: str):
     deduped_passport = copy.deepcopy(fifo_passport)
@@ -20,17 +29,10 @@ def fifo(community: Community, fifo_passport: dict, address: str):
                 hash=stamp_hash, passport__community=community
             ).exclude(passport__address=address)
 
-            # query db to see if hash already exists, if so remove stamp from passport
-            # if existing_stamps.exists():
             for existing_stamp in existing_stamps.iterator():
                 passport = existing_stamp.passport
                 existing_stamp.delete()
-                # Create a score with status PROCESSING
-                Score.objects.update_or_create(
-                    passport_id=passport.id,
-                    defaults=dict(score=None, status=Score.Status.PROCESSING),
-                )
 
-                score_passport.delay(community.id, address)
+                rescore_passport(community, passport.address)
 
     return deduped_passport
