@@ -58,9 +58,7 @@ describe("CommunityList", () => {
       });
     });
   });
-});
 
-describe("Dashboard Scorer", () => {
   it("should render all the scorers returned by the backend", async () => {
     (getCommunities as jest.Mock).mockClear().mockResolvedValue([
       // give me an iso datetime string for testing
