@@ -1,7 +1,7 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import Dashboard from "../../components/Dashboard";
-import PageLayout, { TopLevelPageContext } from "../../components/PageLayout";
+import PageLayout from "../../components/PageLayout";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 import {
@@ -10,29 +10,10 @@ import {
 } from "../../__test-fixtures__/userContextTestHelper";
 import { UserState } from "../../context/userContext";
 
-jest.mock("next/router", () => require("next-router-mock"));
-
-// mock header component
-jest.mock("../../components/Header", () => {
-  // eslint-disable-next-line react/display-name
-  return () => <div></div>;
-});
-
 const mockUserContext: UserState = makeTestUserContext();
 
-const AppCustomHeader = (): JSX.Element => <div>My custom header</div>;
-const AppCustomFooter = (): JSX.Element => <div>My custom footer</div>;
-
 describe("Dashboard", () => {
-  it("should render the header", async () => {
-    const context: TopLevelPageContext = {
-      generateHeader: (Subheader?: React.ComponentType) => {
-        return AppCustomHeader;
-      },
-      generateFooter: (FooterOverride?: React.ComponentType) => {
-        return AppCustomFooter;
-      },
-    };
+  it("should render the correct dashboard tab", async () => {
     renderWithContext(
       mockUserContext,
       <MemoryRouter initialEntries={["/dashboard/api-keys"]}>

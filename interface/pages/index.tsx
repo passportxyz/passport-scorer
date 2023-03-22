@@ -23,6 +23,23 @@ import PageLayout from "../components/PageLayout";
 import HomePageLayout from "../components/HomePageLayout";
 import NoMatch from "../components/NoMatch";
 
+// Layout Route pattern from https://reactrouter.com/en/main/start/concepts#layout-routes
+export const PageRoutes = () => (
+  <Routes>
+    <Route element={<HomePageLayout />}>
+      <Route path="/" element={<LandingPage />} />
+    </Route>
+    <Route element={<PageLayout />}>
+      <Route path="/dashboard" element={<Dashboard />}>
+        <Route path="/dashboard/scorer" element={<CommunityList />} />
+        <Route path="/dashboard/api-keys" element={<APIKeyList />} />
+      </Route>
+      <Route path="/new-scorer" element={<NewScorer />} />
+    </Route>
+    <Route path="*" element={<NoMatch />} />
+  </Routes>
+);
+
 const PageRouter = () => {
   const { loginComplete } = useContext(UserContext);
   const toast = useToast();
@@ -57,24 +74,10 @@ const PageRouter = () => {
     }
   }, [loginComplete]);
 
-  // Layout pattern from https://reactrouter.com/en/main/start/concepts#layout-routes
-
   return (
     <Router>
       <RequireAuth>
-        <Routes>
-          <Route element={<HomePageLayout />}>
-            <Route path="/" element={<LandingPage />} />
-          </Route>
-          <Route element={<PageLayout />}>
-            <Route path="/dashboard" element={<Dashboard />}>
-              <Route path="/dashboard/scorer" element={<CommunityList />} />
-              <Route path="/dashboard/api-keys" element={<APIKeyList />} />
-            </Route>
-            <Route path="/new-scorer" element={<NewScorer />} />
-          </Route>
-          <Route path="*" element={<NoMatch />} />
-        </Routes>
+        <PageRoutes />
       </RequireAuth>
     </Router>
   );
