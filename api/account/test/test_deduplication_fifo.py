@@ -45,7 +45,7 @@ class FifoDeduplication(TestCase):
             name="Community2", scorer=scorer2, rule=Rules.FIFO, account=self.account2
         )
 
-    def test_fifo_no_deduplicate_across_cummunities(self):
+    def test_fifo_only_removes_deduplicate_in_passport_community(self):
         """
         Test that the deduplicate stamps are found, deleted, and passport score is updated
         """
@@ -82,9 +82,61 @@ class FifoDeduplication(TestCase):
 
         # We check that the `deduplicated_stamps` queryset contains the stamp we added
         self.assertEqual(
-            passport2.stamps.count(), 0, "The stamp should have been deleted"
+            passport2.stamps.count(),
+            0,
+            "The stamp should have been deleted from the passport",
         )
 
         self.assertEqual(
-            passport1.stamps.count(), 1, "The stamp should not have been deleted"
+            passport1.stamps.count(),
+            1,
+            "The stamp should not have been deleted from the passpo",
+        )
+
+    def test_fifo_removes_duplicates_from_within_community(self):
+        """
+        Test that the deduplicate stamps are found, deleted, and passport score is updated
+        """
+        # We create 1 passport for each community, and add 1 stamps to it
+        credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
+        passport1 = Passport.objects.create(
+            address="0xaddress_1", passport={}, community=self.community1
+        )
+
+        passport2 = Passport.objects.create(
+            address="0xaddress_2", passport={}, community=self.community1
+        )
+
+        Stamp.objects.create(
+            passport=passport1,
+            hash="test_hash",
+            provider="test_provider",
+            credential=credential,
+        )
+
+        Stamp.objects.create(
+            passport=passport2,
+            hash="test_hash",
+            provider="test_provider",
+            credential=credential,
+        )
+
+        # We call the `fifo` deduplication method
+        fifo(
+            community=self.community1,
+            fifo_passport={"stamps": [credential]},
+            address=passport1.address,
+        )
+
+        # We check that the `deduplicated_stamps` queryset contains the stamp we added
+        self.assertEqual(
+            passport2.stamps.count(),
+            0,
+            "The stamp should have been deleted from the passport",
+        )
+
+        self.assertEqual(
+            passport1.stamps.count(),
+            1,
+            "The stamp should not have been deleted from the passpo",
         )
