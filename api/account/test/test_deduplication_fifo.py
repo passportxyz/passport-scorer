@@ -21,7 +21,6 @@ class ExistingStamp:
 User = get_user_model()
 
 mock_community_body = {"name": "test", "description": "test"}
-
 google_credential = {
     "type": ["VerifiableCredential"],
     "proof": {
@@ -63,14 +62,19 @@ mock_passport = {
 
 class FifoDeduplication(TestCase):
     def setUp(self):
-        User.objects.create_user(username="admin", password="12345")
+        self.create_test_users()
+        self.create_test_communities()
+        self.create_sample_passport()
 
+    def create_test_users(self):
+        User.objects.create_user(username="admin", password="12345")
         self.user = User.objects.create_user(username="testuser-1", password="12345")
         self.user2 = User.objects.create_user(username="testuser-2", password="12345")
 
         refresh = RefreshToken.for_user(self.user)
         self.access_token = refresh.access_token
 
+    def create_test_communities(self):
         (self.account1, _) = Account.objects.get_or_create(
             user=self.user, defaults={"address": "0x0"}
         )
@@ -91,6 +95,7 @@ class FifoDeduplication(TestCase):
             name="Community2", scorer=scorer2, rule=Rules.FIFO, account=self.account2
         )
 
+    def create_sample_passport(self):
         self.sample_passport = {
             "stamps": [
                 {"credential": {"credentialSubject": {"hash": "123"}}},
