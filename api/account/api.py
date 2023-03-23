@@ -168,14 +168,6 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
             # "nonce": request.session["nonce"],
         }
 
-        if not settings.DEBUG:
-            payload_domain = payload.message["domain"]
-            # Accept www. and non-www. domains (e.g. https://scorer.gitcoin.co and https://www.scorer.gitcoin.co)
-            if payload_domain in settings.UI_DOMAINS:
-                verifyParams["domain"] = payload_domain
-            else:
-                verifyParams["domain"] = settings.UI_DOMAINS[0]
-
         message.verify(**verifyParams)
     except siwe.DomainMismatch:
         raise InvalidDomainException()
