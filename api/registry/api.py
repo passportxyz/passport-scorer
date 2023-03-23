@@ -318,7 +318,7 @@ def get_scores(
     try:
         scores = Score.objects.filter(
             passport__community__id=user_community.id
-        ).prefetch_related("passport")
+        ).select_related("passport")
 
         if address:
             scores = scores.filter(passport__address=address.lower())
@@ -341,24 +341,22 @@ def get_scores_analytics(
 ) -> CursorPaginatedScoreResponse:
     query = Score.objects.order_by("id")
 
-    if limit and limit > 1000:
-        limit = 1000
-
     if last_id:
-        query = query.filter(id__gt=last_id)
-
-    if limit and len(query) >= limit:
-        last_score = query[limit - 1 : limit][0]
+        scores = list(query.filter(id__gt=last_id).select_related("passport")[:limit])
     else:
-        last_score = query.last()
+        scores = list(query.select_related("passport")[:limit])
 
-    scores = query[:limit]
+    has_more_scores = False
+    if scores:
+        last_score = scores[-1]
+        has_more_scores = query.filter(id__gt=last_score.id).exists()
 
     next_url = (
         reverse_lazy_with_query(
-            "analytics:get_scores_analytics", query_kwargs={"last_id": last_score.id}
+            "analytics:get_scores_analytics",
+            query_kwargs={"last_id": last_score.id},
         )
-        if last_score
+        if has_more_scores
         else None
     )
 
@@ -380,29 +378,22 @@ def get_scores_by_community_id_analytics(
 ) -> CursorPaginatedScoreResponse:
     user_community = api_get_object_or_404(Community, id=scorer_id)
 
-    query = Score.objects.order_by("id")
-
-    if limit and limit > 1000:
-        limit = 1000
-
-    if last_id:
-        query = query.filter(
-            id__gt=last_id, passport__community__id=user_community.id
-        ).prefetch_related("passport")
-    else:
-        query = query.filter(
-            passport__community__id=user_community.id
-        ).prefetch_related("passport")
+    query = Score.objects.order_by("id").filter(
+        passport__community__id=user_community.id
+    )
 
     if address:
         query = query.filter(passport__address=address.lower())
 
-    if limit and len(query) >= limit:
-        last_score = query[limit - 1 : limit][0]
+    if last_id:
+        scores = list(query.filter(id__gt=last_id).select_related("passport")[:limit])
     else:
-        last_score = query.last()
+        scores = list(query.select_related("passport")[:limit])
 
-    scores = query[:limit]
+    has_more_scores = False
+    if scores:
+        last_score = scores[-1]
+        has_more_scores = query.filter(id__gt=last_score.id).exists()
 
     next_url = (
         reverse_lazy_with_query(
@@ -410,7 +401,7 @@ def get_scores_by_community_id_analytics(
             args=[scorer_id],
             query_kwargs={"last_id": last_score.id},
         )
-        if last_score
+        if has_more_scores
         else None
     )
 
