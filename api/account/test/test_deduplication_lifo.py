@@ -74,7 +74,7 @@ class LifoDeduplicationTestCase(TestCase):
             credential=credential,
         )
 
-        deduped_passport = lifo(
+        deduped_passport, _ = lifo(
             passport1.community, {"stamps": [credential]}, passport1.address
         )
 
@@ -112,7 +112,7 @@ class LifoDeduplicationTestCase(TestCase):
             credential=credential,
         )
 
-        deduped_passport = lifo(
+        deduped_passport, _ = lifo(
             passport1.community, {"stamps": [credential]}, passport1.address
         )
 
@@ -138,7 +138,7 @@ class LifoDeduplicationTestCase(TestCase):
         )
 
         # We test deduplication of the 1st passport (for example user submits the same passport again)
-        deduped_passport = lifo(
+        deduped_passport, _ = lifo(
             passport.community, {"stamps": [credential]}, passport.address
         )
 
@@ -147,7 +147,7 @@ class LifoDeduplicationTestCase(TestCase):
 
         # We test deduplication of another passport with different address but
         # with the same stamp
-        deduped_passport = lifo(
+        deduped_passport, _ = lifo(
             passport.community, {"stamps": [credential]}, "0xaddress_2"
         )
 
