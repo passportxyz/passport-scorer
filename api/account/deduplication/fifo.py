@@ -31,16 +31,16 @@ def fifo(community: Community, fifo_passport: dict, address: str) -> Tuple[dict,
             ).exclude(passport__address=address)
 
             for existing_stamp in existing_stamps.iterator():
-                passport = existing_stamp.passport
+                existing_stamp_passport = existing_stamp.passport
 
                 existing_stamp.delete()
 
-                passport.passport = filter_duplicate_stamps(
-                    passport.passport, existing_stamp
+                existing_stamp_passport.passport = filter_duplicate_stamps(
+                    existing_stamp_passport.passport, existing_stamp
                 )
 
-                passport.save()
+                existing_stamp_passport.save()
 
-                affected_passports.append(passport)
+                affected_passports.append(existing_stamp_passport)
 
     return (deduped_passport, affected_passports)
