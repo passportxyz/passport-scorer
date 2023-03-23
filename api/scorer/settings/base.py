@@ -268,3 +268,10 @@ CERAMIC_CACHE_CACAO_VALIDATION_URL = env(
 )
 
 MAX_BULK_CACHE_SIZE = 100
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": env("CELERY_BROKER_URL", default="redis://localhost:6379/0"),
+    }
+}
