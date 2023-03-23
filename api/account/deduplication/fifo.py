@@ -8,7 +8,7 @@ from registry.models import Passport, Score, Stamp
 log = logging.getLogger(__name__)
 
 
-def filter_duplicate_stamps(passport, existing_stamp):
+def filter_duplicate_stamps(passport, existing_stamp) -> dict:
     desired_stamps = []
     for stamp in passport["stamps"]:
         if stamp["credential"]["credentialSubject"]["hash"] != existing_stamp.hash:

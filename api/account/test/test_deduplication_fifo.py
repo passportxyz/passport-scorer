@@ -1,7 +1,9 @@
 import json
+from datetime import datetime, timedelta
 
+import pytest
 from account.deduplication import Rules
-from account.deduplication.fifo import fifo, rescore_passport
+from account.deduplication.fifo import fifo, filter_duplicate_stamps
 from account.models import Account, Community
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -10,9 +12,53 @@ from ninja_jwt.schema import RefreshToken
 from registry.models import Passport, Score, Stamp
 from scorer_weighted.models import Scorer, WeightedScorer
 
+
+class ExistingStamp:
+    def __init__(self, hash):
+        self.hash = hash
+
+
 User = get_user_model()
 
 mock_community_body = {"name": "test", "description": "test"}
+
+google_credential = {
+    "type": ["VerifiableCredential"],
+    "proof": {
+        "jws": "eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..UvANt5nz16WNjkGTyUFIxbMBmYdEFZcVrD97L3EzOkvxz8eN-6UKeFZul_uPBfa88h50jKQgVgJlJqxR8kpSAQ",
+        "type": "Ed25519Signature2018",
+        "created": "2022-06-03T15:33:04.698Z",
+        "proofPurpose": "assertionMethod",
+        "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+    },
+    "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+    "@context": ["https://www.w3.org/2018/credentials/v1"],
+    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
+    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
+    "credentialSubject": {
+        "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+        "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
+        "@context": [
+            {
+                "hash": "https://schema.org/Text",
+                "provider": "https://schema.org/Text",
+            }
+        ],
+        "provider": "Google",
+    },
+}
+
+mock_passport = {
+    "issuanceDate": "2022-06-03T15:31:56.944Z",
+    "expirationDate": "2022-06-03T15:31:56.944Z",
+    "stamps": [
+        {"provider": "Google", "credential": google_credential},
+    ],
+}
 
 
 class FifoDeduplication(TestCase):
@@ -45,111 +91,101 @@ class FifoDeduplication(TestCase):
             name="Community2", scorer=scorer2, rule=Rules.FIFO, account=self.account2
         )
 
-    def test_fifo_only_removes_deduplicate_in_passport_community(self):
+        self.sample_passport = {
+            "stamps": [
+                {"credential": {"credentialSubject": {"hash": "123"}}},
+                {"credential": {"credentialSubject": {"hash": "456"}}},
+                {"credential": {"credentialSubject": {"hash": "123"}}},
+            ]
+        }
+
+    def test_fifo_removes_deduplicate_stamp_from_passport_in_same_community(self):
         """
         Test that the deduplicate stamps are found, deleted, and passport score is updated
         """
-        # We create 1 passport for each community, and add 1 stamps to it
-        credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
         passport1 = Passport.objects.create(
-            address="0xaddress_1", passport={}, community=self.community1
+            address="0xaddress_1", passport=mock_passport, community=self.community1
         )
 
         passport2 = Passport.objects.create(
-            address="0xaddress_2", passport={}, community=self.community1
+            address="0xaddress_2", community=self.community1
         )
 
         Stamp.objects.create(
             passport=passport1,
-            hash="test_hash",
+            hash=google_credential["credentialSubject"]["hash"],
             provider="test_provider",
-            credential=credential,
-        )
-
-        Stamp.objects.create(
-            passport=passport2,
-            hash="test_hash",
-            provider="test_provider",
-            credential=credential,
+            credential=google_credential,
         )
 
         # We call the `fifo` deduplication method
         fifo(
             community=self.community1,
-            fifo_passport={"stamps": [credential]},
-            address=passport1.address,
+            fifo_passport=mock_passport,
+            address=passport2.address,
         )
 
+        updated_passport = Passport.objects.get(address="0xaddress_1")
         # We check that the `deduplicated_stamps` queryset contains the stamp we added
-        self.assertEqual(
-            passport2.stamps.count(),
-            0,
-            "The stamp should have been deleted from the passport",
-        )
 
         self.assertEqual(
-            passport1.stamps.count(),
-            1,
+            updated_passport.stamps.count(),
+            0,
             "The stamp should not have been deleted from the passpo",
         )
 
-    def test_fifo_removes_duplicates_from_within_community(self):
+    def test_fifo_does_not_remove_deduplicate_stamp_from_passport_in_different_community(
+        self,
+    ):
         """
         Test that the deduplicate stamps are found, deleted, and passport score is updated
         """
-        # We create 1 passport for each community, and add 1 stamps to it
-        credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
         passport1 = Passport.objects.create(
-            address="0xaddress_1", passport={}, community=self.community1
+            address="0xaddress_1", passport=mock_passport, community=self.community2
         )
 
         passport2 = Passport.objects.create(
-            address="0xaddress_2", passport={}, community=self.community1
+            address="0xaddress_2", community=self.community1
         )
 
         Stamp.objects.create(
             passport=passport1,
-            hash="test_hash",
+            hash=google_credential["credentialSubject"]["hash"],
             provider="test_provider",
-            credential=credential,
+            credential=google_credential,
         )
 
-        Stamp.objects.create(
-            passport=passport2,
-            hash="test_hash",
-            provider="test_provider",
-            credential=credential,
-        )
-
+        # We call the `fifo` deduplication method
         fifo(
             community=self.community1,
-            fifo_passport={"stamps": [credential]},
-            address=passport1.address,
+            fifo_passport=mock_passport,
+            address=passport2.address,
         )
 
+        updated_passport = Passport.objects.get(address="0xaddress_1")
         # We check that the `deduplicated_stamps` queryset contains the stamp we added
-        self.assertEqual(
-            passport2.stamps.count(),
-            0,
-            "The stamp should have been deleted from the passport",
-        )
 
         self.assertEqual(
-            passport1.stamps.count(),
+            updated_passport.stamps.count(),
             1,
             "The stamp should not have been deleted from the passpo",
         )
 
-    def test_rescore_passport(self):
-        passport1 = Passport.objects.create(
-            address="0xaddress_1", passport={}, community=self.community1
-        )
-        Score.objects.create(
-            passport=passport1,
-            score=10,
-        )
+    def test_filter_duplicate_stamps_no_duplicates(self):
+        existing_stamp = ExistingStamp("789")
+        result = filter_duplicate_stamps(self.sample_passport, existing_stamp)
+        assert len(result["stamps"]) == 3
+        assert result["stamps"] == self.sample_passport["stamps"]
 
-        rescore_passport(self.community1, passport1.address)
+    def test_filter_duplicate_stamps_with_duplicates(self):
+        existing_stamp = ExistingStamp("123")
+        result = filter_duplicate_stamps(self.sample_passport, existing_stamp)
+        assert len(result["stamps"]) == 1
+        assert result["stamps"][0]["credential"]["credentialSubject"]["hash"] == "456"
 
-        updated_score = Score.objects.get(passport=passport1)
-        assert updated_score.score == None
+    def test_filter_duplicate_stamps_with_empty_passport(self):
+        empty_passport = {"stamps": []}
+        existing_stamp = ExistingStamp("123")
+        result = filter_duplicate_stamps(empty_passport, existing_stamp)
+        assert len(result["stamps"]) == 0
+        assert result["stamps"] == []
