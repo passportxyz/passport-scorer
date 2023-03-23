@@ -34,10 +34,6 @@ def fifo(community: Community, fifo_passport: dict, address: str) -> Tuple[dict,
                 passport = existing_stamp.passport
 
                 existing_stamp.delete()
-                Score.objects.update_or_create(
-                    passport=passport,
-                    defaults=dict(score=None, status=Score.Status.PROCESSING),
-                )
 
                 passport.passport = filter_duplicate_stamps(
                     passport.passport, existing_stamp

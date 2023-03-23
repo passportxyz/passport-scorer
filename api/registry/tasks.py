@@ -110,6 +110,10 @@ def process_deduplication(passport, passport_data):
     # If the rule is FIFO, we need to re-score all affected passports
     if passport.community.rule == Rules.FIFO.value:
         for passport in affected_passports:
+            Score.objects.update_or_create(
+                passport=passport,
+                defaults=dict(score=None, status=Score.Status.PROCESSING),
+            )
             score_passport.delay(passport.community_id, passport.address)
 
     return deduplicated_passport
