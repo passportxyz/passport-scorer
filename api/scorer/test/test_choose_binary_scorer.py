@@ -15,6 +15,7 @@ from scorer_weighted.models import BinaryWeightedScorer
 
 pytestmark = pytest.mark.django_db
 
+
 ###################################################################################################
 @scenario(
     "features/choose_binary_scorer.feature",
@@ -125,7 +126,7 @@ def _(scoreResponse):
 def _(scoreResponse):
     """the threshold should be returned."""
     assert (
-        scoreResponse.json()["evidence"]["threshold"] == "21.75812"
+        scoreResponse.json()["evidence"]["threshold"] == "21.11000"
     )  # That is the mocked value
 
 

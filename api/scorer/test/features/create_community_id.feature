@@ -6,3 +6,4 @@ Feature: Create Community ID
     When I hit the Add Community button
     And I enter a name for this Community that is unique among the Community registered under my account
     Then that Community is registered
+    And that Community uses the latest weights and threshold

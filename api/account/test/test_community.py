@@ -11,7 +11,7 @@ mock_community_body = {
     "name": "test",
     "description": "test",
     "use_case": "sybill protection",
-    "scorer": "WEIGHTED",
+    "scorer": "WEIGHTED_BINARY",
 }
 
 

@@ -61,7 +61,7 @@ def passport_holder_addresses():
 @pytest.fixture
 def scorer_api_key(scorer_account):
     (_, secret) = AccountAPIKey.objects.create_key(
-        account=scorer_account, name="Token for user 1"
+        account=scorer_account, name="Token for user 1", rate_limit="3/30seconds"
     )
     return secret
 

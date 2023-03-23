@@ -1,5 +1,6 @@
 """Create Community ID feature tests."""
 
+from decimal import Decimal
 import json
 
 import pytest
@@ -62,3 +63,12 @@ def _(community_response):
     community = Community.objects.all()[0]
     assert community.name == "test"
     assert community.description == "test"
+
+
+@then("that Community uses the latest weights and threshold")
+def _():
+    """that Community uses the latest weights and threshold."""
+    community = Community.objects.all()[0]
+    scorer = community.scorer.binaryweightedscorer
+    assert scorer.threshold == Decimal("21.11")
+    assert scorer.weights["ETHGasSpent.5"] == "1.57425115793055"
