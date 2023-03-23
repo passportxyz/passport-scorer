@@ -300,6 +300,43 @@ class TestPassportGetScore:
                 == passport_holder_addresses[last_id + i]["address"].lower()
             )
 
+    def test_get_last_page_scores_for_researcher(
+        self,
+        scorer_api_key,
+        scorer_account,
+        passport_holder_addresses,
+        paginated_scores,
+    ):
+        group, _ = Group.objects.get_or_create(name="Researcher")
+        scorer_account.user.groups.add(group)
+
+        num_scores = len(paginated_scores)
+
+        limit = int(num_scores / 2)
+        client = Client()
+
+        # Read the 1st batch
+        response = client.get(
+            f"/analytics/score/?limit={limit}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        assert response.status_code == 200
+        assert len(response_data["items"]) == limit
+        assert len(response_data["next"]) != None
+
+        # Read the 2nd batch
+        response = client.get(
+            response_data["next"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        assert response.status_code == 200
+        assert len(response_data["items"]) == len(paginated_scores) - limit
+        assert response_data["next"] == None
+
     def test_get_first_page_scores_by_community_id_for_researcher(
         self,
         scorer_api_key,
@@ -362,3 +399,45 @@ class TestPassportGetScore:
                 response_data["items"][i]["address"]
                 == passport_holder_addresses[last_id + i]["address"].lower()
             )
+
+    def test_get_last_page_scores_by_community_id_for_researcher(
+        self,
+        scorer_api_key,
+        scorer_account,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        """
+        We will try reading all scores in 2 request (2 batches). We expect the next link after the 1st page to be valid,
+        and the second page to be null.
+        """
+        group, _ = Group.objects.get_or_create(name="Researcher")
+        scorer_account.user.groups.add(group)
+
+        num_scores = len(paginated_scores)
+
+        limit = int(num_scores / 2)
+        client = Client()
+
+        # Read the 1st batch
+        response = client.get(
+            f"/analytics/score/{scorer_community.id}?limit={limit}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        assert response.status_code == 200
+        assert len(response_data["items"]) == limit
+        assert len(response_data["next"]) != None
+
+        # Read the 2nd batch
+        response = client.get(
+            response_data["next"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        assert response.status_code == 200
+        assert len(response_data["items"]) == len(paginated_scores) - limit
+        assert response_data["next"] == None
