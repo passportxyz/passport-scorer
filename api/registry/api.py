@@ -14,7 +14,7 @@ from django_ratelimit.exceptions import Ratelimited
 from ninja import Router, Schema
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
-from registry.models import Passport, Score
+from registry.models import Passport, Score, Stamp
 from registry.permissions import ResearcherPermission
 from registry.utils import (
     get_signer,
@@ -61,6 +61,17 @@ class StatusEnum(str, Enum):
     processing = Score.Status.PROCESSING
     error = Score.Status.ERROR
     done = Score.Status.DONE
+
+
+class StampCredentialResponse(Schema):
+    version: str
+    credential: dict
+
+
+class CursorPaginatedStampCredentialResponse(Schema):
+    next: Optional[str]
+    prev: Optional[str]
+    items: List[StampCredentialResponse]
 
 
 class DetailedScoreResponse(Schema):
@@ -329,6 +340,84 @@ def get_scores(
             exc_info=True,
         )
         raise e
+
+
+@router.get(
+    "/stamps/{str:address}",
+    auth=ApiKey(),
+    response={
+        200: CursorPaginatedStampCredentialResponse,
+        401: ErrorMessageResponse,
+    },
+    summary="Get passport for an address",
+    description="""Use this endpoint to fetch the passport for a specific address\n
+This endpoint will return a `CursorPaginatedStampCredentialResponse`.\n
+""",
+)
+def get_passport_stamps(
+    request, address: str, last_id: int = None, limit: int = 1000
+) -> CursorPaginatedStampCredentialResponse:
+    check_rate_limit(request)
+
+    query = Stamp.objects.order_by("id")
+
+    if limit and limit > 1000:
+        limit = 1000
+
+    if last_id:
+        query = query.filter(
+            id__gt=last_id, passport__address=address.lower()
+        ).prefetch_related("passport")
+    else:
+        query = query.filter(passport__address=address.lower()).prefetch_related(
+            "passport"
+        )
+
+    if limit and len(query) >= limit:
+        last_stamp = query[limit - 1 : limit][0]
+    else:
+        last_stamp = query.last()
+
+    stamps = query[:limit]
+
+    stamps = [{"version": "1.0.0", "credential": stamp.credential} for stamp in stamps]
+
+    next_url = (
+        reverse_lazy_with_query(
+            "registry:get_passport_stamps",
+            args=[address],
+            query_kwargs={"last_id": last_stamp.id},
+        )
+        if last_stamp.id < query.last().id
+        else None
+    )
+
+    # fetch the last stamp of the previous page
+    prev_last_stamp = (
+        Stamp.objects.filter(id=last_id, passport__address=address.lower())
+        .prefetch_related("passport")
+        .first()
+    )
+
+    if prev_last_stamp:
+        if prev_last_stamp.id - limit > 0:
+            query_kwargs = {"last_id": prev_last_stamp.id - limit}
+        else:
+            query_kwargs = {}
+
+        prev_url = reverse_lazy_with_query(
+            "registry:get_passport_stamps",
+            args=[address],
+            query_kwargs=query_kwargs,
+        )
+    else:
+        prev_url = None
+
+    response = CursorPaginatedStampCredentialResponse(
+        next=next_url, prev=prev_url, items=stamps
+    )
+
+    return response
 
 
 @analytics_router.get("/score/", auth=ApiKey(), response=CursorPaginatedScoreResponse)
