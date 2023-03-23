@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime
 
+from account.deduplication import Rules
+from account.deduplication.fifo import fifo
 from account.deduplication.lifo import lifo
 from account.models import Community
 from asgiref.sync import async_to_sync
@@ -87,6 +89,32 @@ def load_passport_record(community_id: int, address: str):
     return db_passport
 
 
+def process_deduplication(passport, passport_data):
+    """
+    Process deduplication based on the community rule
+    """
+    rule_map = {
+        Rules.LIFO.value: lifo,
+        Rules.FIFO.value: fifo,
+    }
+
+    method = rule_map.get(passport.community.rule)
+
+    if not method:
+        raise Exception("Invalid rule")
+
+    deduplicated_passport, affected_passports = method(
+        passport.community, passport_data, passport.address
+    )
+
+    # If the rule is FIFO, we need to re-score all affected passports
+    if passport.community.rule == Rules.FIFO.value:
+        for passport in affected_passports:
+            score_passport.delay(passport.community_id, passport.address)
+
+    return deduplicated_passport
+
+
 def populate_passport_record(passport: Passport):
     passport_data = get_passport(passport.address)
     log.debug(
@@ -100,8 +128,8 @@ def populate_passport_record(passport: Passport):
 
     log.debug("deduplicating ...")
 
+    passport.passport = process_deduplication(passport, passport_data)
     # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
-    passport.passport = lifo(passport.community, passport_data, passport.address)
 
     passport.save()
 

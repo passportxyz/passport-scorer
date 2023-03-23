@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+from account.deduplication import Rules
 from account.models import Account, AccountAPIKey, Community, Nonce
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -236,6 +237,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         account_2 = web3.eth.account.from_mnemonic(
             my_mnemonic, account_path="m/44'/60'/0'/0/0"
         )
+        print(account, account_2)
         self.account = account
         self.account_2 = account_2
 
@@ -809,3 +811,78 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(updated_passport.address, submission_address)
         self.assertEqual(updated_passport.passport, mock_passport_google)
         self.assertEqual(updated_passport.passport["stamps"][0]["provider"], "Google")
+
+    @patch("registry.tasks.validate_credential", side_effect=[[], []])
+    @patch(
+        "registry.tasks.get_passport",
+        return_value=mock_passport_google,
+    )
+    def test_fifo_deduplication_duplicate_stamps(
+        self, get_passport, validate_credential
+    ):
+        """
+        Test the successful deduplication of stamps by first in first out (FIFO)
+        """
+        address_1 = self.account.address
+        address_2 = self.mock_account.address
+
+        fifo_community = Community.objects.create(
+            name="My FIFO Community",
+            description="My FIFO Community description",
+            account=self.user_account,
+            rule=Rules.FIFO.value,
+        )
+
+        # Create first passport
+        first_passport = Passport.objects.create(
+            address=address_1.lower(),
+            passport=mock_passport_2,
+            community=fifo_community,
+        )
+
+        Stamp.objects.create(
+            passport=first_passport,
+            hash=ens_credential["credentialSubject"]["hash"],
+            provider="Ens",
+            credential=ens_credential,
+        )
+
+        # Create existing stamp that is a duplicate of the one we are going to submit
+        Stamp.objects.create(
+            passport=first_passport,
+            hash=google_credential_2["credentialSubject"]["hash"],
+            provider="Google",
+            credential=google_credential_2,
+        )
+
+        # Now we submit a duplicate hash, and expect deduplication to happen
+        submission_test_payload = {
+            "community": fifo_community.pk,
+            "address": address_2,
+            "nonce": self.nonce,
+        }
+
+        submission_response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(submission_test_payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+
+        score_passport(fifo_community.pk, address_2)
+
+        self.assertEqual(submission_response.status_code, 200)
+
+        # first_passport should have just one stamp and the google stamps should be deleted
+        deduped_first_passport = Passport.objects.get(address=address_1)
+
+        self.assertEqual(len(deduped_first_passport.passport["stamps"]), 1)
+        self.assertEqual(
+            deduped_first_passport.passport["stamps"][0]["provider"], "Ens"
+        )
+
+        # assert submitted passport contains the google stamp
+        submitted_passport = Passport.objects.get(address=address_2)
+
+        self.assertEqual(len(submitted_passport.passport["stamps"]), 1)
+        self.assertEqual(submitted_passport.passport["stamps"][0]["provider"], "Google")
