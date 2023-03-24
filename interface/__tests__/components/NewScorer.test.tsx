@@ -88,9 +88,7 @@ describe("NewScorer", () => {
 
     fireEvent.click(scoringMechanism as HTMLElement);
 
-    await waitFor(() =>
-      expect(screen.getByText(/Create Scorer/i).closest("button")).toBeEnabled()
-    );
+    await waitFor(() => expect(createScorerButton).toBeEnabled());
   });
 
   it("should display cancel confirmation modal when cancel button is clicked", async () => {

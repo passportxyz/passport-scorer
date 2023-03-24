@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { UIMode } from "../utils/dark-mode";
+import { PAGE_PADDING } from "./PageLayout";
 
 const getAssets = (mode?: UIMode) => {
   const darkMode = mode === "dark";
@@ -24,7 +25,7 @@ const Footer = ({ mode, className }: FooterProps): JSX.Element => {
 
   return (
     <div
-      className={`flex h-[120px] items-center justify-between text-base ${className}`}
+      className={`flex h-[120px] items-center justify-between text-base ${PAGE_PADDING} ${className}`}
     >
       <div className="">
         Available on
