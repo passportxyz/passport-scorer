@@ -67,7 +67,11 @@ interface UseCaseModalProps {
   onClose: () => void;
 }
 
-const UseCaseModal = ({ isOpen, existingScorers, onClose }: UseCaseModalProps): JSX.Element => {
+const UseCaseModal = ({
+  isOpen,
+  existingScorers,
+  onClose,
+}: UseCaseModalProps): JSX.Element => {
   const [wizardStep, setWizardStep] = useState(1);
   const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
     undefined
@@ -249,7 +253,9 @@ const UseCaseDetails = ({
   const [useCaseError, setUseCaseError] = useState<string>();
 
   const hasDuplicateName = () => {
-    const existingScorer = existingScorers.find((scorer) => scorer.name === scorerName)
+    const existingScorer = existingScorers.find(
+      (scorer) => scorer.name === scorerName
+    );
     if (existingScorer) {
       setUseCaseError("A scorer with this name already exists");
       return true;
@@ -308,9 +314,7 @@ const UseCaseDetails = ({
           placeholder="Enter Use Case Description"
         />
       </div>
-      {useCaseError && (
-        <p className="pt-4 text-red-700">{useCaseError}</p>
-      )}
+      {useCaseError && <p className="pt-4 text-red-700">{useCaseError}</p>}
       <button
         className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
         onClick={switchToSelectMechanism}

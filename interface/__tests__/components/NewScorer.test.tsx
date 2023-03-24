@@ -1,33 +1,12 @@
-import {
-  act,
-  fireEvent,
-  render,
-  waitFor,
-  screen,
-} from "@testing-library/react";
-import NewScorer from "../../components/NewScorer";
-import mockRouter from "next-router-mock";
-import { createDynamicRouteParser } from "next-router-mock/dynamic-routes";
+import { fireEvent, waitFor, screen } from "@testing-library/react";
 import { createCommunity } from "../../utils/account-requests";
 
-// TODO temporary placeholder to let this compile until these tests are fixed
-// Should probably render within a mock router
-const NewScorerRoute = () => {
-  return <NewScorer />;
-};
+import { renderApp } from "../../__test-fixtures__/appHelpers";
 
 jest.mock("../../utils/account-requests.ts", () => ({
   createCommunity: jest.fn(),
+  getCommunities: jest.fn(),
 }));
-
-mockRouter.useParser(
-  createDynamicRouteParser([
-    // These paths should match those found in the `/pages` folder:
-    "/dashboard/[tabRoute]",
-  ])
-);
-
-jest.mock("next/router", () => require("next-router-mock"));
 
 const localStorageMock = (function () {
   let store: any = {};
@@ -57,7 +36,17 @@ const localStorageMock = (function () {
 
 Object.defineProperty(window, "localStorage", { value: localStorageMock });
 
-describe("NewScorerRoute", () => {
+const expectNavigateToDashboard = async () => {
+  await waitFor(() => {
+    expect(
+      screen.getByText(
+        "A Scorer is used to score Passports. An API key is required to access those scores."
+      )
+    ).toBeInTheDocument();
+  });
+};
+
+describe("NewScorer", () => {
   beforeEach(() => {
     (createCommunity as jest.Mock).mockResolvedValue([
       { name: "Test", description: "Test" },
@@ -74,9 +63,8 @@ describe("NewScorerRoute", () => {
     );
   });
 
-  it.skip("should render the scoring mechanism page with localstorage items from use case modal", async () => {
-    render(<NewScorerRoute />);
-
+  it("should render the scoring mechanism page with localstorage items from use case modal", async () => {
+    renderApp("/new-scorer");
     expect(screen.getByText("Select a Scoring Mechanism")).toBeInTheDocument();
     expect(screen.getByText("Airdrop Protection")).toBeInTheDocument();
     expect(screen.getByText("Gitcoin Airdrop")).toBeInTheDocument();
@@ -87,23 +75,26 @@ describe("NewScorerRoute", () => {
     ).toBeInTheDocument();
   });
 
-  it.skip("continue button should only be enabled when a scoring mechanism is selected", async () => {
-    render(<NewScorerRoute />);
+  it("continue button should only be enabled when a scoring mechanism is selected", async () => {
+    renderApp("/new-scorer");
 
     const scoringMechanism = screen.getByTestId("scoring-mechanism-0");
     const createScorerButton = screen
       .getByText(/Create Scorer/i)
       .closest("button");
 
+    expect(scoringMechanism).toBeInTheDocument();
     expect(createScorerButton).toBeDisabled();
 
     fireEvent.click(scoringMechanism as HTMLElement);
 
-    expect(createScorerButton).toBeEnabled();
+    await waitFor(() =>
+      expect(screen.getByText(/Create Scorer/i).closest("button")).toBeEnabled()
+    );
   });
 
-  it.skip("should display cancel confirmation modal when cancel button is clicked", async () => {
-    render(<NewScorerRoute />);
+  it("should display cancel confirmation modal when cancel button is clicked", async () => {
+    renderApp("/new-scorer");
 
     const cancelButton = screen.getByText(/Cancel/i).closest("button");
 
@@ -118,8 +109,8 @@ describe("NewScorerRoute", () => {
     ).toBeInTheDocument();
   });
 
-  it.skip("should switch to dashboard route when scorer is exited", async () => {
-    render(<NewScorerRoute />);
+  it("should switch to dashboard route when scorer is exited", async () => {
+    renderApp("/new-scorer");
 
     const cancelButton = screen.getByText(/Cancel/i).closest("button");
     fireEvent.click(cancelButton as HTMLElement);
@@ -127,15 +118,11 @@ describe("NewScorerRoute", () => {
     const exitScorerButton = screen.getByText(/Exit Scorer/i).closest("button");
     fireEvent.click(exitScorerButton as HTMLElement);
 
-    expect(mockRouter).toMatchObject({
-      asPath: "/dashboard/scorer",
-      pathname: "/dashboard/[tabRoute]",
-      query: {},
-    });
+    await expectNavigateToDashboard();
   });
 
-  it.skip("should create new scorer when Create Scorer button is clicked", async () => {
-    render(<NewScorerRoute />);
+  it("should create new scorer when Create Scorer button is clicked", async () => {
+    renderApp("/new-scorer");
 
     const scoringMechanism = screen.getByTestId("scoring-mechanism-0"); // Weighted
     const createScorerButton = screen
@@ -144,22 +131,21 @@ describe("NewScorerRoute", () => {
 
     fireEvent.click(scoringMechanism as HTMLElement);
 
-    fireEvent.click(createScorerButton as HTMLElement);
+    fireEvent.click(
+      screen.getByText(/Create Scorer/i).closest("button") as HTMLElement
+    );
 
-    expect(createCommunity).toHaveBeenCalledWith({
-      name: "Gitcoin Airdrop",
-      description: "This airdrop is for participants of the Gitcoin hackathon",
-      use_case: "Airdrop Protection",
-      rule: "LIFO",
-      scorer: "WEIGHTED",
-    });
+    await waitFor(() =>
+      expect(createCommunity).toHaveBeenCalledWith({
+        name: "Gitcoin Airdrop",
+        description:
+          "This airdrop is for participants of the Gitcoin hackathon",
+        use_case: "Airdrop Protection",
+        rule: "LIFO",
+        scorer: "WEIGHTED",
+      })
+    );
 
-    await waitFor(() => {
-      expect(mockRouter).toMatchObject({
-        asPath: "/dashboard/scorer",
-        pathname: "/dashboard/[tabRoute]",
-        query: {},
-      });
-    });
+    await expectNavigateToDashboard();
   });
 });

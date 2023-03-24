@@ -40,5 +40,7 @@ export const renderWithContext = (
   userContext: UserState,
   ui: React.ReactElement<any, string | React.JSXElementConstructor<any>>
 ) => {
-  render(<UserContext.Provider value={userContext}>{ui}</UserContext.Provider>);
+  return render(
+    <UserContext.Provider value={userContext}>{ui}</UserContext.Provider>
+  );
 };
