@@ -112,7 +112,7 @@ def check_rate_limit(request):
         request=request,
         group="registry",
         fn=None,
-        key="header:x-api-key",
+        key=lambda _request, _group: request.api_key.prefix,
         rate=rate,
         method=ALL,
         increment=True,
