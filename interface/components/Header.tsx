@@ -1,58 +1,36 @@
 // --- React methods
 import React, { useContext, useEffect, useMemo } from "react";
 import { UserContext } from "../context/userContext";
-import { UIMode } from "../utils/dark-mode";
+import {
+  PAGE_PADDING,
+  CONTENT_MAX_WIDTH_INCLUDING_PADDING,
+} from "./PageLayout";
+import Warning from "./Warning";
+import MinimalHeader from "./MinimalHeader";
 
 type HeaderProps = {
-  mode?: UIMode;
-  className?: string;
+  subheader?: React.ReactNode;
 };
 
-const getAssets = (mode?: UIMode) => {
-  const darkMode = mode === "dark";
-  return {
-    gitcoinLogo: darkMode
-      ? "/assets/gitcoinLogoWhite.svg"
-      : "/assets/gitcoinLogoDark.svg",
-    scorerWord: darkMode
-      ? "/assets/scorerWordWhite.svg"
-      : "/assets/scorerWordBlack.svg",
-    logoLine: "/assets/logoLine.svg",
-    emphasisColor: darkMode ? "white" : "black",
-  };
-};
-
-const Logo = () => (
-  <div className="relative w-9">
-    <img
-      className="absolute -top-[.8rem] left-0 max-w-none"
-      src="/assets/logo1.svg"
-    />
-    <img
-      className="absolute -top-[.8rem] left-1 max-w-none"
-      src="/assets/logo2.svg"
-    />
-    <img
-      className="absolute -top-2 left-2 max-w-none"
-      src="/assets/logo3.svg"
-    />
-  </div>
-);
-
-const Header = ({ mode, className }: HeaderProps): JSX.Element => {
-  const assets = useMemo(() => getAssets(mode), [mode]);
+const Header = ({ subheader }: HeaderProps): JSX.Element => {
+  const { userWarning, setUserWarning } = useContext(UserContext);
 
   return (
-    <div className={`flex h-16 ${className}`}>
-      <div className="flex items-center">
-        <img className="" src={assets.gitcoinLogo} alt="Gitcoin Logo" />
-        <img className="mx-3 md:mx-6" src={assets.logoLine} alt="Logo Line" />
-        <Logo />
-        <img
-          className="md:block mx-3 hidden"
-          src={assets.scorerWord}
-          alt="Scorer"
+    <div className={"border-b border-gray-300 bg-white"}>
+      <div className={`w-full bg-white ${PAGE_PADDING}`}>
+        <MinimalHeader
+          className={`${subheader ? "border-b border-b-gray-200" : ""}`}
         />
+      </div>
+      <div className={`w-full bg-red-100 ${PAGE_PADDING}`}>
+        {userWarning && (
+          <Warning text={userWarning} onDismiss={() => setUserWarning()} />
+        )}
+      </div>
+      <div
+        className={`mx-auto w-full ${PAGE_PADDING} ${CONTENT_MAX_WIDTH_INCLUDING_PADDING}`}
+      >
+        {subheader}
       </div>
     </div>
   );

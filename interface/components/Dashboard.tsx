@@ -1,9 +1,11 @@
 // --- React components/methods
-import React, { useMemo } from "react";
+import React from "react";
 
 import DashboardTabs from "./DashboardTabs";
-import PageWidthGrid from "../components/PageWidthGrid";
-import { useTopLevelPageContext } from "../components/PageLayout";
+import PageWidthGrid from "./PageWidthGrid";
+import HeaderContentFooterGrid from "./HeaderContentFooterGrid";
+import Header from "./Header";
+import Footer from "./Footer";
 
 import { Outlet } from "react-router-dom";
 
@@ -95,28 +97,22 @@ const SampleApplications = ({ className }: { className?: string }) => {
   );
 };
 
-export const Subheader = ({}) => {
-  return (
-    <div className="my-6 w-full">
-      <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
-        Gitcoin Passport Scorer
-      </h1>
-      <p className="mt-2 font-librefranklin">
-        A Scorer is used to score Passports. An API key is required to access
-        those scores.
-      </p>
-    </div>
-  );
-};
+export const subheader = (
+  <div className="my-6 w-full">
+    <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
+      Gitcoin Passport Scorer
+    </h1>
+    <p className="mt-2 font-librefranklin">
+      A Scorer is used to score Passports. An API key is required to access
+      those scores.
+    </p>
+  </div>
+);
 
 const Dashboard = () => {
-  const { generateHeader, generateFooter } = useTopLevelPageContext();
-  const PageHeader = useMemo(() => generateHeader(Subheader), [generateHeader]);
-  const PageFooter = useMemo(() => generateFooter(), [generateFooter]);
-
   return (
-    <>
-      <PageHeader />
+    <HeaderContentFooterGrid>
+      <Header subheader={subheader} />
       <PageWidthGrid className="mt-4 h-fit">
         <DashboardTabs className="col-span-2 col-start-1 flex-col items-start xl:row-span-2" />
 
@@ -130,8 +126,8 @@ const Dashboard = () => {
         <QuickLinks className="col-span-4 md:col-span-3" />
         <SampleApplications className="col-span-4 md:col-span-3" />
       </PageWidthGrid>
-      <PageFooter />
-    </>
+      <Footer />
+    </HeaderContentFooterGrid>
   );
 };
 
