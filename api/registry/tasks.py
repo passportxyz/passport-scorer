@@ -131,7 +131,7 @@ def process_deduplication(passport, passport_data):
                 passport=passport,
                 defaults=dict(score=None, status=Score.Status.PROCESSING),
             )
-            score_passport.delay(passport.community_id, passport.address)
+            calculate_score(passport, passport.community_id)
 
     return deduplicated_passport
 
