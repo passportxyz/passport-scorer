@@ -8,7 +8,7 @@ export const successToast = (
   return {
     title: "Success!",
     status: "success",
-    // duration: 3000,
+    duration: null,
     isClosable: true,
     variant: "solid",
     position: "bottom",
