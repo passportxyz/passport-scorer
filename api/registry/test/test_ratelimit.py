@@ -48,9 +48,8 @@ def test_rate_limit_from_db_is_applied_for_token(scorer_api_key):
     """
 
     client = Client()
-    # The lowest default limit is set to 125/15m, so we expect to be able to make
-    # 125 successfull calls, and then get a 429 error
-    for _ in range(125):
+    # The rate limit is overridden to 3 calls/30 seconds for this APIKey
+    for _ in range(3):
         response = client.get(
             "/registry/signing-message",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
