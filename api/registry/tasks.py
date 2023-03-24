@@ -100,6 +100,12 @@ def process_deduplication(passport, passport_data):
 
     method = rule_map.get(passport.community.rule)
 
+    log.debug(
+        "Processing deduplication for address='%s' and method='%s'",
+        passport.address,
+        method,
+    )
+
     if not method:
         raise Exception("Invalid rule")
 
@@ -107,9 +113,20 @@ def process_deduplication(passport, passport_data):
         passport.community, passport_data, passport.address
     )
 
+    log.debug(
+        "Processing deduplication found deduplicated_passport='%s' and affected_passports='%s'",
+        deduplicated_passport,
+        affected_passports,
+    )
+
     # If the rule is FIFO, we need to re-score all affected passports
     if passport.community.rule == Rules.FIFO.value:
         for passport in affected_passports:
+            log.debug(
+                "FIFO scoring selected, rescoring passport='%s'",
+                passport,
+            )
+
             Score.objects.update_or_create(
                 passport=passport,
                 defaults=dict(score=None, status=Score.Status.PROCESSING),
