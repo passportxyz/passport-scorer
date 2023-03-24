@@ -11,8 +11,41 @@ log = logging.getLogger(__name__)
 
 
 @override_settings(RATELIMIT_ENABLE=True)
-def test_rate_limit_is_applyed(scorer_api_key):
-    """Make sure the rate limit set in the account is applied when calling the APIs"""
+def test_rate_limit_from_db_is_applied_for_api_key(scorer_api_key):
+    """
+    Make sure the rate limit set in the account is applied when calling the APIs
+    When using the x-api-key header
+    """
+
+    client = Client()
+    # The lowest default limit is set to 125/15m, so we expect to be able to make
+    # 125 successfull calls, and then get a 429 error
+    for _ in range(125):
+        response = client.get(
+            "/registry/signing-message",
+            # HTTP_X_API_KEY must spelled exactly as this because it
+            # will not be converted to HTTP_X_API_KEY by Django Test Client
+            **{"HTTP_X_API_KEY": scorer_api_key},
+        )
+
+        assert response.status_code == 200
+
+    response = client.get(
+        "/registry/signing-message",
+        # HTTP_X_API_KEY must spelled exactly as this because it
+        # will not be converted to HTTP_X_API_KEY by Django Test Client
+        **{"HTTP_X_API_KEY": scorer_api_key},
+    )
+
+    assert response.status_code == 429
+
+
+@override_settings(RATELIMIT_ENABLE=True)
+def test_rate_limit_from_db_is_applied_for_token(scorer_api_key):
+    """
+    Make sure the rate limit set in the account is applied when calling the APIs
+    When using the HTTP_AUTHORIZATION header
+    """
 
     client = Client()
     # The lowest default limit is set to 125/15m, so we expect to be able to make
