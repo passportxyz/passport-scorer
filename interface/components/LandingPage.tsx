@@ -9,29 +9,34 @@ const SIWEButton = ({
   className,
   login,
   testId,
+  disabled,
 }: {
   className?: string;
   login: () => void;
   testId: string;
+  disabled?: boolean;
 }) => {
   return (
     <button
       data-testid={testId}
-      className={`rounded bg-purple-gitcoinpurple px-8 py-3 text-lg text-white ${className}`}
+      className={`rounded bg-purple-gitcoinpurple px-8 py-3 text-lg text-white disabled:cursor-not-allowed disabled:bg-purple-softpurple disabled:text-black ${className}`}
       onClick={login}
+      disabled={disabled}
     >
       <img
         src="/assets/ethLogo.svg"
         alt="Ethereum Logo"
-        className="mr-3 inline h-auto w-4"
+        className={`mr-3 inline h-auto w-4 ${disabled ? "invert" : ""}`}
       />
-      <span className="inline">Sign-in with Ethereum</span>
+      <span className="inline">
+        {disabled ? "Loading..." : "Sign-in with Ethereum"}
+      </span>
     </button>
   );
 };
 
 const LandingPage = () => {
-  const { connected, authenticating, login } = useContext(UserContext);
+  const { connected, ready, authenticating, login } = useContext(UserContext);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -61,6 +66,7 @@ const LandingPage = () => {
         className="mt-10 hidden md:block"
         login={login}
         testId="connectWalletButtonDesktop"
+        disabled={!ready}
       />
     </>
   );
@@ -76,6 +82,7 @@ const LandingPage = () => {
         <SIWEButton
           className="col-span-4 block md:hidden"
           login={login}
+          disabled={!ready}
           testId="connectWalletButtonMobile"
         />
       </div>
