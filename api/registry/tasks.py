@@ -150,7 +150,6 @@ def populate_passport_record(passport: Passport):
     log.debug("deduplicating ...")
 
     passport.passport = process_deduplication(passport, passport_data)
-    # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
 
     passport.save()
 
