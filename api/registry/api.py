@@ -359,45 +359,44 @@ def get_passport_stamps(
 ) -> CursorPaginatedStampCredentialResponse:
     check_rate_limit(request)
 
-    query = Stamp.objects.order_by("id")
+    if limit > 1000:
+        raise InvalidLimitException()
 
-    if limit and limit > 1000:
-        limit = 1000
+    query = (
+        Stamp.objects.order_by("id")
+        .filter(passport__address=address.lower())
+        .select_related("passport")
+    )
 
     if last_id:
-        query = query.filter(
-            id__gt=last_id, passport__address=address.lower()
-        ).prefetch_related("passport")
+        stamps = list(query.filter(id__gt=last_id)[:limit])
     else:
-        query = query.filter(passport__address=address.lower()).prefetch_related(
-            "passport"
-        )
+        stamps = list(query[:limit])
 
-    if limit and len(query) >= limit:
-        last_stamp = query[limit - 1 : limit][0]
-    else:
-        last_stamp = query.last()
+    has_more_stamps = False
+    if stamps:
+        last_stamp = stamps[-1]
+        has_more_stamps = query.filter(id__gt=last_stamp.id).exists()
 
-    stamps = query[:limit]
+        stamps = [
+            {"version": "1.0.0", "credential": stamp.credential} for stamp in stamps
+        ]
 
-    stamps = [{"version": "1.0.0", "credential": stamp.credential} for stamp in stamps]
+    # fetch domain with protocol django with request
+    domain = request.build_absolute_uri("/")[:-1]
 
     next_url = (
-        reverse_lazy_with_query(
+        f"""{domain}{reverse_lazy_with_query(
             "registry:get_passport_stamps",
             args=[address],
-            query_kwargs={"last_id": last_stamp.id},
-        )
-        if last_stamp.id < query.last().id
+            query_kwargs={"last_id": last_stamp.id, "limit": limit},
+        )}"""
+        if has_more_stamps
         else None
     )
 
     # fetch the last stamp of the previous page
-    prev_last_stamp = (
-        Stamp.objects.filter(id=last_id, passport__address=address.lower())
-        .prefetch_related("passport")
-        .first()
-    )
+    prev_last_stamp = query.filter(id=last_id).first()
 
     if prev_last_stamp:
         if prev_last_stamp.id - limit > 0:
@@ -405,11 +404,13 @@ def get_passport_stamps(
         else:
             query_kwargs = {}
 
-        prev_url = reverse_lazy_with_query(
+        query_kwargs.update({"limit": limit})
+
+        prev_url = f"""{domain}{reverse_lazy_with_query(
             "registry:get_passport_stamps",
             args=[address],
             query_kwargs=query_kwargs,
-        )
+        )}"""
     else:
         prev_url = None
 
@@ -425,6 +426,9 @@ def get_passport_stamps(
 def get_scores_analytics(
     request, last_id: int = None, limit: int = 1000
 ) -> CursorPaginatedScoreResponse:
+    if limit > 1000:
+        raise InvalidLimitException()
+
     query = Score.objects.order_by("id")
 
     if last_id:
@@ -462,6 +466,9 @@ def get_scores_by_community_id_analytics(
     last_id: int = None,
     limit: int = 1000,
 ) -> CursorPaginatedScoreResponse:
+    if limit > 1000:
+        raise InvalidLimitException()
+
     user_community = api_get_object_or_404(Community, id=scorer_id)
 
     query = Score.objects.order_by("id").filter(
