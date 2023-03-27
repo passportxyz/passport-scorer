@@ -77,9 +77,8 @@ def score_passport(community_id: int, address: str):
 
 
 def load_passport_data(address: str):
-    # Get the passport data from the blockchain
+    # Get the passport data from the blockchain or ceramic cache
     passport_data = get_passport(address)
-
     if not passport_data:
         raise NoPassportException()
 
@@ -91,9 +90,6 @@ def load_passport_record(community_id: int, address: str):
     db_passport, _ = Passport.objects.update_or_create(
         address=address.lower(),
         community_id=community_id,
-        defaults={
-            "passport": None,
-        },
     )
 
     return db_passport
