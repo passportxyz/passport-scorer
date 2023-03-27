@@ -4,10 +4,7 @@ import React, { useMemo } from "react";
 // --- React Router Methods
 import { useNavigate } from "react-router-dom";
 
-import {
-  PAGE_PADDING,
-  GlobalLayout,
-} from "../components/PageLayout";
+import { PAGE_PADDING, GlobalLayout } from "../components/PageLayout";
 import Header from "./Header";
 import Footer from "./Footer";
 import HeaderContentFooterGrid from "./HeaderContentFooterGrid";
@@ -31,24 +28,32 @@ const NoMatch = () => {
             <div className="text-sm text-purple-gitcoinpurple">
               405 - Page Not Found
             </div>
-            <h2 className="text-2xl text-purple-darkpurple">
+            <h2 className="text-4xl text-purple-darkpurple text-center">
               Uh oh! You might be a little lost.
             </h2>
-            <div className="text-xs text-purple-softpurple">
-              It looks like the page you&apos;re looking for doesn&apos;t exist.
-              For support, contact us on{" "}
-              <a href="https://discord.com/invite/gitcoin" className="text-purple-gitcoinpurple">
-                Discord
-              </a>
-              .
+            <div className="text-base text-purple-softpurple text-center">
+              <p>
+                It looks like the page you&apos;re looking for doesn&apos;t
+                exist.
+              </p>
+              <p>
+                For support, contact us on{" "}
+                <a
+                  href="https://discord.com/invite/gitcoin"
+                  className="text-purple-gitcoinpurple"
+                >
+                  Discord
+                </a>
+                .
+              </p>
             </div>
             <button
-              className="mb-8 mt-8 rounded bg-purple-gitcoinpurple p-4 py-3 text-white"
+              className="mb-8 mt-8 rounded bg-purple-gitcoinpurple px-4 py-2 text-white"
               onClick={navigateToHome}
             >
               Go back home
             </button>
-            <img src="/assets/404.svg" alt="Not Found!"/>
+            <img src="/assets/404.svg" alt="Not Found!" />
           </div>
           <Footer className={PAGE_PADDING} />
         </HeaderContentFooterGrid>
