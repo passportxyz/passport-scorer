@@ -4,7 +4,6 @@ import React, { useMemo } from "react";
 // --- React Router Methods
 import { useNavigate } from "react-router-dom";
 
-import { PrimaryBtn } from "./PrimrayBtn";
 import {
   HeaderContentFooterGrid,
   PAGE_PADDING,
@@ -38,7 +37,7 @@ const NoMatch = () => {
             <div className="text-xs text-purple-softpurple">
               It looks like the page you&apos;re looking for doesn&apos;t exist.
               For support, contact us on{" "}
-              <a href="" className="text-purple-gitcoinpurple">
+              <a href="https://discord.com/invite/gitcoin" className="text-purple-gitcoinpurple">
                 Discord
               </a>
               .
