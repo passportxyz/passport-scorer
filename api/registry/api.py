@@ -347,6 +347,7 @@ def get_scores(
     auth=ApiKey(),
     response={
         200: CursorPaginatedStampCredentialResponse,
+        400: ErrorMessageResponse,
         401: ErrorMessageResponse,
     },
     summary="Get passport for an address",
@@ -363,26 +364,36 @@ def get_passport_stamps(
         raise InvalidLimitException()
 
     query = (
-        Stamp.objects.order_by("id")
+        Stamp.objects.order_by("-id")
         .filter(passport__address=address.lower())
         .select_related("passport")
     )
 
     if last_id:
-        stamps = list(query.filter(id__gt=last_id)[:limit])
+        stamps = list(query.filter(id__lt=last_id)[:limit])
+        prev_stamps = list(query.filter(id__gt=last_id).order_by("id")[:limit])
     else:
         stamps = list(query[:limit])
+        prev_stamps = []
 
-    has_more_stamps = False
+    has_more_stamps = has_prev_stamps = False
+
     if stamps:
         last_stamp = stamps[-1]
-        has_more_stamps = query.filter(id__gt=last_stamp.id).exists()
+        has_more_stamps = query.filter(id__lt=last_stamp.id).exists()
 
         stamps = [
             {"version": "1.0.0", "credential": stamp.credential} for stamp in stamps
         ]
 
-    # fetch domain with protocol django with request
+    if len(prev_stamps) >= limit:
+        prev_last_stamp = prev_stamps[-1]
+        has_prev_stamps = query.filter(id__gte=prev_last_stamp.id).exists()
+        prev_query_kwargs = {"last_id": prev_last_stamp.id, "limit": limit}
+    else:
+        has_prev_stamps = True
+        prev_query_kwargs = {"limit": limit}
+
     domain = request.build_absolute_uri("/")[:-1]
 
     next_url = (
@@ -395,24 +406,15 @@ def get_passport_stamps(
         else None
     )
 
-    # fetch the last stamp of the previous page
-    prev_last_stamp = query.filter(id=last_id).first()
-
-    if prev_last_stamp:
-        if prev_last_stamp.id - limit > 0:
-            query_kwargs = {"last_id": prev_last_stamp.id - limit}
-        else:
-            query_kwargs = {}
-
-        query_kwargs.update({"limit": limit})
-
-        prev_url = f"""{domain}{reverse_lazy_with_query(
+    prev_url = (
+        f"""{domain}{reverse_lazy_with_query(
             "registry:get_passport_stamps",
             args=[address],
-            query_kwargs=query_kwargs,
+            query_kwargs=prev_query_kwargs,
         )}"""
-    else:
-        prev_url = None
+        if has_prev_stamps and last_id
+        else None
+    )
 
     response = CursorPaginatedStampCredentialResponse(
         next=next_url, prev=prev_url, items=stamps
