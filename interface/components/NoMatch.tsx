@@ -5,12 +5,12 @@ import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
-  HeaderContentFooterGrid,
   PAGE_PADDING,
   GlobalLayout,
 } from "../components/PageLayout";
 import Header from "./Header";
 import Footer from "./Footer";
+import HeaderContentFooterGrid from "./HeaderContentFooterGrid";
 
 const NoMatch = () => {
   const navigate = useNavigate();
@@ -48,7 +48,7 @@ const NoMatch = () => {
             >
               Go back home
             </button>
-            <img src="/assets/404.svg" />
+            <img src="/assets/404.svg" alt="Not Found!"/>
           </div>
           <Footer className={PAGE_PADDING} />
         </HeaderContentFooterGrid>
