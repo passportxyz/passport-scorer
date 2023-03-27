@@ -225,9 +225,6 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
     db_passport, _ = Passport.objects.update_or_create(
         address=payload.address.lower(),
         community=user_community,
-        defaults={
-            "passport": {},  # Leave the dict empty for now
-        },
     )
 
     # Create a score with status PROCESSING

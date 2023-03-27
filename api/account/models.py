@@ -121,7 +121,7 @@ class Community(models.Model):
         max_length=100,
         blank=False,
         null=False,
-        default=Rules.LIFO,
+        default=Rules.LIFO.value,
         choices=Rules.choices(),
     )
     description = models.CharField(
