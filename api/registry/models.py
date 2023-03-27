@@ -4,7 +4,6 @@ from django.db import models
 
 class Passport(models.Model):
     address = EthAddressField(null=True, blank=False, max_length=100)
-    passport = models.JSONField(default=dict, null=True)
     community = models.ForeignKey(
         Community, related_name="passports", on_delete=models.CASCADE, null=True
     )

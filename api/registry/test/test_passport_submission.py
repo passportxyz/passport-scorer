@@ -237,7 +237,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         account_2 = web3.eth.account.from_mnemonic(
             my_mnemonic, account_path="m/44'/60'/0'/0/0"
         )
-        print(account, account_2)
+
         self.account = account
         self.account_2 = account_2
 
@@ -381,9 +381,10 @@ class ValidatePassportTestCase(TransactionTestCase):
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
-        self.assertEqual(all_passports[0].passport, mock_passport)
+
         self.assertEqual(all_passports[0].address, self.account.address.lower())
         self.assertEqual(len(all_passports[0].stamps.all()), 2)
+
         stamp_ens = Stamp.objects.get(provider="Ens")
         stamp_google = Stamp.objects.get(provider="Google")
 
@@ -447,12 +448,13 @@ class ValidatePassportTestCase(TransactionTestCase):
         # We do expect an empty passport to have been stored
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
-        self.assertEqual(all_passports[0].passport, None)
+        self.assertEqual(all_passports[0].stamps.count(), 0)
 
         response = self.client.get(
             f"/registry/score/{self.community.id}/{self.account.address}",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
+
         assert response.status_code == 200
         assert response.json() == {
             "address": self.account.address.lower(),
@@ -559,7 +561,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
 
-        self.assertEqual(all_passports[0].passport, mock_passport)
+        self.assertEqual(all_passports[0].stamps.count(), len(mock_passport["stamps"]))
         self.assertEqual(all_passports[0].address, self.account.address.lower())
         self.assertEqual(len(all_passports[0].stamps.all()), 2)
         stamp_ens = Stamp.objects.get(provider="Ens")
@@ -632,7 +634,12 @@ class ValidatePassportTestCase(TransactionTestCase):
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
-        self.assertEqual(all_passports[0].passport, mock_passport_with_corrupted_stamp)
+
+        self.assertEqual(
+            all_passports[0].stamps.all()[0].credential,
+            mock_passport_with_corrupted_stamp["stamps"][0]["credential"],
+        )
+
         self.assertEqual(all_passports[0].address, self.account.address.lower())
         self.assertEqual(len(all_passports[0].stamps.all()), 2)
         stamp_ens = Stamp.objects.get(provider="Ens")
@@ -677,7 +684,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
-        self.assertEqual(all_passports[0].passport, mock_passport_with_expired_stamp)
         self.assertEqual(all_passports[0].address, self.account.address.lower())
         self.assertEqual(len(all_passports[0].stamps.all()), 2)
         stamp_ens = Stamp.objects.get(provider="Ens")
@@ -722,7 +728,10 @@ class ValidatePassportTestCase(TransactionTestCase):
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
-        self.assertEqual(all_passports[0].passport, mock_passport)
+        self.assertEqual(
+            all_passports[0].stamps.all()[0].credential,
+            mock_passport["stamps"][0]["credential"],
+        )
         self.assertEqual(all_passports[0].address, self.account.address.lower())
         self.assertEqual(all_passports[0].community, self.community)
 
@@ -768,7 +777,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         # Create first passport
         first_passport = Passport.objects.create(
             address=address_1,
-            passport=mock_passport,
             community=self.community,
         )
 
@@ -807,10 +815,9 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         updated_passport = Passport.objects.get(address=submission_address)
 
-        self.assertEqual(len(updated_passport.passport["stamps"]), 1)
+        self.assertEqual(updated_passport.stamps.count(), 1)
         self.assertEqual(updated_passport.address, submission_address)
-        self.assertEqual(updated_passport.passport, mock_passport_google)
-        self.assertEqual(updated_passport.passport["stamps"][0]["provider"], "Google")
+        self.assertEqual(updated_passport.stamps.all()[0].provider, "Google")
 
     @patch("registry.tasks.validate_credential", side_effect=[[], []])
     @patch(
@@ -836,7 +843,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         # Create first passport
         first_passport = Passport.objects.create(
             address=address_1.lower(),
-            passport=mock_passport_2,
             community=fifo_community,
         )
 
@@ -876,13 +882,11 @@ class ValidatePassportTestCase(TransactionTestCase):
         # first_passport should have just one stamp and the google stamps should be deleted
         deduped_first_passport = Passport.objects.get(address=address_1)
 
-        self.assertEqual(len(deduped_first_passport.passport["stamps"]), 1)
-        self.assertEqual(
-            deduped_first_passport.passport["stamps"][0]["provider"], "Ens"
-        )
+        self.assertEqual(deduped_first_passport.stamps.count(), 1)
+        self.assertEqual(deduped_first_passport.stamps.all()[0].provider, "Ens")
 
         # assert submitted passport contains the google stamp
         submitted_passport = Passport.objects.get(address=address_2)
 
-        self.assertEqual(len(submitted_passport.passport["stamps"]), 1)
-        self.assertEqual(submitted_passport.passport["stamps"][0]["provider"], "Google")
+        self.assertEqual(submitted_passport.stamps.count(), 1)
+        self.assertEqual(submitted_passport.stamps.all()[0].provider, "Google")

@@ -8,16 +8,6 @@ from registry.models import Passport, Score, Stamp
 log = logging.getLogger(__name__)
 
 
-def filter_duplicate_stamps(passport, existing_stamp) -> dict:
-    desired_stamps = []
-    for stamp in passport["stamps"]:
-        if stamp["credential"]["credentialSubject"]["hash"] != existing_stamp.hash:
-            desired_stamps.append(stamp)
-
-    passport["stamps"] = desired_stamps
-    return passport
-
-
 # --> FIFO deduplication
 def fifo(community: Community, fifo_passport: dict, address: str) -> Tuple[dict, list]:
     deduped_passport = copy.deepcopy(fifo_passport)
@@ -34,10 +24,6 @@ def fifo(community: Community, fifo_passport: dict, address: str) -> Tuple[dict,
                 existing_stamp_passport = existing_stamp.passport
 
                 existing_stamp.delete()
-
-                existing_stamp_passport.passport = filter_duplicate_stamps(
-                    existing_stamp_passport.passport, existing_stamp
-                )
 
                 existing_stamp_passport.save()
 

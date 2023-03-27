@@ -54,7 +54,7 @@ class LifoDeduplicationTestCase(TestCase):
         # We create 1 passport for each community, and add 1 stamps to it
         credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
         passport1 = Passport.objects.create(
-            address="0xaddress_1", passport={}, community=self.community1
+            address="0xaddress_1", community=self.community1
         )
         Stamp.objects.create(
             passport=passport1,
@@ -65,7 +65,7 @@ class LifoDeduplicationTestCase(TestCase):
 
         # We create 1 passport for each community, and add 1 stamps to it
         passport2 = Passport.objects.create(
-            address="0xaddress_2", passport={}, community=self.community2
+            address="0xaddress_2", community=self.community2
         )
         Stamp.objects.create(
             passport=passport2,
@@ -92,7 +92,7 @@ class LifoDeduplicationTestCase(TestCase):
         # We create 1 passport for each community, and add 1 stamps to it
         credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
         passport1 = Passport.objects.create(
-            address="0xaddress_1", passport={}, community=self.community1
+            address="0xaddress_1", community=self.community1
         )
         Stamp.objects.create(
             passport=passport1,
@@ -101,9 +101,9 @@ class LifoDeduplicationTestCase(TestCase):
             credential=credential,
         )
 
-        # We create the 2nd passport, owned by the same addres and add the same stamp to it
+        # We create the 2nd passport, owned by the same address and add the same stamp to it
         passport2 = Passport.objects.create(
-            address=passport1.address, passport={}, community=self.community2
+            address=passport1.address, community=self.community2
         )
         Stamp.objects.create(
             passport=passport2,
@@ -128,7 +128,7 @@ class LifoDeduplicationTestCase(TestCase):
         # We create 1 passport for each community, and add 1 stamps to it
         credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
         passport = Passport.objects.create(
-            address="0xaddress_1", passport={}, community=self.community1
+            address="0xaddress_1", community=self.community1
         )
         Stamp.objects.create(
             passport=passport,

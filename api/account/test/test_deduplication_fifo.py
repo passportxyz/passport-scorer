@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from account.deduplication import Rules
-from account.deduplication.fifo import fifo, filter_duplicate_stamps
+from account.deduplication.fifo import fifo
 from account.models import Account, Community
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -109,7 +109,7 @@ class FifoDeduplication(TestCase):
         Test that the deduplicate stamps are found, deleted, and passport score is updated
         """
         passport1 = Passport.objects.create(
-            address="0xaddress_1", passport=mock_passport, community=self.community1
+            address="0xaddress_1", community=self.community1
         )
 
         passport2 = Passport.objects.create(
@@ -146,7 +146,7 @@ class FifoDeduplication(TestCase):
         Test that the deduplicate stamps are found, deleted, and passport score is updated
         """
         passport1 = Passport.objects.create(
-            address="0xaddress_1", passport=mock_passport, community=self.community2
+            address="0xaddress_1", community=self.community2
         )
 
         passport2 = Passport.objects.create(
@@ -175,22 +175,3 @@ class FifoDeduplication(TestCase):
             1,
             "The stamp should not have been deleted from the passpo",
         )
-
-    def test_filter_duplicate_stamps_no_duplicates(self):
-        existing_stamp = ExistingStamp("789")
-        result = filter_duplicate_stamps(self.sample_passport, existing_stamp)
-        assert len(result["stamps"]) == 3
-        assert result["stamps"] == self.sample_passport["stamps"]
-
-    def test_filter_duplicate_stamps_with_duplicates(self):
-        existing_stamp = ExistingStamp("123")
-        result = filter_duplicate_stamps(self.sample_passport, existing_stamp)
-        assert len(result["stamps"]) == 1
-        assert result["stamps"][0]["credential"]["credentialSubject"]["hash"] == "456"
-
-    def test_filter_duplicate_stamps_with_empty_passport(self):
-        empty_passport = {"stamps": []}
-        existing_stamp = ExistingStamp("123")
-        result = filter_duplicate_stamps(empty_passport, existing_stamp)
-        assert len(result["stamps"]) == 0
-        assert result["stamps"] == []

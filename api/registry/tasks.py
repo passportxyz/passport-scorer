@@ -31,9 +31,9 @@ def score_passport(community_id: int, address: str):
     passport = None
     try:
         passport = load_passport_record(community_id, address)
-        populate_passport_record(passport)
         remove_existing_stamps_from_db(passport)
-        validate_and_save_stamps(passport)
+        passport_data = load_passport_data(address)
+        validate_and_save_stamps(passport, passport_data)
         calculate_score(passport, community_id)
 
     except APIException as e:
@@ -74,6 +74,16 @@ def score_passport(community_id: int, address: str):
                     error=str(e),
                 ),
             )
+
+
+def load_passport_data(address: str):
+    # Get the passport data from the blockchain
+    passport_data = get_passport(address)
+
+    if not passport_data:
+        raise NoPassportException()
+
+    return passport_data
 
 
 def load_passport_record(community_id: int, address: str):
@@ -136,32 +146,17 @@ def process_deduplication(passport, passport_data):
     return deduplicated_passport
 
 
-def populate_passport_record(passport: Passport):
-    passport_data = get_passport(passport.address)
-    log.debug(
-        "score_passport loaded for address='%s' passport=%s",
-        passport.address,
-        passport_data,
-    )
+def validate_and_save_stamps(passport: Passport, passport_data):
+    log.debug("getting stamp data ")
 
-    if not passport_data:
-        raise NoPassportException()
+    log.debug("processing deduplication")
 
-    log.debug("deduplicating ...")
+    deduped_passport_data = process_deduplication(passport, passport_data)
 
-    passport.passport = process_deduplication(passport, passport_data)
-
-    passport.save()
-
-    return passport
-
-
-def validate_and_save_stamps(passport: Passport):
     log.debug("validating stamps")
-
     did = get_did(passport.address)
 
-    for stamp in passport.passport["stamps"]:
+    for stamp in deduped_passport_data["stamps"]:
         stamp_return_errors = async_to_sync(validate_credential)(
             did, stamp["credential"]
         )
