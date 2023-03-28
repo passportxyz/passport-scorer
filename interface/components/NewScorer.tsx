@@ -16,7 +16,9 @@ import {
   ScaleIcon,
   CurrencyDollarIcon,
   AdjustmentsVerticalIcon,
+  ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
+import { CloseIcon } from "@chakra-ui/icons";
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import PageWidthGrid from "./PageWidthGrid";
@@ -173,7 +175,7 @@ const Subheader = ({ useCase, name, description }: any) => (
 const NewScorer = () => {
   const navigate = useNavigate();
   const toast = useToast();
-  const { toastIdRef, openToast } = useClickOutsideToast();
+  const { openToast } = useClickOutsideToast();
   const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
     undefined
   );
@@ -217,7 +219,37 @@ const NewScorer = () => {
       localStorage.setItem("scorerCreated", "true");
       navigate("/dashboard/scorer");
     } catch (e) {
-      openToast("Something went wrong.Please try again.", "warning");
+      openToast({
+        title: "Warning!",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+        variant: "solid",
+        position: "bottom",
+        render: () => (
+          <div
+            style={{
+              backgroundColor: "#FDDEE4",
+              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              padding: "16px",
+            }}
+          >
+            <ExclamationCircleIcon className="mr-3 w-6 text-[#D44D6E]" />
+            <span style={{ color: "#0E0333", fontSize: "16px" }}>
+              Something went wrong. Please try again.
+            </span>
+            <CloseIcon
+              color="#0E0333"
+              boxSize={3}
+              ml="8"
+              cursor="pointer"
+              onClick={() => toast.closeAll()}
+            />
+          </div>
+        ),
+      });
     }
   }, [
     name,
