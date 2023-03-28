@@ -34,6 +34,7 @@ import {
 import { CloseIcon } from "@chakra-ui/icons";
 import { UseCaseInterface, useCases } from "./UseCaseModal";
 import { SpinnerIcon } from "./CustomIcons";
+import { useClickOutsideToast } from "./useClickOutsideToast";
 
 interface UseCaseMap {
   [k: string]: UseCaseInterface;
@@ -257,6 +258,7 @@ const CommunityCard = ({
   handleDeleteCommunity,
 }: CommunityCardProps): JSX.Element => {
   const toast = useToast();
+  const { openToast } = useClickOutsideToast();
   let useCase = useCasesByName[community.use_case];
   let [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   let [isDeleteConfirmationModalOpen, setIsDeleteConfirmationModalOpen] =
@@ -284,7 +286,7 @@ const CommunityCard = ({
       await handleUpdateCommunity(community.id, name, description);
       setIsRenameModalOpen(false);
     } catch (e) {
-      toast(getErrorToast(toast));
+      openToast(getErrorToast(toast));
     }
   };
 
@@ -293,7 +295,7 @@ const CommunityCard = ({
       await handleDeleteCommunity(community.id);
       setIsDeleteConfirmationModalOpen(false);
     } catch (e) {
-      toast(getErrorToast(toast));
+      openToast(getErrorToast(toast));
     }
   };
 

@@ -49,7 +49,7 @@ const APIKeyList = () => {
   const [apiKeyToUpdate, setApiKeyToUpdate] = useState<string | undefined>();
   const { logout, setUserWarning } = useContext(UserContext);
   const toast = useToast();
-  const { toastIdRef, openToast } = useClickOutsideToast();
+  const { openToast } = useClickOutsideToast();
 
   useEffect(() => {
     let keysFetched = false;
@@ -73,7 +73,7 @@ const APIKeyList = () => {
   const handleCreateApiKey = async (key: ApiKeyDisplay) => {
     try {
       setCreateApiKeyModal(false);
-      openToast("API Key created successfully!");
+      openToast(successToast("API Key created successfully!", toast));
       setApiKeys([...apiKeys, key]);
     } catch (error: any) {
       const msg =
@@ -90,7 +90,7 @@ const APIKeyList = () => {
     try {
       await updateApiKey(id, name);
       setApiKeyToUpdate(undefined);
-      toastIdRef.current = toast(successToast("API Key updated successfully!", toast));
+      openToast(successToast("API Key updated successfully!", toast));
 
       const apiKeyIndex = apiKeys.findIndex((apiKey) => apiKey.id === id);
       const newApiKeys = [...apiKeys];

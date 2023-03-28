@@ -34,23 +34,6 @@ const CommunityList = () => {
   const { logout } = useContext(UserContext);
   const { toastIdRef, openToast } = useClickOutsideToast();
 
-  function closeToast() {
-    if (toastIdRef.current) {
-      toast.close(toastIdRef.current)
-    }
-  };
-
-  // useEffect(() => {
-  //   window.addEventListener("click", (e) => {
-  //     closeToast()
-  //   });
-  //   return () => {
-  //     window.removeEventListener("click", (e) => {
-  //       closeToast();
-  //     })
-  //   }
-  // });
-
   const fetchCommunities = useCallback(async () => {
     try {
       setCommunityLoadingStatus("loading");
@@ -70,7 +53,7 @@ const CommunityList = () => {
     const scorerCreated = Boolean(localStorage.getItem("scorerCreated"));
 
     if (scorerCreated) {
-      openToast("Your Scorer has been created.");
+      openToast(successToast("Your Scorer has been created.", toast));
       localStorage.removeItem("scorerCreated");
     }
 

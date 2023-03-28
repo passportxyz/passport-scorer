@@ -29,6 +29,7 @@ import { UseCaseInterface, useCases } from "./UseCaseModal";
 import { createCommunity } from "../utils/account-requests";
 import { CloseIcon } from "@chakra-ui/icons";
 import PopoverInfo from "./PopoverInfo";
+import { useClickOutsideToast } from "./useClickOutsideToast";
 
 type DeduplicationType = "FIFO" | "LIFO";
 
@@ -174,6 +175,7 @@ const Subheader = ({ useCase, name, description }: any) => (
 const NewScorer = () => {
   const navigate = useNavigate();
   const toast = useToast();
+  const { openToast } = useClickOutsideToast();
   const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
     undefined
   );
@@ -217,7 +219,7 @@ const NewScorer = () => {
       localStorage.setItem("scorerCreated", "true");
       navigate("/dashboard/scorer");
     } catch (e) {
-      toast({
+      openToast({
         title: "Warning!",
         status: "warning",
         duration: 3000,
