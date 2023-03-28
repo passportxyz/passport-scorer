@@ -192,7 +192,7 @@ const NewScorer = () => {
     const FooterOverride = ({ className }: { className?: string }) => (
       <footer
         className={
-          `mt-6 w-full border-t border-gray-lightgray bg-white py-6 ` +
+          `mt-6 w-full border-t border-gray-lightgray bg-white py-6 fixed inset-x-0 bottom-0 ` +
           className
         }
       >
@@ -217,7 +217,7 @@ const NewScorer = () => {
           isOpen={cancelModal}
           isCentered={true}
           size={{ base: "xs", md: "lg", lg: "lg", xl: "lg" }}
-          onClose={() => {}}
+          onClose={() => { }}
         >
           <ModalOverlay />
           <ModalContent>
@@ -326,9 +326,9 @@ const NewScorer = () => {
               "col-span-4 rounded border border-gray-lightgray bg-white p-6 md:col-span-3 " +
               (!mechanism.disabled
                 ? "cursor-pointer " +
-                  (gitcoinScoringMechanism?.title === mechanism.title
-                    ? "outline outline-2 outline-purple-gitcoinpurple"
-                    : "hover:border-purple-gitcoinpurple")
+                (gitcoinScoringMechanism?.title === mechanism.title
+                  ? "outline outline-2 outline-purple-gitcoinpurple"
+                  : "hover:border-purple-gitcoinpurple")
                 : "cursor-not-allowed")
             }
           >
@@ -342,10 +342,9 @@ const NewScorer = () => {
                 }
               >
                 {mechanism.icon(
-                  `w-7 ${
-                    mechanism.recommended
-                      ? "text-purple-gitcoinpurple"
-                      : "text-purple-darkpurple"
+                  `w-7 ${mechanism.recommended
+                    ? "text-purple-gitcoinpurple"
+                    : "text-purple-darkpurple"
                   }`
                 )}
               </div>

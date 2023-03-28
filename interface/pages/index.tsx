@@ -30,10 +30,12 @@ const PageRouter = () => {
   useEffect(() => {
     if (loginComplete) {
       toast({
-        duration: 5000,
+        duration: null,
         isClosable: true,
         render: (result: any) => (
-          <div className="flex justify-between rounded-md bg-blue-darkblue p-4 text-white">
+          <div style={{
+            marginBottom: "80px"
+          }} className="flex justify-between rounded-md bg-blue-darkblue p-4 text-white">
             <span className="step-icon step-icon-completed flex h-9 items-center">
               <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-teal-600">
                 <img
