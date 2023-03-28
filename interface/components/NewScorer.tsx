@@ -112,7 +112,7 @@ const PageFooter = ({
       isOpen={cancelModal}
       isCentered={true}
       size={{ base: "xs", md: "lg", lg: "lg", xl: "lg" }}
-      onClose={() => {}}
+      onClose={() => { }}
     >
       <ModalOverlay />
       <ModalContent>
@@ -326,14 +326,14 @@ const NewScorer = () => {
         </Modal>
       </footer>
     );
-    return generateFooter(FooterOverride);
+    return FooterOverride;
   }, [
     cancelModal,
     setCancelModal,
     handleCancellation,
     createScorer,
     isLoading,
-    generateFooter,
+    // generateFooter,
     deduplication,
     gitcoinScoringMechanism,
   ]);
