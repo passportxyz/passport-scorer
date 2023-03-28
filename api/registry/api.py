@@ -370,8 +370,11 @@ def get_passport_stamps(
     )
 
     if last_id:
+        # note we use lt here because we're querying in descending order
         stamps = list(query.filter(id__lt=last_id)[:limit])
-        prev_stamps = list(query.filter(id__gt=last_id).order_by("id")[:limit])
+        prev_stamps = list(
+            query.filter(id__gt=last_id).order_by("id")[:limit]
+        )  # limit=2
     else:
         stamps = list(query[:limit])
         prev_stamps = []
@@ -386,7 +389,7 @@ def get_passport_stamps(
             {"version": "1.0.0", "credential": stamp.credential} for stamp in stamps
         ]
 
-    if len(prev_stamps) >= limit:
+    if len(prev_stamps) == limit:
         prev_last_stamp = prev_stamps[-1]
         has_prev_stamps = query.filter(id__gte=prev_last_stamp.id).exists()
         prev_query_kwargs = {"last_id": prev_last_stamp.id, "limit": limit}

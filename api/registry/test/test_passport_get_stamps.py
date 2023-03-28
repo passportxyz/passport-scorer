@@ -121,13 +121,13 @@ class TestPassportGetStamps:
 
         assert response.status_code == 200
 
-        # paginated_stamps.reverse()
+        paginated_stamps.reverse()
 
-        # for i in range(limit):
-        #     assert (
-        #         response_data["items"][i]["credential"]["credentialSubject"]["provider"]
-        #         == paginated_stamps[i+limit].provider
-        #     )
+        for i in range(limit):
+            assert (
+                response_data["items"][i]["credential"]["credentialSubject"]["provider"]
+                == paginated_stamps[i + limit].provider
+            )
 
     def test_limit_greater_than_1000_throws_an_error(
         self, passport_holder_addresses, scorer_api_key
