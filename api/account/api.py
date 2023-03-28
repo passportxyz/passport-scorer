@@ -15,6 +15,7 @@ from ninja_jwt.authentication import JWTAuth
 from ninja_jwt.exceptions import InvalidToken
 from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
+from registry.api import ApiKey
 from scorer_weighted.models import BinaryWeightedScorer, WeightedScorer
 from siwe import SiweMessage, siwe
 
@@ -508,3 +509,41 @@ def update_community_scorers(request, community_id, payload: ScorerId):
     except Community.DoesNotExist:
         raise UnauthorizedException()
     return {"ok": True}
+
+
+class GenericCommunitiesPayload(Schema):
+    name: str
+    description: Optional[str] = "Programmatically created by Allo"
+    use_case: Optional[str] = "Sybil Prevention"
+
+
+# Should we try to update naming Scorer vs Community?
+@api.post("/generic-community", auth=ApiKey())
+def create_generic_community(request, payload: GenericCommunitiesPayload):
+    try:
+        account = request.user.account
+
+        if not account.privileged:
+            raise UnauthorizedException()
+
+        if Community.objects.filter(name=payload.name, account=account).exists():
+            raise CommunityExistsException()
+
+        # Create generic community
+        community = Community.objects.create(
+            account=account,
+            name=payload.name,
+            description=payload.description,
+            use_case=payload.use_case,
+        )
+
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
+
+    return {
+        "ok": True,
+        "id": community.pk,
+        "name": community.name,
+        "description": community.description,
+        "use_case": community.use_case,
+    }
