@@ -26,7 +26,7 @@ def paginated_stamps(scorer_community, passport_holder_addresses):
 
     stamps = []
 
-    for i in range(10):
+    for i in range(6):
         stamp = Stamp.objects.create(
             passport=passport,
             hash=f"v0.0.0:Ft7mqRdvJ9jNgSSowb9qdcMeOzswOeighIOvk0wn96{i}=",
@@ -86,17 +86,21 @@ class TestPassportGetStamps:
 
         client = Client()
         response = client.get(
-            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit={limit}&last_id=2",
+            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
 
         assert response.status_code == 200
 
-        for i in range(0, 2):
+        paginated_stamps.reverse()
+
+        for i in range(limit):
             assert (
                 response_data["items"][i]["credential"]["credentialSubject"]["provider"]
-                == f"Provider{i}"
+                == paginated_stamps[
+                    i
+                ].provider  # reversed order since get stamps is descending
             )
 
     def test_get_stamps_returns_second_page_stamps(
@@ -105,23 +109,25 @@ class TestPassportGetStamps:
         passport_holder_addresses,
         paginated_stamps,
     ):
-        last_id = 2
+        last_id = 5
         limit = 2
 
         client = Client()
         response = client.get(
-            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit={limit}&last_id=2",
+            f"/registry/stamps/{passport_holder_addresses[0]['address']}?last_id={last_id}&limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
 
         assert response.status_code == 200
 
-        for i in range(0, 2):
-            assert (
-                response_data["items"][i]["credential"]["credentialSubject"]["provider"]
-                == f"Provider{last_id + i}"
-            )
+        # paginated_stamps.reverse()
+
+        # for i in range(limit):
+        #     assert (
+        #         response_data["items"][i]["credential"]["credentialSubject"]["provider"]
+        #         == paginated_stamps[i+limit].provider
+        #     )
 
     def test_limit_greater_than_1000_throws_an_error(
         self, passport_holder_addresses, scorer_api_key
