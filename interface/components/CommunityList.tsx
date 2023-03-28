@@ -20,12 +20,12 @@ import {
 } from "../utils/account-requests";
 
 import UseCaseModal from "./UseCaseModal";
-import { useToast, ToastId } from "@chakra-ui/react";
-import { successToast } from "./Toasts";
+// import { useToast, ToastId } from "@chakra-ui/react";
+// import { successToast } from "./Toasts";
 import { StarIcon } from "@heroicons/react/24/outline";
 
 const CommunityList = () => {
-  const toast = useToast();
+  // const toast = useToast();
   const [selectUseCaseModalOpen, setSelectUseCaseModalOpen] = useState(false);
   const [error, setError] = useState<undefined | string>();
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -34,11 +34,11 @@ const CommunityList = () => {
   const { logout } = useContext(UserContext);
   const { toastIdRef, openToast } = useClickOutsideToast();
 
-  function closeToast() {
-    if (toastIdRef.current) {
-      toast.close(toastIdRef.current)
-    }
-  };
+  // function closeToast() {
+  //   if (toastIdRef.current) {
+  //     toast.close(toastIdRef.current)
+  //   }
+  // };
 
   // useEffect(() => {
   //   window.addEventListener("click", (e) => {
@@ -70,7 +70,7 @@ const CommunityList = () => {
     const scorerCreated = Boolean(localStorage.getItem("scorerCreated"));
 
     if (scorerCreated) {
-      openToast("Your Scorer has been created.");
+      openToast("Your Scorer has been created.", "success");
       localStorage.removeItem("scorerCreated");
     }
 
