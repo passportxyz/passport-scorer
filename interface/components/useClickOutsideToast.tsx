@@ -4,7 +4,7 @@ import {
   useToast,
 } from "@chakra-ui/react";
 
-import { successToast } from "./Toasts";
+import { successToast, warningToast } from "./Toasts";
 
 export function useClickOutsideToast() {
   const toast = useToast();
@@ -25,10 +25,14 @@ export function useClickOutsideToast() {
     return () => {
       window.removeEventListener('click', handleClickOutside);
     };
-  }, []);
+  }, [closeToast]);
 
-  function openToast(toastMsg: string) {
-    toastIdRef.current = toast(successToast(toastMsg, toast));
+  function openToast(toastMsg: string, toastType: string,) {
+    if (toastType === "success") {
+      toastIdRef.current = toast(successToast(toastMsg, toast));
+    } else if (toastType === "warning") {
+      toastIdRef.current = toast(warningToast(toastMsg, toast));
+    }
   }
 
   return { toastIdRef, openToast };
