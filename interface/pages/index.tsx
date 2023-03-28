@@ -1,5 +1,5 @@
 // --- React Methods
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useRef } from "react";
 import {
   HashRouter as Router,
   Routes,
@@ -17,7 +17,7 @@ import LandingPage from "../components/LandingPage";
 
 // --- Context
 import { UserContext } from "../context/userContext";
-import { useToast } from "@chakra-ui/react";
+import { useToast, ToastId } from "@chakra-ui/react";
 
 import PageLayout from "../components/PageLayout";
 import HomePageLayout from "../components/HomePageLayout";
@@ -43,14 +43,34 @@ export const PageRoutes = () => (
 const PageRouter = () => {
   const { loginComplete } = useContext(UserContext);
   const toast = useToast();
+  const toastIdRef = useRef<ToastId | undefined>();
+
+  function closeToast() {
+    if (toastIdRef.current) {
+      toast.close(toastIdRef.current)
+    }
+  }
+
+  useEffect(() => {
+    window.addEventListener("click", (e) => {
+      closeToast()
+    });
+    return () => {
+      window.removeEventListener("click", (e) => {
+        closeToast();
+      })
+    }
+  });
 
   useEffect(() => {
     if (loginComplete) {
-      toast({
-        duration: 5000,
+      toastIdRef.current = toast({
+        duration: null,
         isClosable: true,
         render: (result: any) => (
-          <div className="flex justify-between rounded-md bg-blue-darkblue p-4 text-white">
+          <div style={{
+            marginBottom: "80px"
+          }} className="flex justify-between rounded-md bg-blue-darkblue p-4 text-white">
             <span className="step-icon step-icon-completed flex h-9 items-center">
               <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-teal-600">
                 <img

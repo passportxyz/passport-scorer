@@ -8,7 +8,7 @@ export const successToast = (
   return {
     title: "Success!",
     status: "success",
-    duration: 3000,
+    duration: null,
     isClosable: true,
     variant: "solid",
     position: "bottom",
@@ -20,6 +20,7 @@ export const successToast = (
           display: "flex",
           alignItems: "center",
           padding: "16px",
+          marginBottom: "80px"
         }}
       >
         <CheckCircleIcon color="#02E2AC" boxSize={6} mr={4} />
