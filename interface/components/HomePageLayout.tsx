@@ -1,24 +1,21 @@
-import React, { useState, useCallback } from "react";
+import React from "react";
 import { Outlet } from "react-router-dom";
 
-import Header from "./Header";
+import MinimalHeader from "./MinimalHeader";
 import Footer from "./Footer";
 import PageWidthGrid from "./PageWidthGrid";
-import {
-  PAGE_PADDING,
-  HeaderContentFooterGrid,
-  GlobalLayout,
-} from "./PageLayout";
+import { PAGE_PADDING, GlobalLayout } from "./PageLayout";
+import HeaderContentFooterGrid from "./HeaderContentFooterGrid";
 
 const HomePageLayout = (): JSX.Element => (
   <GlobalLayout>
     <div className="bg-purple-darkpurple">
       <HeaderContentFooterGrid>
-        <Header mode="dark" className={PAGE_PADDING} />
+        <MinimalHeader mode="dark" className={PAGE_PADDING} />
         <PageWidthGrid className="mt-6 h-full">
           <Outlet />
         </PageWidthGrid>
-        <Footer mode="dark" className={PAGE_PADDING} />
+        <Footer mode="dark" />
       </HeaderContentFooterGrid>
     </div>
   </GlobalLayout>

@@ -13,7 +13,6 @@ def fixture_weighted_scorer_passports(
 ):
     passport = Passport.objects.create(
         address=passport_holder_addresses[0]["address"],
-        passport={},
         community=scorer_community_with_binary_scorer,
     )
     Stamp.objects.create(
@@ -25,7 +24,6 @@ def fixture_weighted_scorer_passports(
 
     passport1 = Passport.objects.create(
         address=passport_holder_addresses[1]["address"],
-        passport={},
         community=scorer_community_with_binary_scorer,
     )
 
@@ -44,7 +42,6 @@ def fixture_weighted_scorer_passports(
 
     passport2 = Passport.objects.create(
         address=passport_holder_addresses[2]["address"],
-        passport={},
         community=scorer_community_with_binary_scorer,
     )
 

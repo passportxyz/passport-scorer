@@ -1,13 +1,13 @@
 """Deduplication rules feature tests."""
 
 import json
+from datetime import datetime, timezone
 
 import pytest
 from account.models import Nonce
 from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when
-from datetime import datetime, timezone
 from registry.models import Passport, Stamp
 from registry.tasks import score_passport
 from registry.test.test_passport_submission import ens_credential, mock_passport
@@ -42,7 +42,6 @@ def _(
     # Create the first passport + hashes
     first_passport = Passport.objects.create(
         address=passport_holder_addresses[0]["address"],
-        passport=mock_passport,
         community=scorer_community_with_gitcoin_default,
     )
 

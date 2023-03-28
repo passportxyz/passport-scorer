@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime
 
+from account.deduplication import Rules
+from account.deduplication.fifo import fifo
 from account.deduplication.lifo import lifo
 from account.models import Community
 from asgiref.sync import async_to_sync
@@ -29,9 +31,9 @@ def score_passport(community_id: int, address: str):
     passport = None
     try:
         passport = load_passport_record(community_id, address)
-        populate_passport_record(passport)
         remove_existing_stamps_from_db(passport)
-        validate_and_save_stamps(passport)
+        passport_data = load_passport_data(address)
+        validate_and_save_stamps(passport, passport_data)
         calculate_score(passport, community_id)
 
     except APIException as e:
@@ -74,46 +76,83 @@ def score_passport(community_id: int, address: str):
             )
 
 
+def load_passport_data(address: str):
+    # Get the passport data from the blockchain or ceramic cache
+    passport_data = get_passport(address)
+    if not passport_data:
+        raise NoPassportException()
+
+    return passport_data
+
+
 def load_passport_record(community_id: int, address: str):
     # Create a DB record for the passport unless one already exists
     db_passport, _ = Passport.objects.update_or_create(
         address=address.lower(),
         community_id=community_id,
-        defaults={
-            "passport": None,
-        },
     )
 
     return db_passport
 
 
-def populate_passport_record(passport: Passport):
-    passport_data = get_passport(passport.address)
+def process_deduplication(passport, passport_data):
+    """
+    Process deduplication based on the community rule
+    """
+    rule_map = {
+        Rules.LIFO.value: lifo,
+        Rules.FIFO.value: fifo,
+    }
+
+    method = rule_map.get(passport.community.rule)
+
     log.debug(
-        "score_passport loaded for address='%s' passport=%s",
+        "Processing deduplication for address='%s' and method='%s'",
         passport.address,
-        passport_data,
+        method,
     )
 
-    if not passport_data:
-        raise NoPassportException()
+    if not method:
+        raise Exception("Invalid rule")
 
-    log.debug("deduplicating ...")
+    deduplicated_passport, affected_passports = method(
+        passport.community, passport_data, passport.address
+    )
 
-    # Check if stamp(s) with hash already exist and remove it/them from the incoming passport
-    passport.passport = lifo(passport.community, passport_data, passport.address)
+    log.debug(
+        "Processing deduplication found deduplicated_passport='%s' and affected_passports='%s'",
+        deduplicated_passport,
+        affected_passports,
+    )
 
-    passport.save()
+    # If the rule is FIFO, we need to re-score all affected passports
+    if passport.community.rule == Rules.FIFO.value:
+        for passport in affected_passports:
+            log.debug(
+                "FIFO scoring selected, rescoring passport='%s'",
+                passport,
+            )
 
-    return passport
+            Score.objects.update_or_create(
+                passport=passport,
+                defaults=dict(score=None, status=Score.Status.PROCESSING),
+            )
+            calculate_score(passport, passport.community_id)
+
+    return deduplicated_passport
 
 
-def validate_and_save_stamps(passport: Passport):
+def validate_and_save_stamps(passport: Passport, passport_data):
+    log.debug("getting stamp data ")
+
+    log.debug("processing deduplication")
+
+    deduped_passport_data = process_deduplication(passport, passport_data)
+
     log.debug("validating stamps")
-
     did = get_did(passport.address)
 
-    for stamp in passport.passport["stamps"]:
+    for stamp in deduped_passport_data["stamps"]:
         stamp_return_errors = async_to_sync(validate_credential)(
             did, stamp["credential"]
         )

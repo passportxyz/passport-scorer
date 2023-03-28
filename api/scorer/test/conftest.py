@@ -61,7 +61,7 @@ def passport_holder_addresses():
 @pytest.fixture
 def scorer_api_key(scorer_account):
     (_, secret) = AccountAPIKey.objects.create_key(
-        account=scorer_account, name="Token for user 1"
+        account=scorer_account, name="Token for user 1", rate_limit="3/30seconds"
     )
     return secret
 
@@ -104,7 +104,6 @@ def scorer_community(scorer_account):
 def scorer_passport(scorer_account, scorer_community):
     passport = Passport.objects.create(
         address=scorer_account.address,
-        passport={"name": "John Doe"},
         community=scorer_community,
     )
     return passport

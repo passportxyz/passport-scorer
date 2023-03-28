@@ -22,7 +22,6 @@ def paginated_scores(scorer_passport, passport_holder_addresses, scorer_communit
         passport = Passport.objects.create(
             address=holder["address"],
             community=scorer_community,
-            passport={"name": "John Doe"},
         )
 
         score = Score.objects.create(

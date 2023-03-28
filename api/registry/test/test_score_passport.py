@@ -100,7 +100,7 @@ class TestScorePassportTestCase(TransactionTestCase):
             passport = Passport.objects.get(
                 address=self.account.address, community_id=self.community.pk
             )
-            self.assertEqual(passport.passport, None)
+            self.assertEqual(passport.stamps.all().count(), 0)
 
             score = Score.objects.get(passport=passport)
             self.assertEqual(score.score, None)

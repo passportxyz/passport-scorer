@@ -27,7 +27,6 @@ def _(passport_holder_addresses, scorer_community):
         passport = Passport.objects.create(
             address=holder["address"],
             community=scorer_community,
-            passport={"name": "John Doe"},
         )
 
         score = Score.objects.create(
