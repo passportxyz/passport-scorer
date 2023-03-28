@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useRef } from "react";
 
 // --- Utils
 import {
@@ -28,6 +28,7 @@ import {
   MenuButton,
   MenuItem,
   MenuList,
+  ToastId,
   useToast,
 } from "@chakra-ui/react";
 import { successToast } from "./Toasts";
@@ -46,6 +47,24 @@ const APIKeyList = () => {
   const [apiKeyToUpdate, setApiKeyToUpdate] = useState<string | undefined>();
   const { logout, setUserWarning } = useContext(UserContext);
   const toast = useToast();
+  const toastIdRef = useRef<ToastId | undefined>();
+
+  function closeToast() {
+    if (toastIdRef.current) {
+      toast.close(toastIdRef.current)
+    }
+  }
+
+  useEffect(() => {
+    window.addEventListener("click", (e) => {
+      closeToast()
+    });
+    return () => {
+      window.removeEventListener("click", (e) => {
+        closeToast();
+      })
+    }
+  });
 
   useEffect(() => {
     let keysFetched = false;
@@ -69,7 +88,7 @@ const APIKeyList = () => {
   const handleCreateApiKey = async (key: ApiKeyDisplay) => {
     try {
       setCreateApiKeyModal(false);
-      toast(successToast("API Key created successfully!", toast));
+      toastIdRef.current = toast(successToast("API Key created successfully!", toast));
       setApiKeys([...apiKeys, key]);
     } catch (error: any) {
       const msg =
@@ -86,7 +105,7 @@ const APIKeyList = () => {
     try {
       await updateApiKey(id, name);
       setApiKeyToUpdate(undefined);
-      toast(successToast("API Key updated successfully!", toast));
+      toastIdRef.current = toast(successToast("API Key updated successfully!", toast));
 
       const apiKeyIndex = apiKeys.findIndex((apiKey) => apiKey.id === id);
       const newApiKeys = [...apiKeys];
@@ -142,9 +161,8 @@ const APIKeyList = () => {
             {apiKeys.map((key, i) => (
               <div
                 key={`${key.id}-${i}`}
-                className={`flex ${
-                  key.api_key && "flex-col"
-                } w-full items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50`}
+                className={`flex ${key.api_key && "flex-col"
+                  } w-full items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50`}
               >
                 <div className="flex w-full items-center justify-between">
                   <div className="justify-self-center text-purple-darkpurple md:justify-self-start">
