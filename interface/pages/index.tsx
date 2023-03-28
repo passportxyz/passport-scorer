@@ -1,5 +1,5 @@
 // --- React Methods
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useRef } from "react";
 import {
   HashRouter as Router,
   Routes,
@@ -17,7 +17,7 @@ import LandingPage from "../components/LandingPage";
 
 // --- Context
 import { UserContext } from "../context/userContext";
-import { useToast } from "@chakra-ui/react";
+import { useToast, ToastId } from "@chakra-ui/react";
 
 import PageLayout from "../components/PageLayout";
 import HomePageLayout from "../components/HomePageLayout";
@@ -26,10 +26,28 @@ import NoMatch from "../components/NoMatch";
 const PageRouter = () => {
   const { loginComplete } = useContext(UserContext);
   const toast = useToast();
+  const toastIdRef = useRef<ToastId | undefined>();
+
+  function closeToast() {
+    if (toastIdRef.current) {
+      toast.close(toastIdRef.current)
+    }
+  }
+
+  useEffect(() => {
+    window.addEventListener("click", (e) => {
+      closeToast()
+    });
+    return () => {
+      window.removeEventListener("click", (e) => {
+        closeToast();
+      })
+    }
+  });
 
   useEffect(() => {
     if (loginComplete) {
-      toast({
+      toastIdRef.current = toast({
         duration: null,
         isClosable: true,
         render: (result: any) => (

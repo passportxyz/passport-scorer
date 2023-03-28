@@ -13,7 +13,7 @@ const PageWidthGrid = ({
   className?: string;
 }) => (
   <div
-    className={`col-span-12 grid w-full grid-cols-4 gap-4 justify-self-center md:grid-cols-6 md:gap-6 lg:grid-cols-8 xl:grid-cols-12 ${className} ${PAGE_PADDING} ${CONTENT_MAX_WIDTH_INCLUDING_PADDING}`}
+    className={`col-span-12 grid w-full grid-cols-4 gap-4 justify-self-center md:grid-cols-6 md:gap-6 lg:grid-cols-8 xl:grid-cols-12 mb-24 ${className} ${PAGE_PADDING} ${CONTENT_MAX_WIDTH_INCLUDING_PADDING}`}
   >
     {children}
   </div>

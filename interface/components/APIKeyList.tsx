@@ -136,7 +136,7 @@ const APIKeyList = () => {
   }
 
   const userInstructions = (
-    <span className="pb-6">
+    <span className="lg:pt-3 pb-6">
       Use these API keys to programmatically access a Scorer.
     </span>
   );
