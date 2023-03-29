@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useRef } from "react";
 
 // --- Utils
 import {
@@ -28,9 +28,10 @@ import {
   MenuButton,
   MenuItem,
   MenuList,
-  // useToast,
+  ToastId,
+  useToast,
 } from "@chakra-ui/react";
-// import { successToast } from "./Toasts";
+import { successToast } from "./Toasts";
 import { KeyIcon } from "@heroicons/react/24/outline";
 
 import { useClickOutsideToast } from './useClickOutsideToast';
@@ -47,8 +48,8 @@ const APIKeyList = () => {
   const [apiKeyToDelete, setApiKeyToDelete] = useState<string | undefined>();
   const [apiKeyToUpdate, setApiKeyToUpdate] = useState<string | undefined>();
   const { logout, setUserWarning } = useContext(UserContext);
-  // const toast = useToast();
-  const { toastIdRef, openToast } = useClickOutsideToast();
+  const toast = useToast();
+  const { openToast } = useClickOutsideToast();
 
   useEffect(() => {
     let keysFetched = false;
@@ -72,7 +73,7 @@ const APIKeyList = () => {
   const handleCreateApiKey = async (key: ApiKeyDisplay) => {
     try {
       setCreateApiKeyModal(false);
-      openToast("API Key created successfully!", "success");
+      openToast(successToast("API Key created successfully!", toast));
       setApiKeys([...apiKeys, key]);
     } catch (error: any) {
       const msg =
@@ -89,7 +90,7 @@ const APIKeyList = () => {
     try {
       await updateApiKey(id, name);
       setApiKeyToUpdate(undefined);
-      openToast("API Key updated successfully!", "success");
+      openToast(successToast("API Key updated successfully!", toast));
 
       const apiKeyIndex = apiKeys.findIndex((apiKey) => apiKey.id === id);
       const newApiKeys = [...apiKeys];
