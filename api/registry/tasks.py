@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from account.deduplication import Rules
 from account.deduplication.fifo import fifo
@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 
 
 def get_utc_time():
-    return datetime.utcnow()
+    return datetime.now(timezone.utc)
 
 
 @shared_task
