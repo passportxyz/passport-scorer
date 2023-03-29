@@ -21,7 +21,6 @@ def paginated_stamps(scorer_community, passport_holder_addresses):
     passport = Passport.objects.create(
         address=passport_holder_addresses[0]["address"],
         community=scorer_community,
-        passport=None,
     )
 
     stamps = []
