@@ -9,6 +9,7 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import {
+  ExclamationCircleIcon,
   NoSymbolIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -28,6 +29,7 @@ import Header from "./Header";
 
 import { UseCaseInterface, useCases } from "./UseCaseModal";
 import { createCommunity } from "../utils/account-requests";
+import { CloseIcon } from "@chakra-ui/icons";
 import PopoverInfo from "./PopoverInfo";
 import { useClickOutsideToast } from "./useClickOutsideToast";
 
