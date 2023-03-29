@@ -14,9 +14,11 @@ from django_ratelimit.exceptions import Ratelimited
 from ninja import Router, Schema
 from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
-from registry.models import Passport, Score
+from registry.models import Passport, Score, Stamp
 from registry.permissions import ResearcherPermission
 from registry.utils import (
+    decode_cursor,
+    encode_cursor,
     get_signer,
     get_signing_message,
     permissions_required,
@@ -61,6 +63,17 @@ class StatusEnum(str, Enum):
     processing = Score.Status.PROCESSING
     error = Score.Status.ERROR
     done = Score.Status.DONE
+
+
+class StampCredentialResponse(Schema):
+    version: str
+    credential: dict
+
+
+class CursorPaginatedStampCredentialResponse(Schema):
+    next: Optional[str]
+    prev: Optional[str]
+    items: List[StampCredentialResponse]
 
 
 class DetailedScoreResponse(Schema):
@@ -331,11 +344,96 @@ def get_scores(
         raise e
 
 
+@router.get(
+    "/stamps/{str:address}",
+    auth=ApiKey(),
+    response={
+        200: CursorPaginatedStampCredentialResponse,
+        400: ErrorMessageResponse,
+        401: ErrorMessageResponse,
+    },
+    summary="Get passport for an address",
+    description="""Use this endpoint to fetch the passport for a specific address\n
+This endpoint will return a `CursorPaginatedStampCredentialResponse`.\n
+""",
+)
+def get_passport_stamps(
+    request, address: str, token: str = None, limit: int = 1000
+) -> CursorPaginatedStampCredentialResponse:
+    check_rate_limit(request)
+
+    if limit > 1000:
+        raise InvalidLimitException()
+
+    # ref: https://medium.com/swlh/how-to-implement-cursor-pagination-like-a-pro-513140b65f32
+
+    query = (
+        Stamp.objects.order_by("-id")
+        .filter(passport__address=address.lower())
+        .select_related("passport")
+    )
+
+    direction, id = decode_cursor(token) if token else (None, None)
+
+    if direction == "next":
+        # note we use lt here because we're querying in descending order
+        stamps = list(query.filter(id__lt=id)[:limit])
+
+    elif direction == "prev":
+        stamps = list(query.filter(id__gt=id).order_by("id")[:limit])
+        stamps.reverse()
+
+    else:
+        stamps = list(query[:limit])
+
+    has_more_stamps = has_prev_stamps = False
+
+    if stamps:
+        next_id = stamps[-1].id
+        prev_id = stamps[0].id
+
+        has_more_stamps = query.filter(id__lt=next_id).exists()
+        has_prev_stamps = query.filter(id__gt=prev_id).exists()
+
+    stamps = [{"version": "1.0.0", "credential": stamp.credential} for stamp in stamps]
+
+    domain = request.build_absolute_uri("/")[:-1]
+
+    next_url = (
+        f"""{domain}{reverse_lazy_with_query(
+            "registry:get_passport_stamps",
+            args=[address],
+            query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
+        )}"""
+        if has_more_stamps
+        else None
+    )
+
+    prev_url = (
+        f"""{domain}{reverse_lazy_with_query(
+            "registry:get_passport_stamps",
+            args=[address],
+            query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
+        )}"""
+        if has_prev_stamps
+        else None
+    )
+
+    response = CursorPaginatedStampCredentialResponse(
+        next=next_url, prev=prev_url, items=stamps
+    )
+
+    return response
+
+
 @analytics_router.get("/score/", auth=ApiKey(), response=CursorPaginatedScoreResponse)
 @permissions_required([ResearcherPermission])
 def get_scores_analytics(
     request, last_id: int = None, limit: int = 1000
 ) -> CursorPaginatedScoreResponse:
+    if limit > 1000:
+        raise InvalidLimitException()
+
     query = Score.objects.order_by("id")
 
     if last_id:
@@ -373,6 +471,9 @@ def get_scores_by_community_id_analytics(
     last_id: int = None,
     limit: int = 1000,
 ) -> CursorPaginatedScoreResponse:
+    if limit > 1000:
+        raise InvalidLimitException()
+
     user_community = api_get_object_or_404(Community, id=scorer_id)
 
     query = Score.objects.order_by("id").filter(

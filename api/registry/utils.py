@@ -1,7 +1,9 @@
+import base64
 import json
 import logging
 from datetime import datetime
 from functools import wraps
+from typing import Tuple
 from urllib.parse import urlencode
 
 import didkit
@@ -134,3 +136,15 @@ def permissions_required(permission_classes):
         return wrapped
 
     return decorator
+
+
+def encode_cursor(direction: str, id: int) -> str:
+    token = f"{direction}__{id}"
+    encoded_bytes = base64.urlsafe_b64encode(token.encode("ascii"))
+    return encoded_bytes.decode("ascii")
+
+
+def decode_cursor(token: str) -> Tuple[str, int]:
+    decoded_bytes = base64.urlsafe_b64decode(token.encode("ascii"))
+    direction, id = decoded_bytes.decode("ascii").split("__")
+    return direction, int(id)
