@@ -17,6 +17,8 @@ from ninja.security import APIKeyHeader
 from registry.models import Passport, Score, Stamp
 from registry.permissions import ResearcherPermission
 from registry.utils import (
+    decode_cursor,
+    encode_cursor,
     get_signer,
     get_signing_message,
     permissions_required,
@@ -356,7 +358,7 @@ This endpoint will return a `CursorPaginatedStampCredentialResponse`.\n
 """,
 )
 def get_passport_stamps(
-    request, address: str, last_id: int = None, limit: int = 1000
+    request, address: str, token: str = None, limit: int = 1000
 ) -> CursorPaginatedStampCredentialResponse:
     check_rate_limit(request)
 
@@ -369,33 +371,29 @@ def get_passport_stamps(
         .select_related("passport")
     )
 
-    if last_id:
+    direction, id = decode_cursor(token) if token else (None, None)
+
+    if direction == "next":
         # note we use lt here because we're querying in descending order
-        stamps = list(query.filter(id__lt=last_id)[:limit])
-        prev_stamps = list(
-            query.filter(id__gt=last_id).order_by("id")[:limit]
-        )  # limit=2
+        stamps = list(query.filter(id__lt=id)[:limit])
+
+    elif direction == "prev":
+        stamps = list(query.filter(id__gt=id).order_by("id")[:limit])
+        stamps.reverse()
+
     else:
         stamps = list(query[:limit])
-        prev_stamps = []
 
     has_more_stamps = has_prev_stamps = False
 
     if stamps:
-        last_stamp = stamps[-1]
-        has_more_stamps = query.filter(id__lt=last_stamp.id).exists()
+        next_id = stamps[-1].id
+        prev_id = stamps[0].id
 
-        stamps = [
-            {"version": "1.0.0", "credential": stamp.credential} for stamp in stamps
-        ]
+        has_more_stamps = query.filter(id__lt=next_id).exists()
+        has_prev_stamps = query.filter(id__gt=prev_id).exists()
 
-    if len(prev_stamps) == limit:
-        prev_last_stamp = prev_stamps[-1]
-        has_prev_stamps = query.filter(id__gte=prev_last_stamp.id).exists()
-        prev_query_kwargs = {"last_id": prev_last_stamp.id, "limit": limit}
-    else:
-        has_prev_stamps = True
-        prev_query_kwargs = {"limit": limit}
+    stamps = [{"version": "1.0.0", "credential": stamp.credential} for stamp in stamps]
 
     domain = request.build_absolute_uri("/")[:-1]
 
@@ -403,7 +401,7 @@ def get_passport_stamps(
         f"""{domain}{reverse_lazy_with_query(
             "registry:get_passport_stamps",
             args=[address],
-            query_kwargs={"last_id": last_stamp.id, "limit": limit},
+            query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
         )}"""
         if has_more_stamps
         else None
@@ -413,9 +411,9 @@ def get_passport_stamps(
         f"""{domain}{reverse_lazy_with_query(
             "registry:get_passport_stamps",
             args=[address],
-            query_kwargs=prev_query_kwargs,
+            query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
         )}"""
-        if has_prev_stamps and last_id
+        if has_prev_stamps
         else None
     )
 

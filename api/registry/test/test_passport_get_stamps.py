@@ -109,12 +109,12 @@ class TestPassportGetStamps:
         passport_holder_addresses,
         paginated_stamps,
     ):
-        last_id = 5
+        token = "bmV4dF9fNQ%3D%3D"
         limit = 2
 
         client = Client()
         response = client.get(
-            f"/registry/stamps/{passport_holder_addresses[0]['address']}?last_id={last_id}&limit={limit}",
+            f"/registry/stamps/{passport_holder_addresses[0]['address']}?token={token}&limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
