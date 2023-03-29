@@ -25,7 +25,7 @@ def paginated_stamps(scorer_community, passport_holder_addresses):
 
     stamps = []
 
-    for i in range(11):
+    for i in range(10):
         stamp = Stamp.objects.create(
             passport=passport,
             hash=f"v0.0.0:Ft7mqRdvJ9jNgSSowb9qdcMeOzswOeighIOvk0wn96{i}=",
@@ -246,9 +246,11 @@ class TestPassportGetStamps:
         and the second page to be null.
         """
 
-        num_scores = len(paginated_stamps)
+        paginated_stamps.reverse()
 
-        limit = int(num_scores / 2)
+        num_stamps = len(paginated_stamps)
+
+        limit = int(num_stamps / 2)
         client = Client()
 
         # Read the 1st batch
@@ -262,16 +264,9 @@ class TestPassportGetStamps:
         assert len(response_data["items"]) == limit
         assert len(response_data["next"]) != None
 
-        # get relative path with query params
-        next_url = (
-            urlparse(response_data["next"]).path
-            + "?"
-            + urlparse(response_data["next"]).query
-        )
-
         # Read the 2nd batch
         response = client.get(
-            next_url,
+            response_data["next"],
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()

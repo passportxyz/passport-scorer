@@ -365,6 +365,8 @@ def get_passport_stamps(
     if limit > 1000:
         raise InvalidLimitException()
 
+    # ref: https://medium.com/swlh/how-to-implement-cursor-pagination-like-a-pro-513140b65f32
+
     query = (
         Stamp.objects.order_by("-id")
         .filter(passport__address=address.lower())
