@@ -25,7 +25,7 @@ def paginated_stamps(scorer_community, passport_holder_addresses):
 
     stamps = []
 
-    for i in range(6):
+    for i in range(11):
         stamp = Stamp.objects.create(
             passport=passport,
             hash=f"v0.0.0:Ft7mqRdvJ9jNgSSowb9qdcMeOzswOeighIOvk0wn96{i}=",
@@ -81,6 +81,7 @@ class TestPassportGetStamps:
         passport_holder_addresses,
         paginated_stamps,
     ):
+        paginated_stamps.reverse()
         limit = 2
 
         client = Client()
@@ -92,7 +93,23 @@ class TestPassportGetStamps:
 
         assert response.status_code == 200
 
-        paginated_stamps.reverse()
+        assert response_data["prev"] == None
+
+        next_page = client.get(
+            response_data["next"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert next_page.status_code == 200
+
+        next_page_prev = client.get(
+            next_page.json()["prev"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert next_page_prev.status_code == 200
+
+        assert next_page_prev.json() == response_data
 
         for i in range(limit):
             assert (
@@ -108,24 +125,91 @@ class TestPassportGetStamps:
         passport_holder_addresses,
         paginated_stamps,
     ):
-        token = "bmV4dF9fNQ%3D%3D"
+        paginated_stamps.reverse()
         limit = 2
 
         client = Client()
-        response = client.get(
-            f"/registry/stamps/{passport_holder_addresses[0]['address']}?token={token}&limit={limit}",
+        page_one_response = client.get(
+            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
-        response_data = response.json()
+        page_one_data = page_one_response.json()
 
-        assert response.status_code == 200
+        assert page_one_response.status_code == 200
 
-        paginated_stamps.reverse()
+        page_two_response = client.get(
+            page_one_data["next"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        page_two_data = page_two_response.json()
+
+        assert page_two_response.status_code == 200
+
+        page_two_prev = client.get(
+            page_two_data["prev"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert page_two_prev.status_code == 200
+
+        assert page_two_prev.json() == page_one_data
 
         for i in range(limit):
             assert (
-                response_data["items"][i]["credential"]["credentialSubject"]["provider"]
+                page_two_data["items"][i]["credential"]["credentialSubject"]["provider"]
                 == paginated_stamps[i + limit].provider
+            )
+
+    def test_get_stamps_returns_third_page_stamps(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        paginated_stamps,
+    ):
+        paginated_stamps.reverse()
+        limit = 2
+
+        client = Client()
+
+        page_one_response = client.get(
+            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        page_one_data = page_one_response.json()
+
+        assert page_one_response.status_code == 200
+
+        page_two_response = client.get(
+            page_one_data["next"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        page_two_data = page_two_response.json()
+
+        assert page_two_response.status_code == 200
+
+        page_three_response = client.get(
+            page_two_data["next"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        page_three_data = page_three_response.json()
+
+        assert page_three_response.status_code == 200
+
+        page_three_prev = client.get(
+            page_three_data["prev"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert page_three_prev.status_code == 200
+
+        assert page_three_prev.json() == page_two_data
+
+        for i in range(limit):
+            assert (
+                page_three_data["items"][i]["credential"]["credentialSubject"][
+                    "provider"
+                ]
+                == paginated_stamps[i + limit * 2].provider
             )
 
     def test_limit_greater_than_1000_throws_an_error(
