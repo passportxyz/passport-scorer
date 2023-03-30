@@ -87,9 +87,7 @@ const PageFooter = ({
   isLoading,
 }: any) => (
   <footer
-    className={
-      `mt-6 w-full border-t border-gray-lightgray bg-white py-6 ` + PAGE_PADDING
-    }
+    className={`fixed inset-x-0 bottom-0 mt-6 w-full border-t border-gray-lightgray bg-white py-6 `}
   >
     <div className="mx-auto overflow-hidden md:flex md:justify-end">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -259,85 +257,6 @@ const NewScorer = () => {
     toast,
   ]);
 
-  const PageFooter = useMemo(() => {
-    const FooterOverride = ({ className }: { className?: string }) => (
-      <footer
-        className={
-          `mt-6 w-full border-t border-gray-lightgray bg-white py-6 fixed inset-x-0 bottom-0 ` +
-          className
-        }
-      >
-        <div className="mx-auto overflow-hidden md:flex md:justify-end">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <button
-              className="order-last h-10 w-full rounded border border-gray-lightgray px-6 text-sm md:order-first md:w-[139px]"
-              onClick={() => setCancelModal(true)}
-            >
-              Cancel
-            </button>
-            <button
-              className="h-10 w-full rounded bg-purple-gitcoinpurple text-sm text-white md:w-36"
-              onClick={createScorer}
-              disabled={!gitcoinScoringMechanism || !deduplication || isLoading}
-            >
-              Create Scorer
-            </button>
-          </div>
-        </div>
-        <Modal
-          isOpen={cancelModal}
-          isCentered={true}
-          size={{ base: "xs", md: "lg", lg: "lg", xl: "lg" }}
-          onClose={() => { }}
-        >
-          <ModalOverlay />
-          <ModalContent>
-            <ModalBody>
-              <div className="py-6 text-purple-darkpurple">
-                <div className="flex items-center justify-center">
-                  <div className="mb-4 flex h-12 w-12 justify-center rounded-full bg-[#FDDEE4]">
-                    <NoSymbolIcon className="w-7 text-[#D44D6E]" />
-                  </div>
-                </div>
-                <div className="text-center">
-                  <p className="font-bold">Are you sure?</p>
-                  <p className="mt-2 text-purple-softpurple">
-                    Your scorer has not been saved, if you exit now your changes
-                    will not be saved.
-                  </p>
-                </div>
-                <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <button
-                    className="order-last w-full rounded border border-gray-lightgray py-2 px-6 text-base md:order-first"
-                    onClick={handleCancellation}
-                  >
-                    Exit Scorer
-                  </button>
-                  <button
-                    className="w-full rounded bg-purple-gitcoinpurple py-2 px-6 text-base text-white"
-                    onClick={() => setCancelModal(false)}
-                  >
-                    Continue Editing
-                  </button>
-                </div>
-              </div>
-            </ModalBody>
-          </ModalContent>
-        </Modal>
-      </footer>
-    );
-    return generateFooter(FooterOverride);
-  }, [
-    cancelModal,
-    setCancelModal,
-    handleCancellation,
-    createScorer,
-    isLoading,
-    generateFooter,
-    deduplication,
-    gitcoinScoringMechanism,
-  ]);
-
   return (
     <HeaderContentFooterGrid>
       <Header
@@ -345,7 +264,7 @@ const NewScorer = () => {
           <Subheader name={name} description={description} useCase={useCase} />
         }
       />
-      <PageWidthGrid className="mt-4 h-fit">
+      <PageWidthGrid className="mt-4 mb-40 h-fit md:mb-24">
         <p className="col-span-4 text-purple-softpurple md:col-span-6 lg:col-span-8 xl:col-span-12">
           Scoring mechanisms establish identity rules within Scorers. Scorers
           cannot be changed after creating them, but multiple Scorers can be
@@ -401,9 +320,9 @@ const NewScorer = () => {
               "col-span-4 rounded border border-gray-lightgray bg-white p-6 md:col-span-3 " +
               (!mechanism.disabled
                 ? "cursor-pointer " +
-                (gitcoinScoringMechanism?.title === mechanism.title
-                  ? "outline outline-2 outline-purple-gitcoinpurple"
-                  : "hover:border-purple-gitcoinpurple")
+                  (gitcoinScoringMechanism?.title === mechanism.title
+                    ? "outline outline-2 outline-purple-gitcoinpurple"
+                    : "hover:border-purple-gitcoinpurple")
                 : "cursor-not-allowed")
             }
           >
@@ -417,9 +336,10 @@ const NewScorer = () => {
                 }
               >
                 {mechanism.icon(
-                  `w-7 ${mechanism.recommended
-                    ? "text-purple-gitcoinpurple"
-                    : "text-purple-darkpurple"
+                  `w-7 ${
+                    mechanism.recommended
+                      ? "text-purple-gitcoinpurple"
+                      : "text-purple-darkpurple"
                   }`
                 )}
               </div>
