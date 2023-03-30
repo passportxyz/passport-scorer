@@ -153,8 +153,7 @@ class CommunityApiSchema(ModelSchema):
         model_fields = ["name", "description", "id", "created_at", "use_case"]
 
 
-@api.post("/verify", response=TokenObtainPairOutSchema)
-def submit_signed_challenge(request, payload: SiweVerifySubmit):
+def verify_siwe_payload(payload: SiweVerifySubmit):
     payload.message["chain_id"] = payload.message["chainId"]
     payload.message["issued_at"] = payload.message["issuedAt"]
 
@@ -164,16 +163,31 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
     try:
         message: SiweMessage = SiweMessage(payload.message)
         verifyParams = {
-            "signature": payload.signature,
+            "signatures": payload.signature,
             # See note in /nonce function above
             # "nonce": request.session["nonce"],
         }
 
         message.verify(**verifyParams)
-    except siwe.DomainMismatch:
+
+    except Exception as e:
+        raise e
+
+
+def raise_siwe_exception(e):
+    if isinstance(e, siwe.DomainMismatch):
         raise InvalidDomainException()
-    except siwe.VerificationError:
+    else:
         raise FailedVerificationException()
+
+
+@api.post("/verify", response=TokenObtainPairOutSchema)
+def submit_signed_challenge(request, payload: SiweVerifySubmit):
+    try:
+        verify_siwe_payload(payload)
+    except Exception as e:
+        # needs to be raised here to be caught by the middleware
+        raise_siwe_exception(e)
 
     address_lower = payload.message["address"]
 
@@ -513,6 +527,7 @@ def update_community_scorers(request, community_id, payload: ScorerId):
 
 class GenericCommunitiesPayload(Schema):
     name: str
+    siwe_submit: SiweVerifySubmit
     description: Optional[str] = "Programmatically created by Allo"
     use_case: Optional[str] = "Sybil Prevention"
 
@@ -520,6 +535,12 @@ class GenericCommunitiesPayload(Schema):
 # Should we try to update naming Scorer vs Community?
 @api.post("/generic-community", auth=ApiKey())
 def create_generic_community(request, payload: GenericCommunitiesPayload):
+    try:
+        verify_siwe_payload(payload.siwe_submit)
+    except Exception as e:
+        # needs to be raised here to be caught by the middleware
+        raise_siwe_exception(e)
+
     try:
         account = request.user.account
 
