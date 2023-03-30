@@ -88,7 +88,7 @@ const PageFooter = ({
   isLoading,
 }: any) => (
   <footer
-    className={`fixed inset-x-0 bottom-0 mt-6 w-full border-t border-gray-lightgray bg-white py-6 `}
+    className={`fixed inset-x-0 bottom-0 mt-6 border-t border-gray-lightgray bg-white py-6 ${PAGE_PADDING}`}
   >
     <div className="mx-auto overflow-hidden md:flex md:justify-end">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -216,7 +216,7 @@ const NewScorer = () => {
       localStorage.setItem("scorerCreated", "true");
       navigate("/dashboard/scorer");
     } catch (e) {
-      warningToast("Something went wrong. Please try again.", toast)
+      warningToast("Something went wrong. Please try again.", toast);
       // toast({
       //   title: "Warning!",
       //   status: "warning",
