@@ -19,7 +19,7 @@ class ApiKeyRequestCounterMiddleware:
 
                 if api_key_value:
                     # Using a task here to avoid blocking the request
-                    save_api_key_analytics.delay(api_key_value, request.path)
+                    save_api_key_analytics.delay(api_key_value)
 
         except Exception as e:
             log.error(
