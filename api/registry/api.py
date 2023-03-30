@@ -324,11 +324,72 @@ def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
         404: ErrorMessageResponse,
     },
     summary="Get scores for all addresses that are associated with a scorer",
+    #description needs to be updated!
     description="""Use this endpoint to fetch the scores for all addresses that are associated with a scorer\n
 This API will return a list of `DetailedScoreResponse` objects. The endpoint supports pagination and will return a maximum of 1000 scores per request.\n
 Pass a limit and offset query parameter to paginate the results. For example: `/score/1?limit=100&offset=100` will return the second page of 100 scores.\n
 """,
 )
+#my new code
+def get_scores(
+    request,
+    scorer_id: int,
+    address: str = "",
+    last_id: int = None,
+    limit: int = 1000,
+    #in the original get_scores code there were **kwargs why don't I need them here
+) -> CursorPaginatedScoreResponse:
+    #does it make sense to wrap everything in this try-except block?!
+    check_rate_limit(request)
+    if limit > 1000:
+        raise InvalidLimitException()
+    
+    #Get community object
+    user_community = api_get_object_or_404(
+        Community, id=scorer_id, account=request.auth
+    )
+    try:
+        query = Score.objects.order_by("id").filter(
+            passport__community__id=user_community.id
+        )
+
+        if address:
+            query = query.filter(passport__address=address.lower())
+
+        if last_id:
+            scores = list(query.filter(id__gt=last_id).select_related("passport")[:limit])
+        else:
+            scores = list(query.select_related("passport")[:limit])
+
+        has_more_scores = False
+        if scores:
+            last_score = scores[-1]
+            has_more_scores = query.filter(id__gt=last_score.id).exists()
+
+        next_url = (
+            reverse_lazy_with_query(
+                "score:get_scores",
+                #not sure what django app the get_scores view function belongs to
+                args=[scorer_id],
+                query_kwargs={"last_id": last_score.id},
+            )
+            if has_more_scores
+            else None
+        )
+
+        response = CursorPaginatedScoreResponse(next=next_url, items=scores)
+
+        return response
+
+    except Exception as e:
+        log.error(
+            "Error getting passport scores. scorer_id=%s",
+            scorer_id,
+            exc_info=True,
+        )
+        raise e
+
+#original code
 @paginate(pass_parameter="pagination_info")
 def get_scores(
     request, scorer_id: int, address: str = "", **kwargs
@@ -351,6 +412,7 @@ def get_scores(
             scores = scores.filter(passport__address=address.lower())
 
         return scores
+
 
     except Exception as e:
         log.error(
