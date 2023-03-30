@@ -8,7 +8,7 @@ import { Community } from "../utils/account-requests";
 
 import {
   NoSymbolIcon,
-  ExclamationCircleIcon,
+  EllipsisVerticalIcon,
 } from "@heroicons/react/24/outline";
 
 // --- Next
@@ -35,7 +35,7 @@ import {
 import { CloseIcon } from "@chakra-ui/icons";
 import { UseCaseInterface, useCases } from "./UseCaseModal";
 import { SpinnerIcon } from "./CustomIcons";
-import { EllipsisVerticalIcon } from "@heroicons/react/24/solid";
+import { warningToast } from "./Toasts";
 
 interface UseCaseMap {
   [k: string]: UseCaseInterface;
@@ -219,40 +219,6 @@ const DeleteConfirmationModal = ({
   );
 };
 
-const getErrorToast = (toast: ReturnType<typeof useToast>): UseToastOptions => {
-  return {
-    title: "Warning!",
-    status: "warning",
-    duration: 3000,
-    isClosable: true,
-    variant: "solid",
-    position: "bottom",
-    render: () => (
-      <div
-        style={{
-          backgroundColor: "#FDDEE4",
-          borderRadius: "4px",
-          display: "flex",
-          alignItems: "center",
-          padding: "16px",
-        }}
-      >
-        <ExclamationCircleIcon className="mr-3 w-6 text-[#D44D6E]" />
-        <span style={{ color: "#0E0333", fontSize: "16px" }}>
-          Something went wrong. Please try again.
-        </span>
-        <CloseIcon
-          color="#0E0333"
-          boxSize={3}
-          ml="8"
-          cursor="pointer"
-          onClick={() => toast.closeAll()}
-        />
-      </div>
-    ),
-  };
-};
-
 const CommunityCard = ({
   community,
   handleUpdateCommunity,
@@ -286,7 +252,7 @@ const CommunityCard = ({
       await handleUpdateCommunity(community.id, name, description);
       setIsRenameModalOpen(false);
     } catch (e) {
-      toast(getErrorToast(toast));
+      toast(warningToast("Something went wrong. Please try again.", toast));
     }
   };
 
@@ -295,7 +261,7 @@ const CommunityCard = ({
       await handleDeleteCommunity(community.id);
       setIsDeleteConfirmationModalOpen(false);
     } catch (e) {
-      toast(getErrorToast(toast));
+      toast(warningToast("Something went wrong. Please try again.", toast));
     }
   };
 
