@@ -113,10 +113,11 @@ def get_default_community_scorer():
 class Community(models.Model):
     class Meta:
         verbose_name_plural = "Communities"
-        unique_together = [["account", "name"]]
+        unique_together = [["account", "name", "deleted_at"]]
 
     name = models.CharField(max_length=100, blank=False, null=False)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     rule = models.CharField(
         max_length=100,
         blank=False,

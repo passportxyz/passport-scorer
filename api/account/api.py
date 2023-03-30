@@ -1,6 +1,7 @@
 import logging
 import random
 import string
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, cast
 
 from account.models import Account, AccountAPIKey, Community, Nonce
@@ -292,10 +293,12 @@ def create_community(request, payload: CommunitiesPayload):
         if payload == None:
             raise CommunityHasNoBodyException()
 
-        if Community.objects.filter(account=account).count() >= 5:
+        account_communities = Community.objects.filter(account=account, deleted_at=None)
+
+        if account_communities.count() >= 5:
             raise TooManyCommunitiesException()
 
-        if Community.objects.filter(name=payload.name, account=account).exists():
+        if account_communities.filter(name=payload.name).exists():
             raise CommunityExistsException()
 
         if len(payload.name) == 0:
@@ -332,7 +335,11 @@ def create_community(request, payload: CommunitiesPayload):
 def get_communities(request):
     try:
         account = request.user.account
-        communities = Community.objects.filter(account=account).order_by("id").all()
+        communities = (
+            Community.objects.filter(account=account, deleted_at=None)
+            .order_by("id")
+            .all()
+        )
 
     except Account.DoesNotExist:
         raise UnauthorizedException()
@@ -354,22 +361,24 @@ def update_community(request, community_id, payload: CommunitiesUpdatePayload):
     try:
         account = request.user.account
         community = get_object_or_404(
-            Community, id=community_id, account=request.user.account
+            Community, id=community_id, account=account, deleted_at=None
         )
 
         # Check for duplicates in other communities within the same account
         if (
-            Community.objects.filter(name=payload.name, account=account)
+            Community.objects.filter(
+                name=payload.name, account=account, deleted_at=None
+            )
             .exclude(id=community_id)
             .exists()
         ):
             raise CommunityExistsException()
 
-        Community.objects.filter(pk=community_id).update(
-            name=payload.name,
-            description=payload.description,
-            use_case=payload.use_case,
-        )
+        community.name = payload.name
+        community.description = payload.description
+        community.use_case = payload.use_case
+
+        community.save()
 
     except Account.DoesNotExist:
         raise UnauthorizedException()
@@ -386,13 +395,17 @@ class CommunitiesPatchPayload(Schema):
 def patch_community(request, community_id, payload: CommunitiesPatchPayload):
     try:
         account = request.user.account
-        community = get_object_or_404(Community, id=community_id, account=account)
+        community = get_object_or_404(
+            Community, id=community_id, account=account, deleted_at=None
+        )
 
         if payload.name:
             community.name = payload.name
             # Check for duplicates in other communities within the same account
             if (
-                Community.objects.filter(name=payload.name, account=account)
+                Community.objects.filter(
+                    name=payload.name, account=account, deleted_at=None
+                )
                 .exclude(id=community_id)
                 .exists()
             ):
@@ -412,9 +425,10 @@ def patch_community(request, community_id, payload: CommunitiesPatchPayload):
 def delete_community(request, community_id):
     try:
         community = get_object_or_404(
-            Community, id=community_id, account=request.user.account
+            Community, id=community_id, account=request.user.account, deleted_at=None
         )
-        community.delete()
+        community.deleted_at = datetime.now(timezone.utc)
+        community.save()
     except Account.DoesNotExist:
         raise UnauthorizedException()
     return {"ok": True}
@@ -432,7 +446,7 @@ class ScorersResponse(Schema):
 def get_community_scorers(request, community_id):
     try:
         community = get_object_or_404(
-            Community, id=community_id, account=request.user.account
+            Community, id=community_id, account=request.user.account, deleted_at=None
         )
 
         scorer = community.scorer
@@ -456,7 +470,7 @@ class ScorerId(Schema):
 def update_community_scorers(request, community_id, payload: ScorerId):
     try:
         community = get_object_or_404(
-            Community, id=community_id, account=request.user.account
+            Community, id=community_id, account=request.user.account, deleted_at=None
         )
 
         if payload.scorer_type not in community.scorer.Type:

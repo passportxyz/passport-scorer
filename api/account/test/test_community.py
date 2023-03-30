@@ -1,34 +1,39 @@
 import json
+from datetime import datetime, timezone
+from typing import cast
 
 from account.models import Account, Community
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import UserManager
 from django.test import Client, TestCase
 from ninja_jwt.schema import RefreshToken
 
-User = get_user_model()
+# Avoids type issues in standard django models
+user_manager = cast(UserManager, get_user_model().objects)
 
 mock_community_body = {
     "name": "test",
     "description": "test",
-    "use_case": "sybill protection",
+    "use_case": "sybil protection",
     "scorer": "WEIGHTED_BINARY",
 }
 
 
 class CommunityTestCase(TestCase):
     def setUp(self):
-        User.objects.create_user(username="admin", password="12345")
+        user_manager.create_user(username="admin", password="12345")
 
-        self.user = User.objects.create_user(username="testuser-1", password="12345")
-        self.user2 = User.objects.create_user(username="testuser-2", password="12345")
+        self.user = user_manager.create_user(username="testuser-1", password="12345")
+        self.user2 = user_manager.create_user(username="testuser-2", password="12345")
 
-        refresh = RefreshToken.for_user(self.user)
+        # Avoids type issues in standard ninja models
+        refresh = cast(RefreshToken, RefreshToken.for_user(self.user))
         self.access_token = refresh.access_token
 
-        (self.account, _created) = Account.objects.get_or_create(
+        (self.account, _) = Account.objects.get_or_create(
             user=self.user, defaults={"address": "0x0"}
         )
-        (self.account2, _created) = Account.objects.get_or_create(
+        (self.account2, _) = Account.objects.get_or_create(
             user=self.user2, defaults={"address": "0x0"}
         )
 
@@ -99,6 +104,36 @@ class CommunityTestCase(TestCase):
             response_data, {"detail": "A community with this name already exists"}
         )
 
+    def test_create_community_with_deleted_duplicate_name(self):
+        """Test that creation of a community with duplicate name passes if the original community was deleted"""
+        client = Client()
+        # create first community
+        community_response = client.post(
+            "/account/communities",
+            json.dumps(mock_community_body),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response.status_code, 200)
+
+        # mark deleted
+        pk = Community.objects.get(name=mock_community_body["name"]).pk
+        valid_response = client.delete(
+            f"/account/communities/{pk}",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+
+        self.assertEqual(valid_response.status_code, 200)
+
+        # successfully create community with same name
+        community_response1 = client.post(
+            "/account/communities",
+            json.dumps(mock_community_body),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response1.status_code, 200)
+
     def test_create_community_with_no_description(self):
         """Test that creation of a community with no description fails"""
         client = Client()
@@ -149,6 +184,40 @@ class CommunityTestCase(TestCase):
         all_communities = list(Community.objects.all())
         self.assertEqual(len(all_communities), 5)
 
+    def test_deleted_do_not_count_towards_max(self):
+        """Test that a user is only allowed to create maximum 5 non-deleted communities"""
+        client = Client()
+
+        # Create 5 communities
+        for i in range(5):
+            community_body = dict(**mock_community_body)
+            community_body["name"] = f"test {i}"
+            community_response = client.post(
+                "/account/communities",
+                json.dumps(community_body),
+                content_type="application/json",
+                **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+            )
+            self.assertEqual(community_response.status_code, 200)
+
+        # delete one
+        last_community = Community.objects.filter(account=self.account)[4]
+        last_community.deleted_at = datetime.now(timezone.utc)
+        last_community.save()
+
+        # check that we can create another community
+        community_response = client.post(
+            "/account/communities",
+            json.dumps(mock_community_body),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response.status_code, 200)
+
+        # Check that 6 Communities are in the DB
+        all_communities = list(Community.objects.all())
+        self.assertEqual(len(all_communities), 6)
+
     def test_get_communities(self):
         """Test that getting communities works"""
         client = Client()
@@ -158,9 +227,17 @@ class CommunityTestCase(TestCase):
             account=self.account, name="Community for user 1", description="test"
         )
 
-        # Create Community for 2nd account
+        # Create Community for 2nd account (should not be returned)
         Community.objects.create(
             account=self.account2, name="Community for user 2", description="test"
+        )
+
+        # Create Community for 1st account (should not be returned)
+        Community.objects.create(
+            account=self.account,
+            name="Deleted Community for user 1",
+            description="test",
+            deleted_at=datetime.now(timezone.utc),
         )
 
         # Get all communities
@@ -188,7 +265,7 @@ class CommunityTestCase(TestCase):
 
         # Edit the community
         community_response = client.put(
-            f"/account/communities/{account_community.id}",
+            f"/account/communities/{account_community.pk}",
             json.dumps(mock_community_body),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
@@ -226,7 +303,7 @@ class CommunityTestCase(TestCase):
         community_body = dict(**mock_community_body)
         community_body["name"] = name_2
         community_response = client.put(
-            f"/account/communities/{account_community.id}",
+            f"/account/communities/{account_community.pk}",
             json.dumps(community_body),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
@@ -285,7 +362,7 @@ class CommunityTestCase(TestCase):
         )
 
         valid_response = client.delete(
-            f"/account/communities/{account_community.id}",
+            f"/account/communities/{account_community.pk}",
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
 
@@ -295,8 +372,10 @@ class CommunityTestCase(TestCase):
 
         # Check that the community was deleted
         all_communities = list(Community.objects.all())
-        self.assertEqual(len(all_communities), 1)
-        self.assertEqual(all_communities[0].name, "Community2")
+        self.assertEqual(len(all_communities), 2)
+        non_deleted_communities = list(Community.objects.filter(deleted_at=None))
+        self.assertEqual(len(non_deleted_communities), 1)
+        self.assertEqual(non_deleted_communities[0].name, "Community2")
 
     def test_patch_community(self):
         """Test successfully editing a community's name and description"""
@@ -311,7 +390,7 @@ class CommunityTestCase(TestCase):
 
         # Edit the community
         community_response = client.patch(
-            f"/account/communities/{account_community.id}",
+            f"/account/communities/{account_community.pk}",
             json.dumps(
                 {
                     "name": mock_community_body["name"],
@@ -352,7 +431,7 @@ class CommunityTestCase(TestCase):
 
         # Edit the community
         community_response = client.patch(
-            f"/account/communities/{account_community.id}",
+            f"/account/communities/{account_community.pk}",
             json.dumps(
                 {
                     "name": name_2,
