@@ -58,7 +58,7 @@ const LandingPage = () => {
       <div>
       `Gitcoin Passport is a Sybil defense tool that makes it easy to protect your 
       web3 community from bots and bad actors. Connect your wallet below to access 
-      the Passport Scorer app, which helps you create a "Scorer" for the application 
+      the Passport Scorer app, which helps you create a &quot;Scorer&quot; for the application 
       you want to protect from Sybil attackers.`
       </div>
       <SIWEButton
