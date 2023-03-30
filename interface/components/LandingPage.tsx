@@ -56,10 +56,10 @@ const LandingPage = () => {
         <p className="md:text-7xl my-2 -ml-1 text-5xl">Passport Scorer</p>
       </div>
       <div>
-      `Gitcoin Passport is a Sybil defense tool that makes it easy to protect your 
+      Gitcoin Passport is a Sybil defense tool that makes it easy to protect your 
       web3 community from bots and bad actors. Connect your wallet below to access 
       the Passport Scorer app, which helps you create a &quot;Scorer&quot; for the application 
-      you want to protect from Sybil attackers.`
+      you want to protect from Sybil attackers.
       </div>
       <SIWEButton
         className="mt-10 hidden md:block"
