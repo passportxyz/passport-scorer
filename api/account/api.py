@@ -427,8 +427,6 @@ def delete_community(request, community_id):
         community = get_object_or_404(
             Community, id=community_id, account=request.user.account, deleted_at=None
         )
-        # TODO should we try to delete it first, in case it hasn't been used?
-        # Alternatively, are we sure we don't want to just delete related objects?
         community.deleted_at = datetime.now(timezone.utc)
         community.save()
     except Account.DoesNotExist:

@@ -116,6 +116,7 @@ class CommunityTestCase(TestCase):
         )
         self.assertEqual(community_response.status_code, 200)
 
+        # mark deleted
         pk = Community.objects.get(name=mock_community_body["name"]).pk
         valid_response = client.delete(
             f"/account/communities/{pk}",
@@ -124,6 +125,7 @@ class CommunityTestCase(TestCase):
 
         self.assertEqual(valid_response.status_code, 200)
 
+        # successfully create community with same name
         community_response1 = client.post(
             "/account/communities",
             json.dumps(mock_community_body),
@@ -203,7 +205,7 @@ class CommunityTestCase(TestCase):
         last_community.deleted_at = datetime.now(timezone.utc)
         last_community.save()
 
-        # check that we are throwing a 401 if they have already created an account
+        # check that we can create another community
         community_response = client.post(
             "/account/communities",
             json.dumps(mock_community_body),
@@ -212,7 +214,7 @@ class CommunityTestCase(TestCase):
         )
         self.assertEqual(community_response.status_code, 200)
 
-        # Check that only 5 Communities are in the DB
+        # Check that 6 Communities are in the DB
         all_communities = list(Community.objects.all())
         self.assertEqual(len(all_communities), 6)
 
