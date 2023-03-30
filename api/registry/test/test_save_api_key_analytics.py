@@ -8,17 +8,14 @@ from registry.tasks import save_api_key_analytics
 @pytest.mark.django_db
 class TestSaveApiKeyAnalytics:
     def test_save_api_key_analytics_new_analytics(self, scorer_account):
-        path = "/test_path/"
 
         (model, secret) = AccountAPIKey.objects.create_key(
             account=scorer_account, name="Another token for user 1"
         )
 
-        save_api_key_analytics(secret, path)
+        save_api_key_analytics(secret)
 
-        analytics, created = AccountAPIKeyAnalytics.objects.get_or_create(
-            api_key=model, path=path
-        )
+        analytics, created = AccountAPIKeyAnalytics.objects.get_or_create(api_key=model)
 
         assert analytics.request_count == 1
 
@@ -29,45 +26,22 @@ class TestSaveApiKeyAnalytics:
             account=scorer_account, name="Another token for user 1"
         )
 
-        save_api_key_analytics(secret, path)
-        save_api_key_analytics(secret, path)
+        save_api_key_analytics(secret)
+        save_api_key_analytics(secret)
 
-        analytics, created = AccountAPIKeyAnalytics.objects.get_or_create(
-            api_key=model, path=path
-        )
+        analytics, created = AccountAPIKeyAnalytics.objects.get_or_create(api_key=model)
 
         assert analytics.request_count == 2
 
-    def test_save_api_key_analytics_does_not_increment_count_for_different_path(
-        self, scorer_account
-    ):
-        path = "/test_path/"
-
-        (model, secret) = AccountAPIKey.objects.create_key(
-            account=scorer_account, name="Another token for user 1"
-        )
-
-        save_api_key_analytics(secret, path)
-        save_api_key_analytics(secret, "/new_path")
-
-        analytics, created = AccountAPIKeyAnalytics.objects.get_or_create(
-            api_key=model, path=path
-        )
-
-        assert analytics.request_count == 1
-
     def test_invalid_secret(self, scorer_account):
-        path = "/test_path/"
 
         (model, secret) = AccountAPIKey.objects.create_key(
             account=scorer_account, name="Another token for user 1"
         )
 
-        save_api_key_analytics("secret", path)
+        save_api_key_analytics("secret")
 
-        analytics, created = AccountAPIKeyAnalytics.objects.get_or_create(
-            api_key=model, path=path
-        )
+        analytics, created = AccountAPIKeyAnalytics.objects.get_or_create(api_key=model)
 
         assert analytics.request_count == 0
         assert created == True

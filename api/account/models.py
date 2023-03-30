@@ -108,7 +108,6 @@ class AccountAPIKeyAnalytics(models.Model):
         AccountAPIKey, on_delete=models.CASCADE, related_name="analytics"
     )
     request_count = models.IntegerField(default=0)
-    path = models.CharField(max_length=100, blank=False, null=False)
 
 
 def get_default_community_scorer():
