@@ -30,10 +30,12 @@ import {
   ModalCloseButton,
   useToast,
   UseToastOptions,
+  IconButton,
 } from "@chakra-ui/react";
 import { CloseIcon } from "@chakra-ui/icons";
 import { UseCaseInterface, useCases } from "./UseCaseModal";
 import { SpinnerIcon } from "./CustomIcons";
+import { EllipsisVerticalIcon } from "@heroicons/react/24/solid";
 
 interface UseCaseMap {
   [k: string]: UseCaseInterface;
@@ -301,7 +303,7 @@ const CommunityCard = ({
     <Icon boxSize={19.5}>{useCase.icon("#6F3FF5")}</Icon>
   ) : null;
   return (
-    <div className="flex-col px-4 py-4 md:px-6">
+    <div className="flex-col px-4 py-4 md:pl-4 md:pr-1.5">
       <RenameModal
         isOpen={isRenameModalOpen}
         onClose={handleCloseRenameModal}
@@ -351,25 +353,19 @@ const CommunityCard = ({
         </div>
         <div className="absolute top-0 right-0 md:static md:flex md:basis-1/12 md:flex-row-reverse">
           <Menu>
-            <MenuButton data-testid="card-menu-button">
-              <div className="m-auto flex justify-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="h-6 w-6"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z"
-                  />
-                </svg>
-              </div>
-            </MenuButton>{" "}
-            <MenuList>
+            <MenuButton
+              data-testid="card-menu-button"
+              as={IconButton}
+              icon={
+                <EllipsisVerticalIcon className="h-8 text-purple-darkpurple" />
+              }
+              variant="ghost"
+              _hover={{ bg: "transparent" }}
+              _expanded={{ bg: "transparent" }}
+              _focus={{ bg: "transparent" }}
+              className="my-auto flex justify-center"
+            />
+            <MenuList color={"#0E0333"}>
               <MenuItem
                 data-testid={`menu-rename-${community.id}`}
                 onClick={handleRename}

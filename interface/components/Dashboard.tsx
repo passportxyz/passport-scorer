@@ -29,24 +29,24 @@ const QuickLink = ({
 }) => (
   <a href={url} target="_blank" rel="noreferrer">
     <div
-      className={`flex w-full flex-row items-center justify-start border-gray-lightgray  bg-white p-5 ${
-        (url ? "cursor-pointer " : " ") + className
-      }`}
+      className={`flex w-full flex-row items-center justify-start border-gray-lightgray px-6 ${
+        icon ? "py-3 border-t" : "pt-6 pb-4"
+      } ${(url ? "cursor-pointer " : " ") + className}`}
     >
-      <span className="mr-2">{icon}</span>
+      <span className={`${icon ? "mr-2" : ""}`}>{icon}</span>
       {text}
     </div>
   </a>
 );
 
 const QuickLinks = ({ className }: { className: string }) => {
-  const linkClassName = "border-x border-t";
+  const linkClassName = "text-purple-softpurple";
   const iconClassName = "mr-2 w-3.5";
   return (
-    <div className={`w-full ${className}`}>
+    <div className={`w-full bg-white border rounded-md ${className}`}>
       <QuickLink
         text="Quick Links"
-        className={linkClassName + " rounded-t-md pt-6 text-xs text-gray-500"}
+        className="pt-6 text-xs text-purple-darkpurple"
       />
       <QuickLink
         text="Quick Start Guide"
@@ -70,27 +70,28 @@ const QuickLinks = ({ className }: { className: string }) => {
         text="Scorer Documentation"
         url="https://docs.passport.gitcoin.co/building-with-passport/scorer-api"
         icon={<BookOpenIcon className={iconClassName} />}
-        className={linkClassName + " rounded-b-md border-b"}
+        className={linkClassName}
       />
     </div>
   );
 };
 
 const SampleApplications = ({ className }: { className?: string }) => {
+  const classOverwrite = "py-2"
   return (
-    <div className={"border-gray-lightgray text-base " + className}>
+    <div className={"border-gray-lightgray border rounded-md bg-white text-base pb-24 " + className}>
       <QuickLink
         text="Sample Applications"
-        className="rounded-t-md border-x border-t pt-6 text-xs text-gray-500"
+        className="pt-6 text-xs text-purple-darkpurple"
       />
       <QuickLink
         text="Gitcoin Passport Sample App"
         url="https://github.com/gitcoinco/passport-scorer/tree/main/examples/example-score-a-passport"
-        className="border-x"
+        className="text-purple-softpurple pt-0"
       />
       <QuickLink
         text="Gitcoin Allo Protocol"
-        className="rounded-b-md border-x border-b"
+        className="text-purple-softpurple pt-0 pb-2"
         url="https://github.com/gitcoinco/grants-stack/blob/45b6a3a00beb05090e039be2551a06636e873fbc/packages/grant-explorer/src/features/round/PassportConnect.tsx"
       />
     </div>
@@ -102,7 +103,7 @@ export const subheader = (
     <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
       Gitcoin Passport Scorer
     </h1>
-    <p className="mt-2 font-librefranklin">
+    <p className="mt-2 font-librefranklin text-purple-softpurple">
       A Scorer is used to score Passports. An API key is required to access
       those scores.
     </p>
