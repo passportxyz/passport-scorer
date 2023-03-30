@@ -1,4 +1,5 @@
 import { CheckCircleIcon, CloseIcon } from "@chakra-ui/icons";
+import { ExclamationCircleIcon } from "@heroicons/react/24/outline";
 import { useToast, UseToastOptions } from "@chakra-ui/react";
 
 export const successToast = (
@@ -8,7 +9,7 @@ export const successToast = (
   return {
     title: "Success!",
     status: "success",
-    duration: null,
+    duration: 6000,
     isClosable: true,
     variant: "solid",
     position: "bottom",
@@ -44,7 +45,7 @@ export const warningToast = (
   return {
     title: "Warning!",
     status: "warning",
-    duration: null,
+    duration: 6000,
     isClosable: true,
     variant: "solid",
     position: "bottom",

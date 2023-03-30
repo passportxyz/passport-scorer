@@ -35,7 +35,7 @@ import {
 import { CloseIcon } from "@chakra-ui/icons";
 import { UseCaseInterface, useCases } from "./UseCaseModal";
 import { SpinnerIcon } from "./CustomIcons";
-import { EllipsisVerticalIcon } from "@heroicons/react/24/solid";
+import { warningToast } from "./Toasts";
 
 interface UseCaseMap {
   [k: string]: UseCaseInterface;
@@ -286,7 +286,7 @@ const CommunityCard = ({
       await handleUpdateCommunity(community.id, name, description);
       setIsRenameModalOpen(false);
     } catch (e) {
-      toast(getErrorToast(toast));
+      toast(warningToast("Something went wrong. Please try again.", toast));
     }
   };
 
@@ -295,7 +295,7 @@ const CommunityCard = ({
       await handleDeleteCommunity(community.id);
       setIsDeleteConfirmationModalOpen(false);
     } catch (e) {
-      toast(getErrorToast(toast));
+      toast(warningToast("Something went wrong. Please try again.", toast));
     }
   };
 
