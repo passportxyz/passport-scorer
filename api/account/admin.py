@@ -22,9 +22,16 @@ class CommunityAdmin(admin.ModelAdmin):
         "account",
         "scorer_link",
         "use_case",
+        "deleted_at",
     )
     raw_id_fields = ("account", "scorer")
-    search_fields = ("name", "description", "account__address", "created_at")
+    search_fields = (
+        "name",
+        "description",
+        "account__address",
+        "created_at",
+        "deleted_at",
+    )
     readonly_fields = ("scorer_link",)
 
     def scorer_link(self, obj):

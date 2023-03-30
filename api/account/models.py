@@ -117,6 +117,7 @@ class Community(models.Model):
 
     name = models.CharField(max_length=100, blank=False, null=False)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     rule = models.CharField(
         max_length=100,
         blank=False,
