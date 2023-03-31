@@ -29,10 +29,8 @@ import {
   ModalFooter,
   ModalCloseButton,
   useToast,
-  UseToastOptions,
   IconButton,
 } from "@chakra-ui/react";
-import { CloseIcon } from "@chakra-ui/icons";
 import { UseCaseInterface, useCases } from "./UseCaseModal";
 import { SpinnerIcon } from "./CustomIcons";
 import { warningToast } from "./Toasts";

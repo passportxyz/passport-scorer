@@ -9,7 +9,6 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import {
-  ExclamationCircleIcon,
   NoSymbolIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -27,7 +26,6 @@ import Header from "./Header";
 
 import { UseCaseInterface, useCases } from "./UseCaseModal";
 import { createCommunity } from "../utils/account-requests";
-import { CloseIcon } from "@chakra-ui/icons";
 import PopoverInfo from "./PopoverInfo";
 import { warningToast } from "./Toasts";
 
@@ -216,38 +214,7 @@ const NewScorer = () => {
       localStorage.setItem("scorerCreated", "true");
       navigate("/dashboard/scorer");
     } catch (e) {
-      warningToast("Something went wrong. Please try again.", toast);
-      // toast({
-      //   title: "Warning!",
-      //   status: "warning",
-      //   duration: 3000,
-      //   isClosable: true,
-      //   variant: "solid",
-      //   position: "bottom",
-      //   render: () => (
-      //     <div
-      //       style={{
-      //         backgroundColor: "#FDDEE4",
-      //         borderRadius: "4px",
-      //         display: "flex",
-      //         alignItems: "center",
-      //         padding: "16px",
-      //       }}
-      //     >
-      //       <ExclamationCircleIcon className="mr-3 w-6 text-[#D44D6E]" />
-      //       <span style={{ color: "#0E0333", fontSize: "16px" }}>
-      //         Something went wrong. Please try again.
-      //       </span>
-      //       <CloseIcon
-      //         color="#0E0333"
-      //         boxSize={3}
-      //         ml="8"
-      //         cursor="pointer"
-      //         onClick={() => toast.closeAll()}
-      //       />
-      //     </div>
-      //   ),
-      // });
+      toast(warningToast("Something went wrong. Please try again.", toast));
     }
   }, [
     name,
