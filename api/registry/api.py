@@ -29,6 +29,7 @@ from .exceptions import (
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
     InvalidNonceException,
+    InvalidScorerIdException,
     InvalidSignerException,
     Unauthorized,
     api_get_object_or_404,
@@ -45,7 +46,8 @@ analytics_router = Router()
 class SubmitPassportPayload(Schema):
     address: str
     # TODO: should be renamed to scorer, will break backwords compatibility
-    community: str
+    community: str = "Deprecated"
+    scorer_id: str = ""
     signature: str = ""
     nonce: str = ""
 
@@ -194,6 +196,18 @@ def community_requires_signature(_):
     return False
 
 
+def get_scorer_id(payload: SubmitPassportPayload) -> str:
+    scorer_id = ""
+    if payload.scorer_id:
+        scorer_id = payload.scorer_id
+    elif payload.community != "Deprecated":
+        scorer_id = payload.community
+    else:
+        raise InvalidScorerIdException()
+
+    return scorer_id
+
+
 @router.post(
     "/submit-passport",
     auth=ApiKey(),
@@ -217,10 +231,13 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
     # did = get_did(payload.address)
     log.debug("/submit-passport, payload=%s", payload)
 
+    try:
+        scorer_id = get_scorer_id(payload)
+    except Exception as e:
+        raise e
+
     # Get community object
-    user_community = get_object_or_404(
-        Community, id=payload.community, account=request.auth
-    )
+    user_community = get_object_or_404(Community, id=scorer_id, account=request.auth)
 
     # Verify the signer
     # TODO This first condition--payload.signature--is only here for testing and
