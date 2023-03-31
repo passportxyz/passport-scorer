@@ -1,5 +1,5 @@
 # https://pipenv.pypa.io/en/latest/basics/#pipenv-and-docker-containers
-FROM --platform=linux/amd64 docker.io/python:3.10 AS base
+FROM --platform=linux/amd64 docker.io/python:3.11 AS base
 
 RUN apt update && \
     apt install -y python3-dev libpq-dev
