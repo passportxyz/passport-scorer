@@ -44,6 +44,7 @@ analytics_router = Router()
 
 class SubmitPassportPayload(Schema):
     address: str
+    # TODO: should be renamed to scorer, will break backwords compatibility
     community: str
     signature: str = ""
     nonce: str = ""
@@ -205,7 +206,7 @@ def community_requires_signature(_):
     summary="Submit passport for scoring",
     description="""Use this API to submit your passport for scoring.\n
 This API will return a `DetailedScoreResponse` structure with status **PROCESSING** immediatly while your passport is being pulled from storage and the scoring algorithm is run.\n
-You need to check for the status of the operation by calling the `/score/{int:community_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
+You need to check for the status of the operation by calling the `/score/{int:scorer_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
 """,
 )
 def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
