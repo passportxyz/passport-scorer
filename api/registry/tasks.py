@@ -21,24 +21,14 @@ def get_utc_time():
 
 
 @shared_task
-def save_api_key_analytics(api_key_value):
+def save_api_key_analytics(api_key_value, path):
     try:
         api_key = AccountAPIKey.objects.get_from_key(api_key_value)
 
-        # Check if the analytics object for the API key and path already exists
-        analytics, created = AccountAPIKeyAnalytics.objects.get_or_create(
-            api_key=api_key
+        AccountAPIKeyAnalytics.objects.create(
+            api_key=api_key,
+            path=path,
         )
-
-        if not created:
-            # If the analytics object exists, increment the request count
-            analytics.request_count += 1
-            analytics.save()
-        else:
-            # If a new analytics object was created, set the initial request count
-            analytics.request_count = 1
-            analytics.save()
-
     except AccountAPIKey.DoesNotExist:
         pass
 
