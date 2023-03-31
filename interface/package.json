@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
-    "build": "next build",
-    "start": "next start",
+    "dev": "NEXT_PUBLIC_GIT_COMMIT_HASH=$(git rev-parse --short HEAD) next dev -p 3001",
+    "build": "NEXT_PUBLIC_GIT_COMMIT_HASH=$(git rev-parse --short HEAD) next build",
+    "start": "next start -p 3001",
     "lint": "next lint",
     "test": "jest",
     "static": "next build && next export",
