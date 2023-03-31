@@ -1,8 +1,11 @@
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 from account.models import AccountAPIKey, AccountAPIKeyAnalytics
 from registry.tasks import save_api_key_analytics
+
+path = "/test_path/"
 
 
 @pytest.mark.django_db
@@ -13,25 +16,14 @@ class TestSaveApiKeyAnalytics:
             account=scorer_account, name="Another token for user 1"
         )
 
-        save_api_key_analytics(secret)
+        save_api_key_analytics(secret, path)
 
-        analytics, created = AccountAPIKeyAnalytics.objects.get_or_create(api_key=model)
+        obj = AccountAPIKeyAnalytics.objects.get(path=path, api_key=model)
 
-        assert analytics.request_count == 1
+        created_at_day = datetime.fromisoformat(obj.created_at.isoformat())
 
-    def test_save_api_key_analytics_increments_count(self, scorer_account):
-        path = "/test_path/"
-
-        (model, secret) = AccountAPIKey.objects.create_key(
-            account=scorer_account, name="Another token for user 1"
-        )
-
-        save_api_key_analytics(secret)
-        save_api_key_analytics(secret)
-
-        analytics, created = AccountAPIKeyAnalytics.objects.get_or_create(api_key=model)
-
-        assert analytics.request_count == 2
+        assert created_at_day.day is datetime.now().day
+        assert created_at_day.month is datetime.now().month
 
     def test_invalid_secret(self, scorer_account):
 
@@ -39,9 +31,7 @@ class TestSaveApiKeyAnalytics:
             account=scorer_account, name="Another token for user 1"
         )
 
-        save_api_key_analytics("secret")
+        save_api_key_analytics("secret", path)
 
-        analytics, created = AccountAPIKeyAnalytics.objects.get_or_create(api_key=model)
-
-        assert analytics.request_count == 0
-        assert created == True
+        obj = AccountAPIKeyAnalytics.objects.filter(path=path, api_key=model)
+        assert obj.count() is 0
