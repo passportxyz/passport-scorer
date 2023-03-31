@@ -45,7 +45,6 @@ analytics_router = Router()
 
 class SubmitPassportPayload(Schema):
     address: str
-    # TODO: should be renamed to scorer, will break backwords compatibility
     community: str = "Deprecated"
     scorer_id: str = ""
     signature: str = ""
