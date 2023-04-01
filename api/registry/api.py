@@ -29,6 +29,7 @@ from .exceptions import (
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
     InvalidNonceException,
+    InvalidScorerIdException,
     InvalidSignerException,
     Unauthorized,
     api_get_object_or_404,
@@ -44,7 +45,8 @@ analytics_router = Router()
 
 class SubmitPassportPayload(Schema):
     address: str
-    community: str
+    community: str = "Deprecated"
+    scorer_id: str = ""
     signature: str = ""
     nonce: str = ""
 
@@ -193,6 +195,18 @@ def community_requires_signature(_):
     return False
 
 
+def get_scorer_id(payload: SubmitPassportPayload) -> str:
+    scorer_id = ""
+    if payload.scorer_id:
+        scorer_id = payload.scorer_id
+    elif payload.community and payload.community != "Deprecated":
+        scorer_id = payload.community
+    else:
+        raise InvalidScorerIdException()
+
+    return scorer_id
+
+
 @router.post(
     "/submit-passport",
     auth=ApiKey(),
@@ -205,7 +219,7 @@ def community_requires_signature(_):
     summary="Submit passport for scoring",
     description="""Use this API to submit your passport for scoring.\n
 This API will return a `DetailedScoreResponse` structure with status **PROCESSING** immediatly while your passport is being pulled from storage and the scoring algorithm is run.\n
-You need to check for the status of the operation by calling the `/score/{int:community_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
+You need to check for the status of the operation by calling the `/score/{int:scorer_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
 """,
 )
 def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
@@ -216,10 +230,13 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
     # did = get_did(payload.address)
     log.debug("/submit-passport, payload=%s", payload)
 
+    try:
+        scorer_id = get_scorer_id(payload)
+    except Exception as e:
+        raise e
+
     # Get community object
-    user_community = get_object_or_404(
-        Community, id=payload.community, account=request.auth
-    )
+    user_community = get_object_or_404(Community, id=scorer_id, account=request.auth)
 
     # Verify the signer
     # TODO This first condition--payload.signature--is only here for testing and

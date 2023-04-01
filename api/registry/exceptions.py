@@ -20,7 +20,7 @@ class InvalidPassportCreationException(APIException):
 
 class InvalidScoreRequestException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Unable to get score for provided community."
+    default_detail = "Unable to get score for provided scorer."
 
 
 class NoPassportException(APIException):
@@ -35,7 +35,12 @@ class Unauthorized(APIException):
 
 class InvalidCommunityScoreRequestException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Unable to get score for provided community."
+    default_detail = "Unable to get score for provided scorer."
+
+
+class InvalidScorerIdException(APIException):
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    default_detail = "Invalid scorer_id. Please provide a valid scorer_id."
 
 
 class InvalidLimitException(APIException):

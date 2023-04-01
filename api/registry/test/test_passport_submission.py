@@ -575,7 +575,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
 
     @patch("registry.tasks.get_passport", return_value=mock_passport)
-    def test_submit_passport_missing_community(self, get_passport):
+    def test_submit_passport_missing_community_and_scorer_id(self, get_passport):
         """
         Make sure that the community is required when submitting eth address
         """
@@ -598,6 +598,27 @@ class ValidatePassportTestCase(TransactionTestCase):
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 0)
+
+    @patch("registry.tasks.get_passport", return_value=mock_passport)
+    def test_submit_passport_accepts_scorer_id(self, get_passport):
+        """
+        Make sure that the scorer_id is an acceptable parameter
+        """
+
+        payload = {
+            "address": self.account.address,
+            "signature": self.signed_message.signature.hex(),
+            "nonce": self.nonce,
+            "scorer_id": self.community.pk,
+        }
+
+        response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+        self.assertEqual(response.status_code, 200)
 
     @patch(
         "registry.tasks.validate_credential",
