@@ -318,7 +318,7 @@ def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
     "/score/{int:scorer_id}",
     auth=ApiKey(),
     response={
-        200: List[DetailedScoreResponse],
+        200: CursorPaginatedScoreResponse,
         401: ErrorMessageResponse,
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
@@ -331,15 +331,14 @@ This endpoint will return a `CursorPaginatedScoreResponse`.\n
 def get_scores(
     request,
     scorer_id: int,
-    address: str = "",
     last_id: int = None,
     limit: int = 1000,
 ) -> CursorPaginatedScoreResponse:
     check_rate_limit(request)
     if limit > 1000:
         raise InvalidLimitException()
-    
-    #Get community object
+
+    # Get community object
     user_community = api_get_object_or_404(
         Community, id=scorer_id, account=request.auth
     )
@@ -348,11 +347,10 @@ def get_scores(
             passport__community__id=user_community.id
         )
 
-        if address:
-            query = query.filter(passport__address=address.lower())
-
         if last_id:
-            scores = list(query.filter(id__gt=last_id).select_related("passport")[:limit])
+            scores = list(
+                query.filter(id__gt=last_id).select_related("passport")[:limit]
+            )
         else:
             scores = list(query.select_related("passport")[:limit])
 
