@@ -6,6 +6,7 @@ import "../utils/onboard";
 
 import { initiateSIWE } from "../utils/siwe";
 import { authenticate, verifyToken } from "../utils/account-requests";
+import { headerInterceptor } from "../utils/interceptors";
 
 export interface UserState {
   ready: boolean;
@@ -74,6 +75,7 @@ export const UserProvider = ({ children }: { children: any }) => {
     ) as string[];
     const accessToken = window.localStorage.getItem("access-token");
     if (accessToken) {
+      headerInterceptor(accessToken);
       try {
         const { expDate } = await verifyToken(accessToken);
         // We want the token to be valid for at least 6 hours
@@ -118,6 +120,7 @@ export const UserProvider = ({ children }: { children: any }) => {
 
       // store JWT access token in LocalStorage
       localStorage.setItem("access-token", tokens.access);
+      headerInterceptor(tokens.access);
 
       setConnected(true);
       setAuthenticating(false);
