@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useEffect, useContext } from "react";
+import React, { useEffect, useContext, useLayoutEffect } from "react";
 
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -12,12 +12,14 @@ const RequireAuth = ({ children }: { children: React.ReactNode }) => {
   const { pathname } = useLocation();
   const { ready, connected, logout } = useContext(UserContext);
 
-  unAuthorizedInterceptor(logout);
 
-  const token = localStorage.getItem("access-token");
-  if (token) {
-    headerInterceptor(token);
-  }
+  useLayoutEffect(() => {
+    unAuthorizedInterceptor(logout);
+    const token = localStorage.getItem("access-token");
+    if (token) {
+      headerInterceptor(token);
+    }
+  }, []);
 
   // If the user is not connected, redirect to the home page
   useEffect(() => {

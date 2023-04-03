@@ -75,7 +75,6 @@ export const UserProvider = ({ children }: { children: any }) => {
     ) as string[];
     const accessToken = window.localStorage.getItem("access-token");
     if (accessToken) {
-      headerInterceptor(accessToken);
       try {
         const { expDate } = await verifyToken(accessToken);
         // We want the token to be valid for at least 6 hours
