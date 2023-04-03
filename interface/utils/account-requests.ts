@@ -12,16 +12,9 @@ export type ApiKeys = {
 
 export const createApiKey = async (name: ApiKeys["name"]) => {
   try {
-    const token = localStorage.getItem("access-token");
     const response = await axios.post(
       `${SCORER_BACKEND}account/api-key`,
       { name },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
     );
     const { data } = await response;
     return data;
@@ -35,16 +28,9 @@ export const updateApiKey = async (
   name: ApiKeys["name"]
 ) => {
   try {
-    const token = localStorage.getItem("access-token");
     const response = await axios.patch(
       `${SCORER_BACKEND}account/api-key/${id}`,
       { name },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
     );
 
     const { data } = response;
@@ -56,13 +42,7 @@ export const updateApiKey = async (
 
 export const getApiKeys = async (): Promise<ApiKeys[]> => {
   try {
-    const token = localStorage.getItem("access-token");
-    const response = await axios.get(`${SCORER_BACKEND}account/api-key`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await axios.get(`${SCORER_BACKEND}account/api-key`);
 
     const { data } = response;
     return data;
@@ -73,12 +53,7 @@ export const getApiKeys = async (): Promise<ApiKeys[]> => {
 
 export const deleteApiKey = async (id: ApiKeys["id"]): Promise<void> => {
   try {
-    const token = localStorage.getItem("access-token");
-    await axios.delete(`${SCORER_BACKEND}account/api-key/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    await axios.delete(`${SCORER_BACKEND}account/api-key/${id}`);
   } catch (error) {
     throw error;
   }
@@ -104,16 +79,9 @@ export type CommunityPatch = {
 
 export const createCommunity = async (community: DraftCommunity) => {
   try {
-    const token = localStorage.getItem("access-token");
     const response = await axios.post(
       `${SCORER_BACKEND}account/communities`,
-      { ...community },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      { ...community }
     );
   } catch (error) {
     throw error;
@@ -122,13 +90,7 @@ export const createCommunity = async (community: DraftCommunity) => {
 
 export const getCommunities = async (): Promise<Community[]> => {
   try {
-    const token = localStorage.getItem("access-token");
-    const response = await axios.get(`${SCORER_BACKEND}account/communities`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await axios.get(`${SCORER_BACKEND}account/communities`);
 
     const { data } = response;
     return data;
@@ -142,16 +104,9 @@ export const updateCommunity = async (
   community: CommunityPatch
 ) => {
   try {
-    const token = localStorage.getItem("access-token");
     const response = await axios.patch(
       `${SCORER_BACKEND}account/communities/${communityId}`,
-      { ...community },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      { ...community }
     );
   } catch (error) {
     throw error;
@@ -160,15 +115,8 @@ export const updateCommunity = async (
 
 export const deleteCommunity = async (communityId: Community["id"]) => {
   try {
-    const token = localStorage.getItem("access-token");
     const response = await axios.delete(
-      `${SCORER_BACKEND}account/communities/${communityId}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `${SCORER_BACKEND}account/communities/${communityId}`
     );
   } catch (error) {
     throw error;
@@ -194,15 +142,8 @@ export const getCommunityScorers = async (
   communityId: string
 ): Promise<ScorerResponse> => {
   try {
-    const token = localStorage.getItem("access-token");
     const response = await axios.get(
-      `${SCORER_BACKEND}account/communities/${communityId}/scorers`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `${SCORER_BACKEND}account/communities/${communityId}/scorers`
     );
 
     const { data } = response;
@@ -223,16 +164,8 @@ export const updateCommunityScorers = async (
   scorerType: string
 ) => {
   try {
-    const token = localStorage.getItem("access-token");
     const response = await axios.put(
-      `${SCORER_BACKEND}account/communities/${communityId}/scorers`,
-      { scorer_type: scorerType },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `${SCORER_BACKEND}account/communities/${communityId}/scorers`
     );
   } catch (error) {
     throw error;
@@ -263,12 +196,7 @@ export const verifyToken = async (
   try {
     const response = await axios.post(
       `${SCORER_BACKEND}account/validate_token`,
-      { token },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      { token }
     );
     const exp = response.data.exp;
     const expDate = new Date(exp * 1000);

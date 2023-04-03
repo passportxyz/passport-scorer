@@ -6,6 +6,7 @@ import "../utils/onboard";
 
 import { initiateSIWE } from "../utils/siwe";
 import { authenticate, verifyToken } from "../utils/account-requests";
+import { headerInterceptor } from "../utils/interceptors";
 
 export interface UserState {
   ready: boolean;
@@ -118,6 +119,7 @@ export const UserProvider = ({ children }: { children: any }) => {
 
       // store JWT access token in LocalStorage
       localStorage.setItem("access-token", tokens.access);
+      headerInterceptor(tokens.access);
 
       setConnected(true);
       setAuthenticating(false);

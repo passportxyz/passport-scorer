@@ -29,7 +29,6 @@ const CommunityList = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [communityLoadingStatus, setCommunityLoadingStatus] =
     useState<string>("initial");
-  const { logout } = useContext(UserContext);
 
   const fetchCommunities = useCallback(async () => {
     try {
@@ -40,9 +39,6 @@ const CommunityList = () => {
       const error = exc as { response: { status: number } };
       setCommunityLoadingStatus("error");
       setError("There was an error fetching your Communities.");
-      if (error.response.status === 401) {
-        logout();
-      }
     }
   }, []);
 
