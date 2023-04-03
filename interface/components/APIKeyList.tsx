@@ -44,7 +44,7 @@ const APIKeyList = () => {
   const [createApiKeyModal, setCreateApiKeyModal] = useState(false);
   const [apiKeyToDelete, setApiKeyToDelete] = useState<string | undefined>();
   const [apiKeyToUpdate, setApiKeyToUpdate] = useState<string | undefined>();
-  const { logout, setUserWarning } = useContext(UserContext);
+  const { setUserWarning } = useContext(UserContext);
   const toast = useToast();
 
   useEffect(() => {
@@ -57,9 +57,6 @@ const APIKeyList = () => {
           setApiKeys(apiKeys);
         } catch (error: any) {
           setError("There was an error fetching your API keys.");
-          if (error.response.status === 401) {
-            logout();
-          }
         }
       }
     };
@@ -106,9 +103,7 @@ const APIKeyList = () => {
       await deleteApiKey(id);
       setApiKeys(await getApiKeys());
     } catch (error: any) {
-      if (error.response.status === 401) {
-        logout();
-      }
+      console.log({ error });
     }
   };
 
