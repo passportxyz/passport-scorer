@@ -3,6 +3,7 @@ import json
 from copy import deepcopy
 from datetime import datetime
 
+from account.models import Account, AccountAPIKey
 from django.conf import settings
 from django.test import Client, TestCase
 from eth_account.messages import encode_defunct
@@ -28,15 +29,8 @@ c = Client()
 
 class AccountTestCase(TestCase):
     def setUp(self):
-        pass
-
-    def test_create_account_with_SIWE(self):
-        """Test creation of an account wit SIWE"""
         response = c.get("/account/nonce")
-        self.assertEqual(200, response.status_code)
-
-        data = response.json()
-        nonce = data["nonce"]
+        nonce = response.json()["nonce"]
 
         siwe_data = {
             "domain": "localhost:3000",
@@ -45,15 +39,27 @@ class AccountTestCase(TestCase):
             "uri": "http://localhost/",
             "version": "1",
             "chainId": "1",
-            "nonce": data["nonce"],
+            "nonce": nonce,
             "issuedAt": datetime.utcnow().isoformat(),
         }
+
+        self.siwe_data = siwe_data
 
         siwe_data_pay = deepcopy(siwe_data)
         siwe_data_pay["chain_id"] = siwe_data_pay["chainId"]
         siwe_data_pay["issued_at"] = siwe_data_pay["issuedAt"]
+        self.siwe_data_pay = siwe_data_pay
 
-        siwe = SiweMessage(siwe_data_pay)
+    def test_nonce(self):
+        """Test that nonce endpoint works"""
+        response = c.get("/account/nonce")
+        self.assertEqual(200, response.status_code)
+        data = response.json()
+        self.assertTrue("nonce" in data)
+
+    def test_create_account_with_SIWE(self):
+        """Test creation of an account wit SIWE"""
+        siwe = SiweMessage(self.siwe_data_pay)
         data_to_sign = siwe.prepare_message()
 
         private_key = account.key
@@ -65,7 +71,7 @@ class AccountTestCase(TestCase):
             "/account/verify",
             json.dumps(
                 {
-                    "message": siwe_data,
+                    "message": self.siwe_data,
                     "signature": binascii.hexlify(signed_message.signature).decode(
                         "utf-8"
                     ),
@@ -79,28 +85,8 @@ class AccountTestCase(TestCase):
         self.assertTrue("refresh" in data)
         self.assertTrue("access" in data)
 
-    def test_create_account_with_www_domain(self):
-        response = c.get("/account/nonce")
-        self.assertEqual(200, response.status_code)
-
-        data = response.json()
-
-        siwe_data = {
-            "domain": "www.localhost:3000",
-            "address": account.address,
-            "statement": "Sign in with Ethereum to the app.",
-            "uri": "http://www.localhost/",
-            "version": "1",
-            "chainId": "1",
-            "nonce": data["nonce"],
-            "issuedAt": datetime.utcnow().isoformat(),
-        }
-
-        siwe_data_pay = deepcopy(siwe_data)
-        siwe_data_pay["chain_id"] = siwe_data_pay["chainId"]
-        siwe_data_pay["issued_at"] = siwe_data_pay["issuedAt"]
-
-        siwe = SiweMessage(siwe_data_pay)
+    def test_account_address_is_lower_case(self):
+        siwe = SiweMessage(self.siwe_data_pay)
         data_to_sign = siwe.prepare_message()
 
         private_key = account.key
@@ -112,7 +98,33 @@ class AccountTestCase(TestCase):
             "/account/verify",
             json.dumps(
                 {
-                    "message": siwe_data,
+                    "message": self.siwe_data,
+                    "signature": binascii.hexlify(signed_message.signature).decode(
+                        "utf-8"
+                    ),
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(200, response.status_code)
+        created_account = Account.objects.get(address=account.address.lower())
+        self.assertEqual(created_account.address, account.address.lower())
+
+    def test_create_account_with_www_domain(self):
+        siwe = SiweMessage(self.siwe_data_pay)
+        data_to_sign = siwe.prepare_message()
+        data_to_sign = siwe.prepare_message()
+
+        private_key = account.key
+        signed_message = w3.eth.account.sign_message(
+            encode_defunct(text=data_to_sign), private_key=private_key
+        )
+
+        response = c.post(
+            "/account/verify",
+            json.dumps(
+                {
+                    "message": self.siwe_data,
                     "signature": binascii.hexlify(signed_message.signature).decode(
                         "utf-8"
                     ),

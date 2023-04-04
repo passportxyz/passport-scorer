@@ -397,6 +397,32 @@ class ValidatePassportTestCase(TransactionTestCase):
 
     @patch("registry.tasks.validate_credential", side_effect=[[], []])
     @patch("registry.tasks.get_passport", return_value=mock_passport)
+    def test_submitted_passport_has_lower_case_address_value(
+        self, get_passport, validate_credential
+    ):
+        payload = {
+            "community": self.community.pk,
+            "address": self.account.address,
+            "signature": self.signed_message.signature.hex(),
+            "nonce": self.nonce,
+        }
+
+        response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(payload),
+            **{
+                "content_type": "application/json",
+                "HTTP_AUTHORIZATION": f"Token {self.secret}",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        created_passport = Passport.objects.get(address=self.account.address.lower())
+        self.assertEqual(created_passport.address, self.account.address.lower())
+
+    @patch("registry.tasks.validate_credential", side_effect=[[], []])
+    @patch("registry.tasks.get_passport", return_value=mock_passport)
     def test_submit_passport_reused_nonce(self, get_passport, validate_credential):
         """Test that submitting a reused nonce results in rejection"""
 
