@@ -400,12 +400,8 @@ class ValidatePassportTestCase(TransactionTestCase):
     def test_submitted_passport_has_lower_case_address_value(
         self, get_passport, validate_credential
     ):
-        """Test that submitting a reused nonce results in rejection"""
-
-        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
-
         payload = {
-            "community": self.community.id,
+            "community": self.community.pk,
             "address": self.account.address,
             "signature": self.signed_message.signature.hex(),
             "nonce": self.nonce,
@@ -419,6 +415,8 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "HTTP_AUTHORIZATION": f"Token {self.secret}",
             },
         )
+
+        self.assertEqual(response.status_code, 200)
 
         created_passport = Passport.objects.get(address=self.account.address.lower())
         self.assertEqual(created_passport.address, self.account.address.lower())
