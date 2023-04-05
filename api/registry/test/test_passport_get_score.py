@@ -354,9 +354,11 @@ class TestPassportGetScore:
         group, _ = Group.objects.get_or_create(name="Researcher")
         scorer_account.user.groups.add(group)
 
-        num_scores = len(paginated_scores)
+        num_scores = len(paginated_scores)  # 5
 
-        limit = int(num_scores / 2)
+        limit = int(num_scores / 2)  # 2
+
+        # [1, 2], [3, 4], [5]
         client = Client()
 
         # Read the 1st batch
@@ -377,8 +379,15 @@ class TestPassportGetScore:
         )
         response_data = response.json()
 
+        # Read the 3rd batch
+        response = client.get(
+            response_data["next"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
         assert response.status_code == 200
-        assert len(response_data["items"]) == len(paginated_scores) - limit
+        assert len(response_data["items"]) == 1
         assert response_data["next"] == None
 
     def test_get_first_page_scores_by_community_id_for_researcher(
@@ -499,6 +508,13 @@ class TestPassportGetScore:
         )
         response_data = response.json()
 
+        # Read the 3rd batch
+        response = client.get(
+            response_data["next"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
         assert response.status_code == 200
-        assert len(response_data["items"]) == len(paginated_scores) - limit
+        assert len(response_data["items"]) == 1
         assert response_data["next"] == None
