@@ -60,22 +60,29 @@ class TestPassportGetScore:
         scorer_community,
         paginated_scores,
     ):
-        offset = 0
         limit = 2
 
         client = Client()
         response = client.get(
-            f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}",
+            f"/registry/score/{scorer_community.id}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
 
         assert response.status_code == 200
+        assert response_data["prev"] == None
 
-        for i in range(0, 1):
+        next_page = client.get(
+            response_data["next"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert next_page.status_code == 200
+
+        for i in range(limit):
             assert (
                 response_data["items"][i]["address"]
-                == passport_holder_addresses[offset + i]["address"].lower()
+                == passport_holder_addresses[i]["address"].lower()
             )
 
     def test_get_scores_returns_second_page_scores(
@@ -85,22 +92,37 @@ class TestPassportGetScore:
         scorer_community,
         paginated_scores,
     ):
-        offset = 2
         limit = 2
 
         client = Client()
-        response = client.get(
-            f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}",
+        page_one_response = client.get(
+            f"/registry/score/{scorer_community.id}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
-        response_data = response.json()
+        page_one_data = page_one_response.json()
 
-        assert response.status_code == 200
+        assert page_one_response.status_code == 200
 
-        for i in range(0, 2):
+        page_two_response = client.get(
+            page_one_data["next"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        page_two_data = page_two_response.json()
+
+        assert page_two_response.status_code == 200
+
+        page_two_prev = client.get(
+            page_two_data["prev"],
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert page_two_prev.status_code == 200
+        assert page_two_prev.json() == page_one_data
+
+        for i in range(limit):
             assert (
-                response_data["items"][i]["address"]
-                == passport_holder_addresses[offset + i]["address"].lower()
+                page_two_data["items"][i]["address"]
+                == passport_holder_addresses[i + limit]["address"].lower()
             )
 
     def test_get_scores_request_throws_400_for_invalid_community(self, scorer_api_key):
@@ -127,6 +149,7 @@ class TestPassportGetScore:
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         assert response.status_code == 200
+        assert len(response.json()["items"]) == 1
 
         assert (
             response.json()["items"][0]["address"]

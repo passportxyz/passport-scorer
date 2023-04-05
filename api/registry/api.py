@@ -332,6 +332,7 @@ This endpoint will return a `CursorPaginatedScoreResponse`.\n
 def get_scores(
     request,
     scorer_id: int,
+    address: Optional[str] = None,
     token: str = None,
     limit: int = 1000,
 ) -> CursorPaginatedScoreResponse:
@@ -350,6 +351,9 @@ def get_scores(
             .filter(passport__community__id=user_community.id)
             .select_related("passport")
         )
+
+        if address:
+            query = query.filter(passport__address=address.lower())
 
         direction, id = decode_cursor(token) if token else (None, None)
 
@@ -497,12 +501,12 @@ def get_scores_analytics(
     if limit > 1000:
         raise InvalidLimitException()
 
-    query = Score.objects.order_by("id")
+    query = Score.objects.order_by("id").select_related("passport")
 
     if last_id:
-        scores = list(query.filter(id__gt=last_id).select_related("passport")[:limit])
+        scores = list(query.filter(id__gt=last_id)[:limit])
     else:
-        scores = list(query.select_related("passport")[:limit])
+        scores = list(query[:limit])
 
     has_more_scores = False
     if scores:
