@@ -174,6 +174,36 @@ google_credential_expired = {
     },
 }
 
+google_credential_soon_to_be_expired = {
+    "type": ["VerifiableCredential"],
+    "proof": {
+        "jws": "eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..UvANt5nz16WNjkGTyUFIxbMBmYdEFZcVrD97L3EzOkvxz8eN-6UKeFZul_uPBfa88h50jKQgVgJlJqxR8kpSAQ",
+        "type": "Ed25519Signature2018",
+        "created": "2022-06-03T15:33:04.698Z",
+        "proofPurpose": "assertionMethod",
+        "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+    },
+    "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+    "@context": ["https://www.w3.org/2018/credentials/v1"],
+    "issuanceDate": (datetime.utcnow() - timedelta(days=27)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
+    "expirationDate": (datetime.utcnow() + timedelta(days=3)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    ),
+    "credentialSubject": {
+        "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+        "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
+        "@context": [
+            {
+                "hash": "https://schema.org/Text",
+                "provider": "https://schema.org/Text",
+            }
+        ],
+        "provider": "Google",
+    },
+}
+
 mock_utc_timestamp = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
 
 mock_passport = {
@@ -220,6 +250,14 @@ mock_passport_with_expired_stamp = {
         {"provider": "Google", "credential": google_credential},
         {"provider": "Ens", "credential": ens_credential},
         {"provider": "Ens", "credential": google_credential_expired},
+    ],
+}
+
+mock_passport_with_soon_to_be_expired_stamp = {
+    "issuanceDate": "2022-06-03T15:31:56.944Z",
+    "expirationDate": "2022-06-03T15:31:56.944Z",
+    "stamps": [
+        {"provider": "Google", "credential": google_credential_soon_to_be_expired},
     ],
 }
 
@@ -911,3 +949,109 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         self.assertEqual(submitted_passport.stamps.count(), 1)
         self.assertEqual(submitted_passport.stamps.all()[0].provider, "Google")
+
+    @patch("registry.tasks.validate_credential", side_effect=[[], []])
+    @patch(
+        "registry.tasks.get_passport",
+        side_effect=[
+            copy.deepcopy(mock_passport_with_soon_to_be_expired_stamp),
+            copy.deepcopy(mock_passport_google),
+        ],
+    )
+    def test_update_dupe_stamps_with_newest_expiry(
+        self, get_passport, validate_credential
+    ):
+        """
+        Test the updating of stamps with the newest expiry date if a stamp with the same hash is submitted
+        """
+
+        # Create an address
+        address = self.account.address
+
+        # Create a scorer
+        scorer = Community.objects.create(
+            name="The Scorer",
+            description="A great scorer",
+            account=self.user_account,
+        )
+
+        # Create a passport with the previously created address
+        passport = Passport.objects.create(
+            address=address.lower(),
+            community=scorer,
+        )
+
+        # Create a stamp that's already saved in the db with the same hash as the stamp being submitted, but older expiry date
+        Stamp.objects.create(
+            passport=passport,
+            hash=google_credential_soon_to_be_expired["credentialSubject"]["hash"],
+            provider="Google",
+            credential=google_credential_soon_to_be_expired,
+        )
+
+        # Submit the passport with the expired stamp
+        submission_test_payload = {
+            "community": scorer.id,
+            "address": address,
+            "nonce": self.nonce,
+        }
+
+        self.client.post(
+            "/registry/submit-passport",
+            json.dumps(submission_test_payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+
+        # Get the soon-to-be expired stamp
+        soon_to_be_expired_stamp = Stamp.objects.get(provider="Google")
+        # Get the passport with the soon-to-be expired stamp
+        out_of_date_passport = Passport.objects.get(address=address)
+
+        # Check that the passport has 1 stamp
+        self.assertEqual(out_of_date_passport.stamps.count(), 1)
+
+        # Check that the passport has the soon-to-be expired stamp
+        self.assertEqual(
+            out_of_date_passport.stamps.all()[0].credential["expirationDate"],
+            soon_to_be_expired_stamp.credential["expirationDate"],
+        )
+
+        # Now, submit the passport again but with a stamp with a newer expiry date
+        Stamp.objects.update(
+            passport=passport,
+            hash=google_credential["credentialSubject"]["hash"],
+            provider="Google",
+            credential=google_credential,
+        )
+
+        new_submission_test_payload = {
+            "community": scorer.id,
+            "address": address,
+            "nonce": self.nonce_2,
+        }
+
+        new_submission_response = self.client.post(
+            "/registry/submit-passport",
+            json.dumps(new_submission_test_payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+
+        # Should return status code of 200 for successful submission
+        self.assertEqual(new_submission_response.status_code, 200)
+
+        # Updated stamp
+        new_stamp_db = Stamp.objects.get(passport=passport)
+
+        # Updated passport with updated stamp
+        updated_expiry_passport = Passport.objects.get(address=address)
+
+        # passport should have the updated stamp with the newer expiry date
+        self.assertEqual(
+            updated_expiry_passport.stamps.all()[0].credential["expirationDate"],
+            new_stamp_db.credential["expirationDate"],
+        )
+
+        # passport should have only one stamp
+        self.assertEqual(updated_expiry_passport.stamps.count(), 1)
