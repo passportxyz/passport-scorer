@@ -496,33 +496,53 @@ def get_passport_stamps(
 @analytics_router.get("/score/", auth=ApiKey(), response=CursorPaginatedScoreResponse)
 @permissions_required([ResearcherPermission])
 def get_scores_analytics(
-    request, last_id: int = None, limit: int = 1000
+    request, token: str = None, limit: int = 1000
 ) -> CursorPaginatedScoreResponse:
     if limit > 1000:
         raise InvalidLimitException()
 
     query = Score.objects.order_by("id").select_related("passport")
 
-    if last_id:
-        scores = list(query.filter(id__gt=last_id)[:limit])
+    direction, id = decode_cursor(token) if token else (None, None)
+
+    if direction == "next":
+        scores = list(query.filter(id__gt=id)[:limit])
+    elif direction == "prev":
+        scores = list(query.filter(id__lt=id).order_by("-id")[:limit])
+        scores.reverse()
     else:
         scores = list(query[:limit])
 
-    has_more_scores = False
+    has_more_scores = has_prev_scores = False
+
     if scores:
-        last_score = scores[-1]
-        has_more_scores = query.filter(id__gt=last_score.id).exists()
+        next_id = scores[-1].id
+        prev_id = scores[0].id
+
+        has_more_scores = query.filter(id__gt=next_id).exists()
+        has_prev_scores = query.filter(id__lt=prev_id).exists()
+
+    domain = request.build_absolute_uri("/")[:-1]
 
     next_url = (
-        reverse_lazy_with_query(
+        f"""{domain}{reverse_lazy_with_query(
             "analytics:get_scores_analytics",
-            query_kwargs={"last_id": last_score.id},
-        )
+            query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
+        )}"""
         if has_more_scores
         else None
     )
 
-    response = CursorPaginatedScoreResponse(next=next_url, items=scores)
+    prev_url = (
+        f"""{domain}{reverse_lazy_with_query(
+            "analytics:get_scores_analytics",
+            query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
+        )}"""
+        if has_prev_scores
+        else None
+    )
+
+    response = CursorPaginatedScoreResponse(next=next_url, prev=prev_url, items=scores)
 
     return response
 
@@ -535,7 +555,7 @@ def get_scores_by_community_id_analytics(
     request,
     scorer_id: int,
     address: str = "",
-    last_id: int = None,
+    token: str = None,
     limit: int = 1000,
 ) -> CursorPaginatedScoreResponse:
     if limit > 1000:
@@ -543,33 +563,56 @@ def get_scores_by_community_id_analytics(
 
     user_community = api_get_object_or_404(Community, id=scorer_id)
 
-    query = Score.objects.order_by("id").filter(
-        passport__community__id=user_community.id
+    query = (
+        Score.objects.order_by("id")
+        .filter(passport__community__id=user_community.id)
+        .select_related("passport")
     )
 
     if address:
         query = query.filter(passport__address=address.lower())
 
-    if last_id:
-        scores = list(query.filter(id__gt=last_id).select_related("passport")[:limit])
-    else:
-        scores = list(query.select_related("passport")[:limit])
+    direction, id = decode_cursor(token) if token else (None, None)
 
-    has_more_scores = False
+    if direction == "next":
+        scores = list(query.filter(id__gt=id)[:limit])
+    elif direction == "prev":
+        scores = list(query.filter(id__lt=id).order_by("-id")[:limit])
+        scores.reverse()
+    else:
+        scores = list(query[:limit])
+
+    has_more_scores = has_prev_scores = False
+
     if scores:
-        last_score = scores[-1]
-        has_more_scores = query.filter(id__gt=last_score.id).exists()
+        next_id = scores[-1].id
+        prev_id = scores[0].id
+
+        has_more_scores = query.filter(id__gt=next_id).exists()
+        has_prev_scores = query.filter(id__lt=prev_id).exists()
+
+    domain = request.build_absolute_uri("/")[:-1]
 
     next_url = (
-        reverse_lazy_with_query(
+        f"""{domain}{reverse_lazy_with_query(
             "analytics:get_scores_by_community_id_analytics",
             args=[scorer_id],
-            query_kwargs={"last_id": last_score.id},
-        )
+            query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
+        )}"""
         if has_more_scores
         else None
     )
 
-    response = CursorPaginatedScoreResponse(next=next_url, items=scores)
+    prev_url = (
+        f"""{domain}{reverse_lazy_with_query(
+            "analytics:get_scores_by_community_id_analytics",
+            args=[scorer_id],
+            query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
+        )}"""
+        if has_prev_scores
+        else None
+    )
+
+    response = CursorPaginatedScoreResponse(next=next_url, prev=prev_url, items=scores)
 
     return response
