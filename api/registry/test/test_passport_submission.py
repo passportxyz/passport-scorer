@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from account.deduplication import Rules
 from account.models import Account, AccountAPIKey, Community, Nonce
+from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
@@ -975,83 +976,55 @@ class ValidatePassportTestCase(TransactionTestCase):
             account=self.user_account,
         )
 
-        # Create a passport with the previously created address
-        passport = Passport.objects.create(
-            address=address.lower(),
-            community=scorer,
-        )
-
         # Create a stamp that's already saved in the db with the same hash as the stamp being submitted, but older expiry date
-        Stamp.objects.create(
-            passport=passport,
-            hash=google_credential_soon_to_be_expired["credentialSubject"]["hash"],
+        CeramicCache.objects.create(
+            address=address,
             provider="Google",
-            credential=google_credential_soon_to_be_expired,
+            stamp=google_credential_soon_to_be_expired,
         )
 
-        # Submit the passport with the expired stamp
-        submission_test_payload = {
-            "community": scorer.id,
-            "address": address,
-            "nonce": self.nonce,
-        }
-
-        self.client.post(
-            "/registry/submit-passport",
-            json.dumps(submission_test_payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=f"Token {self.secret}",
-        )
+        # Score the passport
+        score_passport(scorer.id, address)
 
         # Get the soon-to-be expired stamp
         soon_to_be_expired_stamp = Stamp.objects.get(provider="Google")
+
         # Get the passport with the soon-to-be expired stamp
-        out_of_date_passport = Passport.objects.get(address=address)
+        passport_with_soon_to_be_expired = Passport.objects.get(address=address)
 
         # Check that the passport has 1 stamp
-        self.assertEqual(out_of_date_passport.stamps.count(), 1)
+        self.assertEqual(passport_with_soon_to_be_expired.stamps.count(), 1)
 
         # Check that the passport has the soon-to-be expired stamp
         self.assertEqual(
-            out_of_date_passport.stamps.all()[0].credential["expirationDate"],
+            passport_with_soon_to_be_expired.stamps.all()[0].credential[
+                "expirationDate"
+            ],
             soon_to_be_expired_stamp.credential["expirationDate"],
         )
 
         # Now, submit the passport again but with a stamp with a newer expiry date
-        Stamp.objects.update(
-            passport=passport,
-            hash=google_credential["credentialSubject"]["hash"],
+        CeramicCache.objects.update(
+            address=address,
             provider="Google",
-            credential=google_credential,
+            stamp=google_credential,
         )
 
-        new_submission_test_payload = {
-            "community": scorer.id,
-            "address": address,
-            "nonce": self.nonce_2,
-        }
+        # Score the passport again
+        score_passport(scorer.id, address)
 
-        new_submission_response = self.client.post(
-            "/registry/submit-passport",
-            json.dumps(new_submission_test_payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=f"Token {self.secret}",
-        )
+        # Get the updated stamp
+        updated_stamp = Stamp.objects.get(provider="Google")
 
-        # Should return status code of 200 for successful submission
-        self.assertEqual(new_submission_response.status_code, 200)
+        # Get the Passport with updated stamp
+        passport_with_updated_stamp = Passport.objects.get(address=address)
 
-        # Updated stamp
-        new_stamp_db = Stamp.objects.get(passport=passport)
-
-        # Updated passport with updated stamp
-        updated_expiry_passport = Passport.objects.get(address=address)
-
-        # passport should have the updated stamp with the newer expiry date
+        # Passport should have the updated stamp with the newer expiry date
         self.assertEqual(
-            updated_expiry_passport.stamps.all()[0].credential["expirationDate"],
-            new_stamp_db.credential["expirationDate"],
+            passport_with_updated_stamp.stamps.all()[0].credential["expirationDate"],
+            updated_stamp.credential["expirationDate"],
         )
 
         # passport should have only one stamp
-        self.assertEqual(updated_expiry_passport.stamps.count(), 1)
+        self.assertEqual(passport_with_updated_stamp.stamps.count(), 1)
+        self.assertEqual(5, 6)
