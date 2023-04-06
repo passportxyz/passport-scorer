@@ -1027,4 +1027,3 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         # passport should have only one stamp
         self.assertEqual(passport_with_updated_stamp.stamps.count(), 1)
-        self.assertEqual(5, 6)
