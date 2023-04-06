@@ -27,10 +27,10 @@ export default defineConfig({
     specPattern: "**/*.feature",
     supportFile: false,
     setupNodeEvents,
-    baseUrl: 'http://localhost:3000',
+    baseUrl: 'http://localhost:3001',
   },
   env: {
     // serverUrl should end with '/'
-    serverUrl: 'http://localhost:8000/',
+    serverUrl: 'http://localhost:8002/',
   }
 });
