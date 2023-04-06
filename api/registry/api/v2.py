@@ -12,7 +12,6 @@ from django_ratelimit.core import is_ratelimited
 from django_ratelimit.decorators import ALL
 from django_ratelimit.exceptions import Ratelimited
 from ninja import Router, Schema
-from ninja.pagination import paginate
 from ninja.security import APIKeyHeader
 from registry.models import Passport, Score, Stamp
 from registry.permissions import ResearcherPermission
@@ -25,7 +24,7 @@ from registry.utils import (
     reverse_lazy_with_query,
 )
 
-from .exceptions import (
+from ..exceptions import (
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
     InvalidNonceException,
@@ -34,7 +33,7 @@ from .exceptions import (
     Unauthorized,
     api_get_object_or_404,
 )
-from .tasks import score_passport
+from ..tasks import score_passport
 
 log = logging.getLogger(__name__)
 # api = NinjaExtraAPI(urls_namespace="registry")
@@ -378,7 +377,7 @@ def get_scores(
 
         next_url = (
             f"""{domain}{reverse_lazy_with_query(
-                "registry:get_scores",
+                "registry_v2:get_scores",
                 args=[scorer_id],
                 query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
             )}"""
@@ -388,7 +387,7 @@ def get_scores(
 
         prev_url = (
             f"""{domain}{reverse_lazy_with_query(
-                "registry:get_scores",
+                "registry_v2:get_scores",
                 args=[scorer_id],
                 query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
             )}"""
@@ -468,7 +467,7 @@ def get_passport_stamps(
 
     next_url = (
         f"""{domain}{reverse_lazy_with_query(
-            "registry:get_passport_stamps",
+            "registry_v2:get_passport_stamps",
             args=[address],
             query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
         )}"""
@@ -478,7 +477,7 @@ def get_passport_stamps(
 
     prev_url = (
         f"""{domain}{reverse_lazy_with_query(
-            "registry:get_passport_stamps",
+            "registry_v2:get_passport_stamps",
             args=[address],
             query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
         )}"""
