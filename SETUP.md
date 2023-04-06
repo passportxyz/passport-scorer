@@ -21,16 +21,21 @@ environment up and running. Setup instructions are also provided below.
 
 ### With Docker
 
-1. Create a new `.env` file by copying the existing `.env-sample` file
+1. Clone the repo    
+```sh
+git clone https://github.com/gitcoinco/passport-scorer.git
+```
 
-```shell
+2. Create a new `.env` file by copying the existing `.env-sample` file
+
+```sh
 # From inside the api/ directory
 cp .env-sample .env
 ```
 
-2. Run and build the `Dockerfile`. The first time you run this, it will take
+3. Run and build the `Dockerfile`. The first time you run this, it will take
    a while to build the Docker images.
-```
+```sh
 cd api
 docker-compose up --build
 ```
@@ -45,23 +50,33 @@ the following:
 
 - A recent version of Python
 - `pipenv`
+- [Docker](https://www.docker.com/)
+
+1. Clone the repo & make a copy of the .env file 
+   
+```sh
+git clone https://github.com/gitcoinco/passport-scorer.git
+cd passport-scorer
+cd api
+cp .env-sample .env
+```
 
 The following commands should be run from within the `api/` directory.
 
-1. Activate your local virtual environment:
+2. Activate your local virtual environment:
 
-```
+```sh
 pipenv shell
 ```
 
-2. Install dependencies in your virtual environment:
+3. Install dependencies in your virtual environment:
 
-```
+```sh
 pipenv install
 pipenv install --dev
 ```
 
-3. Start the dev server:
+4. Start the dev server:
 
 **First**: make sure you have the `.env` file in the api folder, with proper
 values (copy the `.env-sample` and adjust it). Then:
@@ -76,19 +91,37 @@ or:
 uvicorn scorer.asgi:application --reload --port 8002
 ```
 
-Start the celery worker:
+5. Start the celery worker:
 
 ```shell
+#needs to be executed in a new terminal tab in the api/ directory w/ pipenv shell running
 celery -A scorer worker -l DEBUG
 ```
 
-And run Redis locally:
+6. Apply migrations to DB
+```sh
+#only needs to be done once from the api/ directory
+#needs to be done from w/in pipenv shell
+python manage.py migrate
+```
+
+6. Run Redis locally:
 
 ```shell
+#You need to make sure docker is open and running 1st
+#needs to be executed in a new terminal tab in the api/ directory w/ pipenv shell running
 docker run -d -p 6379:6379 redis
 ```
 
-> Make sure you have Docker running
+7. Run the verifier
+```sh
+#needs to be executed in a new terminal tab in the interface/ directory
+cd ..
+cd verifier
+yarn 
+#yarn only needs to be run when first installing the app
+yarn dev
+```
 
 ## Interface
 
@@ -114,6 +147,8 @@ To start the development server:
 ```
 yarn dev
 ```
+
+By default the scorer interface is available at localhost:3001
 
 ## Testing
 
