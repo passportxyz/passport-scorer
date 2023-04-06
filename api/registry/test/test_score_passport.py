@@ -6,7 +6,7 @@ from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TransactionTestCase
-from registry.api import SubmitPassportPayload, get_score, submit_passport
+from registry.api.v2 import SubmitPassportPayload, get_score, submit_passport
 from registry.models import Passport, Score, Stamp
 from registry.tasks import score_passport
 from web3 import Web3

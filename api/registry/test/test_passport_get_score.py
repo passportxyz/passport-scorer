@@ -64,7 +64,7 @@ class TestPassportGetScore:
 
         client = Client()
         response = client.get(
-            f"/registry/score/{scorer_community.id}?limit={limit}",
+            f"/registry/v2/score/{scorer_community.id}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
@@ -96,7 +96,7 @@ class TestPassportGetScore:
 
         client = Client()
         page_one_response = client.get(
-            f"/registry/score/{scorer_community.id}?limit={limit}",
+            f"/registry/v2/score/{scorer_community.id}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         page_one_data = page_one_response.json()
@@ -224,7 +224,7 @@ class TestPassportGetScore:
     ):
         client = Client()
         response = client.get(
-            f"/registry/score/{scorer_community.id}?limit=1000",
+            f"/registry/v2/score/{scorer_community.id}?limit=1000",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
@@ -247,7 +247,7 @@ class TestPassportGetScore:
 
         client = Client()
         response = client.get(
-            f"/registry/score/{scorer_community.id}?limit=1000",
+            f"/registry/v2/score/{scorer_community.id}?limit=1000",
             HTTP_AUTHORIZATION="Token " + api_key,
         )
 
