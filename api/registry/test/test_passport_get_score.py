@@ -53,7 +53,57 @@ class TestPassportGetScore:
         assert response.status_code == 200
         assert len(response_data["items"]) == 0
 
-    def test_get_scores_returns_first_page_scores(
+    def test_get_scores_returns_first_page_scores_v1(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        offset = 0
+        limit = 2
+
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        assert response.status_code == 200
+
+        for i in range(0, 1):
+            assert (
+                response_data["items"][i]["address"]
+                == passport_holder_addresses[offset + i]["address"].lower()
+            )
+
+    def test_get_scores_returns_second_page_scores_v1(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        offset = 2
+        limit = 2
+
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        assert response.status_code == 200
+
+        for i in range(0, 2):
+            assert (
+                response_data["items"][i]["address"]
+                == passport_holder_addresses[offset + i]["address"].lower()
+            )
+
+    def test_get_scores_returns_first_page_scores_v2(
         self,
         scorer_api_key,
         passport_holder_addresses,
@@ -85,7 +135,7 @@ class TestPassportGetScore:
                 == passport_holder_addresses[i]["address"].lower()
             )
 
-    def test_get_scores_returns_second_page_scores(
+    def test_get_scores_returns_second_page_scores_v2(
         self,
         scorer_api_key,
         passport_holder_addresses,
@@ -224,7 +274,7 @@ class TestPassportGetScore:
     ):
         client = Client()
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}?limit=1000",
+            f"/registry/score/{scorer_community.id}?limit=1000",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
@@ -247,7 +297,7 @@ class TestPassportGetScore:
 
         client = Client()
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}?limit=1000",
+            f"/registry/score/{scorer_community.id}?limit=1000",
             HTTP_AUTHORIZATION="Token " + api_key,
         )
 

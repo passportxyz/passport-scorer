@@ -1,19 +1,11 @@
 import logging
-from decimal import Decimal
-from enum import Enum
-from typing import List, Optional
+from typing import List
 
 # --- Deduplication Modules
-from account.models import AccountAPIKey, Community, Nonce
-from django.conf import settings
+from account.models import Community, Nonce
 from django.shortcuts import get_object_or_404
-from django.utils.module_loading import import_string
-from django_ratelimit.core import is_ratelimited
-from django_ratelimit.decorators import ALL
-from django_ratelimit.exceptions import Ratelimited
-from ninja import Router, Schema
+from ninja import Router
 from ninja.pagination import paginate
-from ninja.security import APIKeyHeader
 from registry.models import Passport, Score, Stamp
 from registry.permissions import ResearcherPermission
 from registry.utils import (
@@ -29,146 +21,25 @@ from ..exceptions import (
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
     InvalidNonceException,
-    InvalidScorerIdException,
     InvalidSignerException,
-    Unauthorized,
     api_get_object_or_404,
 )
 from ..tasks import score_passport
+from .base import ApiKey, check_rate_limit, community_requires_signature, get_scorer_id
+from .schema import (
+    CursorPaginatedScoreResponse,
+    CursorPaginatedStampCredentialResponse,
+    DetailedScoreResponse,
+    ErrorMessageResponse,
+    SigningMessageResponse,
+    SubmitPassportPayload,
+)
 
 log = logging.getLogger(__name__)
 # api = NinjaExtraAPI(urls_namespace="registry")
 router = Router()
 
 analytics_router = Router()
-
-
-class SubmitPassportPayload(Schema):
-    address: str
-    community: str = "Deprecated"
-    scorer_id: str = ""
-    signature: str = ""
-    nonce: str = ""
-
-
-class ScoreEvidenceResponse(Schema):
-    type: str
-    success: bool
-
-
-class ThresholdScoreEvidenceResponse(ScoreEvidenceResponse):
-    rawScore: Decimal
-    threshold: Decimal
-
-
-class StatusEnum(str, Enum):
-    processing = Score.Status.PROCESSING
-    error = Score.Status.ERROR
-    done = Score.Status.DONE
-
-
-class StampCredentialResponse(Schema):
-    version: str
-    credential: dict
-
-
-class CursorPaginatedStampCredentialResponse(Schema):
-    next: Optional[str]
-    prev: Optional[str]
-    items: List[StampCredentialResponse]
-
-
-class DetailedScoreResponse(Schema):
-    address: str
-    score: Optional[str]
-    status: Optional[StatusEnum]
-    last_score_timestamp: Optional[str]
-    evidence: Optional[ThresholdScoreEvidenceResponse]
-    error: Optional[str]
-
-    @staticmethod
-    def resolve_last_score_timestamp(obj):
-        if obj.last_score_timestamp:
-            return obj.last_score_timestamp.isoformat()
-        return None
-
-    @staticmethod
-    def resolve_address(obj):
-        return obj.passport.address
-
-
-class CursorPaginatedScoreResponse(Schema):
-    next: Optional[str]
-    prev: Optional[str]
-    items: List[DetailedScoreResponse]
-
-
-class SimpleScoreResponse(Schema):
-    address: str
-    score: Decimal  # The score should be represented as string as it will be a decimal number
-
-
-class SigningMessageResponse(Schema):
-    message: str
-    nonce: str
-
-
-class ErrorMessageResponse(Schema):
-    detail: str
-
-
-def check_rate_limit(request):
-    """
-    Check the rate limit for the API.
-    This is based on the original ratelimit decorator from django_ratelimit
-    """
-    old_limited = getattr(request, "limited", False)
-    rate = request.api_key.rate_limit
-    ratelimited = is_ratelimited(
-        request=request,
-        group="registry",
-        fn=None,
-        key=lambda _request, _group: request.api_key.prefix,
-        rate=rate,
-        method=ALL,
-        increment=True,
-    )
-    request.limited = ratelimited or old_limited
-    if ratelimited:
-        cls = getattr(settings, "RATELIMIT_EXCEPTION_CLASS", Ratelimited)
-        raise (import_string(cls) if isinstance(cls, str) else cls)()
-
-
-class ApiKey(APIKeyHeader):
-    param_name = "X-API-Key"
-
-    def authenticate(self, request, key):
-        """
-        The authenticate method will validate the API key:
-        1. first in the X-API-Key header - this will have preceedence
-        2. in the HTTP_AUTHORIZATION header if none exists in the X-API-Key header (this is for backwards compatibility)
-        """
-        if not key:
-            # if X-API-Key was not specified in the header read the HTTP_AUTHORIZATION
-            # and try to load the tey from there
-            auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-            if not auth_header:
-                raise Unauthorized()
-
-            try:
-                key = auth_header.split()[1]
-            except:
-                raise Unauthorized()
-
-        try:
-            api_key = AccountAPIKey.objects.get_from_key(key)
-            request.api_key = api_key
-            user_account = api_key.account
-            if user_account:
-                request.user = user_account.user
-                return user_account
-        except AccountAPIKey.DoesNotExist:
-            raise Unauthorized()
 
 
 @router.get(
@@ -189,23 +60,6 @@ def signing_message(request) -> SigningMessageResponse:
         "message": get_signing_message(nonce),
         "nonce": nonce,
     }
-
-
-# TODO define logic once Community model has been updated
-def community_requires_signature(_):
-    return False
-
-
-def get_scorer_id(payload: SubmitPassportPayload) -> str:
-    scorer_id = ""
-    if payload.scorer_id:
-        scorer_id = payload.scorer_id
-    elif payload.community and payload.community != "Deprecated":
-        scorer_id = payload.community
-    else:
-        raise InvalidScorerIdException()
-
-    return scorer_id
 
 
 @router.post(

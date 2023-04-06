@@ -129,7 +129,7 @@ class TestScorePassportTestCase(TransactionTestCase):
 
         mock_request = MockRequest(self.user_account)
 
-        with patch("registry.api.score_passport.delay", return_value=None):
+        with patch("registry.api.v1.score_passport.delay", return_value=None):
             submit_passport(
                 mock_request,
                 SubmitPassportPayload(
