@@ -18,6 +18,10 @@ my_mnemonic = settings.TEST_MNEMONIC
         ("post", "/registry/submit-passport"),
         ("get", "/registry/score/3"),
         ("get", "/registry/score/3/0x0"),
+        ("get", "/registry/v2/signing-message"),
+        ("post", "/registry/v2/submit-passport"),
+        ("get", "/registry/v2/score/3"),
+        ("get", "/registry/v2/score/3/0x0"),
     ]
 )
 def api_path_that_requires_auth(request):
