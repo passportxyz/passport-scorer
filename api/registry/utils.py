@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from functools import wraps
 from typing import Tuple
-from urllib.parse import urlencode
+from urllib.parse import unquote, urlencode
 
 import didkit
 from django.shortcuts import render
@@ -145,6 +145,7 @@ def encode_cursor(direction: str, id: int) -> str:
 
 
 def decode_cursor(token: str) -> Tuple[str, int]:
+    token = unquote(token)
     decoded_bytes = base64.urlsafe_b64decode(token.encode("ascii"))
     direction, id = decoded_bytes.decode("ascii").split("__")
     return direction, int(id)

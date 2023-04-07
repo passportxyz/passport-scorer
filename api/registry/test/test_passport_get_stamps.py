@@ -1,9 +1,6 @@
-from urllib.parse import urlparse
-
 import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
 from django.test import Client
 from registry.models import Passport, Stamp
 from web3 import Web3

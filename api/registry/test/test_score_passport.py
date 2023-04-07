@@ -6,7 +6,7 @@ from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TransactionTestCase
-from registry.api import SubmitPassportPayload, get_score, submit_passport
+from registry.api.v2 import SubmitPassportPayload, get_score, submit_passport
 from registry.models import Passport, Score, Stamp
 from registry.tasks import score_passport
 from web3 import Web3
@@ -129,7 +129,7 @@ class TestScorePassportTestCase(TransactionTestCase):
 
         mock_request = MockRequest(self.user_account)
 
-        with patch("registry.api.score_passport.delay", return_value=None):
+        with patch("registry.api.v1.score_passport.delay", return_value=None):
             submit_passport(
                 mock_request,
                 SubmitPassportPayload(

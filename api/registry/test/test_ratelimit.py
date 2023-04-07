@@ -92,7 +92,7 @@ def test_rate_limit_is_applied(scorer_api_key, api_path_that_requires_rate_limit
     method, path, payload = api_path_that_requires_rate_limit
     client = Client()
 
-    with patch("registry.api.is_ratelimited", return_value=True):
+    with patch("registry.api.base.is_ratelimited", return_value=True):
         if method == "post":
             response = client.post(
                 path,

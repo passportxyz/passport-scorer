@@ -10,7 +10,6 @@ pytestmark = pytest.mark.django_db
 client = Client()
 
 limit = 2
-offset = 0
 
 
 @scenario(
@@ -42,7 +41,7 @@ def _(passport_holder_addresses, scorer_community):
 def _(passport_holder_addresses, scorer_community, scorer_api_key):
     """I make a request calling /score/community/{community-id} API endpoint with my API Key."""
     response = client.get(
-        f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}",
+        f"/registry/score/{scorer_community.id}?limit={limit}",
         HTTP_AUTHORIZATION="Token " + scorer_api_key,
     )
     return response
@@ -53,7 +52,7 @@ def _(get_scores_response, passport_holder_addresses):
     """I get a paginated list of scores is returned for that community."""
     assert get_scores_response.status_code == 200
     response_data = get_scores_response.json()
-    assert response_data["count"] == 5
+    assert len(response_data["items"]) == 2
 
     assert (
         response_data["items"][0]["address"]
