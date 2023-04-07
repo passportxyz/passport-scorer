@@ -18,12 +18,12 @@ from account.api import health
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
-from django.views.generic import TemplateView
 
-from .api import analytics_api, ceramic_cache_api, registry_api
+from .api import analytics_api, ceramic_cache_api, registry_api_v1, registry_api_v2
 
 urlpatterns = [
-    path("", registry_api.urls),
+    path("", registry_api_v1.urls),
+    path("registry/v2/", registry_api_v2.urls),
     path("ceramic-cache/", ceramic_cache_api.urls),
     path("analytics/", analytics_api.urls),
     path("health/", health, {}, "health-check"),
