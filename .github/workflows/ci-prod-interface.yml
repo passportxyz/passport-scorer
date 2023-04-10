@@ -4,15 +4,18 @@ on:
     inputs:
       # commit hash (for frontend deploy to Amplify)
       commit:
-        description: "Branch/Commit ref"
-        default: "origin/main"
+        description: "Commit ref"
+        required: true
         type: string
+
 jobs:
   ui-test:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.commit }}
 
       - name: Install UI dependencies
         working-directory: ./interface
@@ -27,6 +30,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.commit }}
+
       - name: Checkout production-interface
         run: |
           git fetch

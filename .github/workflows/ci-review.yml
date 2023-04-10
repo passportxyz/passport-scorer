@@ -3,12 +3,6 @@ name: Deploy API to Review
 on:
   push:
     branches: [main]
-  workflow_dispatch:
-    inputs:
-      commit:
-        description: "Commit ref"
-        required: true
-        type: string
 
 jobs:
   test:
