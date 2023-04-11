@@ -91,7 +91,16 @@ or:
 uvicorn scorer.asgi:application --reload --port 8002
 ```
 
-5. Start the celery worker:
+5. Run Redis locally:
+
+```shell
+#You need to make sure docker is open and running 1st
+#needs to be executed in a new terminal tab in the api/ directory w/ pipenv shell running
+docker run -d -p 6379:6379 redis
+```
+
+
+6. Start the celery worker:
 
 ```shell
 #needs to be executed in a new terminal tab in the api/ directory w/ pipenv shell running
@@ -105,13 +114,7 @@ celery -A scorer worker -l DEBUG
 python manage.py migrate
 ```
 
-6. Run Redis locally:
 
-```shell
-#You need to make sure docker is open and running 1st
-#needs to be executed in a new terminal tab in the api/ directory w/ pipenv shell running
-docker run -d -p 6379:6379 redis
-```
 
 7. Run the verifier
 ```sh
