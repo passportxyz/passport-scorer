@@ -1,0 +1,36 @@
+.center {
+  display: flex;
+  justify-content: start;
+  align-items: start;
+  position: relative;
+  padding: 4rem 0;
+  flex-direction: column;
+  max-width: 700px;
+}
+
+.h1 {
+  font-size: 30px;
+  margin-bottom: 15px;
+  font-family: sans-serif;
+}
+
+.p {
+  font-size: 15px;
+  font-family: sans-serif;
+}
+
+.link {
+  color: blue;
+  text-decoration: underline;
+  margin: 15px 0;
+}
+
+.btn {
+  padding: 20px 30px;
+  background-color: black;
+  color: white;
+  border: none;
+  margin-top: 15px;
+  cursor: pointer;
+  font-size: 16px;
+}
