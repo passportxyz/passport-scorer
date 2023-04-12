@@ -3,6 +3,7 @@ import axios from "axios";
 import { useSignMessage, useEnsName } from "wagmi";
 import { verifyMessage } from "ethers/lib/utils";
 import { useAccount } from "wagmi";
+import styles from "@/styles/Score.module.css";
 
 export default function Score() {
   useEffect(() => {
@@ -122,9 +123,20 @@ export default function Score() {
 
   function renderContent() {
     if (isMounted && address) {
-      return <p>
-        Welcome, {data || abbreviateAddress(address)} (<span style={{ color: "rgb(111 63 245" }}>{passportScore}</span>)
-      </p>
+      return (
+      <p>
+        Welcome, {data || abbreviateAddress(address)} (
+          <div
+            className={styles.tooltip}
+            style={{ color: "rgb(111 63 245)" }}
+            >
+            {passportScore}
+            <span className={styles.tooltiptext}>
+              This is your Gitcoin Passport Score
+            </span>
+          </div>
+          )
+      </p>)
     } else {
       return <p>Connect your wallet to see your score</p>
     }
