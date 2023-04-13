@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from account.deduplication import Rules
 from account.deduplication.fifo import fifo
 from account.deduplication.lifo import lifo
-from account.models import Community
+from account.models import AccountAPIKey, AccountAPIKeyAnalytics, Community
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from ninja_extra.exceptions import APIException
@@ -18,6 +18,19 @@ log = logging.getLogger(__name__)
 
 def get_utc_time():
     return datetime.now(timezone.utc)
+
+
+@shared_task
+def save_api_key_analytics(api_key_value, path):
+    try:
+        api_key = AccountAPIKey.objects.get_from_key(api_key_value)
+
+        AccountAPIKeyAnalytics.objects.create(
+            api_key=api_key,
+            path=path,
+        )
+    except AccountAPIKey.DoesNotExist:
+        pass
 
 
 @shared_task

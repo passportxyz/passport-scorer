@@ -103,6 +103,14 @@ class AccountAPIKey(AbstractAPIKey):
     )
 
 
+class AccountAPIKeyAnalytics(models.Model):
+    api_key = models.ForeignKey(
+        AccountAPIKey, on_delete=models.CASCADE, related_name="analytics"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    path = models.CharField(max_length=100, blank=False, null=False, default="/")
+
+
 def get_default_community_scorer():
     """Returns the default scorer that shall be used for communities"""
     ws = WeightedScorer()
