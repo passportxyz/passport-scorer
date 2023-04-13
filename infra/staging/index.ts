@@ -486,14 +486,14 @@ const httpListenerFlower = albFlower.createListener("flower-listener", {
 });
 
 // Target group with the port of the Docker image
-const targetFlower = albFlower.createTargetGroup("scorer-target", {
+const targetFlower = albFlower.createTargetGroup("flower-target", {
   vpc,
   port: 80,
   healthCheck: { path: "/", unhealthyThreshold: 5 },
 });
 
 // Listen to traffic on port 443 & route it through the target group
-const httpsListenerFlower = target.createListener("scorer-listener", {
+const httpsListenerFlower = target.createListener("flower-listener", {
   port: 443,
   certificateArn: certificateValidation.certificateArn,
 });
