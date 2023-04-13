@@ -465,6 +465,31 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
   },
 });
 
+// Flower
+const flower = new awsx.ecs.FargateService("flower", {
+    cluster,
+    desiredCount: 1,
+    taskDefinitionArgs: {
+        containers: {
+            celery: {
+                image: "mher/flower",
+                command: ["celery", "flower", "-A" , "taskapp", "--port=5555"],
+                memory: 4096,
+                cpu: 2000,
+                portMappings: [],
+                environment: [
+                  {
+                    name: "BROKER_URL",
+                    value: redisCacheOpsConnectionUrl,
+                  },
+                ],
+                dependsOn: [],
+                links: []
+            },
+        },
+    },
+});
+
 //////////////////////////////////////////////////////////////
 // Set up task to run migrations
 //////////////////////////////////////////////////////////////
