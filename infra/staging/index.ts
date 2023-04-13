@@ -12,6 +12,8 @@ let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 let dbUsername = `${process.env["DB_USER"]}`;
 let dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
 let dbName = `${process.env["DB_NAME"]}`;
+let flowerUser = `${process.env["FLOWER_USER"]}`
+let flowerPassword = `${process.env["FLOWER_PASSWORD"]}`
 
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
 export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
@@ -466,6 +468,36 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
 });
 
 // Flower
+// Creates an ALB associated with our custom VPC.
+const albFlower = new awsx.lb.ApplicationLoadBalancer(`scorer-service`, { vpc });
+
+// Listen to HTTP traffic on port 80 and redirect to 443
+const httpListenerFlower = albFlower.createListener("flower-listener", {
+  port: 80,
+  protocol: "HTTP",
+  defaultAction: {
+    type: "redirect",
+    redirect: {
+      protocol: "HTTPS",
+      port: "443",
+      statusCode: "HTTP_301",
+    },
+  },
+});
+
+// Target group with the port of the Docker image
+const targetFlower = albFlower.createTargetGroup("scorer-target", {
+  vpc,
+  port: 5555,
+  healthCheck: { path: "/", unhealthyThreshold: 5 },
+});
+
+// Listen to traffic on port 443 & route it through the target group
+const httpsListenerFlower = target.createListener("scorer-listener", {
+  port: 443,
+  certificateArn: certificateValidation.certificateArn,
+});
+
 const flower = new awsx.ecs.FargateService("flower", {
     cluster,
     desiredCount: 1,
@@ -476,11 +508,15 @@ const flower = new awsx.ecs.FargateService("flower", {
                 command: ["celery", "flower", "-A" , "taskapp", "--port=5555"],
                 memory: 4096,
                 cpu: 2000,
-                portMappings: [],
+                portMappings: [httpsListenerFlower],
                 environment: [
                   {
                     name: "BROKER_URL",
                     value: redisCacheOpsConnectionUrl,
+                  },
+                  {
+                    name: "FLOWER_BASIC_AUTH",
+                    value: flowerUser + ":" + flowerPassword
                   },
                 ],
                 dependsOn: [],
