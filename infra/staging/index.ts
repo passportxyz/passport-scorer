@@ -469,7 +469,7 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
 
 // Flower
 // Creates an ALB associated with our custom VPC.
-const albFlower = new awsx.lb.ApplicationLoadBalancer(`scorer-service`, { vpc });
+const albFlower = new awsx.lb.ApplicationLoadBalancer(`flower-service`, { vpc });
 
 // Listen to HTTP traffic on port 80 and redirect to 443
 const httpListenerFlower = albFlower.createListener("flower-listener", {
