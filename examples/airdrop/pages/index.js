@@ -41,9 +41,7 @@ export default function Home() {
         </div>
 
         <div className={styles.center}>
-          <h1 className={inter.className}>
-            <AirDrop />
-          </h1>
+          <AirDrop />
         </div>
 
         <div className={styles.grid}></div>

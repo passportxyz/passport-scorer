@@ -1,0 +1,16 @@
+.link {
+  color: blue;
+  text-decoration: underline;
+  margin: 15px 0;
+}
+
+.h1 {
+  font-size: 30px;
+  margin-bottom: 15px;
+  font-family: sans-serif;
+}
+
+.p {
+  font-size: 15px;
+  font-family: sans-serif;
+}

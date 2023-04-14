@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { verifyMessage } from "ethers/lib/utils";
 import { useAccount, useSignMessage } from "wagmi";
+import styles from "@/styles/AirDrop.module.css";
 
 export default function AirDrop() {
   useEffect(() => {
@@ -137,10 +138,17 @@ export default function AirDrop() {
         if (passportScore < 1) {
           return (
             <div>
-              <p>
+              <h1 className={styles.h1}>
                 Your score isn't high enough, collect more stamps to qualify.
-              </p>
-              <p>
+              </h1>
+              <a
+                className={styles.link}
+                target="_blank"
+                href="https://passport.gitcoin.co"
+              >
+                Click here to increase your score.
+              </a>
+              <p className={styles.p}>
                 passport score:{" "}
                 <span style={{ color: "rgb(111 63 245" }}>
                   {passportScore | 0}
@@ -152,11 +160,7 @@ export default function AirDrop() {
         } else {
           return (
             <div>
-              <h3>You've been added to the airdrop!</h3>
-              <p>
-                passport score:{" "}
-                <span style={{ color: "rgb(111 63 245" }}>{passportScore}</span>
-              </p>
+              <h1 className={styles.h1}>You've been added to the airdrop!</h1>
             </div>
           );
         }
