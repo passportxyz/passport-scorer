@@ -28,3 +28,14 @@
   gap: 20px;
   align-items: center;
 }
+
+.h1 {
+  font-size: 30px;
+  margin-bottom: 15px;
+  font-family: sans-serif;
+}
+
+.p {
+  font-size: 15px;
+  font-family: sans-serif;
+}

@@ -1,20 +1,30 @@
 import Head from "next/head";
 import Image from "next/image";
 import styles from "@/styles/Home.module.css";
-import dstyles from "@/styles/Denied.module.css"
+import dstyles from "@/styles/Denied.module.css";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { verifyMessage } from "ethers/lib/utils";
 import { useAccount, useSignMessage } from "wagmi";
-import Router from 'next/router'
+import Router from "next/router";
 
 export default function Denied() {
   const { address } = useAccount({
     onDisconnect() {
-      Router.push("/")
+      Router.push("/");
     },
   });
+
+  useEffect(() => {
+    async function score() {
+      await scorePassport();
+    }
+    if (address !== initialAddress) {
+      // User switched account
+      score();
+    }
+  }, [address]);
 
   async function scorePassport() {
     //  Step #1 (Optional, only required if using the "signature" param when submitting a user's passport. See https://docs.passport.gitcoin.co/building-with-passport/scorer-api/endpoint-definition#submit-passport)
@@ -94,14 +104,15 @@ export default function Denied() {
       }
 
       if (scoreResponse.data.score >= 1) {
-        await Router.push("/dashboard")
+        await Router.push("/dashboard");
       } else {
-        alert(`You score is still too low. ${scoreResponse.data.score | 0}/1`)
+        alert(`You score is still too low. ${scoreResponse.data.score | 0}/1`);
       }
     },
   });
 
   const [nonce, setNonce] = useState("");
+  const [initialAddress, setInitialAddress] = useState(address);
 
   return (
     <>
@@ -138,15 +149,27 @@ export default function Denied() {
         <div className={dstyles.center}>
           <h1 className={dstyles.h1}>Improve Your Passport Score</h1>
           <p className={dstyles.p}>
-            To protect our application from bots, we've implemented Gitcoin's Passport. Your Passport score is too low, meaning you either haven't created it yet or you're a bot. If you're not a robot, then head over to Passport and improve your score by adding more stamps. When you're finished, come back and re-score your Passport.
+            To protect our application from bots, we've implemented Gitcoin's
+            Passport. Your Passport score is too low, meaning you either haven't
+            created it yet or you're a bot. If you're not a robot, then head
+            over to Passport and improve your score by adding more stamps. When
+            you're finished, come back and re-score your Passport.
           </p>
-          <a className={dstyles.link} target="_blank" href="https://passport.gitcoin.co">Click here to increase your score.</a>
+          <a
+            className={dstyles.link}
+            target="_blank"
+            href="https://passport.gitcoin.co"
+          >
+            Click here to increase your score.
+          </a>
 
-          <button onClick={scorePassport} className={dstyles.btn}>Score Passport</button>
+          <button onClick={scorePassport} className={dstyles.btn}>
+            Score Passport
+          </button>
         </div>
 
         <div className={styles.grid}></div>
       </main>
     </>
-  )
+  );
 }
