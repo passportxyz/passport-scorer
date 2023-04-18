@@ -119,7 +119,7 @@ export const UserProvider = ({ children }: { children: any }) => {
 
       // store JWT access token in LocalStorage
       localStorage.setItem("access-token", tokens.access);
-      headerInterceptor(tokens.access);
+      headerInterceptor();
 
       setConnected(true);
       setAuthenticating(false);
