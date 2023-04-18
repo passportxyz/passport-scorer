@@ -1,4 +1,4 @@
-name: Deploy Interface to Review
+name: CI
 
 on:
   push:
