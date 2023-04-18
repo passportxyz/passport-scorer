@@ -20,7 +20,6 @@ export const unAuthorizedInterceptor = (logout: () => void) => {
 
 export const headerInterceptor = () => {
   const requestInterceptor = axios.interceptors.request.use((config) => {
-    console.log("geri - headerInterceptor")
     const token = localStorage.getItem("access-token");
     if (config && config.headers && token) {
       config.headers["Content-Type"] = "application/json";
