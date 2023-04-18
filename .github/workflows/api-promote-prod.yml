@@ -1,17 +1,17 @@
-name: Deploy API to Staging
+name: Deploy API to Production
 
 on:
   workflow_dispatch:
     inputs:
       commit:
-        description: "Branch/Commit ref"
-        default: ""
+        description: "Commit ref"
         required: true
         type: string
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
     services:
       redis:
         image: redis
@@ -44,16 +44,12 @@ jobs:
         working-directory: ./api
         run: pip3 install -r requirements.txt
 
-      - name: Django Check
-        working-directory: ./api
-        run: python manage.py check
-
       - name: Run API unittests
         working-directory: ./api
         run: pytest
 
   build-api:
-    environment: Staging
+    environment: Production
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -72,11 +68,11 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION_STAGING }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-      - name: Login to Amazon ECR Public
+      - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
         with:
@@ -85,7 +81,7 @@ jobs:
       - name: Build, tag, and push image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REGISTRY_ALIAS: t1g3k9q8
+          ECR_REGISTRY_ALIAS: c8n6v8e9
           ECR_REPOSITORY: passport-scorer
           IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
@@ -96,7 +92,7 @@ jobs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
 
   build-verifier:
-    environment: Staging
+    environment: Production
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -115,11 +111,11 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION_STAGING }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-      - name: Login to Amazon ECR Public
+      - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
         with:
@@ -128,7 +124,7 @@ jobs:
       - name: Build, tag, and push image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REGISTRY_ALIAS: t1g3k9q8
+          ECR_REGISTRY_ALIAS: c8n6v8e9
           ECR_REPOSITORY: passport-verifier
           IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
@@ -138,20 +134,17 @@ jobs:
     outputs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
 
-  deploy-staging:
-    environment: Staging
+  deploy-production:
+    environment: Production
     needs: [test, build-api, build-verifier]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.inputs.commit }}
-
       - name: Use Node.js
         uses: actions/setup-node@v2
         with:
           cache: "yarn"
-          cache-dependency-path: infra/staging/package-lock.json
+          cache-dependency-path: infra/prod/package-lock.json
 
       ################################################################################################################
       # TODO: to be fixed: only doing the aws-actions/configure-aws-credentials and aws-actions/amazon-ecr-login
@@ -160,9 +153,9 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION_STAGING }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -171,9 +164,9 @@ jobs:
       # Update the pulumi stack with new image
       - run: |
           npm install
-          pulumi stack select -c gitcoin/passport-scorer/staging
-          pulumi config -s gitcoin/passport-scorer/staging set aws:region us-west-2 --non-interactive
-        working-directory: infra/staging
+          pulumi stack select -c gitcoin/prod/scorer-production
+          pulumi config -s gitcoin/prod/scorer-production set aws:region us-west-2 --non-interactive
+        working-directory: infra/prod
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -181,25 +174,25 @@ jobs:
         id: pulumi
         with:
           command: up
-          stack-name: gitcoin/passport-scorer/staging
+          stack-name: gitcoin/prod/scorer-production
           upsert: false
-          work-dir: infra/staging
+          work-dir: infra/prod
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
-          DOCKER_GTC_PASSPORT_SCORER_IMAGE: public.ecr.aws/t1g3k9q8/passport-scorer:${{ needs.build-api.outputs.dockerTag }}
-          DOCKER_GTC_PASSPORT_VERIFIER_IMAGE: public.ecr.aws/t1g3k9q8/passport-verifier:${{ needs.build-verifier.outputs.dockerTag }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          DOCKER_GTC_PASSPORT_SCORER_IMAGE: public.ecr.aws/c8n6v8e9/passport-scorer:${{ needs.build-api.outputs.dockerTag }}
+          DOCKER_GTC_PASSPORT_VERIFIER_IMAGE: public.ecr.aws/c8n6v8e9/passport-verifier:${{ needs.build-verifier.outputs.dockerTag }}
           ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
-          DOMAIN: ${{ secrets.DOMAIN_STAGING }}
+          DOMAIN: ${{ secrets.DOMAIN }}
           SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN }}
 
-          DB_USER: ${{ secrets.DB_USER_STAGING }}
-          DB_NAME: ${{ secrets.DB_NAME_STAGING }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD_STAGING }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
   release:
-    needs: [deploy-staging]
+    needs: [deploy-production]
 
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
@@ -209,6 +202,7 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.inputs.commit }}
           fetch-depth: 0
 
       - name: Version
@@ -232,7 +226,8 @@ jobs:
         with:
           allowUpdates: true
           token: ${{ secrets.GITHUB_TOKEN }}
+          # bodyFile: ${{ github.workspace }}-CHANGELOG.txt
           generateReleaseNotes: true
           name: Scorer API ${{ steps.version.outputs.version }}
           tag: ${{ steps.version.outputs.version_tag }}
-          draft: true
+          draft: false
