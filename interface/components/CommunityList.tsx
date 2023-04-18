@@ -1,11 +1,7 @@
 // --- React components/methods
-import React, { useEffect, useState, useCallback, useContext, useRef } from "react";
-
-// --- Context
-import { UserContext } from "../context/userContext";
+import React, { useEffect, useState, useCallback } from "react";
 
 // --- Components
-import { CheckCircleIcon, CloseIcon, AddIcon } from "@chakra-ui/icons";
 import CommunityCard from "./CommunityCard";
 import NoValues from "./NoValues";
 
@@ -21,6 +17,7 @@ import UseCaseModal from "./UseCaseModal";
 import { useToast } from "@chakra-ui/react";
 import { successToast } from "./Toasts";
 import { StarIcon } from "@heroicons/react/24/outline";
+import { PlusIcon } from "@heroicons/react/24/solid";
 
 const CommunityList = () => {
   const toast = useToast();
@@ -118,7 +115,8 @@ const CommunityList = () => {
                 communityLoadingStatus !== "done" || communities.length >= 5
               }
             >
-              <AddIcon className="mr-3 self-center" /> Scorer
+              <PlusIcon className="mr-2 inline w-6 self-center align-middle" />{" "}
+              Scorer
             </button>
             <p className="ml-5 self-center py-3 text-xs text-purple-softpurple">
               The scorer limit is five.

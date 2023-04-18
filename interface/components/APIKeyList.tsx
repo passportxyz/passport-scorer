@@ -1,12 +1,11 @@
 // --- React components/methods
-import React, { useContext, useEffect, useState, useRef } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 // --- Utils
 import {
   ApiKeys,
   getApiKeys,
   deleteApiKey,
-  createApiKey,
   updateApiKey,
 } from "../utils/account-requests";
 import NoValues from "./NoValues";
@@ -112,7 +111,7 @@ const APIKeyList = () => {
   }
 
   const userInstructions = (
-    <span className="lg:pt-3 pb-6 text-purple-softpurple">
+    <span className="pb-6 text-purple-softpurple lg:pt-3">
       Use these API keys to programmatically access a Scorer.
     </span>
   );
@@ -137,8 +136,9 @@ const APIKeyList = () => {
             {apiKeys.map((key, i) => (
               <div
                 key={`${key.id}-${i}`}
-                className={`flex ${key.api_key && "flex-col"
-                  } w-full items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50`}
+                className={`flex ${
+                  key.api_key && "flex-col"
+                } w-full items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50`}
               >
                 <div className="flex w-full items-center justify-between">
                   <div className="justify-self-center text-purple-darkpurple md:justify-self-start">
