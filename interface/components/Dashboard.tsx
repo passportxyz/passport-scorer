@@ -30,7 +30,7 @@ const QuickLink = ({
   <a href={url} target="_blank" rel="noreferrer">
     <div
       className={`flex w-full flex-row items-center justify-start border-gray-lightgray px-6 ${
-        icon ? "py-3 border-t" : "pt-6 pb-4"
+        icon ? "border-t py-3" : "pt-6 pb-4"
       } ${(url ? "cursor-pointer " : " ") + className}`}
     >
       <span className={`${icon ? "mr-2" : ""}`}>{icon}</span>
@@ -43,7 +43,7 @@ const QuickLinks = ({ className }: { className: string }) => {
   const linkClassName = "text-purple-softpurple";
   const iconClassName = "mr-2 w-3.5";
   return (
-    <div className={`w-full bg-white border rounded-md ${className}`}>
+    <div className={`w-full rounded-md border bg-white ${className}`}>
       <QuickLink
         text="Quick Links"
         className="pt-6 text-xs text-purple-darkpurple"
@@ -77,9 +77,14 @@ const QuickLinks = ({ className }: { className: string }) => {
 };
 
 const SampleApplications = ({ className }: { className?: string }) => {
-  const classOverwrite = "py-2"
+  const classOverwrite = "py-2";
   return (
-    <div className={"border-gray-lightgray border rounded-md bg-white text-base pb-24 " + className}>
+    <div
+      className={
+        "rounded-md border border-gray-lightgray bg-white pb-24 text-base " +
+        className
+      }
+    >
       <QuickLink
         text="Sample Applications"
         className="pt-6 text-xs text-purple-darkpurple"
@@ -87,11 +92,11 @@ const SampleApplications = ({ className }: { className?: string }) => {
       <QuickLink
         text="Gitcoin Passport Sample App"
         url="https://github.com/gitcoinco/passport-scorer/tree/main/examples/example-score-a-passport"
-        className="text-purple-softpurple pt-0"
+        className="pt-0 text-purple-softpurple"
       />
       <QuickLink
         text="Gitcoin Allo Protocol"
-        className="text-purple-softpurple pt-0 pb-2"
+        className="pt-0 pb-2 text-purple-softpurple"
         url="https://github.com/gitcoinco/grants-stack/blob/45b6a3a00beb05090e039be2551a06636e873fbc/packages/grant-explorer/src/features/round/PassportConnect.tsx"
       />
     </div>
