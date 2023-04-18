@@ -18,9 +18,10 @@ export const unAuthorizedInterceptor = (logout: () => void) => {
     };
 };
 
-export const headerInterceptor = (token: string) => {
+export const headerInterceptor = () => {
   const requestInterceptor = axios.interceptors.request.use((config) => {
-    if (config && config.headers) {
+    const token = localStorage.getItem("access-token");
+    if (config && config.headers && token) {
       config.headers["Content-Type"] = "application/json";
       config.headers["Authorization"] = `Bearer ${token}`;
     }
