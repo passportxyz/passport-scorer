@@ -8,9 +8,7 @@ import {
   Select,
   useToast,
 } from "@chakra-ui/react";
-import {
-  NoSymbolIcon,
-} from "@heroicons/react/24/outline";
+import { NoSymbolIcon } from "@heroicons/react/24/outline";
 import {
   ChartPieIcon,
   ScaleIcon,
@@ -91,7 +89,7 @@ const PageFooter = ({
     <div className="mx-auto overflow-hidden md:flex md:justify-end">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <button
-          className="order-last h-10 w-full rounded border border-gray-lightgray px-6 text-sm md:order-first md:w-[139px]"
+          className="order-last h-10 w-full rounded border border-gray-lightgray px-6 text-sm text-purple-darkpurple md:order-first md:w-[139px]"
           onClick={() => setCancelModal(true)}
         >
           Cancel
@@ -154,16 +152,22 @@ const Subheader = ({ useCase, name, description }: any) => (
       <p className="text-xs text-purple-softpurple">
         Select a Scoring Mechanism
       </p>
-      <p className="mt-2 text-purple-gitcoinpurple">
+      <p className="mt-2 text-xs text-purple-gitcoinpurple md:hidden">
         <Icon boxSize={19.5}>{useCase?.icon("#6F3FF5")}</Icon> {useCase?.title}
       </p>
 
-      <h1 className="mt-2 font-miriamlibre text-2xl">{name}</h1>
+      <h1 className="mt-2 font-miriamlibre text-2xl text-purple-darkpurple">
+        {name}
+        <span className="ml-6 hidden text-xs text-purple-gitcoinpurple md:inline">
+          <Icon boxSize={19.5}>{useCase?.icon("#6F3FF5")}</Icon>{" "}
+          {useCase?.title}
+        </span>
+      </h1>
       <p className="mt-2 text-purple-softpurple">{description}</p>
     </div>
     <div>
       <p className="mb-2 text-xs text-purple-softpurple">Scorer ID</p>
-      <p>N/A</p>
+      <p className="text-purple-darkpurple">N/A</p>
     </div>
   </div>
 );
@@ -240,7 +244,9 @@ const NewScorer = () => {
           created.
         </p>
         <div className="col-span-4 md:col-span-6 lg:col-span-2 xl:col-span-3">
-          <span className="mr-1 text-xs">Select Deduplication</span>
+          <span className="mr-1 text-xs text-purple-softpurple">
+            Select Deduplication
+          </span>
           <PopoverInfo>
             Gitcoin scoring uses binary logic to verify stamp/account ownership,
             encrypted for privacy and to decrease deduplication risk.
@@ -273,7 +279,9 @@ const NewScorer = () => {
         </div>
 
         <div className="col-span-4 md:col-span-6 xl:col-span-9">
-          <span className="mr-1 text-xs">Scoring Mechanisms</span>
+          <span className="mr-1 text-xs text-purple-softpurple">
+            Scoring Mechanisms
+          </span>
           <PopoverInfo>
             The scoring rules evaluate Passports based on the &quot;Verifiable
             Credentials&quot; (VCs), or &quot;Stamps&quot; they hold.
