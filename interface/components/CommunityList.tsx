@@ -115,8 +115,8 @@ const CommunityList = () => {
                 communityLoadingStatus !== "done" || communities.length >= 5
               }
             >
-              <PlusIcon className="mr-2 inline w-6 self-center align-middle" />{" "}
-              Scorer
+              <PlusIcon className="mr-2 inline w-6 self-center" />{" "}
+              <span className="self-center">Scorer</span>
             </button>
             <p className="ml-5 self-center py-3 text-xs text-purple-softpurple">
               The scorer limit is five.

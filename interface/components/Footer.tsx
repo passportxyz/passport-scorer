@@ -27,7 +27,7 @@ const Footer = ({ mode, className }: FooterProps): JSX.Element => {
     <div
       className={`flex h-[120px] items-center justify-between text-base ${PAGE_PADDING} ${className}`}
     >
-      <div className="">
+      <div className="text-purple-softpurple">
         Available on
         <a
           href="https://ceramic.network/"
@@ -35,7 +35,7 @@ const Footer = ({ mode, className }: FooterProps): JSX.Element => {
           rel="noopener noreferrer"
           className={`text-${assets.emphasisColor} ml-1 hover:underline`}
         >
-          <span className="text-purple-darkpurple">Ceramic</span>
+          <span className="text-purple-darkpurple">Ceramic.</span>
         </a>
       </div>
       <div className="flex">
