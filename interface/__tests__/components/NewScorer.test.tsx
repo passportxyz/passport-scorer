@@ -65,8 +65,10 @@ describe("NewScorer", () => {
 
   it("should render the scoring mechanism page with localstorage items from use case modal", async () => {
     renderApp("/new-scorer");
+    const airdropProtection = screen.getAllByText("Airdrop Protection");
     expect(screen.getByText("Select a Scoring Mechanism")).toBeInTheDocument();
-    expect(screen.getByText("Airdrop Protection")).toBeInTheDocument();
+    expect(airdropProtection[0]).toHaveClass("md:hidden");
+    expect(airdropProtection[1]).toHaveClass("md:inline");
     expect(screen.getByText("Gitcoin Airdrop")).toBeInTheDocument();
     expect(
       screen.getByText(
