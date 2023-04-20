@@ -2,14 +2,15 @@
 
 # Weight values for each stamp based on its perceived significance in assessing the unique humanity of the Passport holder
 GITCOIN_PASSPORT_WEIGHTS = {
-    "Brightid": "2.29",
-    "CommunityStakingBronze": "0.83",
+    "Brightid": "0",
+    "CommunityStakingBronze": "2.29",
     "CommunityStakingGold": "0.83",
-    "CommunityStakingSilver": "1.67",
+    "CommunityStakingSilver": "0.83",
     "Coinbase": "1.67",
-    "Discord": "2.4",
-    "Ens": "1.56",
+    "Discord": "1.67",
+    "Ens": "2.4",
     "EthGTEOneTxnProvider": "1.56",
+    "EthGasProvider": "1.56",
     "ethPossessionsGte#1": "1.77",
     "ethPossessionsGte#10": "2.81",
     "ethPossessionsGte#32": "1.04",
@@ -61,8 +62,10 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "TwitterFollowerGT5000": "0",
     "TwitterFollowerGTE1000": "1.77",
     "TwitterTweetGT10": "1.67",
+    "YupScore": "0",
     "ZkSync": "1.67",
 }
+
 
 # The Boolean scorer deems Passport holders unique humans if they meet or exceed the below thresholdold
 GITCOIN_PASSPORT_THRESHOLD = "15"
