@@ -1,7 +1,7 @@
 """Create Community ID feature tests."""
 
-from decimal import Decimal
 import json
+from decimal import Decimal
 
 import pytest
 from account.models import Community
@@ -71,4 +71,4 @@ def _():
     community = Community.objects.all()[0]
     scorer = community.scorer.binaryweightedscorer
     assert scorer.threshold == Decimal("15.00")
-    assert scorer.weights["Discord"] == "1.69"
+    assert scorer.weights["Discord"] == "2.4"
