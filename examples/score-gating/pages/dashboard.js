@@ -32,7 +32,7 @@ export default function Dashboard() {
       // User switched account
       score();
     }
-  }, [address]);
+  }, [address, initialAddress]);
 
   async function scorePassport() {
     //  Step #1 (Optional, only required if using the "signature" param when submitting a user's passport. See https://docs.passport.gitcoin.co/building-with-passport/scorer-api/endpoint-definition#submit-passport)
@@ -156,8 +156,8 @@ export default function Dashboard() {
           <div className={dstyles.header}>
             <h1 className={dstyles.h1}>Dashboard</h1>
             <p className={dstyles.p}>
-              You're seeing this page because your Passport score was high
-              enough for you to be signed in. <br />
+              Youre seeing this page because your Passport score was high enough
+              for you to be signed in. <br />
               Enjoy this collection of Solarpunk art.
             </p>
           </div>
@@ -168,42 +168,42 @@ export default function Dashboard() {
               height={629}
               alt="Solarpunk city"
               className={dstyles.photo}
-            ></Image>
+            />
             <Image
               src="/lunar2.png"
               width={629}
               height={629}
               alt="Solarpunk city"
               className={dstyles.photo}
-            ></Image>
+            />
             <Image
               src="/lunar3.png"
               width={629}
               height={629}
               alt="Solarpunk city"
               className={dstyles.photo}
-            ></Image>
+            />
             <Image
               src="/lunar4.png"
               width={629}
               height={629}
               alt="Solarpunk city"
               className={dstyles.photo}
-            ></Image>
+            />
             <Image
               src="/lunar5.png"
               width={629}
               height={629}
               alt="Solarpunk city"
               className={dstyles.photo}
-            ></Image>
+            />
             <Image
               src="/lunar6.png"
               width={629}
               height={629}
               alt="Solarpunk city"
               className={dstyles.photo}
-            ></Image>
+            />
           </div>
         </div>
       </main>

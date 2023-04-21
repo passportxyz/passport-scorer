@@ -105,8 +105,8 @@ export default function Gate() {
     <div className={styles.intro}>
       <p>
         Sign in by connecting your wallet. If your Passport score is high
-        enough, you'll be able to sign in to the Dashboard. If not, you'll be
-        asked to increase your score.
+        enough, you&apos;ll be able to sign in to the Dashboard. If not,
+        you&apos;ll be asked to increase your score.
       </p>
     </div>
   );
