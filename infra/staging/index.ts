@@ -479,7 +479,7 @@ const flower = new awsx.ecs.FargateService("flower", {
                 command: ["celery", "flower", "-A" , "taskapp", "--port=80"],
                 memory: 4096,
                 cpu: 2000,
-                portMappings: [httpsListenerFlower],
+                portMappings: [],
                 environment: [
                   {
                     name: "BROKER_URL",
