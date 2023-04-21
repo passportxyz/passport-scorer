@@ -156,8 +156,8 @@ export default function Dashboard() {
           <div className={dstyles.header}>
             <h1 className={dstyles.h1}>Dashboard</h1>
             <p className={dstyles.p}>
-              Youre seeing this page because your Passport score was high enough
-              for you to be signed in. <br />
+              You&apos;re seeing this page because your Passport score was high
+              enough for you to be signed in. <br />
               Enjoy this collection of Solarpunk art.
             </p>
           </div>
