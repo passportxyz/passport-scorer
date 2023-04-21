@@ -52,7 +52,6 @@ def check_rate_limit(request):
 
     # Bypass rate limiting if rate is set to None
     if rate == "":
-        request.limited = old_limited
         return
 
     ratelimited = is_ratelimited(
