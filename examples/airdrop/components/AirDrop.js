@@ -21,7 +21,7 @@ export default function AirDrop() {
     // If they are there is no need to connect to the scorer API, we can display their passport score immediately.
     async function checkIfAddressAlreadyInAirdropList() {
       const resp = await axios.post(`/api/airdrop/check/${address}`);
-      if (resp.data && resp.data.address) {
+      if (resp?.data?.address) {
         setChecked(true);
         setPassportScore(resp.data.score);
       }
@@ -141,20 +141,23 @@ export default function AirDrop() {
               <h1 className={styles.h1}>
                 Your score isn't high enough, collect more stamps to qualify.
               </h1>
-              <a
-                className={styles.link}
-                target="_blank"
-                href="https://passport.gitcoin.co"
-              >
-                Click here to increase your score.
-              </a>
-              <p className={styles.p}>
+              <p style={{ marginTop: "10px" }} className={styles.p}>
                 passport score:{" "}
                 <span style={{ color: "rgb(111 63 245" }}>
                   {passportScore | 0}
                 </span>
               </p>
-              <p>minimum needed: 1</p>
+              <p style={{ marginBottom: "10px" }} className={styles.p}>
+                minimum needed: 1
+              </p>
+              <a
+                className={styles.link}
+                target="_blank"
+                rel="noreferrer"
+                href="https://passport.gitcoin.co"
+              >
+                Click here to increase your score.
+              </a>
             </div>
           );
         } else {
@@ -183,7 +186,7 @@ export default function AirDrop() {
       }
     } else {
       return (
-        <p>
+        <p className={styles.p}>
           Connect your wallet to find out if you're eligible for the airdrop.
         </p>
       );

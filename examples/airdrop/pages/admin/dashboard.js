@@ -3,7 +3,9 @@ import Image from "next/image";
 import { Inter } from "next/font/google";
 import styles from "@/styles/Dashboard.module.css";
 import axios from "axios";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import Table from "../../components/Table";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -14,6 +16,24 @@ export default function Dashboard({ data }) {
     const resp = await axios.get("/api/admin/merkle");
     setMerkleRoot(resp.data);
   }
+
+  const columns = useMemo(() => [
+    {
+      Header: "ID",
+      accessor: "id",
+    },
+    {
+      Header: "Address",
+      accessor: "address",
+    },
+    {
+      Header: "Score",
+      accessor: "score",
+    },
+    {
+      Header: "Actions",
+    },
+  ]);
 
   function downloadData() {
     // Convert the data object to a JSON string
@@ -37,6 +57,12 @@ export default function Dashboard({ data }) {
 
     // Release the Blob URL
     URL.revokeObjectURL(url);
+  }
+
+  async function removeFromAirdrop(address) {
+    console.log("removing from airdrop: ", address);
+    const resp = await axios.post("/api/admin/remove", { address });
+    console.log("resp: ", resp);
   }
 
   return (
@@ -68,12 +94,14 @@ export default function Dashboard({ data }) {
               />
             </a>
           </div>
+          <ConnectButton />
         </div>
         <div>
           <h2>Total eligible addresses: {data.length}</h2>
           <div style={{ marginTop: "10px" }}>
             <div>
               <button
+                disabled={data?.length === 0}
                 style={{
                   padding: "20px 25px",
                   backgroundColor: "rgb(111 63 245)",
@@ -89,6 +117,7 @@ export default function Dashboard({ data }) {
             </div>
             <div style={{ marginTop: "15px" }}>
               <button
+                disabled={data?.length === 0}
                 style={{
                   padding: "20px 30px",
                   backgroundColor: "rgb(111 63 245)",
@@ -101,12 +130,25 @@ export default function Dashboard({ data }) {
               >
                 Generate Merkle Root
               </button>
-              {merkleRoot !== "" ? <h4>Merkle Root: {merkleRoot}</h4> : null}
+              {merkleRoot !== "" ? (
+                <h4 style={{ marginTop: "10px" }}>Merkle Root: {merkleRoot}</h4>
+              ) : null}
             </div>
           </div>
+          {data?.length > 0 ? (
+            <Table
+              columns={columns}
+              data={data}
+              removeFromAirdrop={removeFromAirdrop}
+            />
+          ) : (
+            <p style={{ marginTop: "20px;" }}>
+              No eligible addresses to display
+            </p>
+          )}
         </div>
 
-        <div className={styles.grid}></div>
+        <div className={styles.grid} />
       </main>
     </>
   );

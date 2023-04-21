@@ -44,7 +44,7 @@ export default function Home() {
           <AirDrop />
         </div>
 
-        <div className={styles.grid}></div>
+        <div className={styles.grid} />
       </main>
     </>
   );
