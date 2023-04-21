@@ -5,7 +5,7 @@ from django.utils.safestring import mark_safe
 from rest_framework_api_key.admin import APIKeyAdmin
 from scorer_weighted.models import Scorer
 
-from .models import Account, AccountAPIKey, Community
+from .models import Account, AccountAPIKey, Community, RateLimits
 
 
 class AccountAdmin(admin.ModelAdmin):
@@ -69,7 +69,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
     list_display = (
         "name",
         "account",
-        "rate_limit",
+        "rate_limit_display",
         "created",
         "revoked",
     )

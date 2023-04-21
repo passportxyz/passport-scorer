@@ -80,8 +80,6 @@ class RateLimits(str, Enum):
     UNLIMITED = ""
 
     def __str__(self):
-        if self.value == "":
-            return "Unlimited"
         return f"{self.name} - {self.value}"
 
 
@@ -107,6 +105,11 @@ class AccountAPIKey(AbstractAPIKey):
         null=True,
         blank=True,
     )
+
+    def rate_limit_display(self):
+        if self.rate_limit == "" or self.rate_limit is None:
+            return "Unlimited"
+        return str(RateLimits(self.rate_limit))
 
 
 class AccountAPIKeyAnalytics(models.Model):
