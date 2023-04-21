@@ -49,6 +49,11 @@ def check_rate_limit(request):
     """
     old_limited = getattr(request, "limited", False)
     rate = request.api_key.rate_limit
+
+    # Bypass rate limiting if rate is set to None
+    if rate == "":
+        return
+
     ratelimited = is_ratelimited(
         request=request,
         group="registry",

@@ -1,10 +1,11 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from rest_framework_api_key.admin import APIKeyAdmin
 from scorer_weighted.models import Scorer
 
-from .models import Account, AccountAPIKey, Community
+from .models import Account, AccountAPIKey, Community, RateLimits
 
 
 class AccountAdmin(admin.ModelAdmin):
@@ -60,9 +61,40 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         "id",
         "name",
         "prefix",
+        "rate_limit",
         "account__user__username",
         "account__address",
     )
+
+    list_display = (
+        "name",
+        "account",
+        "rate_limit_display",
+        "created",
+        "revoked",
+    )
+
+    # Step 1: Define the edit action function
+    def edit_selected(modeladmin, request, queryset):
+        if queryset.count() != 1:
+            modeladmin.message_user(
+                request, "Please select exactly one row to edit.", level=messages.ERROR
+            )
+            return
+
+        selected_instance = queryset.first()
+        return HttpResponseRedirect(
+            reverse(
+                f"admin:{selected_instance._meta.app_label}_{selected_instance._meta.model_name}_change",
+                args=(selected_instance.id,),
+            )
+        )
+
+    # Step 3: Customize the action's display name in the dropdown menu
+    edit_selected.short_description = "Edit selected row"
+
+    # Step 2: Register the edit action
+    actions = [edit_selected]
 
 
 admin.site.register(Account, AccountAdmin)

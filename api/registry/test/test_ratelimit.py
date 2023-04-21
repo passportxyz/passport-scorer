@@ -3,11 +3,22 @@ import logging
 from unittest.mock import patch
 
 import pytest
+from account.models import AccountAPIKey, RateLimits
 from django.test import Client, override_settings
 
 pytestmark = pytest.mark.django_db
 
 log = logging.getLogger(__name__)
+
+
+@pytest.fixture
+def unlimited_scorer_api_key(scorer_account):
+    (_, secret) = AccountAPIKey.objects.create_key(
+        account=scorer_account,
+        name="Token for user 1",
+        rate_limit=RateLimits.UNLIMITED.value,
+    )
+    return secret
 
 
 @override_settings(RATELIMIT_ENABLE=True)
@@ -109,3 +120,26 @@ def test_rate_limit_is_applied(scorer_api_key, api_path_that_requires_rate_limit
                 HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
             )
             assert response.status_code == 429
+
+
+@override_settings(RATELIMIT_ENABLE=True)
+def test_no_rate_limit_for_none(unlimited_scorer_api_key):
+    """
+    Test that no rate limit is applied when rate_limit is set to None.
+    """
+    client = Client()
+    # The rate limit is overridden to 3 calls/30 seconds for this APIKey
+    for _ in range(3):
+        response = client.get(
+            "/registry/signing-message",
+            HTTP_AUTHORIZATION="Token " + unlimited_scorer_api_key,
+        )
+
+        assert response.status_code == 200
+
+    response = client.get(
+        "/registry/signing-message",
+        HTTP_AUTHORIZATION="Token " + unlimited_scorer_api_key,
+    )
+
+    assert response.status_code == 200

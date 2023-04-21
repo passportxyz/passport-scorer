@@ -77,6 +77,7 @@ class RateLimits(str, Enum):
     TIER_1 = "125/15m"
     TIER_2 = "350/15m"
     TIER_3 = "2000/15m"
+    UNLIMITED = ""
 
     def __str__(self):
         return f"{self.name} - {self.value}"
@@ -96,11 +97,19 @@ class AccountAPIKey(AbstractAPIKey):
     account = models.ForeignKey(
         Account, on_delete=models.CASCADE, related_name="api_keys", default=None
     )
+
     rate_limit = models.CharField(
         max_length=20,
         choices=[(limit.value, limit) for limit in RateLimits],
         default=RateLimits.TIER_1.value,
+        null=True,
+        blank=True,
     )
+
+    def rate_limit_display(self):
+        if self.rate_limit == "" or self.rate_limit is None:
+            return "Unlimited"
+        return str(RateLimits(self.rate_limit))
 
 
 class AccountAPIKeyAnalytics(models.Model):
