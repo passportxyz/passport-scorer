@@ -468,35 +468,6 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
 });
 
 // Flower
-// Creates an ALB associated with our custom VPC.
-const albFlower = new awsx.lb.ApplicationLoadBalancer(`flower-service`, { vpc });
-
-// Listen to HTTP traffic on port 80 and redirect to 443
-const httpListenerFlower = albFlower.createListener("flower-listener", {
-  port: 80,
-  protocol: "HTTP",
-  defaultAction: {
-    type: "redirect",
-    redirect: {
-      protocol: "HTTPS",
-      port: "443",
-      statusCode: "HTTP_301",
-    },
-  },
-});
-
-// Target group with the port of the Docker image
-const targetFlower = albFlower.createTargetGroup("flower-target", {
-  vpc,
-  port: 80,
-  healthCheck: { path: "/", unhealthyThreshold: 5 },
-});
-
-// Listen to traffic on port 443 & route it through the target group
-const httpsListenerFlower = target.createListener("flower-listener", {
-  port: 443,
-  certificateArn: certificateValidation.certificateArn,
-});
 
 const flower = new awsx.ecs.FargateService("flower", {
     cluster,
