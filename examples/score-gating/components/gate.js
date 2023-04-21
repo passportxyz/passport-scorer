@@ -4,7 +4,7 @@ import { useSignMessage } from "wagmi";
 import { verifyMessage } from "ethers/lib/utils";
 import { useAccount } from "wagmi";
 import styles from "@/styles/Home.module.css";
-import Router from 'next/router'
+import Router from "next/router";
 
 export default function Gate() {
   const { address } = useAccount({
@@ -79,6 +79,7 @@ export default function Gate() {
       //      score: "1.574606692",
       //      status: ""DONE""
       //    }
+      //
       const scoreResponse = await axios.get(
         `/api/score/${process.env.NEXT_PUBLIC_SCORER_ID}/${address}`
       );
@@ -91,18 +92,22 @@ export default function Gate() {
       }
 
       if (scoreResponse.data.score >= 1) {
-        await Router.push("/dashboard")
+        await Router.push("/dashboard");
       } else {
-        await Router.push("/denied")
+        await Router.push("/denied");
       }
     },
   });
 
   const [nonce, setNonce] = useState("");
 
-  return  (
-  <div className={styles.intro}>
-    <p>Sign in by connecting your wallet. If your Passport score is high enough, you'll be able to sign in to the Dashboard. If not, you'll be asked to increase your score.</p>
-  </div>
+  return (
+    <div className={styles.intro}>
+      <p>
+        Sign in by connecting your wallet. If your Passport score is high
+        enough, you'll be able to sign in to the Dashboard. If not, you'll be
+        asked to increase your score.
+      </p>
+    </div>
   );
 }
