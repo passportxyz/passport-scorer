@@ -75,13 +75,17 @@ export default function Dashboard({ data }) {
 
   async function addToAirdrop(address) {
     if (address !== "" && address !== undefined) {
-      console.log("adding to the airdrop: ", address);
-      const resp = await axios.post("/api/admin/add", { address });
-      console.log("add resp: ", resp);
-      if (resp.status === 200) {
-        const newData = [...airdropData, resp.data.added];
-        console.log("newData: ", newData);
-        setAirdropData(newData);
+      try {
+        console.log("adding to the airdrop: ", address);
+        const resp = await axios.post("/api/admin/add", { address });
+        console.log("add resp: ", resp);
+        if (resp.status === 200) {
+          const newData = [...airdropData, resp.data.added];
+          console.log("newData: ", newData);
+          setAirdropData(newData);
+        }
+      } catch (e) {
+        console.error(e);
       }
     }
   }
@@ -138,11 +142,6 @@ export default function Dashboard({ data }) {
               >
                 Generate Merkle Root
               </button>
-              {merkleRoot !== "" ? (
-                <p className={styles.p} style={{ marginTop: "10px" }}>
-                  Merkle Root: {merkleRoot}
-                </p>
-              ) : null}
               <button
                 className={styles.btn}
                 style={{ marginLeft: "10px" }}
@@ -152,6 +151,11 @@ export default function Dashboard({ data }) {
               </button>
             </div>
           </div>
+          {merkleRoot !== "" ? (
+            <p className={styles.p} style={{ marginTop: "10px" }}>
+              Merkle Root: {merkleRoot}
+            </p>
+          ) : null}
           {showAddForm ? (
             <AddAirdrop
               add={(address) => addToAirdrop(address)}

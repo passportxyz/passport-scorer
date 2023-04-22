@@ -16,11 +16,28 @@ export default async function handler(req, res) {
     filename: "airdrop.db",
     driver: sqlite3.Database,
   });
+  const initial = await db.get(
+    "SELECT * FROM airdrop_addresses WHERE address = ?",
+    [address]
+  );
+  if (initial !== undefined) {
+    res
+      .status(400)
+      .json({ successful: false, error: "Address is already on airdrop list" });
+    return;
+  }
   await db.run("INSERT INTO airdrop_addresses (address, score) VALUES (?, ?)", [
     address,
     0,
   ]);
+  const row = await db.get(
+    "SELECT * FROM airdrop_addresses WHERE address = ?",
+    [address]
+  );
   await db.close();
 
-  res.status(200).json({ successful: true });
+  res.status(200).json({
+    successful: true,
+    added: { id: row.id, address: address, score: 0 },
+  });
 }
