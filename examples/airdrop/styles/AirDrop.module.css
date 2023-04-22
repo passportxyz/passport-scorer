@@ -1,11 +1,12 @@
 .link {
   color: blue;
-  text-decoration: underline;
+  text-decoration: none;
   margin: 15px 0;
+  font-family: sans-serif;
 }
 
-.h1 {
-  font-size: 30px;
+.h3 {
+  font-size: 25px;
   margin-bottom: 15px;
   font-family: sans-serif;
 }
@@ -13,4 +14,14 @@
 .p {
   font-size: 22px;
   font-family: sans-serif;
+}
+
+.btn {
+  padding: 10px 15px;
+  background-color: rgb(111 63 245);
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 10px;
 }

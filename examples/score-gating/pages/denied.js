@@ -149,11 +149,11 @@ export default function Denied() {
         <div className={dstyles.center}>
           <h1 className={dstyles.h1}>Improve Your Passport Score</h1>
           <p className={dstyles.p}>
-            To protect our application from bots, we&apos;ve implemented
-            Gitcoin&apos;s Passport. Your Passport score is too low, meaning you
-            either haven&apos;t created it yet or you&apos;re a bot. If
-            you&apos;re not a robot, then head over to Passport and improve your
-            score by adding more stamps. When you&apos;re finished, come back
+            To protect our application from bots, we&quot;ve implemented
+            Gitcoin&quot;s Passport. Your Passport score is too low, meaning you
+            either haven&quot;t created it yet or you&quot;re a bot. If
+            you&quot;re not a robot, then head over to Passport and improve your
+            score by adding more stamps. When you&quot;re finished, come back
             and re-score your Passport.
           </p>
           <a

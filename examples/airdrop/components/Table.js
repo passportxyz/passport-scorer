@@ -8,7 +8,10 @@ export default function Table({ columns, data, removeFromAirdrop }) {
 
   return (
     // apply the table props
-    <table style={{ marginTop: "20px" }} {...getTableProps()}>
+    <table
+      style={{ marginTop: "20px", borderCollapse: "collapse" }}
+      {...getTableProps()}
+    >
       <thead>
         {
           // Loop over the header rows

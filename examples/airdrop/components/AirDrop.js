@@ -138,48 +138,39 @@ export default function AirDrop() {
         if (passportScore < 1) {
           return (
             <div>
-              <h1 className={styles.h1}>
-                Your score isn't high enough, collect more stamps to qualify.
-              </h1>
-              <p style={{ marginTop: "10px" }} className={styles.p}>
-                passport score:{" "}
+              <p className={styles.p}>
+                Your score isn&apos;t high enough, collect more stamps to
+                qualify.
+              </p>
+              <p style={{ marginTop: "20px" }} className={styles.p}>
+                Passport Score:{" "}
                 <span style={{ color: "rgb(111 63 245" }}>
                   {passportScore | 0}
                 </span>
+                /1
               </p>
-              <p style={{ marginBottom: "10px" }} className={styles.p}>
-                minimum needed: 1
-              </p>
-              <a
-                className={styles.link}
-                target="_blank"
-                rel="noreferrer"
-                href="https://passport.gitcoin.co"
-              >
-                Click here to increase your score.
-              </a>
+              <div style={{ marginTop: "10px" }}>
+                <a
+                  className={styles.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  href="https://passport.gitcoin.co"
+                >
+                  Click here to increase your score.
+                </a>
+              </div>
             </div>
           );
         } else {
           return (
             <div>
-              <h1 className={styles.h1}>You've been added to the airdrop!</h1>
+              <p className={styles.p}>You&apos;ve been added to the airdrop!</p>
             </div>
           );
         }
       } else {
         return (
-          <button
-            style={{
-              padding: "20px 30px",
-              backgroundColor: "rgb(111 63 245)",
-              border: "none",
-              color: "white",
-              cursor: "pointer",
-              fontWeight: "bold",
-            }}
-            onClick={() => addToAirdrop(address)}
-          >
+          <button className={styles.btn} onClick={() => addToAirdrop(address)}>
             Add address to airdrop
           </button>
         );
@@ -187,7 +178,8 @@ export default function AirDrop() {
     } else {
       return (
         <p className={styles.p}>
-          Connect your wallet to find out if you're eligible for the airdrop.
+          Connect your wallet to find out if you&apos;re eligible for the
+          airdrop.
         </p>
       );
     }

@@ -6,11 +6,14 @@ import axios from "axios";
 import { useState, useMemo } from "react";
 import Table from "../../components/Table";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import AddAirdrop from "../../components/AddAirdrop";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export default function Dashboard({ data }) {
   const [merkleRoot, setMerkleRoot] = useState("");
+  const [airdropData, setAirdropData] = useState(data);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   async function getMerkleRoot() {
     const resp = await axios.get("/api/admin/merkle");
@@ -37,7 +40,7 @@ export default function Dashboard({ data }) {
 
   function downloadData() {
     // Convert the data object to a JSON string
-    const jsonData = JSON.stringify(data, null, 2);
+    const jsonData = JSON.stringify(airdropData, null, 2);
 
     // Create a Blob from the JSON string
     const blob = new Blob([jsonData], { type: "application/json" });
@@ -63,6 +66,24 @@ export default function Dashboard({ data }) {
     console.log("removing from airdrop: ", address);
     const resp = await axios.post("/api/admin/remove", { address });
     console.log("resp: ", resp);
+    if (resp.status === 200) {
+      const newData = airdropData.filter((item) => item.address !== address);
+      console.log("newData: ", newData);
+      setAirdropData(newData);
+    }
+  }
+
+  async function addToAirdrop(address) {
+    if (address !== "" && address !== undefined) {
+      console.log("adding to the airdrop: ", address);
+      const resp = await axios.post("/api/admin/add", { address });
+      console.log("add resp: ", resp);
+      if (resp.status === 200) {
+        const newData = [...airdropData, resp.data.added];
+        console.log("newData: ", newData);
+        setAirdropData(newData);
+      }
+    }
   }
 
   return (
@@ -97,48 +118,50 @@ export default function Dashboard({ data }) {
           <ConnectButton />
         </div>
         <div>
-          <h2>Total eligible addresses: {data.length}</h2>
+          <h4 className={styles.h4}>
+            Total eligible addresses: {airdropData.length}
+          </h4>
           <div style={{ marginTop: "10px" }}>
             <div>
               <button
-                disabled={data?.length === 0}
-                style={{
-                  padding: "20px 25px",
-                  backgroundColor: "rgb(111 63 245)",
-                  border: "none",
-                  color: "white",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                }}
+                disabled={airdropData?.length === 0}
+                className={styles.btn}
                 onClick={downloadData}
               >
                 Download Airdrop Data
               </button>
-            </div>
-            <div style={{ marginTop: "15px" }}>
               <button
-                disabled={data?.length === 0}
-                style={{
-                  padding: "20px 30px",
-                  backgroundColor: "rgb(111 63 245)",
-                  border: "none",
-                  color: "white",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                }}
+                disabled={airdropData?.length === 0}
+                className={styles.btn}
+                style={{ marginLeft: "10px" }}
                 onClick={getMerkleRoot}
               >
                 Generate Merkle Root
               </button>
               {merkleRoot !== "" ? (
-                <h4 style={{ marginTop: "10px" }}>Merkle Root: {merkleRoot}</h4>
+                <p className={styles.p} style={{ marginTop: "10px" }}>
+                  Merkle Root: {merkleRoot}
+                </p>
               ) : null}
+              <button
+                className={styles.btn}
+                style={{ marginLeft: "10px" }}
+                onClick={() => setShowAddForm(true)}
+              >
+                Manual Add
+              </button>
             </div>
           </div>
-          {data?.length > 0 ? (
+          {showAddForm ? (
+            <AddAirdrop
+              add={(address) => addToAirdrop(address)}
+              cancel={() => setShowAddForm(false)}
+            />
+          ) : null}
+          {airdropData?.length > 0 ? (
             <Table
               columns={columns}
-              data={data}
+              data={airdropData}
               removeFromAirdrop={removeFromAirdrop}
             />
           ) : (
