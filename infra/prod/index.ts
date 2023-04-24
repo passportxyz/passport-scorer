@@ -12,6 +12,8 @@ let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 let dbUsername = `${process.env["DB_USER"]}`;
 let dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
 let dbName = `${process.env["DB_NAME"]}`;
+let flowerUser = `${process.env["FLOWER_USER"]}`
+let flowerPassword = `${process.env["FLOWER_PASSWORD"]}`
 
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
 export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
@@ -78,7 +80,7 @@ const postgresql = new aws.rds.Instance(
     allocatedStorage: 10,
     engine: "postgres",
     // engineVersion: "5.7",
-    instanceClass: "db.t3.large",
+    instanceClass: "db.t3.xlarge",
     dbName: dbName,
     password: dbPassword,
     username: dbUsername,
@@ -595,6 +597,36 @@ const ecsScorerWorkerAutoscaling = new aws.appautoscaling.Policy(
     },
   }
 );
+
+// Flower
+
+const flower = new awsx.ecs.FargateService("flower", {
+  cluster,
+  desiredCount: 1,
+  taskDefinitionArgs: {
+      containers: {
+          celery: {
+              image: "mher/flower",
+              command: ["celery", "flower", "-A" , "taskapp", "--port=80"],
+              memory: 4096,
+              cpu: 2000,
+              portMappings: [],
+              environment: [
+                {
+                  name: "BROKER_URL",
+                  value: redisCacheOpsConnectionUrl,
+                },
+                {
+                  name: "FLOWER_BASIC_AUTH",
+                  value: flowerUser + ":" + flowerPassword
+                },
+              ],
+              dependsOn: [],
+              links: []
+          },
+      },
+  },
+});
 
 //////////////////////////////////////////////////////////////
 // Set up task to run migrations
