@@ -31,5 +31,6 @@ def sample_stamps():
 def pytest_configure():
     try:
         settings.CERAMIC_CACHE_API_KEY = "supersecret"
+        settings.CERAMIC_CACHE_SCORER_ID = ""
     except:
         pass

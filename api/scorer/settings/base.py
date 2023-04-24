@@ -276,3 +276,5 @@ CACHES = {
         "LOCATION": env("CELERY_BROKER_URL", default="redis://localhost:6379/0"),
     }
 }
+
+CERAMIC_CACHE_SCORER_ID = env("CERAMIC_CACHE_SCORER_ID", default="")
