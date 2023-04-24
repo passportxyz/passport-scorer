@@ -3,6 +3,7 @@ from typing import List
 
 # --- Deduplication Modules
 from account.models import Community, Nonce
+from account.models import Account, Community, Nonce
 from django.shortcuts import get_object_or_404
 from ninja import Router
 from ninja.pagination import paginate
@@ -79,11 +80,20 @@ You need to check for the status of the operation by calling the `/score/{int:sc
 )
 def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
     check_rate_limit(request)
-    address_lower = payload.address.lower()
 
     # Get DID from address
     # did = get_did(payload.address)
     log.debug("/submit-passport, payload=%s", payload)
+
+    account = request.auth
+
+    return handle_submit_passport(payload, account)
+
+
+def handle_submit_passport(
+    payload: SubmitPassportPayload, account: Account
+) -> DetailedScoreResponse:
+    address_lower = payload.address.lower()
 
     try:
         scorer_id = get_scorer_id(payload)
@@ -91,11 +101,9 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
         raise e
 
     # Get community object
-    user_community = get_object_or_404(Community, id=scorer_id, account=request.auth)
+    user_community = get_object_or_404(Community, id=scorer_id, account=account)
 
     # Verify the signer
-    # TODO This first condition--payload.signature--is only here for testing and
-    # can be removed when community_requires_signature() is completed
     if payload.signature or community_requires_signature(user_community):
         if get_signer(payload.nonce, payload.signature).lower() != address_lower:
             raise InvalidSignerException()
@@ -114,11 +122,11 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
 
     # Create a score with status PROCESSING
     score, _ = Score.objects.update_or_create(
-        passport_id=db_passport.id,
+        passport_id=db_passport.pk,
         defaults=dict(score=None, status=Score.Status.PROCESSING),
     )
 
-    score_passport.delay(user_community.id, payload.address)
+    score_passport.delay(user_community.pk, payload.address)
 
     return DetailedScoreResponse(
         address=score.passport.address,
@@ -147,11 +155,15 @@ This endpoint will return a `DetailedScoreResponse`. This endpoint will also ret
 )
 def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
     check_rate_limit(request)
+    account = request.auth
+    return handle_get_score(address, scorer_id, account)
 
+
+def handle_get_score(
+    address: str, scorer_id: int, account: Account
+) -> DetailedScoreResponse:
     # Get community object
-    user_community = api_get_object_or_404(
-        Community, id=scorer_id, account=request.auth
-    )
+    user_community = api_get_object_or_404(Community, id=scorer_id, account=account)
 
     try:
         lower_address = address.lower()
