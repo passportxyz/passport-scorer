@@ -21,15 +21,13 @@ def get_utc_time():
 
 
 @shared_task
-def save_api_key_analytics(api_key_value, path):
+def save_api_key_analytics(api_key_id, path):
     try:
-        api_key = AccountAPIKey.objects.get_from_key(api_key_value)
-
         AccountAPIKeyAnalytics.objects.create(
-            api_key=api_key,
+            api_key_id=api_key_id,
             path=path,
         )
-    except AccountAPIKey.DoesNotExist:
+    except Exception as e:
         pass
 
 

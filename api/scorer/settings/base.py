@@ -35,6 +35,8 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
 SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT", default=False)
 SECURE_PROXY_SSL_HEADER = env.json("SECURE_PROXY_SSL_HEADER", default=None)
 
+FF_API_ANALYTICS = env("FF_API_ANALYTICS", default="Off")
+
 LOGIN_REDIRECT_URL = "/admin"
 
 SOCIAL_AUTH_PIPELINE = (
@@ -86,7 +88,6 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "social_django.middleware.SocialAuthExceptionMiddleware",
-    "scorer.middleware.request_analytics.ApiKeyRequestCounterMiddleware",
 ]
 
 ROOT_URLCONF = "scorer.urls"
