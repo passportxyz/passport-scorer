@@ -38,7 +38,7 @@ class ApiKey(APIKeyHeader):
             user_account = api_key.account
 
             if settings.FF_API_ANALYTICS == "on":
-                save_api_key_analytics.delay(key, request.path)
+                save_api_key_analytics(api_key.id, request.path)
 
             if user_account:
                 request.user = user_account.user
