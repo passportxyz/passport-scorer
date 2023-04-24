@@ -252,10 +252,14 @@ def get_stamps(request, address):
     try:
         stamps = CeramicCache.objects.filter(address=address)
 
-        if not Score.objects.filter(
-            passport__address=address.lower(),
-            passport__community__scorer_id=settings.CERAMIC_CACHE_SCORER_ID,
-        ).exists():
+        scorer_id = settings.CERAMIC_CACHE_SCORER_ID
+        if (
+            scorer_id
+            and not Score.objects.filter(
+                passport__address=address.lower(),
+                passport__community__scorer_id=scorer_id,
+            ).exists()
+        ):
             submit_passport_from_cache(address)
 
         return GetStampResponse(
