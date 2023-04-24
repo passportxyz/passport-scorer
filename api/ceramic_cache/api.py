@@ -257,7 +257,7 @@ def get_stamps(request, address):
             scorer_id
             and not Score.objects.filter(
                 passport__address=address.lower(),
-                passport__community__scorer_id=scorer_id,
+                passport__community_id=scorer_id,
             ).exists()
         ):
             submit_passport_from_cache(address)
@@ -282,7 +282,7 @@ def get_stamps(request, address):
 )
 def get_score(request, address: str) -> DetailedScoreResponse:
     scorer_id = settings.CERAMIC_CACHE_SCORER_ID
-    account = get_object_or_404(Account, community__scorer_id=scorer_id)
+    account = get_object_or_404(Account, community_id=scorer_id)
     return handle_get_score(address, scorer_id, account)
 
 
@@ -363,15 +363,22 @@ def authenticate(request, payload: CacaoVerifySubmit):
 
 
 def submit_passport_from_cache(address: str) -> Optional[DetailedScoreResponse]:
-    scorer_id = settings.CERAMIC_CACHE_SCORER_ID
-    if not scorer_id:
-        return None
+    try:
+        scorer_id = settings.CERAMIC_CACHE_SCORER_ID
+        if not scorer_id:
+            return None
 
-    account = get_object_or_404(Account, community__scorer_id=scorer_id)
+        account = get_object_or_404(Account, community_id=scorer_id)
 
-    payload = SubmitPassportPayload(
-        address=address,
-        scorer_id=scorer_id,
-    )
+        payload = SubmitPassportPayload(
+            address=address,
+            scorer_id=scorer_id,
+        )
 
-    return handle_submit_passport(payload, account)
+        return handle_submit_passport(payload, account)
+    except Exception:
+        log.error(
+            "Error when calling submit_passport_from_cache for address: '%s'",
+            address,
+            exc_info=True,
+        )
