@@ -26,7 +26,6 @@ export default function Gate() {
       //      nonce: "b7e3b0f86820744b9242dd99ce91465f10c961d98aa9b3f417f966186551"
       //    }
       const scorerMessageResponse = await axios.get("/api/scorer-message");
-      console.log("scorerMessageResponse: ", scorerMessageResponse);
       if (scorerMessageResponse.status !== 200) {
         console.error("failed to fetch scorer message");
         return;
@@ -64,7 +63,6 @@ export default function Gate() {
         signature: data, // Optional: The signature of the message returned in Step #1
         nonce: nonce, // Optional: The nonce returned in Step #1
       });
-      console.log("submitResponse: ", submitResponse);
 
       //  Step #4
       //    Finally, we can get the user's passport score.
@@ -83,7 +81,6 @@ export default function Gate() {
       const scoreResponse = await axios.get(
         `/api/score/${process.env.NEXT_PUBLIC_SCORER_ID}/${address}`
       );
-      console.log("scoreResponse: ", scoreResponse.data);
 
       // Make sure to check the status
       if (scoreResponse.data.status === "ERROR") {

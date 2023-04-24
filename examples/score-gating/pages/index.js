@@ -41,7 +41,7 @@ export default function Home() {
           <Gate />
         </div>
 
-        <div className={styles.grid}></div>
+        <div className={styles.grid} />
       </main>
     </>
   );
