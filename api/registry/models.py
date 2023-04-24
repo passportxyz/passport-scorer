@@ -45,7 +45,7 @@ class Score(models.Model):
     ]
 
     passport = models.ForeignKey(
-        Passport, on_delete=models.PROTECT, related_name="score"
+        Passport, on_delete=models.PROTECT, related_name="score", unique=True
     )
     score = models.DecimalField(null=True, blank=True, decimal_places=9, max_digits=18)
     last_score_timestamp = models.DateTimeField(default=None, null=True, blank=True)
