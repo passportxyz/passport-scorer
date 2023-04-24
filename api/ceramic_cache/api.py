@@ -257,7 +257,7 @@ def get_stamps(request, address):
             scorer_id
             and not Score.objects.filter(
                 passport__address=address.lower(),
-                passport__community__scorer_id=scorer_id,
+                passport__community_id=scorer_id,
             ).exists()
         ):
             submit_passport_from_cache(address)
