@@ -296,6 +296,10 @@ const secrets = [
     name: "RATELIMIT_ENABLE",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:RATELIMIT_ENABLE::`,
   },
+  {
+    name: "CERAMIC_CACHE_SCORER_ID",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:CERAMIC_CACHE_SCORER_ID::`,
+  },
 ];
 const environment = [
   {
