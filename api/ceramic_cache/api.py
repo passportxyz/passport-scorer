@@ -27,6 +27,7 @@ from registry.api.v1 import (
     handle_get_score,
     handle_submit_passport,
 )
+from registry.models import Score
 
 from .exceptions import (
     InvalidDeleteCacheRequestException,
@@ -251,7 +252,10 @@ def get_stamps(request, address):
     try:
         stamps = CeramicCache.objects.filter(address=address)
 
-        if len(stamps) == 0:
+        if not Score.objects.filter(
+            passport__address=address.lower(),
+            passport__community__scorer_id=settings.CERAMIC_CACHE_SCORER_ID,
+        ).exists():
             submit_passport_from_cache(address)
 
         return GetStampResponse(
