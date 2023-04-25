@@ -29,6 +29,8 @@ dag-cbor = "*"
 py-cid = "*"
 django-ratelimit = "*"
 ninja_schema = "*"
+structlog = "*"
+django-structlog = "*"
 
 [dev-packages]
 black = "*"

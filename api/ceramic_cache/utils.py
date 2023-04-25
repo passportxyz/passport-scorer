@@ -1,7 +1,7 @@
 import base64
-import logging
 from hashlib import sha256
 
+import api_logging as logging
 import dag_cbor
 from multiformats import CID
 

@@ -1,5 +1,6 @@
-import logging
 from typing import List
+
+import api_logging as logging
 
 # --- Deduplication Modules
 from account.models import Account, Community, Nonce

@@ -1,9 +1,9 @@
-import logging
 import random
 import string
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, cast
 
+import api_logging as logging
 from account.models import Account, AccountAPIKey, Community, Nonce
 from django.conf import settings
 from django.contrib.auth import get_user_model

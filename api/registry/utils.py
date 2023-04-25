@@ -1,11 +1,11 @@
 import base64
 import json
-import logging
 from datetime import datetime
 from functools import wraps
 from typing import Tuple
 from urllib.parse import unquote, urlencode
 
+import api_logging as logging
 import didkit
 from django.shortcuts import render
 from django.urls import reverse_lazy

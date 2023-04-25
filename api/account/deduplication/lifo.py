@@ -1,7 +1,7 @@
 import copy
-import logging
 from typing import Tuple
 
+import api_logging as logging
 from account.models import Community
 from registry.models import Stamp
 
