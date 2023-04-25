@@ -1,8 +1,8 @@
-import logging
 from datetime import datetime
 from decimal import Decimal
 from typing import List
 
+import api_logging as logging
 from scorer_weighted.models import WeightedScorer
 
 log = logging.getLogger(__name__)

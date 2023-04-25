@@ -1,5 +1,6 @@
-import logging
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
+
+import api_logging as logging
 import pytest
 from account.models import Nonce, tz
 

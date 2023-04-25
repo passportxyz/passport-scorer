@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 import os
 
+import django_structlog
+
 from .env import BASE_DIR, env
 
 # Quick-start development settings - unsuitable for production
@@ -36,6 +38,7 @@ SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT", default=False)
 SECURE_PROXY_SSL_HEADER = env.json("SECURE_PROXY_SSL_HEADER", default=None)
 
 FF_API_ANALYTICS = env("FF_API_ANALYTICS", default="Off")
+FF_USE_JSON_LOGGING = env("FF_USE_JSON_LOGGING", default="Off")
 
 LOGIN_REDIRECT_URL = "/admin"
 
@@ -189,48 +192,129 @@ CORS_ALLOW_HEADERS = [
     "x-api-key",
 ]
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": True,
-    "formatters": {
-        "rootFormatter": {
-            "format": "%(asctime)s - %(name)s - %(levelname)s - %(thread)d - %(pathname)s:%(lineno)d %(message)s",
-        }
-    },
-    "filters": {
-        "require_debug_true": {
-            "()": "django.utils.log.RequireDebugTrue",
-        }
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "rootFormatter",
+if FF_USE_JSON_LOGGING == "on":
+    import structlog
+
+    MIDDLEWARE += ["django_structlog.middlewares.RequestMiddleware"]
+
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "json_formatter": {
+                "()": structlog.stdlib.ProcessorFormatter,
+                "processor": structlog.processors.JSONRenderer(),
+            },
+            "plain_console": {
+                "()": structlog.stdlib.ProcessorFormatter,
+                "processor": structlog.dev.ConsoleRenderer(),
+            },
+            "key_value": {
+                "()": structlog.stdlib.ProcessorFormatter,
+                "processor": structlog.processors.KeyValueRenderer(
+                    key_order=["timestamp", "level", "event", "logger"]
+                ),
+            },
         },
-        "debugConsole": {
-            "class": "logging.StreamHandler",
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "json_formatter",
+            },
+            # "json_file": {
+            #     "class": "logging.handlers.WatchedFileHandler",
+            #     "filename": "logs/json.log",
+            #     "formatter": "json_formatter",
+            # },
+            # "flat_line_file": {
+            #     "class": "logging.handlers.WatchedFileHandler",
+            #     "filename": "logs/flat_line.log",
+            #     "formatter": "key_value",
+            # },
+        },
+        "root": {
+            "handlers": ["console"],
             "level": "DEBUG",
-            "filters": ["require_debug_true"],
-            "formatter": "rootFormatter",
         },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "DEBUG",
-    },
-    "loggers": {
-        "django": {
+        "loggers": {
+            "django_structlog": {
+                "handlers": ["console"],
+                "level": "DEBUG",
+            },
+            "django": {
+                "level": "DEBUG",
+                "handlers": [],
+                "propagate": False,
+            },
+            "django.db.backends": {
+                "level": "DEBUG",
+                "handlers": [],
+                "propagate": False,
+            },
+        },
+    }
+
+    structlog.configure(
+        processors=[
+            structlog.contextvars.merge_contextvars,
+            structlog.stdlib.filter_by_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.stdlib.add_logger_name,
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.PositionalArgumentsFormatter(),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.UnicodeDecoder(),
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ],
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        cache_logger_on_first_use=True,
+    )
+
+else:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": True,
+        "formatters": {
+            "rootFormatter": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(thread)d - %(pathname)s:%(lineno)d %(message)s",
+            }
+        },
+        "filters": {
+            "require_debug_true": {
+                "()": "django.utils.log.RequireDebugTrue",
+            }
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "rootFormatter",
+            },
+            "debugConsole": {
+                "class": "logging.StreamHandler",
+                "level": "DEBUG",
+                "filters": ["require_debug_true"],
+                "formatter": "rootFormatter",
+            },
+        },
+        "root": {
+            "handlers": ["console"],
             "level": "DEBUG",
-            "handlers": [],
-            "propagate": False,
         },
-        "django.db.backends": {
-            "level": "DEBUG",
-            "handlers": [],
-            "propagate": False,
+        "loggers": {
+            "django": {
+                "level": "DEBUG",
+                "handlers": [],
+                "propagate": False,
+            },
+            "django.db.backends": {
+                "level": "DEBUG",
+                "handlers": [],
+                "propagate": False,
+            },
         },
-    },
-}
+    }
+
 
 STATIC_ROOT = BASE_DIR / "static"
 

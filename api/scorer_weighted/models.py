@@ -1,9 +1,9 @@
 # TODO: remove pylint skip once circular dependency removed
 # pylint: disable=import-outside-toplevel
-import logging
 from decimal import Decimal
 from typing import List, Optional, Union
 
+import api_logging as logging
 from django.conf import settings
 from django.db import models
 

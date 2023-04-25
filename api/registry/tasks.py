@@ -1,6 +1,6 @@
-import logging
 from datetime import datetime, timezone
 
+import api_logging as logging
 from account.deduplication import Rules
 from account.deduplication.fifo import fifo
 from account.deduplication.lifo import lifo

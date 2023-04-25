@@ -1,9 +1,9 @@
 """Ceramic Cache API"""
 
-import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Type
 
+import api_logging as logging
 import requests
 from account.models import Account, Nonce
 from django.conf import settings

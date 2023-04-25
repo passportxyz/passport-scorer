@@ -1,5 +1,6 @@
-import logging
 from typing import List, Optional
+
+import api_logging as logging
 
 # --- Deduplication Modules
 from account.models import Community
