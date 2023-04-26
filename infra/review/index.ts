@@ -346,8 +346,8 @@ const environment = [
     value: JSON.stringify(["HTTP_X_FORWARDED_PROTO", "https"]),
   },
   {
-    name: "FF_USE_JSON_LOGGING",
-    value: "on",
+    name: "LOGGING_STRATEGY",
+    value: "structlog_json",
   },
 ];
 
