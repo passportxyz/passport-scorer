@@ -143,6 +143,7 @@ export default function Dashboard({ data }) {
               color: "rgb(111,63,245)",
               marginBottom: "35px",
               fontFamily: "sans-serif",
+              marginTop: "35px",
             }}
           >
             Admin Dashboard

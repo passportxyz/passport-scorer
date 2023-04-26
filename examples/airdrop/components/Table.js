@@ -159,36 +159,44 @@ export default function Table({ columns, data, removeFromAirdrop }) {
           justifyContent: "flex-end",
         }}
       >
-        <button onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
+        <button
+          style={{ marginRight: "5px" }}
+          onClick={() => gotoPage(0)}
+          disabled={!canPreviousPage}
+        >
           {"<<"}
         </button>{" "}
-        <button onClick={() => previousPage()} disabled={!canPreviousPage}>
+        <button
+          style={{ marginRight: "5px" }}
+          onClick={() => previousPage()}
+          disabled={!canPreviousPage}
+        >
           {"<"}
         </button>{" "}
-        <button onClick={() => nextPage()} disabled={!canNextPage}>
+        <button
+          style={{ marginRight: "5px" }}
+          onClick={() => nextPage()}
+          disabled={!canNextPage}
+        >
           {">"}
         </button>{" "}
         <button onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}>
           {">>"}
         </button>{" "}
-        <span>
-          Page{" "}
-          <strong>
-            {pageIndex + 1} of {pageOptions.length}
-          </strong>{" "}
-        </span>
-        <select
-          value={pageSize}
-          onChange={(e) => {
-            setPageSize(Number(e.target.value));
+        <div
+          style={{
+            marginLeft: "10px",
+            marginRight: "10px",
+            fontFamily: "sans-serif",
           }}
         >
-          {[10, 20, 30, 40, 50].map((pageSize) => (
-            <option key={pageSize} value={pageSize}>
-              Show {pageSize}
-            </option>
-          ))}
-        </select>
+          <span>
+            Page{" "}
+            <strong>
+              {pageIndex + 1} of {pageOptions.length}
+            </strong>{" "}
+          </span>
+        </div>
       </div>
     </>
   );
