@@ -63,12 +63,9 @@ export default function Dashboard({ data }) {
   }
 
   async function removeFromAirdrop(address) {
-    console.log("removing from airdrop: ", address);
     const resp = await axios.post("/api/admin/remove", { address });
-    console.log("resp: ", resp);
     if (resp.status === 200) {
       const newData = airdropData.filter((item) => item.address !== address);
-      console.log("newData: ", newData);
       setAirdropData(newData);
     }
   }
@@ -76,12 +73,9 @@ export default function Dashboard({ data }) {
   async function addToAirdrop(address) {
     if (address !== "" && address !== undefined) {
       try {
-        console.log("adding to the airdrop: ", address);
         const resp = await axios.post("/api/admin/add", { address });
-        console.log("add resp: ", resp);
         if (resp.status === 200) {
           const newData = [...airdropData, resp.data.added];
-          console.log("newData: ", newData);
           setAirdropData(newData);
         }
       } catch (e) {

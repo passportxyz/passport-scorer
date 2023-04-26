@@ -9,7 +9,7 @@ export default function Score() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  
+
   const { address } = useAccount({
     onDisconnect() {
       setNonce("");
@@ -19,7 +19,7 @@ export default function Score() {
 
   const { data, isError, isLoading } = useEnsName({
     address: address,
-  })
+  });
 
   useEffect(() => {
     setNonce("");
@@ -35,7 +35,6 @@ export default function Score() {
       //      nonce: "b7e3b0f86820744b9242dd99ce91465f10c961d98aa9b3f417f966186551"
       //    }
       const scorerMessageResponse = await axios.get("/api/scorer-message");
-      console.log("scorerMessageResponse: ", scorerMessageResponse);
       setNonce(scorerMessageResponse.data.nonce);
 
       //  Step #2 (Optional, only required if using the "signature" param when submitting a user's passport.)
@@ -69,7 +68,6 @@ export default function Score() {
         signature: data, // Optional: The signature of the message returned in step #1
         nonce: nonce, // Optional: The nonce returned in Step #1
       });
-      console.log("submitResponse: ", submitResponse);
 
       //  Step #4
       //    Finally we can submit the user's address for scoring.
@@ -87,7 +85,6 @@ export default function Score() {
       const scoreResponse = await axios.get(
         `/api/score/${process.env.NEXT_PUBLIC_SCORER_ID}/${address}`
       );
-      console.log("scoreResponse: ", scoreResponse.data);
 
       // Make sure to check the status
       if (
@@ -112,39 +109,33 @@ export default function Score() {
 
   function abbreviateAddress(ethAddress) {
     if (!ethAddress || ethAddress.length < 10) {
-      throw new Error('Invalid Ethereum address');
+      throw new Error("Invalid Ethereum address");
     }
-  
+
     const prefix = ethAddress.slice(0, 6);
     const suffix = ethAddress.slice(-4);
-  
+
     return `${prefix}...${suffix}`;
   }
 
   function renderContent() {
     if (isMounted && address) {
       return (
-      <p>
-        Welcome, {data || abbreviateAddress(address)} (
-          <div
-            className={styles.tooltip}
-            style={{ color: "rgb(111 63 245)" }}
-            >
+        <p>
+          Welcome, {data || abbreviateAddress(address)} (
+          <div className={styles.tooltip} style={{ color: "rgb(111 63 245)" }}>
             {passportScore}
             <span className={styles.tooltiptext}>
               This is your Gitcoin Passport Score
             </span>
           </div>
           )
-      </p>)
+        </p>
+      );
     } else {
-      return <p>Connect your wallet to see your score</p>
+      return <p>Connect your wallet to see your score</p>;
     }
   }
 
-  return (
-    <div>
-      {renderContent()}
-    </div>
-  );
+  return <div>{renderContent()}</div>;
 }
