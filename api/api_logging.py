@@ -1,6 +1,6 @@
 from django.conf import settings
 
-if settings.FF_USE_JSON_LOGGING == "on":
+if settings.LOGGING_STRATEGY in ("structlog_json", "structlog_flatline"):
     from structlog import *
 else:
     from logging import *

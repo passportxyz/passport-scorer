@@ -38,7 +38,9 @@ SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT", default=False)
 SECURE_PROXY_SSL_HEADER = env.json("SECURE_PROXY_SSL_HEADER", default=None)
 
 FF_API_ANALYTICS = env("FF_API_ANALYTICS", default="Off")
-FF_USE_JSON_LOGGING = env("FF_USE_JSON_LOGGING", default="Off")
+LOGGING_STRATEGY = env(
+    "LOGGING_STRATEGY", default="default"
+)  # default | structlog_json | structlog_flatline
 
 LOGIN_REDIRECT_URL = "/admin"
 
@@ -192,7 +194,7 @@ CORS_ALLOW_HEADERS = [
     "x-api-key",
 ]
 
-if FF_USE_JSON_LOGGING == "on":
+if LOGGING_STRATEGY in ("structlog_json", "structlog_flatline"):
     import structlog
 
     MIDDLEWARE += ["django_structlog.middlewares.RequestMiddleware"]
@@ -219,7 +221,9 @@ if FF_USE_JSON_LOGGING == "on":
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
-                "formatter": "json_formatter",
+                "formatter": "json_formatter"
+                if LOGGING_STRATEGY == "structlog_json"
+                else "plain_console",
             },
             # "json_file": {
             #     "class": "logging.handlers.WatchedFileHandler",
@@ -238,8 +242,9 @@ if FF_USE_JSON_LOGGING == "on":
         },
         "loggers": {
             "django_structlog": {
-                "handlers": ["console"],
+                "handlers": [],
                 "level": "DEBUG",
+                "propagate": True,
             },
             "django": {
                 "level": "DEBUG",
