@@ -138,16 +138,26 @@ export default function Dashboard({ data }) {
           <ConnectButton />
         </div>
         <div style={{ width: "100%", maxWidth: "1100px" }}>
-          <h1
-            style={{
-              color: "rgb(111,63,245)",
-              marginBottom: "35px",
-              fontFamily: "sans-serif",
-              marginTop: "35px",
-            }}
-          >
-            Admin Dashboard
-          </h1>
+          <div style={{ marginBottom: "35px" }}>
+            <h1
+              style={{
+                color: "rgb(111,63,245)",
+                fontFamily: "sans-serif",
+                marginTop: "35px",
+              }}
+            >
+              Admin Dashboard
+            </h1>
+            <a
+              href="/admin/theme"
+              style={{
+                color: "blue",
+                textDecoration: "underline",
+              }}
+            >
+              Configure Theme
+            </a>
+          </div>
           <div
             style={{
               display: "flex",
