@@ -1,0 +1,38 @@
+.card {
+  padding: 25px;
+  border: 1px solid rgb(239, 239, 240);
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  max-width: 300px;
+  font-family: sans-serif;
+  flex-grow: 2;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  color: rgb(108, 122, 137);
+  font-size: 16px;
+}
+
+.value {
+  margin-top: 30px;
+  color: rgb(111,63,245);
+  font-size: 25px;
+  font-weight: bold;
+}
+
+.iconContainer {
+  background: rgba(108, 122, 137, 0.2);
+  padding: 15px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}

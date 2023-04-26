@@ -5,10 +5,13 @@ export default function AddAirdrop({ cancel, add }) {
   const [address, setAddress] = useState("");
 
   return (
-    <div style={{ marginTop: "20px" }}>
-      <p style={{ marginBottom: "5px" }} className={styles.p}>
-        Add to airdrop
-      </p>
+    <div
+      style={{
+        marginTop: "20px",
+        display: "flex",
+        justifyContent: "flex-end",
+      }}
+    >
       <input
         onChange={(e) => setAddress(e.target.value)}
         style={{

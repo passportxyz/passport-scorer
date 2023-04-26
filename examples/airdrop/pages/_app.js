@@ -6,6 +6,10 @@ import { mainnet, polygon, fantom } from "wagmi/chains";
 import { alchemyProvider } from "wagmi/providers/alchemy";
 import { publicProvider } from "wagmi/providers/public";
 import { useEffect } from "react";
+// Need these two imports when using font awesome with Next.js so we don't get Huge icons.
+import { config } from "@fortawesome/fontawesome-svg-core";
+import "@fortawesome/fontawesome-svg-core/styles.css";
+config.autoAddCss = false;
 
 // Here we set up what chains we allow the user to connect to
 // If you'd like to work with a different chain you can add it to the import statement above

@@ -9,7 +9,14 @@ export default function Table({ columns, data, removeFromAirdrop }) {
   return (
     // apply the table props
     <table
-      style={{ marginTop: "20px", borderCollapse: "collapse" }}
+      style={{
+        marginTop: "20px",
+        borderCollapse: "collapse",
+        width: "100%",
+        borderLeft: "1px solid rgba(239,239,240,1)",
+        borderRight: "1px solid rgba(239,239,240,1)",
+        fontFamily: "sans-serif",
+      }}
       {...getTableProps()}
     >
       <thead>
@@ -20,24 +27,44 @@ export default function Table({ columns, data, removeFromAirdrop }) {
             <tr {...headerGroup.getHeaderGroupProps()}>
               {
                 // Loop over the headers in each row
-                headerGroup.headers.map((column) => (
+                headerGroup.headers.map((column) => {
                   // Apply the header cell props
-                  <th
-                    {...column.getHeaderProps()}
-                    style={{
-                      borderBottom: "solid 1px #D3D3D3",
-                      background: "#D3D3D3",
-                      color: "black",
-                      fontWeight: "bold",
-                      padding: "5px",
-                    }}
-                  >
-                    {
-                      // Render the header
-                      column.render("Header")
-                    }
-                  </th>
-                ))
+                  if (column.Header === "Actions") {
+                    return (
+                      <th
+                        {...column.getHeaderProps()}
+                        style={{
+                          background: "rgba(239,239,240,0.6)",
+                          color: "rgba(149,165,166)",
+                          padding: "15px",
+                          textAlign: "center",
+                        }}
+                      >
+                        {
+                          // Render the header
+                          column.render("Header")
+                        }
+                      </th>
+                    );
+                  } else {
+                    return (
+                      <th
+                        {...column.getHeaderProps()}
+                        style={{
+                          background: "rgba(239,239,240,0.6)",
+                          color: "rgba(149,165,166)",
+                          padding: "15px",
+                          textAlign: "left",
+                        }}
+                      >
+                        {
+                          // Render the header
+                          column.render("Header")
+                        }
+                      </th>
+                    );
+                  }
+                })
               }
             </tr>
           ))
@@ -61,8 +88,8 @@ export default function Table({ columns, data, removeFromAirdrop }) {
                         <td
                           {...cell.getCellProps()}
                           style={{
-                            padding: "10px",
-                            border: "solid 1px #D3D3D3",
+                            padding: "15px",
+                            borderBottom: "solid 1px rgba(239,239,240,1)",
                             display: "flex",
                             justifyContent: "center",
                           }}
@@ -88,8 +115,8 @@ export default function Table({ columns, data, removeFromAirdrop }) {
                       <td
                         {...cell.getCellProps()}
                         style={{
-                          padding: "10px",
-                          border: "solid 1px #D3D3D3",
+                          padding: "15px",
+                          borderBottom: "solid 1px rgba(239,239,240,1)",
                           background: "",
                         }}
                       >

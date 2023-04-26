@@ -7,6 +7,12 @@ import { useState, useMemo } from "react";
 import Table from "../../components/Table";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import AddAirdrop from "../../components/AddAirdrop";
+import InfoCard from "../../components/InfoCard";
+import {
+  faPeopleGroup,
+  faGaugeSimple,
+  faLayerGroup,
+} from "@fortawesome/free-solid-svg-icons";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -84,6 +90,22 @@ export default function Dashboard({ data }) {
     }
   }
 
+  function averageScore() {
+    const total = airdropData.reduce((acc, item) => {
+      return acc + item.score;
+    }, 0);
+    return (total / airdropData.length).toFixed(2);
+  }
+
+  function medianScore() {
+    const sorted = airdropData.sort((a, b) => a.score - b.score);
+    const middle = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 0) {
+      return ((sorted[middle].score + sorted[middle - 1].score) / 2).toFixed(2);
+    }
+    return sorted[middle].score.toFixed(2);
+  }
+
   return (
     <>
       <Head>
@@ -115,38 +137,66 @@ export default function Dashboard({ data }) {
           </div>
           <ConnectButton />
         </div>
-        <div>
-          <h4 className={styles.h4}>
-            Total eligible addresses: {airdropData.length}
-          </h4>
-          <div style={{ marginTop: "10px" }}>
-            <div>
-              <button
-                disabled={airdropData?.length === 0}
-                className={styles.btn}
-                onClick={downloadData}
-              >
-                Download Airdrop Data
-              </button>
-              <button
-                disabled={airdropData?.length === 0}
-                className={styles.btn}
-                style={{ marginLeft: "10px" }}
-                onClick={getMerkleRoot}
-              >
-                Generate Merkle Root
-              </button>
-              <button
-                className={styles.btn}
-                style={{ marginLeft: "10px" }}
-                onClick={() => setShowAddForm(true)}
-              >
-                Manual Add
-              </button>
-            </div>
+        <div style={{ width: "100%", maxWidth: "1100px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "45px",
+            }}
+          >
+            <InfoCard
+              title="Total Allowlisted"
+              icon={faPeopleGroup}
+              value={airdropData?.length ? airdropData.length : 0}
+            />
+            <InfoCard
+              title="Average Score"
+              icon={faGaugeSimple}
+              value={averageScore()}
+            />
+            <InfoCard
+              title="Median Score"
+              icon={faLayerGroup}
+              value={medianScore()}
+            />
+          </div>
+          <div
+            style={{
+              marginTop: "10px",
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <button
+              disabled={airdropData?.length === 0}
+              className={styles.btn}
+              onClick={downloadData}
+            >
+              Download Airdrop Data
+            </button>
+            <button
+              disabled={airdropData?.length === 0}
+              className={styles.btn}
+              style={{ marginLeft: "10px" }}
+              onClick={getMerkleRoot}
+            >
+              Generate Merkle Root
+            </button>
+            <button
+              className={styles.btn}
+              style={{ marginLeft: "10px" }}
+              onClick={() => setShowAddForm(true)}
+            >
+              Manual Add
+            </button>
           </div>
           {merkleRoot !== "" ? (
-            <p className={styles.p} style={{ marginTop: "10px" }}>
+            <p
+              className={styles.p}
+              style={{ marginTop: "10px", textAlign: "right" }}
+            >
               Merkle Root: {merkleRoot}
             </p>
           ) : null}
