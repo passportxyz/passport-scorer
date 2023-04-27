@@ -42,7 +42,7 @@ export default function Table({ columns, data, removeFromAirdrop }) {
             // Loop over the header rows
             headerGroups.map((headerGroup) => (
               // Apply the header row props
-              <tr {...headerGroup.getHeaderGroupProps()}>
+              <tr key={headerGroup.id} {...headerGroup.getHeaderGroupProps()}>
                 {
                   // Loop over the headers in each row
                   headerGroup.headers.map((column) => {
@@ -50,6 +50,7 @@ export default function Table({ columns, data, removeFromAirdrop }) {
                     if (column.Header === "Actions") {
                       return (
                         <th
+                          key={column.Header}
                           {...column.getHeaderProps()}
                           style={{
                             background: "rgba(239,239,240,0.6)",
@@ -67,6 +68,7 @@ export default function Table({ columns, data, removeFromAirdrop }) {
                     } else {
                       return (
                         <th
+                          key={column.Header}
                           {...column.getHeaderProps()}
                           style={{
                             background: "rgba(239,239,240,0.6)",
@@ -97,13 +99,14 @@ export default function Table({ columns, data, removeFromAirdrop }) {
               prepareRow(row);
               return (
                 // Apply the row props
-                <tr {...row.getRowProps()}>
+                <tr key={row} {...row.getRowProps()}>
                   {
                     // Loop over the rows cells
                     row.cells.map((cell) => {
                       if (cell.column.Header === "Actions") {
                         return (
                           <td
+                            key={cell.row.original.address}
                             {...cell.getCellProps()}
                             style={{
                               padding: "15px",
@@ -131,6 +134,7 @@ export default function Table({ columns, data, removeFromAirdrop }) {
                       // Apply the cell props
                       return (
                         <td
+                          key={cell.row.original.address}
                           {...cell.getCellProps()}
                           style={{
                             padding: "15px",
