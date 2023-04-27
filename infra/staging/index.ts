@@ -504,7 +504,8 @@ const flowerHttpListener = flowerAlb.createListener("flower-listener", {
 // Target group with the port of the Docker image
 const flowerTarget = flowerAlb.createTargetGroup("flower-target", {
   vpc,
-  port: 80,
+  port: 5555,
+  protocol: "HTTP",
   healthCheck: { path: "/metrics/", unhealthyThreshold: 5 },
 });
 
@@ -526,7 +527,7 @@ const flower = new awsx.ecs.FargateService("flower", {
         cpu: 2000,
         portMappings: [{
           containerPort: 5555,
-          hostPort: 80
+          hostPort: 5555
         }],
         environment: [
           {
