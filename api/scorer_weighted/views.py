@@ -1,5 +1,4 @@
-import logging
-
+import api_logging as logging
 from scorer_weighted.models import WeightedScorer
 
 # from django_filters.rest_framework import DjangoFilterBackend

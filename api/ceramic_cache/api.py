@@ -1,15 +1,16 @@
 """Ceramic Cache API"""
 
-import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Type
 
+import api_logging as logging
 import requests
-from account.models import Nonce
+from account.models import Account, Nonce
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.http import HttpRequest
+from django.shortcuts import get_object_or_404
 from ninja import Router, Schema
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
@@ -20,6 +21,13 @@ from ninja_jwt.authentication import InvalidToken
 from ninja_jwt.settings import api_settings
 from ninja_jwt.tokens import RefreshToken, Token, TokenError
 from ninja_schema import Schema
+from registry.api.v1 import (
+    DetailedScoreResponse,
+    SubmitPassportPayload,
+    handle_get_score,
+    handle_submit_passport,
+)
+from registry.models import Score
 
 from .exceptions import (
     InvalidDeleteCacheRequestException,
@@ -154,6 +162,9 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
             update_fields=["stamp"],
             unique_fields=["address", "provider"],
         )
+
+        submit_passport_from_cache(address)
+
         return created
     except Exception as e:
         raise e
@@ -165,13 +176,16 @@ def delete_stamps(request, payload: List[DeleteStampPayload]):
         if len(payload) > settings.MAX_BULK_CACHE_SIZE:
             raise TooManyStampsException()
 
+        address = get_address_from_did(request.did)
         stamps = CeramicCache.objects.filter(
-            address=get_address_from_did(request.did),
+            address=address,
             provider__in=[p.provider for p in payload],
         )
         if not stamps:
             raise InvalidDeleteCacheRequestException()
         stamps.delete()
+
+        submit_passport_from_cache(address)
 
         return {"status": "success"}
     except Exception as e:
@@ -194,6 +208,9 @@ def cache_stamp(request, payload: CacheStampPayload):
                 stamp=payload.stamp,
             ),
         )
+
+        submit_passport_from_cache(payload.address)
+
         return stamp
     except Exception as e:
         raise e
@@ -219,6 +236,8 @@ def delete_stamp(request, payload: DeleteStampPayload):
 
         stamp.delete()
 
+        submit_passport_from_cache(address)
+
         return DeleteStampResponse(
             address=address,
             provider=provider,
@@ -232,6 +251,17 @@ def delete_stamp(request, payload: DeleteStampPayload):
 def get_stamps(request, address):
     try:
         stamps = CeramicCache.objects.filter(address=address)
+
+        scorer_id = settings.CERAMIC_CACHE_SCORER_ID
+        if (
+            scorer_id
+            and not Score.objects.filter(
+                passport__address=address.lower(),
+                passport__community_id=scorer_id,
+            ).exists()
+        ):
+            submit_passport_from_cache(address)
+
         return GetStampResponse(
             success=True,
             stamps=[
@@ -245,6 +275,17 @@ def get_stamps(request, address):
         raise e
 
 
+@router.get(
+    "/score/{str:address}",
+    response=DetailedScoreResponse,
+    auth=JWTDidAuth(),
+)
+def get_score(request, address: str) -> DetailedScoreResponse:
+    scorer_id = settings.CERAMIC_CACHE_SCORER_ID
+    account = get_object_or_404(Account, community__id=scorer_id)
+    return handle_get_score(address, scorer_id, account)
+
+
 class CacaoVerifySubmit(Schema):
     issuer: str
     signatures: List[Dict]
@@ -252,11 +293,6 @@ class CacaoVerifySubmit(Schema):
     nonce: str
     cid: List[int]
     cacao: List[int]
-
-
-class FailedVerificationException(APIException):
-    status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Unable to authorize request"
 
 
 class FailedVerificationException(APIException):
@@ -324,3 +360,25 @@ def authenticate(request, payload: CacaoVerifySubmit):
     except Exception as esc:
         log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
         raise APIException(detail=f"Failed authenticate request: {str(esc)}") from esc
+
+
+def submit_passport_from_cache(address: str) -> Optional[DetailedScoreResponse]:
+    try:
+        scorer_id = settings.CERAMIC_CACHE_SCORER_ID
+        if not scorer_id:
+            return None
+
+        account = get_object_or_404(Account, community__id=scorer_id)
+
+        payload = SubmitPassportPayload(
+            address=address,
+            scorer_id=scorer_id,
+        )
+
+        return handle_submit_passport(payload, account)
+    except Exception:
+        log.error(
+            "Error when calling submit_passport_from_cache for address: '%s'",
+            address,
+            exc_info=True,
+        )

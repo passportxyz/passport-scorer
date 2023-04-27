@@ -12,8 +12,8 @@ let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 let dbUsername = `${process.env["DB_USER"]}`;
 let dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
 let dbName = `${process.env["DB_NAME"]}`;
-let flowerUser = `${process.env["FLOWER_USER"]}`
-let flowerPassword = `${process.env["FLOWER_PASSWORD"]}`
+let flowerUser = `${process.env["FLOWER_USER"]}`;
+let flowerPassword = `${process.env["FLOWER_PASSWORD"]}`;
 
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
 export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
@@ -298,6 +298,14 @@ const secrets = [
     name: "RATELIMIT_ENABLE",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:RATELIMIT_ENABLE::`,
   },
+  {
+    name: "CERAMIC_CACHE_SCORER_ID",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:CERAMIC_CACHE_SCORER_ID::`,
+  },
+  {
+    name: "FF_API_ANALYTICS",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_API_ANALYTICS::`,
+  },
 ];
 const environment = [
   {
@@ -310,7 +318,10 @@ const environment = [
   },
   {
     name: "UI_DOMAINS",
-    value: JSON.stringify(["scorer." + process.env["DOMAIN"], "www.scorer." + process.env["DOMAIN"]]),
+    value: JSON.stringify([
+      "scorer." + process.env["DOMAIN"],
+      "www.scorer." + process.env["DOMAIN"],
+    ]),
   },
   {
     name: "ALLOWED_HOSTS",
@@ -335,6 +346,10 @@ const environment = [
   {
     name: "SECURE_PROXY_SSL_HEADER",
     value: JSON.stringify(["HTTP_X_FORWARDED_PROTO", "https"]),
+  },
+  {
+    name: "LOGGING_STRATEGY",
+    value: "structlog_json",
   },
 ];
 
@@ -470,31 +485,31 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
 // Flower
 
 const flower = new awsx.ecs.FargateService("flower", {
-    cluster,
-    desiredCount: 1,
-    taskDefinitionArgs: {
-        containers: {
-            celery: {
-                image: "mher/flower",
-                command: ["celery", "flower", "-A" , "taskapp", "--port=80"],
-                memory: 4096,
-                cpu: 2000,
-                portMappings: [],
-                environment: [
-                  {
-                    name: "BROKER_URL",
-                    value: redisCacheOpsConnectionUrl,
-                  },
-                  {
-                    name: "FLOWER_BASIC_AUTH",
-                    value: flowerUser + ":" + flowerPassword
-                  },
-                ],
-                dependsOn: [],
-                links: []
-            },
-        },
+  cluster,
+  desiredCount: 1,
+  taskDefinitionArgs: {
+    containers: {
+      celery: {
+        image: "mher/flower",
+        command: ["celery", "flower", "-A", "taskapp", "--port=80"],
+        memory: 4096,
+        cpu: 2000,
+        portMappings: [],
+        environment: [
+          {
+            name: "BROKER_URL",
+            value: redisCacheOpsConnectionUrl,
+          },
+          {
+            name: "FLOWER_BASIC_AUTH",
+            value: flowerUser + ":" + flowerPassword,
+          },
+        ],
+        dependsOn: [],
+        links: [],
+      },
     },
+  },
 });
 
 //////////////////////////////////////////////////////////////

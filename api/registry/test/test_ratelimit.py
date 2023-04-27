@@ -1,7 +1,7 @@
 import json
-import logging
 from unittest.mock import patch
 
+import api_logging as logging
 import pytest
 from account.models import AccountAPIKey, RateLimits
 from django.test import Client, override_settings

@@ -1,7 +1,8 @@
 # libs for processing the deterministic stream location
 import json
-import logging
 from typing import Dict, List
+
+import api_logging as logging
 
 # Making GET requests against the CERAMIC_URL to read streams
 import requests
@@ -144,7 +145,7 @@ def get_stamps(passport: Dict) -> Dict:
 
     # hydrate stamps contained within the passport
     if passport and passport["stamps"]:
-        for (index, stamp) in enumerate(passport["stamps"]):
+        for index, stamp in enumerate(passport["stamps"]):
             passport["stamps"][index] = get_stamp_stream(stamp)
 
     return passport

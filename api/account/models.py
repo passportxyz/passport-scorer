@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional, Type
 
+import api_logging as logging
 from django.conf import settings
 from django.db import models
 from rest_framework_api_key.models import AbstractAPIKey

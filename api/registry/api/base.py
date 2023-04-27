@@ -5,6 +5,7 @@ from django_ratelimit.core import is_ratelimited
 from django_ratelimit.decorators import ALL
 from django_ratelimit.exceptions import Ratelimited
 from ninja.security import APIKeyHeader
+from registry.tasks import save_api_key_analytics
 
 from ..exceptions import InvalidScorerIdException, Unauthorized
 from .schema import SubmitPassportPayload
@@ -35,6 +36,10 @@ class ApiKey(APIKeyHeader):
             api_key = AccountAPIKey.objects.get_from_key(key)
             request.api_key = api_key
             user_account = api_key.account
+
+            if settings.FF_API_ANALYTICS == "on":
+                save_api_key_analytics(api_key.id, request.path)
+
             if user_account:
                 request.user = user_account.user
                 return user_account
