@@ -509,7 +509,7 @@ const flowerTarget = flowerAlb.createTargetGroup("flower-target", {
 });
 
 // Listen to traffic on port 443 & route it through the target group
-const flowerHttpsListener = target.createListener("flower-listener", {
+const flowerHttpsListener = flowerTarget.createListener("flower-listener", {
   port: 443,
   certificateArn: certificateValidation.certificateArn,
 });
