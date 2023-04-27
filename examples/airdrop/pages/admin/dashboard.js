@@ -8,6 +8,7 @@ import Table from "../../components/Table";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import AddAirdrop from "../../components/AddAirdrop";
 import InfoCard from "../../components/InfoCard";
+import Link from "next/link";
 import {
   faPeopleGroup,
   faGaugeSimple,
@@ -148,7 +149,7 @@ export default function Dashboard({ data }) {
             >
               Admin Dashboard
             </h1>
-            <a
+            <Link
               href="/admin/theme"
               style={{
                 color: "blue",
@@ -156,7 +157,7 @@ export default function Dashboard({ data }) {
               }}
             >
               Configure Theme
-            </a>
+            </Link>
           </div>
           <div
             style={{
