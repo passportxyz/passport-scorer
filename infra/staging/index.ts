@@ -504,7 +504,7 @@ const flowerHttpListener = flowerAlb.createListener("flower-listener", {
 // Target group with the port of the Docker image
 const flowerTarget = flowerAlb.createTargetGroup("flower-target", {
   vpc,
-  port: 80,
+  port: 5555,
   healthCheck: { path: "/metrics/", unhealthyThreshold: 5 },
 });
 
@@ -521,7 +521,7 @@ const flower = new awsx.ecs.FargateService("flower", {
     containers: {
       celery: {
         image: "mher/flower",
-        command: ["celery", "flower", "-A", "taskapp", "--port=80"],
+        command: ["celery", "flower", "-A", "taskapp", "--port=5555"],
         memory: 4096,
         cpu: 2000,
         portMappings: [flowerHttpsListener],
