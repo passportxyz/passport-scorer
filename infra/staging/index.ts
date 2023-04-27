@@ -513,6 +513,10 @@ const flowerTarget = flowerAlb.createTargetGroup("flower-target", {
 const flowerHttpsListener = flowerTarget.createListener("flower-listener", {
   port: 443,
   certificateArn: certificateValidation.certificateArn,
+  defaultAction: {
+    type: "forward",
+    targetGroupArn: flowerTarget.targetGroup.arn
+  }
 });
 
 const flower = new awsx.ecs.FargateService("flower", {
@@ -525,7 +529,7 @@ const flower = new awsx.ecs.FargateService("flower", {
         command: ["celery", "flower", "-A", "taskapp", "--port=5555"],
         memory: 4096,
         cpu: 2000,
-        portMappings: [flowerHttpsListener],
+        portMappings: [flowerTarget],
         environment: [
           {
             name: "BROKER_URL",
