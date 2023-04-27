@@ -7,7 +7,7 @@ export default function AddAirdrop({ cancel, add }) {
   return (
     <div
       style={{
-        marginTop: "20px",
+        marginTop: "21px",
         display: "flex",
         justifyContent: "flex-end",
       }}
