@@ -484,6 +484,35 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
 
 // Flower
 
+// Generate an SSL certificate
+const flowerCertificate = new aws.acm.Certificate("flower", {
+  domainName: domain,
+  tags: {
+    Environment: "staging",
+  },
+  validationMethod: "DNS",
+});
+
+const flowerCertificateValidationDomain = new aws.route53.Record(
+  `flower.${domain}-validation`,
+  {
+    name: flowerCertificate.domainValidationOptions[0].resourceRecordName,
+    zoneId: route53Zone,
+    type: flowerCertificate.domainValidationOptions[0].resourceRecordType,
+    records: [flowerCertificate.domainValidationOptions[0].resourceRecordValue],
+    ttl: 600,
+  }
+);
+
+const flowerCertificateValidation = new aws.acm.CertificateValidation(
+  "flowerCertificateValidation",
+  {
+    certificateArn: flowerCertificate.arn,
+    validationRecordFqdns: [flowerCertificateValidationDomain.fqdn],
+  },
+  { customTimeouts: { create: "30s", update: "30s" } }
+);
+
 // Creates an ALB associated with our custom VPC.
 const flowerAlb = new awsx.lb.ApplicationLoadBalancer(`flower-service`, { vpc });
 
@@ -512,11 +541,24 @@ const flowerTarget = flowerAlb.createTargetGroup("flower-target", {
 // Listen to traffic on port 443 & route it through the target group
 const flowerHttpsListener = flowerTarget.createListener("flower-listener", {
   port: 443,
-  certificateArn: certificateValidation.certificateArn,
+  certificateArn: flowerCertificateValidation.certificateArn,
   defaultAction: {
     type: "forward",
     targetGroupArn: flowerTarget.targetGroup.arn
   }
+});
+
+const flowerRecord = new aws.route53.Record("flower", {
+  zoneId: route53Zone,
+  name: "flower." + domain,
+  type: "A",
+  aliases: [
+    {
+      name: flowerHttpsListener.endpoint.hostname,
+      zoneId: flowerHttpsListener.loadBalancer.loadBalancer.zoneId,
+      evaluateTargetHealth: true,
+    },
+  ],
 });
 
 const flower = new awsx.ecs.FargateService("flower", {
