@@ -506,7 +506,7 @@ const flowerTarget = flowerAlb.createTargetGroup("flower-target", {
   vpc,
   port: 5555,
   protocol: "HTTP",
-  healthCheck: { path: "/metrics/", unhealthyThreshold: 5 },
+  healthCheck: { path: "/healthcheck", unhealthyThreshold: 5 },
 });
 
 // Listen to traffic on port 443 & route it through the target group
