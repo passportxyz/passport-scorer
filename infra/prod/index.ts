@@ -477,7 +477,7 @@ const service = new awsx.ecs.FargateService("scorer", {
 const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
   "scorer-autoscaling-target",
   {
-    maxCapacity: 10,
+    maxCapacity: 20,
     minCapacity: 2,
     resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${service.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
@@ -572,8 +572,8 @@ const celeryWorker = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
       worker1: {
         image: dockerGtcPassportScorerImage,
         command: ["celery", "-A", "scorer", "worker", "-l", "DEBUG", "-c", "8"],
-        memory: 4096,
-        cpu: 2000,
+        memory: 2048,
+        cpu: 1000,
         portMappings: [],
         secrets: secrets,
         environment: environment,
@@ -587,7 +587,7 @@ const celeryWorker = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
 const ecsScorerWorkerAutoscalingTarget = new aws.appautoscaling.Target(
   "scorer-worker-autoscaling-target",
   {
-    maxCapacity: 10,
+    maxCapacity: 20,
     minCapacity: 2,
     resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celeryWorker.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
