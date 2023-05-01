@@ -17,6 +17,15 @@ async function initializeDatabase() {
     );
   `);
 
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS theme (
+      id INTEGER PRIMARY KEY,
+      name TEXT,
+      description TEXT,
+      image BLOB
+    );
+  `);
+
   // Close the database connection
   await db.close();
 }
