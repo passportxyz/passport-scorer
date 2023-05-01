@@ -486,32 +486,32 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
 
 // Generate an SSL certificate
 const flowerCertificate = new aws.acm.Certificate("flower", {
-  domainName: domain,
+  domainName: "flower." + domain,
   tags: {
     Environment: "staging",
   },
   validationMethod: "DNS",
 });
 
-// const flowerCertificateValidationDomain = new aws.route53.Record(
-//   `flower.${domain}-validation`,
-//   {
-//     name: flowerCertificate.domainValidationOptions[0].resourceRecordName,
-//     zoneId: route53Zone,
-//     type: flowerCertificate.domainValidationOptions[0].resourceRecordType,
-//     records: [flowerCertificate.domainValidationOptions[0].resourceRecordValue],
-//     ttl: 600,
-//   }
-// );
+const flowerCertificateValidationDomain = new aws.route53.Record(
+  `flower.${domain}-validation`,
+  {
+    name: flowerCertificate.domainValidationOptions[0].resourceRecordName,
+    zoneId: route53Zone,
+    type: flowerCertificate.domainValidationOptions[0].resourceRecordType,
+    records: [flowerCertificate.domainValidationOptions[0].resourceRecordValue],
+    ttl: 600,
+  }
+);
 
-// const flowerCertificateValidation = new aws.acm.CertificateValidation(
-//   "flowerCertificateValidation",
-//   {
-//     certificateArn: flowerCertificate.arn,
-//     validationRecordFqdns: [flowerCertificateValidationDomain.fqdn],
-//   },
-//   { customTimeouts: { create: "30s", update: "30s" } }
-// );
+const flowerCertificateValidation = new aws.acm.CertificateValidation(
+  "flowerCertificateValidation",
+  {
+    certificateArn: flowerCertificate.arn,
+    validationRecordFqdns: [flowerCertificateValidationDomain.fqdn],
+  },
+  { customTimeouts: { create: "30s", update: "30s" } }
+);
 
 // Creates an ALB associated with our custom VPC.
 const flowerAlb = new awsx.lb.ApplicationLoadBalancer(`flower-service`, { vpc });
