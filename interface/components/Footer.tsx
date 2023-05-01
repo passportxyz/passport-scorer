@@ -5,7 +5,7 @@ import { PAGE_PADDING } from "./PageLayout";
 const getAssets = (mode?: UIMode) => {
   const darkMode = mode === "dark";
   return {
-    emphasisColor: darkMode ? "white" : "black",
+    emphasisColor: darkMode ? "white" : "purple-darkpurple",
     docsIcon: darkMode
       ? "/assets/docsIconLight.svg"
       : "/assets/docsIconDark.svg",
@@ -18,9 +18,10 @@ const getAssets = (mode?: UIMode) => {
 type FooterProps = {
   mode?: UIMode;
   className?: string;
+  hideLinks?: boolean;
 };
 
-const Footer = ({ mode, className }: FooterProps): JSX.Element => {
+const Footer = ({ mode, className, hideLinks }: FooterProps): JSX.Element => {
   const assets = useMemo(() => getAssets(mode), [mode]);
 
   return (
@@ -35,10 +36,10 @@ const Footer = ({ mode, className }: FooterProps): JSX.Element => {
           rel="noopener noreferrer"
           className={`text-${assets.emphasisColor} ml-1 hover:underline`}
         >
-          <span className="text-purple-darkpurple">Ceramic.</span>
+          Ceramic.
         </a>
       </div>
-      <div className="flex">
+      <div className={`flex ${hideLinks ? "hidden" : ""}`}>
         <a
           href={`https://github.com/gitcoinco/passport-scorer/commit/${process.env.NEXT_PUBLIC_GIT_COMMIT_HASH}`}
           target="_blank"
