@@ -68,8 +68,12 @@ export default function Home() {
               marginBottom: "35px",
             }}
           >
-            <h1 style={{ marginRight: "20px" }}>{theme?.name}</h1>
-            <p>{theme?.description}</p>
+            <h1 style={{ fontFamily: "sans-serif", marginRight: "20px" }}>
+              {theme?.name}
+            </h1>
+            <p style={{ marginTop: "10px", maxWidth: "800px" }}>
+              {theme?.description}
+            </p>
           </div>
           <AirDrop />
         </div>

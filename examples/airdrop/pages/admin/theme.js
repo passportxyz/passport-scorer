@@ -62,21 +62,39 @@ export default function Theme() {
           </div>
           <ConnectButton />
         </div>
-        <div style={{ width: "100%", maxWidth: "1100px" }}>
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "1100px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+          }}
+        >
           <div style={{ marginBottom: "35px" }}>
             <h1
               style={{
                 color: "rgb(111,63,245)",
                 fontFamily: "sans-serif",
-                marginTop: "35px",
+                marginBottom: "10px",
               }}
             >
               Customize Theme
             </h1>
+            <p>Change the name, description, and image your users will see.</p>
           </div>
-          <form onSubmit={handleSubmit}>
+          <form
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              maxWidth: "500px",
+              justifyContent: "center",
+            }}
+            onSubmit={handleSubmit}
+          >
             <label htmlFor="name">Name:</label>
             <input
+              style={{ marginBottom: "20px", padding: "5px 10px" }}
               type="text"
               id="name"
               name="name"
@@ -87,6 +105,7 @@ export default function Theme() {
 
             <label htmlFor="description">Description:</label>
             <textarea
+              style={{ marginBottom: "20px", padding: "5px 10px" }}
               id="description"
               name="description"
               value={description}
@@ -94,7 +113,7 @@ export default function Theme() {
               required
             />
 
-            <label htmlFor="file">File:</label>
+            <label htmlFor="file">Image:</label>
             <input
               type="file"
               id="file"
@@ -103,7 +122,13 @@ export default function Theme() {
               required
             />
 
-            <button type="submit">Upload</button>
+            <button
+              style={{ marginTop: "30px" }}
+              className={styles.btn}
+              type="submit"
+            >
+              Upload
+            </button>
           </form>
         </div>
 
