@@ -26,7 +26,7 @@ const NoMatch = () => {
           </div>
           <div className="mx-8 mt-16 flex flex-col items-center">
             <div className="text-sm text-purple-gitcoinpurple">
-              405 - Page Not Found
+              404 - Page Not Found
             </div>
             <h2 className="text-4xl text-purple-darkpurple text-center">
               Uh oh! You might be a little lost.
