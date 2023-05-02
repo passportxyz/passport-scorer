@@ -22,7 +22,7 @@ import {
   HandIcon,
   StatusOnlineIcon,
 } from "./CustomIcons";
-import { PrimaryBtn } from "./PrimrayBtn";
+import { PrimaryBtn } from "./PrimaryBtn";
 import { Community } from "../utils/account-requests";
 
 export interface UseCaseInterface {
