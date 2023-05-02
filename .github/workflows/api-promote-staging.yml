@@ -193,6 +193,8 @@ jobs:
           ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
           DOMAIN: ${{ secrets.DOMAIN_STAGING }}
           SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN }}
+          FLOWER_USER: ${{ secrets.FLOWER_USER }}
+          FLOWER_PASSWORD: ${{ secrets.FLOWER_PASSWORD }}
 
           DB_USER: ${{ secrets.DB_USER_STAGING }}
           DB_NAME: ${{ secrets.DB_NAME_STAGING }}
