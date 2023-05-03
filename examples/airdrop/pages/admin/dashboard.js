@@ -149,15 +149,17 @@ export default function Dashboard({ data }) {
             >
               Admin Dashboard
             </h1>
-            <Link
-              href="/admin/theme"
-              style={{
-                color: "blue",
-                textDecoration: "underline",
-              }}
-            >
-              Configure Theme
-            </Link>
+            <div style={{ marginTop: "5px" }}>
+              <Link
+                href="/admin/theme"
+                style={{
+                  color: "rgba(111,63,245,0.9)",
+                  textDecoration: "underline",
+                }}
+              >
+                Configure Theme
+              </Link>
+            </div>
           </div>
           <div
             style={{
