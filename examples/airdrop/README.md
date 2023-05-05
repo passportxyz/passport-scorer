@@ -19,6 +19,8 @@ This sample app connects to a user's wallet, then fetches their passport score f
 
 ![Create scorer](./screenshots/create_scorer.png)
 
+3. Run migrations `npx knex migrate:latest`
+
 ### Start the app
 
 Now you can start the app by running:

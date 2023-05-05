@@ -1,6 +1,5 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 const axios = require("axios");
-require("dotenv").config();
 
 export default async function handler(req, res) {
   // This endpoint will call /registry/signing-message and return the message that needs to be signed by the user

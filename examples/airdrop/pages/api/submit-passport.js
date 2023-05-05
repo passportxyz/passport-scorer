@@ -1,5 +1,4 @@
 const axios = require("axios");
-require("dotenv").config();
 
 export default async function handler(req, res) {
   const { address, community, signature, nonce } = req.body;

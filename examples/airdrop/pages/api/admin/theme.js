@@ -1,8 +1,7 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
-const sqlite3 = require("sqlite3");
-const { open } = require("sqlite");
 const formidable = require("formidable");
 const fs = require("fs");
+import db from "../../../db";
 
 export const config = {
   api: {
@@ -23,15 +22,11 @@ const handler = async (req, res) => {
       console.log("file: ", file);
 
       // Perform other tasks, like saving data to the database or calling other APIs.
-      const db = await open({
-        filename: "airdrop.db",
-        driver: sqlite3.Database,
+      await db("theme").insert({
+        name: name,
+        description: description,
+        image: file.data,
       });
-      await db.run(
-        "INSERT INTO theme (name, description, image) VALUES (?, ?, ?)",
-        [name, description, file.data]
-      );
-      await db.close();
 
       res.status(200).json({
         success: true,
@@ -39,6 +34,7 @@ const handler = async (req, res) => {
         data: { name, description, filename: file.name },
       });
     } catch (error) {
+      console.log(error);
       res
         .status(500)
         .json({ success: false, message: "File upload failed", error });
