@@ -14,6 +14,7 @@ import {
   faGaugeSimple,
   faLayerGroup,
 } from "@fortawesome/free-solid-svg-icons";
+import db from "../../db";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -249,7 +250,7 @@ export default function Dashboard({ data }) {
 }
 
 export async function getServerSideProps(context) {
-  const { data } = await axios.get("http://localhost:3000/api/admin/airdrop");
+  const data = await db.select("*").from("airdrop_addresses");
   // Return the fetched data as props
   return {
     props: {
