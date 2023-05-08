@@ -106,10 +106,23 @@ class AccountAPIKey(AbstractAPIKey):
         blank=True,
     )
 
+    permissions = models.OneToOneField(
+        "APIKeyPermissions", on_delete=models.CASCADE, null=True, blank=True
+    )
+
     def rate_limit_display(self):
         if self.rate_limit == "" or self.rate_limit is None:
             return "Unlimited"
         return str(RateLimits(self.rate_limit))
+
+
+class APIKeyPermissions(models.Model):
+    submit_passports = models.BooleanField(default=True)
+    read_scores = models.BooleanField(default=True)
+    create_scorers = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Permissions (submit_passports: {self.submit_passports}, read_scores: {self.read_scores}, create_scorers: {self.create_scorers})"
 
 
 class AccountAPIKeyAnalytics(models.Model):
@@ -157,6 +170,8 @@ class Community(models.Model):
         max_length=100,
         help_text="The use case that the creator of this community (Scorer) would like to cover",
     )
+
+    allo_scorer_id = models.CharField(max_length=42, unique=True, null=True, blank=True)
 
     def __repr__(self):
         return f"<Community {self.name}>"
