@@ -268,8 +268,8 @@ def get_passport_stamps(
         cacheStamps = list(query[:limit])
 
     has_more_stamps = has_prev_stamps = False
-
     next_id = prev_id = 0
+
     if cacheStamps:
         next_id = cacheStamps[-1].pk
         prev_id = cacheStamps[0].pk
