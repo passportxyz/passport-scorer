@@ -3,7 +3,6 @@ from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
-from registry.models import Passport, Stamp
 from web3 import Web3
 
 User = get_user_model()
@@ -69,6 +68,37 @@ class TestPassportGetStamps:
 
         assert response.status_code == 200
         assert len(response_data["items"]) == 0
+
+    def test_get_stamps_only_includes_this_address(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        paginated_stamps,
+    ):
+        paginated_stamps.reverse()
+        last_stamp = paginated_stamps[-1]
+
+        # Add another stamp with a different address
+        CeramicCache.objects.create(
+            address=passport_holder_addresses[1]["address"],
+            provider=last_stamp.provider,
+            stamp=last_stamp.stamp,
+        )
+
+        limit = 20
+
+        client = Client()
+        response = client.get(
+            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert response.status_code == 200
+
+        response_data = response.json()
+        assert len(response_data["items"]) == len(paginated_stamps)
+
+        assert len(CeramicCache.objects.all()) == len(paginated_stamps) + 1
 
     def test_get_stamps_returns_first_page_stamps(
         self,
