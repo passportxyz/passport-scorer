@@ -10,7 +10,7 @@ client = Client()
 pytestmark = pytest.mark.django_db
 
 
-def test_create_allo_scorer_success(scorer_account):
+def test_create_generic_scorer_success(scorer_account):
     permissions = APIKeyPermissions.objects.create(
         submit_passports=True, read_scores=True, create_scorers=True
     )
@@ -18,10 +18,10 @@ def test_create_allo_scorer_success(scorer_account):
         account=scorer_account, name="Test API key", permissions=permissions
     )
 
-    payload = {"name": "Test Community", "allo_scorer_id": "0x0000"}
+    payload = {"name": "Test Community", "external_scorer_id": "0x0000"}
 
     response = client.post(
-        "/registry/allo/communities",
+        "/registry/generic/communities",
         json.dumps(payload),
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Token {secret}",
@@ -31,7 +31,7 @@ def test_create_allo_scorer_success(scorer_account):
     assert response.status_code == 200
     assert response_data["ok"] == True
     assert "scorer_id" in response_data
-    assert "allo_scorer_id" in response_data
+    assert "external_scorer_id" in response_data
 
     # Verify the community was created in the database
     community = Community.objects.get(pk=response_data["scorer_id"])

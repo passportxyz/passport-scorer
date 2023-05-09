@@ -80,6 +80,6 @@ class ErrorMessageResponse(Schema):
     detail: str
 
 
-class AlloCommunityPayload(Schema):
+class GenericCommunityPayload(Schema):
     name: str
-    allo_scorer_id: str
+    external_scorer_id: str

@@ -171,7 +171,9 @@ class Community(models.Model):
         help_text="The use case that the creator of this community (Scorer) would like to cover",
     )
 
-    allo_scorer_id = models.CharField(max_length=42, unique=True, null=True, blank=True)
+    external_scorer_id = models.CharField(
+        max_length=42, unique=True, null=True, blank=True
+    )
 
     def __repr__(self):
         return f"<Community {self.name}>"

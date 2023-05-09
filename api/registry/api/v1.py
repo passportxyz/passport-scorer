@@ -44,11 +44,11 @@ from ..exceptions import (
 from ..tasks import score_passport
 from .base import ApiKey, check_rate_limit, community_requires_signature, get_scorer_id
 from .schema import (
-    AlloCommunityPayload,
     CursorPaginatedScoreResponse,
     CursorPaginatedStampCredentialResponse,
     DetailedScoreResponse,
     ErrorMessageResponse,
+    GenericCommunityPayload,
     SigningMessageResponse,
     SubmitPassportPayload,
 )
@@ -324,8 +324,8 @@ def get_passport_stamps(
     return response
 
 
-@router.post("/allo/communities", auth=ApiKey())
-def create_allo_scorer(request, payload: AlloCommunityPayload):
+@router.post("/generic/communities", auth=ApiKey())
+def create_generic_scorer(request, payload: GenericCommunityPayload):
     try:
         # Get the authenticated user's account
         user_account = Account.objects.get(user=request.user)
@@ -344,7 +344,7 @@ def create_allo_scorer(request, payload: AlloCommunityPayload):
             account=user_account, deleted_at=None
         )
 
-        if account_communities.count() >= settings.ALLO_COMMUNITY_CREATION_LIMIT:
+        if account_communities.count() >= settings.GENERIC_COMMUNITY_CREATION_LIMIT:
             raise TooManyCommunitiesException()
 
         if account_communities.filter(name=payload.name).exists():
@@ -365,13 +365,13 @@ def create_allo_scorer(request, payload: AlloCommunityPayload):
             use_case="Sybil Protection",
             rule=Rules.LIFO,
             scorer=scorer,
-            allo_scorer_id=payload.allo_scorer_id,
+            external_scorer_id=payload.external_scorer_id,
         )
 
         return {
             "ok": True,
             "scorer_id": community.pk,
-            "allo_scorer_id": community.allo_scorer_id,
+            "external_scorer_id": community.external_scorer_id,
         }
 
     except Account.DoesNotExist:
