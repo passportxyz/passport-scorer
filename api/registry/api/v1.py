@@ -18,10 +18,11 @@ from account.models import (
     WeightedScorer,
 )
 from django.conf import settings
+from ceramic_cache.models import CeramicCache
 from django.shortcuts import get_object_or_404
 from ninja import Router
 from ninja.pagination import paginate
-from registry.models import Passport, Score, Stamp
+from registry.models import Passport, Score
 from registry.permissions import ResearcherPermission
 from registry.utils import (
     decode_cursor,
@@ -258,7 +259,7 @@ This endpoint will return a `CursorPaginatedStampCredentialResponse`.\n
 """,
 )
 def get_passport_stamps(
-    request, address: str, token: str = None, limit: int = 1000
+    request, address: str, token: str = "", limit: int = 1000
 ) -> CursorPaginatedStampCredentialResponse:
     check_rate_limit(request)
 
@@ -267,35 +268,32 @@ def get_passport_stamps(
 
     # ref: https://medium.com/swlh/how-to-implement-cursor-pagination-like-a-pro-513140b65f32
 
-    query = (
-        Stamp.objects.order_by("-id")
-        .filter(passport__address=address.lower())
-        .select_related("passport")
-    )
+    query = CeramicCache.objects.order_by("-id").filter(address=address.lower())
 
     direction, id = decode_cursor(token) if token else (None, None)
 
     if direction == "next":
         # note we use lt here because we're querying in descending order
-        stamps = list(query.filter(id__lt=id)[:limit])
+        cacheStamps = list(query.filter(id__lt=id)[:limit])
 
     elif direction == "prev":
-        stamps = list(query.filter(id__gt=id).order_by("id")[:limit])
-        stamps.reverse()
+        cacheStamps = list(query.filter(id__gt=id).order_by("id")[:limit])
+        cacheStamps.reverse()
 
     else:
-        stamps = list(query[:limit])
+        cacheStamps = list(query[:limit])
 
     has_more_stamps = has_prev_stamps = False
+    next_id = prev_id = 0
 
-    if stamps:
-        next_id = stamps[-1].id
-        prev_id = stamps[0].id
+    if cacheStamps:
+        next_id = cacheStamps[-1].pk
+        prev_id = cacheStamps[0].pk
 
         has_more_stamps = query.filter(id__lt=next_id).exists()
         has_prev_stamps = query.filter(id__gt=prev_id).exists()
 
-    stamps = [{"version": "1.0.0", "credential": stamp.credential} for stamp in stamps]
+    stamps = [{"version": "1.0.0", "credential": cache.stamp} for cache in cacheStamps]
 
     domain = request.build_absolute_uri("/")[:-1]
 
