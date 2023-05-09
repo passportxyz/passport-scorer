@@ -1,9 +1,23 @@
 from typing import List
 
 import api_logging as logging
+from account.api import (
+    CommunityExistsException,
+    CommunityHasNoNameException,
+    TooManyCommunitiesException,
+    UnauthorizedException,
+)
 
 # --- Deduplication Modules
-from account.models import Account, Community, Nonce
+from account.models import (
+    Account,
+    AccountAPIKey,
+    Community,
+    Nonce,
+    Rules,
+    WeightedScorer,
+)
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from ninja import Router
 from ninja.pagination import paginate
@@ -19,6 +33,7 @@ from registry.utils import (
 )
 
 from ..exceptions import (
+    InvalidAPIKeyPermissions,
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
     InvalidNonceException,
@@ -28,6 +43,7 @@ from ..exceptions import (
 from ..tasks import score_passport
 from .base import ApiKey, check_rate_limit, community_requires_signature, get_scorer_id
 from .schema import (
+    AlloCommunityPayload,
     CursorPaginatedScoreResponse,
     CursorPaginatedStampCredentialResponse,
     DetailedScoreResponse,
@@ -308,6 +324,60 @@ def get_passport_stamps(
     )
 
     return response
+
+
+@router.post("/allo/communities", auth=ApiKey())
+def create_allo_scorer(request, payload: AlloCommunityPayload):
+    try:
+        # Get the authenticated user's account
+        user_account = Account.objects.get(user=request.user)
+
+        # Get the associated AccountAPIKey with the account
+        account_api_key = AccountAPIKey.objects.get(account=user_account)
+
+        # Get the associated APIKeyPermissions with the AccountAPIKey
+        api_key_permissions = account_api_key.permissions
+
+        # Check if the user has the required permission to create a community
+        if not api_key_permissions.create_scorers:
+            raise InvalidAPIKeyPermissions()
+
+        account_communities = Community.objects.filter(
+            account=user_account, deleted_at=None
+        )
+
+        if account_communities.count() >= settings.ALLO_COMMUNITY_CREATION_LIMIT:
+            raise TooManyCommunitiesException()
+
+        if account_communities.filter(name=payload.name).exists():
+            raise CommunityExistsException()
+
+        if len(payload.name) == 0:
+            raise CommunityHasNoNameException()
+
+        # Create a default scorer
+        scorer = WeightedScorer()
+
+        scorer.save()
+
+        community = Community.objects.create(
+            account=user_account,
+            name=payload.name,
+            description="Programmatically created by Allo",
+            use_case="Sybil Protection",
+            rule=Rules.LIFO,
+            scorer=scorer,
+            allo_scorer_id=payload.allo_scorer_id,
+        )
+
+        return {
+            "ok": True,
+            "scorer_id": community.pk,
+            "allo_scorer_id": community.allo_scorer_id,
+        }
+
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
 
 
 @analytics_router.get("/score/", auth=ApiKey(), response=CursorPaginatedScoreResponse)
