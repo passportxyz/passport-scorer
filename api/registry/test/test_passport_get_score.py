@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import Client
+from registry import permissions
 from registry.models import Passport, Score
 from web3 import Web3
 
@@ -227,7 +228,7 @@ class TestPassportGetScore:
 
     def test_cannot_get_single_score_for_address_in_path_for_other_community(
         self,
-        scorer_api_key,
+        scorer_api_key_permissions,
         passport_holder_addresses,
         scorer_community,
         paginated_scores,
@@ -243,7 +244,9 @@ class TestPassportGetScore:
 
         account = Account.objects.create(user=user, address=web3_account.address)
         (_, api_key) = AccountAPIKey.objects.create_key(
-            account=account, name="Token for user 1"
+            account=account,
+            name="Token for user 1",
+            permissions=scorer_api_key_permissions,
         )
 
         client = Client()
@@ -281,7 +284,7 @@ class TestPassportGetScore:
         assert response.status_code == 200
 
     def test_cannot_get_score_for_other_community(
-        self, scorer_community, scorer_api_key
+        self, scorer_community, scorer_api_key_permissions
     ):
         """Test that a user can't get scores for a community they don't belong to."""
         # Create another user, account & api key
@@ -292,7 +295,9 @@ class TestPassportGetScore:
 
         account = Account.objects.create(user=user, address=web3_account.address)
         (_, api_key) = AccountAPIKey.objects.create_key(
-            account=account, name="Token for user 1"
+            account=account,
+            name="Token for user 1",
+            permissions=scorer_api_key_permissions,
         )
 
         client = Client()

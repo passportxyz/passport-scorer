@@ -46,7 +46,9 @@ def test_authentication_is_required_token(api_path_that_requires_auth):
     assert response.status_code == 401
 
 
-def test_authentication_works_with_token(api_path_that_requires_auth, scorer_user):
+def test_authentication_works_with_token(
+    api_path_that_requires_auth, scorer_user, scorer_api_key_permissions
+):
     """
     Test that API key is accepted if it is valid token and present in the HTTP_AUTHORIZATION header
     """
@@ -60,7 +62,7 @@ def test_authentication_works_with_token(api_path_that_requires_auth, scorer_use
     account = Account.objects.create(user=scorer_user, address=web3_account.address)
 
     (_, secret) = AccountAPIKey.objects.create_key(
-        account=account, name="Token for user 1"
+        account=account, name="Token for user 1", permissions=scorer_api_key_permissions
     )
 
     method_fn = client.get
@@ -94,7 +96,9 @@ def test_authentication_is_required_api_key(api_path_that_requires_auth):
     assert response.status_code == 401
 
 
-def test_authentication_works_with_api_key(api_path_that_requires_auth, scorer_user):
+def test_authentication_works_with_api_key(
+    api_path_that_requires_auth, scorer_user, scorer_api_key_permissions
+):
     """
     Test that API key is accepted if it is valid and present in HTTP_X-API-Key header"""
     method, path = api_path_that_requires_auth
@@ -107,7 +111,7 @@ def test_authentication_works_with_api_key(api_path_that_requires_auth, scorer_u
     account = Account.objects.create(user=scorer_user, address=web3_account.address)
 
     (_, secret) = AccountAPIKey.objects.create_key(
-        account=account, name="Token for user 1"
+        account=account, name="Token for user 1", permissions=scorer_api_key_permissions
     )
 
     method_fn = client.get
