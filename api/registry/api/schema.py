@@ -78,3 +78,8 @@ class SigningMessageResponse(Schema):
 
 class ErrorMessageResponse(Schema):
     detail: str
+
+
+class AlloCommunityPayload(Schema):
+    name: str
+    allo_scorer_id: str
