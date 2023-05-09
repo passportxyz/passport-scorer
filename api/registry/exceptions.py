@@ -65,7 +65,7 @@ class NotFoundApiException(APIException):
 
 class InvalidAPIKeyPermissions(APIException):
     status_code = status.HTTP_403_FORBIDDEN
-    default_detail = "Invalid permissions for creating scorer"
+    default_detail = "Invalid permissions for action."
 
 
 def api_get_object_or_404(klass, *args, **kwargs):

@@ -60,6 +60,15 @@ router = Router()
 analytics_router = Router()
 
 
+def get_api_key_permissions(account: Account):
+    # Get the associated AccountAPIKey with the account
+    account_api_key = AccountAPIKey.objects.get(account=account)
+
+    # Get the associated APIKeyPermissions with the AccountAPIKey
+    api_key_permissions = account_api_key.permissions
+    return api_key_permissions
+
+
 @router.get(
     "/signing-message",
     auth=ApiKey(),
@@ -103,6 +112,11 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
     log.debug("/submit-passport, payload=%s", payload)
 
     account = request.auth
+
+    permissions = get_api_key_permissions(account)
+
+    if not permissions.submit_passports:
+        raise InvalidAPIKeyPermissions()
 
     return handle_submit_passport(payload, account)
 
@@ -173,6 +187,12 @@ This endpoint will return a `DetailedScoreResponse`. This endpoint will also ret
 def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
     check_rate_limit(request)
     account = request.auth
+
+    permissions = get_api_key_permissions(account)
+
+    if not permissions.read_scores:
+        raise InvalidAPIKeyPermissions()
+
     return handle_get_score(address, scorer_id, account)
 
 
@@ -220,6 +240,11 @@ def get_scores(
     check_rate_limit(request)
     if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
+
+    permissions = get_api_key_permissions(request.auth)
+
+    if not permissions.read_scores:
+        raise InvalidAPIKeyPermissions()
 
     # Get community object
     user_community = api_get_object_or_404(
@@ -327,22 +352,15 @@ def get_passport_stamps(
 @router.post("/generic/communities", auth=ApiKey())
 def create_generic_scorer(request, payload: GenericCommunityPayload):
     try:
-        # Get the authenticated user's account
-        user_account = Account.objects.get(user=request.user)
-
-        # Get the associated AccountAPIKey with the account
-        account_api_key = AccountAPIKey.objects.get(account=user_account)
-
+        account = request.auth
         # Get the associated APIKeyPermissions with the AccountAPIKey
-        api_key_permissions = account_api_key.permissions
+        api_key_permissions = get_api_key_permissions(account)
 
         # Check if the user has the required permission to create a community
         if not api_key_permissions.create_scorers:
             raise InvalidAPIKeyPermissions()
 
-        account_communities = Community.objects.filter(
-            account=user_account, deleted_at=None
-        )
+        account_communities = Community.objects.filter(account=account, deleted_at=None)
 
         if account_communities.count() >= settings.GENERIC_COMMUNITY_CREATION_LIMIT:
             raise TooManyCommunitiesException()
@@ -359,7 +377,7 @@ def create_generic_scorer(request, payload: GenericCommunityPayload):
         scorer.save()
 
         community = Community.objects.create(
-            account=user_account,
+            account=account,
             name=payload.name,
             description="Programmatically created by Allo",
             use_case="Sybil Protection",
