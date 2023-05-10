@@ -1,0 +1,27 @@
+{
+  "name": "my-passport-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@chakra-ui/react": "^2.6.1",
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "@types/node": "18.15.11",
+    "@types/react": "18.0.33",
+    "@types/react-dom": "18.0.11",
+    "eslint": "8.37.0",
+    "eslint-config-next": "13.2.4",
+    "ethers": "^6.2.3",
+    "framer-motion": "^10.12.9",
+    "next": "13.2.4",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "typescript": "5.0.3"
+  }
+}
