@@ -41,6 +41,12 @@ class CursorPaginatedStampCredentialResponse(Schema):
     items: List[StampCredentialResponse]
 
 
+class GenericCommunityResponse(Schema):
+    ok: bool
+    scorer_id: str
+    external_scorer_id: str
+
+
 class DetailedScoreResponse(Schema):
     address: str
     score: Optional[str]
@@ -82,4 +88,5 @@ class ErrorMessageResponse(Schema):
 
 class GenericCommunityPayload(Schema):
     name: str
+    description: str = "Programmatically created by Allo"
     external_scorer_id: str

@@ -1,12 +1,7 @@
 from typing import List
 
 import api_logging as logging
-from account.api import (
-    CommunityExistsException,
-    CommunityHasNoNameException,
-    TooManyCommunitiesException,
-    UnauthorizedException,
-)
+from account.api import UnauthorizedException, create_community_for_account
 
 # --- Deduplication Modules
 from account.models import (
@@ -49,6 +44,7 @@ from .schema import (
     DetailedScoreResponse,
     ErrorMessageResponse,
     GenericCommunityPayload,
+    GenericCommunityResponse,
     SigningMessageResponse,
     SubmitPassportPayload,
 )
@@ -334,38 +330,31 @@ def get_passport_stamps(
     return response
 
 
-@router.post("/communities/generic", auth=ApiKey())
+@router.post(
+    "/communities/generic",
+    auth=ApiKey(),
+    response={
+        200: GenericCommunityResponse,
+        400: ErrorMessageResponse,
+        401: ErrorMessageResponse,
+    },
+    summary="Programmatically create a generic scorer",
+    description="""This endpoint allows the creation of new scorers.\n
+You must have the correct permissions to make requests to this endpoint.\n
+Anyone can go to https://www.scorer.gitcoin.co/ and create a new scorer via the UI.\n
+""",
+)
 def create_generic_scorer(request, payload: GenericCommunityPayload):
     try:
         account = request.auth
-
-        # Check if the user has the required permission to create a community
         if not request.api_key.permissions.create_scorers:
             raise InvalidAPIKeyPermissions()
 
-        account_communities = Community.objects.filter(account=account, deleted_at=None)
-
-        if account_communities.count() >= settings.GENERIC_COMMUNITY_CREATION_LIMIT:
-            raise TooManyCommunitiesException()
-
-        if account_communities.filter(name=payload.name).exists():
-            raise CommunityExistsException()
-
-        if len(payload.name) == 0:
-            raise CommunityHasNoNameException()
-
-        # Create a default scorer
-        scorer = WeightedScorer()
-
-        scorer.save()
-
-        community = Community.objects.create(
-            account=account,
-            name=payload.name,
-            description="Programmatically created by Allo",
-            use_case="Sybil Protection",
-            rule=Rules.LIFO,
-            scorer=scorer,
+        community = create_community_for_account(
+            account,
+            payload,
+            settings.GENERIC_COMMUNITY_CREATION_LIMIT,
+            WeightedScorer,
             external_scorer_id=payload.external_scorer_id,
         )
 
