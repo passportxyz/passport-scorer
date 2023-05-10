@@ -115,6 +115,11 @@ class AccountAPIKey(AbstractAPIKey):
             return "Unlimited"
         return str(RateLimits(self.rate_limit))
 
+    def save(self, *args, **kwargs):
+        if self.permissions == None:
+            self.permissions = APIKeyPermissions.objects.create()
+        super().save(*args, **kwargs)
+
 
 class APIKeyPermissions(models.Model):
     submit_passports = models.BooleanField(default=True)
