@@ -60,15 +60,6 @@ router = Router()
 analytics_router = Router()
 
 
-def get_api_key_permissions(account: Account):
-    # Get the associated AccountAPIKey with the account
-    account_api_key = AccountAPIKey.objects.get(account=account)
-
-    # Get the associated APIKeyPermissions with the AccountAPIKey
-    api_key_permissions = account_api_key.permissions
-    return api_key_permissions
-
-
 @router.get(
     "/signing-message",
     auth=ApiKey(),
@@ -113,9 +104,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
 
     account = request.auth
 
-    permissions = get_api_key_permissions(account)
-
-    if not permissions.submit_passports:
+    if request.api_key and not request.api_key.permissions.submit_passports:
         raise InvalidAPIKeyPermissions()
 
     return handle_submit_passport(payload, account)
@@ -188,9 +177,7 @@ def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
     check_rate_limit(request)
     account = request.auth
 
-    permissions = get_api_key_permissions(account)
-
-    if not permissions.read_scores:
+    if request.api_key and not request.api_key.permissions.read_scores:
         raise InvalidAPIKeyPermissions()
 
     return handle_get_score(address, scorer_id, account)
@@ -241,9 +228,7 @@ def get_scores(
     if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
 
-    permissions = get_api_key_permissions(request.auth)
-
-    if not permissions.read_scores:
+    if request.api_key and not request.api_key.permissions.read_scores:
         raise InvalidAPIKeyPermissions()
 
     # Get community object
@@ -349,15 +334,13 @@ def get_passport_stamps(
     return response
 
 
-@router.post("/generic/communities", auth=ApiKey())
+@router.post("/communities/generic", auth=ApiKey())
 def create_generic_scorer(request, payload: GenericCommunityPayload):
     try:
         account = request.auth
-        # Get the associated APIKeyPermissions with the AccountAPIKey
-        api_key_permissions = get_api_key_permissions(account)
 
         # Check if the user has the required permission to create a community
-        if not api_key_permissions.create_scorers:
+        if request.api_key and not request.api_key.permissions.create_scorers:
             raise InvalidAPIKeyPermissions()
 
         account_communities = Community.objects.filter(account=account, deleted_at=None)
