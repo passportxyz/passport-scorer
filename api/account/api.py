@@ -312,10 +312,8 @@ def create_community_for_account(
         raise CommunityHasNoNameException()
 
     if (
-        payload.external_scorer_id
-        and account_communities.filter(
-            external_scorer_id=payload.external_scorer_id
-        ).exists()
+        external_scorer_id
+        and account_communities.filter(external_scorer_id=external_scorer_id).exists()
     ):
         raise CommunityExistsExceptionExternalId()
 
@@ -352,7 +350,7 @@ def create_community(request, payload: CommunitiesPayload):
             if payload.scorer == "WEIGHTED_BINARY"
             else WeightedScorer
         )
-        community = create_community_for_account(
+        create_community_for_account(
             account,
             payload,
             5,
