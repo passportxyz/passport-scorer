@@ -169,7 +169,7 @@ def handle_submit_passport(
 This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
 """,
 )
-def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
+def get_score(request, address: str, scorer_id: int | str) -> DetailedScoreResponse:
     check_rate_limit(request)
     account = request.auth
 
@@ -180,10 +180,10 @@ def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
 
 
 def handle_get_score(
-    address: str, scorer_id: int, account: Account
+    address: str, scorer_id: int | str, account: Account
 ) -> DetailedScoreResponse:
     # Get community object
-    user_community = api_get_object_or_404(Community, id=scorer_id, account=account)
+    user_community = get_scorer_by_id(scorer_id, account)
 
     try:
         lower_address = address.lower()
@@ -199,6 +199,13 @@ def handle_get_score(
             exc_info=True,
         )
         raise InvalidCommunityScoreRequestException() from e
+
+
+def get_scorer_by_id(scorer_id: int | str, account: Account) -> Community:
+    try:
+        return Community.objects.get(external_scorer_id=scorer_id, account=account)
+    except Exception:
+        return api_get_object_or_404(Community, id=scorer_id, account=account)
 
 
 @router.get(
@@ -218,7 +225,7 @@ Pass a limit and offset query parameter to paginate the results. For example: `/
 )
 @paginate(pass_parameter="pagination_info")
 def get_scores(
-    request, scorer_id: int, address: str = "", **kwargs
+    request, scorer_id: int | str, address: str = "", **kwargs
 ) -> List[DetailedScoreResponse]:
     check_rate_limit(request)
     if kwargs["pagination_info"].limit > 1000:
@@ -228,13 +235,11 @@ def get_scores(
         raise InvalidAPIKeyPermissions()
 
     # Get community object
-    user_community = api_get_object_or_404(
-        Community, id=scorer_id, account=request.auth
-    )
+    user_community = get_scorer_by_id(scorer_id, request.auth)
 
     try:
         scores = Score.objects.filter(
-            passport__community__id=user_community.id
+            passport__community__id=user_community.pk
         ).select_related("passport")
 
         if address:
