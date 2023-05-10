@@ -104,7 +104,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
 
     account = request.auth
 
-    if request.api_key and not request.api_key.permissions.submit_passports:
+    if not request.api_key.permissions.submit_passports:
         raise InvalidAPIKeyPermissions()
 
     return handle_submit_passport(payload, account)
@@ -177,7 +177,7 @@ def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
     check_rate_limit(request)
     account = request.auth
 
-    if request.api_key and not request.api_key.permissions.read_scores:
+    if not request.api_key.permissions.read_scores:
         raise InvalidAPIKeyPermissions()
 
     return handle_get_score(address, scorer_id, account)
@@ -228,7 +228,7 @@ def get_scores(
     if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
 
-    if request.api_key and not request.api_key.permissions.read_scores:
+    if not request.api_key.permissions.read_scores:
         raise InvalidAPIKeyPermissions()
 
     # Get community object
@@ -340,7 +340,7 @@ def create_generic_scorer(request, payload: GenericCommunityPayload):
         account = request.auth
 
         # Check if the user has the required permission to create a community
-        if request.api_key and not request.api_key.permissions.create_scorers:
+        if not request.api_key.permissions.create_scorers:
             raise InvalidAPIKeyPermissions()
 
         account_communities = Community.objects.filter(account=account, deleted_at=None)
