@@ -99,8 +99,6 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
 
 class APIKeyPermissionsAdmin(admin.ModelAdmin):
     list_display = ("id", "submit_passports", "read_scores", "create_scorers")
-    search_fields = "id"
-    # raw_id_fields = ("user",)
 
 
 admin.site.register(Account, AccountAdmin)
