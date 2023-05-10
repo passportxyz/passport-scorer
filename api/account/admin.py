@@ -5,7 +5,7 @@ from django.utils.safestring import mark_safe
 from rest_framework_api_key.admin import APIKeyAdmin
 from scorer_weighted.models import Scorer
 
-from .models import Account, AccountAPIKey, Community, RateLimits
+from .models import Account, AccountAPIKey, APIKeyPermissions, Community, RateLimits
 
 
 class AccountAdmin(admin.ModelAdmin):
@@ -97,6 +97,13 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
     actions = [edit_selected]
 
 
+class APIKeyPermissionsAdmin(admin.ModelAdmin):
+    list_display = ("id", "submit_passports", "read_scores", "create_scorers")
+    search_fields = "id"
+    # raw_id_fields = ("user",)
+
+
 admin.site.register(Account, AccountAdmin)
 admin.site.register(Community, CommunityAdmin)
 admin.site.register(AccountAPIKey, AccountAPIKeyAdmin)
+admin.site.register(APIKeyPermissions, APIKeyPermissionsAdmin)
