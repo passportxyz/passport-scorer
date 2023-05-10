@@ -283,6 +283,31 @@ class TestPassportGetScore:
 
         assert response.status_code == 200
 
+    def test_get_single_score_for_address_without_permissions(
+        self,
+        passport_holder_addresses,
+        scorer_community,
+        scorer_api_key_no_permissions,
+    ):
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}/{passport_holder_addresses[0]['address']}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key_no_permissions,
+        )
+        assert response.status_code == 403
+
+    def test_get_single_score_by_scorer_id_without_permissions(
+        self,
+        scorer_community,
+        scorer_api_key_no_permissions,
+    ):
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key_no_permissions,
+        )
+        assert response.status_code == 403
+
     def test_cannot_get_score_for_other_community(
         self, scorer_community, scorer_api_key_permissions
     ):

@@ -77,6 +77,20 @@ def scorer_api_key(scorer_account, scorer_api_key_permissions):
 
 
 @pytest.fixture
+def scorer_api_key_no_permissions(scorer_account):
+    permissions = APIKeyPermissions.objects.create(
+        submit_passports=False, read_scores=False, create_scorers=False
+    )
+    (_, secret) = AccountAPIKey.objects.create_key(
+        account=scorer_account,
+        name="Token for user 1",
+        rate_limit="3/30seconds",
+        permissions=permissions,
+    )
+    return secret
+
+
+@pytest.fixture
 def scorer_community_with_binary_scorer(mocker, scorer_account):
     mock_settings = {"Facebook": 1, "Google": 1, "Ens": 1}
     # Mock gitcoin scoring settings
