@@ -1,6 +1,6 @@
 import json
 
-from account.models import Account, AccountAPIKey
+from account.models import Account, AccountAPIKey, APIKeyPermissions
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from ninja_jwt.schema import RefreshToken
@@ -166,7 +166,9 @@ class ApiKeyTestCase(TestCase):
 
         # Create API key for first account
         (account_api_key, secret) = AccountAPIKey.objects.create_key(
-            account=self.account, name="Token for user 1"
+            account=self.account,
+            name="Token for user 2",
+            permissions=APIKeyPermissions.objects.create(),
         )
 
         # Forcefully add a "/"
