@@ -48,6 +48,8 @@ router = Router()
 
 analytics_router = Router()
 
+feature_flag_router = Router()
+
 
 @router.get(
     "/signing-message",
@@ -323,7 +325,7 @@ def get_passport_stamps(
     return response
 
 
-@router.post(
+@feature_flag_router.post(
     "/communities/generic",
     auth=ApiKey(),
     response={
