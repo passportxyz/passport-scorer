@@ -4,7 +4,6 @@ from scorer.test.conftest import (
     scorer_account,
     scorer_api_key,
     scorer_api_key_no_permissions,
-    scorer_api_key_permissions,
     scorer_community,
     scorer_passport,
     scorer_score,

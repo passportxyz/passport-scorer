@@ -1,6 +1,6 @@
 import json
 
-from account.models import Account, AccountAPIKey, APIKeyPermissions
+from account.models import Account, AccountAPIKey
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from ninja_jwt.schema import RefreshToken
@@ -176,10 +176,6 @@ class ApiKeyTestCase(TestCase):
         # Forcefully add a "/"
         account_api_key.id = f"{modified_api_key}/SJF"
         account_api_key.prefix = modified_prefix
-
-        updated_permissions = APIKeyPermissions.objects.create()
-
-        account_api_key.permissions = updated_permissions
 
         account_api_key.save()
 

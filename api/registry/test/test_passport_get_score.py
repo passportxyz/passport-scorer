@@ -228,7 +228,6 @@ class TestPassportGetScore:
 
     def test_cannot_get_single_score_for_address_in_path_for_other_community(
         self,
-        scorer_api_key_permissions,
         passport_holder_addresses,
         scorer_community,
         paginated_scores,
@@ -246,7 +245,6 @@ class TestPassportGetScore:
         (_, api_key) = AccountAPIKey.objects.create_key(
             account=account,
             name="Token for user 1",
-            permissions=scorer_api_key_permissions,
         )
 
         client = Client()
@@ -308,9 +306,7 @@ class TestPassportGetScore:
         )
         assert response.status_code == 403
 
-    def test_cannot_get_score_for_other_community(
-        self, scorer_community, scorer_api_key_permissions
-    ):
+    def test_cannot_get_score_for_other_community(self, scorer_community):
         """Test that a user can't get scores for a community they don't belong to."""
         # Create another user, account & api key
         user = User.objects.create_user(username="anoter-test-user", password="12345")
@@ -322,7 +318,6 @@ class TestPassportGetScore:
         (_, api_key) = AccountAPIKey.objects.create_key(
             account=account,
             name="Token for user 1",
-            permissions=scorer_api_key_permissions,
         )
 
         client = Client()

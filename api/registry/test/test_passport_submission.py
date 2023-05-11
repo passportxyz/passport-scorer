@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from account.deduplication import Rules
-from account.models import Account, AccountAPIKey, APIKeyPermissions, Community, Nonce
+from account.models import Account, AccountAPIKey, Community, Nonce
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -322,14 +322,9 @@ class ValidatePassportTestCase(TransactionTestCase):
             account=self.user_account2,
         )
 
-        permissions = APIKeyPermissions.objects.create(
-            submit_passports=True, read_scores=True, create_scorers=True
-        )
-
         (account_api_key, secret) = AccountAPIKey.objects.create_key(
             account=self.user_account,
             name="Token for user 1",
-            permissions=permissions,
         )
         self.account_api_key = account_api_key
         self.secret = secret

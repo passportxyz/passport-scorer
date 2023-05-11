@@ -4,14 +4,7 @@ import api_logging as logging
 from account.api import UnauthorizedException, create_community_for_account
 
 # --- Deduplication Modules
-from account.models import (
-    Account,
-    AccountAPIKey,
-    Community,
-    Nonce,
-    Rules,
-    WeightedScorer,
-)
+from account.models import Account, Community, Nonce, Rules, WeightedScorer
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -100,7 +93,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
 
     account = request.auth
 
-    if not request.api_key.permissions.submit_passports:
+    if not request.api_key.submit_passports:
         raise InvalidAPIKeyPermissions()
 
     return handle_submit_passport(payload, account)
@@ -173,7 +166,7 @@ def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
     check_rate_limit(request)
     account = request.auth
 
-    if not request.api_key.permissions.read_scores:
+    if not request.api_key.read_scores:
         raise InvalidAPIKeyPermissions()
 
     return handle_get_score(address, scorer_id, account)
@@ -224,7 +217,7 @@ def get_scores(
     if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
 
-    if not request.api_key.permissions.read_scores:
+    if not request.api_key.read_scores:
         raise InvalidAPIKeyPermissions()
 
     # Get community object
@@ -347,7 +340,7 @@ Anyone can go to https://www.scorer.gitcoin.co/ and create a new scorer via the 
 def create_generic_scorer(request, payload: GenericCommunityPayload):
     try:
         account = request.auth
-        if not request.api_key.permissions.create_scorers:
+        if not request.api_key.create_scorers:
             raise InvalidAPIKeyPermissions()
 
         community = create_community_for_account(

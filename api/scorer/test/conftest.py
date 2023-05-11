@@ -1,6 +1,6 @@
 # pylint: disable=redefined-outer-name
 import pytest
-from account.models import Account, AccountAPIKey, APIKeyPermissions, Community
+from account.models import Account, AccountAPIKey, Community
 from ceramic_cache.api import DbCacheToken
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -59,33 +59,22 @@ def passport_holder_addresses():
 
 
 @pytest.fixture
-def scorer_api_key_permissions():
-    return APIKeyPermissions.objects.create(
-        submit_passports=True, read_scores=True, create_scorers=True
-    )
-
-
-@pytest.fixture
-def scorer_api_key(scorer_account, scorer_api_key_permissions):
+def scorer_api_key(scorer_account):
     (_, secret) = AccountAPIKey.objects.create_key(
         account=scorer_account,
         name="Token for user 1",
         rate_limit="3/30seconds",
-        permissions=scorer_api_key_permissions,
     )
     return secret
 
 
 @pytest.fixture
 def scorer_api_key_no_permissions(scorer_account):
-    permissions = APIKeyPermissions.objects.create(
-        submit_passports=False, read_scores=False, create_scorers=False
-    )
     (_, secret) = AccountAPIKey.objects.create_key(
         account=scorer_account,
         name="Token for user 1",
         rate_limit="3/30seconds",
-        permissions=permissions,
+        read_scores=False,
     )
     return secret
 

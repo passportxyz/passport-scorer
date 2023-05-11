@@ -2,11 +2,10 @@ import re
 from decimal import Decimal
 from unittest.mock import patch
 
-from account.models import Account, AccountAPIKey, APIKeyPermissions, Community
+from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TransactionTestCase
-from registry import permissions
 from registry.api.v2 import SubmitPassportPayload, get_score, submit_passport
 from registry.models import Passport, Score, Stamp
 from registry.tasks import score_passport
@@ -74,12 +73,8 @@ class TestScorePassportTestCase(TransactionTestCase):
             user=self.user, address=account.address
         )
 
-        permissions = APIKeyPermissions.objects.create(
-            submit_passports=True, read_scores=True, create_scorers=True
-        )
-
         AccountAPIKey.objects.create_key(
-            account=self.user_account, name="Token for user 1", permissions=permissions
+            account=self.user_account, name="Token for user 1"
         )
 
         # Mock the default weights for new communities that are created

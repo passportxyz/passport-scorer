@@ -106,28 +106,14 @@ class AccountAPIKey(AbstractAPIKey):
         blank=True,
     )
 
-    permissions = models.OneToOneField(
-        "APIKeyPermissions", on_delete=models.CASCADE, null=True, blank=True
-    )
+    submit_passports = models.BooleanField(default=True)
+    read_scores = models.BooleanField(default=True)
+    create_scorers = models.BooleanField(default=False)
 
     def rate_limit_display(self):
         if self.rate_limit == "" or self.rate_limit is None:
             return "Unlimited"
         return str(RateLimits(self.rate_limit))
-
-    def save(self, *args, **kwargs):
-        if self.permissions == None:
-            self.permissions = APIKeyPermissions.objects.create()
-        super().save(*args, **kwargs)
-
-
-class APIKeyPermissions(models.Model):
-    submit_passports = models.BooleanField(default=True)
-    read_scores = models.BooleanField(default=True)
-    create_scorers = models.BooleanField(default=False)
-
-    def __str__(self):
-        return f"Permissions (submit_passports: {self.submit_passports}, read_scores: {self.read_scores}, create_scorers: {self.create_scorers})"
 
 
 class AccountAPIKeyAnalytics(models.Model):
