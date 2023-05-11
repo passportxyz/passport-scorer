@@ -168,12 +168,19 @@ class ApiKeyTestCase(TestCase):
         (account_api_key, secret) = AccountAPIKey.objects.create_key(
             account=self.account,
             name="Token for user 2",
-            permissions=APIKeyPermissions.objects.create(),
         )
 
+        modified_api_key = account_api_key.id.replace(account_api_key.id[0:3], "ABC")
+        modified_prefix = modified_api_key.split(".")[0]
+
         # Forcefully add a "/"
-        account_api_key.id = f"PRE{account_api_key.id}/SJF"
-        account_api_key.prefix = f"PRE{account_api_key.prefix}"
+        account_api_key.id = f"{modified_api_key}/SJF"
+        account_api_key.prefix = modified_prefix
+
+        updated_permissions = APIKeyPermissions.objects.create()
+
+        account_api_key.permissions = updated_permissions
+
         account_api_key.save()
 
         client = Client()
