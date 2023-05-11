@@ -38,7 +38,11 @@ interface UserStruct {
 export default function Passport() {
   // here we deal with any local state we need to manage
   const [address, setAddress] = useState<string>('')
-  const [userInfo, setUserInfo] = useState<Array<UserStruct>>([])
+  const [userInfo, setUserInfo] = useState<Array<UserStruct>>([
+    { id: 0, address: '0x3c9840c489bb3b95cbf7a449dba55ab022cf522c', score: 23, stampProviders: [{ id: 0, stamp: 'Github' }, { id: 1, stamp: 'Lens' }] },
+    { id: 1, address: '0x49bbd0c489bb3b95cbf7a44955aa55b022c1fff5', score: 19, stampProviders: [{ id: 0, stamp: 'Github' }, { id: 1, stamp: 'Google' }] },
+    { id: 2, address: '0x5b985cbf40c489b5cbf7ffa449dba55ab022c1fb', score: 15, stampProviders: [{ id: 0, stamp: 'Google' }, { id: 1, stamp: 'Twitter' }] },
+    { id: 3, address: '0x6e9840c41ffb3b95cbf7adba9dba55ab01fff5a4', score: 28, stampProviders: [{ id: 0, stamp: 'Github' }, { id: 1, stamp: 'Lens' }] }])
   const [trustedUsers, setTrustedUsers] = useState<Array<UserStruct>>([])
   const [showTrusted, setShowTrusted] = useState<boolean>(false)
   const [showStamps, setShowStamps] = useState<boolean>(false)
@@ -64,6 +68,7 @@ export default function Passport() {
     try {
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
       setAddress(accounts[0])
+      checkPassport(accounts[0])
     } catch (err) {
       console.log('error connecting...')
     }
@@ -119,12 +124,14 @@ export default function Passport() {
     const id = userInfo.length + 1
     let user: UserStruct = { id: id, address: currentAddress, score: score, stampProviders: stamps }
     console.log(user)
-    if (userInfo.map(user => user.address).includes(currentAddress)) {
+    if (userInfo.map(user => user.address).includes(currentAddress || currentAddress.toUpperCase())) {
       console.log("address already checked")
     } else {
       console.log("adding user to state var")
+      console.log("userInfo", userInfo)
       setUserInfo(userInfo.concat(user))
     }
+    console.log("userInfo", userInfo)
   }
 
 
@@ -226,12 +233,10 @@ export default function Passport() {
           {showTrusted && trustedUsers.map(user => <ul key={user.id}> {user.address} </ul>)}
         </div>
         {showStamps &&
-          <SimpleGrid columns={4} spacing='10px' marginTop={30}>
-            {showTrusted && showStamps && trustedUsers.map(user => user.stampProviders.map(s => <Badge key={s.id} colorScheme='green'>{s.stamp}</Badge>))}
+          <SimpleGrid columns={3} spacing='10px' marginTop={30}>
+            {showTrusted && showStamps && trustedUsers.map(user => user.stampProviders.map(s => <Badge key={s.id} colorScheme='green'>{s.stamp}:{user.address.substring(0, 5)}</Badge>))}
           </SimpleGrid>}
       </ChakraProvider >
     </div >
   )
-
-
 }
