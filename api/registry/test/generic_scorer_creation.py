@@ -19,7 +19,7 @@ def test_create_generic_scorer_success(scorer_account):
     payload = {"name": "Test Community", "external_scorer_id": "0x0000"}
 
     response = client.post(
-        "/registry/communities/generic",
+        "/registry/scorer/generic",
         json.dumps(payload),
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Token {secret}",
@@ -116,7 +116,7 @@ def test_create_generic_scorer_no_name(scorer_account):
     payload = {"name": "", "external_scorer_id": "0x0000"}
 
     response = client.post(
-        "/registry/communities/generic",
+        "/registry/scorer/generic",
         json.dumps(payload),
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Token {secret}",

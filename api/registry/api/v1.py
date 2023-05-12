@@ -326,7 +326,7 @@ def get_passport_stamps(
 
 
 @feature_flag_router.post(
-    "/communities/generic",
+    "/scorer/generic",
     auth=ApiKey(),
     response={
         200: GenericCommunityResponse,
