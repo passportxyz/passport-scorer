@@ -1,10 +1,12 @@
 from typing import List
 
 import api_logging as logging
+from account.api import UnauthorizedException, create_community_for_account
 
 # --- Deduplication Modules
-from account.models import Account, Community, Nonce
+from account.models import Account, Community, Nonce, Rules, WeightedScorer
 from ceramic_cache.models import CeramicCache
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from ninja import Router
 from ninja.pagination import paginate
@@ -20,6 +22,7 @@ from registry.utils import (
 )
 
 from ..exceptions import (
+    InvalidAPIKeyPermissions,
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
     InvalidNonceException,
@@ -33,6 +36,8 @@ from .schema import (
     CursorPaginatedStampCredentialResponse,
     DetailedScoreResponse,
     ErrorMessageResponse,
+    GenericCommunityPayload,
+    GenericCommunityResponse,
     SigningMessageResponse,
     SubmitPassportPayload,
 )
@@ -42,6 +47,8 @@ log = logging.getLogger(__name__)
 router = Router()
 
 analytics_router = Router()
+
+feature_flag_router = Router()
 
 
 @router.get(
@@ -87,6 +94,9 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
     log.debug("/submit-passport, payload=%s", payload)
 
     account = request.auth
+
+    if not request.api_key.submit_passports:
+        raise InvalidAPIKeyPermissions()
 
     return handle_submit_passport(payload, account)
 
@@ -157,6 +167,10 @@ This endpoint will return a `DetailedScoreResponse`. This endpoint will also ret
 def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
     check_rate_limit(request)
     account = request.auth
+
+    if not request.api_key.read_scores:
+        raise InvalidAPIKeyPermissions()
+
     return handle_get_score(address, scorer_id, account)
 
 
@@ -204,6 +218,9 @@ def get_scores(
     check_rate_limit(request)
     if kwargs["pagination_info"].limit > 1000:
         raise InvalidLimitException()
+
+    if not request.api_key.read_scores:
+        raise InvalidAPIKeyPermissions()
 
     # Get community object
     user_community = api_get_object_or_404(
@@ -306,6 +323,44 @@ def get_passport_stamps(
     )
 
     return response
+
+
+@feature_flag_router.post(
+    "/scorer/generic",
+    auth=ApiKey(),
+    response={
+        200: GenericCommunityResponse,
+        400: ErrorMessageResponse,
+        401: ErrorMessageResponse,
+    },
+    summary="Programmatically create a generic scorer",
+    description="""This endpoint allows the creation of new scorers.\n
+You must have the correct permissions to make requests to this endpoint.\n
+Anyone can go to https://www.scorer.gitcoin.co/ and create a new scorer via the UI.\n
+""",
+)
+def create_generic_scorer(request, payload: GenericCommunityPayload):
+    try:
+        account = request.auth
+        if not request.api_key.create_scorers:
+            raise InvalidAPIKeyPermissions()
+
+        community = create_community_for_account(
+            account,
+            payload,
+            settings.GENERIC_COMMUNITY_CREATION_LIMIT,
+            WeightedScorer,
+            external_scorer_id=payload.external_scorer_id,
+        )
+
+        return {
+            "ok": True,
+            "scorer_id": community.pk,
+            "external_scorer_id": community.external_scorer_id,
+        }
+
+    except Account.DoesNotExist:
+        raise UnauthorizedException()
 
 
 @analytics_router.get("/score/", auth=ApiKey(), response=CursorPaginatedScoreResponse)

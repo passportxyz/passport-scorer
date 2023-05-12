@@ -97,6 +97,10 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
     actions = [edit_selected]
 
 
+class APIKeyPermissionsAdmin(admin.ModelAdmin):
+    list_display = ("id", "submit_passports", "read_scores", "create_scorers")
+
+
 admin.site.register(Account, AccountAdmin)
 admin.site.register(Community, CommunityAdmin)
 admin.site.register(AccountAPIKey, AccountAPIKeyAdmin)

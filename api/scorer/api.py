@@ -4,7 +4,7 @@ The scorer API module
 from ceramic_cache.api import router as ceramic_cache_router
 from django_ratelimit.exceptions import Ratelimited
 from ninja import NinjaAPI
-from registry.api.v1 import analytics_router
+from registry.api.v1 import analytics_router, feature_flag_router
 from registry.api.v1 import router as registry_router_v1
 from registry.api.v2 import router as registry_router_v2
 
@@ -28,6 +28,9 @@ def service_unavailable(request, _):
 registry_api_v1.add_router(
     "/registry/", registry_router_v1, tags=["Score your passport"]
 )
+
+feature_flag_api = NinjaAPI(urls_namespace="feature")
+feature_flag_api.add_router("", feature_flag_router)
 
 registry_api_v2.add_router("", registry_router_v2, tags=["Score your passport"])
 

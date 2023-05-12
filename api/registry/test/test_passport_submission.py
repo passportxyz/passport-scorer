@@ -11,6 +11,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
 from eth_account.messages import encode_defunct
+from registry import permissions
 from registry.models import Passport, Stamp
 from registry.tasks import score_passport
 from registry.utils import get_signer, get_signing_message, verify_issuer
@@ -322,7 +323,8 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
 
         (account_api_key, secret) = AccountAPIKey.objects.create_key(
-            account=self.user_account, name="Token for user 1"
+            account=self.user_account,
+            name="Token for user 1",
         )
         self.account_api_key = account_api_key
         self.secret = secret

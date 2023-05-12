@@ -80,6 +80,11 @@ class CommunityExistsException(APIException):
     default_detail = "A community with this name already exists"
 
 
+class CommunityExistsExceptionExternalId(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "A community with this external id already exists"
+
+
 class CommunityHasNoNameException(APIException):
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
     default_detail = "A community must have a name"
@@ -282,8 +287,52 @@ class CommunitiesPayload(Schema):
     name: str
     description: str
     use_case: str
-    rule: str = Rules.LIFO
+    rule = Rules.LIFO
     scorer: str
+
+
+def create_community_for_account(
+    account,
+    payload,
+    limit,
+    default_scorer,
+    use_case="Sybil Protection",
+    rule=Rules.LIFO,
+    external_scorer_id=None,
+):
+    account_communities = Community.objects.filter(account=account, deleted_at=None)
+
+    if account_communities.count() >= limit:
+        raise TooManyCommunitiesException()
+
+    if account_communities.filter(name=payload.name).exists():
+        raise CommunityExistsException()
+
+    if len(payload.name) == 0:
+        raise CommunityHasNoNameException()
+
+    if (
+        external_scorer_id
+        and account_communities.filter(external_scorer_id=external_scorer_id).exists()
+    ):
+        raise CommunityExistsExceptionExternalId()
+
+    # Create the scorer
+    scorer = default_scorer()
+    scorer.save()
+
+    # Create the community
+    community = Community.objects.create(
+        account=account,
+        name=payload.name,
+        description=payload.description,
+        use_case=use_case,
+        rule=rule,
+        scorer=scorer,
+        external_scorer_id=external_scorer_id,
+    )
+
+    return community
 
 
 @api.post("/communities", auth=JWTAuth())
@@ -293,42 +342,27 @@ def create_community(request, payload: CommunitiesPayload):
         if payload == None:
             raise CommunityHasNoBodyException()
 
-        account_communities = Community.objects.filter(account=account, deleted_at=None)
-
-        if account_communities.count() >= 5:
-            raise TooManyCommunitiesException()
-
-        if account_communities.filter(name=payload.name).exists():
-            raise CommunityExistsException()
-
-        if len(payload.name) == 0:
-            raise CommunityHasNoNameException()
-
         if len(payload.description) == 0:
             raise CommunityHasNoDescriptionException()
 
-        scorer = None
-
-        if payload.scorer == "WEIGHTED_BINARY":
-            scorer = BinaryWeightedScorer(type="WEIGHTED_BINARY")
-        else:
-            scorer = WeightedScorer()
-
-        scorer.save()
-
-        Community.objects.create(
-            account=account,
-            name=payload.name,
-            description=payload.description,
+        scorer_class = (
+            BinaryWeightedScorer
+            if payload.scorer == "WEIGHTED_BINARY"
+            else WeightedScorer
+        )
+        create_community_for_account(
+            account,
+            payload,
+            5,
+            scorer_class,
             use_case=payload.use_case,
             rule=payload.rule,
-            scorer=scorer,
         )
+
+        return {"ok": True}
 
     except Account.DoesNotExist:
         raise UnauthorizedException()
-
-    return {"ok": True}
 
 
 @api.get("/communities", auth=JWTAuth(), response=List[CommunityApiSchema])

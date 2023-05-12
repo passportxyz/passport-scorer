@@ -19,11 +19,18 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
-from .api import analytics_api, ceramic_cache_api, registry_api_v1, registry_api_v2
+from .api import (
+    analytics_api,
+    ceramic_cache_api,
+    feature_flag_api,
+    registry_api_v1,
+    registry_api_v2,
+)
 
 urlpatterns = [
     path("", registry_api_v1.urls),
     path("registry/v2/", registry_api_v2.urls),
+    path("registry/feature/", feature_flag_api.urls),
     path("ceramic-cache/", ceramic_cache_api.urls),
     path("analytics/", analytics_api.urls),
     path("health/", health, {}, "health-check"),

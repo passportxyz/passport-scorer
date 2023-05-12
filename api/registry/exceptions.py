@@ -63,6 +63,11 @@ class NotFoundApiException(APIException):
     default_detail = "Not found."
 
 
+class InvalidAPIKeyPermissions(APIException):
+    status_code = status.HTTP_403_FORBIDDEN
+    default_detail = "Invalid permissions for action."
+
+
 def api_get_object_or_404(klass, *args, **kwargs):
     """
     Note: this is an adjusted clone of djangos get_object_or_404

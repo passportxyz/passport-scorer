@@ -106,6 +106,10 @@ class AccountAPIKey(AbstractAPIKey):
         blank=True,
     )
 
+    submit_passports = models.BooleanField(default=True)
+    read_scores = models.BooleanField(default=True)
+    create_scorers = models.BooleanField(default=False)
+
     def rate_limit_display(self):
         if self.rate_limit == "" or self.rate_limit is None:
             return "Unlimited"
@@ -156,6 +160,10 @@ class Community(models.Model):
         null=True,
         max_length=100,
         help_text="The use case that the creator of this community (Scorer) would like to cover",
+    )
+
+    external_scorer_id = models.CharField(
+        max_length=42, unique=True, null=True, blank=True
     )
 
     def __repr__(self):
