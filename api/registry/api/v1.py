@@ -112,7 +112,7 @@ def handle_submit_passport(
         raise e
 
     # Get community object
-    user_community = get_object_or_404(Community, id=scorer_id, account=account)
+    user_community = get_scorer_by_id(scorer_id, account)
 
     # Verify the signer
     if payload.signature or community_requires_signature(user_community):
@@ -150,6 +150,13 @@ def handle_submit_passport(
     )
 
 
+def get_scorer_by_id(scorer_id: int | str, account: Account) -> Community:
+    try:
+        return Community.objects.get(external_scorer_id=scorer_id, account=account)
+    except Exception:
+        return api_get_object_or_404(Community, id=scorer_id, account=account)
+
+
 @router.get(
     "/score/{int:scorer_id}/{str:address}",
     auth=ApiKey(),
@@ -164,7 +171,7 @@ def handle_submit_passport(
 This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
 """,
 )
-def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
+def get_score(request, address: str, scorer_id: int | str) -> DetailedScoreResponse:
     check_rate_limit(request)
     account = request.auth
 
@@ -178,7 +185,7 @@ def handle_get_score(
     address: str, scorer_id: int, account: Account
 ) -> DetailedScoreResponse:
     # Get community object
-    user_community = api_get_object_or_404(Community, id=scorer_id, account=account)
+    user_community = get_scorer_by_id(scorer_id, account)
 
     try:
         lower_address = address.lower()
@@ -223,9 +230,7 @@ def get_scores(
         raise InvalidAPIKeyPermissions()
 
     # Get community object
-    user_community = api_get_object_or_404(
-        Community, id=scorer_id, account=request.auth
-    )
+    user_community = get_scorer_by_id(scorer_id, request.auth)
 
     try:
         scores = Score.objects.filter(
