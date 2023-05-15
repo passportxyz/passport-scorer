@@ -13,5 +13,5 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - runs: |
-        echo Hi
+      - run: |
+          echo Hi
