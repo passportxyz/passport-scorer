@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import Client
 from registry import permissions
+from registry.api.v1 import get_scorer_by_id
 from registry.models import Passport, Score
 from web3 import Web3
 
@@ -593,3 +594,38 @@ class TestPassportGetScore:
         assert response.status_code == 200
         assert len(response_data["items"]) == 1
         assert response_data["next"] == None
+
+    def test_get_scorer_by_id(self, scorer_account):
+        scorer = Community.objects.create(
+            name="The Scorer",
+            description="A great scorer",
+            account=scorer_account,
+            external_scorer_id="scorer1",
+        )
+
+        result = get_scorer_by_id(scorer.pk, scorer_account)
+
+        assert result == scorer
+
+    def test_get_scorer_by_external_id(self, scorer_account):
+        scorer = Community.objects.create(
+            name="The Scorer",
+            description="A great scorer",
+            account=scorer_account,
+            external_scorer_id="scorer1",
+        )
+
+        result = get_scorer_by_id("scorer1", scorer_account)
+
+        assert result == scorer
+
+    def test_get_scorer_by_id_not_found(self, scorer_account):
+        try:
+            get_scorer_by_id(999, scorer_account)
+        except Exception as e:
+            assert str(e) == "No Community matches the given query."
+
+        try:
+            get_scorer_by_id("scorer1", scorer_account)
+        except Exception as e:
+            assert str(e) == "Field 'id' expected a number but got 'scorer1'."
