@@ -1,0 +1,99 @@
+name: Release and Deploy Scorer
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Leave blank to use current HEAD, or provide an override commit SHA"
+        type: string
+        required: false
+
+jobs:
+  ref:
+    name: Load Commit Ref
+    runs-on: ubuntu-latest
+    steps:
+      - id: ref
+        shell: bash
+        # Default to HEAD of the branch from
+        # which this workflow was triggered
+        run: |
+          echo "refspec=${{ needs.ref.outputs.refspec || github.sha }}" >> $GITHUB_OUTPUT
+    outputs:
+      refspec: ${{ steps.ref.outputs.refspec }}
+
+  deploy_staging_frontend:
+    name: Staging Frontend
+    needs: [ref]
+    permissions: write-all
+    uses: gitcoinco/passport-scorer/.github/workflows/interface-promote-staging.yml@main
+    with:
+      commit: ${{ needs.ref.outputs.refspec }}
+    secrets: inherit
+
+  deploy_staging_backend:
+    name: Staging Backend
+    needs: [ref]
+    uses: gitcoinco/passport-scorer/.github/workflows/api-promote-staging.yml@main
+    with:
+      commit: ${{ needs.ref.outputs.refspec }}
+    secrets: inherit
+
+  wait_for_production_approval:
+    name: Production Approval Pending
+    needs: [ref,deploy_staging_backend,deploy_staging_frontend]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Approve Release to Production
+        run: |
+          echo "Approved Production Release for: " ${{ needs.ref.outputs.refspec }}
+
+  # deploy_production_frontend:
+  #   name: Production Frontend
+  #   permissions: write-all
+  #   needs: [ref,wait_for_production_approval]
+  #   uses: gitcoinco/passport-scorer/.github/workflows/interface-promote-prod.yml@main
+  #   with:
+  #     commit: ${{ needs.ref.outputs.refspec }}
+  #   secrets: inherit
+
+  # deploy_production_backend:
+  #   name: Production Backend
+  #   needs: [ref,wait_for_production_approval]
+  #   uses: gitcoinco/passport-scorer/.github/workflows/api-promote-prod.yml@main
+  #   with:
+  #     commit: ${{ needs.ref.outputs.refspec }}
+  #   secrets: inherit
+
+  release:
+    name: Release
+    needs: [ref,deploy_production_backend,deploy_production_frontend]
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: gitcoinco/passport-scorer
+          ref: ${{ needs.ref.outputs.refspec }}
+          fetch-depth: 0
+
+      - name: Version
+        # https://github.com/marketplace/actions/git-semantic-version
+        id: version
+        uses: paulhatch/semantic-version@v5.0.2
+        with:
+          tag_prefix: "v"
+          major_pattern: "(MAJOR)"
+          minor_pattern: "(MINOR)"
+
+      - name: Release
+        # https://github.com/ncipollo/release-action
+        uses: ncipollo/release-action@v1
+        with:
+          generateReleaseNotes: true
+          allowUpdates: true
+          token: ${{ secrets.github_token }}
+          tag: ${{ steps.version.outputs.version_tag }}
+          commit: ${{ needs.ref.outputs.refspec }}
+          draft: false

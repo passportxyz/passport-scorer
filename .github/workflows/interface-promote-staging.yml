@@ -6,6 +6,12 @@ on:
         description: "Branch/Commit ref"
         default: "origin/main"
         type: string
+  workflow_call:
+    inputs:
+      commit:
+        description: "Commit ref"
+        required: true
+        type: string
 jobs:
   ui-test:
     runs-on: ubuntu-latest

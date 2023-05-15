@@ -7,6 +7,12 @@ on:
         description: "Commit ref"
         required: true
         type: string
+  workflow_call:
+    inputs:
+      commit:
+        description: "Commit ref"
+        required: true
+        type: string
 
 jobs:
   ui-test:
