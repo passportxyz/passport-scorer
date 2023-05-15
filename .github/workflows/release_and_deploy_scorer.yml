@@ -49,22 +49,22 @@ jobs:
         run: |
           echo "Approved Production Release for: " ${{ needs.ref.outputs.refspec }}
 
-  # deploy_production_frontend:
-  #   name: Production Frontend
-  #   permissions: write-all
-  #   needs: [ref,wait_for_production_approval]
-  #   uses: gitcoinco/passport-scorer/.github/workflows/interface-promote-prod.yml@main
-  #   with:
-  #     commit: ${{ needs.ref.outputs.refspec }}
-  #   secrets: inherit
+  deploy_production_frontend:
+    name: Production Frontend
+    permissions: write-all
+    needs: [ref,wait_for_production_approval]
+    uses: gitcoinco/passport-scorer/.github/workflows/interface-promote-prod.yml@main
+    with:
+      commit: ${{ needs.ref.outputs.refspec }}
+    secrets: inherit
 
-  # deploy_production_backend:
-  #   name: Production Backend
-  #   needs: [ref,wait_for_production_approval]
-  #   uses: gitcoinco/passport-scorer/.github/workflows/api-promote-prod.yml@main
-  #   with:
-  #     commit: ${{ needs.ref.outputs.refspec }}
-  #   secrets: inherit
+  deploy_production_backend:
+    name: Production Backend
+    needs: [ref,wait_for_production_approval]
+    uses: gitcoinco/passport-scorer/.github/workflows/api-promote-prod.yml@main
+    with:
+      commit: ${{ needs.ref.outputs.refspec }}
+    secrets: inherit
 
   release:
     name: Release
