@@ -26,7 +26,7 @@ jobs:
     name: Staging Frontend
     needs: [ref]
     permissions: write-all
-    uses: gitcoinco/passport-scorer/.github/workflows/interface-promote-staging.yml@main
+    uses: gitcoinco/passport-scorer/.github/workflows/interface-promote-staging.yml@1190-auto-releases-1
     with:
       commit: ${{ needs.ref.outputs.refspec }}
     secrets: inherit
@@ -34,7 +34,7 @@ jobs:
   deploy_staging_backend:
     name: Staging Backend
     needs: [ref]
-    uses: gitcoinco/passport-scorer/.github/workflows/api-promote-staging.yml@main
+    uses: gitcoinco/passport-scorer/.github/workflows/api-promote-staging.yml@1190-auto-releases-1
     with:
       commit: ${{ needs.ref.outputs.refspec }}
     secrets: inherit
@@ -53,7 +53,7 @@ jobs:
     name: Production Frontend
     permissions: write-all
     needs: [ref,wait_for_production_approval]
-    uses: gitcoinco/passport-scorer/.github/workflows/interface-promote-prod.yml@main
+    uses: gitcoinco/passport-scorer/.github/workflows/interface-promote-prod.yml@1190-auto-releases-1
     with:
       commit: ${{ needs.ref.outputs.refspec }}
     secrets: inherit
@@ -61,7 +61,7 @@ jobs:
   deploy_production_backend:
     name: Production Backend
     needs: [ref,wait_for_production_approval]
-    uses: gitcoinco/passport-scorer/.github/workflows/api-promote-prod.yml@main
+    uses: gitcoinco/passport-scorer/.github/workflows/api-promote-prod.yml@1190-auto-releases-1
     with:
       commit: ${{ needs.ref.outputs.refspec }}
     secrets: inherit
