@@ -36,6 +36,6 @@ jobs:
         run: |
           git fetch
           git checkout -b staging-interface origin/staging-interface
-          git reset --hard ${{ github.event.inputs.commit }}
+          git reset --hard ${{ inputs.commit }}
           git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/gitcoinco/passport-scorer.git
           git push origin staging-interface -f

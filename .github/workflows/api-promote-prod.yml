@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.commit }}
+          ref: ${{ inputs.commit }}
 
       - uses: actions/setup-python@v4
         with:
@@ -60,7 +60,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.commit }}
+          ref: ${{ inputs.commit }}
 
       - uses: actions/setup-python@v4
         with:
@@ -103,7 +103,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.commit }}
+          ref: ${{ inputs.commit }}
 
       - uses: actions/setup-python@v4
         with:
