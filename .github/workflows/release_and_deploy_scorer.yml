@@ -1,0 +1,17 @@
+name: Deploy API to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit ref"
+        required: true
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - runs: |
+        echo Hi
