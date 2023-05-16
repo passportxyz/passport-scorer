@@ -19,8 +19,30 @@ jobs:
         # which this workflow was triggered
         run: |
           echo "refspec=${{ inputs.commit || github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Version
+        # https://github.com/marketplace/actions/git-semantic-version
+        id: version
+        uses: paulhatch/semantic-version@v5.0.2
+        with:
+          tag_prefix: "v"
+          major_pattern: "(MAJOR)"
+          minor_pattern: "(MINOR)"
+
+      - name: Release
+        # https://github.com/ncipollo/release-action
+        uses: ncipollo/release-action@v1
+        with:
+          generateReleaseNotes: true
+          allowUpdates: true
+          token: ${{ secrets.github_token }}
+          tag: ${{ steps.version.outputs.version_tag }}
+          commit: ${{ steps.ref.outputs.refspec }}
+          draft: true
+
     outputs:
       refspec: ${{ steps.ref.outputs.refspec }}
+      version_tag: ${{ steps.version.outputs.version_tag }}
 
   deploy_staging_frontend:
     name: Staging Frontend
@@ -78,22 +100,13 @@ jobs:
           ref: ${{ needs.ref.outputs.refspec }}
           fetch-depth: 0
 
-      - name: Version
-        # https://github.com/marketplace/actions/git-semantic-version
-        id: version
-        uses: paulhatch/semantic-version@v5.0.2
-        with:
-          tag_prefix: "v"
-          major_pattern: "(MAJOR)"
-          minor_pattern: "(MINOR)"
-
       - name: Release
         # https://github.com/ncipollo/release-action
         uses: ncipollo/release-action@v1
         with:
-          generateReleaseNotes: true
           allowUpdates: true
+          omitBodyDuringUpdate: true
           token: ${{ secrets.github_token }}
-          tag: ${{ steps.version.outputs.version_tag }}
+          tag: ${{ needs.ref.outputs.version_tag }}
           commit: ${{ needs.ref.outputs.refspec }}
           draft: false
