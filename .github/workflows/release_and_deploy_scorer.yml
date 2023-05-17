@@ -65,7 +65,7 @@ jobs:
     name: Production Approval Pending
     needs: [ref,deploy_staging_backend,deploy_staging_frontend]
     runs-on: ubuntu-latest
-    environment: production
+    environment: production-deployment
     steps:
       - name: Approve Release to Production
         run: |
