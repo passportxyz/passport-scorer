@@ -90,3 +90,12 @@ class GenericCommunityPayload(Schema):
     name: str
     description: str = "Programmatically created by Allo"
     external_scorer_id: str
+
+
+class StampDisplayResponse(Schema):
+    icon: str
+    platform: str
+    name: str
+    description: str
+    connect_message: str
+    user_has_stamp: bool

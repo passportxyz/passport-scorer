@@ -1,12 +1,15 @@
 from typing import List
+from urllib.parse import urljoin
 
 import api_logging as logging
+import requests
 from account.api import UnauthorizedException, create_community_for_account
 
 # --- Deduplication Modules
 from account.models import Account, Community, Nonce, Rules, WeightedScorer
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
+from django.core.cache import cache
 from django.shortcuts import get_object_or_404
 from ninja import Router
 from ninja.pagination import paginate
@@ -20,8 +23,10 @@ from registry.utils import (
     permissions_required,
     reverse_lazy_with_query,
 )
+from requests.exceptions import RequestException
 
 from ..exceptions import (
+    InternalServerErrorException,
     InvalidAPIKeyPermissions,
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
@@ -39,8 +44,11 @@ from .schema import (
     GenericCommunityPayload,
     GenericCommunityResponse,
     SigningMessageResponse,
+    StampDisplayResponse,
     SubmitPassportPayload,
 )
+
+METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata")
 
 log = logging.getLogger(__name__)
 # api = NinjaExtraAPI(urls_namespace="registry")
@@ -489,5 +497,118 @@ def get_scores_by_community_id_analytics(
     )
 
     response = CursorPaginatedScoreResponse(next=next_url, prev=prev_url, items=scores)
+
+    return response
+
+
+def fetch_stamp_metadata():
+    # Try to get the metadata from the cache
+    metadata = cache.get("metadata")
+
+    # If it's not in the cache, fetch it from the external API
+    if metadata is None:
+        try:
+            response = requests.get(METADATA_URL)
+            response.raise_for_status()
+
+            metadata = response.json()
+            # Store the metadata in the cache, with a timeout of 1 hour
+            cache.set("metadata", metadata, 60 * 60)
+        except RequestException as e:
+            log.error("Error fetching external metadata", exc_info=True)
+            return None
+
+    return metadata
+
+
+@router.get(
+    "/stamp-display/{str:address}",
+    # rest of the decorator ...
+)
+def stamp_display(
+    request, address: str, token: str = "", limit: int = 1000
+) -> List[StampDisplayResponse]:
+    # the existing code ...
+    metadata = fetch_stamp_metadata()
+    if metadata is None:
+        raise InternalServerErrorException(
+            {"detail": "Error fetching external stamp metadata"}
+        )
+
+    stamps = CeramicCache.objects.filter(address=address)
+    response = []
+    for stamp in stamps:
+        user_has_stamp = stamp.users.filter(id=user.id).exists()
+
+        response.append(
+            StampDisplayResponse(
+                icon=stamp.icon,
+                platform=stamp.platform,
+                name=stamp.name,
+                description=stamp.description,
+                connect_message=stamp.connect_message,
+                user_has_stamp=user_has_stamp,
+                external_metadata=stamp_metadata,
+            )
+        )
+    check_rate_limit(request)
+
+    if limit > 1000:
+        raise InvalidLimitException()
+
+    # ref: https://medium.com/swlh/how-to-implement-cursor-pagination-like-a-pro-513140b65f32
+
+    query = CeramicCache.objects.order_by("-id").filter(address=address.lower())
+
+    direction, id = decode_cursor(token) if token else (None, None)
+
+    if direction == "next":
+        # note we use lt here because we're querying in descending order
+        cacheStamps = list(query.filter(id__lt=id)[:limit])
+
+    elif direction == "prev":
+        cacheStamps = list(query.filter(id__gt=id).order_by("id")[:limit])
+        cacheStamps.reverse()
+
+    else:
+        cacheStamps = list(query[:limit])
+
+    has_more_stamps = has_prev_stamps = False
+    next_id = prev_id = 0
+
+    if cacheStamps:
+        next_id = cacheStamps[-1].pk
+        prev_id = cacheStamps[0].pk
+
+        has_more_stamps = query.filter(id__lt=next_id).exists()
+        has_prev_stamps = query.filter(id__gt=prev_id).exists()
+
+    stamps = [{"version": "1.0.0", "credential": cache.stamp} for cache in cacheStamps]
+
+    domain = request.build_absolute_uri("/")[:-1]
+
+    next_url = (
+        f"""{domain}{reverse_lazy_with_query(
+            "registry:get_passport_stamps",
+            args=[address],
+            query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
+        )}"""
+        if has_more_stamps
+        else None
+    )
+
+    prev_url = (
+        f"""{domain}{reverse_lazy_with_query(
+            "registry:get_passport_stamps",
+            args=[address],
+            query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
+        )}"""
+        if has_prev_stamps
+        else None
+    )
+
+    response = CursorPaginatedStampCredentialResponse(
+        next=next_url, prev=prev_url, items=stamps
+    )
 
     return response
