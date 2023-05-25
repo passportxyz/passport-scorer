@@ -598,5 +598,6 @@ def fetch_stamp_metadata_for_provider(provider: str):
         500: ErrorMessageResponse,
     },
 )
-def stamp_display(_) -> List[StampDisplayResponse]:
+def stamp_display(request) -> List[StampDisplayResponse]:
+    check_rate_limit(request)
     return fetch_all_stamp_metadata()
