@@ -6,11 +6,10 @@ import requests
 from account.api import UnauthorizedException, create_community_for_account
 
 # --- Deduplication Modules
-from account.models import Account, Community, Nonce, Rules, WeightedScorer
+from account.models import Account, Community, Nonce, WeightedScorer
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.core.cache import cache
-from django.shortcuts import get_object_or_404
 from ninja import Router
 from ninja.pagination import paginate
 from registry.models import Passport, Score
@@ -23,7 +22,6 @@ from registry.utils import (
     permissions_required,
     reverse_lazy_with_query,
 )
-from requests.exceptions import RequestException
 
 from ..exceptions import (
     InternalServerErrorException,
@@ -48,7 +46,7 @@ from .schema import (
     SubmitPassportPayload,
 )
 
-METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata")
+METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 
 log = logging.getLogger(__name__)
 # api = NinjaExtraAPI(urls_namespace="registry")
@@ -271,9 +269,15 @@ def get_scores(
     description="""Use this endpoint to fetch the passport for a specific address\n
 This endpoint will return a `CursorPaginatedStampCredentialResponse`.\n
 """,
+    # This prevents returning {metadata: None} in the response
+    exclude_unset=True,
 )
 def get_passport_stamps(
-    request, address: str, token: str = "", limit: int = 1000
+    request,
+    address: str,
+    token: str = "",
+    limit: int = 1000,
+    include_metadata: bool = False,
 ) -> CursorPaginatedStampCredentialResponse:
     check_rate_limit(request)
 
@@ -307,7 +311,18 @@ def get_passport_stamps(
         has_more_stamps = query.filter(id__lt=next_id).exists()
         has_prev_stamps = query.filter(id__gt=prev_id).exists()
 
-    stamps = [{"version": "1.0.0", "credential": cache.stamp} for cache in cacheStamps]
+    stamps = [
+        {
+            "version": "1.0.0",
+            "credential": cache.stamp,
+            **(
+                {"metadata": fetch_stamp_metadata_for_provider(cache.provider)}
+                if include_metadata
+                else {}
+            ),
+        }
+        for cache in cacheStamps
+    ]
 
     domain = request.build_absolute_uri("/")[:-1]
 
@@ -398,9 +413,11 @@ def get_scores_analytics(
 
     has_more_scores = has_prev_scores = False
 
+    next_id = prev_id = 0
+    has_more_scores = has_prev_scores = False
     if scores:
-        next_id = scores[-1].id
-        prev_id = scores[0].id
+        next_id = scores[-1].pk
+        prev_id = scores[0].pk
 
         has_more_scores = query.filter(id__gt=next_id).exists()
         has_prev_scores = query.filter(id__lt=prev_id).exists()
@@ -467,9 +484,11 @@ def get_scores_by_community_id_analytics(
 
     has_more_scores = has_prev_scores = False
 
+    next_id = prev_id = 0
+    has_more_scores = has_prev_scores = False
     if scores:
-        next_id = scores[-1].id
-        prev_id = scores[0].id
+        next_id = scores[-1].pk
+        prev_id = scores[0].pk
 
         has_more_scores = query.filter(id__gt=next_id).exists()
         has_prev_scores = query.filter(id__lt=prev_id).exists()
@@ -501,7 +520,7 @@ def get_scores_by_community_id_analytics(
     return response
 
 
-def fetch_stamp_metadata():
+def fetch_all_stamp_metadata() -> List[StampDisplayResponse]:
     # Try to get the metadata from the cache
     metadata = cache.get("metadata")
 
@@ -511,104 +530,73 @@ def fetch_stamp_metadata():
             response = requests.get(METADATA_URL)
             response.raise_for_status()
 
-            metadata = response.json()
+            responseJson = response.json()
+
+            # Append base URL to icon URLs
+            metadata = [
+                StampDisplayResponse(
+                    **{
+                        **platformData,
+                        "icon": urljoin(
+                            settings.PASSPORT_PUBLIC_URL, platformData["icon"]
+                        ),
+                    }
+                )
+                for platformData in responseJson
+            ]
+
             # Store the metadata in the cache, with a timeout of 1 hour
             cache.set("metadata", metadata, 60 * 60)
-        except RequestException as e:
-            log.error("Error fetching external metadata", exc_info=True)
-            return None
+        except:
+            log.exception("Error fetching external metadata")
+
+    if metadata is None:
+        raise InternalServerErrorException("Error fetching external stamp metadata")
 
     return metadata
 
 
-@router.get(
-    "/stamp-display/{str:address}",
-    # rest of the decorator ...
-)
-def stamp_display(
-    request, address: str, token: str = "", limit: int = 1000
-) -> List[StampDisplayResponse]:
-    # the existing code ...
-    metadata = fetch_stamp_metadata()
-    if metadata is None:
+def fetch_stamp_metadata_for_provider(provider: str):
+    metadataByProvider = cache.get("metadataByProvider")
+
+    try:
+        if metadataByProvider is None:
+            metadata = fetch_all_stamp_metadata()
+            metadataByProvider = {
+                stamp.name: {
+                    "name": stamp.name,
+                    "description": stamp.description,
+                    "hash": stamp.hash,
+                    "group": group.name,
+                    "platform": {
+                        "name": platform.name,
+                        "id": platform.id,
+                        "icon": platform.icon,
+                        "description": platform.description,
+                        "connectMessage": platform.connectMessage,
+                    },
+                }
+                for platform in metadata
+                for group in platform.groups
+                for stamp in group.stamps
+            }
+            cache.set("metadataByProvider", metadataByProvider, 60 * 60)
+    except:
+        log.exception("Error fetching external metadata")
         raise InternalServerErrorException(
-            {"detail": "Error fetching external stamp metadata"}
+            "Error fetching external stamp metadata for provider " + provider
         )
 
-    stamps = CeramicCache.objects.filter(address=address)
-    response = []
-    for stamp in stamps:
-        user_has_stamp = stamp.users.filter(id=user.id).exists()
+    return metadataByProvider[provider]
 
-        response.append(
-            StampDisplayResponse(
-                icon=stamp.icon,
-                platform=stamp.platform,
-                name=stamp.name,
-                description=stamp.description,
-                connect_message=stamp.connect_message,
-                user_has_stamp=user_has_stamp,
-                external_metadata=stamp_metadata,
-            )
-        )
-    check_rate_limit(request)
 
-    if limit > 1000:
-        raise InvalidLimitException()
-
-    # ref: https://medium.com/swlh/how-to-implement-cursor-pagination-like-a-pro-513140b65f32
-
-    query = CeramicCache.objects.order_by("-id").filter(address=address.lower())
-
-    direction, id = decode_cursor(token) if token else (None, None)
-
-    if direction == "next":
-        # note we use lt here because we're querying in descending order
-        cacheStamps = list(query.filter(id__lt=id)[:limit])
-
-    elif direction == "prev":
-        cacheStamps = list(query.filter(id__gt=id).order_by("id")[:limit])
-        cacheStamps.reverse()
-
-    else:
-        cacheStamps = list(query[:limit])
-
-    has_more_stamps = has_prev_stamps = False
-    next_id = prev_id = 0
-
-    if cacheStamps:
-        next_id = cacheStamps[-1].pk
-        prev_id = cacheStamps[0].pk
-
-        has_more_stamps = query.filter(id__lt=next_id).exists()
-        has_prev_stamps = query.filter(id__gt=prev_id).exists()
-
-    stamps = [{"version": "1.0.0", "credential": cache.stamp} for cache in cacheStamps]
-
-    domain = request.build_absolute_uri("/")[:-1]
-
-    next_url = (
-        f"""{domain}{reverse_lazy_with_query(
-            "registry:get_passport_stamps",
-            args=[address],
-            query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
-        )}"""
-        if has_more_stamps
-        else None
-    )
-
-    prev_url = (
-        f"""{domain}{reverse_lazy_with_query(
-            "registry:get_passport_stamps",
-            args=[address],
-            query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
-        )}"""
-        if has_prev_stamps
-        else None
-    )
-
-    response = CursorPaginatedStampCredentialResponse(
-        next=next_url, prev=prev_url, items=stamps
-    )
-
-    return response
+@router.get(
+    "/stamp-metadata",
+    auth=ApiKey(),
+    response={
+        200: List[StampDisplayResponse],
+        500: ErrorMessageResponse,
+    },
+)
+def stamp_display(_) -> List[StampDisplayResponse]:
+    return fetch_all_stamp_metadata()

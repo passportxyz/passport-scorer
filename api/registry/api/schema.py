@@ -30,9 +30,26 @@ class StatusEnum(str, Enum):
     done = Score.Status.DONE
 
 
+class StampCredentialResponseMetadataForPlatform(Schema):
+    id: str
+    icon: str
+    name: str
+    description: str
+    connectMessage: str
+
+
+class StampCredentialResponseMetadata(Schema):
+    group: str
+    platform: StampCredentialResponseMetadataForPlatform
+    name: str
+    description: str
+    hash: str
+
+
 class StampCredentialResponse(Schema):
     version: str
     credential: dict
+    metadata: Optional[StampCredentialResponseMetadata]
 
 
 class CursorPaginatedStampCredentialResponse(Schema):
@@ -92,10 +109,21 @@ class GenericCommunityPayload(Schema):
     external_scorer_id: str
 
 
-class StampDisplayResponse(Schema):
-    icon: str
-    platform: str
+class StampDisplayResponseStamp(Schema):
     name: str
     description: str
-    connect_message: str
-    user_has_stamp: bool
+    hash: str
+
+
+class StampDisplayResponseGroup(Schema):
+    name: str
+    stamps: List[StampDisplayResponseStamp]
+
+
+class StampDisplayResponse(Schema):
+    id: str
+    icon: str
+    name: str
+    description: str
+    connectMessage: str
+    groups: List[StampDisplayResponseGroup]

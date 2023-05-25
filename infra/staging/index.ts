@@ -351,6 +351,10 @@ const environment = [
     name: "LOGGING_STRATEGY",
     value: "structlog_json",
   },
+  {
+    name: "PASSPORT_PUBLIC_URL",
+    valueFrom: "https://staging.passport.gitcoin.co/",
+  },
 ];
 
 //////////////////////////////////////////////////////////////
@@ -514,7 +518,9 @@ const flowerCertificateValidation = new aws.acm.CertificateValidation(
 );
 
 // Creates an ALB associated with our custom VPC.
-const flowerAlb = new awsx.lb.ApplicationLoadBalancer(`flower-service`, { vpc });
+const flowerAlb = new awsx.lb.ApplicationLoadBalancer(`flower-service`, {
+  vpc,
+});
 
 // Listen to HTTP traffic on port 80 and redirect to 443
 const flowerHttpListener = flowerAlb.createListener("flower-listener", {
@@ -541,7 +547,7 @@ const flowerTarget = flowerAlb.createTargetGroup("flower-target", {
 // Listen to traffic on port 443 & route it through the target group
 const flowerHttpsListener = flowerTarget.createListener("flower-listener", {
   port: 443,
-  certificateArn: flowerCertificate.arn
+  certificateArn: flowerCertificate.arn,
 });
 
 const flowerRecord = new aws.route53.Record("flower", {
