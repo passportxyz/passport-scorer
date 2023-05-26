@@ -349,6 +349,10 @@ const environment = [
     name: "LOGGING_STRATEGY",
     value: "structlog_json",
   },
+  {
+    name: "PASSPORT_PUBLIC_URL",
+    valueFrom: "https://review.passport.gitcoin.co/",
+  },
 ];
 
 //////////////////////////////////////////////////////////////

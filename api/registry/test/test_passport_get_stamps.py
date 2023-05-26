@@ -2,6 +2,7 @@ import pytest
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import Client
 from web3 import Web3
 
@@ -11,6 +12,29 @@ web3.eth.account.enable_unaudited_hdwallet_features()
 my_mnemonic = settings.TEST_MNEMONIC
 
 pytestmark = pytest.mark.django_db
+
+mock_stamp_metadata = [
+    {
+        "id": "TestPlatform",
+        "name": "Test Platform",
+        "icon": "assets/test.svg",
+        "description": "Platform for testing",
+        "connectMessage": "Verify Account",
+        "groups": [
+            {
+                "name": "Test",
+                "stamps": [
+                    {
+                        "name": f"Provider{i}",
+                        "description": "Tested",
+                        "hash": "0xb03cac9e8f0914ebb46e62ddee5a8337dcf4cdf6284173ebfb4aa777d5f481be",
+                    }
+                    for i in range(10)
+                ],
+            }
+        ],
+    }
+]
 
 
 @pytest.fixture
@@ -99,6 +123,54 @@ class TestPassportGetStamps:
         assert len(response_data["items"]) == len(paginated_stamps)
 
         assert len(CeramicCache.objects.all()) == len(paginated_stamps) + 1
+
+    def test_include_metadata(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        paginated_stamps,
+        mocker,
+    ):
+        cache.clear()
+        with mocker.patch(
+            "requests.get", return_value=mocker.Mock(json=lambda: mock_stamp_metadata)
+        ):
+            client = Client()
+            response = client.get(
+                f"/registry/stamps/{passport_holder_addresses[0]['address']}?include_metadata=true&limit=1",
+                HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            )
+            response_data = response.json()
+
+        assert response.status_code == 200
+        assert response_data["items"][0]["metadata"]["name"] == f"Provider9"
+
+    def test_get_all_metadata(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        paginated_stamps,
+        mocker,
+    ):
+        cache.clear()
+        with mocker.patch(
+            "requests.get", return_value=mocker.Mock(json=lambda: mock_stamp_metadata)
+        ):
+            client = Client()
+            response = client.get(
+                f"/registry/stamp-metadata",
+                HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            )
+            response_data = response.json()
+
+        assert response.status_code == 200
+        assert response_data[0]["id"] == mock_stamp_metadata[0]["id"]
+        assert (
+            response_data[0]["groups"][0]["stamps"][0]["name"]
+            == mock_stamp_metadata[0]["groups"][0]["stamps"][0]["name"]
+        )
+        assert mock_stamp_metadata[0]["icon"] in response_data[0]["icon"]
+        assert mock_stamp_metadata[0]["icon"] != response_data[0]["icon"]
 
     def test_get_stamps_returns_first_page_stamps(
         self,

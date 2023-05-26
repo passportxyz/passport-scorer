@@ -372,3 +372,5 @@ CACHES = {
 }
 
 CERAMIC_CACHE_SCORER_ID = env("CERAMIC_CACHE_SCORER_ID", default="")
+
+PASSPORT_PUBLIC_URL = env("PASSPORT_PUBLIC_URL", default="http://localhost:80")
