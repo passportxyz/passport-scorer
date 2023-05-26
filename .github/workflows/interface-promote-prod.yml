@@ -7,6 +7,12 @@ on:
         description: "Commit ref"
         required: true
         type: string
+  workflow_call:
+    inputs:
+      commit:
+        description: "Commit ref"
+        required: true
+        type: string
 
 jobs:
   ui-test:
@@ -15,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.commit }}
+          ref: ${{ inputs.commit }}
 
       - name: Install UI dependencies
         working-directory: ./interface
@@ -31,12 +37,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.commit }}
+          ref: ${{ inputs.commit }}
 
       - name: Checkout production-interface
         run: |
           git fetch
           git checkout -b production-interface origin/production-interface
-          git reset --hard ${{ github.event.inputs.commit }}
+          git reset --hard ${{ inputs.commit }}
           git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/gitcoinco/passport-scorer.git
           git push origin production-interface -f
