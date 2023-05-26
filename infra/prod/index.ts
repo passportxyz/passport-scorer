@@ -407,7 +407,7 @@ const environment = [
   },
   {
     name: "PASSPORT_PUBLIC_URL",
-    valueFrom: "https://passport.gitcoin.co/",
+    value: "https://passport.gitcoin.co/",
   },
 ];
 
