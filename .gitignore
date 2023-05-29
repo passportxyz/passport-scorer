@@ -10,3 +10,4 @@ api/*.sqlite3
 **/node_modules/**
 
 postgres_db_data
+load_tests/test_data/vcs/*
