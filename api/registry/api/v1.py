@@ -587,7 +587,7 @@ def fetch_stamp_metadata_for_provider(provider: str):
             "Error fetching external stamp metadata for provider " + provider
         )
 
-    return metadataByProvider[provider]
+    return metadataByProvider.get(provider)
 
 
 @router.get(
