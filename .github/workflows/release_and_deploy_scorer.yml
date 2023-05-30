@@ -20,6 +20,12 @@ jobs:
         run: |
           echo "refspec=${{ inputs.commit || github.sha }}" >> $GITHUB_OUTPUT
 
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ steps.ref.outputs.refspec }}
+          fetch-depth: 0
+
       - name: Version
         # https://github.com/marketplace/actions/git-semantic-version
         id: version
