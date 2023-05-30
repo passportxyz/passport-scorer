@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import Client
+from registry.api.v1 import fetch_stamp_metadata_for_provider
 from web3 import Web3
 
 User = get_user_model()
@@ -144,6 +145,16 @@ class TestPassportGetStamps:
 
         assert response.status_code == 200
         assert response_data["items"][0]["metadata"]["name"] == f"Provider9"
+
+    def test_fetch_stamp_metadata_for_invalid_provider_returns_none(
+        self,
+        mocker,
+    ):
+        cache.clear()
+        with mocker.patch(
+            "requests.get", return_value=mocker.Mock(json=lambda: mock_stamp_metadata)
+        ):
+            assert fetch_stamp_metadata_for_provider("invalid_provider") is None
 
     def test_get_all_metadata(
         self,
