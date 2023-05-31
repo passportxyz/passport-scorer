@@ -24,19 +24,18 @@ environment up and running. Setup instructions are also provided below.
 1. Create a new `.env` file by copying the existing `.env-sample` file
 
 ```shell
-# From inside the api/ directory
+cd api
 cp .env-sample .env
 ```
 
 2. Run and build the `Dockerfile`. The first time you run this, it will take
    a while to build the Docker images.
+
 ```
-cd api
 docker-compose up --build
 ```
 
-The API will be running on port 8000 and the database will be running on port
-5432.
+The API will be running on port 8002 and the database will be running on port 5432.
 
 ### Without docker
 
@@ -90,6 +89,14 @@ docker run -d -p 6379:6379 redis
 
 > Make sure you have Docker running
 
+## Migrations
+
+You will need to run database migrations by running: `python manage.py migrate`. If you started the api using docker you must run the migrations inside the container:
+
+```shell
+docker-compose exec scorer python manage.py migrate
+```
+
 ## Interface
 
 The front end is built using Next.js and is using a fairly standard installation
@@ -97,6 +104,7 @@ without much customization.
 
 To run the front end, change into the `interface/` directory and install the
 dependencies:
+
 ```
 yarn
 ```
@@ -120,7 +128,7 @@ yarn dev
 ### API
 
 > The following assumes you are in the api/ directory and that you've already
-activated your local virtual environment
+> activated your local virtual environment
 
 In the `./api` directory run (make sure your local virtual env is activated):
 
