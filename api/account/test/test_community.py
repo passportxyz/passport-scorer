@@ -68,6 +68,7 @@ class CommunityTestCase(TestCase):
         self.assertEqual(c.use_case, mock_community_body["use_case"])
         self.assertEqual(c.name, mock_community_body["name"])
         self.assertEqual(c.description, mock_community_body["description"])
+        self.assertEqual(c.rule, "LIFO")
 
     def test_create_community_with_no_name(self):
         """Test that creation of a community with no name fails"""
