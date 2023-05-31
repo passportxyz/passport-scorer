@@ -35,6 +35,8 @@ cp .env-sample .env
 docker-compose up --build
 ```
 
+Upon subsequent runs, you can omit the `--build` flag.
+
 The API will be running on port 8002 and the database will be running on port 5432.
 
 ### Without docker
@@ -94,7 +96,7 @@ docker run -d -p 6379:6379 redis
 You will need to run database migrations by running: `python manage.py migrate`. If you started the api using docker you must run the migrations inside the container:
 
 ```shell
-docker-compose exec scorer python manage.py migrate
+docker-compose exec api python manage.py migrate
 ```
 
 ## Interface
