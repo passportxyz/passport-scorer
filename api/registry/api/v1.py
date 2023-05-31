@@ -6,7 +6,7 @@ import requests
 from account.api import UnauthorizedException, create_community_for_account
 
 # --- Deduplication Modules
-from account.models import Account, Community, Nonce, WeightedScorer
+from account.models import Account, Community, Nonce, Rules
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.core.cache import cache
@@ -375,9 +375,12 @@ def create_generic_scorer(request, payload: GenericCommunityPayload):
 
         community = create_community_for_account(
             account,
-            payload,
+            payload.name,
+            payload.description,
             settings.GENERIC_COMMUNITY_CREATION_LIMIT,
-            WeightedScorer,
+            use_case="Sybil Protection",
+            rule=Rules.LIFO.value,
+            scorer="WEIGHTED",
             external_scorer_id=payload.external_scorer_id,
         )
 
