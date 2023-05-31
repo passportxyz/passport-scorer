@@ -28,7 +28,9 @@ cd api
 cp .env-sample .env
 ```
 
-2. Run and build the `Dockerfile`. The first time you run this, it will take
+Be sure to check that you updated the `DATABASE_URL` in the `api/.env` file to point at the postgres database that will be created with docker.
+
+2. Run and build the `Dockerfile`s. The first time you run this, it will take
    a while to build the Docker images.
 
 ```
@@ -37,7 +39,7 @@ docker-compose up --build
 
 Upon subsequent runs, you can omit the `--build` flag.
 
-The API will be running on port 8002 and the database will be running on port 5432.
+The API will be running on port 8002, interface on 3001, redis on 6379, and the database will be running on port 5432.
 
 ### Without docker
 

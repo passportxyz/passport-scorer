@@ -15,8 +15,8 @@ COPY . .
 # Build the Next.js app
 RUN yarn build
 
-# Expose port 3000 to the outside world
-EXPOSE 3000
+# Expose port 3001 to the outside world
+EXPOSE 3001
 
 # Set the command to start the app
 CMD [ "yarn", "start" ]
