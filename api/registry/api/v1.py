@@ -268,6 +268,7 @@ def get_scores(
     summary="Get passport for an address",
     description="""Use this endpoint to fetch the passport for a specific address\n
 This endpoint will return a `CursorPaginatedStampCredentialResponse`.\n
+**WARNING**: The **include_metadata** feature is in beta, the metadata response format may change in the future.\n
 """,
     # This prevents returning {metadata: None} in the response
     exclude_unset=True,
@@ -595,6 +596,7 @@ def fetch_stamp_metadata_for_provider(provider: str):
 
 @router.get(
     "/stamp-metadata",
+    description="""**WARNING**: This endpoint is in beta and is subject to change.""",
     auth=ApiKey(),
     response={
         200: List[StampDisplayResponse],
