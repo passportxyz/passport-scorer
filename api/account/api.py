@@ -293,11 +293,12 @@ class CommunitiesPayload(Schema):
 
 def create_community_for_account(
     account,
-    payload,
+    name,
+    description,
     limit,
-    default_scorer,
-    use_case="Sybil Protection",
-    rule=Rules.LIFO,
+    scorer,
+    use_case,
+    rule,
     external_scorer_id=None,
 ):
     account_communities = Community.objects.filter(account=account, deleted_at=None)
@@ -305,10 +306,10 @@ def create_community_for_account(
     if account_communities.count() >= limit:
         raise TooManyCommunitiesException()
 
-    if account_communities.filter(name=payload.name).exists():
+    if account_communities.filter(name=name).exists():
         raise CommunityExistsException()
 
-    if len(payload.name) == 0:
+    if len(name) == 0:
         raise CommunityHasNoNameException()
 
     if (
@@ -318,14 +319,18 @@ def create_community_for_account(
         raise CommunityExistsExceptionExternalId()
 
     # Create the scorer
-    scorer = default_scorer()
+    if scorer == "WEIGHTED_BINARY":
+        scorer = BinaryWeightedScorer(type="WEIGHTED_BINARY")
+    else:
+        scorer = WeightedScorer()
+
     scorer.save()
 
     # Create the community
     community = Community.objects.create(
         account=account,
-        name=payload.name,
-        description=payload.description,
+        name=name,
+        description=description,
         use_case=use_case,
         rule=rule,
         scorer=scorer,
@@ -345,18 +350,14 @@ def create_community(request, payload: CommunitiesPayload):
         if len(payload.description) == 0:
             raise CommunityHasNoDescriptionException()
 
-        scorer_class = (
-            BinaryWeightedScorer
-            if payload.scorer == "WEIGHTED_BINARY"
-            else WeightedScorer
-        )
         create_community_for_account(
             account,
-            payload,
-            5,
-            scorer_class,
-            use_case=payload.use_case,
-            rule=payload.rule,
+            payload.name,
+            payload.description,
+            settings.USER_COMMUNITY_CREATION_LIMIT,
+            payload.scorer,
+            payload.use_case,
+            payload.rule,
         )
 
         return {"ok": True}
