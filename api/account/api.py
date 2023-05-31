@@ -287,7 +287,7 @@ class CommunitiesPayload(Schema):
     name: str
     description: str
     use_case: str
-    rule = Rules.LIFO
+    rule: str
     scorer: str
 
 
