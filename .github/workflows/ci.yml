@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-    
+
 jobs:
   api-test:
     runs-on: ubuntu-latest
@@ -41,6 +41,8 @@ jobs:
 
       - name: Django Check
         working-directory: ./api
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
         run: python manage.py check
 
       - name: Run API unittests
