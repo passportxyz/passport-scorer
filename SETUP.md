@@ -28,9 +28,9 @@ cd api
 cp .env-sample .env
 ```
 
-Be sure to check that you updated the `DATABASE_URL` in the `api/.env` file to point at the postgres database that will be created with docker.
+`CERAMIC_CACHE_SCORER_ID` is a required environment variable when using the scorer api as a data source for the passport application. It should correspond to a scorer you create from the scorer UI.
 
-2. Run and build the `Dockerfile`s. The first time you run this, it will take
+2. Run and build the `Dockerfile`. The first time you run this, it will take
    a while to build the Docker images.
 
 ```
