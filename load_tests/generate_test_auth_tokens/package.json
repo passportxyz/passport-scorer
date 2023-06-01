@@ -11,6 +11,7 @@
   "dependencies": {
     "@didtools/pkh-ethereum": "^0.3.0",
     "@ethersproject/experimental": "^5.7.0",
+    "axios": "^1.4.0",
     "did-session": "^2.0.1",
     "ethers": "^5.7.0",
     "ts-node": "^10.9.1"

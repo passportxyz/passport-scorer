@@ -19,8 +19,17 @@ function getRandomInt(max) {
 // console.log(`0x${hdwallet.derive(`m/44'/60'/0'/0/0`).getAddress().toString('hex')}`) // 0xc49926c4124cee1cba0ea94ea31a6c12318df947
 
 export const options = {
-  vus: 1,
-  duration: "15s",
+  ext: {
+    loadimpact: {
+      projectID: 3643521,
+      // Test runs with the same name groups test runs together
+      name: "Test create passports"
+    }
+  },
+
+  // vus: 25,
+  // duration: "60s",
+  // duration: "5m",
 };
 
 // console.log("This is init code: ", exec.vu.idInInstance);
@@ -36,26 +45,27 @@ export function teardown(data) {
   console.log("teardown");
 }
 
-const addresses = JSON.parse(open("./test_data/generated_accounts.json"));
-const vcs_for_address = [];
+const addresses = JSON.parse(open("./test_data/generated_accounts_100.json"));
+const userTokens = JSON.parse(
+  open("./generate_test_auth_tokens/user-tokens.json")
+);
+const vcsForAddress = [];
 
 for (let i = 0; i < 100; i++) {
   const address = addresses[i];
   const vcs = JSON.parse(open(`./test_data/vcs/${address}_vcs.json`));
-  vcs_for_address.push(vcs);
+  vcsForAddress.push(vcs);
 }
-
 
 // create k6 setup and teardown
 export default function () {
   // const idx = exec.vu.idInInstance - 1;
-  const token =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNjg1NDQ4NzgxLCJpYXQiOjE2ODUzNjIzODEsImp0aSI6IjU5YTk5NDM1NTE2ODRlZmNiNDc5M2EyNDUyMDQxNGI0IiwiZGlkIjoiZGlkOnBraDplaXAxNTU6MToweDg1ZmYwMWNmZjE1NzE5OTUyNzUyODc4OGVjNGVhNjMzNjYxNWM5ODkifQ.yqAcYcozOEvf696V7_BR-bOvYCsIDm1qg1j6wnzusLA";
   console.log("This is vu info: ", exec.vu.idInInstance);
 
   const addressIdx = getRandomInt(100);
   const address = addresses[addressIdx];
-  const vcs = vcs_for_address[addressIdx];
+  const token = userTokens[address];
+  const vcs = vcsForAddress[addressIdx];
   console.log("address", address);
 
   const body = [];
@@ -109,7 +119,7 @@ export default function () {
     "is status 201": (r) => r.status === 201,
   });
 
-  if(res.status !== 201) {
+  if (res.status !== 201) {
     console.log("This failed: ", JSON.stringify(res, undefined, 2));
   }
 }
