@@ -16,8 +16,8 @@ the main two for you to set up:
 
 ## API
 
-A [`Dockerfile`](./api/Dockerfile) has been provided to quickly get the API
-environment up and running. Setup instructions are also provided below.
+A [`Docker Compose`](./docker-compose.yml) file has been provided to quickly get the API, database, celery workers, and interface
+up and running. Setup instructions are also provided below.
 
 ### With Docker
 
