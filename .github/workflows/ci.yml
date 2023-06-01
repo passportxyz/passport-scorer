@@ -47,6 +47,8 @@ jobs:
 
       - name: Run API unittests
         working-directory: ./api
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
         run: pytest
 
   ui-test:
