@@ -14,45 +14,56 @@ the main two for you to set up:
 └── test/       # End-to-end tests
 ```
 
-## API
+## Setting up With Docker
+A [`Docker Compose`](./docker-compose.yml) file has been provided to quickly get the API, database, verifier, celery workers, and interface
+up and running. Setup instructions are provided below:
 
-A [`Docker Compose`](./docker-compose.yml) file has been provided to quickly get the API, database, celery workers, and interface
-up and running. Setup instructions are also provided below.
-
-### With Docker
-
-1. Create a new `.env` file in the `interface` and `api` directories by copying the existing `.env-sample` file
+1. Create a new `.env` file in the `api` directory & update the variables.
 
 ```shell
 # From inside the api/ directory
 cp .env-sample .env
 ```
+Update the `DATABASE_URL` variable to `postgres://passport_scorer:passport_scorer_pwd@postgres:5432/passport_scorer`
 
+Update the `CERAMIC_CACHE_SCORER_ID` variable to match a `SCORER_ID` you create from the scorer UI. 
+   (You will have to complete all these setup steps first, then you will be able to create a `SCORER_ID` from the UI & update this variable.) 
+
+2. Create a new `.env` file in the `interface` directory & update the varaibles. 
 ```shell
 # From inside the interface/ directory
 cp .env-sample .env
 ```
+Update the `NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY` varaible to an Alchemy API key you own. If you don't have one, you can create one for free [here](https://docs.alchemy.com/reference/api-overview)
 
-`CERAMIC_CACHE_SCORER_ID` is a required environment variable when using the scorer api as a data source for the passport application. It should correspond to a scorer you create from the scorer UI.
 
-2. Run and build the `Dockerfile`. The first time you run this, it will take
+3. Run and build the `Dockerfile`. The first time you run this, it will take
    a while to build the Docker images.
 
 ```
 docker-compose up --build
 ```
-
 Upon subsequent runs, you can omit the `--build` flag.
+
+4. Perform a database migration by opening a new terminal & running:
+
+```shell
+docker-compose exec api python manage.py migrate
+```
 
 The API will be running on port 8002, interface on 3001, redis on 6379, and the database will be running on port 5432.
 
-### Without docker
+
+
+## Setting up Without docker
 
 We assume that you have a working python environment set up on your machine with
 the following:
 
 - A recent version of Python
 - `pipenv`
+
+### API
 
 The following commands should be run from within the `api/` directory.
 
@@ -98,17 +109,15 @@ docker run -d -p 6379:6379 redis
 
 > Make sure you have Docker running
 
-## Migrations
+### Migrations
 
-You will need to run database migrations by running: `python manage.py migrate`. If you started the api using docker you must run the migrations inside the container:
+You will need to run database migrations in the `api/` directory by running:
 
 ```shell
-docker-compose exec api python manage.py migrate
+python manage.py migrate
 ```
 
-## Interface
-
-**Note** If you started the api using docker the interface should already be running on port 3001. You can skip this step
+### Interface
 
 The front end is built using Next.js and is using a fairly standard installation
 without much customization.
@@ -126,7 +135,7 @@ Copy the `.env.example` file:
 cp .env.example .env
 ```
 
-You will need an [Alchemy API key](https://docs.alchemy.com/reference/api-overview).
+Update the `NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY` varaible to an Alchemy API key you own. If you don't have one, you can create one for free [here](https://docs.alchemy.com/reference/api-overview)
 
 To start the development server:
 
