@@ -21,10 +21,15 @@ environment up and running. Setup instructions are also provided below.
 
 ### With Docker
 
-1. Create a new `.env` file by copying the existing `.env-sample` file
+1. Create a new `.env` file in the `interface` and `api` directories by copying the existing `.env-sample` file
 
 ```shell
-cd api
+# From inside the api/ directory
+cp .env-sample .env
+```
+
+```shell
+# From inside the interface/ directory
 cp .env-sample .env
 ```
 
@@ -103,6 +108,8 @@ docker-compose exec api python manage.py migrate
 
 ## Interface
 
+**Note** If you started the api using docker the interface should already be running on port 3001. You can skip this step
+
 The front end is built using Next.js and is using a fairly standard installation
 without much customization.
 
@@ -131,8 +138,7 @@ yarn dev
 
 ### API
 
-> The following assumes you are in the api/ directory and that you've already
-> activated your local virtual environment
+> The following assumes you are in the api/ directory and that you've already activated your local virtual environment
 
 In the `./api` directory run (make sure your local virtual env is activated):
 
