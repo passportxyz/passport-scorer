@@ -23,11 +23,11 @@ mock_passport_data = {
             "credential": {
                 "type": ["VerifiableCredential"],
                 "credentialSubject": {
-                    "id": settings.TRUSTED_IAM_ISSUER,
+                    "id": "did:pkh:eip155:1:0xa6Cf54ec56BaD8288Ee4559098c48b8D78C05468",
                     "hash": "v0.0.0:1Vzw/OyM9CBUkVi/3mb+BiwFnHzsSRZhVH1gaQIyHvM=",
                     "provider": "Ens",
                 },
-                "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                "issuer": settings.TRUSTED_IAM_ISSUER,
                 "issuanceDate": "2023-02-06T23:22:58.848Z",
                 "expirationDate": "2099-02-06T23:22:58.848Z",
             },
@@ -37,11 +37,11 @@ mock_passport_data = {
             "credential": {
                 "type": ["VerifiableCredential"],
                 "credentialSubject": {
-                    "id": settings.TRUSTED_IAM_ISSUER,
+                    "id": "did:pkh:eip155:1:0xa6Cf54ec56BaD8288Ee4559098c48b8D78C05468",
                     "hash": "0x45678",
                     "provider": "Gitcoin",
                 },
-                "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+                "issuer": settings.TRUSTED_IAM_ISSUER,
                 "expirationDate": "2099-02-06T23:22:58.848Z",
             },
         },
