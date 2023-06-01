@@ -23,7 +23,7 @@ mock_passport_data = {
             "credential": {
                 "type": ["VerifiableCredential"],
                 "credentialSubject": {
-                    "id": "did:pkh:eip155:1:0xa6Cf54ec56BaD8288Ee4559098c48b8D78C05468",
+                    "id": settings.TRUSTED_IAM_ISSUER,
                     "hash": "v0.0.0:1Vzw/OyM9CBUkVi/3mb+BiwFnHzsSRZhVH1gaQIyHvM=",
                     "provider": "Ens",
                 },
@@ -37,7 +37,7 @@ mock_passport_data = {
             "credential": {
                 "type": ["VerifiableCredential"],
                 "credentialSubject": {
-                    "id": "did:pkh:eip155:1:0xa6Cf54ec56BaD8288Ee4559098c48b8D78C05468",
+                    "id": settings.TRUSTED_IAM_ISSUER,
                     "hash": "0x45678",
                     "provider": "Gitcoin",
                 },

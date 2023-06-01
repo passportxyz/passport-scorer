@@ -77,7 +77,7 @@ const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
 const postgresql = new aws.rds.Instance(
   `scorer-db`,
   {
-    allocatedStorage: 10,
+    allocatedStorage: 20,
     engine: "postgres",
     // engineVersion: "5.7",
     instanceClass: "db.t3.xlarge",
@@ -89,7 +89,7 @@ const postgresql = new aws.rds.Instance(
     vpcSecurityGroupIds: [db_secgrp.id],
     backupRetentionPeriod: 5,
   },
-  { protect: true }
+  { protect: false }
 );
 
 export const rdsEndpoint = postgresql.endpoint;
@@ -369,7 +369,8 @@ const service = new awsx.ecs.FargateService("scorer", {
     containers: {
       scorer: {
         image: dockerGtcPassportScorerImage,
-        memory: 1024,
+        memory: 4096,
+        cpu: 4000,
         portMappings: [httpsListener],
         command: [
           "gunicorn",
@@ -405,6 +406,35 @@ const service = new awsx.ecs.FargateService("scorer", {
     },
   },
 });
+
+const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
+  "scorer-autoscaling-target",
+  {
+    maxCapacity: 20,
+    minCapacity: 2,
+    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${service.service.name}`,
+    scalableDimension: "ecs:service:DesiredCount",
+    serviceNamespace: "ecs",
+  }
+);
+
+const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
+  "scorer-autoscaling-policy",
+  {
+    policyType: "TargetTrackingScaling",
+    resourceId: ecsScorerServiceAutoscalingTarget.resourceId,
+    scalableDimension: ecsScorerServiceAutoscalingTarget.scalableDimension,
+    serviceNamespace: ecsScorerServiceAutoscalingTarget.serviceNamespace,
+    targetTrackingScalingPolicyConfiguration: {
+      predefinedMetricSpecification: {
+        predefinedMetricType: "ECSServiceAverageCPUUtilization",
+      },
+      targetValue: 70,
+      scaleInCooldown: 300,
+      scaleOutCooldown: 300,
+    },
+  }
+);
 
 //////////////////////////////////////////////////////////////
 // Set up the Celery Worker Secrvice
@@ -464,18 +494,19 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
   },
 });
 
-const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
+const celeryWorker = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
   cluster,
-  desiredCount: 1,
+  desiredCount: 2,
   subnets: vpc.privateSubnetIds,
   taskDefinitionArgs: {
+    logGroup: workerLogGroup,
     executionRole: workerRole,
     containers: {
       worker1: {
         image: dockerGtcPassportScorerImage,
-        command: ["celery", "-A", "scorer", "worker", "-l", "DEBUG"],
-        memory: 4096,
-        cpu: 2000,
+        command: ["celery", "-A", "scorer", "worker", "-l", "DEBUG", "-c", "8"],
+        memory: 2048,
+        cpu: 1000,
         portMappings: [],
         secrets: secrets,
         environment: environment,
@@ -485,6 +516,35 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
     },
   },
 });
+
+const ecsScorerWorkerAutoscalingTarget = new aws.appautoscaling.Target(
+  "scorer-worker-autoscaling-target",
+  {
+    maxCapacity: 20,
+    minCapacity: 2,
+    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celeryWorker.service.name}`,
+    scalableDimension: "ecs:service:DesiredCount",
+    serviceNamespace: "ecs",
+  }
+);
+
+const ecsScorerWorkerAutoscaling = new aws.appautoscaling.Policy(
+  "scorer-worker-autoscaling-policy",
+  {
+    policyType: "TargetTrackingScaling",
+    resourceId: ecsScorerWorkerAutoscalingTarget.resourceId,
+    scalableDimension: ecsScorerWorkerAutoscalingTarget.scalableDimension,
+    serviceNamespace: ecsScorerWorkerAutoscalingTarget.serviceNamespace,
+    targetTrackingScalingPolicyConfiguration: {
+      predefinedMetricSpecification: {
+        predefinedMetricType: "ECSServiceAverageCPUUtilization",
+      },
+      targetValue: 80,
+      scaleInCooldown: 300,
+      scaleOutCooldown: 300,
+    },
+  }
+);
 
 // Flower
 
