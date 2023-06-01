@@ -117,6 +117,15 @@ You will need to run database migrations in the `api/` directory by running:
 python manage.py migrate
 ```
 
+### Verifier
+
+Navigate to the `verifier/` directory & run the verifier:
+```shell
+yarn 
+#yarn only needs to be run when first installing the app
+yarn dev
+```
+
 ### Interface
 
 The front end is built using Next.js and is using a fairly standard installation
