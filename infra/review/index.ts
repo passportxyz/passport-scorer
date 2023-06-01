@@ -297,6 +297,10 @@ const secrets = [
     valueFrom: `${SCORER_SERVER_SSM_ARN}:RATELIMIT_ENABLE::`,
   },
   {
+    name: "TRUSTED_IAM_ISSUER",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:TRUSTED_IAM_ISSUER::`,
+  },
+  {
     name: "CERAMIC_CACHE_SCORER_ID",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:CERAMIC_CACHE_SCORER_ID::`,
   },
