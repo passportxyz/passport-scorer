@@ -38,10 +38,14 @@ jobs:
 
       - name: Django Check
         working-directory: ./api
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
         run: python manage.py check
 
       - name: Run API unittests
         working-directory: ./api
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
         run: pytest
 
   build-api:
