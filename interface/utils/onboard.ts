@@ -1,6 +1,5 @@
 import { init } from "@web3-onboard/react";
 import walletConnectModule from "@web3-onboard/walletconnect";
-import coinbaseModule from "@web3-onboard/coinbase";
 import ledgerModule from "@web3-onboard/ledger";
 import injectedModule from "@web3-onboard/injected-wallets";
 
@@ -9,10 +8,9 @@ const alchemyApiKey =
 
 const walletConnect = walletConnectModule();
 const injected = injectedModule();
-const coinbase = coinbaseModule();
 const ledger = ledgerModule();
 
-const wallets = [walletConnect, injected, coinbase, ledger];
+const wallets = [injected, ledger, walletConnect];
 
 const chains = [
   {
