@@ -79,23 +79,27 @@ git clone https://github.com/gitcoinco/passport-scorer.git
 
 The following commands should be run from within the `api/` directory.
 
-1. Activate your local virtual environment:
+1. Create a `.env` file:
+
+```shell
+cp .env-sample .env
+```
+
+2. Activate your local virtual environment:
 
 ```
 pipenv shell
 ```
 
-2. Install dependencies in your virtual environment:
+3. Install dependencies in your virtual environment:
 
 ```
 pipenv install
 pipenv install --dev
 ```
 
-3. Start the dev server:
 
-**First**: make sure you have the `.env` file in the api folder, with proper
-values (copy the `.env-sample` and adjust it). Then:
+4. Start the dev server:
 
 ```shell
 gunicorn -b 127.0.0.1:8002 -w 4 -k uvicorn.workers.UvicornWorker scorer.asgi:application
@@ -107,25 +111,27 @@ or:
 uvicorn scorer.asgi:application --reload --port 8002
 ```
 
-Start the celery worker:
+5. Run Redis locally in a new terminal:
 
 ```shell
-celery -A scorer worker -l DEBUG
-```
-
-And run Redis locally:
-
-```shell
+pipenv shell
 docker run -d -p 6379:6379 redis
 ```
 
 > Make sure you have Docker running
+
+6. Start the celery worker:
+
+```shell
+celery -A scorer worker -l DEBUG
+```
 
 ### Migrations
 
 You will need to run database migrations in the `api/` directory by running:
 
 ```shell
+pipenv shell
 python manage.py migrate
 ```
 
