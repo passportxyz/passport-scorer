@@ -38,7 +38,7 @@ Update the `CERAMIC_CACHE_SCORER_ID` variable to match a `SCORER_ID` you create 
 3. Create a new `.env` file in the `interface` directory & update the varaibles. 
 ```shell
 # From inside the interface/ directory
-cp .env-sample .env
+cp .env.example .env
 ```
 Update the `NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY` varaible to an Alchemy API key you own. If you don't have one, you can create one for free [here](https://docs.alchemy.com/reference/api-overview)
 
