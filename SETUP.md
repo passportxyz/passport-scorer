@@ -18,7 +18,13 @@ the main two for you to set up:
 A [`Docker Compose`](./docker-compose.yml) file has been provided to quickly get the API, database, verifier, celery workers, and interface
 up and running. Setup instructions are provided below:
 
-1. Create a new `.env` file in the `api` directory & update the variables.
+1. Download the Passport Scorer Repo
+
+```shell
+git clone https://github.com/gitcoinco/passport-scorer.git
+```
+
+2. Create a new `.env` file in the `api` directory & update the variables.
 
 ```shell
 # From inside the api/ directory
@@ -29,7 +35,7 @@ Update the `DATABASE_URL` variable to `postgres://passport_scorer:passport_score
 Update the `CERAMIC_CACHE_SCORER_ID` variable to match a `SCORER_ID` you create from the scorer UI. 
    (You will have to complete all these setup steps first, then you will be able to create a `SCORER_ID` from the UI & update this variable.) 
 
-2. Create a new `.env` file in the `interface` directory & update the varaibles. 
+3. Create a new `.env` file in the `interface` directory & update the varaibles. 
 ```shell
 # From inside the interface/ directory
 cp .env-sample .env
@@ -37,7 +43,7 @@ cp .env-sample .env
 Update the `NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY` varaible to an Alchemy API key you own. If you don't have one, you can create one for free [here](https://docs.alchemy.com/reference/api-overview)
 
 
-3. Run and build the `Dockerfile`. The first time you run this, it will take
+4. Run and build the `Dockerfile`. The first time you run this, it will take
    a while to build the Docker images.
 
 ```
@@ -45,7 +51,7 @@ docker-compose up --build
 ```
 Upon subsequent runs, you can omit the `--build` flag.
 
-4. Perform a database migration by opening a new terminal & running:
+5. Perform a database migration by opening a new terminal & running:
 
 ```shell
 docker-compose exec api python manage.py migrate
@@ -62,6 +68,12 @@ the following:
 
 - A recent version of Python
 - `pipenv`
+
+### Download this Repo
+
+```shell
+git clone https://github.com/gitcoinco/passport-scorer.git
+```
 
 ### API
 
