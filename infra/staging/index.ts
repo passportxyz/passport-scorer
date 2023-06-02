@@ -80,7 +80,7 @@ const postgresql = new aws.rds.Instance(
     allocatedStorage: 20,
     engine: "postgres",
     // engineVersion: "5.7",
-    instanceClass: "db.t3.xlarge",
+    instanceClass: "db.t3.2xlarge",
     dbName: dbName,
     password: dbPassword,
     username: dbUsername,
@@ -360,6 +360,15 @@ const environment = [
     value: "https://staging.passport.gitcoin.co/",
   },
 ];
+//////////////////////////////////////////////////////////////
+// Set up log groups for API service and worker
+//////////////////////////////////////////////////////////////
+const serviceLogGroup = new aws.cloudwatch.LogGroup("scorer-service", {
+  retentionInDays: 90,
+});
+const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
+  retentionInDays: 90,
+});
 
 //////////////////////////////////////////////////////////////
 // Set up the Scorer ECS service
@@ -369,6 +378,7 @@ const service = new awsx.ecs.FargateService("scorer", {
   desiredCount: 1,
   subnets: vpc.privateSubnetIds,
   taskDefinitionArgs: {
+    logGroup: serviceLogGroup,
     executionRole: dpoppEcsRole,
     containers: {
       scorer: {
@@ -403,6 +413,12 @@ const service = new awsx.ecs.FargateService("scorer", {
             hostPort: 8001,
           },
         ],
+        environment: [
+          {
+            name: "VERIFIER_PORT",
+            value: "8001",
+          },
+        ],
         linuxParameters: {
           initProcessEnabled: true,
         },
@@ -433,7 +449,7 @@ const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
       predefinedMetricSpecification: {
         predefinedMetricType: "ECSServiceAverageCPUUtilization",
       },
-      targetValue: 70,
+      targetValue: 30,
       scaleInCooldown: 300,
       scaleOutCooldown: 300,
     },
@@ -524,7 +540,7 @@ const celeryWorker = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
 const ecsScorerWorkerAutoscalingTarget = new aws.appautoscaling.Target(
   "scorer-worker-autoscaling-target",
   {
-    maxCapacity: 20,
+    maxCapacity: 400,
     minCapacity: 2,
     resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celeryWorker.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
@@ -812,7 +828,6 @@ const web = new aws.ec2.Instance("Web", {
 });
 
 export const ec2PublicIp = web.publicIp;
-
 export const dockrRunCmd = pulumi.secret(
   pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
