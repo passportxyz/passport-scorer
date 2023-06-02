@@ -53,3 +53,6 @@ services:
 
     volumes:
       - ./postgres_db_data:/db_data
+
+    ports:
+      - 5432:5432
