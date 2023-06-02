@@ -43,7 +43,7 @@ cp .env.example .env
 Update the `NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY` varaible to an Alchemy API key you own. If you don't have one, you can create one for free [here](https://docs.alchemy.com/reference/api-overview)
 
 
-4. Run and build the `Dockerfile`. The first time you run this, it will take
+4. Run and build the `Dockerfile` from the root directory. The first time you run this, it will take
    a while to build the Docker images.
 
 ```
@@ -51,7 +51,7 @@ docker-compose up --build
 ```
 Upon subsequent runs, you can omit the `--build` flag.
 
-5. Perform a database migration by opening a new terminal & running:
+5. Perform a database migration in the root directory by opening a new terminal & running:
 
 ```shell
 docker-compose exec api python manage.py migrate
