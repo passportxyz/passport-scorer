@@ -17,7 +17,7 @@ for (let i = 0; i < 1000; i++) {
   const path = "m/44'/60'/0'/0/" + i;
   const wallet = ethers.Wallet.fromMnemonic(mnemonicPhrase, path);
   wallets.push(wallet);
-  console.log("wallet", wallet.address);
+  console.log("wallet", i, wallet.address);
 }
 
 import("./bridge.js").then(({ Eip1193Bridge }) => {

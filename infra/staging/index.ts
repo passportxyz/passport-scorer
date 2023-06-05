@@ -78,6 +78,7 @@ const postgresql = new aws.rds.Instance(
   `scorer-db`,
   {
     allocatedStorage: 20,
+    maxAllocatedStorage: 100,
     engine: "postgres",
     // engineVersion: "5.7",
     instanceClass: "db.t3.2xlarge",
@@ -88,6 +89,7 @@ const postgresql = new aws.rds.Instance(
     dbSubnetGroupName: dbSubnetGroup.id,
     vpcSecurityGroupIds: [db_secgrp.id],
     backupRetentionPeriod: 5,
+    performanceInsightsEnabled: true,
   },
   { protect: false }
 );

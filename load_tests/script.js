@@ -45,22 +45,18 @@ const scorerId = 24;
 const apiKey = "rSlchz0V.HFjzHxwjoInlqk3tY3XyRGOCKMUUmQcC";
 const numAccounts = 1000;
 
-export function setup() {
-  console.log("setup");
-  console.log("This is setup code: ", exec.vu.idInInstance);
-  console.log("This is setup code: ", exec.vu.idInTest);
-}
+export function setup() {}
 
-export function teardown(data) {
-  console.log("teardown");
-}
+export function teardown(data) {}
 
 const addresses = JSON.parse(
   open(`./test_data/generated_accounts_${numAccounts}.json`)
 );
+
 const userTokens = JSON.parse(
   open("./generate_test_auth_tokens/user-tokens.json")
 );
+
 // const vcsForAddress = [];
 const allVcs = [];
 
@@ -181,5 +177,33 @@ export default function () {
       "Submitting passport for scoring failed: ",
       JSON.stringify(res, undefined, 2)
     );
+  }
+
+  let isScorePending = true;
+  const maxRequests = 10;
+  let numRequests = 0;
+  let sleepTime = 1;
+  while (isScorePending && numRequests < maxRequests) {
+    numRequests += 1;
+
+    const res = http.get(
+      `https://api.staging.scorer.gitcoin.co/registry/score/${scorerId}/${address}`,
+      scoringOptions
+    );
+
+    check(res, {
+      "is status 200": (r) => r.status === 200,
+    });
+
+    const data = res.json();
+
+    console.log("data", data);
+
+    if (data["status"] !== "PROCESSING") {
+      isScorePending = false;
+    } else {
+      sleep(sleepTime);
+      sleepTime *= 2;
+    }
   }
 }
