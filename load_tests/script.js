@@ -188,7 +188,7 @@ export default function () {
 
     const res = http.get(
       `https://api.staging.scorer.gitcoin.co/registry/score/${scorerId}/${address}`,
-      scoringOptions
+      Object.assign({}, scoringOptions, { tags: { name: "score" } })
     );
 
     check(res, {
