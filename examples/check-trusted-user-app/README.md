@@ -6,36 +6,15 @@ from Gitcoin passport. The app is built in Nextjs using `create-next-app` and Ch
 
 ## Getting Started
 
+This repository contains source code to accompany a "trusted user app" walkthrouhg tutorial at [docs.gitcoin.co](https://docs.passport.gitcoin.co/building-with-passport/integration-guides/integrating-stamps-and-scorers).
 
-Start by creating a new Nextjs project:
+You can find step-by-step instructions for setting up and running this app in the tutorial.
 
-```sh
-npx create-next-app passport-app
-```
+## Quick start
 
-This will create a new directory called `passport-app` and populate it with several sub-directories
-and files that form the skeleton of our app. `create-next-app` will ask for yes/no responses to a series of configuration questions - answer as follows:
+First clone this repository, then navigate to the new `check-trusted-user` directory and install the project dependencies:
 
-```sh
-npx create-next-app my-passport-app
-
-✔ Would you like to use TypeScript with this project? … Yes
-✔ Would you like to use ESLint with this project? … Yes
-✔ Would you like to use Tailwind CSS with this project? … No
-✔ Would you like to use `src/` directory with this project? … No
-✔ Would you like to use experimental `app/` directory with this project? …Yes
-✔ What import alias would you like configured? … @/*
-```
-
-Next, change to the new my-passport-app directory and install ethers:
-
-`npm install ethers`
-
-This tutorial will also use Chakra-UI for styling, so install it using npm:
-
-```sh
-npm i @chakra-ui/react @emotion/react @emotion/styled framer-motion
-```
+`npm install`
 
 Then, run the app locally using the development server:
 
