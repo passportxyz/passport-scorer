@@ -33,10 +33,19 @@ services:
     command: celery -A scorer worker -l DEBUG
 
   interface:
-    build: interface
+    build:
+      context: ./interface
+      dockerfile: Dockerfile
 
     ports:
-      - "3001:3001"
+      - 3001:3001
+
+    volumes:
+      - ./interface:/app
+      - /app/node_modules
+      - /app/.next
+
+    command: yarn dev
 
   verifier:
     build: verifier
