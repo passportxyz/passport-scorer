@@ -5,6 +5,7 @@ from web3 import Web3
 
 env_config = dotenv_values(".env")
 
+
 mnemonic = env_config.get("MNEMONIC")
 num_accounts = int(env_config.get("NUM_ACCOUNTS", 100))
 
@@ -22,6 +23,7 @@ for i in range(num_accounts):
     account_list.append(acc.address)
 
 output_file = f"generated_accounts_{num_accounts}.json"
+
 
 with open(output_file, "w") as f:
     f.write(json.dumps(account_list))
