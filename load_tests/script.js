@@ -7,16 +7,8 @@ import { check } from "k6";
 randomSeed(234123521532);
 function getRandomInt(max) {
   const ret = Math.floor(Math.random() * max);
-  // console.log("getRandomInt ", ret);
   return ret;
 }
-
-// import HDWallet from "https://cdn.jsdelivr.net/npm/ethereum-hdwallet@latest/ethereum-hdwallet.js";
-
-// console.log("HDWallet", HDWallet)
-// const mnemonic = 'tag volcano eight thank tide danger coast health above argue embrace heavy'
-// const hdwallet = HDWallet.fromMnemonic(mnemonic)
-// console.log(`0x${hdwallet.derive(`m/44'/60'/0'/0/0`).getAddress().toString('hex')}`) // 0xc49926c4124cee1cba0ea94ea31a6c12318df947
 
 export const options = {
   ext: {
@@ -27,22 +19,16 @@ export const options = {
       distribution: {
         US: { loadZone: "amazon:us:ashburn", percent: 50 },
         Ireland: { loadZone: "amazon:ie:dublin", percent: 50 },
-        // Sweden: { loadZone: 'amazon:se:stockholm', percent: 34 },
       },
     },
   },
 
   vus: 1,
   duration: "15s",
-  // duration: "60s",
-  // duration: "5m",
 };
 
-// console.log("This is init code: ", exec.vu.idInInstance);
-// console.log("This is init code: ", exec.vu.idInTest);
-
 const scorerId = 24;
-const apiKey = "rSlchz0V.HFjzHxwjoInlqk3tY3XyRGOCKMUUmQcC";
+const apiKey = __ENV.SCORER_API_KEY;
 const numAccounts = 1000;
 
 export function setup() {}
@@ -57,7 +43,6 @@ const userTokens = JSON.parse(
   open("./generate_test_auth_tokens/user-tokens.json")
 );
 
-// const vcsForAddress = [];
 const allVcs = [];
 
 for (let i = 0; i < 100; i++) {
@@ -71,15 +56,9 @@ for (let i = 0; i < 100; i++) {
 
 // create k6 setup and teardown
 export default function () {
-  // const idx = exec.vu.idInInstance - 1;
-  // console.log("This is vu info: ", exec.vu.idInInstance);
-
   const addressIdx = getRandomInt(numAccounts);
   const address = addresses[addressIdx];
   const token = userTokens[address];
-  // const vcs = vcsForAddress[addressIdx];
-  // const vcs = [];
-  // console.log("address", address);
 
   const options = {
     headers: {

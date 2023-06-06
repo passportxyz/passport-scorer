@@ -41,17 +41,11 @@ def score_passport(community_id: int, address: str):
 
     passport = None
     try:
-        log.error("")
         passport = load_passport_record(community_id, address)
-        log.error("")
         remove_existing_stamps_from_db(passport)
-        log.error("")
         passport_data = load_passport_data(address)
-        log.error("")
         validate_and_save_stamps(passport, passport_data)
-        log.error("")
         calculate_score(passport, community_id)
-        log.error("")
 
     except APIException as e:
         log.error(

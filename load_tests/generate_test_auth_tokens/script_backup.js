@@ -1,15 +1,12 @@
 const { ethers } = require("ethers");
 const axios = require("axios");
-const fs = require('fs');
-// import { DIDSession } from "did-session";
-// import type { AuthMethod } from "@didtools/cacao";
-
-// import { EthereumWebAuth, getAccountId } from require("@didtools/pkh-ethereum");
-
-console.log("ethers:", ethers);
+const fs = require("fs");
 
 const mnemonicPhrase =
+  process.env.MNEMONIC ||
   "chief loud snack trend chief net field husband vote message decide replace";
+const alchemyApiKey = process.env.ALCHEMY_API_KEY;
+
 
 // Generate multiple wallets from the HDNode instance
 const wallets = [];
@@ -29,7 +26,7 @@ import("./bridge.js").then(({ Eip1193Bridge }) => {
             async function createTokens() {
               const provider = new ethers.providers.AlchemyProvider(
                 "mainnet",
-                "5QPthzD45A2kb7VKlphviV2voxiIEMqL"
+                alchemyApiKey
               );
 
               function getAuthTokenForwallet(wallet) {
@@ -161,13 +158,13 @@ import("./bridge.js").then(({ Eip1193Bridge }) => {
               Promise.allSettled(walletCreationPromises).then((results) => {
                 console.log("results:", results);
                 const userTokens = results.reduce((acc, result) => {
-                  if(result.status === 'fulfilled') {
+                  if (result.status === "fulfilled") {
                     acc[result.value.address] = result.value.accessToken;
                   }
                   return acc;
                 }, {});
                 let data = JSON.stringify(userTokens);
-                fs.writeFileSync('user-tokens.json', data);
+                fs.writeFileSync("user-tokens.json", data);
               });
             }
 
