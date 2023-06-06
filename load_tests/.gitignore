@@ -1,0 +1,3 @@
+generate_test_auth_tokens/user-tokens.json
+test_data/generated_accounts_*.json
+test_data/vcs

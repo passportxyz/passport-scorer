@@ -1,4 +1,3 @@
-
 # Generate test data
 
 ## generate the file `test_data/generated_accounts_100.json`
@@ -7,7 +6,7 @@
 - make sure you have the pipenv environment create: `pipenv install`
 - enter the pipenv: `pipenv shell`
 - create the `.env` file, and configure the mnemonic (see the `.env-example`)
-    - tip: stick to the default values where these are specified in `.env-example`
+  - tip: stick to the default values where these are specified in `.env-example`
 - adjust the `generate_test_accounts.py`
 - run `python generate_test_accounts.py`
 
@@ -22,6 +21,7 @@
 - `cd generate_test_auth_tokens`
 - run `npm install`
 - make sure to set the environent variables:
+
 ```bash
 export MNEMONIC='chief loud snack trend chief net field husband vote message decide replace'
 export ALCHEMY_API_KEY='5QPthzD45A2kb7VKlphviV2voxiIEMqL'
@@ -31,6 +31,7 @@ export ALCHEMY_API_KEY='5QPthzD45A2kb7VKlphviV2voxiIEMqL'
 - the output will be written to `generate_test_auth_tokens/user-tokens.json`
 
 Adjust the `script.js`:
+
 - make sure to set a valid scorer id: `const scorerId = 24;`
 - make sure to set a valid api key: `const apiKey = "...";`
 - make sure you remove the API limit for the API key
@@ -39,12 +40,13 @@ Adjust the `script.js`:
 
 ## Locally
 
-Run on like like:
+Run locally like:
 `k6 run -e SCORER_API_KEY=<your API key> --vus 10 --duration 30s script.js`
 or
 `k6 run -e SCORER_API_KEY=<your API key> script.js`
 
 ## In cloud
+
 First make sure to set the environment variables: https://k6.io/docs/cloud/manage/environment-variables/
 
 Then run in cloud like:
