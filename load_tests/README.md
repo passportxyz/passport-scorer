@@ -7,6 +7,7 @@
 - make sure you have the pipenv environment create: `pipenv install`
 - enter the pipenv: `pipenv shell`
 - create the `.env` file, and configure the mnemonic (see the `.env-example`)
+    - tip: stick to the default values where these are specified in `.env-example`
 - adjust the `generate_test_accounts.py`
 - run `python generate_test_accounts.py`
 
