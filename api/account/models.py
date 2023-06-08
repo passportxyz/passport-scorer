@@ -170,7 +170,7 @@ class Community(models.Model):
         return f"<Community {self.name}>"
 
     def __str__(self):
-        return f"Community - {self.name}"
+        return f"Community - #{self.id} - {self.name}"
 
     def get_scorer(self) -> Scorer:
         if self.scorer.type == Scorer.Type.WEIGHTED:
