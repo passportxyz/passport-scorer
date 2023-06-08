@@ -6,7 +6,10 @@ import "../utils/onboard";
 
 import { initiateSIWE } from "../utils/siwe";
 import { authenticate, verifyToken } from "../utils/account-requests";
-import { headerInterceptor } from "../utils/interceptors";
+import {
+  headerInterceptor,
+  isServerOnMaintenance,
+} from "../utils/interceptors";
 
 export interface UserState {
   ready: boolean;
@@ -53,7 +56,7 @@ export const UserProvider = ({ children }: { children: any }) => {
         console.log("Error when logging in:", e);
         // Indicate error connecting?
       });
-    };
+  };
 
   const logout = async () => {
     localStorage.removeItem("access-token");
@@ -62,7 +65,7 @@ export const UserProvider = ({ children }: { children: any }) => {
       allWalletState.forEach((wallet) => {
         disconnect(wallet);
       });
-    };
+    }
     setLoginComplete(false);
     setConnected(false);
   };
@@ -130,18 +133,20 @@ export const UserProvider = ({ children }: { children: any }) => {
     }
   };
 
-  // On load check localstorage for loggedin credentials
-  useEffect(() => {
-    (async () => {
-      try {
-        await setWalletFromLocalStorage();
-      } catch (error) {
-        console.log("Error: ", error);
-      } finally {
-        setReady(true);
-      }
-    })();
-  }, []);
+  if (!isServerOnMaintenance()) {
+    // On load check localstorage for loggedin credentials
+    useEffect(() => {
+      (async () => {
+        try {
+          await setWalletFromLocalStorage();
+        } catch (error) {
+          console.log("Error: ", error);
+        } finally {
+          setReady(true);
+        }
+      })();
+    }, []);
+  }
 
   useEffect(() => {
     if (allWalletState && allWalletState.length > 1) {

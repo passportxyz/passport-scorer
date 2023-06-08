@@ -14,6 +14,7 @@ import CommunityList from "../components/CommunityList";
 import APIKeyList from "../components/APIKeyList";
 import NewScorer from "../components/NewScorer";
 import LandingPage from "../components/LandingPage";
+import Maintenance from "../components/Maintenance";
 
 // --- Context
 import { UserContext } from "../context/userContext";
@@ -23,6 +24,7 @@ import PageLayout from "../components/PageLayout";
 import HomePageLayout from "../components/HomePageLayout";
 import NoMatch from "../components/NoMatch";
 import { successToast } from "../components/Toasts";
+import { isServerOnMaintenance } from "../utils/interceptors";
 
 // Layout Route pattern from https://reactrouter.com/en/main/start/concepts#layout-routes
 export const PageRoutes = () => (
@@ -50,6 +52,10 @@ const PageRouter = () => {
       toast(successToast("Ethereum account has been validated.", toast));
     }
   }, [loginComplete]);
+
+  if (isServerOnMaintenance()) {
+    return <Maintenance />;
+  }
 
   return (
     <Router>
