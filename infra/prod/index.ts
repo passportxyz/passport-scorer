@@ -80,7 +80,7 @@ const postgresql = new aws.rds.Instance(
     allocatedStorage: 10,
     engine: "postgres",
     // engineVersion: "5.7",
-    instanceClass: "db.t3.xlarge",
+    instanceClass: "db.t3.2xlarge",
     dbName: dbName,
     password: dbPassword,
     username: dbUsername,
