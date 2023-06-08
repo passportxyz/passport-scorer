@@ -44,10 +44,6 @@ export const PageRoutes = () => (
 );
 
 const PageRouter = () => {
-  if (isServerOnMaintenance()) {
-    return <Maintenance />;
-  }
-
   const { loginComplete } = useContext(UserContext);
   const toast = useToast();
 
@@ -56,6 +52,10 @@ const PageRouter = () => {
       toast(successToast("Ethereum account has been validated.", toast));
     }
   }, [loginComplete]);
+
+  if (isServerOnMaintenance()) {
+    return <Maintenance />;
+  }
 
   return (
     <Router>
