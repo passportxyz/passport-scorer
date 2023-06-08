@@ -14,6 +14,7 @@ import CommunityList from "../components/CommunityList";
 import APIKeyList from "../components/APIKeyList";
 import NewScorer from "../components/NewScorer";
 import LandingPage from "../components/LandingPage";
+import Maintenance from "../components/Maintenance";
 
 // --- Context
 import { UserContext } from "../context/userContext";
@@ -23,12 +24,14 @@ import PageLayout from "../components/PageLayout";
 import HomePageLayout from "../components/HomePageLayout";
 import NoMatch from "../components/NoMatch";
 import { successToast } from "../components/Toasts";
+import { isServerOnMaintenance } from "../utils/interceptors";
 
 // Layout Route pattern from https://reactrouter.com/en/main/start/concepts#layout-routes
 export const PageRoutes = () => (
   <Routes>
     <Route element={<HomePageLayout />}>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/maintenance" element={<Maintenance />} />
     </Route>
     <Route element={<PageLayout />}>
       <Route path="/dashboard" element={<Dashboard />}>
@@ -42,6 +45,10 @@ export const PageRoutes = () => (
 );
 
 const PageRouter = () => {
+  if (isServerOnMaintenance()) {
+    return <Maintenance />;
+  }
+
   const { loginComplete } = useContext(UserContext);
   const toast = useToast();
 
