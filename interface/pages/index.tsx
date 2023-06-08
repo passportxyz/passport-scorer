@@ -31,6 +31,7 @@ export const PageRoutes = () => (
   <Routes>
     <Route element={<HomePageLayout />}>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/maintenance" element={<Maintenance />} />
     </Route>
     <Route element={<PageLayout />}>
       <Route path="/dashboard" element={<Dashboard />}>
@@ -44,6 +45,10 @@ export const PageRoutes = () => (
 );
 
 const PageRouter = () => {
+  if (isServerOnMaintenance()) {
+    return <Maintenance />;
+  }
+
   const { loginComplete } = useContext(UserContext);
   const toast = useToast();
 
