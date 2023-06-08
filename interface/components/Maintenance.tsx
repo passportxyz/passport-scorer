@@ -15,7 +15,7 @@ const Maintenance = () => {
       </div>
       <div>
         <p className="font-miriam-libre my-2 -ml-1 text-lg text-green-jade md:text-3xl">
-          Sorry, we're down for maintenance.
+          Sorry, we&#39;re down for maintenance.
         </p>
       </div>
       <div>
