@@ -14,7 +14,7 @@ class MyDocument extends Document {
               __html: `
               window.intercomSettings = {
                 api_base: "https://api-iam.intercom.io",
-                app_id: process.env.NEXT_PUBLIC_INTERCOM_APP_ID
+                app_id: ${process.env.NEXT_PUBLIC_INTERCOM_APP_ID}
               };
               (function() {
                 var w = window;

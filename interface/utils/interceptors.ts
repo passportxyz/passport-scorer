@@ -39,26 +39,13 @@ export const headerInterceptor = () => {
  * @returns True if the server is on maintenance mode, false otherwise.
  */
 export const isServerOnMaintenance = () => {
-  console.log(
-    "MAINTENANCE_MODE_ON",
-    process.env.NEXT_PUBLIC_MAINTENANCE_MODE_ON
-  );
-  console.log(
-    "MAINTENANCE_MODE_ON_START",
-    process.env.NEXT_PUBLIC_MAINTENANCE_MODE_ON_START
-  );
-  console.log(
-    "MAINTENANCE_MODE_ON_END",
-    process.env.NEXT_PUBLIC_MAINTENANCE_MODE_ON_END
-  );
-  if (
-    process.env.NEXT_PUBLIC_MAINTENANCE_MODE_ON_START &&
-    process.env.NEXT_PUBLIC_MAINTENANCE_MODE_ON_END
-  ) {
+  if (process.env.NEXT_PUBLIC_MAINTENANCE_MODE_ON) {
     try {
-      // const maintenancePeriod = JSON.parse(process.env.NEXT_PUBLIC_MAINTENANCE_MODE_ON);
-      const start = new Date(process.env.NEXT_PUBLIC_MAINTENANCE_MODE_ON_START);
-      const end = new Date(process.env.NEXT_PUBLIC_MAINTENANCE_MODE_ON_END);
+      const maintenancePeriod = JSON.parse(
+        process.env.NEXT_PUBLIC_MAINTENANCE_MODE_ON
+      );
+      const start = new Date(maintenancePeriod[0]);
+      const end = new Date(maintenancePeriod[1]);
       const now = new Date();
 
       return now >= start && now <= end;
