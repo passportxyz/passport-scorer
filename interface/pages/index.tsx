@@ -44,10 +44,6 @@ export const PageRoutes = () => (
 );
 
 const PageRouter = () => {
-  if (isServerOnMaintenance()) {
-    return <Maintenance />;
-  }
-
   const { loginComplete } = useContext(UserContext);
   const toast = useToast();
 
