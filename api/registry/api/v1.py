@@ -40,7 +40,7 @@ from ..exceptions import (
     aapi_get_object_or_404,
     api_get_object_or_404,
 )
-from ..tasks import get_utc_time, score_passport
+from ..tasks import get_utc_time, score_passport_passport, score_registry_passport
 from .base import ApiKey, check_rate_limit, community_requires_signature, get_scorer_id
 from .schema import (
     CursorPaginatedScoreResponse,
@@ -151,7 +151,7 @@ async def a_submit_passport(
 
 
 def handle_submit_passport(
-    payload: SubmitPassportPayload, account: Account
+    payload: SubmitPassportPayload, account: Account, use_passport_task: bool = False
 ) -> DetailedScoreResponse:
     address_lower = payload.address.lower()
 
@@ -178,6 +178,9 @@ def handle_submit_passport(
     db_passport, _ = Passport.objects.update_or_create(
         address=payload.address.lower(),
         community=user_community,
+        defaults={
+            "requires_calculation": True,
+        },
     )
 
     # Create a score with status PROCESSING
@@ -186,7 +189,10 @@ def handle_submit_passport(
         defaults=dict(score=None, status=Score.Status.PROCESSING),
     )
 
-    score_passport.delay(user_community.pk, payload.address)
+    if use_passport_task:
+        score_passport_passport.delay(user_community.pk, payload.address)
+    else:
+        score_registry_passport.delay(user_community.pk, payload.address)
 
     return DetailedScoreResponse(
         address=score.passport.address,

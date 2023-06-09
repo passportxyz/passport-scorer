@@ -516,7 +516,7 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
   },
 });
 
-const celeryWorker = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
+const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
   cluster,
   desiredCount: 2,
   subnets: vpc.privateSubnetIds,
@@ -526,9 +526,49 @@ const celeryWorker = new awsx.ecs.FargateService("scorer-bkgrnd-worker", {
     containers: {
       worker1: {
         image: dockerGtcPassportScorerImage,
-        command: ["celery", "-A", "scorer", "worker", "-l", "DEBUG", "-c", "8"],
-        memory: 2048,
-        cpu: 1000,
+        command: [
+          "celery",
+          "-A",
+          "scorer",
+          "worker",
+          "-Q",
+          "score_registry_passport",
+          "-l",
+          "DEBUG",
+        ],
+        memory: 4096,
+        cpu: 2000,
+        portMappings: [],
+        secrets: secrets,
+        environment: environment,
+        dependsOn: [],
+        links: [],
+      },
+    },
+  },
+});
+
+const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
+  cluster,
+  desiredCount: 1,
+  subnets: vpc.privateSubnetIds,
+  taskDefinitionArgs: {
+    executionRole: workerRole,
+    containers: {
+      worker1: {
+        image: dockerGtcPassportScorerImage,
+        command: [
+          "celery",
+          "-A",
+          "scorer",
+          "worker",
+          "-Q",
+          "score_passport_passport",
+          "-l",
+          "DEBUG",
+        ],
+        memory: 4096,
+        cpu: 2000,
         portMappings: [],
         secrets: secrets,
         environment: environment,
