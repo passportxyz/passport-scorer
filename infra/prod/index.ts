@@ -77,10 +77,11 @@ const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
 const postgresql = new aws.rds.Instance(
   `scorer-db`,
   {
-    allocatedStorage: 10,
+    allocatedStorage: 20,
+    maxAllocatedStorage: 100,
     engine: "postgres",
     // engineVersion: "5.7",
-    instanceClass: "db.t3.xlarge",
+    instanceClass: "db.t3.2xlarge",
     dbName: dbName,
     password: dbPassword,
     username: dbUsername,
@@ -351,6 +352,10 @@ const secrets = [
   {
     name: "RATELIMIT_ENABLE",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:RATELIMIT_ENABLE::`,
+  },
+  {
+    name: "TRUSTED_IAM_ISSUER",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:TRUSTED_IAM_ISSUER::`,
   },
   {
     name: "CERAMIC_CACHE_SCORER_ID",

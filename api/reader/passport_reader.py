@@ -7,6 +7,7 @@ import api_logging as logging
 # Making GET requests against the CERAMIC_URL to read streams
 import requests
 from ceramic_cache.models import CeramicCache
+from django.conf import settings
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
 
@@ -21,8 +22,7 @@ class NoPassportException(APIException):
 # Location of a Ceramic node that we can read state from
 CERAMIC_URL = "https://ceramic.passport-iam.gitcoin.co"
 
-# DID of the trusted IAM server (DEV = "did:key:z6Mkmhp2sE9s4AxFrKUXQjcNxbDV7WTM8xdh1FDNmNDtogdw")
-TRUSTED_IAM_ISSUER = "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC"
+TRUSTED_IAM_ISSUER = settings.TRUSTED_IAM_ISSUER
 
 # Service weights for scorer
 SCORER_SERVICE_WEIGHTS = [

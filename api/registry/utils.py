@@ -7,10 +7,10 @@ from urllib.parse import unquote, urlencode
 
 import api_logging as logging
 import didkit
+from django.conf import settings
 from django.shortcuts import render
 from django.urls import reverse_lazy
 from eth_account.messages import encode_defunct
-from reader.passport_reader import TRUSTED_IAM_ISSUER
 from registry.exceptions import NoRequiredPermissionsException
 from registry.models import Stamp
 from web3 import Web3
@@ -92,7 +92,7 @@ def verify_issuer(stamp: dict) -> bool:
     return (
         "credential" in stamp
         and "issuer" in stamp["credential"]
-        and stamp["credential"]["issuer"] == TRUSTED_IAM_ISSUER
+        and stamp["credential"]["issuer"] == settings.TRUSTED_IAM_ISSUER
     )
 
 
