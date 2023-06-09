@@ -548,6 +548,35 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
   },
 });
 
+const ecsScorerWorker1AutoscalingTarget = new aws.appautoscaling.Target(
+  "scorer-worker1-autoscaling-target",
+  {
+    maxCapacity: 400,
+    minCapacity: 2,
+    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celery1.service.name}`,
+    scalableDimension: "ecs:service:DesiredCount",
+    serviceNamespace: "ecs",
+  }
+);
+
+const ecsScorerWorker1Autoscaling = new aws.appautoscaling.Policy(
+  "scorer-worker1-autoscaling-policy",
+  {
+    policyType: "TargetTrackingScaling",
+    resourceId: ecsScorerWorker1AutoscalingTarget.resourceId,
+    scalableDimension: ecsScorerWorker1AutoscalingTarget.scalableDimension,
+    serviceNamespace: ecsScorerWorker1AutoscalingTarget.serviceNamespace,
+    targetTrackingScalingPolicyConfiguration: {
+      predefinedMetricSpecification: {
+        predefinedMetricType: "ECSServiceAverageCPUUtilization",
+      },
+      targetValue: 30,
+      scaleInCooldown: 300,
+      scaleOutCooldown: 300,
+    },
+  }
+);
+
 const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
   cluster,
   desiredCount: 1,
@@ -579,29 +608,29 @@ const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
   },
 });
 
-const ecsScorerWorkerAutoscalingTarget = new aws.appautoscaling.Target(
-  "scorer-worker-autoscaling-target",
+const ecsScorerWorker2AutoscalingTarget = new aws.appautoscaling.Target(
+  "scorer-worker2-autoscaling-target",
   {
     maxCapacity: 400,
     minCapacity: 2,
-    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celeryWorker.service.name}`,
+    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celery2.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
     serviceNamespace: "ecs",
   }
 );
 
-const ecsScorerWorkerAutoscaling = new aws.appautoscaling.Policy(
-  "scorer-worker-autoscaling-policy",
+const ecsScorerWorker2Autoscaling = new aws.appautoscaling.Policy(
+  "scorer-worker2-autoscaling-policy",
   {
     policyType: "TargetTrackingScaling",
-    resourceId: ecsScorerWorkerAutoscalingTarget.resourceId,
-    scalableDimension: ecsScorerWorkerAutoscalingTarget.scalableDimension,
-    serviceNamespace: ecsScorerWorkerAutoscalingTarget.serviceNamespace,
+    resourceId: ecsScorerWorker2AutoscalingTarget.resourceId,
+    scalableDimension: ecsScorerWorker2AutoscalingTarget.scalableDimension,
+    serviceNamespace: ecsScorerWorker2AutoscalingTarget.serviceNamespace,
     targetTrackingScalingPolicyConfiguration: {
       predefinedMetricSpecification: {
         predefinedMetricType: "ECSServiceAverageCPUUtilization",
       },
-      targetValue: 80,
+      targetValue: 30,
       scaleInCooldown: 300,
       scaleOutCooldown: 300,
     },
