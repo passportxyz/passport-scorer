@@ -9,7 +9,7 @@ import api_logging as logging
 from django.conf import settings
 from django.db import models
 from rest_framework_api_key.models import AbstractAPIKey
-from scorer_weighted.models import Scorer, WeightedScorer
+from scorer_weighted.models import BinaryWeightedScorer, Scorer, WeightedScorer
 
 from .deduplication import Rules
 
@@ -177,3 +177,14 @@ class Community(models.Model):
             return self.scorer.weightedscorer
         elif self.scorer.type == Scorer.Type.WEIGHTED_BINARY:
             return self.scorer.binaryweightedscorer
+
+    async def aget_scorer(self) -> Scorer:
+        scorer = await Scorer.objects.aget(pk=self.scorer_id)
+        log.error("=" * 40)
+        for f in scorer._meta.get_fields():
+            log.error(f"{f.name} - {dir(f)}")
+        log.error("=" * 40)
+        if scorer.type == Scorer.Type.WEIGHTED:
+            return await WeightedScorer.objects.aget(scorer_ptr_id=scorer.id)
+        elif scorer.type == Scorer.Type.WEIGHTED_BINARY:
+            return await BinaryWeightedScorer.objects.aget(scorer_ptr_id=scorer.id)
