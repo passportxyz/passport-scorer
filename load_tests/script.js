@@ -69,20 +69,25 @@ export default function () {
 
   // We simulate 4 batches of changes to a users passport
   for (let i = 0; i < 4; i++) {
-    const bodyDelete = [];
     const body = [];
     for (let j = 0; j < 10; j++) {
       const vcIdx = getRandomInt(allVcs.length);
       const stamp = allVcs[vcIdx];
       const provider = stamp.credentialSubject.provider;
+
       // Make sure we do not have duplicate providers in our request
-      if (bodyDelete.findIndex((e) => e.provider === provider) === -1) {
+      if (body.find((e) => e.provider === provider)) continue;
+
+      if (Math.random() < 0.5) {
+        // To be deleted
+        body.push({
+          provider,
+        });
+      } else {
+        // To be added/updated
         body.push({
           provider,
           stamp,
-        });
-        bodyDelete.push({
-          provider,
         });
       }
     }
@@ -91,35 +96,17 @@ export default function () {
     // User claims some stamps. In the Passport app, the user would normally claim stamps
     // in batches (for example, claim Twitter stamp - batch 1, some EVM stamps - batch 2, Gitcoin stamps - batch 3, etc.)
     //
-    // For each batch we will do the following:
-    // 1. delete existing stamps
-    // 2. post new stamps
+    // For each batch we will make a patch request to create/update/delete stamps.
     //////////////////////////////////////////////////////////////////////////////////////
 
-    // Delete any existing providers
-    const resDel = http.del(
-      "https://api.staging.scorer.gitcoin.co/ceramic-cache/stamps/bulk",
-      JSON.stringify(bodyDelete),
-      options
-    );
-    // console.log(
-    //   "This is delete body: ",
-    //   JSON.stringify(bodyDelete, undefined, 2)
-    // );
-    // console.log(
-    //   "This is delete response: ",
-    //   JSON.stringify(resDel, undefined, 2)
-    // );
-
-    // Post new providers
-    const res = http.post(
+    const res = http.patch(
       "https://api.staging.scorer.gitcoin.co/ceramic-cache/stamps/bulk",
       JSON.stringify(body),
       options
     );
 
     check(res, {
-      "is status 201": (r) => r.status === 201,
+      "is status 200": (r) => r.status === 200,
     });
 
     if (res.status !== 201) {

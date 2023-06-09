@@ -172,7 +172,7 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
 
 
 @router.patch(
-    "stamps/bulk", response={201: List[CachedStampResponse]}, auth=JWTDidAuth()
+    "stamps/bulk", response={200: List[CachedStampResponse]}, auth=JWTDidAuth()
 )
 def patch_stamps(request, payload: List[CacheStampPayload]):
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:

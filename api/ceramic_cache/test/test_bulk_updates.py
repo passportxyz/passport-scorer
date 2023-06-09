@@ -97,7 +97,7 @@ class TestBulkStampUpdates:
             **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
         )
 
-        assert cache_stamp_response.status_code == 201
+        assert cache_stamp_response.status_code == 200
         assert len(cache_stamp_response.json()) == 2
 
         # Should have a stamp for the first provider, but not for the last provider
@@ -126,7 +126,7 @@ class TestBulkStampUpdates:
             **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
         )
 
-        assert cache_stamp_response.status_code == 201
+        assert cache_stamp_response.status_code == 200
         assert len(cache_stamp_response.json()) == len(sample_providers) - 1
 
         # Should no longer have a stamp for the first provider, but now have one for the last provider
