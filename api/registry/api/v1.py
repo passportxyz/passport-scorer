@@ -108,7 +108,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
 
 
 def handle_submit_passport(
-    payload: SubmitPassportPayload, account: Account
+    payload: SubmitPassportPayload, account: Account, use_passport_task: bool = False
 ) -> DetailedScoreResponse:
     address_lower = payload.address.lower()
 
@@ -146,7 +146,7 @@ def handle_submit_passport(
         defaults=dict(score=None, status=Score.Status.PROCESSING),
     )
 
-    if user_community.pk == settings.CERAMIC_CACHE_SCORER_ID:
+    if use_passport_task:
         score_passport_passport.delay(user_community.pk, payload.address)
     else:
         score_registry_passport.delay(user_community.pk, payload.address)

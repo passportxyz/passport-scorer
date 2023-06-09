@@ -375,7 +375,7 @@ def submit_passport_from_cache(address: str) -> Optional[DetailedScoreResponse]:
             scorer_id=scorer_id,
         )
 
-        return handle_submit_passport(payload, account)
+        return handle_submit_passport(payload, account, True)
     except Exception:
         log.error(
             "Error when calling submit_passport_from_cache for address: '%s'",
