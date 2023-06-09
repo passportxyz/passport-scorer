@@ -95,6 +95,18 @@ class WeightedScorer(Scorer):
             for s in calculate_weighted_score(self, passport_ids)
         ]
 
+    async def acompute_score(self, passport_ids) -> List[ScoreData]:
+        """
+        Compute the weighted score for the passports identified by `ids`
+        Note: the `ids` are not validated. The caller shall ensure that these are indeed proper IDs, from the correct community
+        """
+        from .computation import acalculate_weighted_score
+
+        return [
+            ScoreData(score=s, evidence=None)
+            async for s in acalculate_weighted_score(self, passport_ids)
+        ]
+
     def __str__(self):
         return f"WeightedScorer #{self.id}"
 
@@ -115,6 +127,35 @@ class BinaryWeightedScorer(Scorer):
         from .computation import calculate_weighted_score
 
         rawScores = calculate_weighted_score(self, passport_ids)
+        binaryScores = [
+            Decimal(1) if s >= self.threshold else Decimal(0) for s in rawScores
+        ]
+
+        return list(
+            map(
+                lambda rawScore, binaryScore: ScoreData(
+                    score=binaryScore,
+                    evidence=[
+                        ThresholdScoreEvidence(
+                            threshold=Decimal(str(self.threshold)),
+                            rawScore=Decimal(rawScore),
+                            success=bool(binaryScore),
+                        )
+                    ],
+                ),
+                rawScores,
+                binaryScores,
+            )
+        )
+
+    async def acompute_score(self, passport_ids) -> List[ScoreData]:
+        """
+        Compute the weighted score for the passports identified by `ids`
+        Note: the `ids` are not validated. The caller shall ensure that these are indeed proper IDs, from the correct community
+        """
+        from .computation import acalculate_weighted_score
+
+        rawScores = await acalculate_weighted_score(self, passport_ids)
         binaryScores = [
             Decimal(1) if s >= self.threshold else Decimal(0) for s in rawScores
         ]
