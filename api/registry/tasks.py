@@ -32,6 +32,15 @@ def save_api_key_analytics(api_key_id, path):
 
 
 @shared_task
+def score_passport_passport(community_id: int, address: str):
+    score_passport(community_id, address)
+
+
+@shared_task
+def score_registry_passport(community_id: int, address: str):
+    score_passport(community_id, address)
+
+
 def score_passport(community_id: int, address: str):
     log.info(
         "score_passport request for community_id=%s, address='%s'",

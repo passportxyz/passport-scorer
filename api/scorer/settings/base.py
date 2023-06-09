@@ -373,6 +373,11 @@ CACHES = {
     }
 }
 
+CELERY_ROUTES = [
+    ("registry.tasks.score_registry_passport", {"queue": "registry_passport_scorer"}),
+    ("registry.tasks.score_passport_passport", {"queue": "default_passport_scorer"}),
+]
+
 CERAMIC_CACHE_SCORER_ID = env("CERAMIC_CACHE_SCORER_ID")
 
 PASSPORT_PUBLIC_URL = env("PASSPORT_PUBLIC_URL", default="http://localhost:80")

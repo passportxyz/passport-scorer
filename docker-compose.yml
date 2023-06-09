@@ -23,14 +23,11 @@ services:
 
   worker:
     build: api
-
     volumes:
       - ./api:/app
-
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
-
-    command: celery -A scorer worker -l DEBUG
+    command: celery -A scorer worker -Q default_passport_scorer,registry_passport_scorer
 
   interface:
     build:

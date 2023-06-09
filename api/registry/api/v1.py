@@ -32,7 +32,7 @@ from ..exceptions import (
     InvalidSignerException,
     api_get_object_or_404,
 )
-from ..tasks import score_passport
+from ..tasks import score_passport_passport, score_registry_passport
 from .base import ApiKey, check_rate_limit, community_requires_signature, get_scorer_id
 from .schema import (
     CursorPaginatedScoreResponse,
@@ -143,7 +143,10 @@ def handle_submit_passport(
         defaults=dict(score=None, status=Score.Status.PROCESSING),
     )
 
-    score_passport.delay(user_community.pk, payload.address)
+    if user_community.pk == settings.CERAMIC_CACHE_SCORER_ID:
+        score_passport_passport.delay(user_community.pk, payload.address)
+    else:
+        score_registry_passport.delay(user_community.pk, payload.address)
 
     return DetailedScoreResponse(
         address=score.passport.address,
