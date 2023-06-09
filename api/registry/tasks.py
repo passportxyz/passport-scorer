@@ -120,15 +120,23 @@ def load_passport_record(community_id: int, address: str) -> Passport | None:
         address=address.lower(), community_id=community_id, requires_calculation=True
     ).update(requires_calculation=False)
 
-    # If the num_passports_updated == 1, this means we are in the lucky tasks that has managed to pick this task up for processing
-    # If other which pare potentially racing for the same calculation should get num_passports_updated == 0
+    # If the num_passports_updated == 1, this means we are in the lucky task that has managed to pick this passport up for processing
+    # Other tasks which are potentially racing for the same calculation should get num_passports_updated == 0
     if num_passports_updated == 1:
-        db_passport, _ = Passport.objects.get(
+        db_passport = Passport.objects.get(
             address=address.lower(),
             community_id=community_id,
         )
         return db_passport
-
+    else:
+        # Just in case the Passport does not exist, we create it
+        if not Passport.objects.filter(
+            address=address.lower(), community_id=community_id
+        ).exists():
+            db_passport, _ = Passport.objects.update_or_create(
+                address=address.lower(), community_id=community_id
+            )
+        return db_passport
     return None
 
 

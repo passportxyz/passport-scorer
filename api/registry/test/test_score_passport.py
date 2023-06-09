@@ -148,7 +148,9 @@ class TestScorePassportTestCase(TransactionTestCase):
 
     def test_cleaning_stale_stamps(self):
         passport, _ = Passport.objects.update_or_create(
-            address=self.account.address, community_id=self.community.pk
+            address=self.account.address,
+            community_id=self.community.pk,
+            requires_calculation=True,
         )
 
         Stamp.objects.filter(passport=passport).delete()

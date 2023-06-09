@@ -932,6 +932,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         first_passport = Passport.objects.create(
             address=address_1.lower(),
             community=fifo_community,
+            requires_calculation=True,
         )
 
         Stamp.objects.create(

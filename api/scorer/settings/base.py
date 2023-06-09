@@ -374,8 +374,8 @@ CACHES = {
 }
 
 CELERY_ROUTES = [
-    ("registry.tasks.score_registry_passport", {"queue": "registry_passport_scorer"}),
-    ("registry.tasks.score_passport_passport", {"queue": "default_passport_scorer"}),
+    ("registry.tasks.score_registry_passport", {"queue": "default"}),
+    ("registry.tasks.score_passport_passport", {"queue": "default"}),
 ]
 
 CERAMIC_CACHE_SCORER_ID = env("CERAMIC_CACHE_SCORER_ID")

@@ -135,6 +135,9 @@ def handle_submit_passport(
     db_passport, _ = Passport.objects.update_or_create(
         address=payload.address.lower(),
         community=user_community,
+        defaults={
+            "requires_calculation": True,
+        },
     )
 
     # Create a score with status PROCESSING
