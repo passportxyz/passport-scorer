@@ -1,6 +1,6 @@
 import re
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
@@ -174,31 +174,39 @@ class TestScorePassportTestCase(TransactionTestCase):
                 assert len(gitcoin_stamps) == 1
                 assert gitcoin_stamps[0].hash == "0x45678"
 
-    # def test_scoring_race_condition(self):
-    #     """
-    #     Test that when multiple tasks are scheduled for the same Passport, only one of them will execute the scoring calculation, and it will also reset the requires_calculation to False
-    #     """
-    #     passport, _ = Passport.objects.update_or_create(
-    #         address=self.account.address, community_id=self.community.pk
-    #     )
+    def test_deduplication_of_scoring_tasks(self):
+        """
+        Test that when multiple tasks are scheduled for the same Passport, only one of them will execute the scoring calculation, and it will also reset the requires_calculation to False
+        """
+        passport, _ = Passport.objects.update_or_create(
+            address=self.account.address,
+            community_id=self.community.pk,
+            requires_calculation=True,
+        )
 
-    #     Stamp.objects.filter(passport=passport).delete()
+        Stamp.objects.filter(passport=passport).delete()
 
-    #     Stamp.objects.update_or_create(
-    #         hash="0x1234",
-    #         passport=passport,
-    #         defaults={"provider": "Gitcoin", "credential": "{}"},
-    #     )
+        Stamp.objects.update_or_create(
+            hash="0x1234",
+            passport=passport,
+            defaults={"provider": "Gitcoin", "credential": "{}"},
+        )
 
-    #     assert Stamp.objects.filter(passport=passport).count() == 1
+        assert Stamp.objects.filter(passport=passport).count() == 1
 
-    #     with patch("registry.tasks.get_passport", return_value=mock_passport_data):
-    #         with patch("registry.tasks.async_to_sync", return_value=mock_validate):
-    #             score_passport_passport(self.community.pk, self.account.address)
+        with patch("registry.tasks.get_passport", return_value=mock_passport_data):
+            with patch("registry.tasks.async_to_sync", return_value=mock_validate):
+                with patch("registry.tasks.log.info") as mock_log:
+                    score_passport_passport(self.community.pk, self.account.address)
+                    score_passport_passport(self.community.pk, self.account.address)
 
-    #             my_stamps = Stamp.objects.filter(passport=passport)
-    #             assert len(my_stamps) == 2
-
-    #             gitcoin_stamps = my_stamps.filter(provider="Gitcoin")
-    #             assert len(gitcoin_stamps) == 1
-    #             assert gitcoin_stamps[0].hash == "0x45678"
+                    expected_call = call(
+                        "Passport no passport found for address='%s', community_id='%s' that has requires_calculation=True",
+                        self.account.address,
+                        self.community.pk,
+                    )
+                    assert mock_log.call_args_list.count(expected_call) == 1
+                    assert (
+                        Passport.objects.get(pk=passport.pk).requires_calculation
+                        is False
+                    )
