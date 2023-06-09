@@ -22,7 +22,7 @@ def lifo(
             if (
                 not Stamp.objects.filter(hash=stamp_hash, passport__community=community)
                 .exclude(passport__address=address)
-                .aexists()
+                .exists()
             ):
                 deduped_passport["stamps"].append(copy.deepcopy(stamp))
 
