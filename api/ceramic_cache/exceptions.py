@@ -17,3 +17,8 @@ class InvalidSessionException(APIException):
 class TooManyStampsException(APIException):
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
     default_detail = "You have submitted too many stamps."
+
+
+class InternalServerException(APIException):
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    default_detail = "An internal server error has occurred."
