@@ -89,3 +89,15 @@ def get_scorer_id(payload: SubmitPassportPayload) -> str:
         raise InvalidScorerIdException()
 
     return scorer_id
+
+
+# async def aget_scorer_id(payload: SubmitPassportPayload) -> str:
+#     scorer_id = ""
+#     if payload.scorer_id:
+#         scorer_id = payload.scorer_id
+#     elif payload.community and payload.community != "Deprecated":
+#         scorer_id = payload.community
+#     else:
+#         raise InvalidScorerIdException()
+
+#     return scorer_id

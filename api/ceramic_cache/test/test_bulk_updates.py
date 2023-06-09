@@ -77,6 +77,67 @@ class TestBulkStampUpdates:
         for i in range(0, len(sample_providers)):
             assert cache_stamp_response.json()[i]["stamp"] == {"updated": True}
 
+    def test_bulk_patch(
+        self, sample_providers, sample_address, sample_stamps, sample_token
+    ):
+        # create two stamps
+        bulk_payload = []
+        for i in range(0, 2):
+            bulk_payload.append(
+                {
+                    "provider": sample_providers[i],
+                    "stamp": sample_stamps[i],
+                }
+            )
+
+        cache_stamp_response = client.patch(
+            "/ceramic-cache/stamps/bulk",
+            json.dumps(bulk_payload),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
+        )
+
+        assert cache_stamp_response.status_code == 200
+        assert len(cache_stamp_response.json()) == 2
+
+        # Should have a stamp for the first provider, but not for the last provider
+        assert CeramicCache.objects.filter(provider=sample_providers[0]).count() == 1
+        assert (
+            CeramicCache.objects.filter(
+                provider=sample_providers[len(sample_providers) - 1]
+            ).count()
+            == 0
+        )
+
+        # patch all the stamps except the first, which is deleted
+        bulk_payload = [{"provider": sample_providers[0]}]
+        for i in range(1, len(sample_providers)):
+            bulk_payload.append(
+                {
+                    "provider": sample_providers[i],
+                    "stamp": {"updated": True},
+                }
+            )
+
+        cache_stamp_response = client.patch(
+            "/ceramic-cache/stamps/bulk",
+            json.dumps(bulk_payload),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
+        )
+
+        assert cache_stamp_response.status_code == 200
+        assert len(cache_stamp_response.json()) == len(sample_providers) - 1
+
+        # Should no longer have a stamp for the first provider, but now have one for the last provider
+        assert CeramicCache.objects.filter(provider=sample_providers[0]).count() == 0
+        assert (
+            CeramicCache.objects.filter(
+                provider=sample_providers[len(sample_providers) - 1]
+            ).count()
+            == 1
+        )
+
     def test_bulk_update_create_doesnt_accept_greater_than_100_stamps(
         self, sample_providers, sample_address, sample_stamps, sample_token
     ):

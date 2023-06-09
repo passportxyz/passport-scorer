@@ -30,6 +30,7 @@ from registry.api.v1 import (
 from registry.models import Score
 
 from .exceptions import (
+    InternalServerException,
     InvalidDeleteCacheRequestException,
     InvalidSessionException,
     TooManyStampsException,
@@ -168,6 +169,57 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
         return created
     except Exception as e:
         raise e
+
+
+@router.patch(
+    "stamps/bulk", response={200: List[CachedStampResponse]}, auth=JWTDidAuth()
+)
+def patch_stamps(request, payload: List[CacheStampPayload]):
+    if len(payload) > settings.MAX_BULK_CACHE_SIZE:
+        raise TooManyStampsException()
+
+    try:
+        address = get_address_from_did(request.did)
+        stamp_objects = []
+        providers_to_delete = []
+        updated = []
+
+        for p in payload:
+            if p.stamp:
+                stamp_object = CeramicCache(
+                    address=address,
+                    provider=p.provider,
+                    stamp=p.stamp,
+                )
+                stamp_objects.append(stamp_object)
+            else:
+                providers_to_delete.append(p.provider)
+
+        if stamp_objects:
+            updated = CeramicCache.objects.bulk_create(
+                stamp_objects,
+                update_conflicts=True,
+                update_fields=["stamp"],
+                unique_fields=["address", "provider"],
+            )
+
+        if providers_to_delete:
+            stamps = CeramicCache.objects.filter(
+                address=address,
+                provider__in=providers_to_delete,
+            )
+            stamps.delete()
+
+        submit_passport_from_cache(address)
+
+        return updated
+    except Exception as e:
+        log.error(
+            "Failed patch_stamps request: '%s'",
+            [p.dict() for p in payload],
+            exc_info=True,
+        )
+        raise InternalServerException()
 
 
 @router.delete("stamps/bulk", response=BulkDeleteResponse, auth=JWTDidAuth())
