@@ -31,6 +31,16 @@ def save_api_key_analytics(api_key_id, path):
         pass
 
 
+def asave_api_key_analytics(api_key_id, path):
+    try:
+        AccountAPIKeyAnalytics.objects.acreate(
+            api_key_id=api_key_id,
+            path=path,
+        )
+    except Exception as e:
+        pass
+
+
 @shared_task
 def score_passport_passport(community_id: int, address: str):
     score_passport(community_id, address)
