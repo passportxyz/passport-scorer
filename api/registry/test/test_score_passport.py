@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TransactionTestCase
 from registry.api.v2 import SubmitPassportPayload, get_score, submit_passport
 from registry.models import Passport, Score, Stamp
-from registry.tasks import score_passport
+from registry.tasks import score_passport_passport
 from web3 import Web3
 
 User = get_user_model()
@@ -95,7 +95,7 @@ class TestScorePassportTestCase(TransactionTestCase):
 
     def test_no_passport(self):
         with patch("registry.tasks.get_passport", return_value=None):
-            score_passport(self.community.pk, self.account.address)
+            score_passport_passport(self.community.pk, self.account.address)
 
             passport = Passport.objects.get(
                 address=self.account.address, community_id=self.community.pk
@@ -129,7 +129,7 @@ class TestScorePassportTestCase(TransactionTestCase):
 
         mock_request = MockRequest(self.user_account)
 
-        with patch("registry.api.v1.score_passport.delay", return_value=None):
+        with patch("registry.api.v1.score_passport_passport.delay", return_value=None):
             submit_passport(
                 mock_request,
                 SubmitPassportPayload(
@@ -140,7 +140,7 @@ class TestScorePassportTestCase(TransactionTestCase):
 
         with patch("registry.tasks.get_passport", return_value=mock_passport_data):
             with patch("registry.tasks.async_to_sync", return_value=mock_validate):
-                score_passport(self.community.pk, address)
+                score_passport_passport(self.community.pk, address)
 
         score = get_score(mock_request, address, self.community.pk)
         assert score.score == Decimal("1")
@@ -163,7 +163,7 @@ class TestScorePassportTestCase(TransactionTestCase):
 
         with patch("registry.tasks.get_passport", return_value=mock_passport_data):
             with patch("registry.tasks.async_to_sync", return_value=mock_validate):
-                score_passport(self.community.pk, self.account.address)
+                score_passport_passport(self.community.pk, self.account.address)
 
                 my_stamps = Stamp.objects.filter(passport=passport)
                 assert len(my_stamps) == 2
@@ -171,3 +171,32 @@ class TestScorePassportTestCase(TransactionTestCase):
                 gitcoin_stamps = my_stamps.filter(provider="Gitcoin")
                 assert len(gitcoin_stamps) == 1
                 assert gitcoin_stamps[0].hash == "0x45678"
+
+    # def test_scoring_race_condition(self):
+    #     """
+    #     Test that when multiple tasks are scheduled for the same Passport, only one of them will execute the scoring calculation, and it will also reset the requires_calculation to False
+    #     """
+    #     passport, _ = Passport.objects.update_or_create(
+    #         address=self.account.address, community_id=self.community.pk
+    #     )
+
+    #     Stamp.objects.filter(passport=passport).delete()
+
+    #     Stamp.objects.update_or_create(
+    #         hash="0x1234",
+    #         passport=passport,
+    #         defaults={"provider": "Gitcoin", "credential": "{}"},
+    #     )
+
+    #     assert Stamp.objects.filter(passport=passport).count() == 1
+
+    #     with patch("registry.tasks.get_passport", return_value=mock_passport_data):
+    #         with patch("registry.tasks.async_to_sync", return_value=mock_validate):
+    #             score_passport_passport(self.community.pk, self.account.address)
+
+    #             my_stamps = Stamp.objects.filter(passport=passport)
+    #             assert len(my_stamps) == 2
+
+    #             gitcoin_stamps = my_stamps.filter(provider="Gitcoin")
+    #             assert len(gitcoin_stamps) == 1
+    #             assert gitcoin_stamps[0].hash == "0x45678"

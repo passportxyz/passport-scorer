@@ -32,7 +32,7 @@ from ..exceptions import (
     InvalidSignerException,
     api_get_object_or_404,
 )
-from ..tasks import score_passport_passport, score_registry_passport
+from ..tasks import score_passport, score_passport_passport, score_registry_passport
 from .base import ApiKey, check_rate_limit, community_requires_signature, get_scorer_id
 from .schema import (
     CursorPaginatedScoreResponse,

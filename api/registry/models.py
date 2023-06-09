@@ -7,6 +7,10 @@ class Passport(models.Model):
     community = models.ForeignKey(
         Community, related_name="passports", on_delete=models.CASCADE, null=True
     )
+    requires_calculation = models.BooleanField(
+        null=True,
+        help_text="This flag indicates that this passport requires calculation of the score. The score calculation task shall skip calculation unless this flag is set.",
+    )
 
     class Meta:
         unique_together = ["address", "community"]

@@ -9,7 +9,7 @@ import pytest
 from account.models import Community
 from django.test import Client
 from pytest_bdd import given, scenario, then, when
-from registry.tasks import score_passport
+from registry.tasks import score_passport_passport
 from registry.test.test_passport_submission import mock_passport
 from scorer_weighted.models import BinaryWeightedScorer
 
@@ -58,7 +58,9 @@ def _(scorer_community):
 @when("I choose to score a passport", target_fixture="scoreResponse")
 def score_response(scorer_community, scorer_api_key):
     """I choose to score a passport."""
-    with patch("registry.tasks.score_passport.delay") as mock_score_passport_task:
+    with patch(
+        "registry.tasks.score_passport_passport.delay"
+    ) as mock_score_passport_task:
         with patch(
             "registry.tasks.get_passport", return_value=mock_passport
         ) as get_passport:
@@ -79,7 +81,7 @@ def score_response(scorer_community, scorer_api_key):
                 )
 
                 # execute the task
-                score_passport(scorer_community.id, "0x0123")
+                score_passport_passport(scorer_community.id, "0x0123")
 
                 # read the score ...
                 assert submitResponse.json() == {
@@ -166,7 +168,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                 )
 
             # execute the task
-            score_passport(scorer_community_with_binary_scorer.id, "0x0123")
+            score_passport_passport(scorer_community_with_binary_scorer.id, "0x0123")
 
             # read the score ...
             assert submitResponse.json() == {
@@ -224,7 +226,9 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                     HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
                 )
                 # execute the task
-                score_passport(scorer_community_with_binary_scorer.id, "0x0123")
+                score_passport_passport(
+                    scorer_community_with_binary_scorer.id, "0x0123"
+                )
 
                 # read the score ...
                 assert submitResponse.json() == {
