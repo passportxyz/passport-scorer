@@ -41,7 +41,13 @@ from ..exceptions import (
     api_get_object_or_404,
 )
 from ..tasks import get_utc_time, score_passport_passport, score_registry_passport
-from .base import ApiKey, check_rate_limit, community_requires_signature, get_scorer_id
+from .base import (
+    ApiKey,
+    aapi_key,
+    check_rate_limit,
+    community_requires_signature,
+    get_scorer_id,
+)
 from .schema import (
     CursorPaginatedScoreResponse,
     CursorPaginatedStampCredentialResponse,
@@ -108,7 +114,6 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
     log.debug("/submit-passport, payload=%s", payload)
 
     account = request.auth
-    log.error("===> Account %s", account.id)
 
     if not request.api_key.submit_passports:
         raise InvalidAPIKeyPermissions()
@@ -118,7 +123,7 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
 
 @router.post(
     "/a-submit-passport",
-    # auth=ApiKey(),
+    auth=aapi_key,
     response={
         200: DetailedScoreResponse,
         401: ErrorMessageResponse,
@@ -140,12 +145,10 @@ async def a_submit_passport(
     # did = get_did(payload.address)
     log.debug("/a-submit-passport, payload=%s", payload)
 
-    # account = request.auth
-    account = await Account.objects.aget(id=1)
-    log.error("===> Account %s", account.id)
+    account = request.auth
 
-    # if not request.api_key.submit_passports:
-    #     raise InvalidAPIKeyPermissions()
+    if not request.api_key.submit_passports:
+        raise InvalidAPIKeyPermissions()
 
     return await ahandle_submit_passport(payload, account)
 

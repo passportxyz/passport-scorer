@@ -1,14 +1,19 @@
-from account.models import AccountAPIKey
+import logging
+
+from account.models import Account, AccountAPIKey
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.utils.module_loading import import_string
 from django_ratelimit.core import is_ratelimited
 from django_ratelimit.decorators import ALL
 from django_ratelimit.exceptions import Ratelimited
 from ninja.security import APIKeyHeader
-from registry.tasks import save_api_key_analytics
+from registry.tasks import asave_api_key_analytics, save_api_key_analytics
 
 from ..exceptions import InvalidScorerIdException, Unauthorized
 from .schema import SubmitPassportPayload
+
+log = logging.getLogger(__name__)
 
 
 class ApiKey(APIKeyHeader):
@@ -45,6 +50,36 @@ class ApiKey(APIKeyHeader):
                 return user_account
         except AccountAPIKey.DoesNotExist:
             raise Unauthorized()
+
+
+async def aapi_key(request):
+    """
+    The content of this function was copied form AccountAPIKey.objects.get_from_key and
+    adjusted to our needs.
+    We might want to fix the `AccountAPIKey.objects.aget_from_key` (the async version)
+    """
+    param_name = "HTTP_X_API_KEY"
+    key = request.META.get(param_name)
+
+    prefix, _, _ = key.partition(".")
+    queryset = AccountAPIKey.objects.get_usable_keys()
+
+    try:
+        api_key = await queryset.aget(prefix=prefix)
+        request.api_key = api_key
+    except AccountAPIKey.DoesNotExist:
+        raise  # For the sake of being explicit.
+
+    if not api_key.is_valid(key):
+        raise AccountAPIKey.DoesNotExist("Key is not valid.")
+
+    if settings.FF_API_ANALYTICS == "on":
+        asave_api_key_analytics(api_key.id, request.path)
+
+    user_account = await Account.objects.aget(pk=api_key.account_id)
+    if user_account:
+        request.user = await get_user_model().objects.aget(pk=user_account.user_id)
+        return user_account
 
 
 def check_rate_limit(request):
