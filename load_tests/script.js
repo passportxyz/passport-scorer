@@ -109,7 +109,7 @@ export default function () {
       "is status 200": (r) => r.status === 200,
     });
 
-    if (res.status !== 201) {
+    if (res.status !== 200) {
       console.log("Saving stamps failed: ", JSON.stringify(res, undefined, 2));
     }
   }
