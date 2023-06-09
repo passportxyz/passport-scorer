@@ -138,7 +138,7 @@ async def a_submit_passport(
 
     # Get DID from address
     # did = get_did(payload.address)
-    # log.debug("/submit-passport, payload=%s", payload)
+    log.debug("/a-submit-passport, payload=%s", payload)
 
     # account = request.auth
     account = await Account.objects.aget(id=1)
