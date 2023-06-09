@@ -136,7 +136,7 @@ def load_passport_record(community_id: int, address: str) -> Passport | None:
             db_passport, _ = Passport.objects.update_or_create(
                 address=address.lower(), community_id=community_id
             )
-        return db_passport
+            return db_passport
     return None
 
 
