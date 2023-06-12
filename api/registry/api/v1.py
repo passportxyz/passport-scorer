@@ -93,36 +93,6 @@ def signing_message(request) -> SigningMessageResponse:
 
 @router.post(
     "/submit-passport",
-    auth=ApiKey(),
-    response={
-        200: DetailedScoreResponse,
-        401: ErrorMessageResponse,
-        400: ErrorMessageResponse,
-        404: ErrorMessageResponse,
-    },
-    summary="Submit passport for scoring",
-    description="""Use this API to submit your passport for scoring.\n
-This API will return a `DetailedScoreResponse` structure with status **PROCESSING** immediatly while your passport is being pulled from storage and the scoring algorithm is run.\n
-You need to check for the status of the operation by calling the `/score/{int:scorer_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
-""",
-)
-def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
-    check_rate_limit(request)
-
-    # Get DID from address
-    # did = get_did(payload.address)
-    log.debug("/submit-passport, payload=%s", payload)
-
-    account = request.auth
-
-    if not request.api_key.submit_passports:
-        raise InvalidAPIKeyPermissions()
-
-    return handle_submit_passport(payload, account)
-
-
-@router.post(
-    "/a-submit-passport",
     auth=aapi_key,
     response={
         200: DetailedScoreResponse,
