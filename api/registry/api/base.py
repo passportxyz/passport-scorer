@@ -59,7 +59,24 @@ async def aapi_key(request):
     We might want to fix the `AccountAPIKey.objects.aget_from_key` (the async version)
     """
     param_name = "HTTP_X_API_KEY"
+    from pprint import pformat
+
+    log.error("META %s", request)
+    log.error("META %s", pformat(request.META))
     key = request.META.get(param_name)
+
+    if not key:
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+        if not auth_header:
+            raise Unauthorized()
+
+        try:
+            key = auth_header.split()[1]
+        except:
+            raise Unauthorized()
+
+    if not key:
+        raise Unauthorized()
 
     prefix, _, _ = key.partition(".")
     queryset = AccountAPIKey.objects.get_usable_keys()
@@ -68,10 +85,10 @@ async def aapi_key(request):
         api_key = await queryset.aget(prefix=prefix)
         request.api_key = api_key
     except AccountAPIKey.DoesNotExist:
-        raise  # For the sake of being explicit.
+        raise Unauthorized()
 
     if not api_key.is_valid(key):
-        raise AccountAPIKey.DoesNotExist("Key is not valid.")
+        raise Unauthorized()
 
     if settings.FF_API_ANALYTICS == "on":
         asave_api_key_analytics(api_key.id, request.path)
@@ -80,6 +97,8 @@ async def aapi_key(request):
     if user_account:
         request.user = await get_user_model().objects.aget(pk=user_account.user_id)
         return user_account
+
+    raise Unauthorized()
 
 
 def check_rate_limit(request):

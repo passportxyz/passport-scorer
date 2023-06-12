@@ -62,11 +62,35 @@ class Nonce(models.Model):
             raise
 
     @classmethod
+    async def avalidate_nonce(cls: Type[Nonce], nonce: str) -> Nonce:
+        try:
+            log.debug("Checking nonce: %s", nonce)
+            return await Nonce.objects.filter(
+                Q(nonce=nonce),
+                (Q(expires_on__isnull=True) | Q(expires_on__gt=datetime.now(tz))),
+                Q(was_used=False),
+            ).aget()
+        except Nonce.DoesNotExist:
+            # Re-raise the exception
+            raise
+
+    @classmethod
     def use_nonce(cls: Type[Nonce], nonce: str):
         try:
             nonceRecord = cls.validate_nonce(nonce)
             nonceRecord.was_used = True
             nonceRecord.save()
+            return True
+        except Exception:
+            log.error("Error when validating nonce", exc_info=True)
+            return False
+
+    @classmethod
+    async def ause_nonce(cls: Type[Nonce], nonce: str):
+        try:
+            nonceRecord = await cls.avalidate_nonce(nonce)
+            nonceRecord.was_used = True
+            await nonceRecord.asave()
             return True
         except Exception:
             log.error("Error when validating nonce", exc_info=True)
