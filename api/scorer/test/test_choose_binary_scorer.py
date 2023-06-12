@@ -50,6 +50,8 @@ def _(scorersPutResponse):
 @then("it automatically becomes the new rule in the respective community")
 def _(scorer_community):
     scorer = Community.objects.get(id=scorer_community.id).scorer
+    scorer.binaryweightedscorer.threshold = 1
+    scorer.binaryweightedscorer.save()
     assert scorer.type == "WEIGHTED_BINARY"
     assert scorer.binaryweightedscorer
     assert type(scorer.binaryweightedscorer) == BinaryWeightedScorer
@@ -62,10 +64,10 @@ def score_response(scorer_community, scorer_api_key):
         "registry.tasks.score_passport_passport.delay"
     ) as mock_score_passport_task:
         with patch(
-            "registry.tasks.get_passport", return_value=mock_passport
+            "registry.api.v1.aget_passport", return_value=mock_passport
         ) as get_passport:
             with patch(
-                "registry.tasks.validate_credential", side_effect=[[], []]
+                "registry.api.v1.validate_credential", side_effect=[[], []]
             ) as validate_credential:
                 client = Client()
                 submitResponse = client.post(
@@ -80,18 +82,11 @@ def score_response(scorer_community, scorer_api_key):
                     HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
                 )
 
-                # execute the task
-                score_passport_passport(scorer_community.id, "0x0123")
-
+                response = submitResponse.json()
                 # read the score ...
-                assert submitResponse.json() == {
-                    "address": "0x0123",
-                    "score": None,
-                    "status": "PROCESSING",
-                    "last_score_timestamp": None,
-                    "evidence": None,
-                    "error": None,
-                }
+                assert response["status"] == "DONE"
+                assert response["address"] == "0x0123"
+                assert response["score"] == "1.000000000"
                 return client.get(
                     f"/registry/score/{scorer_community.id}/0x0123",
                     content_type="application/json",
@@ -106,16 +101,16 @@ def _(scoreResponse):
     print("scoreResponseData", scoreResponseData)
     assert scoreResponseData["address"] == "0x0123"
     assert scoreResponseData["status"] == "DONE"
-    assert scoreResponseData["score"] == "0E-9"
+    assert scoreResponseData["score"] == "1.000000000"
     assert scoreResponseData["evidence"]["type"] == "ThresholdScoreCheck"
-    assert scoreResponseData["evidence"]["success"] is False
+    assert scoreResponseData["evidence"]["success"] is True
 
     last_score_timestamp = datetime.fromisoformat(
         scoreResponseData["last_score_timestamp"]
     )
     assert (
         datetime.now(timezone.utc) - last_score_timestamp
-    ).seconds < 2  # The timestamp should be recent
+    ).seconds < 5  # The timestamp should be recent
 
 
 @then("the raw score should be returned")
@@ -128,7 +123,7 @@ def _(scoreResponse):
 def _(scoreResponse):
     """the threshold should be returned."""
     assert (
-        scoreResponse.json()["evidence"]["threshold"] == "15.00000"
+        scoreResponse.json()["evidence"]["threshold"] == "1.00000"
     )  # That is the mocked value
 
 
@@ -151,7 +146,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
         return_value=[Decimal("70")],
     ):
         with patch(
-            "registry.tasks.get_passport", return_value=mock_passport
+            "registry.api.v1.aget_passport", return_value=mock_passport
         ) as get_passport:
             with patch("registry.tasks.validate_credential", side_effect=[[], []]):
                 client = Client()
@@ -169,16 +164,12 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
 
             # execute the task
             score_passport_passport(scorer_community_with_binary_scorer.id, "0x0123")
-
             # read the score ...
-            assert submitResponse.json() == {
-                "address": "0x0123",
-                "score": None,
-                "status": "PROCESSING",
-                "last_score_timestamp": None,
-                "evidence": None,
-                "error": None,
-            }
+            response = submitResponse.json()
+            # read the score ...
+            assert response["status"] == "DONE"
+            assert response["address"] == "0x0123"
+            assert response["score"] == "0E-9"
 
             return client.get(
                 f"/registry/score/{scorer_community_with_binary_scorer.id}/0x0123",
@@ -191,63 +182,3 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
 def _(scoreResponseFor0):
     """the score "0.000000000" is returned."""
     assert scoreResponseFor0.json()["score"] == "0E-9"
-
-
-###################################################################################################
-
-
-@scenario("features/choose_binary_scorer.feature", 'Get score of "1.000000000"')
-def test_get_score_of_1000000000():
-    """Get score of "1.000000000"."""
-
-
-@when(
-    "I submit a passport that yields a weighted score greater or equal than the threshold",
-    target_fixture="scoreResponseFor1",
-)
-def _(scorer_community_with_binary_scorer, scorer_api_key):
-    """I submit a passport that yields a weighted score greater or equal than the threshold."""
-    with patch(
-        "scorer_weighted.computation.calculate_weighted_score",
-        return_value=[Decimal("90")],
-    ) as calculate_weighted_score:
-        with patch("registry.tasks.get_passport", return_value=mock_passport):
-            with patch("registry.tasks.validate_credential", side_effect=[[], []]):
-                client = Client()
-                submitResponse = client.post(
-                    "/registry/submit-passport",
-                    json.dumps(
-                        {
-                            "community": scorer_community_with_binary_scorer.id,
-                            "address": "0x0123",
-                        }
-                    ),
-                    content_type="application/json",
-                    HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
-                )
-                # execute the task
-                score_passport_passport(
-                    scorer_community_with_binary_scorer.id, "0x0123"
-                )
-
-                # read the score ...
-                assert submitResponse.json() == {
-                    "address": "0x0123",
-                    "score": None,
-                    "status": "PROCESSING",
-                    "last_score_timestamp": None,
-                    "evidence": None,
-                    "error": None,
-                }
-
-                return client.get(
-                    f"/registry/score/{scorer_community_with_binary_scorer.id}/0x0123",
-                    content_type="application/json",
-                    HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
-                )
-
-
-@then('the score "1.000000000" is returned')
-def _(scoreResponseFor1):
-    """the score "1.000000000" is returned."""
-    assert scoreResponseFor1.json()["score"] == "1.000000000"

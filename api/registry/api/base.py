@@ -58,7 +58,7 @@ async def aapi_key(request):
     adjusted to our needs.
     We might want to fix the `AccountAPIKey.objects.aget_from_key` (the async version)
     """
-    param_name = "HTTP_X_API_KEY"
+    param_name = "HTTP_X-API-Key"
     from pprint import pformat
 
     log.error("META %s", request)

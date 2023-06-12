@@ -93,6 +93,7 @@ def scorer_community_with_binary_scorer(mocker, scorer_account):
     )
 
     scorer = BinaryWeightedScorer.objects.create(type=Scorer.Type.WEIGHTED_BINARY)
+    scorer.threshold = 1
 
     community = Community.objects.create(
         name="My Community",
