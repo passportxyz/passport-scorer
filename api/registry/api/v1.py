@@ -135,6 +135,8 @@ def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreRes
 This API will return a `DetailedScoreResponse` structure with status **PROCESSING** immediatly while your passport is being pulled from storage and the scoring algorithm is run.\n
 You need to check for the status of the operation by calling the `/score/{int:scorer_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
 """,
+    # Don't list in the docs for now
+    include_in_schema=False,
 )
 async def a_submit_passport(
     request, payload: SubmitPassportPayload
