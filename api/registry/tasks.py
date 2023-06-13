@@ -63,7 +63,7 @@ def score_passport(community_id: int, address: str):
         passport = load_passport_record(community_id, address)
         if not passport:
             log.info(
-                "Passport no passport found for address='%s', community_id='%s' that has requires_calculation=True",
+                "Passport no passport found for address='%s', community_id='%s' that has requires_calculation=True or None",
                 address,
                 community_id,
             )
@@ -126,9 +126,13 @@ def load_passport_record(community_id: int, address: str) -> Passport | None:
     # A Passport instance should exist, and have the requires_calculation flag set to True if it requires calculation.
     # We check for this by running an update and checking for the number of updated rows
     # This update should also avoid race conditions as stated in the documentation: https://docs.djangoproject.com/en/4.2/ref/models/querysets/#update
-    num_passports_updated = Passport.objects.filter(
-        address=address.lower(), community_id=community_id, requires_calculation=True
-    ).update(requires_calculation=False)
+    # We query for all passports that have requires_calculation not set to False
+    # because we want to calculate the score for any passport that has requires_calculation set to True or None
+    num_passports_updated = (
+        Passport.objects.filter(address=address.lower(), community_id=community_id)
+        .exclude(requires_calculation=False)
+        .update(requires_calculation=False)
+    )
 
     # If the num_passports_updated == 1, this means we are in the lucky task that has managed to pick this passport up for processing
     # Other tasks which are potentially racing for the same calculation should get num_passports_updated == 0

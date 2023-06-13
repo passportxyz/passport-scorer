@@ -201,7 +201,7 @@ class TestScorePassportTestCase(TransactionTestCase):
                     score_passport_passport(self.community.pk, self.account.address)
 
                     expected_call = call(
-                        "Passport no passport found for address='%s', community_id='%s' that has requires_calculation=True",
+                        "Passport no passport found for address='%s', community_id='%s' that has requires_calculation=True or None",
                         self.account.address,
                         self.community.pk,
                     )
