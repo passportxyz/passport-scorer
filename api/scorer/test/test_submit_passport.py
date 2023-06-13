@@ -43,8 +43,9 @@ def _(scorer_community_with_gitcoin_default):
 def submit_passport(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
     """I call the `/registry/submit-passport` API for an Ethereum account and a community ID"""
 
-    mocker.patch("registry.tasks.get_passport", return_value=mock_passport)
-    mocker.patch("registry.tasks.validate_credential", side_effect=[[], []])
+    mocker.patch("registry.api.v1.aget_passport", return_value=mock_passport)
+    mocker.patch("registry.api.v1.validate_credential", side_effect=[[], []])
+    mocker.patch("registry.api.v1.get_utc_time", return_value=mock_utc_timestamp)
     client = Client()
 
     my_mnemonic = (
@@ -93,11 +94,12 @@ def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
 @then("I receive back the score details with status `PROCESSING`")
 def _(scorer_community_with_gitcoin_default, submit_passport_response):
     """I receive back the score details with status `PROCESSING`."""
+    # TODO change PROCESSING => DONE above
     assert submit_passport_response.json() == {
         "address": scorer_community_with_gitcoin_default.account.address.lower(),
-        "score": None,
-        "status": "PROCESSING",
-        "last_score_timestamp": None,
+        "score": "1001234.000000000",
+        "status": "DONE",
+        "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "evidence": None,
         "error": None,
     }
@@ -106,9 +108,9 @@ def _(scorer_community_with_gitcoin_default, submit_passport_response):
 @given("the scoring of the passport has finished successfully")
 def _(scorer_community_with_gitcoin_default, mocker):
     """the scoring of the passport has finished successfully."""
-    mocker.patch("registry.tasks.get_passport", return_value=mock_passport)
-    mocker.patch("registry.tasks.get_utc_time", return_value=mock_utc_timestamp)
-    mocker.patch("registry.tasks.validate_credential", side_effect=[[], []])
+    mocker.patch("registry.api.v1.aget_passport", return_value=mock_passport)
+    mocker.patch("registry.api.v1.get_utc_time", return_value=mock_utc_timestamp)
+    mocker.patch("registry.api.v1.validate_credential", side_effect=[[], []])
     # execute the task
     score_passport(
         scorer_community_with_gitcoin_default.id,
@@ -173,9 +175,11 @@ def test_scoring_failed():
 @given("the scoring of the passport has failed")
 def _(scorer_community_with_gitcoin_default, mocker):
     """the scoring of the passport has failed."""
-    mocker.patch("registry.tasks.get_passport", side_effect=Exception("something bad"))
-    mocker.patch("registry.tasks.get_utc_time", return_value=mock_utc_timestamp)
-    mocker.patch("registry.tasks.validate_credential", side_effect=[[], []])
+    mocker.patch(
+        "registry.api.v1.aget_passport", side_effect=Exception("something bad")
+    )
+    mocker.patch("registry.api.v1.get_utc_time", return_value=mock_utc_timestamp)
+    mocker.patch("registry.api.v1.validate_credential", side_effect=[[], []])
     # execute the task
     score_passport(
         scorer_community_with_gitcoin_default.id,

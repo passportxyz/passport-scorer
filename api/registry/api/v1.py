@@ -17,6 +17,7 @@ from ninja import Router
 from ninja.pagination import paginate
 from ninja_extra.exceptions import APIException
 from reader.passport_reader import get_did
+from registry.exceptions import NoPassportException
 from registry.models import Passport, Score, Stamp
 from registry.permissions import ResearcherPermission
 from registry.utils import (
@@ -155,61 +156,6 @@ async def a_submit_passport(
     return await ahandle_submit_passport(payload, account)
 
 
-def handle_submit_passport(
-    payload: SubmitPassportPayload, account: Account, use_passport_task: bool = False
-) -> DetailedScoreResponse:
-    address_lower = payload.address.lower()
-
-    try:
-        scorer_id = get_scorer_id(payload)
-    except Exception as e:
-        raise e
-
-    # Get community object
-    user_community = get_scorer_by_id(scorer_id, account)
-
-    # Verify the signer
-    if payload.signature or community_requires_signature(user_community):
-        if get_signer(payload.nonce, payload.signature).lower() != address_lower:
-            raise InvalidSignerException()
-
-        # Verify nonce
-        if not Nonce.use_nonce(payload.nonce):
-            log.error("Invalid nonce %s for address %s", payload.nonce, payload.address)
-            raise InvalidNonceException()
-
-    # Create an empty passport instance, only needed to be able to create a pending Score
-    # The passport will be updated by the score_passport task
-    db_passport, _ = Passport.objects.update_or_create(
-        address=payload.address.lower(),
-        community=user_community,
-        defaults={
-            "requires_calculation": True,
-        },
-    )
-
-    # Create a score with status PROCESSING
-    score, _ = Score.objects.update_or_create(
-        passport_id=db_passport.pk,
-        defaults=dict(score=None, status=Score.Status.PROCESSING),
-    )
-
-    if use_passport_task:
-        score_passport_passport.delay(user_community.pk, payload.address)
-    else:
-        score_registry_passport.delay(user_community.pk, payload.address)
-
-    return DetailedScoreResponse(
-        address=score.passport.address,
-        score=score.score,
-        status=score.status,
-        evidence=score.evidence,
-        last_score_timestamp=score.last_score_timestamp.isoformat()
-        if score.last_score_timestamp
-        else None,
-    )
-
-
 async def aremove_existing_stamps_from_db(passport: Passport):
     await Stamp.objects.filter(passport=passport).adelete()
 
@@ -247,6 +193,13 @@ async def aload_passport_data(address: str) -> Dict:
     if not passport_data:
         raise NoPassportException()
 
+    log.error("=" * 40)
+    log.error("=" * 40)
+    from pprint import pformat
+
+    log.error("%s", pformat(passport_data))
+    log.error("=" * 40)
+    log.error("=" * 40)
     return passport_data
 
 
@@ -400,7 +353,7 @@ async def ascore_passport(community: Community, passport: Passport, address: str
         )
         if passport:
             # Create a score with error status
-            await Score.objects.apdate_or_create(
+            await Score.objects.aupdate_or_create(
                 passport_id=passport.pk,
                 defaults=dict(
                     score=None,
@@ -471,11 +424,66 @@ async def ahandle_submit_passport(
 
     await ascore_passport(user_community, db_passport, payload.address)
 
-    passport = await Passport.objects.aget(pk=score.id)
+    passport = await Passport.objects.aget(pk=score.passport_id)
 
     score = await Score.objects.aget(id=score.id)
     return DetailedScoreResponse(
         address=passport.address,
+        score=score.score,
+        status=score.status,
+        evidence=score.evidence,
+        last_score_timestamp=score.last_score_timestamp.isoformat()
+        if score.last_score_timestamp
+        else None,
+    )
+
+
+def handle_submit_passport(
+    payload: SubmitPassportPayload, account: Account, use_passport_task: bool = False
+) -> DetailedScoreResponse:
+    address_lower = payload.address.lower()
+
+    try:
+        scorer_id = get_scorer_id(payload)
+    except Exception as e:
+        raise e
+
+    # Get community object
+    user_community = get_scorer_by_id(scorer_id, account)
+
+    # Verify the signer
+    if payload.signature or community_requires_signature(user_community):
+        if get_signer(payload.nonce, payload.signature).lower() != address_lower:
+            raise InvalidSignerException()
+
+        # Verify nonce
+        if not Nonce.use_nonce(payload.nonce):
+            log.error("Invalid nonce %s for address %s", payload.nonce, payload.address)
+            raise InvalidNonceException()
+
+    # Create an empty passport instance, only needed to be able to create a pending Score
+    # The passport will be updated by the score_passport task
+    db_passport, _ = Passport.objects.update_or_create(
+        address=payload.address.lower(),
+        community=user_community,
+        defaults={
+            "requires_calculation": True,
+        },
+    )
+
+    # Create a score with status PROCESSING
+    score, _ = Score.objects.update_or_create(
+        passport_id=db_passport.pk,
+        defaults=dict(score=None, status=Score.Status.PROCESSING),
+    )
+
+    if use_passport_task:
+        score_passport_passport.delay(user_community.pk, payload.address)
+    else:
+        score_registry_passport.delay(user_community.pk, payload.address)
+
+    return DetailedScoreResponse(
+        address=score.passport.address,
         score=score.score,
         status=score.status,
         evidence=score.evidence,

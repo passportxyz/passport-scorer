@@ -204,10 +204,6 @@ class Community(models.Model):
 
     async def aget_scorer(self) -> Scorer:
         scorer = await Scorer.objects.aget(pk=self.scorer_id)
-        log.error("=" * 40)
-        for f in scorer._meta.get_fields():
-            log.error(f"{f.name} - {dir(f)}")
-        log.error("=" * 40)
         if scorer.type == Scorer.Type.WEIGHTED:
             return await WeightedScorer.objects.aget(scorer_ptr_id=scorer.id)
         elif scorer.type == Scorer.Type.WEIGHTED_BINARY:

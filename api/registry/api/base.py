@@ -7,6 +7,7 @@ from django.utils.module_loading import import_string
 from django_ratelimit.core import is_ratelimited
 from django_ratelimit.decorators import ALL
 from django_ratelimit.exceptions import Ratelimited
+from ninja.compatibility.request import get_headers
 from ninja.security import APIKeyHeader
 from registry.tasks import asave_api_key_analytics, save_api_key_analytics
 
@@ -58,12 +59,14 @@ async def aapi_key(request):
     adjusted to our needs.
     We might want to fix the `AccountAPIKey.objects.aget_from_key` (the async version)
     """
-    param_name = "HTTP_X-API-Key"
+    param_name = "X-API-Key"
+    headers = get_headers(request)
+    key = headers.get(param_name)
+
     from pprint import pformat
 
-    log.error("META %s", request)
-    log.error("META %s", pformat(request.META))
-    key = request.META.get(param_name)
+    log.error("HEADERS KEYS %s", pformat(request.headers.keys()))
+    log.error("key %s", key)
 
     if not key:
         auth_header = request.META.get("HTTP_AUTHORIZATION", "")

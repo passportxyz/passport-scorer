@@ -42,17 +42,16 @@ async def afifo(
         for stamp in fifo_passport["stamps"]:
             stamp_hash = stamp["credential"]["credentialSubject"]["hash"]
 
-            existing_stamps = await Stamp.objects.afilter(
-                hash=stamp_hash, passport__community=community
-            ).aexclude(passport__address=address)
+            existing_stamps = (
+                Stamp.objects.filter(hash=stamp_hash, passport__community=community)
+                .exclude(passport__address=address)
+                .select_related("passport")
+            )
 
-            for existing_stamp in existing_stamps.iterator():
+            async for existing_stamp in existing_stamps:
                 existing_stamp_passport = existing_stamp.passport
-
-                existing_stamp.delete()
-
-                existing_stamp_passport.save()
-
+                await existing_stamp.adelete()
+                await existing_stamp_passport.asave()
                 affected_passports.append(existing_stamp_passport)
 
     return (deduped_passport, affected_passports)
