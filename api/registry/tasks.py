@@ -99,9 +99,10 @@ def score_passport(community_id: int, address: str):
             address,
             exc_info=True,
         )
+        log.error("Error for passport=%s", passport)
         if passport:
             # Create a score with error status
-            Score.objects.update_or_create(
+            score, _ = Score.objects.update_or_create(
                 passport_id=passport.pk,
                 defaults=dict(
                     score=None,
@@ -111,6 +112,8 @@ def score_passport(community_id: int, address: str):
                     error=str(e),
                 ),
             )
+
+            log.error("score.error=%s", score.error)
 
 
 def load_passport_data(address: str):

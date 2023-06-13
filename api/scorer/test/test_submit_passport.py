@@ -172,25 +172,44 @@ def test_scoring_failed():
     """Scoring failed."""
 
 
-@given("the scoring of the passport has failed")
-def _(scorer_community_with_gitcoin_default, mocker):
+@given(
+    "the scoring of the passport has failed",
+    target_fixture="scoring_failed_score_response",
+)
+def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
     """the scoring of the passport has failed."""
     mocker.patch(
         "registry.api.v1.aget_passport", side_effect=Exception("something bad")
     )
     mocker.patch("registry.api.v1.get_utc_time", return_value=mock_utc_timestamp)
     mocker.patch("registry.api.v1.validate_credential", side_effect=[[], []])
-    # execute the task
-    score_passport(
-        scorer_community_with_gitcoin_default.id,
-        scorer_community_with_gitcoin_default.account.address,
+
+    payload = {
+        "scorer_id": scorer_community_with_gitcoin_default.id,
+        "address": scorer_community_with_gitcoin_default.account.address,
+    }
+
+    client = Client()
+    response = client.post(
+        "/registry/submit-passport",
+        json.dumps(payload),
+        content_type="application/json",
+        HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
     )
+
+    assert response.status_code == 200
+    # score_passport(
+    #     scorer_community_with_gitcoin_default.id,
+    #     scorer_community_with_gitcoin_default.account.address,
+    # )
+
+    return response
 
 
 @then("I receive back the score details with status `ERROR`")
-def _(scorer_community_with_gitcoin_default, score_response):
+def _(scorer_community_with_gitcoin_default, scoring_failed_score_response):
     """I receive back the score details with status `ERROR`."""
-    assert score_response.json() == {
+    assert scoring_failed_score_response.json() == {
         "address": scorer_community_with_gitcoin_default.account.address.lower(),
         "score": None,
         "status": "ERROR",
@@ -217,18 +236,26 @@ def _():
 @then(
     "I receive back the score details with status `PROCESSING` while the scoring is still in progress"
 )
-def _(scorer_community_with_gitcoin_default, score_response):
+def _(scorer_community_with_gitcoin_default, score_response, mocker):
     """I receive back the score details with status `PROCESSING` while the scoring is still in progress."""
     assert score_response.status_code == 200
+    mocker.patch("registry.api.v1.get_utc_time", return_value=mock_utc_timestamp)
 
-    assert score_response.json() == {
-        "address": scorer_community_with_gitcoin_default.account.address.lower(),
-        "score": None,
-        "status": "PROCESSING",
-        "last_score_timestamp": None,
-        "evidence": None,
-        "error": None,
-    }
+    response_data = score_response.json()
+
+    ################################################################################
+    # Because we have moved to an async func, scoring should not be in "PROCESSING" any more
+    # but directly in "DONE"
+    ################################################################################
+    assert (
+        response_data["address"]
+        == scorer_community_with_gitcoin_default.account.address.lower()
+    )
+    assert response_data["score"] == "1001234.000000000"
+    assert response_data["status"] == "DONE"
+    assert response_data["last_score_timestamp"] == mock_utc_timestamp.isoformat()
+    assert response_data["evidence"] is None
+    assert response_data["error"] is None
 
 
 ####################################################################################

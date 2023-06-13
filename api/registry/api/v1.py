@@ -213,7 +213,7 @@ async def acalculate_score(passport: Passport, community_id: int):
     log.info("Scores for address '%s': %s", passport.address, scores)
     scoreData = scores[0]
 
-    await Score.objects.aupdate_or_create(
+    score, _ = await Score.objects.aupdate_or_create(
         passport_id=passport.pk,
         defaults=dict(
             score=scoreData.score,
@@ -223,6 +223,7 @@ async def acalculate_score(passport: Passport, community_id: int):
             error=None,
         ),
     )
+    return score
 
 
 async def aprocess_deduplication(passport, community, passport_data):
@@ -370,9 +371,10 @@ async def ascore_passport(community: Community, passport: Passport, address: str
             address,
             exc_info=True,
         )
+        log.error("Error for passport=%s", passport)
         if passport:
             # Create a score with error status
-            await Score.objects.aupdate_or_create(
+            score, _ = await Score.objects.aupdate_or_create(
                 passport_id=passport.pk,
                 defaults=dict(
                     score=None,
@@ -382,6 +384,7 @@ async def ascore_passport(community: Community, passport: Passport, address: str
                     error=str(e),
                 ),
             )
+            log.error("score.id=%s score.error=%s", score.id, score.error)
 
 
 async def ahandle_submit_passport(
@@ -424,18 +427,10 @@ async def ahandle_submit_passport(
 
     await ascore_passport(user_community, db_passport, payload.address)
 
-    passport = await Passport.objects.aget(pk=score.passport_id)
+    score = await Score.objects.select_related("passport").aget(id=score.id)
 
-    score = await Score.objects.aget(id=score.id)
-    return DetailedScoreResponse(
-        address=passport.address,
-        score=score.score,
-        status=score.status,
-        evidence=score.evidence,
-        last_score_timestamp=score.last_score_timestamp.isoformat()
-        if score.last_score_timestamp
-        else None,
-    )
+    log.error("=> score.id=%s score.error=%s", score.id, score.error)
+    return score
 
 
 def handle_submit_passport(
