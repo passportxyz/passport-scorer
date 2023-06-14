@@ -64,10 +64,10 @@ def score_response(scorer_community, scorer_api_key):
         "registry.tasks.score_passport_passport.delay"
     ) as mock_score_passport_task:
         with patch(
-            "registry.api.v1.aget_passport", return_value=mock_passport
+            "registry.atasks.aget_passport", return_value=mock_passport
         ) as get_passport:
             with patch(
-                "registry.api.v1.validate_credential", side_effect=[[], []]
+                "registry.atasks.validate_credential", side_effect=[[], []]
             ) as validate_credential:
                 client = Client()
                 submitResponse = client.post(
@@ -146,7 +146,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
         return_value=[Decimal("70")],
     ):
         with patch(
-            "registry.api.v1.aget_passport", return_value=mock_passport
+            "registry.atasks.aget_passport", return_value=mock_passport
         ) as get_passport:
             with patch("registry.tasks.validate_credential", side_effect=[[], []]):
                 client = Client()
