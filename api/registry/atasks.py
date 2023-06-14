@@ -67,7 +67,7 @@ async def aload_passport_data(address: str) -> Dict:
     return passport_data
 
 
-async def acalculate_score(passport: Passport, community_id: int):
+async def acalculate_score(passport: Passport, community_id: int, score: Score):
     log.debug("Scoring")
     user_community = await Community.objects.aget(pk=community_id)
 
@@ -77,17 +77,11 @@ async def acalculate_score(passport: Passport, community_id: int):
     log.info("Scores for address '%s': %s", passport.address, scores)
     scoreData = scores[0]
 
-    score, _ = await Score.objects.aupdate_or_create(
-        passport_id=passport.pk,
-        defaults=dict(
-            score=scoreData.score,
-            status=Score.Status.DONE,
-            last_score_timestamp=get_utc_time(),
-            evidence=scoreData.evidence[0].as_dict() if scoreData.evidence else None,
-            error=None,
-        ),
-    )
-    return score
+    score.score = scoreData.score
+    score.status = Score.Status.DONE
+    score.last_score_timestamp = get_utc_time()
+    score.evidence = scoreData.evidence[0].as_dict() if scoreData.evidence else None
+    score.error = None
 
 
 async def aprocess_deduplication(passport, community, passport_data):
@@ -128,11 +122,12 @@ async def aprocess_deduplication(passport, community, passport_data):
                 passport,
             )
 
-            await Score.objects.aupdate_or_create(
+            affected_score, _ = await Score.objects.aupdate_or_create(
                 passport=passport,
                 defaults=dict(score=None, status=Score.Status.PROCESSING),
             )
-            await acalculate_score(passport, passport.community_id)
+            await acalculate_score(passport, passport.community_id, affected_score)
+            await affected_score.asave()
 
     return deduplicated_passport
 
@@ -190,7 +185,9 @@ async def avalidate_and_save_stamps(
             )
 
 
-async def ascore_passport(community: Community, passport: Passport, address: str):
+async def ascore_passport(
+    community: Community, passport: Passport, address: str, score: Score
+):
     log.info(
         "score_passport request for community_id=%s, address='%s'",
         community.id,
@@ -206,7 +203,7 @@ async def ascore_passport(community: Community, passport: Passport, address: str
         log.error("===> 3")
         await avalidate_and_save_stamps(passport, community, passport_data)
         log.error("===> 4")
-        await acalculate_score(passport, community.id)
+        await acalculate_score(passport, community.id, score)
         log.error("===> 5")
 
     except APIException as e:
@@ -218,16 +215,11 @@ async def ascore_passport(community: Community, passport: Passport, address: str
         )
         if passport:
             # Create a score with error status
-            await Score.objects.aupdate_or_create(
-                passport_id=passport.pk,
-                defaults=dict(
-                    score=None,
-                    status=Score.Status.ERROR,
-                    last_score_timestamp=None,
-                    evidence=None,
-                    error=e.detail,
-                ),
-            )
+            score.score = None
+            score.status = Score.Status.ERROR
+            score.last_score_timestamp = None
+            score.evidence = None
+            score.error = e.detail
     except Exception as e:
         log.error(
             "Error when handling passport submission. community_id=%s, address='%s'",
@@ -238,14 +230,10 @@ async def ascore_passport(community: Community, passport: Passport, address: str
         log.error("Error for passport=%s", passport)
         if passport:
             # Create a score with error status
-            score, _ = await Score.objects.aupdate_or_create(
-                passport_id=passport.pk,
-                defaults=dict(
-                    score=None,
-                    status=Score.Status.ERROR,
-                    last_score_timestamp=None,
-                    evidence=None,
-                    error=str(e),
-                ),
-            )
+            score.score = None
+            score.status = Score.Status.ERROR
+            score.last_score_timestamp = None
+            score.evidence = None
+            score.error = str(e)
+
             log.error("score.id=%s score.error=%s", score.id, score.error)

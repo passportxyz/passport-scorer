@@ -1,6 +1,7 @@
 """Submit address for passport feature tests."""
 
 import json
+from decimal import Decimal
 
 import pytest
 from account.models import Nonce
@@ -95,9 +96,11 @@ def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
 def _(scorer_community_with_gitcoin_default, submit_passport_response):
     """I receive back the score details with status `PROCESSING`."""
     # TODO change PROCESSING => DONE above
-    assert submit_passport_response.json() == {
+    returned_json = submit_passport_response.json()
+    returned_json["score"] = Decimal(returned_json["score"])
+    assert returned_json == {
         "address": scorer_community_with_gitcoin_default.account.address.lower(),
-        "score": "1001234.000000000",
+        "score": Decimal("1001234.000000000"),
         "status": "DONE",
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "evidence": None,

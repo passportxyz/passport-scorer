@@ -2,6 +2,7 @@
 
 import json
 from datetime import datetime, timezone
+from decimal import Decimal
 
 import pytest
 from account.models import Nonce
@@ -102,7 +103,7 @@ def _(
     response_data = submitResponse.json()
 
     assert response_data["address"] == passport_holder_addresses[1]["address"].lower()
-    assert response_data["score"] == "1234.000000000"
+    assert Decimal(response_data["score"]) == Decimal("1234.000000000")
     assert response_data["status"] == "DONE"
     assert response_data["evidence"] is None
     assert response_data["error"] is None

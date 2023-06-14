@@ -182,14 +182,18 @@ async def ahandle_submit_passport(
     )
 
     # Create a score with status PROCESSING
-    score, _ = await Score.objects.aupdate_or_create(
-        passport_id=db_passport.pk,
+    # score, _ = await Score.objects.aupdate_or_create(
+    #     passport_id=db_passport.pk,
+    #     defaults=dict(score=None, status=Score.Status.PROCESSING),
+    # )
+    # score.passport = db_passport
+    score, _ = await Score.objects.select_related("passport").aget_or_create(
+        passport=db_passport,
         defaults=dict(score=None, status=Score.Status.PROCESSING),
     )
 
-    await ascore_passport(user_community, db_passport, payload.address)
-
-    score = await Score.objects.select_related("passport").aget(id=score.id)
+    await ascore_passport(user_community, db_passport, payload.address, score)
+    await score.asave()
 
     log.error("=> score.id=%s score.error=%s", score.id, score.error)
     return score

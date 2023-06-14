@@ -86,7 +86,7 @@ def score_response(scorer_community, scorer_api_key):
                 # read the score ...
                 assert response["status"] == "DONE"
                 assert response["address"] == "0x0123"
-                assert response["score"] == "1.000000000"
+                assert Decimal(response["score"]) == Decimal("1.000000000")
                 return client.get(
                     f"/registry/score/{scorer_community.id}/0x0123",
                     content_type="application/json",
@@ -169,7 +169,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
             # read the score ...
             assert response["status"] == "DONE"
             assert response["address"] == "0x0123"
-            assert response["score"] == "0E-9"
+            assert Decimal(response["score"]) == Decimal("0E-9")
 
             return client.get(
                 f"/registry/score/{scorer_community_with_binary_scorer.id}/0x0123",

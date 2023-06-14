@@ -1,6 +1,7 @@
 import copy
 import json
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from unittest.mock import patch
 
 from account.deduplication import Rules
@@ -588,7 +589,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "evidence": None,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
-            "score": "2.000000000",
+            "score": Decimal("2.000000000"),
             "status": "DONE",
             "error": None,
         }
@@ -597,7 +598,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "evidence": None,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
-            "score": "2.000000000",
+            "score": Decimal("2.000000000"),
             "status": "DONE",
             "error": None,
         }
@@ -612,8 +613,10 @@ class ValidatePassportTestCase(TransactionTestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        response_json["score"] = Decimal(response_json["score"])
         self.assertEqual(
-            response.json(),
+            response_json,
             expectedResponse,
         )
 
@@ -644,8 +647,10 @@ class ValidatePassportTestCase(TransactionTestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        response_json["score"] = Decimal(response_json["score"])
         self.assertEqual(
-            response.json(),
+            response_json,
             expected2ndResponse,
         )
 
