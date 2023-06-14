@@ -654,7 +654,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             expected2ndResponse,
         )
 
-        score_passport(self.community.id, self.account.address)
+        # score_passport(self.community.id, self.account.address)
 
         # Check that the stamps have only been recorded once
         # Check if the passport data was saved to the database (data that we mock)
@@ -754,7 +754,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        score_passport(self.community.id, self.account.address)
+        # score_passport(self.community.id, self.account.address)
 
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
@@ -856,14 +856,17 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        score_passport(self.community.id, self.account.address)
-
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
+        self.assertEqual(len(all_passports[0].stamps.all()), 2)
         self.assertEqual(
             all_passports[0].stamps.all()[0].credential,
             mock_passport["stamps"][0]["credential"],
+        )
+        self.assertEqual(
+            all_passports[0].stamps.all()[1].credential,
+            mock_passport["stamps"][1]["credential"],
         )
         self.assertEqual(all_passports[0].address, self.account.address.lower())
         self.assertEqual(all_passports[0].community, self.community)
@@ -946,7 +949,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
 
-        score_passport(self.community.pk, self.mock_account.address)
+        # score_passport(self.community.pk, self.mock_account.address)
 
         self.assertEqual(submission_response.status_code, 200)
 
@@ -1017,7 +1020,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
 
-        score_passport(fifo_community.pk, address_2)
+        # score_passport(fifo_community.pk, address_2)
 
         self.assertEqual(submission_response.status_code, 200)
 

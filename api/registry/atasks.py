@@ -135,8 +135,6 @@ async def aprocess_deduplication(passport, community, passport_data):
 async def avalidate_and_save_stamps(
     passport: Passport, community: Community, passport_data
 ):
-    log.debug("getting stamp data ")
-
     log.debug("processing deduplication")
 
     deduped_passport_data = await aprocess_deduplication(

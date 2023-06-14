@@ -137,16 +137,12 @@ async def a_submit_passport(
 ) -> DetailedScoreResponse:
     check_rate_limit(request)
 
-    # Get DID from address
-    # did = get_did(payload.address)
     log.error("/submit-passport, payload=%s", payload)
-
-    account = request.auth
 
     if not request.api_key.submit_passports:
         raise InvalidAPIKeyPermissions()
 
-    return await ahandle_submit_passport(payload, account)
+    return await ahandle_submit_passport(payload, request.auth)
 
 
 async def ahandle_submit_passport(

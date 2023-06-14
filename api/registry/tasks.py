@@ -113,8 +113,6 @@ def score_passport(community_id: int, address: str):
                 ),
             )
 
-            log.error("score.error=%s", score.error)
-
 
 def load_passport_data(address: str):
     # Get the passport data from the blockchain or ceramic cache
@@ -205,13 +203,10 @@ def process_deduplication(passport, passport_data):
 
 
 def validate_and_save_stamps(passport: Passport, passport_data):
-    log.debug("getting stamp data ")
-
-    log.debug("processing deduplication")
-
+    log.debug("Processing deduplication")
     deduped_passport_data = process_deduplication(passport, passport_data)
 
-    log.debug("validating stamps")
+    log.debug("Validating stamps")
     did = get_did(passport.address)
 
     for stamp in deduped_passport_data["stamps"]:

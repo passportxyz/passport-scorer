@@ -115,10 +115,10 @@ def _(scorer_community_with_gitcoin_default, mocker):
     mocker.patch("registry.atasks.get_utc_time", return_value=mock_utc_timestamp)
     mocker.patch("registry.atasks.validate_credential", side_effect=[[], []])
     # execute the task
-    score_passport(
-        scorer_community_with_gitcoin_default.id,
-        scorer_community_with_gitcoin_default.account.address,
-    )
+    # score_passport(
+    #     scorer_community_with_gitcoin_default.id,
+    #     scorer_community_with_gitcoin_default.account.address,
+    # )
 
 
 @when(

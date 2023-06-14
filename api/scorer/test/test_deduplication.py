@@ -10,7 +10,8 @@ from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when
 from registry.models import Passport, Stamp
-from registry.tasks import score_passport
+
+# from registry.tasks import score_passport
 from registry.test.test_passport_submission import (
     ens_credential,
     mock_passport,
@@ -94,10 +95,10 @@ def _(
     )
 
     # execute the task
-    score_passport(
-        scorer_community_with_gitcoin_default.id,
-        passport_holder_addresses[1]["address"].lower(),
-    )
+    # score_passport(
+    #     scorer_community_with_gitcoin_default.id,
+    #     passport_holder_addresses[1]["address"].lower(),
+    # )
 
     # read the score ...
     response_data = submitResponse.json()
