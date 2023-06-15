@@ -422,8 +422,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        # score_passport(self.community.id, self.account.address)
-
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
@@ -523,8 +521,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        score_passport(self.community.id, self.account.address)
-
         # Check if the passport data was saved to the database (data that we mock)
         # We do expect an empty passport to have been stored
         all_passports = list(Passport.objects.all())
@@ -605,8 +601,6 @@ class ValidatePassportTestCase(TransactionTestCase):
             expectedResponse,
         )
 
-        # score_passport(self.community.id, self.account.address)
-
         # 2nd submission
         # Get another nonce (nonces can only be used once)
         nonce = Nonce.create_nonce().nonce
@@ -638,8 +632,6 @@ class ValidatePassportTestCase(TransactionTestCase):
             response_json,
             expected2ndResponse,
         )
-
-        # score_passport(self.community.id, self.account.address)
 
         # Check that the stamps have only been recorded once
         # Check if the passport data was saved to the database (data that we mock)
@@ -733,8 +725,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        # score_passport(self.community.id, self.account.address)
-
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
@@ -782,8 +772,6 @@ class ValidatePassportTestCase(TransactionTestCase):
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
-
-        # score_passport(self.community.id, self.account.address)
 
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
@@ -912,8 +900,6 @@ class ValidatePassportTestCase(TransactionTestCase):
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
 
-        # score_passport(self.community.pk, self.mock_account.address)
-
         self.assertEqual(submission_response.status_code, 200)
 
         updated_passport = Passport.objects.get(address=submission_address)
@@ -978,8 +964,6 @@ class ValidatePassportTestCase(TransactionTestCase):
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
-
-        # score_passport(fifo_community.pk, address_2)
 
         self.assertEqual(submission_response.status_code, 200)
 
