@@ -112,6 +112,7 @@ class Account(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="account"
     )
+    last_logged_ip = models.GenericIPAddressField(null=True, blank=True)
 
     def __str__(self):
         return f"Account #{self.id} - {self.address} - {self.user_id}"

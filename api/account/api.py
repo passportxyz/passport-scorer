@@ -4,11 +4,13 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, cast
 
 import api_logging as logging
+import pytz
 from account.models import Account, AccountAPIKey, Community, Nonce
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from ipware import get_client_ip
 from ninja import ModelSchema, Schema
 from ninja_extra import NinjaExtraAPI, status
 from ninja_extra.exceptions import APIException
@@ -182,12 +184,14 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
 
     address_lower = payload.message["address"]
 
+    client_ip, _ = get_client_ip(request)
+
     try:
         account = Account.objects.get(address=address_lower)
     except Account.DoesNotExist:
         user = get_user_model().objects.create_user(username=get_random_username())
         user.save()
-        account = Account(address=address_lower, user=user)
+        account = Account(address=address_lower, user=user, last_ip=client_ip)
         account.save()
 
     refresh = RefreshToken.for_user(account.user)
@@ -208,6 +212,19 @@ class TokenValidationResponse(Schema):
 def validate_token(request, payload: TokenValidationRequest):
     jwtAuth = JWTAuth()
     token = jwtAuth.get_validated_token(payload.token)
+    user = jwtAuth.get_user(token)
+    client_ip = get_client_ip(request)[0]
+
+    # if the user's last logged ip is different from the current ip
+    if client_ip != user.account.last_logged_ip:
+
+        # update the user's last logged ip
+        user.account.last_logged_ip = client_ip
+        user.account.save()
+
+        # set the token expiration to 0
+        token["exp"] = 0
+
     return {"exp": token["exp"]}
 
 
