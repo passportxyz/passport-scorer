@@ -176,4 +176,4 @@ class BinaryWeightedScorer(Scorer):
         )
 
     def __str__(self):
-        return f"WeightedScorer #{self.id}, threshold='{self.threshold}'"
+        return f"BinaryWeightedScorer #{self.id}, threshold='{self.threshold}'"

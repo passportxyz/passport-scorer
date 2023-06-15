@@ -114,7 +114,7 @@ class Account(models.Model):
     )
 
     def __str__(self):
-        return f"{self.address} - {self.user}"
+        return f"Account #{self.id} - {self.address} - {self.user_id}"
 
 
 class AccountAPIKey(AbstractAPIKey):
@@ -194,7 +194,7 @@ class Community(models.Model):
         return f"<Community {self.name}>"
 
     def __str__(self):
-        return f"Community - {self.name}"
+        return f"Community - #{self.id}, name={self.name}, account_id={self.account_id}"
 
     def get_scorer(self) -> Scorer:
         if self.scorer.type == Scorer.Type.WEIGHTED:

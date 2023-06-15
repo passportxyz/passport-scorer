@@ -141,10 +141,15 @@ async def avalidate_and_save_stamps(
         passport, community, passport_data
     )
 
-    log.debug("validating stamps")
     did = get_did(passport.address)
 
+    log.debug(
+        "validating stamps deduped_passport_data: %s", deduped_passport_data["stamps"]
+    )
     for stamp in deduped_passport_data["stamps"]:
+        log.debug(
+            "validating credential did='%s' credential='%s'", did, stamp["credential"]
+        )
         stamp_return_errors = await validate_credential(did, stamp["credential"])
         try:
             # TODO: use some library or https://docs.python.org/3/library/datetime.html#datetime.datetime.fromisoformat to
@@ -194,21 +199,16 @@ async def ascore_passport(
 
     try:
         # passport = load_passport_record(community_id, address)
-        log.error("===> 1")
         await aremove_existing_stamps_from_db(passport)
-        log.error("===> 2")
         passport_data = await aload_passport_data(address)
-        log.error("===> 3")
         await avalidate_and_save_stamps(passport, community, passport_data)
-        log.error("===> 4")
         await acalculate_score(passport, community.id, score)
-        log.error("===> 5")
 
     except APIException as e:
         log.error(
-            "APIException when handling passport submission. community_id=%s, address='%s'",
-            community.id,
-            address,
+            "APIException when handling passport submission. passport='%s' community='%s'",
+            passport,
+            community,
             exc_info=True,
         )
         if passport:
@@ -220,12 +220,11 @@ async def ascore_passport(
             score.error = e.detail
     except Exception as e:
         log.error(
-            "Error when handling passport submission. community_id=%s, address='%s'",
-            community.id,
-            address,
+            "Error when handling passport submission. passport='%s' community='%s'",
+            passport,
+            community,
             exc_info=True,
         )
-        log.error("Error for passport=%s", passport)
         if passport:
             # Create a score with error status
             score.score = None
