@@ -7,48 +7,27 @@ from account.deduplication.lifo import alifo
 
 # --- Deduplication Modules
 from account.models import Community, Rules
-from ceramic_cache.models import CeramicCache
 from ninja_extra.exceptions import APIException
-from reader.passport_reader import get_did
+from reader.passport_reader import aget_passport, get_did
 from registry.exceptions import NoPassportException
 from registry.models import Passport, Score, Stamp
-from registry.tasks import get_utc_time
-from registry.utils import validate_credential, verify_issuer
-
-from .tasks import get_utc_time
+from registry.utils import get_utc_time, validate_credential, verify_issuer
 
 log = logging.getLogger(__name__)
 
 
+def asave_api_key_analytics(api_key_id, path):
+    try:
+        AccountAPIKeyAnalytics.objects.acreate(
+            api_key_id=api_key_id,
+            path=path,
+        )
+    except Exception as e:
+        pass
+
+
 async def aremove_existing_stamps_from_db(passport: Passport):
     await Stamp.objects.filter(passport=passport).adelete()
-
-
-async def aget_passport(address: str = "", stream_ids: List[str] = []) -> Dict:
-    did = get_did(address)
-
-    db_stamp_list = CeramicCache.objects.filter(address=address)
-
-    # TODO: add back loading from ceramic
-    # if len(db_stamp_list) == 0:
-    #     # get streamIds if non are provided
-    #     stream_ids = (
-    #         stream_ids
-    #         if len(stream_ids) > 0
-    #         else get_stream_ids(did, [CERAMIC_GITCOIN_PASSPORT_STREAM_ID])
-    #     )
-
-    #     # attempt to pull content
-    #     passport = get_stamps(get_passport_stream(stream_ids))
-
-    #     # return a list of wallet address without the @eip155:1 suffix
-    #     return passport
-    # else:
-    return {
-        "stamps": [
-            {"provider": s.provider, "credential": s.stamp} async for s in db_stamp_list
-        ]
-    }
 
 
 async def aload_passport_data(address: str) -> Dict:
@@ -72,7 +51,7 @@ async def acalculate_score(passport: Passport, community_id: int, score: Score):
     user_community = await Community.objects.aget(pk=community_id)
 
     scorer = await user_community.aget_scorer()
-    scores = await scorer.acompute_score([passport.pk])
+    scores = await scorer.acompute_score([passport.id])
 
     log.info("Scores for address '%s': %s", passport.address, scores)
     scoreData = scores[0]
@@ -232,5 +211,3 @@ async def ascore_passport(
             score.last_score_timestamp = None
             score.evidence = None
             score.error = str(e)
-
-            log.error("score.id=%s score.error=%s", score.id, score.error)

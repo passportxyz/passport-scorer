@@ -147,8 +147,8 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
     ):
         with patch(
             "registry.atasks.aget_passport", return_value=mock_passport
-        ) as get_passport:
-            with patch("registry.tasks.validate_credential", side_effect=[[], []]):
+        ) as aget_passport:
+            with patch("registry.atasks.validate_credential", side_effect=[[], []]):
                 client = Client()
                 submitResponse = client.post(
                     "/registry/submit-passport",

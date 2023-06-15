@@ -1,8 +1,9 @@
 import json
 
 from account.deduplication import Rules
-from account.deduplication.lifo import lifo
+from account.deduplication.lifo import alifo
 from account.models import Account, Community
+from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -45,7 +46,8 @@ class LifoDeduplicationTestCase(TestCase):
             name="Community2", scorer=scorer2, rule=Rules.LIFO, account=self.account2
         )
 
-    def test_lifo_no_deduplicate_across_cummunities(self):
+    @async_to_sync
+    async def test_lifo_no_deduplicate_across_cummunities(self):
         """
         Test that the deduplication method is not deduplicating stamps across communities.
         This means the user can submit the same stamps to different communities, and they will not
@@ -53,10 +55,10 @@ class LifoDeduplicationTestCase(TestCase):
         """
         # We create 1 passport for each community, and add 1 stamps to it
         credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
-        passport1 = Passport.objects.create(
+        passport1 = await Passport.objects.acreate(
             address="0xaddress_1", community=self.community1
         )
-        Stamp.objects.create(
+        await Stamp.objects.acreate(
             passport=passport1,
             hash="test_hash",
             provider="test_provider",
@@ -64,17 +66,17 @@ class LifoDeduplicationTestCase(TestCase):
         )
 
         # We create 1 passport for each community, and add 1 stamps to it
-        passport2 = Passport.objects.create(
+        passport2 = await Passport.objects.acreate(
             address="0xaddress_2", community=self.community2
         )
-        Stamp.objects.create(
+        await Stamp.objects.acreate(
             passport=passport2,
             hash="test_hash",
             provider="test_provider",
             credential=credential,
         )
 
-        deduped_passport, _ = lifo(
+        deduped_passport, _ = await alifo(
             passport1.community, {"stamps": [credential]}, passport1.address
         )
 
@@ -82,7 +84,8 @@ class LifoDeduplicationTestCase(TestCase):
         # contained in a different community
         self.assertEqual(len(deduped_passport["stamps"]), 1)
 
-    def test_lifo_no_deduplicate_same_passport_address_across_cummunities(self):
+    @async_to_sync
+    async def test_lifo_no_deduplicate_same_passport_address_across_cummunities(self):
         """
         Test that the deduplication method is not deduplicating stamps owned by the
         same address across communities.
@@ -91,10 +94,10 @@ class LifoDeduplicationTestCase(TestCase):
         """
         # We create 1 passport for each community, and add 1 stamps to it
         credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
-        passport1 = Passport.objects.create(
+        passport1 = await Passport.objects.acreate(
             address="0xaddress_1", community=self.community1
         )
-        Stamp.objects.create(
+        await Stamp.objects.acreate(
             passport=passport1,
             hash="test_hash",
             provider="test_provider",
@@ -102,17 +105,17 @@ class LifoDeduplicationTestCase(TestCase):
         )
 
         # We create the 2nd passport, owned by the same address and add the same stamp to it
-        passport2 = Passport.objects.create(
+        passport2 = await Passport.objects.acreate(
             address=passport1.address, community=self.community2
         )
-        Stamp.objects.create(
+        await Stamp.objects.acreate(
             passport=passport2,
             hash="test_hash",
             provider="test_provider",
             credential=credential,
         )
 
-        deduped_passport, _ = lifo(
+        deduped_passport, _ = await alifo(
             passport1.community, {"stamps": [credential]}, passport1.address
         )
 
@@ -120,17 +123,18 @@ class LifoDeduplicationTestCase(TestCase):
         # contained in a different community
         self.assertEqual(len(deduped_passport["stamps"]), 1)
 
-    def test_lifo_deduplicate(self):
+    @async_to_sync
+    async def test_lifo_deduplicate(self):
         """
         Verifies that deduplication works if the user submits the same stamps to a community
         but as part of different passports
         """
         # We create 1 passport for each community, and add 1 stamps to it
         credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
-        passport = Passport.objects.create(
+        passport = await Passport.objects.acreate(
             address="0xaddress_1", community=self.community1
         )
-        Stamp.objects.create(
+        await Stamp.objects.acreate(
             passport=passport,
             hash="test_hash",
             provider="test_provider",
@@ -138,7 +142,7 @@ class LifoDeduplicationTestCase(TestCase):
         )
 
         # We test deduplication of the 1st passport (for example user submits the same passport again)
-        deduped_passport, _ = lifo(
+        deduped_passport, _ = await alifo(
             passport.community, {"stamps": [credential]}, passport.address
         )
 
@@ -147,7 +151,7 @@ class LifoDeduplicationTestCase(TestCase):
 
         # We test deduplication of another passport with different address but
         # with the same stamp
-        deduped_passport, _ = lifo(
+        deduped_passport, _ = await alifo(
             passport.community, {"stamps": [credential]}, "0xaddress_2"
         )
 

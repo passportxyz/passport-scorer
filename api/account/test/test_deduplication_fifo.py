@@ -3,13 +3,14 @@ from datetime import datetime, timedelta
 
 import pytest
 from account.deduplication import Rules
-from account.deduplication.fifo import fifo
+from account.deduplication.fifo import afifo
 from account.models import Account, Community
+from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from ninja_jwt.schema import RefreshToken
-from registry.models import Passport, Score, Stamp
+from registry.models import Passport, Stamp
 from scorer_weighted.models import Scorer, WeightedScorer
 
 
@@ -104,19 +105,20 @@ class FifoDeduplication(TestCase):
             ]
         }
 
-    def test_fifo_removes_deduplicate_stamp_from_passport_in_same_community(self):
+    @async_to_sync
+    async def test_fifo_removes_deduplicate_stamp_from_passport_in_same_community(self):
         """
         Test that the deduplicate stamps are found, deleted, and passport score is updated
         """
-        passport1 = Passport.objects.create(
+        passport1 = await Passport.objects.acreate(
             address="0xaddress_1", community=self.community1
         )
 
-        passport2 = Passport.objects.create(
+        passport2 = await Passport.objects.acreate(
             address="0xaddress_2", community=self.community1
         )
 
-        Stamp.objects.create(
+        await Stamp.objects.acreate(
             passport=passport1,
             hash=google_credential["credentialSubject"]["hash"],
             provider="test_provider",
@@ -124,36 +126,37 @@ class FifoDeduplication(TestCase):
         )
 
         # We call the `fifo` deduplication method
-        fifo(
+        await afifo(
             community=self.community1,
             fifo_passport=mock_passport,
             address=passport2.address,
         )
 
-        updated_passport = Passport.objects.get(address="0xaddress_1")
+        updated_passport = await Passport.objects.aget(address="0xaddress_1")
         # We check that the `deduplicated_stamps` queryset contains the stamp we added
 
         self.assertEqual(
-            updated_passport.stamps.count(),
+            await updated_passport.stamps.acount(),
             0,
             "The stamp should not have been deleted from the passpo",
         )
 
-    def test_fifo_does_not_remove_deduplicate_stamp_from_passport_in_different_community(
+    @async_to_sync
+    async def test_fifo_does_not_remove_deduplicate_stamp_from_passport_in_different_community(
         self,
     ):
         """
         Test that the deduplicate stamps are found, deleted, and passport score is updated
         """
-        passport1 = Passport.objects.create(
+        passport1 = await Passport.objects.acreate(
             address="0xaddress_1", community=self.community2
         )
 
-        passport2 = Passport.objects.create(
+        passport2 = await Passport.objects.acreate(
             address="0xaddress_2", community=self.community1
         )
 
-        Stamp.objects.create(
+        await Stamp.objects.acreate(
             passport=passport1,
             hash=google_credential["credentialSubject"]["hash"],
             provider="test_provider",
@@ -161,17 +164,17 @@ class FifoDeduplication(TestCase):
         )
 
         # We call the `fifo` deduplication method
-        fifo(
+        await afifo(
             community=self.community1,
             fifo_passport=mock_passport,
             address=passport2.address,
         )
 
-        updated_passport = Passport.objects.get(address="0xaddress_1")
+        updated_passport = await Passport.objects.aget(address="0xaddress_1")
         # We check that the `deduplicated_stamps` queryset contains the stamp we added
 
         self.assertEqual(
-            updated_passport.stamps.count(),
+            await updated_passport.stamps.acount(),
             1,
             "The stamp should not have been deleted from the passpo",
         )

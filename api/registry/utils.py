@@ -1,6 +1,6 @@
 import base64
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Tuple
 from urllib.parse import unquote, urlencode
@@ -149,3 +149,7 @@ def decode_cursor(token: str) -> Tuple[str, int]:
     decoded_bytes = base64.urlsafe_b64decode(token.encode("ascii"))
     direction, id = decoded_bytes.decode("ascii").split("__")
     return direction, int(id)
+
+
+def get_utc_time():
+    return datetime.now(timezone.utc)

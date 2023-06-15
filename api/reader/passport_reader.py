@@ -6,6 +6,7 @@ import api_logging as logging
 
 # Making GET requests against the CERAMIC_URL to read streams
 import requests
+from asgiref.sync import async_to_sync
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from ninja_extra import status
@@ -113,12 +114,12 @@ def get_stream_ids(did, ids=[CERAMIC_GITCOIN_PASSPORT_STREAM_ID]):
     return streams
 
 
-def get_passport(address: str = "", stream_ids: List[str] = []) -> Dict:
+async def aget_passport(address: str = "", stream_ids: List[str] = []) -> Dict:
     did = get_did(address)
 
     db_stamp_list = CeramicCache.objects.filter(address=address)
 
-    if len(db_stamp_list) == 0:
+    if await db_stamp_list.acount() == 0:
         # get streamIds if non are provided
         stream_ids = (
             stream_ids
@@ -134,9 +135,14 @@ def get_passport(address: str = "", stream_ids: List[str] = []) -> Dict:
     else:
         return {
             "stamps": [
-                {"provider": s.provider, "credential": s.stamp} for s in db_stamp_list
+                {"provider": s.provider, "credential": s.stamp}
+                async for s in db_stamp_list
             ]
         }
+
+
+def get_passport(address: str = "", stream_ids: List[str] = []) -> Dict:
+    return async_to_sync(aget_passport)(address, stream_ids)
 
 
 def get_stamps(passport: Dict) -> Dict:

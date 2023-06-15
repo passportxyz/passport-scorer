@@ -9,7 +9,8 @@ from django_ratelimit.decorators import ALL
 from django_ratelimit.exceptions import Ratelimited
 from ninja.compatibility.request import get_headers
 from ninja.security import APIKeyHeader
-from registry.tasks import asave_api_key_analytics, save_api_key_analytics
+from registry.atasks import asave_api_key_analytics
+from registry.tasks import save_api_key_analytics
 
 from ..exceptions import InvalidScorerIdException, Unauthorized
 from .schema import SubmitPassportPayload
@@ -146,15 +147,3 @@ def get_scorer_id(payload: SubmitPassportPayload) -> str:
         raise InvalidScorerIdException()
 
     return scorer_id
-
-
-# async def aget_scorer_id(payload: SubmitPassportPayload) -> str:
-#     scorer_id = ""
-#     if payload.scorer_id:
-#         scorer_id = payload.scorer_id
-#     elif payload.community and payload.community != "Deprecated":
-#         scorer_id = payload.community
-#     else:
-#         raise InvalidScorerIdException()
-
-#     return scorer_id
