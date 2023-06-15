@@ -36,13 +36,6 @@ async def aload_passport_data(address: str) -> Dict:
     if not passport_data:
         raise NoPassportException()
 
-    log.error("=" * 40)
-    log.error("=" * 40)
-    from pprint import pformat
-
-    log.error("%s", pformat(passport_data))
-    log.error("=" * 40)
-    log.error("=" * 40)
     return passport_data
 
 
@@ -61,6 +54,7 @@ async def acalculate_score(passport: Passport, community_id: int, score: Score):
     score.last_score_timestamp = get_utc_time()
     score.evidence = scoreData.evidence[0].as_dict() if scoreData.evidence else None
     score.error = None
+    log.info("Calculated score: %s", score)
 
 
 async def aprocess_deduplication(passport, community, passport_data):

@@ -32,10 +32,10 @@ cp .env-sample .env
 ```
 Update the `DATABASE_URL` variable to `postgres://passport_scorer:passport_scorer_pwd@postgres:5432/passport_scorer`
 
-Update the `CERAMIC_CACHE_SCORER_ID` variable to match a `SCORER_ID` you create from the scorer UI. 
-   (You will have to complete all these setup steps first, then you will be able to create a `SCORER_ID` from the UI & update this variable.) 
+Update the `CERAMIC_CACHE_SCORER_ID` variable to match a `SCORER_ID` you create from the scorer UI.
+   (You will have to complete all these setup steps first, then you will be able to create a `SCORER_ID` from the UI & update this variable.)
 
-3. Create a new `.env` file in the `interface` directory & update the varaibles. 
+3. Create a new `.env` file in the `interface` directory & update the varaibles.
 ```shell
 # From inside the interface/ directory
 cp .env.example .env
@@ -123,7 +123,7 @@ docker run -d -p 6379:6379 redis
 6. Start the celery worker:
 
 ```shell
-celery -A scorer worker -l DEBUG
+celery -A scorer worker -l DEBUG  -Q score_passport_passport,score_registry_passport
 ```
 
 ### Migrations
@@ -139,7 +139,7 @@ python manage.py migrate
 
 Navigate to the `verifier/` directory & run the verifier:
 ```shell
-yarn 
+yarn
 #yarn only needs to be run when first installing the app
 yarn dev
 ```

@@ -34,7 +34,6 @@ async def alifo(
     community: Community, lifo_passport: dict, address: str
 ) -> Tuple[dict, list | None]:
     deduped_passport = copy.deepcopy(lifo_passport)
-    log.error("===? lifo_passport stamps: %s", lifo_passport["stamps"])
     deduped_passport["stamps"] = []
     if "stamps" in lifo_passport:
         for stamp in lifo_passport["stamps"]:

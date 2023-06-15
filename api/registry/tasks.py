@@ -51,9 +51,10 @@ def score_passport(community_id: int, address: str):
             error=None,
         ),
     )
+
     async_to_sync(ascore_passport)(passport.community, passport, address, score)
+
     score.save()
-    return
 
 
 def load_passport_record(community_id: int, address: str) -> Passport | None:
