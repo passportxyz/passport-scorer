@@ -191,7 +191,7 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
     except Account.DoesNotExist:
         user = get_user_model().objects.create_user(username=get_random_username())
         user.save()
-        account = Account(address=address_lower, user=user, last_ip=client_ip)
+        account = Account(address=address_lower, user=user, last_logged_ip=client_ip)
         account.save()
 
     refresh = RefreshToken.for_user(account.user)
@@ -218,12 +218,13 @@ def validate_token(request, payload: TokenValidationRequest):
     # if the user's last logged ip is different from the current ip
     if client_ip != user.account.last_logged_ip:
 
+        if user.account.last_logged_ip is not None:
+            # set the token expiration to 0
+            token["exp"] = 0
+
         # update the user's last logged ip
         user.account.last_logged_ip = client_ip
         user.account.save()
-
-        # set the token expiration to 0
-        token["exp"] = 0
 
     return {"exp": token["exp"]}
 
