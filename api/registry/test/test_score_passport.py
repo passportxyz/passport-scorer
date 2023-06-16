@@ -94,7 +94,7 @@ class TestScorePassportTestCase(TransactionTestCase):
         self.client = Client()
 
     def test_no_passport(self):
-        with patch("registry.tasks.get_passport", return_value=None):
+        with patch("registry.atasks.aget_passport", return_value=None):
             score_passport_passport(self.community.pk, self.account.address)
 
             passport = Passport.objects.get(
@@ -138,12 +138,16 @@ class TestScorePassportTestCase(TransactionTestCase):
                 ),
             )
 
-        with patch("registry.tasks.get_passport", return_value=mock_passport_data):
-            with patch("registry.tasks.async_to_sync", return_value=mock_validate):
+        with patch("registry.atasks.aget_passport", return_value=mock_passport_data):
+            with patch(
+                "registry.atasks.validate_credential", side_effect=mock_validate
+            ):
                 score_passport_passport(self.community.pk, address)
 
+        Passport.objects.get(address=address, community_id=self.community.pk)
+
         score = get_score(mock_request, address, self.community.pk)
-        assert score.score == Decimal("1")
+        assert Decimal(score.score) == Decimal("1")
         assert score.status == "DONE"
 
     def test_cleaning_stale_stamps(self):
@@ -163,8 +167,10 @@ class TestScorePassportTestCase(TransactionTestCase):
 
         assert Stamp.objects.filter(passport=passport).count() == 1
 
-        with patch("registry.tasks.get_passport", return_value=mock_passport_data):
-            with patch("registry.tasks.async_to_sync", return_value=mock_validate):
+        with patch("registry.atasks.aget_passport", return_value=mock_passport_data):
+            with patch(
+                "registry.atasks.validate_credential", side_effect=mock_validate
+            ):
                 score_passport_passport(self.community.pk, self.account.address)
 
                 my_stamps = Stamp.objects.filter(passport=passport)
@@ -194,9 +200,12 @@ class TestScorePassportTestCase(TransactionTestCase):
 
         assert Stamp.objects.filter(passport=passport).count() == 1
 
-        with patch("registry.tasks.get_passport", return_value=mock_passport_data):
-            with patch("registry.tasks.async_to_sync", return_value=mock_validate):
+        with patch("registry.atasks.aget_passport", return_value=mock_passport_data):
+            with patch(
+                "registry.atasks.validate_credential", side_effect=mock_validate
+            ):
                 with patch("registry.tasks.log.info") as mock_log:
+                    # Call score_passport_passport twice, but only one of them should actually execute the scoring calculation
                     score_passport_passport(self.community.pk, self.account.address)
                     score_passport_passport(self.community.pk, self.account.address)
 

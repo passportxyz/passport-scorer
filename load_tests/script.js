@@ -23,11 +23,11 @@ export const options = {
     },
   },
 
-  vus: 1,
-  duration: "15s",
+  // vus: 1,
+  // duration: "15s",
 };
 
-const scorerId = 24;
+const scorerId = __ENV.SCORER_ID;
 const apiKey = __ENV.SCORER_API_KEY;
 const numAccounts = 1000;
 
@@ -145,31 +145,31 @@ export default function () {
     );
   }
 
-  let isScorePending = true;
-  const maxRequests = 10;
-  let numRequests = 0;
-  let sleepTime = 1;
-  while (isScorePending && numRequests < maxRequests) {
-    numRequests += 1;
+  // let isScorePending = true;
+  // const maxRequests = 10;
+  // let numRequests = 0;
+  // let sleepTime = 1;
+  // while (isScorePending && numRequests < maxRequests) {
+  //   numRequests += 1;
 
-    const res = http.get(
-      `https://api.staging.scorer.gitcoin.co/registry/score/${scorerId}/${address}`,
-      Object.assign({}, scoringOptions, { tags: { name: "score" } })
-    );
+  //   const res = http.get(
+  //     `https://api.staging.scorer.gitcoin.co/registry/score/${scorerId}/${address}`,
+  //     Object.assign({}, scoringOptions, { tags: { name: "score" } })
+  //   );
 
-    check(res, {
-      "is status 200": (r) => r.status === 200,
-    });
+  //   check(res, {
+  //     "is status 200": (r) => r.status === 200,
+  //   });
 
-    const data = res.json();
+  //   const data = res.json();
 
-    console.log("data", data);
+  //   console.log("data", data);
 
-    if (data["status"] !== "PROCESSING") {
-      isScorePending = false;
-    } else {
-      sleep(sleepTime);
-      sleepTime *= 2;
-    }
-  }
+  //   if (data["status"] !== "PROCESSING") {
+  //     isScorePending = false;
+  //   } else {
+  //     sleep(sleepTime);
+  //     sleepTime *= 2;
+  //   }
+  // }
 }

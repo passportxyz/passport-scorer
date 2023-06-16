@@ -62,11 +62,35 @@ class Nonce(models.Model):
             raise
 
     @classmethod
+    async def avalidate_nonce(cls: Type[Nonce], nonce: str) -> Nonce:
+        try:
+            log.debug("Checking nonce: %s", nonce)
+            return await Nonce.objects.filter(
+                Q(nonce=nonce),
+                (Q(expires_on__isnull=True) | Q(expires_on__gt=datetime.now(tz))),
+                Q(was_used=False),
+            ).aget()
+        except Nonce.DoesNotExist:
+            # Re-raise the exception
+            raise
+
+    @classmethod
     def use_nonce(cls: Type[Nonce], nonce: str):
         try:
             nonceRecord = cls.validate_nonce(nonce)
             nonceRecord.was_used = True
             nonceRecord.save()
+            return True
+        except Exception:
+            log.error("Error when validating nonce", exc_info=True)
+            return False
+
+    @classmethod
+    async def ause_nonce(cls: Type[Nonce], nonce: str):
+        try:
+            nonceRecord = await cls.avalidate_nonce(nonce)
+            nonceRecord.was_used = True
+            await nonceRecord.asave()
             return True
         except Exception:
             log.error("Error when validating nonce", exc_info=True)
@@ -90,7 +114,7 @@ class Account(models.Model):
     )
 
     def __str__(self):
-        return f"{self.address} - {self.user}"
+        return f"Account #{self.id} - {self.address} - {self.user_id}"
 
 
 class AccountAPIKey(AbstractAPIKey):
@@ -170,7 +194,7 @@ class Community(models.Model):
         return f"<Community {self.name}>"
 
     def __str__(self):
-        return f"Community - {self.name}"
+        return f"Community - #{self.id}, name={self.name}, account_id={self.account_id}"
 
     def get_scorer(self) -> Scorer:
         if self.scorer.type == Scorer.Type.WEIGHTED:
@@ -180,10 +204,6 @@ class Community(models.Model):
 
     async def aget_scorer(self) -> Scorer:
         scorer = await Scorer.objects.aget(pk=self.scorer_id)
-        log.error("=" * 40)
-        for f in scorer._meta.get_fields():
-            log.error(f"{f.name} - {dir(f)}")
-        log.error("=" * 40)
         if scorer.type == Scorer.Type.WEIGHTED:
             return await WeightedScorer.objects.aget(scorer_ptr_id=scorer.id)
         elif scorer.type == Scorer.Type.WEIGHTED_BINARY:

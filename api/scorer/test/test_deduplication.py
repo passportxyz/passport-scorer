@@ -2,6 +2,7 @@
 
 import json
 from datetime import datetime, timezone
+from decimal import Decimal
 
 import pytest
 from account.models import Nonce
@@ -9,8 +10,13 @@ from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when
 from registry.models import Passport, Stamp
-from registry.tasks import score_passport
-from registry.test.test_passport_submission import ens_credential, mock_passport
+
+# from registry.tasks import score_passport
+from registry.test.test_passport_submission import (
+    ens_credential,
+    mock_passport,
+    mock_utc_timestamp,
+)
 from registry.utils import get_signing_message
 from web3 import Web3
 
@@ -61,8 +67,8 @@ def _(
     )
 
     # Now submit a second passport with the duplicate hash
-    mocker.patch("registry.tasks.get_passport", return_value=mock_passport)
-    mocker.patch("registry.tasks.validate_credential", side_effect=[[], []])
+    mocker.patch("registry.atasks.aget_passport", return_value=mock_passport)
+    mocker.patch("registry.atasks.validate_credential", side_effect=[[], []])
     client = Client()
     second_account = passport_holder_addresses[1]
 
@@ -89,26 +95,31 @@ def _(
     )
 
     # execute the task
-    score_passport(
-        scorer_community_with_gitcoin_default.id,
-        passport_holder_addresses[1]["address"].lower(),
-    )
+    # score_passport(
+    #     scorer_community_with_gitcoin_default.id,
+    #     passport_holder_addresses[1]["address"].lower(),
+    # )
 
     # read the score ...
-    assert submitResponse.json() == {
-        "address": passport_holder_addresses[1]["address"].lower(),
-        "score": None,
-        "status": "PROCESSING",
-        "last_score_timestamp": None,
-        "evidence": None,
-        "error": None,
-    }
+    response_data = submitResponse.json()
+
+    assert response_data["address"] == passport_holder_addresses[1]["address"].lower()
+    assert Decimal(response_data["score"]) == Decimal("1234.000000000")
+    assert response_data["status"] == "DONE"
+    assert response_data["evidence"] is None
+    assert response_data["error"] is None
+    last_score_timestamp = datetime.fromisoformat(response_data["last_score_timestamp"])
+    assert (
+        datetime.now(timezone.utc) - last_score_timestamp
+    ).seconds < 2  # The timestamp should be recent
+
     response = client.get(
         f"/registry/score/{scorer_community_with_gitcoin_default.id}/{passport_holder_addresses[1]['address'].lower()}",
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
     )
 
+    # Return the response of reading back the score
     return response
 
 

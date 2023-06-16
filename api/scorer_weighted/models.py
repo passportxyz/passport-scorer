@@ -102,10 +102,8 @@ class WeightedScorer(Scorer):
         """
         from .computation import acalculate_weighted_score
 
-        return [
-            ScoreData(score=s, evidence=None)
-            async for s in acalculate_weighted_score(self, passport_ids)
-        ]
+        scores = await acalculate_weighted_score(self, passport_ids)
+        return [ScoreData(score=s, evidence=None) for s in scores]
 
     def __str__(self):
         return f"WeightedScorer #{self.id}"
@@ -178,4 +176,4 @@ class BinaryWeightedScorer(Scorer):
         )
 
     def __str__(self):
-        return f"WeightedScorer #{self.id}, threshold='{self.threshold}'"
+        return f"BinaryWeightedScorer #{self.id}, threshold='{self.threshold}'"

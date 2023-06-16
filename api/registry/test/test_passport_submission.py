@@ -1,7 +1,7 @@
-import binascii
 import copy
 import json
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from unittest.mock import patch
 
 from account.deduplication import Rules
@@ -11,7 +11,6 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
 from eth_account.messages import encode_defunct
-from registry import permissions
 from registry.models import Passport, Stamp
 from registry.tasks import score_passport
 from registry.utils import get_signer, get_signing_message, verify_issuer
@@ -371,9 +370,12 @@ class ValidatePassportTestCase(TransactionTestCase):
         signer = get_signer(self.nonce_2, signature)
         self.assertNotEqual(signer, self.account.address)
 
-    @patch("registry.tasks.validate_credential", side_effect=[[], []])
-    @patch("registry.tasks.get_passport", return_value=mock_passport)
-    def test_signature_not_needed_by_default(self, get_passport, validate_credential):
+    @patch("registry.atasks.validate_credential", side_effect=[[], []])
+    @patch(
+        "registry.atasks.aget_passport",
+        return_value=mock_passport,
+    )
+    def test_signature_not_needed_by_default(self, aget_passport, validate_credential):
         payload = {
             "community": self.community.id,
             "address": self.account.address,
@@ -393,9 +395,12 @@ class ValidatePassportTestCase(TransactionTestCase):
         valid = verify_issuer(mock_passport["stamps"][1])
         self.assertEqual(valid, True)
 
-    @patch("registry.tasks.validate_credential", side_effect=[[], []])
-    @patch("registry.tasks.get_passport", return_value=mock_passport)
-    def test_submit_passport(self, get_passport, validate_credential):
+    @patch("registry.atasks.validate_credential", side_effect=[[], []])
+    @patch(
+        "registry.atasks.aget_passport",
+        return_value=mock_passport,
+    )
+    def test_submit_passport(self, aget_passport, validate_credential):
         # get_passport.return_value = mock_passport
 
         did = f"did:pkh:eip155:1:{self.account.address.lower()}"
@@ -417,8 +422,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        score_passport(self.community.id, self.account.address)
-
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
@@ -436,10 +439,13 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    @patch("registry.tasks.validate_credential", side_effect=[[], []])
-    @patch("registry.tasks.get_passport", return_value=mock_passport)
+    @patch("registry.atasks.validate_credential", side_effect=[[], []])
+    @patch(
+        "registry.atasks.aget_passport",
+        return_value=mock_passport,
+    )
     def test_submitted_passport_has_lower_case_address_value(
-        self, get_passport, validate_credential
+        self, aget_passport, validate_credential
     ):
         payload = {
             "community": self.community.pk,
@@ -462,9 +468,12 @@ class ValidatePassportTestCase(TransactionTestCase):
         created_passport = Passport.objects.get(address=self.account.address.lower())
         self.assertEqual(created_passport.address, self.account.address.lower())
 
-    @patch("registry.tasks.validate_credential", side_effect=[[], []])
-    @patch("registry.tasks.get_passport", return_value=mock_passport)
-    def test_submit_passport_reused_nonce(self, get_passport, validate_credential):
+    @patch("registry.atasks.validate_credential", side_effect=[[], []])
+    @patch(
+        "registry.atasks.aget_passport",
+        return_value=mock_passport,
+    )
+    def test_submit_passport_reused_nonce(self, aget_passport, validate_credential):
         """Test that submitting a reused nonce results in rejection"""
 
         did = f"did:pkh:eip155:1:{self.account.address.lower()}"
@@ -489,9 +498,12 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(response.json(), {"detail": "Invalid nonce."})
         self.assertEqual(response.status_code, 400)
 
-    @patch("registry.tasks.validate_credential", side_effect=[[], []])
-    @patch("registry.tasks.get_passport", return_value={})
-    def test_submitting_without_passport(self, get_passport, validate_credential):
+    @patch("registry.atasks.validate_credential", side_effect=[[], []])
+    @patch(
+        "registry.atasks.aget_passport",
+        return_value={},
+    )
+    def test_submitting_without_passport(self, aget_passport, validate_credential):
         payload = {
             "community": self.community.id,
             "address": self.account.address,
@@ -508,8 +520,6 @@ class ValidatePassportTestCase(TransactionTestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
-
-        score_passport(self.community.id, self.account.address)
 
         # Check if the passport data was saved to the database (data that we mock)
         # We do expect an empty passport to have been stored
@@ -532,16 +542,18 @@ class ValidatePassportTestCase(TransactionTestCase):
             "error": "No Passport found for this address.",
         }
 
-    @patch("registry.tasks.validate_credential", side_effect=[[], [], [], []])
+    @patch("registry.atasks.validate_credential", side_effect=[[], [], [], []])
     @patch(
-        "registry.tasks.get_passport",
-        side_effect=[copy.deepcopy(mock_passport), copy.deepcopy(mock_passport)],
-    )
-    @patch(
-        "registry.tasks.get_utc_time",
+        "registry.atasks.get_utc_time",
         return_value=datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00"),
     )
-    def test_submit_passport_multiple_times(self, _, get_passport, validate_credential):
+    @patch(
+        "registry.atasks.aget_passport",
+        side_effect=[copy.deepcopy(mock_passport), copy.deepcopy(mock_passport)],
+    )
+    def test_submit_passport_multiple_times(
+        self, _, aget_passport, validate_credential
+    ):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
         # get_passport.return_value = mock_passport
 
@@ -555,22 +567,20 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         expectedResponse = {
-            "score": None,
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "evidence": None,
-            "last_score_timestamp": None,
-            "score": None,
-            "status": "PROCESSING",
+            "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
+            "score": Decimal("2.000000000"),
+            "status": "DONE",
             "error": None,
         }
 
         expected2ndResponse = {
-            "score": None,
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "evidence": None,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
-            "score": None,
-            "status": "PROCESSING",
+            "score": Decimal("2.000000000"),
+            "status": "DONE",
             "error": None,
         }
 
@@ -584,12 +594,12 @@ class ValidatePassportTestCase(TransactionTestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        response_json["score"] = Decimal(response_json["score"])
         self.assertEqual(
-            response.json(),
+            response_json,
             expectedResponse,
         )
-
-        score_passport(self.community.id, self.account.address)
 
         # 2nd submission
         # Get another nonce (nonces can only be used once)
@@ -616,12 +626,12 @@ class ValidatePassportTestCase(TransactionTestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        response_json["score"] = Decimal(response_json["score"])
         self.assertEqual(
-            response.json(),
+            response_json,
             expected2ndResponse,
         )
-
-        score_passport(self.community.id, self.account.address)
 
         # Check that the stamps have only been recorded once
         # Check if the passport data was saved to the database (data that we mock)
@@ -641,8 +651,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    @patch("registry.tasks.get_passport", return_value=mock_passport)
-    def test_submit_passport_missing_community_and_scorer_id(self, get_passport):
+    def test_submit_passport_missing_community_and_scorer_id(self):
         """
         Make sure that the community is required when submitting eth address
         """
@@ -666,8 +675,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 0)
 
-    @patch("registry.tasks.get_passport", return_value=mock_passport)
-    def test_submit_passport_accepts_scorer_id(self, get_passport):
+    def test_submit_passport_accepts_scorer_id(self):
         """
         Make sure that the scorer_id is an acceptable parameter
         """
@@ -688,15 +696,15 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
     @patch(
-        "registry.tasks.validate_credential",
+        "registry.atasks.validate_credential",
         side_effect=[[], [], ["Stamp validation failed: invalid date"]],
     )
     @patch(
-        "registry.tasks.get_passport",
+        "registry.atasks.aget_passport",
         return_value=mock_passport_with_corrupted_stamp,
     )
     def test_submit_passport_with_invalid_stamp(
-        self, get_passport, validate_credential
+        self, aget_passport, validate_credential
     ):
         """
         Verify that stamps which do not pass the didkit validation are ignored and not stored in the DB
@@ -716,8 +724,6 @@ class ValidatePassportTestCase(TransactionTestCase):
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
-
-        score_passport(self.community.id, self.account.address)
 
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
@@ -740,13 +746,13 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    @patch("registry.tasks.validate_credential", side_effect=[[], [], []])
+    @patch("registry.atasks.validate_credential", side_effect=[[], [], []])
     @patch(
-        "registry.tasks.get_passport",
+        "registry.atasks.aget_passport",
         return_value=mock_passport_with_expired_stamp,
     )
     def test_submit_passport_with_expired_stamps(
-        self, get_passport, validate_credential
+        self, aget_passport, validate_credential
     ):
         """
         Verify that stamps that are expired are ignored
@@ -767,8 +773,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        score_passport(self.community.id, self.account.address)
-
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
@@ -784,13 +788,13 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    @patch("registry.tasks.validate_credential", side_effect=[[], [], []])
+    @patch("registry.atasks.validate_credential", side_effect=[[], [], []])
     @patch(
-        "registry.tasks.get_passport",
+        "registry.atasks.aget_passport",
         return_value=mock_passport,
     )
     def test_that_community_is_associated_with_passport(
-        self, get_passport, validate_credential
+        self, aget_passport, validate_credential
     ):
         """
         Verify that the community is associated with the passport
@@ -811,23 +815,22 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        score_passport(self.community.id, self.account.address)
-
         # Check if the passport data was saved to the database (data that we mock)
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
+        self.assertEqual(len(all_passports[0].stamps.all()), 2)
         self.assertEqual(
             all_passports[0].stamps.all()[0].credential,
             mock_passport["stamps"][0]["credential"],
         )
+        self.assertEqual(
+            all_passports[0].stamps.all()[1].credential,
+            mock_passport["stamps"][1]["credential"],
+        )
         self.assertEqual(all_passports[0].address, self.account.address.lower())
         self.assertEqual(all_passports[0].community, self.community)
 
-    @patch(
-        "registry.tasks.get_passport",
-        return_value=mock_passport,
-    )
-    def test_that_only_owned_communities_can_submit_passport(self, get_passport):
+    def test_that_only_owned_communities_can_submit_passport(self):
         """
         Verify that only communities owned by the user of the API key can create passports
         """
@@ -847,13 +850,13 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 404)
 
-    @patch("registry.tasks.validate_credential", side_effect=[[], []])
+    @patch("registry.atasks.validate_credential", side_effect=[[], []])
     @patch(
-        "registry.tasks.get_passport",
+        "registry.atasks.aget_passport",
         return_value=mock_passport_google,
     )
     def test_lifo_deduplication_duplicate_stamps(
-        self, get_passport, validate_credential
+        self, aget_passport, validate_credential
     ):
         """
         Test the successful deduplication of stamps by last in first out (LIFO)
@@ -897,8 +900,6 @@ class ValidatePassportTestCase(TransactionTestCase):
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
 
-        score_passport(self.community.pk, self.mock_account.address)
-
         self.assertEqual(submission_response.status_code, 200)
 
         updated_passport = Passport.objects.get(address=submission_address)
@@ -907,13 +908,13 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(updated_passport.address, submission_address)
         self.assertEqual(updated_passport.stamps.all()[0].provider, "Google")
 
-    @patch("registry.tasks.validate_credential", side_effect=[[], []])
+    @patch("registry.atasks.validate_credential", side_effect=[[], []])
     @patch(
-        "registry.tasks.get_passport",
+        "registry.atasks.aget_passport",
         return_value=mock_passport_google,
     )
     def test_fifo_deduplication_duplicate_stamps(
-        self, get_passport, validate_credential
+        self, aget_passport, validate_credential
     ):
         """
         Test the successful deduplication of stamps by first in first out (FIFO)
@@ -964,8 +965,6 @@ class ValidatePassportTestCase(TransactionTestCase):
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
 
-        score_passport(fifo_community.pk, address_2)
-
         self.assertEqual(submission_response.status_code, 200)
 
         # first_passport should have just one stamp and the google stamps should be deleted
@@ -980,16 +979,16 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(submitted_passport.stamps.count(), 1)
         self.assertEqual(submitted_passport.stamps.all()[0].provider, "Google")
 
-    @patch("registry.tasks.validate_credential", side_effect=[[], []])
+    @patch("registry.atasks.validate_credential", side_effect=[[], []])
     @patch(
-        "registry.tasks.get_passport",
+        "registry.atasks.aget_passport",
         side_effect=[
             copy.deepcopy(mock_passport_with_soon_to_be_expired_stamp),
             copy.deepcopy(mock_passport_google),
         ],
     )
     def test_update_dupe_stamps_with_newest_expiry(
-        self, get_passport, validate_credential
+        self, aget_passport, validate_credential
     ):
         """
         Test the updating of stamps with the newest expiry date if a stamp with the same hash is submitted
