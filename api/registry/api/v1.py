@@ -152,7 +152,6 @@ async def ahandle_submit_passport(
 
     try:
         scorer_id = get_scorer_id(payload)
-        log.error("===> scorer_id %s", scorer_id)
     except Exception as e:
         raise e
 

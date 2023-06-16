@@ -27,7 +27,7 @@ export const options = {
   // duration: "15s",
 };
 
-const scorerId = 24;
+const scorerId = __ENV.SCORER_ID;
 const apiKey = __ENV.SCORER_API_KEY;
 const numAccounts = 1000;
 
@@ -126,7 +126,7 @@ export default function () {
   };
 
   const res = http.post(
-    "https://api.staging.scorer.gitcoin.co/registry/a-submit-passport",
+    "https://api.staging.scorer.gitcoin.co/registry/submit-passport",
     JSON.stringify({
       address: address,
       community: scorerId,

@@ -41,9 +41,9 @@ Adjust the `script.js`:
 ## Locally
 
 Run locally like:
-`k6 run -e SCORER_API_KEY=<your API key> --vus 10 --duration 30s script.js`
+`k6 run -e SCORER_API_KEY=<your API key> -e SCORER_ID=<your scorer id> --vus 10 --duration 30s script.js`
 or
-`k6 run -e SCORER_API_KEY=<your API key> script.js`
+`k6 run -e SCORER_API_KEY=<your API key> -e SCORER_ID=<your scorer id> script.js`
 
 ## In cloud
 

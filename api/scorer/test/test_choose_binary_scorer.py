@@ -10,7 +10,7 @@ from account.models import Community
 from django.test import Client
 from pytest_bdd import given, scenario, then, when
 from registry.tasks import score_passport_passport
-from registry.test.test_passport_submission import mock_passport
+from registry.test.test_passport_submission import mock_passport, mock_utc_timestamp
 from scorer_weighted.models import BinaryWeightedScorer
 
 pytestmark = pytest.mark.django_db
@@ -142,7 +142,7 @@ def test_get_score_of_000000():
 def _(scorer_community_with_binary_scorer, scorer_api_key):
     """I submit a passport that yields a weighted score less than the threshold."""
     with patch(
-        "scorer_weighted.computation.calculate_weighted_score",
+        "scorer_weighted.computation.acalculate_weighted_score",
         return_value=[Decimal("70")],
     ):
         with patch(
@@ -182,3 +182,80 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
 def _(scoreResponseFor0):
     """the score "0.000000000" is returned."""
     assert scoreResponseFor0.json()["score"] == "0E-9"
+
+
+###################################################################################################
+
+
+@scenario("features/choose_binary_scorer.feature", 'Get score of "1.000000000"')
+def test_get_score_of_1000000000():
+    """Get score of "1.000000000"."""
+
+
+@when(
+    "I submit a passport that yields a weighted score greater or equal than the threshold",
+    target_fixture="scoreResponseFor1",
+)
+def _(scorer_community_with_binary_scorer, scorer_api_key):
+    """I submit a passport that yields a weighted score greater or equal than the threshold."""
+
+    with patch("registry.atasks.get_utc_time", return_value=mock_utc_timestamp):
+        with patch(
+            "scorer_weighted.computation.acalculate_weighted_score",
+            return_value=[Decimal("90")],
+        ) as calculate_weighted_score:
+            with patch("registry.atasks.aget_passport", return_value=mock_passport):
+                with patch("registry.atasks.validate_credential", side_effect=[[], []]):
+                    client = Client()
+                    submit_response = client.post(
+                        "/registry/submit-passport",
+                        json.dumps(
+                            {
+                                "community": scorer_community_with_binary_scorer.id,
+                                "address": "0x0123",
+                            }
+                        ),
+                        content_type="application/json",
+                        HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
+                    )
+
+                    # read the score ...
+                    submit_response_data = submit_response.json()
+
+                    assert submit_response_data["address"] == "0x0123"
+                    assert Decimal(submit_response_data["score"]) == Decimal(1)
+                    assert submit_response_data["status"] == "DONE"
+                    assert (
+                        submit_response_data["last_score_timestamp"]
+                        == mock_utc_timestamp.isoformat()
+                    )
+                    assert submit_response_data["evidence"] == {
+                        "rawScore": "90",
+                        "success": True,
+                        "threshold": "75.00000",
+                        "type": "ThresholdScoreCheck",
+                    }
+                    assert submit_response_data["error"] == None
+
+                    return client.get(
+                        f"/registry/score/{scorer_community_with_binary_scorer.id}/0x0123",
+                        content_type="application/json",
+                        HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
+                    )
+
+
+@then('the score "1.000000000" is returned')
+def _(scoreResponseFor1):
+    """the score "1.000000000" is returned."""
+    score_response_data = scoreResponseFor1.json()
+    assert score_response_data["address"] == "0x0123"
+    assert Decimal(score_response_data["score"]) == Decimal(1)
+    assert score_response_data["status"] == "DONE"
+    assert score_response_data["last_score_timestamp"] == mock_utc_timestamp.isoformat()
+    assert score_response_data["evidence"] == {
+        "rawScore": "90",
+        "success": True,
+        "threshold": "75.00000",
+        "type": "ThresholdScoreCheck",
+    }
+    assert score_response_data["error"] == None
