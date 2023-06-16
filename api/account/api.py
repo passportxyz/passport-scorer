@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, cast
 
 import api_logging as logging
-import pytz
 from account.models import Account, AccountAPIKey, Community, Nonce
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -15,7 +14,6 @@ from ninja import ModelSchema, Schema
 from ninja_extra import NinjaExtraAPI, status
 from ninja_extra.exceptions import APIException
 from ninja_jwt.authentication import JWTAuth
-from ninja_jwt.exceptions import InvalidToken
 from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
 from scorer_weighted.models import BinaryWeightedScorer, WeightedScorer
