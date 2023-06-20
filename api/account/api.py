@@ -31,6 +31,7 @@ class UIAuth(JWTAuth):
         token = self.get_validated_token(token)
         user = self.get_user(token)
         client_ip = get_client_ip(request)[0]
+        last_ip = user.account.last_logged_ip
 
         # if the user's last logged ip is different from the current ip
         if client_ip != user.account.last_logged_ip:
@@ -39,8 +40,8 @@ class UIAuth(JWTAuth):
             user.account.last_logged_ip = client_ip
             user.account.save()
 
-            if user.account.last_logged_ip is not None:
-                # set the token expiration to 0
+            # ip has changed
+            if last_ip is not None:
                 return None
 
         request.user = user
