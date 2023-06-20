@@ -62,7 +62,7 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "TwitterFollowerGT5000": "0",
     "TwitterFollowerGTE1000": "1.77",
     "TwitterTweetGT10": "1.67",
-    "ZkSyncLite": "0.835",
+    "ZkSync": "0.835",
     "ZkSyncEra": "0.835",
 }
 
