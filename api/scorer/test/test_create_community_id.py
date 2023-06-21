@@ -35,6 +35,7 @@ def _(scorer_account, mocker):
 def _(scorer_user):
     """I enter a name for this Community that is unique among the Community registered under my account."""
     refresh = RefreshToken.for_user(scorer_user)
+    refresh["ip_address"] = "127.0.0.1"
     access_token = refresh.access_token
 
     client = Client()

@@ -36,6 +36,7 @@ def _(scorer_user):
     """I hit the Create API key button."""
 
     refresh = RefreshToken.for_user(scorer_user)
+    refresh["ip_address"] = "127.0.0.1"
     access_token = refresh.access_token
 
     client = Client()
