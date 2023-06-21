@@ -137,7 +137,7 @@ class UIAuth(JWTAuth):
         client_ip = get_client_ip(request)[0]
 
         # if the user's current ip is different from the ip address in the token claim
-        if client_ip != token["ip_address"]:
+        if client_ip != token.get("ip_address"):
             raise UnauthorizedException("IP address has changed")
 
         request.user = user
@@ -229,7 +229,7 @@ def validate_token(request, payload: TokenValidationRequest):
     client_ip = get_client_ip(request)[0]
 
     # if the user's current ip is different from the ip address in the token claim
-    if client_ip != token["ip_address"]:
+    if client_ip != token.get("ip_address"):
         raise UnauthorizedException("IP address has changed")
 
     return {"exp": token["exp"]}
