@@ -28,6 +28,7 @@ class CommunityTestCase(TestCase):
 
         # Avoids type issues in standard ninja models
         refresh = cast(RefreshToken, RefreshToken.for_user(self.user))
+        refresh["ip_address"] = "127.0.0.1"
         self.access_token = refresh.access_token
 
         (self.account, _) = Account.objects.get_or_create(

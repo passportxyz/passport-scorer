@@ -3,7 +3,7 @@ import json
 from copy import deepcopy
 from datetime import datetime
 
-from account.models import Account, AccountAPIKey
+from account.models import Account
 from django.conf import settings
 from django.test import Client, TestCase
 from eth_account.messages import encode_defunct

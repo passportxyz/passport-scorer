@@ -1,6 +1,6 @@
 import json
 
-from account.models import Account, AccountAPIKey
+from account.models import Account
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from ninja_jwt.schema import RefreshToken

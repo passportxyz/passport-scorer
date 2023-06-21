@@ -1,5 +1,3 @@
-import json
-
 from account.deduplication import Rules
 from account.deduplication.lifo import alifo
 from account.models import Account, Community
@@ -24,6 +22,7 @@ class LifoDeduplicationTestCase(TestCase):
         self.user2 = User.objects.create_user(username="testuser-2", password="12345")
 
         refresh = RefreshToken.for_user(self.user)
+        refresh["ip_address"] = "127.0.0.1"
         self.access_token = refresh.access_token
 
         (self.account1, _) = Account.objects.get_or_create(
