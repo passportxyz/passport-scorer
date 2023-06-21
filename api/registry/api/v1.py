@@ -1,6 +1,8 @@
 from typing import List
 from urllib.parse import urljoin
 
+from django.db import connection
+
 import api_logging as logging
 import requests
 from account.api import UnauthorizedException, create_community_for_account
@@ -189,7 +191,10 @@ async def ahandle_submit_passport(
     await ascore_passport(user_community, db_passport, payload.address, score)
     await score.asave()
 
-    log.error("=> score.id=%s score.error=%s", score.id, score.error)
+    score.score = Score.score.field.get_db_prep_value(score.score, connection)
+    log.error(
+        "=> score.id=%s score.error=%s score=%s", score.id, score.error, score.score
+    )
     return score
 
 
