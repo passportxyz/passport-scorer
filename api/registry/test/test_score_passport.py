@@ -147,7 +147,7 @@ class TestScorePassportTestCase(TransactionTestCase):
         Passport.objects.get(address=address, community_id=self.community.pk)
 
         score = get_score(mock_request, address, self.community.pk)
-        assert Decimal(score.score) == Decimal("1")
+        assert score.score == Decimal("1")
         assert score.status == "DONE"
 
     def test_cleaning_stale_stamps(self):
