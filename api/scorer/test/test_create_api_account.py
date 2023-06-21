@@ -96,6 +96,7 @@ def _(account_response, scorer_account):
     """I will have an account created."""
     account = Account.objects.all()[0]
     assert account.address == scorer_account.address.lower()
+    assert account.last_logged_ip != None
     assert account_response.status_code == 200
 
 

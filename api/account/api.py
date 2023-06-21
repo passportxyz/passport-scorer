@@ -31,18 +31,10 @@ class UIAuth(JWTAuth):
         token = self.get_validated_token(token)
         user = self.get_user(token)
         client_ip = get_client_ip(request)[0]
-        last_ip = user.account.last_logged_ip
 
         # if the user's last logged ip is different from the current ip
         if client_ip != user.account.last_logged_ip:
-
-            # update the user's last logged ip
-            user.account.last_logged_ip = client_ip
-            user.account.save()
-
-            # ip has changed
-            if last_ip is not None:
-                return None
+            return None
 
         request.user = user
         return user
@@ -204,10 +196,13 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
 
     address_lower = payload.message["address"]
 
-    client_ip, _ = get_client_ip(request)
+    client_ip = get_client_ip(request)[0]
 
     try:
         account = Account.objects.get(address=address_lower)
+        if client_ip != account.last_logged_ip:
+            account.last_logged_ip = client_ip
+            account.save()
     except Account.DoesNotExist:
         user = get_user_model().objects.create_user(username=get_random_username())
         user.save()
