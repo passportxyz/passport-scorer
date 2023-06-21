@@ -26,20 +26,6 @@ log = logging.getLogger(__name__)
 api = NinjaExtraAPI(urls_namespace="account")
 
 
-class UIAuth(JWTAuth):
-    def authenticate(self, request, token):
-        token = self.get_validated_token(token)
-        user = self.get_user(token)
-        client_ip = get_client_ip(request)[0]
-
-        # if the user's last logged ip is different from the current ip
-        if client_ip != user.account.last_logged_ip:
-            return None
-
-        request.user = user
-        return user
-
-
 class SiweVerifySubmit(Schema):
     message: dict
     signature: str
@@ -196,20 +182,19 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
 
     address_lower = payload.message["address"]
 
-    client_ip = get_client_ip(request)[0]
-
     try:
         account = Account.objects.get(address=address_lower)
-        if client_ip != account.last_logged_ip:
-            account.last_logged_ip = client_ip
-            account.save()
     except Account.DoesNotExist:
         user = get_user_model().objects.create_user(username=get_random_username())
         user.save()
-        account = Account(address=address_lower, user=user, last_logged_ip=client_ip)
+        account = Account(address=address_lower, user=user)
         account.save()
 
     refresh = RefreshToken.for_user(account.user)
+
+    # include IP address in JWT claims
+    refresh["ip_address"] = get_client_ip(request)[0]
+
     refresh = cast(RefreshToken, refresh)
 
     return {"ok": True, "refresh": str(refresh), "access": str(refresh.access_token)}
@@ -225,12 +210,8 @@ class TokenValidationResponse(Schema):
 
 @api.post("/validate_token", response=TokenValidationResponse)
 def validate_token(request, payload: TokenValidationRequest):
-    uiAuth = UIAuth()
-    token = uiAuth.get_validated_token(payload.token)
-
-    if uiAuth.authenticate(request, payload.token) is None:
-        token["exp"] = 0
-
+    jwtAuth = JWTAuth()
+    token = jwtAuth.get_validated_token(payload.token)
     return {"exp": token["exp"]}
 
 
@@ -238,7 +219,7 @@ class APIKeyName(Schema):
     name: str
 
 
-@api.post("/api-key", auth=UIAuth(), response=AccountApiSchema)
+@api.post("/api-key", auth=JWTAuth(), response=AccountApiSchema)
 def create_api_key(request, payload: APIKeyName):
     try:
         account = request.user.account
@@ -262,7 +243,7 @@ def create_api_key(request, payload: APIKeyName):
     }
 
 
-@api.get("/api-key", auth=UIAuth(), response=List[AccountApiSchema])
+@api.get("/api-key", auth=JWTAuth(), response=List[AccountApiSchema])
 def get_api_keys(request):
     try:
         account = request.user.account
@@ -273,7 +254,7 @@ def get_api_keys(request):
     return api_keys
 
 
-@api.patch("/api-key/{path:api_key_id}", auth=UIAuth())
+@api.patch("/api-key/{path:api_key_id}", auth=JWTAuth())
 def patch_api_keys(request, api_key_id, payload: APIKeyName):
     try:
         api_key = get_object_or_404(
@@ -290,7 +271,7 @@ def patch_api_keys(request, api_key_id, payload: APIKeyName):
     return {"ok": True}
 
 
-@api.delete("/api-key/{path:api_key_id}", auth=UIAuth())
+@api.delete("/api-key/{path:api_key_id}", auth=JWTAuth())
 def delete_api_key(request, api_key_id):
     try:
         api_key = get_object_or_404(
@@ -363,7 +344,7 @@ def create_community_for_account(
     return community
 
 
-@api.post("/communities", auth=UIAuth())
+@api.post("/communities", auth=JWTAuth())
 def create_community(request, payload: CommunitiesPayload):
     try:
         account = request.user.account
@@ -389,7 +370,7 @@ def create_community(request, payload: CommunitiesPayload):
         raise UnauthorizedException()
 
 
-@api.get("/communities", auth=UIAuth(), response=List[CommunityApiSchema])
+@api.get("/communities", auth=JWTAuth(), response=List[CommunityApiSchema])
 def get_communities(request):
     try:
         account = request.user.account
@@ -414,7 +395,7 @@ class CommunitiesUpdatePayload(Schema):
     use_case: str
 
 
-@api.put("/communities/{community_id}", auth=UIAuth())
+@api.put("/communities/{community_id}", auth=JWTAuth())
 def update_community(request, community_id, payload: CommunitiesUpdatePayload):
     try:
         account = request.user.account
@@ -449,7 +430,7 @@ class CommunitiesPatchPayload(Schema):
     description: str = None
 
 
-@api.patch("/communities/{community_id}", auth=UIAuth())
+@api.patch("/communities/{community_id}", auth=JWTAuth())
 def patch_community(request, community_id, payload: CommunitiesPatchPayload):
     try:
         account = request.user.account
@@ -479,7 +460,7 @@ def patch_community(request, community_id, payload: CommunitiesPatchPayload):
     return {"ok": True}
 
 
-@api.delete("/communities/{community_id}", auth=UIAuth())
+@api.delete("/communities/{community_id}", auth=JWTAuth())
 def delete_community(request, community_id):
     try:
         community = get_object_or_404(
@@ -498,7 +479,9 @@ class ScorersResponse(Schema):
     scorers: List[Dict[str, str]]
 
 
-@api.get("/communities/{community_id}/scorers", auth=UIAuth(), response=ScorersResponse)
+@api.get(
+    "/communities/{community_id}/scorers", auth=JWTAuth(), response=ScorersResponse
+)
 def get_community_scorers(request, community_id):
     try:
         community = get_object_or_404(
@@ -522,7 +505,7 @@ class ScorerId(Schema):
     scorer_type: str
 
 
-@api.put("/communities/{community_id}/scorers", auth=UIAuth())
+@api.put("/communities/{community_id}/scorers", auth=JWTAuth())
 def update_community_scorers(request, community_id, payload: ScorerId):
     try:
         community = get_object_or_404(
