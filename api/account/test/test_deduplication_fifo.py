@@ -1,12 +1,9 @@
-import json
 from datetime import datetime, timedelta
 
-import pytest
 from account.deduplication import Rules
 from account.deduplication.fifo import afifo
 from account.models import Account, Community
 from asgiref.sync import async_to_sync
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from ninja_jwt.schema import RefreshToken
@@ -73,6 +70,7 @@ class FifoDeduplication(TestCase):
         self.user2 = User.objects.create_user(username="testuser-2", password="12345")
 
         refresh = RefreshToken.for_user(self.user)
+        refresh["ip_address"] = "127.0.0.1"
         self.access_token = refresh.access_token
 
     def create_test_communities(self):

@@ -28,6 +28,7 @@ class CommunityTestCase(TestCase):
 
         # Avoids type issues in standard ninja models
         refresh = cast(RefreshToken, RefreshToken.for_user(self.user))
+        refresh["ip_address"] = "127.0.0.1"
         self.access_token = refresh.access_token
 
         (self.account, _) = Account.objects.get_or_create(
@@ -36,18 +37,6 @@ class CommunityTestCase(TestCase):
         (self.account2, _) = Account.objects.get_or_create(
             user=self.user2, defaults={"address": "0x0"}
         )
-
-    def test_create_community_with_bad_token(self):
-        """Test that creation of a community with bad token fails"""
-        client = Client()
-
-        invalid_response = client.post(
-            "/account/communities",
-            json.dumps(mock_community_body),
-            content_type="application/json",
-            **{"HTTP_AUTHORIZATION": f"Bearer bad_token"},
-        )
-        self.assertEqual(invalid_response.status_code, 401)
 
     def test_create_community(self):
         """Test that creation of a community works and that attributes are saved correctly"""

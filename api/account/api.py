@@ -9,11 +9,11 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from ipware import get_client_ip
 from ninja import ModelSchema, Schema
 from ninja_extra import NinjaExtraAPI, status
 from ninja_extra.exceptions import APIException
 from ninja_jwt.authentication import JWTAuth
-from ninja_jwt.exceptions import InvalidToken
 from ninja_jwt.schema import RefreshToken
 from ninja_schema import Schema
 from scorer_weighted.models import BinaryWeightedScorer, WeightedScorer
@@ -130,6 +130,20 @@ class InvalidNonceException(APIException):
     default_detail = "Unable to verify the provided nonce"
 
 
+class UIAuth(JWTAuth):
+    def authenticate(self, request, token):
+        token = self.get_validated_token(token)
+        user = self.get_user(token)
+        client_ip = get_client_ip(request)[0]
+
+        # if the user's current ip is different from the ip address in the token claim
+        if client_ip != token.get("ip_address"):
+            raise UnauthorizedException("IP address has changed")
+
+        request.user = user
+        return user
+
+
 # API endpoint for nonce
 @api.get("/nonce")
 def nonce(request):
@@ -191,6 +205,10 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
         account.save()
 
     refresh = RefreshToken.for_user(account.user)
+
+    # include IP address in JWT claims
+    refresh["ip_address"] = get_client_ip(request)[0]
+
     refresh = cast(RefreshToken, refresh)
 
     return {"ok": True, "refresh": str(refresh), "access": str(refresh.access_token)}
@@ -206,8 +224,14 @@ class TokenValidationResponse(Schema):
 
 @api.post("/validate_token", response=TokenValidationResponse)
 def validate_token(request, payload: TokenValidationRequest):
-    jwtAuth = JWTAuth()
-    token = jwtAuth.get_validated_token(payload.token)
+    uiAuth = UIAuth()
+    token = uiAuth.get_validated_token(payload.token)
+    client_ip = get_client_ip(request)[0]
+
+    # if the user's current ip is different from the ip address in the token claim
+    if client_ip != token.get("ip_address"):
+        raise UnauthorizedException("IP address has changed")
+
     return {"exp": token["exp"]}
 
 
@@ -215,7 +239,7 @@ class APIKeyName(Schema):
     name: str
 
 
-@api.post("/api-key", auth=JWTAuth(), response=AccountApiSchema)
+@api.post("/api-key", auth=UIAuth(), response=AccountApiSchema)
 def create_api_key(request, payload: APIKeyName):
     try:
         account = request.user.account
@@ -239,7 +263,7 @@ def create_api_key(request, payload: APIKeyName):
     }
 
 
-@api.get("/api-key", auth=JWTAuth(), response=List[AccountApiSchema])
+@api.get("/api-key", auth=UIAuth(), response=List[AccountApiSchema])
 def get_api_keys(request):
     try:
         account = request.user.account
@@ -250,7 +274,7 @@ def get_api_keys(request):
     return api_keys
 
 
-@api.patch("/api-key/{path:api_key_id}", auth=JWTAuth())
+@api.patch("/api-key/{path:api_key_id}", auth=UIAuth())
 def patch_api_keys(request, api_key_id, payload: APIKeyName):
     try:
         api_key = get_object_or_404(
@@ -267,7 +291,7 @@ def patch_api_keys(request, api_key_id, payload: APIKeyName):
     return {"ok": True}
 
 
-@api.delete("/api-key/{path:api_key_id}", auth=JWTAuth())
+@api.delete("/api-key/{path:api_key_id}", auth=UIAuth())
 def delete_api_key(request, api_key_id):
     try:
         api_key = get_object_or_404(
@@ -340,7 +364,7 @@ def create_community_for_account(
     return community
 
 
-@api.post("/communities", auth=JWTAuth())
+@api.post("/communities", auth=UIAuth())
 def create_community(request, payload: CommunitiesPayload):
     try:
         account = request.user.account
@@ -366,7 +390,7 @@ def create_community(request, payload: CommunitiesPayload):
         raise UnauthorizedException()
 
 
-@api.get("/communities", auth=JWTAuth(), response=List[CommunityApiSchema])
+@api.get("/communities", auth=UIAuth(), response=List[CommunityApiSchema])
 def get_communities(request):
     try:
         account = request.user.account
@@ -391,7 +415,7 @@ class CommunitiesUpdatePayload(Schema):
     use_case: str
 
 
-@api.put("/communities/{community_id}", auth=JWTAuth())
+@api.put("/communities/{community_id}", auth=UIAuth())
 def update_community(request, community_id, payload: CommunitiesUpdatePayload):
     try:
         account = request.user.account
@@ -426,7 +450,7 @@ class CommunitiesPatchPayload(Schema):
     description: str = None
 
 
-@api.patch("/communities/{community_id}", auth=JWTAuth())
+@api.patch("/communities/{community_id}", auth=UIAuth())
 def patch_community(request, community_id, payload: CommunitiesPatchPayload):
     try:
         account = request.user.account
@@ -456,7 +480,7 @@ def patch_community(request, community_id, payload: CommunitiesPatchPayload):
     return {"ok": True}
 
 
-@api.delete("/communities/{community_id}", auth=JWTAuth())
+@api.delete("/communities/{community_id}", auth=UIAuth())
 def delete_community(request, community_id):
     try:
         community = get_object_or_404(
@@ -475,9 +499,7 @@ class ScorersResponse(Schema):
     scorers: List[Dict[str, str]]
 
 
-@api.get(
-    "/communities/{community_id}/scorers", auth=JWTAuth(), response=ScorersResponse
-)
+@api.get("/communities/{community_id}/scorers", auth=UIAuth(), response=ScorersResponse)
 def get_community_scorers(request, community_id):
     try:
         community = get_object_or_404(
@@ -501,7 +523,7 @@ class ScorerId(Schema):
     scorer_type: str
 
 
-@api.put("/communities/{community_id}/scorers", auth=JWTAuth())
+@api.put("/communities/{community_id}/scorers", auth=UIAuth())
 def update_community_scorers(request, community_id, payload: ScorerId):
     try:
         community = get_object_or_404(

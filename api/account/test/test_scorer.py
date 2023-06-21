@@ -1,12 +1,9 @@
 import json
-from sysconfig import get_default_scheme
 
 import pytest
-from account.models import Account, Community
+from account.models import Community
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.test import Client
-from ninja_jwt.schema import RefreshToken
 from scorer_weighted.models import Scorer, get_default_threshold
 from web3 import Web3
 

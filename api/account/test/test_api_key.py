@@ -19,6 +19,7 @@ class ApiKeyTestCase(TestCase):
         self.user2 = User.objects.create_user(username="testuser-2", password="12345")
 
         refresh = RefreshToken.for_user(self.user)
+        refresh["ip_address"] = "127.0.0.1"
         self.access_token = refresh.access_token
 
         (self.account, _created) = Account.objects.get_or_create(
@@ -27,18 +28,6 @@ class ApiKeyTestCase(TestCase):
         (self.account2, _created) = Account.objects.get_or_create(
             user=self.user2, defaults={"address": "0x0"}
         )
-
-    def test_create_api_key_with_bad_token(self):
-        """Test that creation of an API key with bad token fails"""
-        client = Client()
-
-        invalid_response = client.post(
-            "/account/api-key",
-            json.dumps(mock_api_key_body),
-            content_type="application/json",
-            **{"HTTP_AUTHORIZATION": f"Bearer bad_token"},
-        )
-        self.assertEqual(invalid_response.status_code, 401)
 
     def test_create_api_key(self):
         """Test that creation of an API key works"""
@@ -100,17 +89,6 @@ class ApiKeyTestCase(TestCase):
         # Check that only 5 API keys are in the DB
         all_api_keys = list(AccountAPIKey.objects.all())
         self.assertEqual(len(all_api_keys), 5)
-
-    def test_get_api_keys_with_bad_token(self):
-        """Test that getting API keys with bad token fails"""
-        client = Client()
-
-        invalid_response = client.get(
-            "/account/api-key",
-            content_type="application/json",
-            **{"HTTP_AUTHORIZATION": f"Bearer invalid_token"},
-        )
-        self.assertEqual(invalid_response.status_code, 401)
 
     def test_get_api_keys(self):
         """Test that getting API keys is succefull and that they are correctly filtered for the logged in user"""

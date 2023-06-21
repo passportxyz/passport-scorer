@@ -28,6 +28,7 @@ def scorer_user():
 @pytest.fixture
 def access_token(scorer_user):
     refresh = RefreshToken.for_user(scorer_user)
+    refresh["ip_address"] = "127.0.0.1"
     return refresh.access_token
 
 
