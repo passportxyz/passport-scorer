@@ -226,6 +226,12 @@ class TokenValidationResponse(Schema):
 def validate_token(request, payload: TokenValidationRequest):
     uiAuth = UIAuth()
     token = uiAuth.get_validated_token(payload.token)
+    client_ip = get_client_ip(request)[0]
+
+    # if the user's current ip is different from the ip address in the token claim
+    if client_ip != token["ip_address"]:
+        raise UnauthorizedException("IP address has changed")
+
     return {"exp": token["exp"]}
 
 
