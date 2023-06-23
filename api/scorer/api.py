@@ -27,7 +27,6 @@ from registry.api.v2 import router as registry_router_v2
 ###############################################################################
 class ScorerOpenAPISchema(OpenAPISchema):
     def operation_security(self, operation: Operation) -> Optional[List[DictStrAny]]:
-        print("+" * 20)
         if not operation.auth_callbacks:
             return None
         result = []
