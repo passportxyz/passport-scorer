@@ -9,6 +9,7 @@ from django_ratelimit.decorators import ALL
 from django_ratelimit.exceptions import Ratelimited
 from ninja.compatibility.request import get_headers
 from ninja.security import APIKeyHeader
+from ninja.security.base import SecuritySchema
 from registry.atasks import asave_api_key_analytics
 from registry.tasks import save_api_key_analytics
 
@@ -64,11 +65,6 @@ async def aapi_key(request):
     headers = get_headers(request)
     key = headers.get(param_name)
 
-    from pprint import pformat
-
-    log.error("HEADERS KEYS %s", pformat(request.headers.keys()))
-    log.error("key %s", key)
-
     if not key:
         auth_header = request.META.get("HTTP_AUTHORIZATION", "")
         if not auth_header:
@@ -103,6 +99,14 @@ async def aapi_key(request):
         return user_account
 
     raise Unauthorized()
+
+
+# Following information & settings on aapi_key are meant to enable
+# the auth feature in the live docs
+aapi_key.openapi_security_schema_name = "ApiKey"
+aapi_key.openapi_security_schema: SecuritySchema = SecuritySchema(
+    **{"in": "header", "name": "X-API-Key", "type": "apiKey"}
+)
 
 
 def check_rate_limit(request):
