@@ -1,5 +1,8 @@
 """
-Models for data from cgrants
+Models for data from cgrants.
+We only define fields in this model that we are directly interested in,
+and we store the JSON dump of the recoords containing all the fields
+from the original record in the `data` attribute
 """
 from django.db import models
 from django.utils.translation import gettext_lazy as _
