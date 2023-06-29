@@ -8,21 +8,23 @@ class PassportAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        queryset = queryset.prefetch_related("community")
+        queryset = queryset.select_related("community")
         return queryset
 
 
 class StampAdmin(admin.ModelAdmin):
     list_display = ["passport", "community", "provider", "hash"]
-    search_fields = ["passport__address", "provider", "hash"]
+    search_fields = ["hash__exact"]
+    search_help_text = "This will perform an exact case sensitive search by 'hash'"
     raw_id_fields = ["passport"]
+    show_full_result_count = False
 
     def community(self, obj):
         return obj.passport.community
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        queryset = queryset.prefetch_related("passport__community")
+        queryset = queryset.select_related("passport__community")
         return queryset
 
 
@@ -35,7 +37,7 @@ class ScoreAdmin(admin.ModelAdmin):
         "status",
         "error",
     ]
-    search_fields = ["passport__address", "score", "status", "error"]
+    search_fields = ["passport__address", "status"]
     raw_id_fields = ["passport"]
 
     def community(self, obj):
@@ -43,7 +45,7 @@ class ScoreAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        queryset = queryset.prefetch_related("passport__community")
+        queryset = queryset.select_related("passport__community")
         return queryset
 
 
