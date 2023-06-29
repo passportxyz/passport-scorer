@@ -99,8 +99,6 @@ const readreplica0 = new aws.rds.Instance(
   {
     allocatedStorage: 20,
     maxAllocatedStorage: 100,
-    engine: "postgres",
-    // engineVersion: "5.7",
     instanceClass: "db.t3.medium",
     skipFinalSnapshot: true,
     dbSubnetGroupName: dbSubnetGroup.id,
