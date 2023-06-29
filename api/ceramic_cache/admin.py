@@ -8,7 +8,9 @@ from .models import CeramicCache
 
 class CeramicCacheAdmin(admin.ModelAdmin):
     list_display = ("id", "address", "provider", "stamp")
-    search_fields = ("address", "provider", "stamp")
+    search_fields = ("address",)
+    search_help_text = "This will perform a search by 'address'"
+    show_full_result_count = False
 
 
 class AccountAPIKeyAdmin(admin.ModelAdmin):
