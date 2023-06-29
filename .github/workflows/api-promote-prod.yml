@@ -196,6 +196,9 @@ jobs:
           SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN }}
           FLOWER_USER: ${{ secrets.FLOWER_USER }}
           FLOWER_PASSWORD: ${{ secrets.FLOWER_PASSWORD }}
+          REPLICA_DB_NAME: ${{ secrets.REPLICA_DB_NAME }}
+          REPLICA_DB_USER: ${{ secrets.REPLICA_DB_USER }}
+          READ_REPLICA_PASSWORD: ${{ secrets.READ_REPLICA_PASSWORD }}
 
           DB_USER: ${{ secrets.DB_USER }}
           DB_NAME: ${{ secrets.DB_NAME }}
