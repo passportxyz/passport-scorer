@@ -94,15 +94,25 @@ const postgresql = new aws.rds.Instance(
   { protect: true }
 );
 
-const readOnlyReplica = new aws.rds.ReadReplica(
-  `scorer-db-read-replica`,
+const readreplica0 = new aws.rds.Instance(
+  `scorer-db-read-0`,
   {
-    sourceDbInstanceIdentifier: postgresql.id,
+    allocatedStorage: 20,
+    maxAllocatedStorage: 100,
+    engine: "postgres",
+    // engineVersion: "5.7",
     instanceClass: "db.t3.medium",
+    dbName: dbName,
+    password: dbPassword,
+    username: dbUsername,
+    skipFinalSnapshot: true,
     dbSubnetGroupName: dbSubnetGroup.id,
     vpcSecurityGroupIds: [db_secgrp.id],
+    deletionProtection: true,
+    backupRetentionPeriod: 5,
+    replicateSourceDb: postgresql.id,
   },
-  { dependsOn: [postgresql] }
+  { protect: true }
 );
 
 export const rdsEndpoint = postgresql.endpoint;
