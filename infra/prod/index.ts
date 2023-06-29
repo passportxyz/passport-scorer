@@ -15,6 +15,10 @@ let dbName = `${process.env["DB_NAME"]}`;
 let flowerUser = `${process.env["FLOWER_USER"]}`;
 let flowerPassword = `${process.env["FLOWER_PASSWORD"]}`;
 
+let readDB = `${process.env["REPLICA_DB_NAME"]}`
+let readDBUser = `${process.env["REPLICA_DB_USER"]}`
+let readReplicaPassword = `${process.env["READ_REPLICA_PASSWORD"]}`
+
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
 export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
 
@@ -102,9 +106,9 @@ const readreplica0 = new aws.rds.Instance(
     engine: "postgres",
     // engineVersion: "5.7",
     instanceClass: "db.t3.medium",
-    dbName: dbName,
-    password: dbPassword,
-    username: dbUsername,
+    dbName: readDB,
+    password: readReplicaPassword,
+    username: readDBUser,
     skipFinalSnapshot: true,
     dbSubnetGroupName: dbSubnetGroup.id,
     vpcSecurityGroupIds: [db_secgrp.id],
