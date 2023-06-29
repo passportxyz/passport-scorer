@@ -94,6 +94,17 @@ const postgresql = new aws.rds.Instance(
   { protect: true }
 );
 
+const readOnlyReplica = new aws.rds.ReadReplica(
+  `scorer-db-read-replica`,
+  {
+    sourceDbInstanceIdentifier: postgresql.id,
+    instanceClass: "db.t3.medium",
+    dbSubnetGroupName: dbSubnetGroup.id,
+    vpcSecurityGroupIds: [db_secgrp.id],
+  },
+  { dependsOn: [postgresql] }
+);
+
 export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
