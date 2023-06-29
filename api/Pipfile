@@ -32,6 +32,7 @@ ninja_schema = "*"
 structlog = "*"
 django-structlog = "*"
 django-ipware = "*"
+django-debug-toolbar = "*"
 
 [dev-packages]
 black = "*"

@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     "account",
     "ninja_extra",
     "social_django",
+    # "debug_toolbar",
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -99,6 +100,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "social_django.middleware.SocialAuthExceptionMiddleware",
+    # "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
 
 ROOT_URLCONF = "scorer.urls"
@@ -381,6 +383,7 @@ TRUSTED_IAM_ISSUER = env(
     "TRUSTED_IAM_ISSUER", default="did:key:GlMY_1zkc0i11O-wMBWbSiUfIkZiXzFLlAQ89pdfyBA"
 )
 
+
 IPWARE_META_PRECEDENCE_ORDER = (
     "X_FORWARDED_FOR",
     "HTTP_X_FORWARDED_FOR",  # <client>, <proxy1>, <proxy2>
@@ -393,3 +396,9 @@ IPWARE_META_PRECEDENCE_ORDER = (
     "HTTP_VIA",
     "REMOTE_ADDR",
 )
+
+INTERNAL_IPS = [
+    # ...
+    "127.0.0.1",
+    # ...
+]
