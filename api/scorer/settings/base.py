@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     "ninja_extra",
     "social_django",
     # "debug_toolbar",
+    "cgrants",
 ]
 
 AUTHENTICATION_BACKENDS = [
