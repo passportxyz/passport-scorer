@@ -101,7 +101,6 @@ const readreplica0 = new aws.rds.Instance(
     maxAllocatedStorage: 100,
     instanceClass: "db.t3.medium",
     skipFinalSnapshot: true,
-    dbSubnetGroupName: dbSubnetGroup.id,
     vpcSecurityGroupIds: [db_secgrp.id],
     deletionProtection: true,
     backupRetentionPeriod: 5,
