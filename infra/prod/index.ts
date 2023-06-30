@@ -99,7 +99,7 @@ const readreplica0 = new aws.rds.Instance(
   {
     allocatedStorage: 20,
     maxAllocatedStorage: 100,
-    instanceClass: "db.t3.medium",
+    instanceClass: "db.t3.xlarge",
     skipFinalSnapshot: true,
     vpcSecurityGroupIds: [db_secgrp.id],
     deletionProtection: true,
