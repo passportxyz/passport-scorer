@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 
 from django.core.management.base import BaseCommand
-from models import GrantContributionIndex
+from cgrants.models import GrantContributionIndex
 
 
 class Command(BaseCommand):
@@ -16,9 +16,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'Input file "{input_file}"'))
 
         # Load the existing IDs
-        existing_ids = set(
-            [t[0] for t in GrantContributionIndex.objects.values_list("id", flat=True)]
-        )
+        existing_ids = set(GrantContributionIndex.objects.values_list("id", flat=True))
 
         with open(input_file, encoding="utf-8") as f:
             for _, line in enumerate(f, start=1):

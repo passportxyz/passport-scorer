@@ -1,7 +1,7 @@
 import json
 
 from django.core.management.base import BaseCommand
-from models import GrantCLR
+from cgrants.models import GrantCLR
 
 
 class Command(BaseCommand):
@@ -15,9 +15,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'Input file "{input_file}"'))
 
         # Load the existing IDs
-        existing_ids = set(
-            [t[0] for t in GrantCLR.objects.values_list("id", flat=True)]
-        )
+        existing_ids = set(GrantCLR.objects.values_list("id", flat=True))
 
         with open(input_file, encoding="utf-8") as f:
             for _, line in enumerate(f, start=1):
