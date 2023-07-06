@@ -61,7 +61,7 @@ async def acalculate_score(passport: Passport, community_id: int, score: Score):
     log.info("Calculated score: %s", score)
 
 
-async def aprocess_deduplication(passport, community, passport_data):
+async def aprocess_deduplication(passport, community, passport_data, score: Score):
     """
     Process deduplication based on the community rule
     """
@@ -101,7 +101,7 @@ async def aprocess_deduplication(passport, community, passport_data):
 
             affected_score, _ = await Score.objects.aupdate_or_create(
                 passport=passport,
-                defaults=dict(score=None, status=Score.Status.PROCESSING),
+                defaults=dict(score=None, status=score.status),
             )
             await acalculate_score(passport, passport.community_id, affected_score)
             await affected_score.asave()
@@ -110,12 +110,12 @@ async def aprocess_deduplication(passport, community, passport_data):
 
 
 async def avalidate_and_save_stamps(
-    passport: Passport, community: Community, passport_data
+    passport: Passport, community: Community, passport_data, score: Score
 ) -> List[Hash]:
     log.debug("processing deduplication")
 
     deduped_passport_data = await aprocess_deduplication(
-        passport, community, passport_data
+        passport, community, passport_data, score
     )
 
     did = get_did(passport.address)
@@ -181,7 +181,7 @@ async def ascore_passport(
     try:
         passport_data = await aload_passport_data(address)
         saved_hashes = await avalidate_and_save_stamps(
-            passport, community, passport_data
+            passport, community, passport_data, score
         )
         await aremove_stale_stamps_from_db(passport, saved_hashes)
         await acalculate_score(passport, community.id, score)

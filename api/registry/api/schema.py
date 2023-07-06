@@ -26,6 +26,7 @@ class ThresholdScoreEvidenceResponse(ScoreEvidenceResponse):
 
 class StatusEnum(str, Enum):
     processing = Score.Status.PROCESSING
+    bulk_processing = Score.Status.BULK_PROCESSING
     error = Score.Status.ERROR
     done = Score.Status.DONE
 
