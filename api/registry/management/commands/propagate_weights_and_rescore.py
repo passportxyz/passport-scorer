@@ -33,17 +33,22 @@ class Command(BaseCommand):
         binary_weighted_scorers.update(weights=weights, threshold=threshold)
 
         print(
-            "Updated scorers: ",
+            "Updated scorers:",
             weighted_scorers.count() + binary_weighted_scorers.count(),
         )
 
     def update_scores(self, communities: QuerySet[Community]):
-        scores = Score.objects.filter(passport__community__in=communities)
+        scores = Score.objects.filter(
+            passport__community__in=communities
+        ).select_related("passport")
 
         scores.update(status=Score.Status.BULK_PROCESSING)
 
         for score in scores:
             passport = score.passport
+            passport.requires_calculation = True
+            passport.save()
+
             score_registry_passport.delay(passport.community.pk, passport.address)
 
         print("Updating scores: ", scores.count())
