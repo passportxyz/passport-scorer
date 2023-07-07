@@ -1,11 +1,11 @@
-from django.core.management.base import BaseCommand
-from django.conf import settings
-from django.db.models import QuerySet
-from account.models import Community
-from registry.models import Score
-from scorer_weighted.models import BinaryWeightedScorer, WeightedScorer
 from account.deduplication import Rules
+from account.models import Community
+from django.conf import settings
+from django.core.management.base import BaseCommand
+from django.db.models import QuerySet
+from registry.models import Score
 from registry.tasks import score_registry_passport
+from scorer_weighted.models import BinaryWeightedScorer, WeightedScorer
 
 
 class Command(BaseCommand):
@@ -20,7 +20,8 @@ class Command(BaseCommand):
         self.update_scorers(community_ids, weights, threshold)
         self.update_scores(community_ids)
 
-    def get_eligible_communities(self) -> QuerySet[Community]:
+    @staticmethod
+    def get_eligible_communities() -> QuerySet[Community]:
         return Community.objects.filter(rule=Rules.LIFO.value)
 
     def update_scorers(self, communities: QuerySet[Community], weights, threshold):
@@ -51,4 +52,4 @@ class Command(BaseCommand):
 
             score_registry_passport.delay(passport.community.pk, passport.address)
 
-        print("Updating scores: ", scores.count())
+        print("Updating scores:", scores.count())
