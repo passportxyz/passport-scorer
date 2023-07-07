@@ -306,11 +306,14 @@ class TestScorePassportTestCase(TransactionTestCase):
         }
 
         with patch("registry.atasks.validate_credential", side_effect=mock_validate):
+            # Score original passport
             with patch(
                 "registry.atasks.aget_passport", return_value=mock_passport_data
             ):
                 score_registry_passport(self.community.pk, passport.address)
 
+            # Score passport with duplicates (one duplicate from original passport,
+            # one duplicate from already existing stamp)
             with patch(
                 "registry.atasks.aget_passport",
                 return_value=mock_passport_data_with_duplicates,
@@ -332,3 +335,11 @@ class TestScorePassportTestCase(TransactionTestCase):
             assert (
                 Score.objects.get(passport=passport_with_duplicates).score
             ) == Decimal("1")
+
+            # Re-score original passport, just to make sure it doesn't change
+            with patch(
+                "registry.atasks.aget_passport", return_value=mock_passport_data
+            ):
+                score_registry_passport(self.community.pk, passport.address)
+
+            assert (Score.objects.get(passport=passport).score) == Decimal("3")
