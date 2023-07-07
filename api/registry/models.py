@@ -43,11 +43,13 @@ class Stamp(models.Model):
 class Score(models.Model):
     class Status:
         PROCESSING = "PROCESSING"
+        BULK_PROCESSING = "BULK_PROCESSING"
         DONE = "DONE"
         ERROR = "ERROR"
 
     STATUS_CHOICES = [
         (Status.PROCESSING, Status.PROCESSING),
+        (Status.BULK_PROCESSING, Status.BULK_PROCESSING),
         (Status.DONE, Status.DONE),
         (Status.ERROR, Status.ERROR),
     ]

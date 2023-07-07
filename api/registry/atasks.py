@@ -15,6 +15,8 @@ from registry.utils import get_utc_time, validate_credential, verify_issuer
 
 log = logging.getLogger(__name__)
 
+Hash = str
+
 
 def asave_api_key_analytics(api_key_id, path):
     try:
@@ -26,8 +28,10 @@ def asave_api_key_analytics(api_key_id, path):
         pass
 
 
-async def aremove_existing_stamps_from_db(passport: Passport):
-    await Stamp.objects.filter(passport=passport).adelete()
+async def aremove_stale_stamps_from_db(passport: Passport, current_hashes: List[Hash]):
+    await Stamp.objects.filter(passport=passport).exclude(
+        hash__in=current_hashes
+    ).adelete()
 
 
 async def aload_passport_data(address: str) -> Dict:
@@ -57,7 +61,7 @@ async def acalculate_score(passport: Passport, community_id: int, score: Score):
     log.info("Calculated score: %s", score)
 
 
-async def aprocess_deduplication(passport, community, passport_data):
+async def aprocess_deduplication(passport, community, passport_data, score: Score):
     """
     Process deduplication based on the community rule
     """
@@ -97,7 +101,7 @@ async def aprocess_deduplication(passport, community, passport_data):
 
             affected_score, _ = await Score.objects.aupdate_or_create(
                 passport=passport,
-                defaults=dict(score=None, status=Score.Status.PROCESSING),
+                defaults=dict(score=None, status=score.status),
             )
             await acalculate_score(passport, passport.community_id, affected_score)
             await affected_score.asave()
@@ -106,12 +110,12 @@ async def aprocess_deduplication(passport, community, passport_data):
 
 
 async def avalidate_and_save_stamps(
-    passport: Passport, community: Community, passport_data
-):
+    passport: Passport, community: Community, passport_data, score: Score
+) -> List[Hash]:
     log.debug("processing deduplication")
 
     deduped_passport_data = await aprocess_deduplication(
-        passport, community, passport_data
+        passport, community, passport_data, score
     )
 
     did = get_did(passport.address)
@@ -119,6 +123,7 @@ async def avalidate_and_save_stamps(
     log.debug(
         "validating stamps deduped_passport_data: %s", deduped_passport_data["stamps"]
     )
+    saved_hashes = []
     for stamp in deduped_passport_data["stamps"]:
         log.debug(
             "validating credential did='%s' credential='%s'", did, stamp["credential"]
@@ -143,14 +148,16 @@ async def avalidate_and_save_stamps(
             and not stamp_is_expired
             and is_issuer_verified
         ):
+            hash = stamp["credential"]["credentialSubject"]["hash"]
             await Stamp.objects.aupdate_or_create(
-                hash=stamp["credential"]["credentialSubject"]["hash"],
+                hash=hash,
                 passport=passport,
                 defaults={
                     "provider": stamp["provider"],
                     "credential": stamp["credential"],
                 },
             )
+            saved_hashes.append(hash)
         else:
             log.info(
                 "Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s is_issuer_verified=%s",
@@ -159,6 +166,7 @@ async def avalidate_and_save_stamps(
                 stamp_is_expired,
                 is_issuer_verified,
             )
+    return saved_hashes
 
 
 async def ascore_passport(
@@ -171,10 +179,11 @@ async def ascore_passport(
     )
 
     try:
-        # passport = load_passport_record(community_id, address)
-        await aremove_existing_stamps_from_db(passport)
         passport_data = await aload_passport_data(address)
-        await avalidate_and_save_stamps(passport, community, passport_data)
+        saved_hashes = await avalidate_and_save_stamps(
+            passport, community, passport_data, score
+        )
+        await aremove_stale_stamps_from_db(passport, saved_hashes)
         await acalculate_score(passport, community.id, score)
 
     except APIException as e:

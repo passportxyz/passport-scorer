@@ -479,11 +479,13 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
 
 const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
   cluster,
-  desiredCount: 1,
+  desiredCount: 0,
   subnets: vpc.privateSubnetIds,
   taskDefinitionArgs: {
     logGroup: workerLogGroup,
     executionRole: workerRole,
+    cpu: "1vCPU",
+    memory: "2GB",
     containers: {
       worker1: {
         image: dockerGtcPassportScorerImage,
@@ -496,9 +498,9 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
           "score_registry_passport",
           "-l",
           "DEBUG",
+          "-c",
+          "2",
         ],
-        memory: 4096,
-        cpu: 2000,
         portMappings: [],
         secrets: secrets,
         environment: environment,
@@ -512,8 +514,8 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
 const ecsScorerWorker1AutoscalingTarget = new aws.appautoscaling.Target(
   "scorer-worker1-autoscaling-target",
   {
-    maxCapacity: 2,
-    minCapacity: 1,
+    maxCapacity: 4,
+    minCapacity: 0,
     resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celery1.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
     serviceNamespace: "ecs",
