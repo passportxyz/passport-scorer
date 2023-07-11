@@ -4319,25 +4319,6 @@
     ethers "5.5.4"
     joi "17.9.1"
 
-"@web3-onboard/core@^2.19.2":
-  version "2.19.2"
-  resolved "https://registry.yarnpkg.com/@web3-onboard/core/-/core-2.19.2.tgz#c79131a257e379c0b5760dd0f3810a724ae8b01d"
-  integrity sha512-77FAJT5WbzgMbtIeLdEPAsJ5uUc0yBb17kQ8J6YtQAr51WIwmioCUBPehpeuQ36nNTy3VVobXF5Y/q3ztQfhDQ==
-  dependencies:
-    "@web3-onboard/common" "^2.3.3"
-    bignumber.js "^9.0.0"
-    bnc-sdk "^4.6.7"
-    bowser "^2.11.0"
-    ethers "5.5.3"
-    eventemitter3 "^4.0.7"
-    joi "17.9.1"
-    lodash.merge "^4.6.2"
-    lodash.partition "^4.6.0"
-    nanoid "^4.0.0"
-    rxjs "^7.5.5"
-    svelte "^3.49.0"
-    svelte-i18n "^3.3.13"
-
 "@web3-onboard/core@^2.20.4":
   version "2.20.4"
   resolved "https://registry.yarnpkg.com/@web3-onboard/core/-/core-2.20.4.tgz#ccc9ff509e56720e526b4ceae5459a1f2a435d22"
@@ -4377,13 +4358,13 @@
     "@web3-onboard/common" "^2.3.3"
     rxjs "^7.5.2"
 
-"@web3-onboard/react@^2.8.4":
-  version "2.8.4"
-  resolved "https://registry.yarnpkg.com/@web3-onboard/react/-/react-2.8.4.tgz#f88aee0336064de17b8fec8ecf72cd317fd434b8"
-  integrity sha512-F4jU3FhHpvZszPvAhYVU1dm5uRGMkajVGH/LvyX5x7wKtw71WNXuk7f8f+emzjuXui+aSd4tMnKS/JVYdqKl5g==
+"@web3-onboard/react@^2.8.9":
+  version "2.8.9"
+  resolved "https://registry.yarnpkg.com/@web3-onboard/react/-/react-2.8.9.tgz#e64b5067d490b22d3a4566fb7c8d71d7b1787703"
+  integrity sha512-Ih2PJhyTEpiW9wQbli+ZYqU8qkWqgR3PYmT2teHdDiaDaF8nPBvztBPPZkLjZSyx67iLsOBqS4kw8n74BK7DQw==
   dependencies:
     "@web3-onboard/common" "^2.3.3"
-    "@web3-onboard/core" "^2.19.2"
+    "@web3-onboard/core" "^2.20.4"
     use-sync-external-store "1.0.0"
 
 "@web3-onboard/walletconnect@^2.4.0":
