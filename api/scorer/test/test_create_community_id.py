@@ -71,5 +71,5 @@ def _():
     """that Community uses the latest weights and threshold."""
     community = Community.objects.all()[0]
     scorer = community.scorer.binaryweightedscorer
-    assert scorer.threshold == Decimal("15.00")
-    assert scorer.weights["Discord"] == "1.67"
+    assert scorer.threshold == Decimal("20.00")
+    assert scorer.weights["Discord"] == "0.689"
