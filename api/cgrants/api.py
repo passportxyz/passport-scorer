@@ -6,50 +6,30 @@ This file re-iplements the API endpoints from the original cgrants API: https://
 import logging
 from datetime import datetime
 
+from django.conf import settings
 from django.db.models import Sum
 from django.http import JsonResponse
 from ninja_extra import NinjaExtraAPI
 from ninja_schema import Schema
+from ninja.security import APIKeyHeader
 
 from .models import Contribution, Grant, GrantContributionIndex, SquelchProfile
-
-# from perftools.models import StaticJsonEnv
 
 logger = logging.getLogger(__name__)
 
 
 api = NinjaExtraAPI(urls_namespace="cgrants")
 
-# def ami_api_token_required(func):
-#     def decorator(request, *args, **kwargs):
-#         try:
-#             apiToken = StaticJsonEnv.objects.get(key="AMI_API_TOKEN")
-#             expectedToken = apiToken.data["token"]
-#             receivedToken = request.headers.get("Authorization")
 
-#             if receivedToken:
-#                 # Token shall look like "token <bearer token>", and we need only the <bearer token> part
-#                 receivedToken = receivedToken.split(" ")[1]
+class CgrantsApiKey(APIKeyHeader):
+    param_name = "AUTHORIZATION"
 
-#             if expectedToken == receivedToken:
-#                 return func(request, *args, **kwargs)
-#             else:
-#                 return JsonResponse(
-#                     {
-#                         "error": "Access denied",
-#                     },
-#                     status=403,
-#                 )
-#         except Exception as e:
-#             logger.error("Error in ami_api_token_required %s", e)
-#             return JsonResponse(
-#                 {
-#                     "error": "An unexpected error occured",
-#                 },
-#                 status=500,
-#             )
+    def authenticate(self, request, key):
+        if key == settings.CGRANTS_API_TOKEN:
+            return key
 
-#     return decorator
+
+cg_api_key = CgrantsApiKey()
 
 
 class ContributorStatistics(Schema):
@@ -66,8 +46,11 @@ class GranteeStatistics(Schema):
     total_contribution_amount = int
 
 
-# TODO add auth
-@api.get("/contributor_statistics", response=ContributorStatistics)
+@api.get(
+    "/contributor_statistics",
+    response=ContributorStatistics,
+    auth=cg_api_key,
+)
 def contributor_statistics(request):
     handle = request.GET.get("handle")
 
@@ -124,8 +107,11 @@ def contributor_statistics(request):
     )
 
 
-# TODO add auth
-@api.get("/grantee_statistics", response=GranteeStatistics)
+@api.get(
+    "/grantee_statistics",
+    response=GranteeStatistics,
+    auth=cg_api_key,
+)
 def grantee_statistics(request):
     handle = request.GET.get("handle")
 
