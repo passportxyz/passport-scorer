@@ -82,4 +82,4 @@ GITCOIN_PASSPORT_WEIGHTS = {
 
 
 # The Boolean scorer deems Passport holders unique humans if they meet or exceed the below thresholdold
-GITCOIN_PASSPORT_THRESHOLD = "20"
+GITCOIN_PASSPORT_THRESHOLD = "20"lfg
