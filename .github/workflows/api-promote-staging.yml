@@ -155,7 +155,7 @@ jobs:
 
   dockerize:
     environment: Staging
-    needs: [build-api, build-verifier]
+    needs: [test, build-api, build-verifier]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
