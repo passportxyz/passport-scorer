@@ -197,6 +197,7 @@ jobs:
     environment: Staging
     needs: [dockerize, build-api, build-verifier]
     runs-on: ubuntu-latest
+    steps:
       - uses: pulumi/actions@v3
         id: pulumi
         with:
