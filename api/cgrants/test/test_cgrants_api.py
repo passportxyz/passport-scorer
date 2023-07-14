@@ -1,14 +1,14 @@
-from django.test import TestCase, Client
-from django.conf import settings
-from django.urls import reverse
 from cgrants.models import (
-    Profile,
+    Contribution,
     Grant,
     GrantContributionIndex,
-    Contribution,
-    Subscription,
+    Profile,
     SquelchProfile,
+    Subscription,
 )
+from django.conf import settings
+from django.test import Client, TestCase
+from django.urls import reverse
 
 
 class CgrantsTest(TestCase):
@@ -20,15 +20,18 @@ class CgrantsTest(TestCase):
         self.profile1 = Profile.objects.create(handle="user1")
         self.profile2 = Profile.objects.create(handle="user2")
         self.profile3 = Profile.objects.create(handle="user3")
+        self.profile4 = Profile.objects.create(handle="user4")
 
         self.grant1 = Grant.objects.create(
             admin_profile=self.profile1, hidden=False, active=True, is_clr_eligible=True
         )
 
-        self.subscription1 = Subscription.objects.create(
-            grant=self.grant1, contributor_profile=self.profile1
+        self.subscription = Subscription.objects.create(
+            grant=self.grant1, contributor_profile=self.profile4, is_mainnet=True
         )
-        Contribution.objects.create(subscription=self.subscription1)
+        Contribution.objects.create(
+            subscription=self.subscription, success=True, amount_per_period_usdt="100"
+        )
 
         # create test grant contribution indexes
         GrantContributionIndex.objects.create(
@@ -73,8 +76,7 @@ class CgrantsTest(TestCase):
             },
         )
 
-    def test_grantee_statistics_standard(self):
-        # Standard case
+    def test_grantee_statistics(self):
         response = self.client.get(
             reverse("cgrants:grantee_statistics"),
             {"handle": "user1"},
@@ -87,7 +89,7 @@ class CgrantsTest(TestCase):
                 "num_owned_grants": 1,
                 "num_grant_contributors": 1,
                 "num_grants_in_eco_and_cause_rounds": 0,
-                "total_contribution_amount": 0,
+                "total_contribution_amount": "100.000000000000000000",
             },
         )
 

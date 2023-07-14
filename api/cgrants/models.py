@@ -61,6 +61,11 @@ class Subscription(models.Model):
         null=True,
         help_text=_("The Subscription contributor's Profile."),
     )
+
+    is_mainnet = models.BooleanField(
+        help_text=_("Is the network for this subscription mainnet?"),
+        default=False,
+    )
     data = models.JSONField(
         help_text=_("Original subscription data in JSON format"), default=dict
     )
@@ -75,6 +80,17 @@ class Contribution(models.Model):
         Subscription,
         on_delete=models.CASCADE,
     )
+    success = models.BooleanField(
+        default=False,
+    )
+
+    amount_per_period_usdt = models.DecimalField(
+        default=0,
+        decimal_places=18,
+        max_digits=64,
+        help_text=_("The amount per contribution period in USDT"),
+    )
+
     data = models.JSONField(
         help_text=_("Original contribution data in JSON format"), default=dict
     )

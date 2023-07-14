@@ -9,9 +9,9 @@ from datetime import datetime
 from django.conf import settings
 from django.db.models import Sum
 from django.http import JsonResponse
+from ninja.security import APIKeyHeader
 from ninja_extra import NinjaExtraAPI
 from ninja_schema import Schema
-from ninja.security import APIKeyHeader
 
 from .models import Contribution, Grant, GrantContributionIndex, SquelchProfile
 
@@ -136,7 +136,7 @@ def grantee_statistics(request):
     num_grant_contributors = (
         Contribution.objects.filter(
             success=True,
-            subscription__network="mainnet",
+            subscription__is_mainnet=True,
             subscription__grant__hidden=False,
             subscription__grant__active=True,
             subscription__grant__is_clr_eligible=True,
@@ -153,7 +153,7 @@ def grantee_statistics(request):
     total_contribution_amount = (
         Contribution.objects.filter(
             success=True,
-            subscription__network="mainnet",
+            subscription__is_mainnet=True,
             subscription__grant__hidden=False,
             subscription__grant__active=True,
             subscription__grant__is_clr_eligible=True,

@@ -8,6 +8,10 @@ on:
         default: ""
         required: true
         type: string
+    inputs:
+      push_to_prod_ecr:
+        description: "Push docker image to production ECR?"
+        type: boolean
   workflow_call:
     inputs:
       commit:
@@ -104,6 +108,7 @@ jobs:
 
     outputs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
+      registry: ${{ steps.login-ecr.outputs.registry }}
 
   build-verifier:
     environment: Staging
@@ -147,10 +152,11 @@ jobs:
 
     outputs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
+      registry: ${{ steps.login-ecr.outputs.registry }}
 
-  deploy-staging:
+  dockerize:
     environment: Staging
-    needs: [test, build-api, build-verifier]
+    needs: [build-api, build-verifier]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -187,6 +193,10 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
+  deploy-staging:
+    environment: Staging
+    needs: [dockerize, build-api, build-verifier]
+    runs-on: ubuntu-latest
       - uses: pulumi/actions@v3
         id: pulumi
         with:
@@ -209,3 +219,46 @@ jobs:
           DB_USER: ${{ secrets.DB_USER_STAGING }}
           DB_NAME: ${{ secrets.DB_NAME_STAGING }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD_STAGING }}
+
+  push-docker-to-prod:
+    if: ${{ inputs.push_to_prod_ecr }}
+    environment: Staging
+    needs: [dockerize, build-api, build-verifier]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure Production AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR Production
+        id: login-ecr-production
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          registry-type: public
+
+      - name: Tag and push verifier image to Production Amazon ECR
+        env:
+          ECR_REGISTRY_STAGING: ${{ needs.build-verifier.outputs.registry }}
+          ECR_REGISTRY_PRODUCTION: ${{ steps.login-ecr-production.outputs.registry }}
+          ECR_REGISTRY_ALIAS_STAGING: t1g3k9q8
+          ECR_REGISTRY_ALIAS_PRODUCTION: c8n6v8e9
+          ECR_REPOSITORY: passport-verifier
+          IMAGE_TAG: ${{ needs.build-verifier.outputs.dockerTag }}
+        run: |
+          docker tag $ECR_REGISTRY_STAGING/$ECR_REGISTRY_ALIAS_STAGING/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY_PRODUCTION/$ECR_REGISTRY_ALIAS_PRODUCTION/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY_PRODUCTION/$ECR_REGISTRY_ALIAS_PRODUCTION/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Tag and push api image to Production Amazon ECR
+        env:
+          ECR_REGISTRY_STAGING: ${{ needs.build-api.outputs.registry }}
+          ECR_REGISTRY_PRODUCTION: ${{ steps.login-ecr-production.outputs.registry }}
+          ECR_REGISTRY_ALIAS_STAGING: t1g3k9q8
+          ECR_REGISTRY_ALIAS_PRODUCTION: c8n6v8e9
+          ECR_REPOSITORY: passport-scorer
+          IMAGE_TAG: ${{ needs.build-api.outputs.dockerTag }}
+        run: |
+          docker tag $ECR_REGISTRY_STAGING/$ECR_REGISTRY_ALIAS_STAGING/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY_PRODUCTION/$ECR_REGISTRY_ALIAS_PRODUCTION/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY_PRODUCTION/$ECR_REGISTRY_ALIAS_PRODUCTION/$ECR_REPOSITORY:$IMAGE_TAG
