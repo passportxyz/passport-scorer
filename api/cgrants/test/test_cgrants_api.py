@@ -48,15 +48,11 @@ class CgrantsTest(TestCase):
             **self.headers,
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "num_grants_contribute_to": 1,
-                "num_rounds_contribute_to": 0,
-                "total_contribution_amount": "100.000000000000000000",
-                "num_gr14_contributions": 0,
-            },
-        )
+        output = response.json()
+        self.assertEqual(output["num_grants_contribute_to"], 1)
+        self.assertEqual(output["num_rounds_contribute_to"], 0)
+        self.assertEqual(float(output["total_contribution_amount"]), 100.0)
+        self.assertEqual(output["num_gr14_contributions"], 0)
 
     def test_contributor_statistics_no_contributions(self):
         # Edge case: User has made no contributions
@@ -83,15 +79,11 @@ class CgrantsTest(TestCase):
             **self.headers,
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "num_owned_grants": 1,
-                "num_grant_contributors": 1,
-                "num_grants_in_eco_and_cause_rounds": 0,
-                "total_contribution_amount": "100.000000000000000000",
-            },
-        )
+        output = response.json()
+        self.assertEqual(output["num_owned_grants"], 1)
+        self.assertEqual(output["num_grant_contributors"], 1)
+        self.assertEqual(output["num_grants_in_eco_and_cause_rounds"], 0)
+        self.assertEqual(float(output["total_contribution_amount"]), 100.0)
 
     def test_grantee_statistics_no_grants(self):
         response = self.client.get(

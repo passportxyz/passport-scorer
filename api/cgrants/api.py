@@ -64,7 +64,8 @@ def contributor_statistics(request):
     num_grants_contribute_to = (
         GrantContributionIndex.objects.filter(profile__handle=handle)
         .order_by("grant_id")
-        .distinct("grant_id")
+        .values("grant_id")
+        .distinct()
         .count()
     )
 
@@ -74,7 +75,8 @@ def contributor_statistics(request):
             profile__handle=handle, round_num__isnull=False
         )
         .order_by("round_num")
-        .distinct("round_num")
+        .values("grant_id")
+        .distinct()
         .count()
     )
 
@@ -145,7 +147,8 @@ def grantee_statistics(request):
         .exclude(subscription__contributor_profile_id__in=all_squelched)
         .exclude(subscription__contributor_profile__handle=handle)
         .order_by("subscription__contributor_profile_id")
-        .distinct("subscription__contributor_profile_id")
+        .values("subscription__contributor_profile_id")
+        .distinct()
         .count()
     )
 
