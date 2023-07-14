@@ -8,7 +8,6 @@ on:
         default: ""
         required: true
         type: string
-    inputs:
       push_to_prod_ecr:
         description: "Push docker image to production ECR?"
         type: boolean
