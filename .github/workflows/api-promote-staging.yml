@@ -153,7 +153,7 @@ jobs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
       registry: ${{ steps.login-ecr.outputs.registry }}
 
-  dockerize:
+  deploy-staging:
     environment: Staging
     needs: [test, build-api, build-verifier]
     runs-on: ubuntu-latest
@@ -192,11 +192,6 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-  deploy-staging:
-    environment: Staging
-    needs: [dockerize, build-api, build-verifier]
-    runs-on: ubuntu-latest
-    steps:
       - uses: pulumi/actions@v3
         id: pulumi
         with:
@@ -222,8 +217,8 @@ jobs:
 
   push-docker-to-prod:
     if: ${{ inputs.push_to_prod_ecr }}
-    environment: Staging
-    needs: [dockerize, build-api, build-verifier]
+    environment: Production
+    needs: [build-api, build-verifier]
     runs-on: ubuntu-latest
     steps:
       - name: Configure Production AWS credentials
