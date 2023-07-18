@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     "ninja_extra",
     "social_django",
     # "debug_toolbar",
+    "cgrants",
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -382,6 +383,8 @@ PASSPORT_PUBLIC_URL = env("PASSPORT_PUBLIC_URL", default="http://localhost:80")
 TRUSTED_IAM_ISSUER = env(
     "TRUSTED_IAM_ISSUER", default="did:key:GlMY_1zkc0i11O-wMBWbSiUfIkZiXzFLlAQ89pdfyBA"
 )
+
+CGRANTS_API_TOKEN = env("CGRANTS_API_TOKEN", default="abc")
 
 
 IPWARE_META_PRECEDENCE_ORDER = (

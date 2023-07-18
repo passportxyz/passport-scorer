@@ -380,6 +380,10 @@ const secrets = [
     name: "FF_API_ANALYTICS",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_API_ANALYTICS::`,
   },
+  {
+    name: "CGRANTS_API_TOKEN",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:CGRANTS_API_TOKEN::`,
+  },
 ];
 const environment = [
   {
