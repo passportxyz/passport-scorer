@@ -67,3 +67,23 @@ class Score(models.Model):
 
     def __str__(self):
         return f"Score #{self.id}, score={self.score}, last_score_timestamp={self.last_score_timestamp}, status={self.status}, error={self.error}, evidence={self.evidence}, passport_id={self.passport_id}"
+
+
+class Event(models.Model):
+    # Example usage:
+    #   obj.action = Event.Action.FIFO_DEDUPLICATION
+    class Action(models.TextChoices):
+        FIFO_DEDUPLICATION = "FDP"
+        LIFO_DEDUPLICATION = "LDP"
+
+    action = models.CharField(
+        max_length=3,
+        choices=Action.choices,
+        blank=False,
+    )
+
+    address = EthAddressField(blank=True, max_length=42)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    data = models.JSONField()

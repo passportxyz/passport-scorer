@@ -189,6 +189,8 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
 }
 
+LOG_SQL_QUERIES = env("LOG_SQL_QUERIES", default=False)
+
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_HEADERS = [
@@ -324,7 +326,7 @@ else:
             },
             "django.db.backends": {
                 "level": "DEBUG",
-                "handlers": [],
+                "handlers": ["debugConsole"] if LOG_SQL_QUERIES else [],
                 "propagate": False,
             },
         },
