@@ -2,6 +2,7 @@ from typing import List
 from urllib.parse import urljoin
 
 import api_logging as logging
+import django_filters
 import requests
 from account.api import UnauthorizedException, create_community_for_account
 
@@ -314,6 +315,22 @@ def handle_get_score(
         raise InvalidCommunityScoreRequestException() from e
 
 
+class ScoreFilter(django_filters.FilterSet):
+    last_score_timestamp__gt = django_filters.IsoDateTimeFilter(
+        field_name="last_score_timestamp", lookup_expr="gt"
+    )
+    last_score_timestamp__gte = django_filters.IsoDateTimeFilter(
+        field_name="last_score_timestamp", lookup_expr="gte"
+    )
+    address = django_filters.CharFilter(
+        field_name="passport__address", lookup_expr="iexact"
+    )
+
+    class Meta:
+        model = Score
+        fields = ["last_score_timestamp"]
+
+
 @router.get(
     "/score/{int:scorer_id}",
     auth=ApiKey(),
@@ -327,11 +344,17 @@ def handle_get_score(
     description="""Use this endpoint to fetch the scores for all addresses that are associated with a scorer\n
 This API will return a list of `DetailedScoreResponse` objects. The endpoint supports pagination and will return a maximum of 1000 scores per request.\n
 Pass a limit and offset query parameter to paginate the results. For example: `/score/1?limit=100&offset=100` will return the second page of 100 scores.\n
+The `last_score_timestamp__gt` and `last_score_timestamp__gte` query parameters are expected to be ISO 8601 formatted timestamps.
 """,
 )
 @paginate(pass_parameter="pagination_info")
 def get_scores(
-    request, scorer_id: int, address: str = "", **kwargs
+    request,
+    scorer_id: int,
+    address: str = "",
+    last_score_timestamp__gt: str = "",
+    last_score_timestamp__gte: str = "",
+    **kwargs,
 ) -> List[DetailedScoreResponse]:
     check_rate_limit(request)
     if kwargs["pagination_info"].limit > 1000:
@@ -348,8 +371,8 @@ def get_scores(
             passport__community__id=user_community.id
         ).select_related("passport")
 
-        if address:
-            scores = scores.filter(passport__address=address.lower())
+        filter_values = request.GET
+        scores = ScoreFilter(filter_values, queryset=scores).qs
 
         return scores
 

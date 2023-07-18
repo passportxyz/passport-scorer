@@ -1,10 +1,11 @@
+import datetime
+
 import pytest
 from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import Client
-from registry import permissions
 from registry.api.v1 import get_scorer_by_id
 from registry.models import Passport, Score
 from web3 import Web3
@@ -207,6 +208,102 @@ class TestPassportGetScore:
             response.json()["items"][0]["address"]
             == passport_holder_addresses[0]["address"].lower()
         )
+
+    def test_get_scores_filter_by_last_score_timestamp__gt(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        scores = list(Score.objects.all())
+        middle = len(scores) // 2
+        older_scores = scores[:middle]
+        newer_scores = scores[middle:]
+        now = datetime.datetime.now()
+        past_time_stamp = now - datetime.timedelta(days=1)
+        future_time_stamp = now + datetime.timedelta(days=1)
+
+        # Make sure we have sufficient data in both queries
+        assert len(newer_scores) >= 2
+        assert len(older_scores) >= 2
+
+        for score in older_scores:
+            score.last_score_timestamp = past_time_stamp
+            score.save()
+
+        # The first score will have a last_score_timestamp equal to the value we filter by
+        for idx, score in enumerate(newer_scores):
+            if idx == 0:
+                score.last_score_timestamp = now
+            else:
+                score.last_score_timestamp = future_time_stamp
+            score.save()
+
+        # Check the query when the filtered timestamo equals a score last_score_timestamp
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?last_score_timestamp__gt={now.isoformat()}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        assert len(response.json()["items"]) == len(newer_scores) - 1
+
+        # Check the query when the filtered timestamo does not equal a score last_score_timestamp
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?last_score_timestamp__gt={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        assert len(response.json()["items"]) == len(newer_scores)
+
+    def test_get_scores_filter_by_last_score_timestamp__gte(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        scores = list(Score.objects.all())
+        middle = len(scores) // 2
+        older_scores = scores[:middle]
+        newer_scores = scores[middle:]
+        now = datetime.datetime.now()
+        past_time_stamp = now - datetime.timedelta(days=1)
+        future_time_stamp = now + datetime.timedelta(days=1)
+
+        # Make sure we have sufficient data in both queries
+        assert len(newer_scores) >= 2
+        assert len(older_scores) >= 2
+
+        for score in older_scores:
+            score.last_score_timestamp = past_time_stamp
+            score.save()
+
+        # The first score will have a last_score_timestamp equal to the value we filter by
+        for idx, score in enumerate(newer_scores):
+            if idx == 0:
+                score.last_score_timestamp = now
+            else:
+                score.last_score_timestamp = future_time_stamp
+            score.save()
+
+        # Check the query when the filtered timestamo equals a score last_score_timestamp
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?last_score_timestamp__gte={now.isoformat()}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        assert len(response.json()["items"]) == len(newer_scores)
+
+        # Check the query when the filtered timestamo does not equal a score last_score_timestamp
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?last_score_timestamp__gte={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        assert len(response.json()["items"]) == len(newer_scores)
 
     def test_get_single_score_for_address_in_path(
         self,
