@@ -371,7 +371,14 @@ def get_scores(
             passport__community__id=user_community.id
         ).select_related("passport")
 
-        filter_values = request.GET
+        filter_values = {
+            "address": address,
+            "last_score_timestamp__gt": last_score_timestamp__gt,
+            "last_score_timestamp__gte": last_score_timestamp__gte,
+        }
+        # Technically we could just pass request.GET to the filter. But since we have the parameters defined
+        # anyways (because we need them for the generated docs) we might as well use them explicitly in the
+        # filter_values.
         scores = ScoreFilter(filter_values, queryset=scores).qs
 
         return scores
