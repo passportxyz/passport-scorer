@@ -83,6 +83,7 @@ INSTALLED_APPS = [
     "social_django",
     # "debug_toolbar",
     "cgrants",
+    "django_filters",
 ]
 
 AUTHENTICATION_BACKENDS = [

@@ -33,6 +33,7 @@ structlog = "*"
 django-structlog = "*"
 django-ipware = "*"
 django-debug-toolbar = "*"
+django-filter = "*"
 
 [dev-packages]
 black = "*"
