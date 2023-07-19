@@ -1,5 +1,5 @@
 from django.contrib import admin
-from registry.models import Passport, Score, Stamp
+from registry.models import Event, Passport, Score, Stamp
 
 
 class PassportAdmin(admin.ModelAdmin):
@@ -49,6 +49,26 @@ class ScoreAdmin(admin.ModelAdmin):
         return queryset
 
 
+class EventAdmin(admin.ModelAdmin):
+    list_display = [
+        "action",
+        "created_at",
+        "address",
+        "data",
+    ]
+
+    list_filter = [
+        "action",
+    ]
+
+    search_fields = [
+        "created_at",
+        "address",
+        "data",
+    ]
+
+
 admin.site.register(Passport, PassportAdmin)
 admin.site.register(Stamp, StampAdmin)
 admin.site.register(Score, ScoreAdmin)
+admin.site.register(Event, EventAdmin)
