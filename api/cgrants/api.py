@@ -75,7 +75,7 @@ def contributor_statistics(request):
             profile__handle=handle, round_num__isnull=False
         )
         .order_by("round_num")
-        .values("grant_id")
+        .values("round_num")
         .distinct()
         .count()
     )
