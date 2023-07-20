@@ -110,9 +110,6 @@ def _get_contributor_statistics_for_protocol(address: str) -> dict:
         Count("project", distinct=True)
     )["project__count"]
 
-    print("total_amount_usd", total_amount_usd)
-    print("num_rounds", num_rounds)
-    print("num_projects", num_projects)
     return {
         "num_grants_contribute_to": num_projects if num_projects is not None else 0,
         "num_rounds_contribute_to": num_rounds if num_rounds is not None else 0,
