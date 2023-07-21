@@ -770,13 +770,11 @@ const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
 new aws.cloudwatch.EventTarget("scheduledEventTarget", {
   rule: scheduledEventRule.name,
   arn: cluster.cluster.arn,
-  roleArn: weeklyDataDump.taskRole.apply((role) => role.arn), // Use the task's IAM role.
   ecsTarget: {
     taskCount: 1,
     taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
     launchType: "FARGATE",
     networkConfiguration: {
-      assignPublicIp: "ENABLED",
       subnets: vpc.publicSubnetIds,
       securityGroups: [cluster.securityGroups[0].id],
     },
