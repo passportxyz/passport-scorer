@@ -605,6 +605,41 @@ const ecsScorerWorker2Autoscaling = new aws.appautoscaling.Policy(
 );
 
 //////////////////////////////////////////////////////////////
+// ECS Scheduled Task
+//////////////////////////////////////////////////////////////
+const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
+  containers: {
+    web: {
+      image: dockerGtcPassportScorerImage,
+      cpu: 256,
+      memory: 2048,
+      secrets,
+      command: ["python", "manage.py", "dump_stamp_data"],
+    },
+  },
+});
+
+const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
+  scheduleExpression: "rate(1 minute)", // Run the task every day at 12pm.
+});
+
+new aws.cloudwatch.EventTarget("scheduledEventTarget", {
+  rule: scheduledEventRule.name,
+  arn: cluster.cluster.arn,
+  roleArn: weeklyDataDump.taskRole.apply((role) => role.arn), // Use the task's IAM role.
+  ecsTarget: {
+    taskCount: 1,
+    taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
+    launchType: "FARGATE",
+    networkConfiguration: {
+      assignPublicIp: "ENABLED",
+      subnets: vpc.publicSubnetIds,
+      securityGroups: [cluster.securityGroups[0].id],
+    },
+  },
+});
+
+//////////////////////////////////////////////////////////////
 // Set up task to run migrations
 //////////////////////////////////////////////////////////////
 const taskMigrate = new awsx.ecs.FargateTaskDefinition(`scorer-run-migrate`, {
