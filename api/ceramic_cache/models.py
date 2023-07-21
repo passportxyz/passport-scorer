@@ -10,6 +10,12 @@ class CeramicCache(models.Model):
         null=False, blank=False, default="", max_length=256, db_index=True
     )
     stamp = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
 
     class Meta:
         unique_together = ["address", "provider"]
+
+
+class StampExports(models.Model):
+    last_export_ts = models.DateTimeField(auto_now_add=True)
+    stamp_total = models.IntegerField(default=0)
