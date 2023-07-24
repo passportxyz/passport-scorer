@@ -344,7 +344,17 @@ class ScoreFilter(django_filters.FilterSet):
     description="""Use this endpoint to fetch the scores for all addresses that are associated with a scorer\n
 This API will return a list of `DetailedScoreResponse` objects. The endpoint supports pagination and will return a maximum of 1000 scores per request.\n
 Pass a limit and offset query parameter to paginate the results. For example: `/score/1?limit=100&offset=100` will return the second page of 100 scores.\n
-The `last_score_timestamp__gt` and `last_score_timestamp__gte` query parameters are expected to be ISO 8601 formatted timestamps.
+The `last_score_timestamp__gt` and `last_score_timestamp__gte` query parameters are expected to be ISO 8601 formatted timestamps:\n
+- `last_score_timestamp__gt` - will return only results having the timestamp greater than the provided value.\n
+- `last_score_timestamp__gte` - will return only results having the timestamp greater or equal than the provided value.\n
+
+Examples of valid values for `last_score_timestamp__gt` and `last_score_timestamp__gt` filters: \n
+- 2023-05-10T07:49:08Z\n
+- 2023-05-10T07:49:08.610198+00:00\n
+- 2023-05-10\n
+
+Please note that while using both parameters (`last_score_timestamp__gt` and `last_score_timestamp__gte`) is possible and both filters are applied. \
+But this generally makes no sense.
 """,
 )
 @paginate(pass_parameter="pagination_info")

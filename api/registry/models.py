@@ -58,7 +58,9 @@ class Score(models.Model):
         Passport, on_delete=models.PROTECT, related_name="score", unique=True
     )
     score = models.DecimalField(null=True, blank=True, decimal_places=9, max_digits=18)
-    last_score_timestamp = models.DateTimeField(default=None, null=True, blank=True)
+    last_score_timestamp = models.DateTimeField(
+        default=None, null=True, blank=True, db_index=True
+    )
     status = models.CharField(
         choices=STATUS_CHOICES, max_length=20, null=True, default=None, db_index=True
     )
