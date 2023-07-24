@@ -102,7 +102,7 @@ def _get_contributor_statistics_for_cgrants(handle: str) -> dict:
 def _get_contributor_statistics_for_protocol(address: str) -> dict:
     total_amount_usd = ProtocolContributions.objects.filter(
         contributor=address
-    ).aggregate(Sum("amount_usd"))["amount_usd__sum"]
+    ).aggregate(Sum("amount"))["amount__sum"]
     num_rounds = ProtocolContributions.objects.filter(contributor=address).aggregate(
         Count("round", distinct=True)
     )["round__count"]
@@ -125,13 +125,23 @@ def _get_contributor_statistics_for_protocol(address: str) -> dict:
     response=ContributorStatistics,
     auth=cg_api_key,
 )
-def contributor_statistics(request, handle: str, address: str | None = None):
+def contributor_statistics(request, handle: str):
     if not handle:
         return JsonResponse(
             {"error": "Bad request, 'handle' parameter is missing or invalid"},
             status=400,
         )
 
+    response = _get_contributor_statistics_for_cgrants(handle)
+    return JsonResponse(response)
+
+
+@api.get(
+    "/allo/contributor_statistics",
+    response=ContributorStatistics,
+    auth=cg_api_key,
+)
+def allo_contributor_statistics(request, address: str | None = None):
     if not address:
         return JsonResponse(
             {"error": "Bad request, 'address' parameter is missing or invalid"},
@@ -141,19 +151,9 @@ def contributor_statistics(request, handle: str, address: str | None = None):
     if address:
         address = address.lower()
 
-    response = _get_contributor_statistics_for_cgrants(handle)
     response_for_protocol = _get_contributor_statistics_for_protocol(address)
 
-    # Join the data from the 2 responses (sum up the values)
-    for key in (
-        "num_grants_contribute_to",
-        "num_rounds_contribute_to",
-        "total_contribution_amount",
-        "num_gr14_contributions",
-    ):
-        response[key] += response_for_protocol[key]
-
-    return JsonResponse(response)
+    return JsonResponse(response_for_protocol)
 
 
 @api.get(

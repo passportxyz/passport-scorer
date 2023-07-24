@@ -55,61 +55,71 @@ class CgrantsTest(TestCase):
                     contributor=self.address,
                     project=project1,
                     round=round1,
-                    amount_usd=1,
+                    amount=1,
+                    ext_id="0xext_1",
                 ),
                 ProtocolContributions(
                     contributor=self.address,
                     project=project2,
                     round=round2,
-                    amount_usd=1,
+                    amount=1,
+                    ext_id="0xext_2",
                 ),
                 ProtocolContributions(
                     contributor=self.address,
                     project=project3,
                     round=round1,
-                    amount_usd=1,
+                    amount=1,
+                    ext_id="0xext_3",
                 ),
                 ProtocolContributions(
                     contributor=self.address,
                     project=project4,
                     round=round2,
-                    amount_usd=1,
+                    amount=1,
+                    ext_id="0xext_4",
                 ),
                 ProtocolContributions(
                     contributor=self.address,
                     project=project1,
                     round=round1,
-                    amount_usd=1,
+                    amount=1,
+                    ext_id="0xext_5",
                 ),
                 ProtocolContributions(
                     contributor=self.address,
                     project=project2,
                     round=round2,
-                    amount_usd=1,
+                    amount=1,
+                    ext_id="0xext_6",
                 ),
                 ProtocolContributions(
                     contributor=self.address,
                     project=project3,
                     round=round1,
-                    amount_usd=1,
+                    amount=1,
+                    ext_id="0xext_7",
                 ),
                 ProtocolContributions(
                     contributor=self.address,
                     project=project4,
                     round=round2,
-                    amount_usd=1,
+                    amount=1,
+                    ext_id="0xext_8",
                 ),
                 ProtocolContributions(
                     contributor=self.address,
                     project=project1,
                     round=round1,
-                    amount_usd=1,
+                    amount=1,
+                    ext_id="0xext_9",
                 ),
                 ProtocolContributions(
                     contributor=self.address,
                     project=project2,
                     round=round2,
-                    amount_usd=1,
+                    amount=1,
+                    ext_id="0xext_10",
                 ),
             ]
         )
@@ -117,10 +127,11 @@ class CgrantsTest(TestCase):
         ProtocolContributions.objects.bulk_create(
             [
                 ProtocolContributions(
-                    contributor="0xsome_{i}",
-                    project="0xprj_{i}",
-                    round="0xround_{i}",
-                    amount_usd=1,
+                    contributor=f"0xsome_{i}",
+                    project=f"0xprj_{i}",
+                    round=f"0xround_{i}",
+                    amount=1,
+                    ext_id=f"0xext_batch2_{i}",
                 )
                 for i in range(200)
             ]
@@ -130,7 +141,7 @@ class CgrantsTest(TestCase):
         # Standard case
         response = self.client.get(
             reverse("cgrants:contributor_statistics"),
-            {"handle": "user1", "address": "0x_bad_address"},
+            {"handle": "user1"},
             **self.headers,
         )
         self.assertEqual(response.status_code, 200)
@@ -144,7 +155,7 @@ class CgrantsTest(TestCase):
         # Edge case: User has made no contributions
         response = self.client.get(
             reverse("cgrants:contributor_statistics"),
-            {"handle": "user2", "address": "0x_bad_address"},
+            {"handle": "user2"},
             **self.headers,
         )
         self.assertEqual(response.status_code, 200)
@@ -161,7 +172,7 @@ class CgrantsTest(TestCase):
     def test_grantee_statistics(self):
         response = self.client.get(
             reverse("cgrants:grantee_statistics"),
-            {"handle": "user1", "address": "0x_bad_address"},
+            {"handle": "user1"},
             **self.headers,
         )
         self.assertEqual(response.status_code, 200)
@@ -174,7 +185,7 @@ class CgrantsTest(TestCase):
     def test_grantee_statistics_no_grants(self):
         response = self.client.get(
             reverse("cgrants:grantee_statistics"),
-            {"handle": "user2", "address": "0x_bad_address"},
+            {"handle": "user2"},
             **self.headers,
         )
         self.assertEqual(response.status_code, 200)
@@ -191,7 +202,7 @@ class CgrantsTest(TestCase):
     def test_invalid_handle(self):
         response = self.client.get(
             reverse("cgrants:contributor_statistics"),
-            {"handle": "", "address": "0x_bad_address"},
+            {"handle": ""},
             **self.headers,
         )
         self.assertEqual(response.status_code, 400)  # Not found
@@ -200,34 +211,10 @@ class CgrantsTest(TestCase):
             {"error": "Bad request, 'handle' parameter is missing or invalid"},
         )
 
-    def test_invalid_address(self):
-        response = self.client.get(
-            reverse("cgrants:contributor_statistics"),
-            {"handle": "some_handle", "address": ""},
-            **self.headers,
-        )
-        self.assertEqual(response.status_code, 400)  # Not found
-        self.assertEqual(
-            response.json(),
-            {"error": "Bad request, 'address' parameter is missing or invalid"},
-        )
-
-    def test_missing_address(self):
-        response = self.client.get(
-            reverse("cgrants:contributor_statistics"),
-            {"handle": "some_handle"},
-            **self.headers,
-        )
-        self.assertEqual(response.status_code, 400)  # Not found
-        self.assertEqual(
-            response.json(),
-            {"error": "Bad request, 'address' parameter is missing or invalid"},
-        )
-
     def test_contributor_statistics_squelched_profile(self):
         response = self.client.get(
             reverse("cgrants:contributor_statistics"),
-            {"handle": self.profile3.handle, "address": "0x_bad_address"},
+            {"handle": self.profile3.handle},
             **self.headers,
         )
 
@@ -238,35 +225,41 @@ class CgrantsTest(TestCase):
     def test_grantee_statistics_invalid_token(self):
         response = self.client.get(
             reverse("cgrants:contributor_statistics"),
-            {"handle": self.profile1.handle, "address": "0x_bad_address"},
+            {"handle": self.profile1.handle},
             **{"HTTP_AUTHORIZATION": "invalidtoken"},
         )
 
         self.assertEqual(response.status_code, 401)
 
-    def test_contributor_statistics_with_cgrants_and_protocol_contributions(self):
-        # Standard case
+    def test_invalid_address(self):
         response = self.client.get(
-            reverse("cgrants:contributor_statistics"),
-            {"handle": "user1", "address": self.address},
+            reverse("cgrants:allo_contributor_statistics"),
+            {"address": ""},
             **self.headers,
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)  # Not found
         self.assertEqual(
             response.json(),
-            {
-                "num_grants_contribute_to": 5,
-                "num_rounds_contribute_to": 2,
-                "total_contribution_amount": "110",
-                "num_gr14_contributions": 0,
-            },
+            {"error": "Bad request, 'address' parameter is missing or invalid"},
+        )
+
+    def test_missing_address(self):
+        response = self.client.get(
+            reverse("cgrants:allo_contributor_statistics"),
+            {},
+            **self.headers,
+        )
+        self.assertEqual(response.status_code, 400)  # Not found
+        self.assertEqual(
+            response.json(),
+            {"error": "Bad request, 'address' parameter is missing or invalid"},
         )
 
     def test_contributor_statistics_with_only_protocol_contributions(self):
         # Edge case: User has made no contributions
         response = self.client.get(
-            reverse("cgrants:contributor_statistics"),
-            {"handle": "user2", "address": self.address},
+            reverse("cgrants:allo_contributor_statistics"),
+            {"address": self.address},
             **self.headers,
         )
         self.assertEqual(response.status_code, 200)
