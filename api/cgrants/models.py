@@ -4,6 +4,7 @@ We only define fields in this model that we are directly interested in,
 and we store the JSON dump of the recoords containing all the fields
 from the original record in the `data` attribute
 """
+from account.models import EthAddressField
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -194,5 +195,35 @@ class GrantContributionIndex(models.Model):
         decimal_places=18,
         max_digits=64,
         db_index=True,
-        help_text=_("The amount contributed"),
+        help_text=_("The USD amount contributed"),
+    )
+
+
+class ProtocolContributions(models.Model):
+    """
+    This will store allo protocol contributions.
+    The data in this table was produced by the allo indexer, see: https://github.com/gitcoinco/allo-indexer
+    """
+
+    ext_id = models.CharField(
+        null=False, blank=False, max_length=66, db_index=True, unique=True, default=""
+    )
+    contributor = EthAddressField(
+        null=False, blank=False, max_length=100, db_index=True, default=""
+    )
+    round = EthAddressField(
+        null=False, blank=False, max_length=100, db_index=True, default=""
+    )
+    project = EthAddressField(
+        null=False, blank=False, max_length=100, db_index=True, default=""
+    )
+    amount = models.DecimalField(
+        default=0,
+        decimal_places=18,
+        max_digits=64,
+        db_index=True,
+        help_text=_("The USD amount contributed"),
+    )
+    data = models.JSONField(
+        help_text=_("Original contribution data in JSON format"), default=dict
     )

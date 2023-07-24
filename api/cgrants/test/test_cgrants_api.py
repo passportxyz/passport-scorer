@@ -3,6 +3,7 @@ from cgrants.models import (
     Grant,
     GrantContributionIndex,
     Profile,
+    ProtocolContributions,
     SquelchProfile,
     Subscription,
 )
@@ -39,6 +40,102 @@ class CgrantsTest(TestCase):
         )
 
         SquelchProfile.objects.create(profile=self.profile3, active=True)
+
+        self.address = "0x12345"
+        project1 = "0xprj_1"
+        project2 = "0xprj_2"
+        project3 = "0xprj_3"
+        project4 = "0xprj_4"
+        round1 = "0xround_1"
+        round2 = "0xround_2"
+
+        ProtocolContributions.objects.bulk_create(
+            [
+                ProtocolContributions(
+                    contributor=self.address,
+                    project=project1,
+                    round=round1,
+                    amount=1,
+                    ext_id="0xext_1",
+                ),
+                ProtocolContributions(
+                    contributor=self.address,
+                    project=project2,
+                    round=round2,
+                    amount=1,
+                    ext_id="0xext_2",
+                ),
+                ProtocolContributions(
+                    contributor=self.address,
+                    project=project3,
+                    round=round1,
+                    amount=1,
+                    ext_id="0xext_3",
+                ),
+                ProtocolContributions(
+                    contributor=self.address,
+                    project=project4,
+                    round=round2,
+                    amount=1,
+                    ext_id="0xext_4",
+                ),
+                ProtocolContributions(
+                    contributor=self.address,
+                    project=project1,
+                    round=round1,
+                    amount=1,
+                    ext_id="0xext_5",
+                ),
+                ProtocolContributions(
+                    contributor=self.address,
+                    project=project2,
+                    round=round2,
+                    amount=1,
+                    ext_id="0xext_6",
+                ),
+                ProtocolContributions(
+                    contributor=self.address,
+                    project=project3,
+                    round=round1,
+                    amount=1,
+                    ext_id="0xext_7",
+                ),
+                ProtocolContributions(
+                    contributor=self.address,
+                    project=project4,
+                    round=round2,
+                    amount=1,
+                    ext_id="0xext_8",
+                ),
+                ProtocolContributions(
+                    contributor=self.address,
+                    project=project1,
+                    round=round1,
+                    amount=1,
+                    ext_id="0xext_9",
+                ),
+                ProtocolContributions(
+                    contributor=self.address,
+                    project=project2,
+                    round=round2,
+                    amount=1,
+                    ext_id="0xext_10",
+                ),
+            ]
+        )
+
+        ProtocolContributions.objects.bulk_create(
+            [
+                ProtocolContributions(
+                    contributor=f"0xsome_{i}",
+                    project=f"0xprj_{i}",
+                    round=f"0xround_{i}",
+                    amount=1,
+                    ext_id=f"0xext_batch2_{i}",
+                )
+                for i in range(200)
+            ]
+        )
 
     def test_contributor_statistics(self):
         # Standard case
@@ -109,6 +206,10 @@ class CgrantsTest(TestCase):
             **self.headers,
         )
         self.assertEqual(response.status_code, 400)  # Not found
+        self.assertEqual(
+            response.json(),
+            {"error": "Bad request, 'handle' parameter is missing or invalid"},
+        )
 
     def test_contributor_statistics_squelched_profile(self):
         response = self.client.get(
@@ -117,6 +218,7 @@ class CgrantsTest(TestCase):
             **self.headers,
         )
 
+        print("response", response.json())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json().get("num_gr14_contributions"), 0)
 
@@ -128,3 +230,45 @@ class CgrantsTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 401)
+
+    def test_invalid_address(self):
+        response = self.client.get(
+            reverse("cgrants:allo_contributor_statistics"),
+            {"address": ""},
+            **self.headers,
+        )
+        self.assertEqual(response.status_code, 400)  # Not found
+        self.assertEqual(
+            response.json(),
+            {"error": "Bad request, 'address' parameter is missing or invalid"},
+        )
+
+    def test_missing_address(self):
+        response = self.client.get(
+            reverse("cgrants:allo_contributor_statistics"),
+            {},
+            **self.headers,
+        )
+        self.assertEqual(response.status_code, 400)  # Not found
+        self.assertEqual(
+            response.json(),
+            {"error": "Bad request, 'address' parameter is missing or invalid"},
+        )
+
+    def test_contributor_statistics_with_only_protocol_contributions(self):
+        # Edge case: User has made no contributions
+        response = self.client.get(
+            reverse("cgrants:allo_contributor_statistics"),
+            {"address": self.address},
+            **self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "num_grants_contribute_to": 4,
+                "num_rounds_contribute_to": 2,
+                "total_contribution_amount": "10",
+                "num_gr14_contributions": 0,
+            },
+        )

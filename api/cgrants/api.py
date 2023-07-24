@@ -4,16 +4,21 @@ This file re-iplements the API endpoints from the original cgrants API: https://
 
 """
 import logging
-from datetime import datetime
 
 from django.conf import settings
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.http import JsonResponse
 from ninja.security import APIKeyHeader
 from ninja_extra import NinjaExtraAPI
 from ninja_schema import Schema
 
-from .models import Contribution, Grant, GrantContributionIndex, SquelchProfile
+from .models import (
+    Contribution,
+    Grant,
+    GrantContributionIndex,
+    ProtocolContributions,
+    SquelchProfile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,20 +51,7 @@ class GranteeStatistics(Schema):
     total_contribution_amount = int
 
 
-@api.get(
-    "/contributor_statistics",
-    response=ContributorStatistics,
-    auth=cg_api_key,
-)
-def contributor_statistics(request):
-    handle = request.GET.get("handle")
-
-    if not handle:
-        return JsonResponse(
-            {"error": "Bad request, 'handle' parameter is missing or invalid"},
-            status=400,
-        )
-
+def _get_contributor_statistics_for_cgrants(handle: str) -> dict:
     # Get number of grants the user contributed to
     num_grants_contribute_to = (
         GrantContributionIndex.objects.filter(profile__handle=handle)
@@ -99,14 +91,69 @@ def contributor_statistics(request):
         .count()
     )
 
-    return JsonResponse(
-        {
-            "num_grants_contribute_to": num_grants_contribute_to,
-            "num_rounds_contribute_to": num_rounds_contribute_to,
-            "total_contribution_amount": total_contribution_amount,
-            "num_gr14_contributions": num_gr14_contributions,
-        }
-    )
+    return {
+        "num_grants_contribute_to": num_grants_contribute_to,
+        "num_rounds_contribute_to": num_rounds_contribute_to,
+        "total_contribution_amount": total_contribution_amount,
+        "num_gr14_contributions": num_gr14_contributions,
+    }
+
+
+def _get_contributor_statistics_for_protocol(address: str) -> dict:
+    total_amount_usd = ProtocolContributions.objects.filter(
+        contributor=address
+    ).aggregate(Sum("amount"))["amount__sum"]
+    num_rounds = ProtocolContributions.objects.filter(contributor=address).aggregate(
+        Count("round", distinct=True)
+    )["round__count"]
+    num_projects = ProtocolContributions.objects.filter(contributor=address).aggregate(
+        Count("project", distinct=True)
+    )["project__count"]
+
+    return {
+        "num_grants_contribute_to": num_projects if num_projects is not None else 0,
+        "num_rounds_contribute_to": num_rounds if num_rounds is not None else 0,
+        "total_contribution_amount": total_amount_usd
+        if total_amount_usd is not None
+        else 0,
+        "num_gr14_contributions": 0,
+    }
+
+
+@api.get(
+    "/contributor_statistics",
+    response=ContributorStatistics,
+    auth=cg_api_key,
+)
+def contributor_statistics(request, handle: str):
+    if not handle:
+        return JsonResponse(
+            {"error": "Bad request, 'handle' parameter is missing or invalid"},
+            status=400,
+        )
+
+    response = _get_contributor_statistics_for_cgrants(handle)
+    return JsonResponse(response)
+
+
+@api.get(
+    "/allo/contributor_statistics",
+    response=ContributorStatistics,
+    auth=cg_api_key,
+)
+def allo_contributor_statistics(request, address: str | None = None):
+    if not address:
+        return JsonResponse(
+            {"error": "Bad request, 'address' parameter is missing or invalid"},
+            status=400,
+        )
+
+    if address:
+        address = address.lower()
+
+    response_for_protocol = _get_contributor_statistics_for_protocol(address)
+
+    return JsonResponse(response_for_protocol)
 
 
 @api.get(
