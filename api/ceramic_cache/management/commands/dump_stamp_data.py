@@ -6,7 +6,7 @@ import boto3
 from ceramic_cache.models import CeramicCache, StampExports
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from django.core.serializers import serialize
+from django.core.paginator import Paginator
 from django.utils import timezone
 
 s3 = boto3.client(
@@ -30,23 +30,30 @@ class Command(BaseCommand):
                 last_export_ts=timezone.now() - datetime.timedelta(days=7)
             )
 
-        # Retrieve all Stamp data since the last dump
-        stamps = CeramicCache.objects.filter(
-            created_at__gt=latest_export.last_export_ts
-        ).values_list("stamp", flat=True)
+        paginator = Paginator(
+            CeramicCache.objects.filter(
+                created_at__gt=latest_export.last_export_ts
+            ).values_list("stamp", flat=True),
+            1000,
+        )
 
         # Generate the dump file name
         file_name = f'stamps_{latest_export.last_export_ts.strftime("%Y%m%d_%H%M%S")}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.jsonl'
 
         # Write serialized data to the file
         with open(file_name, "w") as f:
-            for stamp in stamps:
-                f.write(json.dumps({"stamp": stamp}) + "\n")
+            for page in paginator.page_range:
+                for stamp in paginator.page(page).object_list:
+                    f.write(json.dumps({"stamp": stamp}) + "\n")
 
         # Upload to S3 bucket
         s3.upload_file(file_name, settings.S3_WEEKLY_BACKUP_BUCKET_NAME, file_name)
 
         # Delete local file after upload
         os.remove(file_name)
+
+        StampExports.objects.create(
+            last_export_ts=timezone.now(), stamp_total=paginator.count
+        )
 
         print(f"Data dump completed and uploaded to S3 as {file_name}")
