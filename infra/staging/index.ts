@@ -316,6 +316,14 @@ const secrets = [
     name: "CGRANTS_API_TOKEN",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:CGRANTS_API_TOKEN::`,
   },
+  {
+    name: "S3_DATA_AWS_SECRET_KEY_ID",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_KEY_ID::`,
+  },
+  {
+    name: "S3_DATA_AWS_SECRET_ACCESS_KEY",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_ACCESS_KEY::`,
+  },
 ];
 const environment = [
   {
