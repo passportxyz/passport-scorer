@@ -327,6 +327,16 @@ else:
                 "handlers": [],
                 "propagate": False,
             },
+            "urllib3": {
+                "level": "DEBUG",
+                "handlers": [],
+                "propagate": False,
+            },
+            "botocore": {
+                "level": "DEBUG",
+                "handlers": [],
+                "propagate": False,
+            },
         },
     }
 

@@ -195,7 +195,7 @@ class GrantContributionIndex(models.Model):
         decimal_places=18,
         max_digits=64,
         db_index=True,
-        help_text=_("The amount contributed"),
+        help_text=_("The USD amount contributed"),
     )
 
 
@@ -205,14 +205,25 @@ class ProtocolContributions(models.Model):
     The data in this table was produced by the allo indexer, see: https://github.com/gitcoinco/allo-indexer
     """
 
-    contributor = EthAddressField(null=True, blank=False, max_length=100, db_index=True)
-    round = EthAddressField(null=True, blank=False, max_length=100, db_index=True)
-    project = EthAddressField(null=True, blank=False, max_length=100, db_index=True)
-    amount_usd = models.DecimalField(
+    ext_id = models.CharField(
+        null=False, blank=False, max_length=66, db_index=True, unique=True, default=""
+    )
+    contributor = EthAddressField(
+        null=False, blank=False, max_length=100, db_index=True, default=""
+    )
+    round = EthAddressField(
+        null=False, blank=False, max_length=100, db_index=True, default=""
+    )
+    project = EthAddressField(
+        null=False, blank=False, max_length=100, db_index=True, default=""
+    )
+    amount = models.DecimalField(
         default=0,
         decimal_places=18,
         max_digits=64,
         db_index=True,
         help_text=_("The USD amount contributed"),
     )
-    # TODO: add also other fields, like transaction hash, etc.
+    data = models.JSONField(
+        help_text=_("Original contribution data in JSON format"), default=dict
+    )

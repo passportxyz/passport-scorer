@@ -1,4 +1,5 @@
 from django.contrib import admin
+from scorer.scorer_admin import ScorerModelAdmin
 
 from .models import (
     Contribution,
@@ -7,57 +8,65 @@ from .models import (
     GrantCLRCalculation,
     GrantContributionIndex,
     Profile,
+    ProtocolContributions,
     SquelchProfile,
     Subscription,
 )
 
 
 @admin.register(Profile)
-class ProfileAdmin(admin.ModelAdmin):
+class ProfileAdmin(ScorerModelAdmin):
     list_display = ("handle",)
     search_fields = ("handle",)
 
 
 @admin.register(Grant)
-class GrantAdmin(admin.ModelAdmin):
+class GrantAdmin(ScorerModelAdmin):
     list_display = ("admin_profile", "hidden", "active", "is_clr_eligible")
     list_filter = ("hidden", "active", "is_clr_eligible")
     search_fields = ("admin_profile__handle",)
 
 
 @admin.register(Subscription)
-class SubscriptionAdmin(admin.ModelAdmin):
+class SubscriptionAdmin(ScorerModelAdmin):
     list_display = ("grant", "contributor_profile")
     search_fields = ("grant__admin_profile__handle", "contributor_profile__handle")
 
 
 @admin.register(Contribution)
-class ContributionAdmin(admin.ModelAdmin):
+class ContributionAdmin(ScorerModelAdmin):
     list_display = ("subscription",)
 
 
 @admin.register(GrantCLR)
-class GrantCLRAdmin(admin.ModelAdmin):
+class GrantCLRAdmin(ScorerModelAdmin):
     list_display = ("type",)
     list_filter = ("type",)
 
 
 @admin.register(GrantCLRCalculation)
-class GrantCLRCalculationAdmin(admin.ModelAdmin):
+class GrantCLRCalculationAdmin(ScorerModelAdmin):
     list_display = ("active", "latest", "grant", "grantclr")
     list_filter = ("active", "latest")
     search_fields = ("grant__admin_profile__handle", "grantclr__type")
 
 
 @admin.register(SquelchProfile)
-class SquelchProfileAdmin(admin.ModelAdmin):
+class SquelchProfileAdmin(ScorerModelAdmin):
     list_display = ("profile", "active")
     list_filter = ("active",)
     search_fields = ("profile__handle",)
 
 
 @admin.register(GrantContributionIndex)
-class GrantContributionIndexAdmin(admin.ModelAdmin):
+class GrantContributionIndexAdmin(ScorerModelAdmin):
     list_display = ("profile", "contribution", "grant", "round_num", "amount")
     list_filter = ("round_num",)
     search_fields = ("profile__handle", "grant__admin_profile__handle")
+
+
+@admin.register(ProtocolContributions)
+class ProtocolContributionsAdmin(ScorerModelAdmin):
+    list_display = ("ext_id", "round", "contributor", "amount")
+    list_filter = ("round",)
+    search_fields = ("contributor", "round", "project")
