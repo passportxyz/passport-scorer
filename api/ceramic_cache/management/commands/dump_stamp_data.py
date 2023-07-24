@@ -4,12 +4,16 @@ import os
 
 import boto3
 from ceramic_cache.models import CeramicCache, StampExports
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.core.serializers import serialize
 from django.utils import timezone
 
-s3 = boto3.resource("s3")
-ecs = boto3.client("ecs")
+s3 = boto3.client(
+    "s3",
+    aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
+    aws_secret_access_key=settings.S3_DATA_AWS_SECRET_ACCESS_KEY,
+)
 
 
 class Command(BaseCommand):
@@ -40,7 +44,7 @@ class Command(BaseCommand):
                 f.write(json.dumps({"stamp": stamp}) + "\n")
 
         # Upload to S3 bucket
-        s3.Bucket(settings.AWS_BUCKET_NAME).upload_file(file_name, file_name)
+        s3.upload_file(file_name, settings.S3_WEEKLY_BACKUP_BUCKET_NAME, file_name)
 
         # Delete local file after upload
         os.remove(file_name)

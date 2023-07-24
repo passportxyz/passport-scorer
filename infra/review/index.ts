@@ -320,6 +320,10 @@ const secrets = [
     name: "S3_DATA_AWS_SECRET_ACCESS_KEY",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_ACCESS_KEY::`,
   },
+  {
+    name: "S3_WEEKLY_BACKUP_BUCKET_NAME",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_WEEKLY_BACKUP_BUCKET_NAME::`,
+  },
 ];
 const environment = [
   {
