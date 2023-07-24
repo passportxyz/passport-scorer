@@ -763,35 +763,35 @@ const flower = new awsx.ecs.FargateService("flower", {
 //////////////////////////////////////////////////////////////
 // ECS Scheduled Task
 //////////////////////////////////////////////////////////////
-const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
-  containers: {
-    web: {
-      image: dockerGtcPassportScorerImage,
-      cpu: 256,
-      memory: 2048,
-      secrets,
-      command: ["python", "manage.py", "dump_stamp_data"],
-    },
-  },
-});
+// const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
+//   containers: {
+//     web: {
+//       image: dockerGtcPassportScorerImage,
+//       cpu: 256,
+//       memory: 2048,
+//       secrets,
+//       command: ["python", "manage.py", "dump_stamp_data"],
+//     },
+//   },
+// });
 
-const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
-  scheduleExpression: "rate(1 minute)", // Run the task every day at 12pm.
-});
+// const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
+//   scheduleExpression: "rate(1 minute)", // Run the task every day at 12pm.
+// });
 
-new aws.cloudwatch.EventTarget("scheduledEventTarget", {
-  rule: scheduledEventRule.name,
-  arn: cluster.cluster.arn,
-  ecsTarget: {
-    taskCount: 1,
-    taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
-    launchType: "FARGATE",
-    networkConfiguration: {
-      subnets: vpc.publicSubnetIds,
-      securityGroups: [cluster.securityGroups[0].id],
-    },
-  },
-});
+// new aws.cloudwatch.EventTarget("scheduledEventTarget", {
+//   rule: scheduledEventRule.name,
+//   arn: cluster.cluster.arn,
+//   ecsTarget: {
+//     taskCount: 1,
+//     taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
+//     launchType: "FARGATE",
+//     networkConfiguration: {
+//       subnets: vpc.publicSubnetIds,
+//       securityGroups: [cluster.securityGroups[0].id],
+//     },
+//   },
+// });
 
 //////////////////////////////////////////////////////////////
 // Set up task to run migrations
