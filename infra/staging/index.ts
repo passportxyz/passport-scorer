@@ -316,6 +316,18 @@ const secrets = [
     name: "CGRANTS_API_TOKEN",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:CGRANTS_API_TOKEN::`,
   },
+  {
+    name: "S3_DATA_AWS_SECRET_KEY_ID",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_KEY_ID::`,
+  },
+  {
+    name: "S3_DATA_AWS_SECRET_ACCESS_KEY",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_ACCESS_KEY::`,
+  },
+  {
+    name: "S3_WEEKLY_BACKUP_BUCKET_NAME",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_WEEKLY_BACKUP_BUCKET_NAME::`,
+  },
 ];
 const environment = [
   {
@@ -747,6 +759,39 @@ const flower = new awsx.ecs.FargateService("flower", {
     },
   },
 });
+
+//////////////////////////////////////////////////////////////
+// ECS Scheduled Task
+//////////////////////////////////////////////////////////////
+// const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
+//   containers: {
+//     web: {
+//       image: dockerGtcPassportScorerImage,
+//       cpu: 256,
+//       memory: 2048,
+//       secrets,
+//       command: ["python", "manage.py", "dump_stamp_data"],
+//     },
+//   },
+// });
+
+// const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
+//   scheduleExpression: "rate(1 minute)", // Run the task every day at 12pm.
+// });
+
+// new aws.cloudwatch.EventTarget("scheduledEventTarget", {
+//   rule: scheduledEventRule.name,
+//   arn: cluster.cluster.arn,
+//   ecsTarget: {
+//     taskCount: 1,
+//     taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
+//     launchType: "FARGATE",
+//     networkConfiguration: {
+//       subnets: vpc.publicSubnetIds,
+//       securityGroups: [cluster.securityGroups[0].id],
+//     },
+//   },
+// });
 
 //////////////////////////////////////////////////////////////
 // Set up task to run migrations

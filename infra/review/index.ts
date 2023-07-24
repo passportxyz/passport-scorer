@@ -312,6 +312,18 @@ const secrets = [
     name: "CGRANTS_API_TOKEN",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:CGRANTS_API_TOKEN::`,
   },
+  {
+    name: "S3_DATA_AWS_SECRET_KEY_ID",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_KEY_ID::`,
+  },
+  {
+    name: "S3_DATA_AWS_SECRET_ACCESS_KEY",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_ACCESS_KEY::`,
+  },
+  {
+    name: "S3_WEEKLY_BACKUP_BUCKET_NAME",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_WEEKLY_BACKUP_BUCKET_NAME::`,
+  },
 ];
 const environment = [
   {
@@ -692,6 +704,48 @@ const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
 });
 
 export const securityGroupForTaskDefinition = secgrp.id;
+
+//////////////////////////////////////////////////////////////
+// ECS Scheduled Task
+//////////////////////////////////////////////////////////////
+// const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
+//   containers: {
+//     web: {
+//       image: dockerGtcPassportScorerImage,
+//       cpu: 256,
+//       memory: 2048,
+//       secrets,
+//       command: ["python", "manage.py", "dump_stamp_data"],
+//     },
+//   },
+// });
+
+// const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
+//   // scheduleExpression: "cron(0 12 * * ? *)", // Run the task every day at 12 UTC
+//   scheduleExpression: "cron(0/5 * ? * * *)", // Run the task every 5 min
+//   // scheduleExpression: "cron(0 12 ? * FRI *)", // Run the task every friday at 12 UTC
+// });
+
+// // const serviceLinkRoler = new aws.iam.ServiceLinkedRole("ecs_service_link_roler", {
+// //   customSuffix: "ecs_scheduled_event",
+// //   awsServiceName: "ecs.amazonaws.com",
+// // })
+
+// new aws.cloudwatch.EventTarget("scheduledEventTarget", {
+//   rule: scheduledEventRule.name,
+//   arn: cluster.cluster.arn,
+//   roleArn: dpoppEcsRole.arn,
+//   ecsTarget: {
+//     taskCount: 1,
+//     taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
+//     launchType: "FARGATE",
+//     networkConfiguration: {
+//       assignPublicIp: true,
+//       subnets: vpcPublicSubnetIds,
+//       securityGroups: [secgrp.id],
+//     },
+//   },
+// });
 
 //////////////////////////////////////////////////////////////
 // Set up EC2 instance
