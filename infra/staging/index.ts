@@ -993,21 +993,22 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
 // ECS Scheduled Task
 //////////////////////////////////////////////////////////////
 const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
+  executionRole: dpoppEcsRole,
   containers: {
     web: {
       image: dockerGtcPassportScorerImage,
       cpu: 256,
       memory: 2048,
       secrets,
+      environment,
       command: ["python", "manage.py", "dump_stamp_data"],
     },
   },
 });
+export const weeklyDataDumpTaskDefinition = weeklyDataDump.taskDefinition.id;
 
 const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
-  // scheduleExpression: "cron(0 12 * * ? *)", // Run the task every day at 12 UTC
-  scheduleExpression: "cron(0/5 * ? * * *)", // Run the task every 5 min
-  // scheduleExpression: "cron(0 12 ? * FRI *)", // Run the task every friday at 12 UTC
+  scheduleExpression: "cron(0 12 ? * FRI *)", // Run the task every friday at 12 UTC
 });
 
 new aws.cloudwatch.EventTarget("scheduledEventTarget", {
