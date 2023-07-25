@@ -1179,7 +1179,8 @@ const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
 export const weeklyDataDumpTaskDefinition = weeklyDataDump.taskDefinition.id;
 
 const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
-  scheduleExpression: "cron(0 12 ? * FRI *)", // Run the task every friday at 12 UTC
+  // TODO: remove on deployment
+  scheduleExpression: "cron(0 15 ? * WED *)", // Run the task every wednesday at 15 UTC
 });
 
 new aws.cloudwatch.EventTarget("scheduledEventTarget", {
