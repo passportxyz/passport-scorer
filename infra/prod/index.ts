@@ -987,3 +987,38 @@ export const ec2PublicIp = web.publicIp;
 export const dockrRunCmd = pulumi.secret(
   pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
+
+//////////////////////////////////////////////////////////////
+// ECS Scheduled Task
+//////////////////////////////////////////////////////////////
+const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
+  containers: {
+    web: {
+      image: dockerGtcPassportScorerImage,
+      cpu: 256,
+      memory: 2048,
+      secrets,
+      command: ["python", "manage.py", "dump_stamp_data"],
+    },
+  },
+});
+
+const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
+  scheduleExpression: "cron(0 12 ? * FRI *)", // Run the task every friday at 12 UTC
+});
+
+new aws.cloudwatch.EventTarget("scheduledEventTarget", {
+  rule: scheduledEventRule.name,
+  arn: cluster.cluster.arn,
+  roleArn: dpoppEcsRole.arn,
+  ecsTarget: {
+    taskCount: 1,
+    taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
+    launchType: "FARGATE",
+    networkConfiguration: {
+      assignPublicIp: true,
+      subnets: vpcPublicSubnetIds,
+      securityGroups: [secgrp.id],
+    },
+  },
+});
