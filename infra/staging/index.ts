@@ -1180,7 +1180,7 @@ export const weeklyDataDumpTaskDefinition = weeklyDataDump.taskDefinition.id;
 
 const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
   // TODO: remove on deployment
-  scheduleExpression: "cron(0 15 ? * WED *)", // Run the task every wednesday at 15 UTC
+  scheduleExpression: "cron(*/5 * ? * * *)", // Run the task every five minutes to test
 });
 
 new aws.cloudwatch.EventTarget("scheduledEventTarget", {
