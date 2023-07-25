@@ -21,24 +21,24 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         print("Starting dump_stamp_data.py")
-
         latest_export = StampExports.objects.order_by("-last_export_ts").first()
+        latest_export_ts = (
+            latest_export.last_export_ts
+            if latest_export
+            else timezone.now() - datetime.timedelta(days=45)
+        )
 
-        if not latest_export:
-            print("No previous exports found. Exporting all data.")
-            latest_export = StampExports.objects.create(
-                last_export_ts=timezone.now() - datetime.timedelta(days=7)
-            )
+        print(f"Getting data from {latest_export_ts}")
 
         paginator = Paginator(
-            CeramicCache.objects.filter(
-                created_at__gt=latest_export.last_export_ts
-            ).values_list("stamp", flat=True),
+            CeramicCache.objects.filter(created_at__gt=latest_export_ts).values_list(
+                "stamp", flat=True
+            ),
             1000,
         )
 
         # Generate the dump file name
-        file_name = f'stamps_{latest_export.last_export_ts.strftime("%Y%m%d_%H%M%S")}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.jsonl'
+        file_name = f'stamps_{latest_export_ts.strftime("%Y%m%d_%H%M%S")}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.jsonl'
 
         # Write serialized data to the file
         with open(file_name, "w") as f:
