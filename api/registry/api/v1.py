@@ -157,7 +157,7 @@ async def ahandle_submit_passport(
 
     # Get community object
     user_community = await aget_scorer_by_id(scorer_id, account)
-    log.error("===> user_community %s", user_community)
+    log.info("===> user_community %s", user_community)
 
     # Verify the signer
     if payload.signature or community_requires_signature(user_community):
