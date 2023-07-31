@@ -78,7 +78,7 @@ const postgresql = new aws.rds.Instance(
   `scorer-db`,
   {
     allocatedStorage: 20,
-    maxAllocatedStorage: 100,
+    maxAllocatedStorage: 500,
     engine: "postgres",
     // engineVersion: "5.7",
     instanceClass: "db.t3.2xlarge",
