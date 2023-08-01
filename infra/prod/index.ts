@@ -103,7 +103,6 @@ const readreplica0 = new aws.rds.Instance(
     skipFinalSnapshot: true,
     vpcSecurityGroupIds: [db_secgrp.id],
     deletionProtection: true,
-    backupRetentionPeriod: 5,
     replicateSourceDb: postgresql.id,
   },
   { protect: true }
