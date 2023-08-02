@@ -23,6 +23,7 @@ from .api import (
     analytics_api,
     ceramic_cache_api,
     feature_flag_api,
+    passport_admin_api,
     registry_api_v1,
     registry_api_v2,
 )
@@ -43,5 +44,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("account/", include("account.urls")),
     path("social/", include("social_django.urls", namespace="social")),
+    path("passport-admin/", passport_admin_api.urls),
     # path("__debug__/", include("debug_toolbar.urls")),
 ]
