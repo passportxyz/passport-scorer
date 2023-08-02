@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     "account",
     "ninja_extra",
     "social_django",
+    "passport_admin",
     # "debug_toolbar",
     "cgrants",
     "django_filters",
