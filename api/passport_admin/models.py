@@ -1,24 +1,25 @@
-from django.db import models
+"""
+Module for defining models for Passport Admin.
+Includes models for PassportBanner and DismissedBanners.
+"""
 
-"""
-Models for Passport Admin
-"""
+from django.db import models
 
 
 class PassportBanner(models.Model):
     """
-    Passport Banner
+    Model representing a Passport Banner.
     """
 
-    title = models.CharField(max_length=255)
-    description = models.TextField()
+    name = models.CharField(max_length=255)
+    content = models.TextField()
     link = models.URLField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
 
 class DismissedBanners(models.Model):
     """
-    Dismissed Banners
+    Model representing Dismissed Banners.
     """
 
     address = models.CharField(max_length=255)
