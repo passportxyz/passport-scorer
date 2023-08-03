@@ -11,7 +11,6 @@ class PassportBanner(models.Model):
     Model representing a Passport Banner.
     """
 
-    name = models.CharField(max_length=255)
     content = models.TextField()
     link = models.URLField(blank=True, null=True)
     is_active = models.BooleanField(default=True)

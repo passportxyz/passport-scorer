@@ -15,7 +15,6 @@ def get_address(did: str):
 
 
 class Banner(Schema):
-    name: str
     content: str
     link: str
     banner_id: int
@@ -42,10 +41,7 @@ def get_banners(request):
             .all()
         )
 
-        return [
-            Banner(name=b.name, content=b.content, link=b.link, banner_id=b.pk)
-            for b in banners
-        ]
+        return [Banner(content=b.content, link=b.link, banner_id=b.pk) for b in banners]
     except:
         return {
             "status": "failed",
