@@ -9,6 +9,7 @@ from ninja import NinjaAPI
 from ninja.openapi.schema import OpenAPISchema
 from ninja.operation import Operation
 from ninja.types import DictStrAny
+from passport_admin.api import router as passport_admin_router
 from registry.api.v1 import analytics_router, feature_flag_router
 from registry.api.v1 import router as registry_router_v1
 from registry.api.v2 import router as registry_router_v2
@@ -88,6 +89,9 @@ registry_api_v2.add_router("", registry_router_v2, tags=["Score your passport"])
 
 ceramic_cache_api = NinjaAPI(urls_namespace="ceramic-cache", docs_url=None)
 ceramic_cache_api.add_router("", ceramic_cache_router)
+
+passport_admin_api = NinjaAPI(urls_namespace="passport-admin", docs_url=None)
+passport_admin_api.add_router("", passport_admin_router)
 
 analytics_api = NinjaAPI(urls_namespace="analytics", title="Data Analytics API")
 analytics_api.add_router("", analytics_router)
