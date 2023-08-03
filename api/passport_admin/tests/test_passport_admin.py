@@ -24,7 +24,7 @@ class TestPassPortAdmin:
         assert response.json() == []
 
     def test_dismiss_banner(self, sample_token, sample_address):
-        banner = PassportBanner.objects.create(name="test", content="test", link="test")
+        banner = PassportBanner.objects.create(content="test", link="test")
         response = client.post(
             f"/passport-admin/banners/{banner.pk}/dismiss",
             {},
