@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from ceramic_cache.api import JWTDidAuth
 from django.db.models import Subquery
@@ -16,7 +16,7 @@ def get_address(did: str):
 
 class Banner(Schema):
     content: str
-    link: str
+    link: Optional[str] = None
     banner_id: int
 
 
