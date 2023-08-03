@@ -113,10 +113,6 @@ def _get_contributor_statistics_for_protocol(address: str) -> dict:
     return {
         "num_grants_contribute_to": num_projects if num_projects is not None else 0,
         "num_rounds_contribute_to": num_rounds if num_rounds is not None else 0,
-        "total_contribution_amount": total_amount_usd
-        if total_amount_usd is not None
-        else 0,
-        "num_gr14_contributions": 0,
     }
 
 
