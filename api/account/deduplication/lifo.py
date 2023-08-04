@@ -255,6 +255,7 @@ async def save_hash_links(
 
 # TODO this can be deleted in the next release
 def update_to_be_run_once_manually():
+    import dateutil.parser
     from django.core.paginator import Paginator
 
     now = get_utc_time()
@@ -270,7 +271,7 @@ def update_to_be_run_once_manually():
                 expires_at=stamp.credential["expirationDate"],
             )
             for stamp in paginator.page(page).object_list
-            if stamp.credential["expirationDate"] > now
+            if dateutil.parser.isoparse(stamp.credential["expirationDate"]) > now
         ]
         HashScorerLink.objects.bulk_create(hash_links, ignore_conflicts=True)
 
