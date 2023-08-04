@@ -22,12 +22,11 @@ class Profile(models.Model):
     )
     github_id = models.BigIntegerField(
         help_text=_(
-            "This is the github users unique id. This should not change even if the user changes his handle."
+            "This is the github users unique id. This should not change even if the user changes his handle. The handle might be duplicate (this can happen if the user changed his handle ...)"
         ),
         db_index=True,
         blank=True,
         null=True,
-        unique=True,
     )
     notes = models.TextField(
         help_text=_(
