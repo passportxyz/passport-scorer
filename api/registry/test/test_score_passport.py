@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TransactionTestCase
 from registry.api.v2 import SubmitPassportPayload, get_score, submit_passport
-from registry.models import Event, Passport, Score, Stamp
+from registry.models import Event, HashScorerLink, Passport, Score, Stamp
 from registry.tasks import score_passport_passport, score_registry_passport
 from web3 import Web3
 
@@ -283,6 +283,13 @@ class TestScorePassportTestCase(TransactionTestCase):
                 "provider": already_existing_stamp["provider"],
                 "credential": json.dumps(already_existing_stamp["credential"]),
             },
+        )
+
+        HashScorerLink.objects.create(
+            hash=already_existing_stamp["credential"]["credentialSubject"]["hash"],
+            address=passport_for_already_existing_stamp.address,
+            community=passport_for_already_existing_stamp.community,
+            expires_at=already_existing_stamp["credential"]["expirationDate"],
         )
 
         mock_passport_data_with_duplicates = {

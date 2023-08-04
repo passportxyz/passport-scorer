@@ -229,6 +229,9 @@ async def save_hash_links(
 ):
     if hash_links_to_create or hash_links_to_update:
         try:
+            # Do the create first, because this is where we
+            # might have IntegrityErrors and we don't want to
+            # update the existing objects if there's an issue
             if hash_links_to_create:
                 await HashScorerLink.objects.abulk_create(hash_links_to_create)
 
@@ -247,9 +250,11 @@ async def save_hash_links(
             raise HashScorerLinkIntegrityError()
 
 
+# TODO this can be deleted in the next release
 def update_to_be_run_once_manually():
     from django.core.paginator import Paginator
 
+    now = get_utc_time()
     paginator = Paginator(Stamp.objects.select_related("passport").all(), 1000)
 
     for page in paginator.page_range:
@@ -262,6 +267,7 @@ def update_to_be_run_once_manually():
                 expires_at=stamp.credential["expirationDate"],
             )
             for stamp in paginator.page(page).object_list
+            if stamp.credential["expirationDate"] > now
         ]
         HashScorerLink.objects.bulk_create(hash_links, ignore_conflicts=True)
 

@@ -1,12 +1,14 @@
+from unittest import mock
+
 from account.deduplication import Rules
-from account.deduplication.lifo import alifo
+from account.deduplication.lifo import HashScorerLinkIntegrityError, alifo
 from account.models import Account, Community
 from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TransactionTestCase
 from ninja_jwt.schema import RefreshToken
-from registry.models import Passport, Stamp
+from registry.models import HashScorerLink, Passport, Stamp
 from scorer_weighted.models import Scorer, WeightedScorer
 
 User = get_user_model()
@@ -21,7 +23,7 @@ credential = {
 }
 
 
-class LifoDeduplicationTestCase(TestCase):
+class LifoDeduplicationTestCase(TransactionTestCase):
     def setUp(self):
         User.objects.create_user(username="admin", password="12345")
 
@@ -133,20 +135,21 @@ class LifoDeduplicationTestCase(TestCase):
         Verifies that deduplication works if the user submits the same stamps to a community
         but as part of different passports
         """
-        # We create 1 passport for each community, and add 1 stamps to it
         passport = await Passport.objects.acreate(
             address="0xaddress_1", community=self.community1
-        )
-        await Stamp.objects.acreate(
-            passport=passport,
-            hash="test_hash",
-            provider="test_provider",
-            credential=credential,
         )
 
         # We test deduplication of the 1st passport (for example user submits the same passport again)
         deduped_passport, _ = await alifo(
             passport.community, {"stamps": [credential]}, passport.address
+        )
+
+        stamp = deduped_passport["stamps"][0]
+        await Stamp.objects.acreate(
+            passport=passport,
+            hash=stamp["credential"]["credentialSubject"]["hash"],
+            provider=stamp["credential"]["credentialSubject"]["provider"],
+            credential=stamp["credential"],
         )
 
         # We expect the passport to not be deduped, as it is the same owner
@@ -161,3 +164,35 @@ class LifoDeduplicationTestCase(TestCase):
         # We expect the passport to be deduped, and the return copy shall contain
         # no stamps
         self.assertEqual(len(deduped_passport["stamps"]), 0)
+
+    def test_retry_on_clash(self):
+        """
+        This tests functionality that causes the deduplication method to retry
+        when there is a collision with another deduplication happening at the
+        same time. It's not possible to test this directly, so instead we're
+        sending in a payload with two stamps with the same credential, which
+        wouldn't make it past the previous validation step in the real flow.
+        """
+
+        passport = Passport.objects.create(
+            address="0xaddress_1", community=self.community1
+        )
+
+        call_count = 0
+
+        def increment_call_count(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return HashScorerLink.objects.none()
+
+        with mock.patch(
+            "account.deduplication.lifo.HashScorerLink.objects.filter",
+            side_effect=increment_call_count,
+        ):
+            with self.assertRaises(HashScorerLinkIntegrityError):
+                async_to_sync(alifo)(
+                    passport.community,
+                    {"stamps": [credential, credential]},
+                    passport.address,
+                )
+        self.assertEqual(call_count, 5)

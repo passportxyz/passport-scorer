@@ -1,7 +1,7 @@
 """Deduplication rules feature tests."""
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -9,7 +9,7 @@ from account.models import Nonce
 from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when
-from registry.models import Passport, Stamp
+from registry.models import HashScorerLink, Passport, Stamp
 
 # from registry.tasks import score_passport
 from registry.test.test_passport_submission import (
@@ -51,11 +51,20 @@ def _(
         community=scorer_community_with_gitcoin_default,
     )
 
+    future_expiration_date = datetime.now(timezone.utc) + timedelta(days=15)
+
     Stamp.objects.create(
         passport=first_passport,
         hash="hash1",
         provider="Some Provider",
         credential={},
+    )
+
+    HashScorerLink.objects.create(
+        community=first_passport.community,
+        hash="hash1",
+        address=first_passport.address,
+        expires_at=future_expiration_date,
     )
 
     # Create a stamp, with and ID that will be duplicate
@@ -64,6 +73,13 @@ def _(
         hash=ens_credential["credentialSubject"]["hash"],
         provider="Ens",
         credential={},
+    )
+
+    HashScorerLink.objects.create(
+        community=first_passport.community,
+        hash=ens_credential["credentialSubject"]["hash"],
+        address=first_passport.address,
+        expires_at=future_expiration_date,
     )
 
     # Now submit a second passport with the duplicate hash
