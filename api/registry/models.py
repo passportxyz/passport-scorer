@@ -89,3 +89,19 @@ class Event(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     data = models.JSONField()
+
+
+class HashScorerLink(models.Model):
+    hash = models.CharField(null=False, blank=False, max_length=100, db_index=True)
+    community = models.ForeignKey(
+        Community,
+        related_name="burned_hashes",
+        on_delete=models.CASCADE,
+        null=False,
+        db_index=True,
+    )
+    address = EthAddressField(null=False, blank=False, max_length=42, db_index=True)
+    expires_at = models.DateTimeField(null=False, blank=False, db_index=True)
+
+    class Meta:
+        unique_together = ["hash", "community"]
