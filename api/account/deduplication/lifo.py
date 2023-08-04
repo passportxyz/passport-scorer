@@ -4,7 +4,7 @@ from typing import Tuple
 import api_logging as logging
 from account.models import Community
 from django.conf import settings
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError
 from registry.models import Event, HashScorerLink, Stamp
 from registry.utils import get_utc_time
 
@@ -79,7 +79,7 @@ async def alifo_with_stamp_table(
             if hash not in clashing_hashes:
                 deduped_passport["stamps"].append(copy.deepcopy(stamp))
 
-                updated = False
+                done = False
                 async for hash_link in existing_hash_links:
                     if hash_link.hash == hash:
                         # Update without checking the address or
@@ -89,10 +89,10 @@ async def alifo_with_stamp_table(
                         hash_link.address = address
                         hash_link.expires_at = expires_at
                         hash_links_to_update.append(hash_link)
-                        updated = True
+                        done = True
                         break
 
-                if not updated:
+                if not done:
                     hash_links_to_create.append(
                         HashScorerLink(
                             hash=hash,
@@ -144,15 +144,17 @@ async def alifo_with_link_table(
             hash__in=stamp_hashes, community=community
         )
 
-        existing_user_hash_links, clashing_hashes, forfeited_hash_links = [], [], []
+        this_users_hash_links, clashing_hashes, forfeited_hash_links = [], [], []
         async for hash_link in existing_hash_links:
             if hash_link.address == address:
-                existing_user_hash_links.append(hash_link)
+                # Already claimed by this user,
+                this_users_hash_links.append(hash_link)
             elif hash_link.expires_at > now:
+                # Already claimed by another user,
                 clashing_hashes.append(hash_link.hash)
             else:
-                # Already claimed by another user,
-                # but it's expired so we'll give it to the new user
+                # Already claimed by another user, but
+                # it's expired so we'll give it to this user
                 forfeited_hash_links.append(hash_link)
 
         hash_links_to_create = []
@@ -166,25 +168,26 @@ async def alifo_with_link_table(
             if hash not in clashing_hashes:
                 deduped_passport["stamps"].append(copy.deepcopy(stamp))
 
-                updated = False
+                done = False
 
-                for existing_hash_link in existing_user_hash_links:
-                    if existing_hash_link.hash == hash:
-                        existing_hash_link.expires_at = expires_at
-                        hash_links_to_update.append(existing_hash_link)
-                        updated = True
+                for hash_link in this_users_hash_links:
+                    if hash_link.hash == hash:
+                        done = True
+                        if hash_link.expires_at != expires_at:
+                            hash_link.expires_at = expires_at
+                            hash_links_to_update.append(hash_link)
                         break
 
-                if not updated:
-                    for forfeited_hash in forfeited_hash_links:
-                        if forfeited_hash.hash == hash:
-                            forfeited_hash.address = address
-                            forfeited_hash.expires_at = expires_at
-                            hash_links_to_update.append(forfeited_hash)
-                            updated = True
+                if not done:
+                    for hash_link in forfeited_hash_links:
+                        if hash_link.hash == hash:
+                            done = True
+                            hash_link.address = address
+                            hash_link.expires_at = expires_at
+                            hash_links_to_update.append(hash_link)
                             break
 
-                if not updated:
+                if not done:
                     hash_links_to_create.append(
                         HashScorerLink(
                             hash=hash,

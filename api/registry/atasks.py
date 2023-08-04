@@ -29,7 +29,11 @@ def asave_api_key_analytics(api_key_id, path):
         pass
 
 
-async def aremove_stale_stamps_from_db(passport: Passport, current_hashes: List[Hash]):
+async def aremove_stale_stamps_from_db(passport: Passport, passport_data: dict):
+    current_hashes = [
+        stamp["credential"]["credentialSubject"]["hash"]
+        for stamp in passport_data["stamps"]
+    ]
     await Stamp.objects.filter(passport=passport).exclude(
         hash__in=current_hashes
     ).adelete()
@@ -158,27 +162,20 @@ async def avalidate_credentials(passport: Passport, passport_data) -> dict:
     return validated_passport
 
 
-async def asave_stamps(passport: Passport, deduped_passport_data) -> List[Hash]:
-    log.debug("processing deduplication")
-
+async def asave_stamps(passport: Passport, deduped_passport_data) -> None:
     log.debug(
         "saving stamps deduped_passport_data: %s", deduped_passport_data["stamps"]
     )
 
-    saved_hashes = []
     for stamp in deduped_passport_data["stamps"]:
-        hash = stamp["credential"]["credentialSubject"]["hash"]
         await Stamp.objects.aupdate_or_create(
-            hash=hash,
+            hash=stamp["credential"]["credentialSubject"]["hash"],
             passport=passport,
             defaults={
                 "provider": stamp["provider"],
                 "credential": stamp["credential"],
             },
         )
-        saved_hashes.append(hash)
-
-    return saved_hashes
 
 
 async def ascore_passport(
@@ -186,7 +183,7 @@ async def ascore_passport(
 ):
     log.info(
         "score_passport request for community_id=%s, address='%s'",
-        community.id,
+        community.pk,
         address,
     )
 
@@ -196,9 +193,9 @@ async def ascore_passport(
         deduped_passport_data = await aprocess_deduplication(
             passport, community, validated_passport_data, score
         )
-        saved_hashes = await asave_stamps(passport, deduped_passport_data)
-        await aremove_stale_stamps_from_db(passport, saved_hashes)
-        await acalculate_score(passport, community.id, score)
+        await asave_stamps(passport, deduped_passport_data)
+        await aremove_stale_stamps_from_db(passport, deduped_passport_data)
+        await acalculate_score(passport, community.pk, score)
 
     except APIException as e:
         log.error(
