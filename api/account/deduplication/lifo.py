@@ -12,7 +12,9 @@ log = logging.getLogger(__name__)
 
 
 class HashScorerLinkIntegrityError(Exception):
-    pass
+    def __init__(self, message):
+        self.message = message or "Issue saving hash scorer links"
+        super().__init__(self.message)
 
 
 async def alifo(
@@ -232,9 +234,8 @@ async def save_hash_links(
 ):
     if hash_links_to_create or hash_links_to_update:
         try:
-            # Do the create first, because this is where we
-            # might have IntegrityErrors and we don't want to
-            # update the existing objects if there's an issue
+            # Could have IntegrityError if there are conflicting requests
+            # running concurrently
             if hash_links_to_create:
                 await HashScorerLink.objects.abulk_create(hash_links_to_create)
 
@@ -243,14 +244,18 @@ async def save_hash_links(
                     hash_links_to_update, fields=["expires_at", "address"]
                 )
         except IntegrityError:
-            raise HashScorerLinkIntegrityError()
+            raise HashScorerLinkIntegrityError("Failed to save HashScorerLinks")
 
-        # After saving, double check that there was not a conflicting
+        # After updating, double check that there was not a conflicting
         # request that tried to update the same object
+        updated_hashes = [hash_link.hash for hash_link in hash_links_to_update]
+        created_hashes = [hash_link.hash for hash_link in hash_links_to_create]
         if await HashScorerLink.objects.filter(
-            address=address, community=community
-        ).acount() != len(hash_links_to_create) + len(hash_links_to_update):
-            raise HashScorerLinkIntegrityError()
+            address=address,
+            community=community,
+            hash__in=(updated_hashes + created_hashes),
+        ).acount() != len(hash_links_to_update) + len(hash_links_to_create):
+            raise HashScorerLinkIntegrityError("Unexpected number of HashScorerLinks")
 
 
 # TODO this can be deleted in the next release

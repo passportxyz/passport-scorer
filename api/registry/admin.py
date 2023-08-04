@@ -1,5 +1,5 @@
 from django.contrib import admin
-from registry.models import Event, Passport, Score, Stamp
+from registry.models import Event, HashScorerLink, Passport, Score, Stamp
 
 
 class PassportAdmin(admin.ModelAdmin):
@@ -68,7 +68,18 @@ class EventAdmin(admin.ModelAdmin):
     ]
 
 
+class HashScorerLinkAdmin(admin.ModelAdmin):
+    list_display = ["hash", "community", "address", "expires_at"]
+
+    search_fields = [
+        "hash",
+        "community",
+        "address",
+    ]
+
+
 admin.site.register(Passport, PassportAdmin)
 admin.site.register(Stamp, StampAdmin)
 admin.site.register(Score, ScoreAdmin)
 admin.site.register(Event, EventAdmin)
+admin.site.register(HashScorerLink, HashScorerLinkAdmin)
