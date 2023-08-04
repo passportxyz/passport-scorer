@@ -51,7 +51,7 @@ class GranteeStatistics(Schema):
     total_contribution_amount = int
 
 
-def _get_contributor_statistics_for_cgrants(handle: str) -> dict:
+def _get_contributor_statistics_for_cgrants_by_handle(handle: str) -> dict:
     # Get number of grants the user contributed to
     num_grants_contribute_to = (
         GrantContributionIndex.objects.filter(profile__handle=handle)
@@ -99,6 +99,56 @@ def _get_contributor_statistics_for_cgrants(handle: str) -> dict:
     }
 
 
+def _get_contributor_statistics_for_cgrants_by_github_id(github_id: str) -> dict:
+    # Get number of grants the user contributed to
+    num_grants_contribute_to = (
+        GrantContributionIndex.objects.filter(profile__github_id=github_id)
+        .order_by("grant_id")
+        .values("grant_id")
+        .distinct()
+        .count()
+    )
+
+    # Get number of rounds the user contributed to
+    num_rounds_contribute_to = (
+        GrantContributionIndex.objects.filter(
+            profile__github_id=github_id, round_num__isnull=False
+        )
+        .order_by("round_num")
+        .values("round_num")
+        .distinct()
+        .count()
+    )
+
+    # Get the total contribution amount
+    total_contribution_amount = GrantContributionIndex.objects.filter(
+        profile__github_id=github_id
+    ).aggregate(total_contribution_amount=Sum("amount"))["total_contribution_amount"]
+
+    if total_contribution_amount is None:
+        total_contribution_amount = 0
+
+    # GR14 contributor (and not squelched by FDD)
+    profile_squelch = SquelchProfile.objects.filter(
+        profile__github_id=github_id, active=True
+    ).values_list("profile_id", flat=True)
+
+    num_gr14_contributions = (
+        GrantContributionIndex.objects.filter(
+            profile__github_id=github_id, round_num=14
+        )
+        .exclude(profile_id__in=profile_squelch)
+        .count()
+    )
+
+    return {
+        "num_grants_contribute_to": num_grants_contribute_to,
+        "num_rounds_contribute_to": num_rounds_contribute_to,
+        "total_contribution_amount": total_contribution_amount,
+        "num_gr14_contributions": num_gr14_contributions,
+    }
+
+
 def _get_contributor_statistics_for_protocol(address: str) -> dict:
     total_amount_usd = ProtocolContributions.objects.filter(
         contributor=address
@@ -125,14 +175,22 @@ def _get_contributor_statistics_for_protocol(address: str) -> dict:
     response=ContributorStatistics,
     auth=cg_api_key,
 )
-def contributor_statistics(request, handle: str):
-    if not handle:
+def contributor_statistics(
+    request, handle: str | None = None, github_id: str | None = None
+):
+    if not handle and not github_id:
         return JsonResponse(
-            {"error": "Bad request, 'handle' parameter is missing or invalid"},
+            {
+                "error": "Bad request, 'handle' and 'github_id' parameter is missing or invalid. Either one is required."
+            },
             status=400,
         )
 
-    response = _get_contributor_statistics_for_cgrants(handle)
+    if handle:
+        response = _get_contributor_statistics_for_cgrants_by_handle(handle)
+    else:
+        response = _get_contributor_statistics_for_cgrants_by_github_id(github_id)
+
     return JsonResponse(response)
 
 
@@ -156,20 +214,7 @@ def allo_contributor_statistics(request, address: str | None = None):
     return JsonResponse(response_for_protocol)
 
 
-@api.get(
-    "/grantee_statistics",
-    response=GranteeStatistics,
-    auth=cg_api_key,
-)
-def grantee_statistics(request):
-    handle = request.GET.get("handle")
-
-    if not handle:
-        return JsonResponse(
-            {"error": "Bad request, 'handle' parameter is missing or invalid"},
-            status=400,
-        )
-
+def _get_grantee_statistics_by_handle(handle):
     # Get number of owned grants
     num_owned_grants = Grant.objects.filter(
         admin_profile__handle=handle,
@@ -233,3 +278,91 @@ def grantee_statistics(request):
             "total_contribution_amount": total_contribution_amount,
         }
     )
+
+
+def _get_grantee_statistics_by_github_id(github_id: str):
+    # Get number of owned grants
+    num_owned_grants = Grant.objects.filter(
+        admin_profile__github_id=github_id,
+        hidden=False,
+        active=True,
+        is_clr_eligible=True,
+    ).count()
+
+    # Get the total amount of contrinutors for one users grants that where not squelched and are not the owner himself
+    all_squelched = SquelchProfile.objects.filter(active=True).values_list(
+        "profile_id", flat=True
+    )
+    num_grant_contributors = (
+        Contribution.objects.filter(
+            success=True,
+            subscription__is_mainnet=True,
+            subscription__grant__hidden=False,
+            subscription__grant__active=True,
+            subscription__grant__is_clr_eligible=True,
+            subscription__grant__admin_profile__github_id=github_id,
+        )
+        .exclude(subscription__contributor_profile_id__in=all_squelched)
+        .exclude(subscription__contributor_profile__github_id=github_id)
+        .order_by("subscription__contributor_profile_id")
+        .values("subscription__contributor_profile_id")
+        .distinct()
+        .count()
+    )
+
+    # Get the total amount of contributions received by the owned grants (excluding the contributions made by the owner)
+    total_contribution_amount = (
+        Contribution.objects.filter(
+            success=True,
+            subscription__is_mainnet=True,
+            subscription__grant__hidden=False,
+            subscription__grant__active=True,
+            subscription__grant__is_clr_eligible=True,
+            subscription__grant__admin_profile__github_id=github_id,
+        )
+        .exclude(subscription__contributor_profile__github_id=github_id)
+        .aggregate(Sum("amount_per_period_usdt"))["amount_per_period_usdt__sum"]
+    )
+    total_contribution_amount = (
+        total_contribution_amount if total_contribution_amount is not None else 0
+    )
+
+    # [IAM] As an IAM server, I want to issue stamps for grant owners whose project have tagged matching-eligibel in an eco-system and/or cause round
+    num_grants_in_eco_and_cause_rounds = Grant.objects.filter(
+        admin_profile__github_id=github_id,
+        hidden=False,
+        active=True,
+        is_clr_eligible=True,
+        clr_calculations__grantclr__type__in=["ecosystem", "cause"],
+    ).count()
+
+    return JsonResponse(
+        {
+            "num_owned_grants": num_owned_grants,
+            "num_grant_contributors": num_grant_contributors,
+            "num_grants_in_eco_and_cause_rounds": num_grants_in_eco_and_cause_rounds,
+            "total_contribution_amount": total_contribution_amount,
+        }
+    )
+
+
+@api.get(
+    "/grantee_statistics",
+    response=GranteeStatistics,
+    auth=cg_api_key,
+)
+def grantee_statistics(
+    request, handle: str | None = None, github_id: str | None = None
+):
+    if not handle and not github_id:
+        return JsonResponse(
+            {
+                "error": "Bad request, 'handle' and 'github_id' parameter is missing or invalid. Either one is required."
+            },
+            status=400,
+        )
+
+    if handle:
+        return _get_grantee_statistics_by_handle(handle)
+    else:
+        return _get_grantee_statistics_by_github_id(github_id)

@@ -14,10 +14,34 @@ class Profile(models.Model):
     Original model: https://github.com/gitcoinco/web/blob/master/app/dashboard/models.py#L2982
     """
 
-    handle = models.CharField(max_length=255, db_index=True, unique=True)
+    handle = models.CharField(
+        max_length=255,
+        db_index=True,
+        unique=True,
+        help_text="DEPRECATED: The github handle of the user. This has been deprecated in favour of github_id.",
+    )
+    github_id = models.BigIntegerField(
+        help_text=_(
+            "This is the github users unique id. This should not change even if the user changes his handle."
+        ),
+        db_index=True,
+        blank=True,
+        null=True,
+        unique=True,
+    )
+    notes = models.TextField(
+        help_text=_(
+            "These notes are intended for the support team, in case they make manual adjustments to the profile."
+        ),
+        null=True,
+        blank=True,
+    )
     data = models.JSONField(
         help_text=_("Original profile data in JSON format"), default=dict
     )
+
+    def __str__(self):
+        return f"{self.github_id} - {self.handle}"
 
 
 class Grant(models.Model):
