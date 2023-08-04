@@ -13,6 +13,13 @@ User = get_user_model()
 
 mock_community_body = {"name": "test", "description": "test"}
 
+credential = {
+    "credential": {
+        "credentialSubject": {"hash": "test_hash", "provider": "test_provider"},
+        "expirationDate": "2099-02-21T15:30:51.720Z",
+    },
+}
+
 
 class LifoDeduplicationTestCase(TestCase):
     def setUp(self):
@@ -53,7 +60,6 @@ class LifoDeduplicationTestCase(TestCase):
         be discarded by the `lifo` deduplication method
         """
         # We create 1 passport for each community, and add 1 stamps to it
-        credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
         passport1 = await Passport.objects.acreate(
             address="0xaddress_1", community=self.community1
         )
@@ -92,7 +98,6 @@ class LifoDeduplicationTestCase(TestCase):
         same ETH address, and they will not be discarded by the `lifo` deduplication method
         """
         # We create 1 passport for each community, and add 1 stamps to it
-        credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
         passport1 = await Passport.objects.acreate(
             address="0xaddress_1", community=self.community1
         )
@@ -129,7 +134,6 @@ class LifoDeduplicationTestCase(TestCase):
         but as part of different passports
         """
         # We create 1 passport for each community, and add 1 stamps to it
-        credential = {"credential": {"credentialSubject": {"hash": "test_hash"}}}
         passport = await Passport.objects.acreate(
             address="0xaddress_1", community=self.community1
         )

@@ -4,23 +4,48 @@ from typing import Tuple
 import api_logging as logging
 from account.models import Community
 from django.conf import settings
+from django.db import IntegrityError, transaction
 from registry.models import Event, HashScorerLink, Stamp
 from registry.utils import get_utc_time
 
 log = logging.getLogger(__name__)
 
 
+class HashScorerLinkIntegrityError(Exception):
+    pass
+
+
 async def alifo(
     community: Community, lifo_passport: dict, address: str
 ) -> Tuple[dict, list | None]:
-    if settings.FF_DEDUP_WITH_LINK_TABLE:
+    tries_remaining = 5
+    while True:
+        try:
+            return await run_correct_alifo_version(community, lifo_passport, address)
+        except HashScorerLinkIntegrityError:
+            tries_remaining -= 1
+            # If we get integrity errors from trying to create
+            # unique hash links, then we had 2 competing requests
+            # and the other one won, so we'll just try again
+            # and there should be additional deduplication
+            if tries_remaining <= 0:
+                raise
+
+
+# TODO once this is fully released, we can
+# 1. remove the _stamp_table function, the FF, and the update function below
+# 2. rename the _link_table function
+async def run_correct_alifo_version(
+    community: Community, lifo_passport: dict, address: str
+) -> Tuple[dict, list | None]:
+    if settings.FF_DEDUP_WITH_LINK_TABLE == "on":
         return await alifo_with_link_table(community, lifo_passport, address)
     else:
-        return await alifo_with_stamps_table(community, lifo_passport, address)
+        return await alifo_with_stamp_table(community, lifo_passport, address)
 
 
 # --> LIFO deduplication
-async def alifo_with_stamps_table(
+async def alifo_with_stamp_table(
     community: Community, lifo_passport: dict, address: str
 ) -> Tuple[dict, list | None]:
     deduped_passport = copy.deepcopy(lifo_passport)
@@ -55,7 +80,7 @@ async def alifo_with_stamps_table(
                 deduped_passport["stamps"].append(copy.deepcopy(stamp))
 
                 updated = False
-                for hash_link in existing_hash_links:
+                async for hash_link in existing_hash_links:
                     if hash_link.hash == hash:
                         # Update without checking the address or
                         # expiration date, we're just trying to capture
@@ -77,6 +102,10 @@ async def alifo_with_stamps_table(
                         )
                     )
 
+        await save_hash_links(
+            hash_links_to_create, hash_links_to_update, address, community
+        )
+
         if clashing_stamps.aexists():
             await Event.objects.abulk_create(
                 [
@@ -93,14 +122,6 @@ async def alifo_with_stamps_table(
                     )
                     async for stamp in clashing_stamps
                 ]
-            )
-
-        if hash_links_to_create:
-            await HashScorerLink.objects.abulk_create(hash_links_to_create)
-
-        if hash_links_to_update:
-            await HashScorerLink.objects.abulk_update(
-                hash_links_to_update, fields=["expires_at", "address"]
             )
 
     return (deduped_passport, None)
@@ -146,7 +167,6 @@ async def alifo_with_link_table(
                 deduped_passport["stamps"].append(copy.deepcopy(stamp))
 
                 updated = False
-                forfeited = False
 
                 for existing_hash_link in existing_user_hash_links:
                     if existing_hash_link.hash == hash:
@@ -161,10 +181,10 @@ async def alifo_with_link_table(
                             forfeited_hash.address = address
                             forfeited_hash.expires_at = expires_at
                             hash_links_to_update.append(forfeited_hash)
-                            forfeited = True
+                            updated = True
                             break
 
-                if not forfeited and not updated:
+                if not updated:
                     hash_links_to_create.append(
                         HashScorerLink(
                             hash=hash,
@@ -176,6 +196,10 @@ async def alifo_with_link_table(
             else:
                 clashing_stamps.append(stamp)
 
+        await save_hash_links(
+            hash_links_to_create, hash_links_to_update, address, community
+        )
+
         if clashing_stamps:
             await Event.objects.abulk_create(
                 [
@@ -183,10 +207,10 @@ async def alifo_with_link_table(
                         action=Event.Action.LIFO_DEDUPLICATION,
                         address=address,
                         data={
-                            "hash": stamp["hash"],
-                            "provider": stamp["provider"],
-                            "owner": stamp["passport__address"],
-                            "address": address,
+                            "hash": stamp["credential"]["credentialSubject"]["hash"],
+                            "provider": stamp["credential"]["credentialSubject"][
+                                "provider"
+                            ],
                             "community_id": community.pk,
                         },
                     )
@@ -194,34 +218,58 @@ async def alifo_with_link_table(
                 ]
             )
 
-        if hash_links_to_create:
-            await HashScorerLink.objects.abulk_create(hash_links_to_create)
-
-        if hash_links_to_update:
-            await HashScorerLink.objects.abulk_update(
-                hash_links_to_update, fields=["expires_at", "address"]
-            )
-
     return (deduped_passport, None)
 
 
-from django.core.paginator import Paginator
+async def save_hash_links(
+    hash_links_to_create: list[HashScorerLink],
+    hash_links_to_update: list[HashScorerLink],
+    address: str,
+    community: Community,
+):
+    if hash_links_to_create or hash_links_to_update:
+        try:
+            if hash_links_to_create:
+                await HashScorerLink.objects.abulk_create(hash_links_to_create)
 
-paginator = Paginator(Stamp.objects.select_related("passport").all(), 1000)
+            if hash_links_to_update:
+                await HashScorerLink.objects.abulk_update(
+                    hash_links_to_update, fields=["expires_at", "address"]
+                )
+        except IntegrityError:
+            raise HashScorerLinkIntegrityError()
 
-for page in paginator.page_range:
-    hash_links = [
-        HashScorerLink(
-            hash=stamp.hash,
-            address=stamp.passport.address,
-            community=stamp.passport.community,
-            expires_at=stamp.credential["expirationDate"],
-        )
-        for stamp in paginator.page(page).object_list
-    ]
+        # After saving, double check that there was not a conflicting
+        # request that tried to update the same object
+        if await HashScorerLink.objects.filter(
+            address=address, community=community
+        ).acount() != len(hash_links_to_create) + len(hash_links_to_update):
+            raise HashScorerLinkIntegrityError()
+
+
+def update_to_be_run_once_manually():
+    from django.core.paginator import Paginator
+
+    paginator = Paginator(Stamp.objects.select_related("passport").all(), 1000)
+
+    for page in paginator.page_range:
+        print(f"Page {page} of {paginator.num_pages}")
+        hash_links = [
+            HashScorerLink(
+                hash=stamp.hash,
+                address=stamp.passport.address,
+                community=stamp.passport.community,
+                expires_at=stamp.credential["expirationDate"],
+            )
+            for stamp in paginator.page(page).object_list
+        ]
+        HashScorerLink.objects.bulk_create(hash_links, ignore_conflicts=True)
 
 
 ## 1. Migrate to create table
 ## 2. Update code which writes to new table without respecting new rules for dedup
-## 3. Populate with historical data, overwiring lines that fail uniqueness constraints (this will cause issues only for people taking advantage of this)
+##    This is just to support new stamps that come in while the update is running
+## 3. Populate with historical data, ignoring lines that fail uniqueness constraints
+##    If there's a uniqueness issue, this user has used the same hash with multiple addresses
+##    and a random one of them will end up with the stamp
 ## 4. Turn on FF to use new dedup logic
