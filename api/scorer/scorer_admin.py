@@ -2,14 +2,12 @@ from django.contrib import admin
 from django.core.paginator import Paginator
 from django.utils.functional import cached_property
 
-# class NoCountPaginator(Paginator):
-#     @cached_property
-#     def count(self):
-#         """Return a fix number for the total count. We want to avoid slow loading of page ..."""
-#         from django.apps import apps
 
-#         model = apps.get_model("app_name", "model_name")
-#         return 1000
+class NoCountPaginator(Paginator):
+    @cached_property
+    def count(self):
+        """Return a fix number for the total count. We want to avoid slow loading of page ..."""
+        return 1000
 
 
 class ScorerModelAdmin(admin.ModelAdmin):
@@ -23,5 +21,4 @@ class ScorerModelAdmin(admin.ModelAdmin):
     """
 
     show_full_result_count = False
-    # TODO: holding back on changing the NoCountPaginator for now ...
-    # paginator = NoCountPaginator
+    paginator = NoCountPaginator
