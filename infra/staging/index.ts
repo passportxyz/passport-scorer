@@ -343,6 +343,10 @@ const environment = [
     value: rdsConnectionUrl,
   },
   {
+    name: "READ_REPLICA_0_URL",
+    value: rdsConnectionUrl,
+  },
+  {
     name: "UI_DOMAINS",
     value: JSON.stringify([
       "scorer." + process.env["DOMAIN"],

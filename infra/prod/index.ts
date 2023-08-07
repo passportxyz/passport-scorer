@@ -114,6 +114,9 @@ export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
 );
+export const readreplica0ConnectionUrl = pulumi.secret(
+  pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${readreplica0.endpoint}/${dbName}`
+);
 export const rdsId = postgresql.id;
 
 //////////////////////////////////////////////////////////////
@@ -409,6 +412,10 @@ const environment = [
   {
     name: "DATABASE_URL",
     value: rdsConnectionUrl,
+  },
+  {
+    name: "READ_REPLICA_0_URL",
+    value: readreplica0ConnectionUrl,
   },
   {
     name: "UI_DOMAINS",
