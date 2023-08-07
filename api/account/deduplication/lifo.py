@@ -260,25 +260,43 @@ async def save_hash_links(
 
 # TODO this can be deleted in the next release
 def update_to_be_run_once_manually():
-    import dateutil.parser
-    from django.core.paginator import Paginator
+from tqdm import tqdm
+from datetime import datetime, timezone
 
-    now = get_utc_time()
-    paginator = Paginator(Stamp.objects.select_related("passport").all(), 1000)
+now = datetime.now(timezone.utc).isoformat()
+print("now")
+print(now)
 
-    for page in paginator.page_range:
-        print(f"Page {page} of {paginator.num_pages}")
-        hash_links = [
-            HashScorerLink(
-                hash=stamp.hash,
-                address=stamp.passport.address,
-                community=stamp.passport.community,
-                expires_at=stamp.credential["expirationDate"],
-            )
-            for stamp in paginator.page(page).object_list
-            if dateutil.parser.isoparse(stamp.credential["expirationDate"]) > now
-        ]
-        HashScorerLink.objects.bulk_create(hash_links, ignore_conflicts=True)
+query = (
+    Stamp.objects.filter(
+        credential__expirationDate__gt=now, credential__issuanceDate__lt=now
+    )
+    .select_related("passport")
+    .order_by("id")
+)
+
+last_id = 0
+chunk_size = 1000
+
+with tqdm(unit="items", unit_scale=None, desc="Processing objects") as progress_bar:
+    has_more = True
+    while has_more:
+        objects = list(query.filter(id__gt=last_id)[:chunk_size])
+        if objects:
+            last_id = objects[-1].id
+            hash_links = [
+                HashScorerLink(
+                    hash=stamp.hash,
+                    address=stamp.passport.address,
+                    community=stamp.passport.community,
+                    expires_at=stamp.credential["expirationDate"],
+                )
+                for stamp in objects
+            ]
+            HashScorerLink.objects.bulk_create(hash_links, ignore_conflicts=True)
+            progress_bar.update(len(objects))
+        else:
+            has_more = False
 
 
 ## 1. Migrate to create table
