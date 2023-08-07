@@ -136,7 +136,10 @@ CSRF_TRUSTED_ORIGINS = env.json("CSRF_TRUSTED_ORIGINS", default=[])
 
 DATABASES = {
     "default": env.db(default="sqlite:///db.sqlite3"),
-    "read_replica_0": env.db_url("READ_REPLICA_0_URL", default="sqlite:///db.sqlite3"),
+    "read_replica_0": {
+        **env.db_url("READ_REPLICA_0_URL", default="sqlite:///db.sqlite3"),
+        "TEST": {"MIRROR": "default"},
+    },
 }
 
 
