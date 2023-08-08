@@ -78,6 +78,9 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "twitterTweetDaysGte#120": "1.21",
     "ZkSync": "0.400",
     "ZkSyncEra": "0.400",
+    "CyberProfilePremium": "1.21",
+    "CyberProfilePaid": "1.21",
+    "CyberProfileOrgMember": "1.21",
 }
 
 
