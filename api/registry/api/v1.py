@@ -365,7 +365,7 @@ def get_scores(
     address: str = "",
     last_score_timestamp__gt: str = "",
     last_score_timestamp__gte: str = "",
-    order_by_field: str = "id",
+    order_by: str = "id",
     **kwargs,
 ) -> List[DetailedScoreResponse]:
     check_rate_limit(request)
@@ -380,17 +380,17 @@ def get_scores(
 
     try:
         ORDER_BY_MAPPINGS = {
-            "updated_at": "updated_at",
+            "last_score_timestamp": "last_score_timestamp",
             "id": "pk",
         }
 
-        ordered_by = ORDER_BY_MAPPINGS.get(order_by_field)
+        ordered_by = ORDER_BY_MAPPINGS.get(order_by)
 
         if not ordered_by:
             raise InvalidOrderByFieldException()
 
         scores = (
-            Score.objects.filter(passport__community__id=user_community.id)
+            Score.objects.filter(passport__community__id=user_community.pk)
             .order_by(ordered_by)
             .select_related("passport")
         )

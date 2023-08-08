@@ -21,6 +21,7 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def paginated_scores(scorer_passport, passport_holder_addresses, scorer_community):
     scores = []
+    i = 0
     for holder in passport_holder_addresses:
         passport = Passport.objects.create(
             address=holder["address"],
@@ -30,9 +31,12 @@ def paginated_scores(scorer_passport, passport_holder_addresses, scorer_communit
         score = Score.objects.create(
             passport=passport,
             score="1",
+            last_score_timestamp=datetime.datetime.now()
+            + datetime.timedelta(days=i + 1),
         )
 
         scores.append(score)
+        i += 1
     return scores
 
 
@@ -124,6 +128,40 @@ class TestPassportGetScore:
             client = Client()
             response = client.get(
                 f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}",
+                HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            )
+            response_data = response.json()
+
+            assert response.status_code == 200
+            returned_pks = [
+                Score.objects.filter(passport__address=item["address"]).get().pk
+                for item in response_data["items"]
+            ]
+
+            assert expected_pks == returned_pks
+
+    def test_get_scores_returns_paginated_and_datetime_sorted_response(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        request_params = [[0, 3], [3, 5]]
+
+        for offset, limit in request_params:
+            # Get the PKs of the scores we are expecting
+            sorted_scores = sorted(
+                paginated_scores,
+                key=lambda score: score.last_score_timestamp,
+            )
+            expected_pks = [
+                score.pk for score in sorted_scores[offset : offset + limit]
+            ]
+
+            client = Client()
+            response = client.get(
+                f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}&order_by=last_score_timestamp",
                 HTTP_AUTHORIZATION="Token " + scorer_api_key,
             )
             response_data = response.json()
