@@ -258,29 +258,6 @@ async def save_hash_links(
             raise HashScorerLinkIntegrityError("Unexpected number of HashScorerLinks")
 
 
-# TODO this can be deleted in the next release
-def update_to_be_run_once_manually():
-    import dateutil.parser
-    from django.core.paginator import Paginator
-
-    now = get_utc_time()
-    paginator = Paginator(Stamp.objects.select_related("passport").all(), 1000)
-
-    for page in paginator.page_range:
-        print(f"Page {page} of {paginator.num_pages}")
-        hash_links = [
-            HashScorerLink(
-                hash=stamp.hash,
-                address=stamp.passport.address,
-                community=stamp.passport.community,
-                expires_at=stamp.credential["expirationDate"],
-            )
-            for stamp in paginator.page(page).object_list
-            if dateutil.parser.isoparse(stamp.credential["expirationDate"]) > now
-        ]
-        HashScorerLink.objects.bulk_create(hash_links, ignore_conflicts=True)
-
-
 ## 1. Migrate to create table
 ## 2. Update code which writes to new table without respecting new rules for dedup
 ##    This is just to support new stamps that come in while the update is running
