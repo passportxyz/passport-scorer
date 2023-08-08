@@ -31,6 +31,7 @@ from ..exceptions import (
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
     InvalidNonceException,
+    InvalidOrderByFieldException,
     InvalidSignerException,
     aapi_get_object_or_404,
     api_get_object_or_404,
@@ -364,6 +365,7 @@ def get_scores(
     address: str = "",
     last_score_timestamp__gt: str = "",
     last_score_timestamp__gte: str = "",
+    order_by: str = "id",
     **kwargs,
 ) -> List[DetailedScoreResponse]:
     check_rate_limit(request)
@@ -377,9 +379,21 @@ def get_scores(
     user_community = get_scorer_by_id(scorer_id, request.auth)
 
     try:
-        scores = Score.objects.filter(
-            passport__community__id=user_community.id
-        ).select_related("passport")
+        ORDER_BY_MAPPINGS = {
+            "last_score_timestamp": "last_score_timestamp",
+            "id": "pk",
+        }
+
+        ordered_by = ORDER_BY_MAPPINGS.get(order_by)
+
+        if not ordered_by:
+            raise InvalidOrderByFieldException()
+
+        scores = (
+            Score.objects.filter(passport__community__id=user_community.pk)
+            .order_by(ordered_by)
+            .select_related("passport")
+        )
 
         filter_values = {
             "address": address,
