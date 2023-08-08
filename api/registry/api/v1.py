@@ -377,9 +377,11 @@ def get_scores(
     user_community = get_scorer_by_id(scorer_id, request.auth)
 
     try:
-        scores = Score.objects.filter(
-            passport__community__id=user_community.id
-        ).select_related("passport")
+        scores = (
+            Score.objects.filter(passport__community__id=user_community.id)
+            .order_by("pk")
+            .select_related("passport")
+        )
 
         filter_values = {
             "address": address,

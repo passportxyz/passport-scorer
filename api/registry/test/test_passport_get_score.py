@@ -106,6 +106,35 @@ class TestPassportGetScore:
                 == passport_holder_addresses[offset + i]["address"].lower()
             )
 
+    def test_get_scores_returns_paginated_and_pk_sorted_response(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        request_params = [[0, 3], [3, 5]]
+
+        for offset, limit in request_params:
+            # Get the PKs of the scores we are expecting
+            expected_pks = [
+                score.pk for score in paginated_scores[offset : offset + limit]
+            ]
+
+            client = Client()
+            response = client.get(
+                f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}",
+                HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            )
+            response_data = response.json()
+
+            assert response.status_code == 200
+            returned_pks = [
+                item["id"] for item in response_data["items"]
+            ]  # Assuming 'pk' is in the returned items
+            # Check if the returned primary keys are as expected
+            assert expected_pks == returned_pks
+
     def test_get_scores_returns_first_page_scores_v2(
         self,
         scorer_api_key,

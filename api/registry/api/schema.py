@@ -67,6 +67,7 @@ class GenericCommunityResponse(Schema):
 
 class DetailedScoreResponse(Schema):
     address: str
+    id: int
     score: Optional[str]
     status: Optional[StatusEnum]
     last_score_timestamp: Optional[str]
