@@ -130,9 +130,10 @@ class TestPassportGetScore:
 
             assert response.status_code == 200
             returned_pks = [
-                item["id"] for item in response_data["items"]
-            ]  # Assuming 'pk' is in the returned items
-            # Check if the returned primary keys are as expected
+                Score.objects.filter(passport__address=item["address"]).get().pk
+                for item in response_data["items"]
+            ]
+
             assert expected_pks == returned_pks
 
     def test_get_scores_returns_first_page_scores_v2(
