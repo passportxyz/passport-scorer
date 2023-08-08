@@ -22,7 +22,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         last_id = options["last_id"]
         iso_timestamp = options["iso_timestamp"]
-        self.stdout.write(self.style.SUCCESS(f'Last ID "{last_id}"'))
+        self.stdout.write(self.style.SUCCESS(f'Starting ID "{last_id}"'))
         self.stdout.write(self.style.SUCCESS(f'ISO Timestamp "{iso_timestamp}"'))
 
         query = (
@@ -37,28 +37,34 @@ class Command(BaseCommand):
         last_id = 0
         chunk_size = 1000
 
-        with tqdm(
-            unit="items", unit_scale=None, desc="Processing objects"
-        ) as progress_bar:
-            has_more = True
-            while has_more:
-                objects = list(
-                    query.filter(id__gt=last_id).using("read_replica_0")[:chunk_size]
-                )
-                if objects:
-                    last_id = objects[-1].id
-                    hash_links = [
-                        HashScorerLink(
-                            hash=stamp.hash,
-                            address=stamp.passport.address,
-                            community=stamp.passport.community,
-                            expires_at=stamp.credential["expirationDate"],
-                        )
-                        for stamp in objects
-                    ]
-                    HashScorerLink.objects.using("default").bulk_create(
-                        hash_links, ignore_conflicts=True
+        try:
+            with tqdm(
+                unit="items", unit_scale=None, desc="Processing objects"
+            ) as progress_bar:
+                has_more = True
+                while has_more:
+                    objects = list(
+                        query.filter(id__gt=last_id).using("read_replica_0")[
+                            :chunk_size
+                        ]
                     )
-                    progress_bar.update(len(objects))
-                else:
-                    has_more = False
+                    if objects:
+                        last_id = objects[-1].id
+                        hash_links = [
+                            HashScorerLink(
+                                hash=stamp.hash,
+                                address=stamp.passport.address,
+                                community=stamp.passport.community,
+                                expires_at=stamp.credential["expirationDate"],
+                            )
+                            for stamp in objects
+                        ]
+                        HashScorerLink.objects.using("default").bulk_create(
+                            hash_links, ignore_conflicts=True
+                        )
+                        progress_bar.update(len(objects))
+                    else:
+                        has_more = False
+
+        finally:
+            self.stdout.write(self.style.SUCCESS(f'Last ID "{last_id}"'))
