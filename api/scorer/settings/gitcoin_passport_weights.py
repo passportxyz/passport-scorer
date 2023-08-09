@@ -43,7 +43,6 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "githubContributionActivityGte#120": "1.21",
     "githubContributionActivityGte#30": "1.21",
     "githubContributionActivityGte#60": "1.21",
-    "GitPOAP": "1.54",
     "GnosisSafe": "2.65",
     "Google": "2.25",
     "GuildAdmin": "0.689",
