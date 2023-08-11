@@ -15,9 +15,7 @@ class Command(BaseCommand):
         # Optional argument
         parser.add_argument(
             "--update_all_scores",
-            type=str,
-            choices=["True", "False"],
-            default="True",
+            action="store_true",
             help="Flag to update all scores.",
         )
 
@@ -29,6 +27,7 @@ class Command(BaseCommand):
         community_ids = self.get_eligible_communities()
 
         self.update_scorers(community_ids, weights, threshold)
+
         if update_all_scores:
             self.update_scores(community_ids)
 
