@@ -98,7 +98,7 @@ const readreplica0 = new aws.rds.Instance(
   `scorer-db-read-0`,
   {
     allocatedStorage: 20,
-    maxAllocatedStorage: 100,
+    maxAllocatedStorage: 500,
     instanceClass: "db.t3.xlarge",
     skipFinalSnapshot: true,
     vpcSecurityGroupIds: [db_secgrp.id],
