@@ -270,7 +270,34 @@ class CgrantsTest(TestCase):
             {
                 "num_grants_contribute_to": 4,
                 "num_rounds_contribute_to": 2,
-                "total_contribution_amount": "10",
+                "total_valid_contribution_amount": "10.000000000000000000",
+                "num_gr14_contributions": 0,
+            },
+        )
+
+    def test_contributor_statistics_with_below_threshold_contributions_contributions(
+        self,
+    ):
+        existing_contributions = ProtocolContributions.objects.filter(
+            contributor=self.address
+        ).all()
+        for contribution in existing_contributions:
+            contribution.amount = 0.5
+            contribution.save()
+
+        # Edge case: User has made no contributions
+        response = self.client.get(
+            reverse("cgrants:allo_contributor_statistics"),
+            {"address": self.address},
+            **self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "num_grants_contribute_to": 0,
+                "num_rounds_contribute_to": 0,
+                "total_valid_contribution_amount": 0,
                 "num_gr14_contributions": 0,
             },
         )
