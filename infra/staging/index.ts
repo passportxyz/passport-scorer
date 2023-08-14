@@ -961,3 +961,99 @@ export const ec2PublicIp = web.publicIp;
 export const dockrRunCmd = pulumi.secret(
   pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
+
+let redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
+let redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
+let redashDbName = `${process.env["REDASH_DB_NAME"]}`;
+
+// Create an RDS instance
+const redashDb = new aws.rds.Instance("redash-db", {
+  allocatedStorage: 2,
+  maxAllocatedStorage: 20,
+  engine: "postgres",
+  // engineVersion: "5.7",
+  instanceClass: "db.t2.small",
+  dbName: redashDbName,
+  password: redashDbPassword,
+  username: redashDbUsername,
+  skipFinalSnapshot: true,
+  dbSubnetGroupName: dbSubnetGroup.id,
+  vpcSecurityGroupIds: [db_secgrp.id],
+  backupRetentionPeriod: 5,
+  performanceInsightsEnabled: true,
+});
+
+const redashSecurityGroup = new aws.ec2.SecurityGroup("redashSecurityGroup", {
+  ingress: [
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 HTTPS
+    { protocol: "tcp", fromPort: 443, toPort: 443, ipv6CidrBlocks: ["::/0"] }, // IPv6 HTTPS
+    { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 SSH
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 HTTP
+    { protocol: "tcp", fromPort: 80, toPort: 80, ipv6CidrBlocks: ["::/0"] }, // IPv6 HTTP
+    {
+      protocol: "tcp",
+      fromPort: 5000,
+      toPort: 5000,
+      cidrBlocks: ["0.0.0.0/0"],
+    }, // IPv4 Custom TCP 5000
+    { protocol: "tcp", fromPort: 5000, toPort: 5000, ipv6CidrBlocks: ["::/0"] }, // IPv6 Custom TCP 5000
+  ],
+});
+
+const redashInitScript = `#!/bin/bash
+
+# Update package list and upgrade packages
+apt-get update -y
+apt-get upgrade -y
+
+# Install necessary dependencies
+apt-get install -y git docker docker-compose
+
+export POSTGRES_PASSWORD="${redashDbPassword}"
+export REDASH_DATABASE_URL="${redashDb.endpoint}"
+
+# Clone the repo
+git clone https://github.com/gitcoinco/passport-redash.git
+
+# Navigate to the directory
+cd passport-redash
+
+# Run the setup command (assuming it's a script or makefile command)
+# Note: You'll have to replace this with the actual setup command.
+./setup.sh
+`;
+
+const redashinstance = new aws.ec2.Instance(
+  "redashinstance",
+  {
+    ami: ubuntu.then((ubuntu) => ubuntu.id),
+    associatePublicIpAddress: true,
+    // capacityReservationSpecification: {
+    //   capacityReservationPreference: "open",
+    // },
+    // cpuCoreCount: 4,
+    // cpuThreadsPerCore: 1,
+    // creditSpecification: {
+    //   cpuCredits: "standard",
+    // },
+    // change to xl in prod
+    instanceType: "t3.medium",
+    privateDnsNameOptions: {
+      hostnameType: "ip-name",
+    },
+    // rootBlockDevice: {
+    //   iops: 100,
+    //   volumeSize: 16,
+    //   volumeType: "gp2",
+    // },
+    tags: {
+      Name: "Redash Analytics",
+    },
+    tenancy: "default",
+    vpcSecurityGroupIds: [redashSecurityGroup.id],
+    userData: redashInitScript,
+  },
+  {
+    protect: true,
+  }
+);
