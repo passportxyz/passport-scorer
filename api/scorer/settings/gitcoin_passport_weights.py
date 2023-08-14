@@ -86,6 +86,7 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "GrantsStack2Programs": "1.07",
     "GrantsStack4Programs": "1.07",
     "GrantsStack6Programs": "1.07",
+    "TrustaLabs": "1.54",
 }
 
 
