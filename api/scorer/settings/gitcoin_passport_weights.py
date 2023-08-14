@@ -80,6 +80,12 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "CyberProfilePremium": "1.21",
     "CyberProfilePaid": "1.21",
     "CyberProfileOrgMember": "1.21",
+    "GrantsStack3Projects": "1.07",
+    "GrantsStack5Projects": "1.07",
+    "GrantsStack7Projects": "1.07",
+    "GrantsStack2Programs": "1.07",
+    "GrantsStack4Programs": "1.07",
+    "GrantsStack6Programs": "1.07",
 }
 
 
