@@ -80,6 +80,7 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "CyberProfilePremium": "1.21",
     "CyberProfilePaid": "1.21",
     "CyberProfileOrgMember": "1.21",
+    "TrustaLabs": "1.54",
 }
 
 
