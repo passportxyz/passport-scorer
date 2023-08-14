@@ -46,4 +46,5 @@ urlpatterns = [
     path("social/", include("social_django.urls", namespace="social")),
     path("passport-admin/", passport_admin_api.urls),
     # path("__debug__/", include("debug_toolbar.urls")),
+    path("trusta_labs/", include("trusta_labs.urls")),
 ]
