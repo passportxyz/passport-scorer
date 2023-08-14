@@ -112,20 +112,21 @@ def _get_contributor_statistics_for_cgrants(
 
 
 def _get_contributor_statistics_for_protocol(address: str) -> dict:
-    total_amount_usd = ProtocolContributions.objects.filter(
-        contributor=address
-    ).aggregate(Sum("amount"))["amount__sum"]
-    num_rounds = ProtocolContributions.objects.filter(contributor=address).aggregate(
-        Count("round", distinct=True)
-    )["round__count"]
-    num_projects = ProtocolContributions.objects.filter(contributor=address).aggregate(
-        Count("project", distinct=True)
-    )["project__count"]
+    protocol_filter = ProtocolContributions.objects.filter(
+        contributor=address, amount__gte=1
+    )
+    total_amount_usd = protocol_filter.aggregate(Sum("amount"))["amount__sum"]
+    num_rounds = protocol_filter.aggregate(Count("round", distinct=True))[
+        "round__count"
+    ]
+    num_projects = protocol_filter.aggregate(Count("project", distinct=True))[
+        "project__count"
+    ]
 
     return {
         "num_grants_contribute_to": num_projects if num_projects is not None else 0,
         "num_rounds_contribute_to": num_rounds if num_rounds is not None else 0,
-        "total_contribution_amount": total_amount_usd
+        "total_valid_contribution_amount": round(total_amount_usd, 3)
         if total_amount_usd is not None
         else 0,
         "num_gr14_contributions": 0,
