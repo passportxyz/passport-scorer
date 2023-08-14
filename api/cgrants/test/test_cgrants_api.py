@@ -270,7 +270,7 @@ class CgrantsTest(TestCase):
             {
                 "num_grants_contribute_to": 4,
                 "num_rounds_contribute_to": 2,
-                "total_valid_contribution_amount": "10.000000000000000000",
+                "total_valid_contribution_amount": "10.000",
                 "num_gr14_contributions": 0,
             },
         )
