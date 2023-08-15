@@ -3,7 +3,7 @@ from ninja import Schema
 from ninja.security import APIKeyHeader
 from ninja_extra import NinjaExtraAPI, status
 from ninja_extra.exceptions import APIException
-from trusta_labs.models import TrustaLabsScore
+from registry.models import Event
 
 api = NinjaExtraAPI(urls_namespace="trusta_labs")
 
@@ -55,6 +55,8 @@ def create_trusta_labs_score_db(request, payload: TrustaLabsScorePayload):
     if payload.score == None:
         raise TrustaLabsScoreHasNoScore()
 
-    TrustaLabsScore.objects.update_or_create(
-        address=payload.address, sybil_risk_score=payload.score
+    Event.objects.create(
+        action=Event.Action.TRUSTALAB_SCORE,
+        address=payload.address.lower(),
+        data={"score": payload.score},
     )
