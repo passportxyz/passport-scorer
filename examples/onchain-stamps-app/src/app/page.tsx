@@ -64,7 +64,7 @@ export default function Passport() {
 
   async function getUuid() {
     const resolverContract: ethers.Contract = new ethers.Contract(resolverContractAddress, resolverAbi, provider)
-    const uuid = await resolverContract.passports("0xC79ABB54e4824Cdb65C71f2eeb2D7f2db5dA1fB8")
+    const uuid = await resolverContract.passports(address)
     console.log(uuid)
     if (uuid == "0x0000000000000000000000000000000000000000000000000000000000000000") {
       (console.log("no passport data on chain!"))
