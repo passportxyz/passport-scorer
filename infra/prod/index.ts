@@ -622,7 +622,7 @@ const ecsScorerWorker1AutoscalingTarget = new aws.appautoscaling.Target(
   "scorer-worker1-autoscaling-target",
   {
     maxCapacity: 400,
-    minCapacity: 2,
+    minCapacity: 5,
     resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celery1.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
     serviceNamespace: "ecs",
@@ -640,9 +640,9 @@ const ecsScorerWorker1Autoscaling = new aws.appautoscaling.Policy(
       predefinedMetricSpecification: {
         predefinedMetricType: "ECSServiceAverageCPUUtilization",
       },
-      targetValue: 30,
-      scaleInCooldown: 300,
-      scaleOutCooldown: 30,
+      targetValue: 50,
+      scaleInCooldown: 600,
+      scaleOutCooldown: 150,
     },
   }
 );
