@@ -1014,6 +1014,8 @@ git clone https://github.com/gitcoinco/passport-redash.git
 
 cd passport-redash
 
+chmod +x ./setup.sh
+
 ./setup.sh
 `;
 
