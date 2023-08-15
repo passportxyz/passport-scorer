@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     # "debug_toolbar",
     "cgrants",
     "django_filters",
+    "trusta_labs",
 ]
 
 AUTHENTICATION_BACKENDS = [
