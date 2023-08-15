@@ -1002,24 +1002,18 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup("redashSecurityGroup", {
 
 const redashInitScript = `#!/bin/bash
 
-# Update package list and upgrade packages
 apt-get update -y
 apt-get upgrade -y
 
-# Install necessary dependencies
 apt-get install -y git docker docker-compose
 
 export POSTGRES_PASSWORD="${redashDbPassword}"
 export REDASH_DATABASE_URL="${redashDb.endpoint}"
 
-# Clone the repo
 git clone https://github.com/gitcoinco/passport-redash.git
 
-# Navigate to the directory
 cd passport-redash
 
-# Run the setup command (assuming it's a script or makefile command)
-# Note: You'll have to replace this with the actual setup command.
 ./setup.sh
 `;
 
