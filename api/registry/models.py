@@ -77,6 +77,7 @@ class Event(models.Model):
     class Action(models.TextChoices):
         FIFO_DEDUPLICATION = "FDP"
         LIFO_DEDUPLICATION = "LDP"
+        TRUSTALAB_SCORE = "TLS"
 
     action = models.CharField(
         max_length=3,
