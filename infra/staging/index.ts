@@ -972,7 +972,7 @@ const redashDb = new aws.rds.Instance("redash-db", {
   maxAllocatedStorage: 20,
   engine: "postgres",
   engineVersion: "13.10",
-  instanceClass: "db.t2.small",
+  instanceClass: "db.t3.medium",
   dbName: redashDbName,
   password: redashDbPassword,
   username: redashDbUsername,
