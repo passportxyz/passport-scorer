@@ -968,7 +968,7 @@ let redashDbName = `${process.env["REDASH_DB_NAME"]}`;
 
 // Create an RDS instance
 const redashDb = new aws.rds.Instance("redash-db", {
-  allocatedStorage: 2,
+  allocatedStorage: 20,
   maxAllocatedStorage: 20,
   engine: "postgres",
   engineVersion: "13.10",
