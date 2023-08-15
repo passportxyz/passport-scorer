@@ -1048,6 +1048,6 @@ const redashinstance = new aws.ec2.Instance(
     userData: redashInitScript,
   },
   {
-    protect: true,
+    protect: false,
   }
 );
