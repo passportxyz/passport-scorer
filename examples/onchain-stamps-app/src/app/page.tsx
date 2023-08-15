@@ -34,6 +34,7 @@ export default function Passport() {
   const [hasStamps, setHasStamps] = useState<boolean>(false)
   const [stamps, setStamps] = useState<Array<Stamp>>([])
   const [score, setScore] = useState<Number>(0)
+  const [network, setNetwork] = useState<string>('')
 
   useEffect(() => {
     checkConnection()
@@ -51,8 +52,10 @@ export default function Passport() {
     try {
       globalThis.provider = new ethers.BrowserProvider(window.ethereum)
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
+      const network = await provider.getNetwork()
       setAddress(accounts[0])
       setConnected(true)
+      setNetwork(network.chainId.toString())
     } catch (err) {
       console.log('error connecting...')
     }
@@ -166,6 +169,11 @@ export default function Passport() {
           <Button colorScheme='teal' variant='outline' onClick={connect}>Connect</Button>
           <Button colorScheme='teal' variant='outline' onClick={queryPassport}>Query Passport</Button>
         </Flex>
+        <div>
+          {connected && <p>✅ Wallet connected</p>}
+          {connected && network == "84531" && <p>✅ network: BaseGoerli</p>}
+          {connected && network != "84531" && <p>🔴 Please switch to BaseGoerli network</p>}
+        </div>
         <br />
         <br />
         <br />
