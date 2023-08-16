@@ -1009,7 +1009,9 @@ const redashDb = new aws.rds.Instance("redash-db", {
 });
 
 const dbUrl = redashDb.endpoint;
-const redashDbUrl = `psql://${redashDbUsername}:${redashDbPassword}@${dbUrl}/${redashDbName}`;
+export const redashDbUrl = pulumi.secret(
+  pulumi.interpolate`psql://${redashDbUsername}:${redashDbPassword}@${dbUrl}/${redashDbName}`
+);
 
 const redashSecurityGroup = new aws.ec2.SecurityGroup(
   "redashServerSecurityGroup",
