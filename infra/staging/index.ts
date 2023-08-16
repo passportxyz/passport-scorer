@@ -1001,16 +1001,25 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup("redashSecurityGroup", {
 });
 
 const redashInitScript = `#!/bin/bash
+logfile="/var/log/redash-init.log"
+
+exec > $logfile 2>&1
+
+echo "Setting environment variables..."
 export POSTGRES_PASSWORD="${redashDbPassword}"
 export REDASH_DATABASE_URL="${redashDb.endpoint}"
 
+echo "Cloning passport-redash repository..."
 git clone https://github.com/gitcoinco/passport-redash.git
 
+echo "Changing directory and setting permissions..."
 cd passport-redash
-
 chmod +x ./setup.sh
 
+echo "Running setup script..."
 ./setup.sh
+
+echo "Startup script completed."
 `;
 
 const redashinstance = new aws.ec2.Instance("redashinstance", {
