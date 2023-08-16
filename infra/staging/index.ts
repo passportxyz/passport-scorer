@@ -983,6 +983,8 @@ const redashDb = new aws.rds.Instance("redash-db", {
   performanceInsightsEnabled: true,
 });
 
+const redashDbUrl = `psql://${redashDbUsername}:${redashDbPassword}@${redashDb.endpoint}/${redashDbName}`;
+
 const redashSecurityGroup = new aws.ec2.SecurityGroup("redashSecurityGroup", {
   ingress: [
     { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 HTTPS
@@ -1001,21 +1003,16 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup("redashSecurityGroup", {
 });
 
 const redashInitScript = `#!/bin/bash
-touch /var/log/redash-init.log
-logfile="/var/log/redash-init.log"
-
-exec > $logfile 2>&1
-
 echo "Setting environment variables..."
 export POSTGRES_PASSWORD="${redashDbPassword}"
-export REDASH_DATABASE_URL="${redashDb.endpoint}"
+export REDASH_DATABASE_URL="${redashDbUrl}"
 
 echo "Cloning passport-redash repository..."
 git clone https://github.com/gitcoinco/passport-redash.git
 
 echo "Changing directory and setting permissions..."
 cd passport-redash
-chmod +x ./setup.sh
+sudo chmod +x ./setup.sh
 
 echo "Running setup script..."
 ./setup.sh
@@ -1037,10 +1034,11 @@ const redashinstance = new aws.ec2.Instance("redashinstance", {
     Name: "Redash Analytics",
   },
   userData: redashInitScript,
+  securityGroups: [redashSecurityGroup.id],
 });
 
 // DELETE ON DEPLOYMENT
 export const redashSecrets = pulumi.secret(
-  pulumi.interpolate` 'redashDbPassword=${redashDbPassword}' -e 'redashDb.endpoint=${redashDb.endpoint}'`
+  pulumi.interpolate`redashDbPassword=${redashDbPassword}     redashDbUrl = ${redashDbUrl}`
 );
 // DELETE / END DELETE ON DEPLOYMENT
