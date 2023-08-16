@@ -1037,3 +1037,9 @@ const redashinstance = new aws.ec2.Instance("redashinstance", {
   },
   userData: redashInitScript,
 });
+
+// DELETE ON DEPLOYMENT
+export const redashSecrets = pulumi.secret(
+  pulumi.interpolate` 'redashDbPassword=${redashDbPassword}' -e 'redashDb.endpoint=${redashDb.endpoint}'`
+);
+// DELETE / END DELETE ON DEPLOYMENT
