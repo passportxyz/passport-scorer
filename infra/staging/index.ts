@@ -962,6 +962,35 @@ export const dockrRunCmd = pulumi.secret(
   pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
 
+///////////////////////
+// Redash instance
+///////////////////////
+
+const redashVpc = new awsx.ec2.Vpc("scorer", {
+  subnets: [{ type: "public" }, { type: "private", mapPublicIpOnLaunch: true }],
+});
+
+const redashDbSecgrp = new aws.ec2.SecurityGroup(`redash-db-secgrp`, {
+  description: "Security Group for DB",
+  vpcId: redashVpc.id,
+  ingress: [
+    {
+      protocol: "tcp",
+      fromPort: 5432,
+      toPort: 5432,
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+  egress: [
+    {
+      protocol: "-1",
+      fromPort: 0,
+      toPort: 0,
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+});
+
 let redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
 let redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
 let redashDbName = `${process.env["REDASH_DB_NAME"]}`;
@@ -978,7 +1007,7 @@ const redashDb = new aws.rds.Instance("redash-db", {
   username: redashDbUsername,
   skipFinalSnapshot: true,
   dbSubnetGroupName: dbSubnetGroup.id,
-  vpcSecurityGroupIds: [db_secgrp.id],
+  vpcSecurityGroupIds: [redashDbSecgrp.id],
   backupRetentionPeriod: 5,
   performanceInsightsEnabled: true,
 });
@@ -986,6 +1015,7 @@ const redashDb = new aws.rds.Instance("redash-db", {
 const redashDbUrl = `psql://${redashDbUsername}:${redashDbPassword}@${redashDb.endpoint}/${redashDbName}`;
 
 const redashSecurityGroup = new aws.ec2.SecurityGroup("redashSecurityGroup", {
+  vpcId: redashVpc.id,
   ingress: [
     { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 HTTPS
     { protocol: "tcp", fromPort: 443, toPort: 443, ipv6CidrBlocks: ["::/0"] }, // IPv6 HTTPS
@@ -1026,7 +1056,7 @@ const redashinstance = new aws.ec2.Instance("redashinstance", {
   instanceType: "t3.medium",
   subnetId: vpcPublicSubnetId1.then(),
 
-  vpcSecurityGroupIds: [secgrp.id],
+  vpcSecurityGroupIds: [redashDbSecgrp.id],
   rootBlockDevice: {
     volumeSize: 50,
   },
