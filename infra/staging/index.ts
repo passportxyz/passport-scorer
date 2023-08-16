@@ -1013,35 +1013,18 @@ chmod +x ./setup.sh
 ./setup.sh
 `;
 
-const redashinstance = new aws.ec2.Instance(
-  "redashinstance",
-  {
-    ami: ubuntu.then((ubuntu) => ubuntu.id),
-    associatePublicIpAddress: true,
-    // capacityReservationSpecification: {
-    //   capacityReservationPreference: "open",
-    // },
-    // cpuCoreCount: 4,
-    // cpuThreadsPerCore: 1,
-    // creditSpecification: {
-    //   cpuCredits: "standard",
-    // },
-    // change to xl in prod
-    instanceType: "t3.medium",
-    // rootBlockDevice: {
-    //   iops: 100,
-    //   volumeSize: 16,
-    //   volumeType: "gp2",
-    // },
-    tags: {
-      Name: "Redash Analytics",
-    },
-    subnetId: vpcPublicSubnetId1.then(),
-    tenancy: "default",
-    vpcSecurityGroupIds: [redashSecurityGroup.id],
-    userData: redashInitScript,
+const redashinstance = new aws.ec2.Instance("redashinstance", {
+  ami: ubuntu.then((ubuntu) => ubuntu.id),
+  associatePublicIpAddress: true,
+  instanceType: "t3.medium",
+  subnetId: vpcPublicSubnetId1.then(),
+
+  vpcSecurityGroupIds: [secgrp.id],
+  rootBlockDevice: {
+    volumeSize: 50,
   },
-  {
-    protect: false,
-  }
-);
+  tags: {
+    Name: "Redash Analytics",
+  },
+  userData: redashInitScript,
+});
