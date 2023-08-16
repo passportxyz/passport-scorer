@@ -1008,7 +1008,8 @@ const redashDb = new aws.rds.Instance("redash-db", {
   performanceInsightsEnabled: true,
 });
 
-const redashDbUrl = `psql://${redashDbUsername}:${redashDbPassword}@${redashDb.endpoint}/${redashDbName}`;
+const dbUrl = redashDb.endpoint;
+const redashDbUrl = `psql://${redashDbUsername}:${redashDbPassword}@${dbUrl}/${redashDbName}`;
 
 const redashSecurityGroup = new aws.ec2.SecurityGroup(
   "redashServerSecurityGroup",
@@ -1037,6 +1038,14 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
         toPort: 5000,
         ipv6CidrBlocks: ["::/0"],
       }, // IPv6 Custom TCP 5000
+    ],
+    egress: [
+      {
+        protocol: "-1",
+        fromPort: 0,
+        toPort: 0,
+        cidrBlocks: ["0.0.0.0/0"],
+      },
     ],
   }
 );
@@ -1076,6 +1085,6 @@ const redashinstance = new aws.ec2.Instance("redashinstance", {
 
 // DELETE ON DEPLOYMENT
 export const redashSecrets = pulumi.secret(
-  pulumi.interpolate`redashDbPassword=${redashDbPassword}     redashDbUrl = ${redashDbUrl}`
+  pulumi.interpolate`redashDbPassword=${redashDbPassword}  |   redashDbUrl = ${redashDbUrl}`
 );
 // DELETE / END DELETE ON DEPLOYMENT
