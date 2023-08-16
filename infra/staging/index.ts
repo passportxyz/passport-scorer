@@ -966,13 +966,9 @@ export const dockrRunCmd = pulumi.secret(
 // Redash instance
 ///////////////////////
 
-const redashVpc = new awsx.ec2.Vpc("scorer", {
-  subnets: [{ type: "public" }, { type: "private", mapPublicIpOnLaunch: true }],
-});
-
-const redashDbSecgrp = new aws.ec2.SecurityGroup(`redash-db-secgrp`, {
+const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp`, {
   description: "Security Group for DB",
-  vpcId: redashVpc.id,
+  vpcId: vpc.id,
   ingress: [
     {
       protocol: "tcp",
@@ -1014,23 +1010,36 @@ const redashDb = new aws.rds.Instance("redash-db", {
 
 const redashDbUrl = `psql://${redashDbUsername}:${redashDbPassword}@${redashDb.endpoint}/${redashDbName}`;
 
-const redashSecurityGroup = new aws.ec2.SecurityGroup("redashSecurityGroup", {
-  vpcId: redashVpc.id,
-  ingress: [
-    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 HTTPS
-    { protocol: "tcp", fromPort: 443, toPort: 443, ipv6CidrBlocks: ["::/0"] }, // IPv6 HTTPS
-    { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 SSH
-    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 HTTP
-    { protocol: "tcp", fromPort: 80, toPort: 80, ipv6CidrBlocks: ["::/0"] }, // IPv6 HTTP
-    {
-      protocol: "tcp",
-      fromPort: 5000,
-      toPort: 5000,
-      cidrBlocks: ["0.0.0.0/0"],
-    }, // IPv4 Custom TCP 5000
-    { protocol: "tcp", fromPort: 5000, toPort: 5000, ipv6CidrBlocks: ["::/0"] }, // IPv6 Custom TCP 5000
-  ],
-});
+const redashSecurityGroup = new aws.ec2.SecurityGroup(
+  "redashServerSecurityGroup",
+  {
+    vpcId: vpc.id,
+    ingress: [
+      {
+        protocol: "tcp",
+        fromPort: 443,
+        toPort: 443,
+        cidrBlocks: ["0.0.0.0/0"],
+      }, // IPv4 HTTPS
+      { protocol: "tcp", fromPort: 443, toPort: 443, ipv6CidrBlocks: ["::/0"] }, // IPv6 HTTPS
+      { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 SSH
+      { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 HTTP
+      { protocol: "tcp", fromPort: 80, toPort: 80, ipv6CidrBlocks: ["::/0"] }, // IPv6 HTTP
+      {
+        protocol: "tcp",
+        fromPort: 5000,
+        toPort: 5000,
+        cidrBlocks: ["0.0.0.0/0"],
+      }, // IPv4 Custom TCP 5000
+      {
+        protocol: "tcp",
+        fromPort: 5000,
+        toPort: 5000,
+        ipv6CidrBlocks: ["::/0"],
+      }, // IPv6 Custom TCP 5000
+    ],
+  }
+);
 
 const redashInitScript = `#!/bin/bash
 echo "Setting environment variables..."
@@ -1054,9 +1063,7 @@ const redashinstance = new aws.ec2.Instance("redashinstance", {
   ami: ubuntu.then((ubuntu) => ubuntu.id),
   associatePublicIpAddress: true,
   instanceType: "t3.medium",
-  subnetId: vpcPublicSubnetId1.then(),
-
-  vpcSecurityGroupIds: [redashDbSecgrp.id],
+  subnetId: vpcPublicSubnetId2.then(),
   rootBlockDevice: {
     volumeSize: 50,
   },
