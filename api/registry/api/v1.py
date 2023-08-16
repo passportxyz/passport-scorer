@@ -2,6 +2,7 @@ from typing import List
 from urllib.parse import urljoin
 
 import api_logging as logging
+import django_filters
 import requests
 from account.api import UnauthorizedException, create_community_for_account
 
@@ -30,6 +31,7 @@ from ..exceptions import (
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
     InvalidNonceException,
+    InvalidOrderByFieldException,
     InvalidSignerException,
     aapi_get_object_or_404,
     api_get_object_or_404,
@@ -314,6 +316,22 @@ def handle_get_score(
         raise InvalidCommunityScoreRequestException() from e
 
 
+class ScoreFilter(django_filters.FilterSet):
+    last_score_timestamp__gt = django_filters.IsoDateTimeFilter(
+        field_name="last_score_timestamp", lookup_expr="gt"
+    )
+    last_score_timestamp__gte = django_filters.IsoDateTimeFilter(
+        field_name="last_score_timestamp", lookup_expr="gte"
+    )
+    address = django_filters.CharFilter(
+        field_name="passport__address", lookup_expr="iexact"
+    )
+
+    class Meta:
+        model = Score
+        fields = ["last_score_timestamp"]
+
+
 @router.get(
     "/score/{int:scorer_id}",
     auth=ApiKey(),
@@ -327,11 +345,28 @@ def handle_get_score(
     description="""Use this endpoint to fetch the scores for all addresses that are associated with a scorer\n
 This API will return a list of `DetailedScoreResponse` objects. The endpoint supports pagination and will return a maximum of 1000 scores per request.\n
 Pass a limit and offset query parameter to paginate the results. For example: `/score/1?limit=100&offset=100` will return the second page of 100 scores.\n
+The `last_score_timestamp__gt` and `last_score_timestamp__gte` query parameters are expected to be ISO 8601 formatted timestamps:\n
+- `last_score_timestamp__gt` - will return only results having the timestamp greater than the provided value.\n
+- `last_score_timestamp__gte` - will return only results having the timestamp greater or equal than the provided value.\n
+
+Examples of valid values for `last_score_timestamp__gt` and `last_score_timestamp__gt` filters: \n
+- 2023-05-10T07:49:08Z\n
+- 2023-05-10T07:49:08.610198+00:00\n
+- 2023-05-10\n
+
+Please note that while using both parameters (`last_score_timestamp__gt` and `last_score_timestamp__gte`) is possible and both filters are applied. \
+But this generally makes no sense.
 """,
 )
 @paginate(pass_parameter="pagination_info")
 def get_scores(
-    request, scorer_id: int, address: str = "", **kwargs
+    request,
+    scorer_id: int,
+    address: str = "",
+    last_score_timestamp__gt: str = "",
+    last_score_timestamp__gte: str = "",
+    order_by: str = "id",
+    **kwargs,
 ) -> List[DetailedScoreResponse]:
     check_rate_limit(request)
     if kwargs["pagination_info"].limit > 1000:
@@ -344,12 +379,31 @@ def get_scores(
     user_community = get_scorer_by_id(scorer_id, request.auth)
 
     try:
-        scores = Score.objects.filter(
-            passport__community__id=user_community.id
-        ).select_related("passport")
+        ORDER_BY_MAPPINGS = {
+            "last_score_timestamp": "last_score_timestamp",
+            "id": "pk",
+        }
 
-        if address:
-            scores = scores.filter(passport__address=address.lower())
+        ordered_by = ORDER_BY_MAPPINGS.get(order_by)
+
+        if not ordered_by:
+            raise InvalidOrderByFieldException()
+
+        scores = (
+            Score.objects.filter(passport__community__id=user_community.pk)
+            .order_by(ordered_by)
+            .select_related("passport")
+        )
+
+        filter_values = {
+            "address": address,
+            "last_score_timestamp__gt": last_score_timestamp__gt,
+            "last_score_timestamp__gte": last_score_timestamp__gte,
+        }
+        # Technically we could just pass request.GET to the filter. But since we have the parameters defined
+        # anyways (because we need them for the generated docs) we might as well use them explicitly in the
+        # filter_values.
+        scores = ScoreFilter(filter_values, queryset=scores).qs
 
         return scores
 

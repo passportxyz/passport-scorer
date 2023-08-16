@@ -43,11 +43,13 @@ class Stamp(models.Model):
 class Score(models.Model):
     class Status:
         PROCESSING = "PROCESSING"
+        BULK_PROCESSING = "BULK_PROCESSING"
         DONE = "DONE"
         ERROR = "ERROR"
 
     STATUS_CHOICES = [
         (Status.PROCESSING, Status.PROCESSING),
+        (Status.BULK_PROCESSING, Status.BULK_PROCESSING),
         (Status.DONE, Status.DONE),
         (Status.ERROR, Status.ERROR),
     ]
@@ -56,7 +58,9 @@ class Score(models.Model):
         Passport, on_delete=models.PROTECT, related_name="score", unique=True
     )
     score = models.DecimalField(null=True, blank=True, decimal_places=9, max_digits=18)
-    last_score_timestamp = models.DateTimeField(default=None, null=True, blank=True)
+    last_score_timestamp = models.DateTimeField(
+        default=None, null=True, blank=True, db_index=True
+    )
     status = models.CharField(
         choices=STATUS_CHOICES, max_length=20, null=True, default=None, db_index=True
     )
@@ -65,3 +69,40 @@ class Score(models.Model):
 
     def __str__(self):
         return f"Score #{self.id}, score={self.score}, last_score_timestamp={self.last_score_timestamp}, status={self.status}, error={self.error}, evidence={self.evidence}, passport_id={self.passport_id}"
+
+
+class Event(models.Model):
+    # Example usage:
+    #   obj.action = Event.Action.FIFO_DEDUPLICATION
+    class Action(models.TextChoices):
+        FIFO_DEDUPLICATION = "FDP"
+        LIFO_DEDUPLICATION = "LDP"
+        TRUSTALAB_SCORE = "TLS"
+
+    action = models.CharField(
+        max_length=3,
+        choices=Action.choices,
+        blank=False,
+    )
+
+    address = EthAddressField(blank=True, max_length=42)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    data = models.JSONField()
+
+
+class HashScorerLink(models.Model):
+    hash = models.CharField(null=False, blank=False, max_length=100, db_index=True)
+    community = models.ForeignKey(
+        Community,
+        related_name="burned_hashes",
+        on_delete=models.CASCADE,
+        null=False,
+        db_index=True,
+    )
+    address = EthAddressField(null=False, blank=False, max_length=42, db_index=True)
+    expires_at = models.DateTimeField(null=False, blank=False, db_index=True)
+
+    class Meta:
+        unique_together = ["hash", "community"]

@@ -68,6 +68,11 @@ class InvalidAPIKeyPermissions(APIException):
     default_detail = "Invalid permissions for action."
 
 
+class InvalidOrderByFieldException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Invalid order_by_field value"
+
+
 def api_get_object_or_404(klass, *args, **kwargs):
     """
     Note: this is an adjusted clone of djangos get_object_or_404

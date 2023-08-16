@@ -1,10 +1,11 @@
+import datetime
+
 import pytest
 from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import Client
-from registry import permissions
 from registry.api.v1 import get_scorer_by_id
 from registry.models import Passport, Score
 from web3 import Web3
@@ -20,6 +21,7 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def paginated_scores(scorer_passport, passport_holder_addresses, scorer_community):
     scores = []
+    i = 0
     for holder in passport_holder_addresses:
         passport = Passport.objects.create(
             address=holder["address"],
@@ -29,9 +31,12 @@ def paginated_scores(scorer_passport, passport_holder_addresses, scorer_communit
         score = Score.objects.create(
             passport=passport,
             score="1",
+            last_score_timestamp=datetime.datetime.now()
+            + datetime.timedelta(days=i + 1),
         )
 
         scores.append(score)
+        i += 1
     return scores
 
 
@@ -104,6 +109,70 @@ class TestPassportGetScore:
                 response_data["items"][i]["address"]
                 == passport_holder_addresses[offset + i]["address"].lower()
             )
+
+    def test_get_scores_returns_paginated_and_pk_sorted_response(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        request_params = [[0, 3], [3, 5]]
+
+        for offset, limit in request_params:
+            # Get the PKs of the scores we are expecting
+            expected_pks = [
+                score.pk for score in paginated_scores[offset : offset + limit]
+            ]
+
+            client = Client()
+            response = client.get(
+                f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}",
+                HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            )
+            response_data = response.json()
+
+            assert response.status_code == 200
+            returned_pks = [
+                Score.objects.filter(passport__address=item["address"]).get().pk
+                for item in response_data["items"]
+            ]
+
+            assert expected_pks == returned_pks
+
+    def test_get_scores_returns_paginated_and_datetime_sorted_response(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        request_params = [[0, 3], [3, 5]]
+
+        for offset, limit in request_params:
+            # Get the PKs of the scores we are expecting
+            sorted_scores = sorted(
+                paginated_scores,
+                key=lambda score: score.last_score_timestamp,
+            )
+            expected_pks = [
+                score.pk for score in sorted_scores[offset : offset + limit]
+            ]
+
+            client = Client()
+            response = client.get(
+                f"/registry/score/{scorer_community.id}?limit={limit}&offset={offset}&order_by=last_score_timestamp",
+                HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            )
+            response_data = response.json()
+
+            assert response.status_code == 200
+            returned_pks = [
+                Score.objects.filter(passport__address=item["address"]).get().pk
+                for item in response_data["items"]
+            ]
+
+            assert expected_pks == returned_pks
 
     def test_get_scores_returns_first_page_scores_v2(
         self,
@@ -207,6 +276,102 @@ class TestPassportGetScore:
             response.json()["items"][0]["address"]
             == passport_holder_addresses[0]["address"].lower()
         )
+
+    def test_get_scores_filter_by_last_score_timestamp__gt(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        scores = list(Score.objects.all())
+        middle = len(scores) // 2
+        older_scores = scores[:middle]
+        newer_scores = scores[middle:]
+        now = datetime.datetime.now()
+        past_time_stamp = now - datetime.timedelta(days=1)
+        future_time_stamp = now + datetime.timedelta(days=1)
+
+        # Make sure we have sufficient data in both queries
+        assert len(newer_scores) >= 2
+        assert len(older_scores) >= 2
+
+        for score in older_scores:
+            score.last_score_timestamp = past_time_stamp
+            score.save()
+
+        # The first score will have a last_score_timestamp equal to the value we filter by
+        for idx, score in enumerate(newer_scores):
+            if idx == 0:
+                score.last_score_timestamp = now
+            else:
+                score.last_score_timestamp = future_time_stamp
+            score.save()
+
+        # Check the query when the filtered timestamo equals a score last_score_timestamp
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?last_score_timestamp__gt={now.isoformat()}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        assert len(response.json()["items"]) == len(newer_scores) - 1
+
+        # Check the query when the filtered timestamo does not equal a score last_score_timestamp
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?last_score_timestamp__gt={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        assert len(response.json()["items"]) == len(newer_scores)
+
+    def test_get_scores_filter_by_last_score_timestamp__gte(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        scores = list(Score.objects.all())
+        middle = len(scores) // 2
+        older_scores = scores[:middle]
+        newer_scores = scores[middle:]
+        now = datetime.datetime.now()
+        past_time_stamp = now - datetime.timedelta(days=1)
+        future_time_stamp = now + datetime.timedelta(days=1)
+
+        # Make sure we have sufficient data in both queries
+        assert len(newer_scores) >= 2
+        assert len(older_scores) >= 2
+
+        for score in older_scores:
+            score.last_score_timestamp = past_time_stamp
+            score.save()
+
+        # The first score will have a last_score_timestamp equal to the value we filter by
+        for idx, score in enumerate(newer_scores):
+            if idx == 0:
+                score.last_score_timestamp = now
+            else:
+                score.last_score_timestamp = future_time_stamp
+            score.save()
+
+        # Check the query when the filtered timestamo equals a score last_score_timestamp
+        client = Client()
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?last_score_timestamp__gte={now.isoformat()}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        assert len(response.json()["items"]) == len(newer_scores)
+
+        # Check the query when the filtered timestamo does not equal a score last_score_timestamp
+        response = client.get(
+            f"/registry/score/{scorer_community.id}?last_score_timestamp__gte={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        assert len(response.json()["items"]) == len(newer_scores)
 
     def test_get_single_score_for_address_in_path(
         self,

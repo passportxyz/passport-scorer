@@ -81,7 +81,11 @@ INSTALLED_APPS = [
     "account",
     "ninja_extra",
     "social_django",
+    "passport_admin",
     # "debug_toolbar",
+    "cgrants",
+    "django_filters",
+    "trusta_labs",
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -133,6 +137,10 @@ CSRF_TRUSTED_ORIGINS = env.json("CSRF_TRUSTED_ORIGINS", default=[])
 
 DATABASES = {
     "default": env.db(default="sqlite:///db.sqlite3"),
+    "read_replica_0": {
+        **env.db_url("READ_REPLICA_0_URL", default="sqlite:///db.sqlite3"),
+        "TEST": {"MIRROR": "default"},
+    },
 }
 
 
@@ -186,6 +194,8 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
 }
+
+LOG_SQL_QUERIES = env("LOG_SQL_QUERIES", default=False)
 
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -322,6 +332,16 @@ else:
             },
             "django.db.backends": {
                 "level": "DEBUG",
+                "handlers": ["debugConsole"] if LOG_SQL_QUERIES else [],
+                "propagate": False,
+            },
+            "urllib3": {
+                "level": "DEBUG",
+                "handlers": [],
+                "propagate": False,
+            },
+            "botocore": {
+                "level": "DEBUG",
                 "handlers": [],
                 "propagate": False,
             },
@@ -383,6 +403,9 @@ TRUSTED_IAM_ISSUER = env(
     "TRUSTED_IAM_ISSUER", default="did:key:GlMY_1zkc0i11O-wMBWbSiUfIkZiXzFLlAQ89pdfyBA"
 )
 
+CGRANTS_API_TOKEN = env("CGRANTS_API_TOKEN", default="abc")
+
+FF_DEDUP_WITH_LINK_TABLE = env("FF_DEDUP_WITH_LINK_TABLE", default="off")
 
 IPWARE_META_PRECEDENCE_ORDER = (
     "X_FORWARDED_FOR",

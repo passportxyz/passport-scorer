@@ -1,3 +1,4 @@
+import copy
 from datetime import datetime
 from typing import Dict, List
 
@@ -15,6 +16,8 @@ from registry.utils import get_utc_time, validate_credential, verify_issuer
 
 log = logging.getLogger(__name__)
 
+Hash = str
+
 
 def asave_api_key_analytics(api_key_id, path):
     try:
@@ -26,8 +29,14 @@ def asave_api_key_analytics(api_key_id, path):
         pass
 
 
-async def aremove_existing_stamps_from_db(passport: Passport):
-    await Stamp.objects.filter(passport=passport).adelete()
+async def aremove_stale_stamps_from_db(passport: Passport, passport_data: dict):
+    current_hashes = [
+        stamp["credential"]["credentialSubject"]["hash"]
+        for stamp in passport_data["stamps"]
+    ]
+    await Stamp.objects.filter(passport=passport).exclude(
+        hash__in=current_hashes
+    ).adelete()
 
 
 async def aload_passport_data(address: str) -> Dict:
@@ -57,7 +66,7 @@ async def acalculate_score(passport: Passport, community_id: int, score: Score):
     log.info("Calculated score: %s", score)
 
 
-async def aprocess_deduplication(passport, community, passport_data):
+async def aprocess_deduplication(passport, community, passport_data, score: Score):
     """
     Process deduplication based on the community rule
     """
@@ -97,7 +106,7 @@ async def aprocess_deduplication(passport, community, passport_data):
 
             affected_score, _ = await Score.objects.aupdate_or_create(
                 passport=passport,
-                defaults=dict(score=None, status=Score.Status.PROCESSING),
+                defaults=dict(score=None, status=score.status),
             )
             await acalculate_score(passport, passport.community_id, affected_score)
             await affected_score.asave()
@@ -105,25 +114,18 @@ async def aprocess_deduplication(passport, community, passport_data):
     return deduplicated_passport
 
 
-async def avalidate_and_save_stamps(
-    passport: Passport, community: Community, passport_data
-):
-    log.debug("processing deduplication")
+async def avalidate_credentials(passport: Passport, passport_data) -> dict:
+    log.debug("validating credentials")
 
-    deduped_passport_data = await aprocess_deduplication(
-        passport, community, passport_data
-    )
+    validated_passport = copy.deepcopy(passport_data)
+    validated_passport["stamps"] = []
 
     did = get_did(passport.address)
 
-    log.debug(
-        "validating stamps deduped_passport_data: %s", deduped_passport_data["stamps"]
-    )
-    for stamp in deduped_passport_data["stamps"]:
+    for stamp in passport_data["stamps"]:
         log.debug(
             "validating credential did='%s' credential='%s'", did, stamp["credential"]
         )
-        stamp_return_errors = await validate_credential(did, stamp["credential"])
         try:
             # TODO: use some library or https://docs.python.org/3/library/datetime.html#datetime.datetime.fromisoformat to
             # parse iso timestamps
@@ -138,19 +140,16 @@ async def avalidate_and_save_stamps(
         is_issuer_verified = verify_issuer(stamp)
         # check that expiration date is not in the past
         stamp_is_expired = stamp_expiration_date < datetime.now()
-        if (
-            len(stamp_return_errors) == 0
-            and not stamp_is_expired
-            and is_issuer_verified
-        ):
-            await Stamp.objects.aupdate_or_create(
-                hash=stamp["credential"]["credentialSubject"]["hash"],
-                passport=passport,
-                defaults={
-                    "provider": stamp["provider"],
-                    "credential": stamp["credential"],
-                },
-            )
+        stamp_return_errors = []
+        valid = False
+        if not stamp_is_expired and is_issuer_verified:
+            # do expensive operation last
+            stamp_return_errors = await validate_credential(did, stamp["credential"])
+            if len(stamp_return_errors) == 0:
+                valid = True
+
+        if valid:
+            validated_passport["stamps"].append(copy.deepcopy(stamp))
         else:
             log.info(
                 "Stamp not created. Stamp=%s\nReason: errors=%s stamp_is_expired=%s is_issuer_verified=%s",
@@ -160,22 +159,43 @@ async def avalidate_and_save_stamps(
                 is_issuer_verified,
             )
 
+    return validated_passport
+
+
+async def asave_stamps(passport: Passport, deduped_passport_data) -> None:
+    log.debug(
+        "saving stamps deduped_passport_data: %s", deduped_passport_data["stamps"]
+    )
+
+    for stamp in deduped_passport_data["stamps"]:
+        await Stamp.objects.aupdate_or_create(
+            hash=stamp["credential"]["credentialSubject"]["hash"],
+            passport=passport,
+            defaults={
+                "provider": stamp["provider"],
+                "credential": stamp["credential"],
+            },
+        )
+
 
 async def ascore_passport(
     community: Community, passport: Passport, address: str, score: Score
 ):
     log.info(
         "score_passport request for community_id=%s, address='%s'",
-        community.id,
+        community.pk,
         address,
     )
 
     try:
-        # passport = load_passport_record(community_id, address)
-        await aremove_existing_stamps_from_db(passport)
         passport_data = await aload_passport_data(address)
-        await avalidate_and_save_stamps(passport, community, passport_data)
-        await acalculate_score(passport, community.id, score)
+        validated_passport_data = await avalidate_credentials(passport, passport_data)
+        deduped_passport_data = await aprocess_deduplication(
+            passport, community, validated_passport_data, score
+        )
+        await asave_stamps(passport, deduped_passport_data)
+        await aremove_stale_stamps_from_db(passport, deduped_passport_data)
+        await acalculate_score(passport, community.pk, score)
 
     except APIException as e:
         log.error(

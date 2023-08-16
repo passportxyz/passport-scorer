@@ -78,7 +78,7 @@ const postgresql = new aws.rds.Instance(
   `scorer-db`,
   {
     allocatedStorage: 20,
-    maxAllocatedStorage: 100,
+    maxAllocatedStorage: 500,
     engine: "postgres",
     // engineVersion: "5.7",
     instanceClass: "db.t3.2xlarge",
@@ -98,10 +98,9 @@ const readreplica0 = new aws.rds.Instance(
   `scorer-db-read-0`,
   {
     allocatedStorage: 20,
-    maxAllocatedStorage: 100,
-    instanceClass: "db.t3.medium",
+    maxAllocatedStorage: 500,
+    instanceClass: "db.t3.xlarge",
     skipFinalSnapshot: true,
-    dbSubnetGroupName: dbSubnetGroup.id,
     vpcSecurityGroupIds: [db_secgrp.id],
     deletionProtection: true,
     backupRetentionPeriod: 5,
@@ -114,6 +113,9 @@ export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
+);
+export const readreplica0ConnectionUrl = pulumi.secret(
+  pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${readreplica0.endpoint}/${dbName}`
 );
 export const rdsId = postgresql.id;
 
@@ -381,6 +383,26 @@ const secrets = [
     name: "FF_API_ANALYTICS",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_API_ANALYTICS::`,
   },
+  {
+    name: "FF_DEDUP_WITH_LINK_TABLE",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_DEDUP_WITH_LINK_TABLE::`,
+  },
+  {
+    name: "CGRANTS_API_TOKEN",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:CGRANTS_API_TOKEN::`,
+  },
+  {
+    name: "S3_DATA_AWS_SECRET_KEY_ID",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_KEY_ID::`,
+  },
+  {
+    name: "S3_DATA_AWS_SECRET_ACCESS_KEY",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_ACCESS_KEY::`,
+  },
+  {
+    name: "S3_WEEKLY_BACKUP_BUCKET_NAME",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_WEEKLY_BACKUP_BUCKET_NAME::`,
+  },
 ];
 const environment = [
   {
@@ -390,6 +412,10 @@ const environment = [
   {
     name: "DATABASE_URL",
     value: rdsConnectionUrl,
+  },
+  {
+    name: "READ_REPLICA_0_URL",
+    value: readreplica0ConnectionUrl,
   },
   {
     name: "UI_DOMAINS",
@@ -503,7 +529,7 @@ const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
   "scorer-autoscaling-target",
   {
     maxCapacity: 20,
-    minCapacity: 2,
+    minCapacity: 5,
     resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${service.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
     serviceNamespace: "ecs",
@@ -521,9 +547,9 @@ const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
       predefinedMetricSpecification: {
         predefinedMetricType: "ECSServiceAverageCPUUtilization",
       },
-      targetValue: 30,
-      scaleInCooldown: 300,
-      scaleOutCooldown: 300,
+      targetValue: 50,
+      scaleInCooldown: 600,
+      scaleOutCooldown: 150,
     },
   }
 );
@@ -588,11 +614,13 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
 
 const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
   cluster,
-  desiredCount: 2,
+  desiredCount: 0,
   subnets: vpc.privateSubnetIds,
   taskDefinitionArgs: {
     logGroup: workerLogGroup,
     executionRole: workerRole,
+    cpu: "16vCPU",
+    memory: "32GB",
     containers: {
       worker1: {
         image: dockerGtcPassportScorerImage,
@@ -604,10 +632,8 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
           "-Q",
           "score_registry_passport",
           "-c",
-          "16",
+          "32",
         ],
-        memory: 2048,
-        cpu: 1000,
         portMappings: [],
         secrets: secrets,
         environment: environment,
@@ -700,9 +726,9 @@ const ecsScorerWorker2Autoscaling = new aws.appautoscaling.Policy(
       predefinedMetricSpecification: {
         predefinedMetricType: "ECSServiceAverageCPUUtilization",
       },
-      targetValue: 30,
-      scaleInCooldown: 300,
-      scaleOutCooldown: 30,
+      targetValue: 50,
+      scaleInCooldown: 600,
+      scaleOutCooldown: 150,
     },
   }
 );
