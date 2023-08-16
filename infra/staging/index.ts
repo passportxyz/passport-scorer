@@ -1001,12 +1001,6 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup("redashSecurityGroup", {
 });
 
 const redashInitScript = `#!/bin/bash
-
-apt-get update -y
-apt-get upgrade -y
-
-apt-get install -y git docker docker-compose
-
 export POSTGRES_PASSWORD="${redashDbPassword}"
 export REDASH_DATABASE_URL="${redashDb.endpoint}"
 
@@ -1034,9 +1028,6 @@ const redashinstance = new aws.ec2.Instance(
     // },
     // change to xl in prod
     instanceType: "t3.medium",
-    privateDnsNameOptions: {
-      hostnameType: "ip-name",
-    },
     // rootBlockDevice: {
     //   iops: 100,
     //   volumeSize: 16,
@@ -1045,6 +1036,7 @@ const redashinstance = new aws.ec2.Instance(
     tags: {
       Name: "Redash Analytics",
     },
+    subnetId: vpcPublicSubnetId1.then(),
     tenancy: "default",
     vpcSecurityGroupIds: [redashSecurityGroup.id],
     userData: redashInitScript,
