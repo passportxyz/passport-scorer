@@ -1001,6 +1001,7 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup("redashSecurityGroup", {
 });
 
 const redashInitScript = `#!/bin/bash
+touch /var/log/redash-init.log
 logfile="/var/log/redash-init.log"
 
 exec > $logfile 2>&1
