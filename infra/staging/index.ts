@@ -1072,7 +1072,6 @@ cd data
 sudo docker-compose run --rm server create_db
 sudo docker-compose up -d
 
-echo "Startup script completed."
 `);
 
 
@@ -1139,12 +1138,12 @@ const redashHttpListener = redashAlb.createListener("redash-listener", {
   },
 });
 
-// Target group with the port of the Docker image
+// Target group with the port of the UI
 const redashTarget = redashAlb.createTargetGroup("redash-target", {
   vpc,
-  port: 5555,
+  port: 80,
   protocol: "HTTP",
-  healthCheck: { path: "/healthcheck", unhealthyThreshold: 5 },
+  healthCheck: { path: "/ping", unhealthyThreshold: 5 },
 });
 
 // Listen to traffic on port 443 & route it through the target group
@@ -1164,6 +1163,11 @@ const redashRecord = new aws.route53.Record("redash", {
       evaluateTargetHealth: true,
     },
   ],
+});
+
+new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
+  targetId: redashinstance.privateIp,
+  targetGroupArn: redashTarget.targetGroup.arn,
 });
 
 // DELETE ON DEPLOYMENT
