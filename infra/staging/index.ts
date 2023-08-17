@@ -1010,7 +1010,7 @@ const redashDb = new aws.rds.Instance("redash-db", {
 
 const dbUrl = redashDb.endpoint;
 export const redashDbUrl = pulumi.secret(
-  pulumi.interpolate`psql://${redashDbUsername}:${redashDbPassword}@${dbUrl}/${redashDbName}`
+  pulumi.interpolate`postgresql://${redashDbUsername}:${redashDbPassword}@${dbUrl}/${redashDbName}`
 );
 
 const redashSecurityGroup = new aws.ec2.SecurityGroup(
@@ -1052,10 +1052,12 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
   }
 );
 
-const redashInitScript = `#!/bin/bash
+// const redashDbUrlString = redashDbUrl.apply((url) => url).toString();
+
+const redashInitScript = redashDbUrl.apply((url) => `#!/bin/bash
 echo "Setting environment variables..."
 export POSTGRES_PASSWORD="${redashDbPassword}"
-export REDASH_DATABASE_URL="${redashDbUrl}"
+export REDASH_DATABASE_URL="${url}"
 
 echo "Cloning passport-redash repository..."
 git clone https://github.com/gitcoinco/passport-redash.git
@@ -1063,14 +1065,16 @@ git clone https://github.com/gitcoinco/passport-redash.git
 echo "Changing directory and setting permissions..."
 cd passport-redash
 sudo chmod +x ./setup.sh
-
-echo "Running setup script..."
 ./setup.sh
+
+cd data
 
 sudo docker-compose run --rm server create_db
 sudo docker-compose up -d
+
 echo "Startup script completed."
-`;
+`);
+
 
 const redashinstance = new aws.ec2.Instance("redashinstance", {
   ami: ubuntu.then((ubuntu) => ubuntu.id),
