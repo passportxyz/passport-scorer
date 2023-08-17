@@ -1067,6 +1067,8 @@ sudo chmod +x ./setup.sh
 echo "Running setup script..."
 ./setup.sh
 
+sudo docker-compose run --rm server create_db
+sudo docker-compose up -d
 echo "Startup script completed."
 `;
 
