@@ -1087,6 +1087,81 @@ const redashinstance = new aws.ec2.Instance("redashinstance", {
   securityGroups: [redashSecurityGroup.id],
 });
 
+// Generate an SSL certificate
+const redashCertificate = new aws.acm.Certificate("redash", {
+  domainName: "redash." + domain,
+  tags: {
+    Environment: "staging",
+  },
+  validationMethod: "DNS",
+});
+
+const redashCertificateValidationDomain = new aws.route53.Record(
+  `redash.${domain}-validation`,
+  {
+    name: redashCertificate.domainValidationOptions[0].resourceRecordName,
+    zoneId: route53Zone,
+    type: redashCertificate.domainValidationOptions[0].resourceRecordType,
+    records: [redashCertificate.domainValidationOptions[0].resourceRecordValue],
+    ttl: 600,
+  }
+);
+
+const redashCertificateValidation = new aws.acm.CertificateValidation(
+  "redashCertificateValidation",
+  {
+    certificateArn: redashCertificate.arn,
+    validationRecordFqdns: [redashCertificateValidationDomain.fqdn],
+  },
+  { customTimeouts: { create: "30s", update: "30s" } }
+);
+
+// Creates an ALB associated with our custom VPC.
+const redashAlb = new awsx.lb.ApplicationLoadBalancer(`redash-service`, {
+  vpc,
+});
+
+// Listen to HTTP traffic on port 80 and redirect to 443
+const redashHttpListener = redashAlb.createListener("redash-listener", {
+  port: 80,
+  protocol: "HTTP",
+  defaultAction: {
+    type: "redirect",
+    redirect: {
+      protocol: "HTTPS",
+      port: "443",
+      statusCode: "HTTP_301",
+    },
+  },
+});
+
+// Target group with the port of the Docker image
+const redashTarget = redashAlb.createTargetGroup("redash-target", {
+  vpc,
+  port: 5555,
+  protocol: "HTTP",
+  healthCheck: { path: "/healthcheck", unhealthyThreshold: 5 },
+});
+
+// Listen to traffic on port 443 & route it through the target group
+const redashHttpsListener = redashTarget.createListener("redash-listener", {
+  port: 443,
+  certificateArn: redashCertificate.arn,
+});
+
+const redashRecord = new aws.route53.Record("redash", {
+  zoneId: route53Zone,
+  name: "redash." + domain,
+  type: "A",
+  aliases: [
+    {
+      name: redashHttpsListener.endpoint.hostname,
+      zoneId: redashHttpsListener.loadBalancer.loadBalancer.zoneId,
+      evaluateTargetHealth: true,
+    },
+  ],
+});
+
 // DELETE ON DEPLOYMENT
 export const redashSecrets = pulumi.secret(
   pulumi.interpolate`redashDbPassword=${redashDbPassword}  |   redashDbUrl = ${redashDbUrl}`
