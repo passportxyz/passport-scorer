@@ -203,3 +203,7 @@ jobs:
           DB_USER: ${{ secrets.DB_USER }}
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+          REDASH_DB_NAME: ${{ secrets.REDASH_DB_NAME }}
+          REDASH_DB_PASSWORD: ${{ secrets.REDASH_DB_PASSWORD }}
+          REDASH_DB_USER: ${{ secrets.REDASH_DB_USER }}

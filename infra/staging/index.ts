@@ -997,7 +997,7 @@ const redashDb = new aws.rds.Instance("redash-db", {
   maxAllocatedStorage: 20,
   engine: "postgres",
   engineVersion: "13.10",
-  instanceClass: "db.t3.medium",
+  instanceClass: "db.t3.micro",
   dbName: redashDbName,
   password: redashDbPassword,
   username: redashDbUsername,
@@ -1169,9 +1169,3 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
   targetId: redashinstance.privateIp,
   targetGroupArn: redashTarget.targetGroup.arn,
 });
-
-// DELETE ON DEPLOYMENT
-export const redashSecrets = pulumi.secret(
-  pulumi.interpolate`redashDbPassword=${redashDbPassword}  |   redashDbUrl = ${redashDbUrl}`
-);
-// DELETE / END DELETE ON DEPLOYMENT
