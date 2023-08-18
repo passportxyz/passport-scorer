@@ -961,3 +961,211 @@ export const ec2PublicIp = web.publicIp;
 export const dockrRunCmd = pulumi.secret(
   pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
+
+///////////////////////
+// Redash instance
+///////////////////////
+
+const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp`, {
+  description: "Security Group for DB",
+  vpcId: vpc.id,
+  ingress: [
+    {
+      protocol: "tcp",
+      fromPort: 5432,
+      toPort: 5432,
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+  egress: [
+    {
+      protocol: "-1",
+      fromPort: 0,
+      toPort: 0,
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+});
+
+let redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
+let redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
+let redashDbName = `${process.env["REDASH_DB_NAME"]}`;
+
+// Create an RDS instance
+const redashDb = new aws.rds.Instance("redash-db", {
+  allocatedStorage: 20,
+  maxAllocatedStorage: 20,
+  engine: "postgres",
+  engineVersion: "13.10",
+  instanceClass: "db.t3.micro",
+  dbName: redashDbName,
+  password: redashDbPassword,
+  username: redashDbUsername,
+  skipFinalSnapshot: true,
+  dbSubnetGroupName: dbSubnetGroup.id,
+  vpcSecurityGroupIds: [redashDbSecgrp.id],
+  backupRetentionPeriod: 5,
+  performanceInsightsEnabled: true,
+});
+
+const dbUrl = redashDb.endpoint;
+export const redashDbUrl = pulumi.secret(
+  pulumi.interpolate`postgresql://${redashDbUsername}:${redashDbPassword}@${dbUrl}/${redashDbName}`
+);
+
+const redashSecurityGroup = new aws.ec2.SecurityGroup(
+  "redashServerSecurityGroup",
+  {
+    vpcId: vpc.id,
+    ingress: [
+      {
+        protocol: "tcp",
+        fromPort: 443,
+        toPort: 443,
+        cidrBlocks: ["0.0.0.0/0"],
+      }, // IPv4 HTTPS
+      { protocol: "tcp", fromPort: 443, toPort: 443, ipv6CidrBlocks: ["::/0"] }, // IPv6 HTTPS
+      { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 SSH
+      { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 HTTP
+      { protocol: "tcp", fromPort: 80, toPort: 80, ipv6CidrBlocks: ["::/0"] }, // IPv6 HTTP
+      {
+        protocol: "tcp",
+        fromPort: 5000,
+        toPort: 5000,
+        cidrBlocks: ["0.0.0.0/0"],
+      }, // IPv4 Custom TCP 5000
+      {
+        protocol: "tcp",
+        fromPort: 5000,
+        toPort: 5000,
+        ipv6CidrBlocks: ["::/0"],
+      }, // IPv6 Custom TCP 5000
+    ],
+    egress: [
+      {
+        protocol: "-1",
+        fromPort: 0,
+        toPort: 0,
+        cidrBlocks: ["0.0.0.0/0"],
+      },
+    ],
+  }
+);
+
+// const redashDbUrlString = redashDbUrl.apply((url) => url).toString();
+
+const redashInitScript = redashDbUrl.apply((url) => `#!/bin/bash
+echo "Setting environment variables..."
+export POSTGRES_PASSWORD="${redashDbPassword}"
+export REDASH_DATABASE_URL="${url}"
+
+echo "Cloning passport-redash repository..."
+git clone https://github.com/gitcoinco/passport-redash.git
+
+echo "Changing directory and setting permissions..."
+cd passport-redash
+sudo chmod +x ./setup.sh
+./setup.sh
+
+cd data
+
+sudo docker-compose run --rm server create_db
+sudo docker-compose up -d
+
+`);
+
+
+const redashinstance = new aws.ec2.Instance("redashinstance", {
+  ami: ubuntu.then((ubuntu) => ubuntu.id),
+  associatePublicIpAddress: true,
+  instanceType: "t3.medium",
+  subnetId: vpcPublicSubnetId2.then(),
+  rootBlockDevice: {
+    volumeSize: 50,
+  },
+  tags: {
+    Name: "Redash Analytics",
+  },
+  userData: redashInitScript,
+  securityGroups: [redashSecurityGroup.id],
+});
+
+// Generate an SSL certificate
+const redashCertificate = new aws.acm.Certificate("redash", {
+  domainName: "redash." + domain,
+  tags: {
+    Environment: "staging",
+  },
+  validationMethod: "DNS",
+});
+
+const redashCertificateValidationDomain = new aws.route53.Record(
+  `redash.${domain}-validation`,
+  {
+    name: redashCertificate.domainValidationOptions[0].resourceRecordName,
+    zoneId: route53Zone,
+    type: redashCertificate.domainValidationOptions[0].resourceRecordType,
+    records: [redashCertificate.domainValidationOptions[0].resourceRecordValue],
+    ttl: 600,
+  }
+);
+
+const redashCertificateValidation = new aws.acm.CertificateValidation(
+  "redashCertificateValidation",
+  {
+    certificateArn: redashCertificate.arn,
+    validationRecordFqdns: [redashCertificateValidationDomain.fqdn],
+  },
+  { customTimeouts: { create: "30s", update: "30s" } }
+);
+
+// Creates an ALB associated with our custom VPC.
+const redashAlb = new awsx.lb.ApplicationLoadBalancer(`redash-service`, {
+  vpc,
+});
+
+// Listen to HTTP traffic on port 80 and redirect to 443
+const redashHttpListener = redashAlb.createListener("redash-listener", {
+  port: 80,
+  protocol: "HTTP",
+  defaultAction: {
+    type: "redirect",
+    redirect: {
+      protocol: "HTTPS",
+      port: "443",
+      statusCode: "HTTP_301",
+    },
+  },
+});
+
+// Target group with the port of the UI
+const redashTarget = redashAlb.createTargetGroup("redash-target", {
+  vpc,
+  port: 80,
+  protocol: "HTTP",
+  healthCheck: { path: "/ping", unhealthyThreshold: 5 },
+});
+
+// Listen to traffic on port 443 & route it through the target group
+const redashHttpsListener = redashTarget.createListener("redash-listener", {
+  port: 443,
+  certificateArn: redashCertificate.arn,
+});
+
+const redashRecord = new aws.route53.Record("redash", {
+  zoneId: route53Zone,
+  name: "redash." + domain,
+  type: "A",
+  aliases: [
+    {
+      name: redashHttpsListener.endpoint.hostname,
+      zoneId: redashHttpsListener.loadBalancer.loadBalancer.zoneId,
+      evaluateTargetHealth: true,
+    },
+  ],
+});
+
+new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
+  targetId: redashinstance.privateIp,
+  targetGroupArn: redashTarget.targetGroup.arn,
+});
