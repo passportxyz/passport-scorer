@@ -14,7 +14,16 @@ class CeramicCache(models.Model):
         auto_now_add=True,
         blank=True,
         null=True,
-        help_text="This is the timestamp that this DB record was created (it is not necesarily the stamp issuance timestamp)",
+        help_text="This is the timestamp that this DB record was created (it is not necessarily the stamp issuance timestamp)",
+    )
+
+    # NOTE! auto_now is here to make tests easier, but it is not
+    # supported for bulk updates so it should be set explicitly
+    updated_at = models.DateTimeField(
+        blank=False,
+        null=False,
+        auto_now=True,
+        help_text="This is the timestamp that this DB record was updated (it is not necessarily the stamp issuance timestamp)",
     )
 
     class Meta:
