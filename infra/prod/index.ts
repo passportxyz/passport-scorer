@@ -90,6 +90,7 @@ const postgresql = new aws.rds.Instance(
     vpcSecurityGroupIds: [db_secgrp.id],
     deletionProtection: true,
     backupRetentionPeriod: 5,
+    performanceInsightsEnabled: true,
   },
   { protect: true }
 );
@@ -105,6 +106,7 @@ const readreplica0 = new aws.rds.Instance(
     deletionProtection: true,
     backupRetentionPeriod: 5,
     replicateSourceDb: postgresql.id,
+    performanceInsightsEnabled: true,
   },
   { protect: true }
 );
