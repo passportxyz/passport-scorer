@@ -57,7 +57,7 @@ from .schema import (
 )
 
 
-def get_read_db(model):
+def with_read_db(model):
     return model.objects.using(settings.REGISTRY_API_READ_DB)
 
 
@@ -67,7 +67,6 @@ log = logging.getLogger(__name__)
 # api = NinjaExtraAPI(urls_namespace="registry")
 router = Router()
 
-analytics_router = Router()
 
 feature_flag_router = Router()
 
@@ -257,19 +256,25 @@ def handle_submit_passport(
 
 def get_scorer_by_id(scorer_id: int | str, account: Account) -> Community:
     try:
-        return Community.objects.get(external_scorer_id=scorer_id, account=account)
+        return with_read_db(Community).get(
+            external_scorer_id=scorer_id, account=account
+        )
     except Exception:
-        return api_get_object_or_404(Community, id=scorer_id, account=account)
+        return api_get_object_or_404(
+            with_read_db(Community), id=scorer_id, account=account
+        )
 
 
 async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community:
     try:
-        ret = await Community.objects.aget(
+        ret = await with_read_db(Community).aget(
             external_scorer_id=scorer_id, account=account
         )
         return ret
     except Exception:
-        ret = await aapi_get_object_or_404(Community, id=scorer_id, account=account)
+        ret = await aapi_get_object_or_404(
+            with_read_db(Community), id=scorer_id, account=account
+        )
         log.error(
             "Error when getting score by ID (aget_scorer_by_id) %s", aget_scorer_by_id
         )
@@ -396,7 +401,7 @@ def get_scores(
             raise InvalidOrderByFieldException()
 
         scores = (
-            get_read_db(Score)
+            with_read_db(Score)
             .filter(passport__community__id=user_community.pk)
             .order_by(ordered_by)
             .select_related("passport")
@@ -559,135 +564,6 @@ def create_generic_scorer(request, payload: GenericCommunityPayload):
 
     except Account.DoesNotExist:
         raise UnauthorizedException()
-
-
-@analytics_router.get("/score/", auth=ApiKey(), response=CursorPaginatedScoreResponse)
-@permissions_required([ResearcherPermission])
-def get_scores_analytics(
-    request, token: str = None, limit: int = 1000
-) -> CursorPaginatedScoreResponse:
-    if limit > 1000:
-        raise InvalidLimitException()
-
-    query = Score.objects.order_by("id").select_related("passport")
-
-    direction, id = decode_cursor(token) if token else (None, None)
-
-    if direction == "next":
-        scores = list(query.filter(id__gt=id)[:limit])
-    elif direction == "prev":
-        scores = list(query.filter(id__lt=id).order_by("-id")[:limit])
-        scores.reverse()
-    else:
-        scores = list(query[:limit])
-
-    has_more_scores = has_prev_scores = False
-
-    next_id = prev_id = 0
-    has_more_scores = has_prev_scores = False
-    if scores:
-        next_id = scores[-1].pk
-        prev_id = scores[0].pk
-
-        has_more_scores = query.filter(id__gt=next_id).exists()
-        has_prev_scores = query.filter(id__lt=prev_id).exists()
-
-    domain = request.build_absolute_uri("/")[:-1]
-
-    next_url = (
-        f"""{domain}{reverse_lazy_with_query(
-            "analytics:get_scores_analytics",
-            query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
-        )}"""
-        if has_more_scores
-        else None
-    )
-
-    prev_url = (
-        f"""{domain}{reverse_lazy_with_query(
-            "analytics:get_scores_analytics",
-            query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
-        )}"""
-        if has_prev_scores
-        else None
-    )
-
-    response = CursorPaginatedScoreResponse(next=next_url, prev=prev_url, items=scores)
-
-    return response
-
-
-@analytics_router.get(
-    "/score/{int:scorer_id}", auth=ApiKey(), response=CursorPaginatedScoreResponse
-)
-@permissions_required([ResearcherPermission])
-def get_scores_by_community_id_analytics(
-    request,
-    scorer_id: int,
-    address: str = "",
-    token: str = None,
-    limit: int = 1000,
-) -> CursorPaginatedScoreResponse:
-    if limit > 1000:
-        raise InvalidLimitException()
-
-    user_community = api_get_object_or_404(Community, id=scorer_id)
-
-    query = (
-        Score.objects.order_by("id")
-        .filter(passport__community__id=user_community.id)
-        .select_related("passport")
-    )
-
-    if address:
-        query = query.filter(passport__address=address.lower())
-
-    direction, id = decode_cursor(token) if token else (None, None)
-
-    if direction == "next":
-        scores = list(query.filter(id__gt=id)[:limit])
-    elif direction == "prev":
-        scores = list(query.filter(id__lt=id).order_by("-id")[:limit])
-        scores.reverse()
-    else:
-        scores = list(query[:limit])
-
-    has_more_scores = has_prev_scores = False
-
-    next_id = prev_id = 0
-    has_more_scores = has_prev_scores = False
-    if scores:
-        next_id = scores[-1].pk
-        prev_id = scores[0].pk
-
-        has_more_scores = query.filter(id__gt=next_id).exists()
-        has_prev_scores = query.filter(id__lt=prev_id).exists()
-
-    domain = request.build_absolute_uri("/")[:-1]
-
-    next_url = (
-        f"""{domain}{reverse_lazy_with_query(
-            "analytics:get_scores_by_community_id_analytics",
-            args=[scorer_id],
-            query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
-        )}"""
-        if has_more_scores
-        else None
-    )
-
-    prev_url = (
-        f"""{domain}{reverse_lazy_with_query(
-            "analytics:get_scores_by_community_id_analytics",
-            args=[scorer_id],
-            query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
-        )}"""
-        if has_prev_scores
-        else None
-    )
-
-    response = CursorPaginatedScoreResponse(next=next_url, prev=prev_url, items=scores)
-
-    return response
 
 
 def fetch_all_stamp_metadata() -> List[StampDisplayResponse]:
