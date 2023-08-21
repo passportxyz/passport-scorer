@@ -56,6 +56,11 @@ from .schema import (
     SubmitPassportPayload,
 )
 
+
+def get_read_db(model):
+    return model.objects.using(settings.REGISTRY_API_READ_DB)
+
+
 METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 
 log = logging.getLogger(__name__)
@@ -262,11 +267,12 @@ async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community
         ret = await Community.objects.aget(
             external_scorer_id=scorer_id, account=account
         )
-        log.error("===> aget_scorer_by_id %s", ret)
         return ret
     except Exception:
         ret = await aapi_get_object_or_404(Community, id=scorer_id, account=account)
-        log.error("===> exc aget_scorer_by_id %s", aget_scorer_by_id)
+        log.error(
+            "Error when getting score by ID (aget_scorer_by_id) %s", aget_scorer_by_id
+        )
         return ret
 
 
@@ -390,7 +396,8 @@ def get_scores(
             raise InvalidOrderByFieldException()
 
         scores = (
-            Score.objects.filter(passport__community__id=user_community.pk)
+            get_read_db(Score)
+            .filter(passport__community__id=user_community.pk)
             .order_by(ordered_by)
             .select_related("passport")
         )
