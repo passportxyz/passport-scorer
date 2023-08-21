@@ -20,7 +20,6 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
 from .api import (
-    analytics_api,
     ceramic_cache_api,
     feature_flag_api,
     passport_admin_api,
@@ -34,7 +33,6 @@ urlpatterns = [
     path("registry/feature/", feature_flag_api.urls),
     path("ceramic-cache/", ceramic_cache_api.urls),
     path("cgrants/", include("cgrants.urls")),
-    path("analytics/", analytics_api.urls),
     path("health/", health, {}, "health-check"),
     path(
         "admin/login/",

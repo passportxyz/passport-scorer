@@ -6,6 +6,7 @@ import api_logging as logging
 from account.models import Community
 from ninja import Router
 from registry.api import v1
+from registry.api.v1 import with_read_db
 from registry.models import Score
 from registry.utils import decode_cursor, encode_cursor, reverse_lazy_with_query
 
@@ -111,7 +112,8 @@ def get_scores(
     )
     try:
         query = (
-            Score.objects.order_by("id")
+            with_read_db(Score)
+            .order_by("id")
             .filter(passport__community__id=user_community.id)
             .select_related("passport")
         )

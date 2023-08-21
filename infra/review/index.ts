@@ -328,6 +328,10 @@ const secrets = [
     name: "S3_WEEKLY_BACKUP_BUCKET_NAME",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_WEEKLY_BACKUP_BUCKET_NAME::`,
   },
+  {
+    name: "REGISTRY_API_READ_DB",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:REGISTRY_API_READ_DB::`,
+  },
 ];
 const environment = [
   {
