@@ -1,6 +1,12 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
+import {
+  ScorerEnvironmentConfig,
+  createScorerECSService,
+  getEnvironment,
+  secrets,
+} from "./gitcoin";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -214,6 +220,33 @@ const httpsListener = target.createListener("scorer-listener", {
   certificateArn: certificateValidation.certificateArn,
 });
 
+const targetPassport = new aws.lb.TargetGroup("scorer-target-passport", {
+  port: 80,
+  protocol: "HTTP",
+  vpcId: vpcID,
+  targetType: "ip",
+  healthCheck: { path: "/health/", unhealthyThreshold: 5 },
+});
+
+const targetPassportRule = new aws.lb.ListenerRule("scorer-passport", {
+  tags: { name: "scorer-passport" },
+  listenerArn: httpsListener.listener.arn,
+  priority: 100,
+  actions: [
+    {
+      type: "forward",
+      targetGroupArn: targetPassport.arn,
+    },
+  ],
+  conditions: [
+    {
+      pathPattern: {
+        values: ["/wip/ceramic-cache/*"],
+      },
+    },
+  ],
+});
+
 // Create a DNS record for the load balancer
 const www = new aws.route53.Record("scorer", {
   zoneId: route53Zone,
@@ -283,113 +316,19 @@ const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
   },
 });
 
-const secrets = [
-  {
-    name: "SECRET_KEY",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:SECRET_KEY::`,
-  },
-  {
-    name: "GOOGLE_OAUTH_CLIENT_ID",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:GOOGLE_OAUTH_CLIENT_ID::`,
-  },
-  {
-    name: "GOOGLE_CLIENT_SECRET",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:GOOGLE_CLIENT_SECRET::`,
-  },
-  {
-    name: "RATELIMIT_ENABLE",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:RATELIMIT_ENABLE::`,
-  },
-  {
-    name: "TRUSTED_IAM_ISSUER",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:TRUSTED_IAM_ISSUER::`,
-  },
-  {
-    name: "CERAMIC_CACHE_SCORER_ID",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:CERAMIC_CACHE_SCORER_ID::`,
-  },
-  {
-    name: "FF_API_ANALYTICS",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_API_ANALYTICS::`,
-  },
-  {
-    name: "FF_DEDUP_WITH_LINK_TABLE",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_DEDUP_WITH_LINK_TABLE::`,
-  },
-  {
-    name: "CGRANTS_API_TOKEN",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:CGRANTS_API_TOKEN::`,
-  },
-  {
-    name: "S3_DATA_AWS_SECRET_KEY_ID",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_KEY_ID::`,
-  },
-  {
-    name: "S3_DATA_AWS_SECRET_ACCESS_KEY",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_ACCESS_KEY::`,
-  },
-  {
-    name: "S3_WEEKLY_BACKUP_BUCKET_NAME",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_WEEKLY_BACKUP_BUCKET_NAME::`,
-  },
-  {
-    name: "REGISTRY_API_READ_DB",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:REGISTRY_API_READ_DB::`,
-  },
-];
-const environment = [
-  {
-    name: "DEBUG",
-    value: "on",
-  },
-  {
-    name: "DATABASE_URL",
-    value: rdsConnectionUrl,
-  },
-  {
-    name: "READ_REPLICA_0_URL",
-    value: rdsConnectionUrl,
-  },
-  {
-    name: "UI_DOMAINS",
-    value: JSON.stringify([
-      "scorer." + process.env["DOMAIN"],
-      "www.scorer." + process.env["DOMAIN"],
-    ]),
-  },
-  {
-    name: "ALLOWED_HOSTS",
-    value: JSON.stringify([domain, "*"]),
-  },
-  {
-    name: "CSRF_TRUSTED_ORIGINS",
-    value: JSON.stringify([`https://${domain}`]),
-  },
-  {
-    name: "CELERY_BROKER_URL",
-    value: redisCacheOpsConnectionUrl,
-  },
-  {
-    name: "CERAMIC_CACHE_CACAO_VALIDATION_URL",
-    value: "http://localhost:8001/verify",
-  },
-  {
-    name: "SECURE_SSL_REDIRECT",
-    value: "off",
-  },
-  {
-    name: "SECURE_PROXY_SSL_HEADER",
-    value: JSON.stringify(["HTTP_X_FORWARDED_PROTO", "https"]),
-  },
-  {
-    name: "LOGGING_STRATEGY",
-    value: "structlog_json",
-  },
-  {
-    name: "PASSPORT_PUBLIC_URL",
-    value: "https://staging.passport.gitcoin.co/",
-  },
-];
+const envConfig: ScorerEnvironmentConfig = {
+  allowedHosts: JSON.stringify([domain, "*"]),
+  domain: domain,
+  csrfTrustedOrigins: JSON.stringify([`https://${domain}`]),
+  rdsConnectionUrl: rdsConnectionUrl,
+  redisCacheOpsConnectionUrl: redisCacheOpsConnectionUrl,
+  uiDomains: JSON.stringify([
+    "scorer." + process.env["DOMAIN"],
+    "www.scorer." + process.env["DOMAIN"],
+  ]),
+};
+const environment = getEnvironment(envConfig);
+
 //////////////////////////////////////////////////////////////
 // Set up log groups for API service and worker
 //////////////////////////////////////////////////////////////
@@ -403,6 +342,21 @@ const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
 //////////////////////////////////////////////////////////////
 // Set up the Scorer ECS service
 //////////////////////////////////////////////////////////////
+
+const servicePassport = createScorerECSService(
+  "scorer-passport",
+  {
+    cluster: cluster,
+    dockerImageScorer: dockerGtcPassportScorerImage,
+    dockerImageVerifier: dockerGtcPassportVerifierImage,
+    executionRole: dpoppEcsRole,
+    logGroup: serviceLogGroup,
+    subnets: vpc.privateSubnetIds,
+    targetGroup: targetPassport,
+  },
+  envConfig
+);
+
 const service = new awsx.ecs.FargateService("scorer", {
   cluster,
   desiredCount: 1,
@@ -551,10 +505,10 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
   taskDefinitionArgs: {
     logGroup: workerLogGroup,
     executionRole: workerRole,
-    cpu: "16vCPU",
-    memory: "32GB",
     containers: {
       worker1: {
+        memory: 2048,
+        cpu: 2000,
         image: dockerGtcPassportScorerImage,
         command: [
           "celery",
@@ -1058,7 +1012,8 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
 
 // const redashDbUrlString = redashDbUrl.apply((url) => url).toString();
 
-const redashInitScript = redashDbUrl.apply((url) => `#!/bin/bash
+const redashInitScript = redashDbUrl.apply(
+  (url) => `#!/bin/bash
 echo "Setting environment variables..."
 export POSTGRES_PASSWORD="${redashDbPassword}"
 export REDASH_DATABASE_URL="${url}"
@@ -1076,23 +1031,23 @@ cd data
 sudo docker-compose run --rm server create_db
 sudo docker-compose up -d
 
-`);
+`
+);
 
-
-const redashinstance = new aws.ec2.Instance("redashinstance", {
-  ami: ubuntu.then((ubuntu) => ubuntu.id),
-  associatePublicIpAddress: true,
-  instanceType: "t3.medium",
-  subnetId: vpcPublicSubnetId2.then(),
-  rootBlockDevice: {
-    volumeSize: 50,
-  },
-  tags: {
-    Name: "Redash Analytics",
-  },
-  userData: redashInitScript,
-  securityGroups: [redashSecurityGroup.id],
-});
+// const redashinstance = new aws.ec2.Instance("redashinstance", {
+//   ami: ubuntu.then((ubuntu) => ubuntu.id),
+//   associatePublicIpAddress: true,
+//   instanceType: "t3.medium",
+//   subnetId: vpcPublicSubnetId2.then(),
+//   rootBlockDevice: {
+//     volumeSize: 50,
+//   },
+//   tags: {
+//     Name: "Redash Analytics",
+//   },
+//   userData: redashInitScript,
+//   securityGroups: [redashSecurityGroup.id],
+// });
 
 // Generate an SSL certificate
 const redashCertificate = new aws.acm.Certificate("redash", {
@@ -1169,7 +1124,7 @@ const redashRecord = new aws.route53.Record("redash", {
   ],
 });
 
-new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
-  targetId: redashinstance.privateIp,
-  targetGroupArn: redashTarget.targetGroup.arn,
-});
+// new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
+//   targetId: redashinstance.privateIp,
+//   targetGroupArn: redashTarget.targetGroup.arn,
+// });
