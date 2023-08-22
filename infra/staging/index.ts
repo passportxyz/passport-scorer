@@ -1,6 +1,12 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
+import {
+  ScorerEnvironmentConfig,
+  createScorerECSService,
+  getEnvironment,
+  secrets,
+} from "./gitcoin";
 
 import {
   ScorerEnvironmentConfig,
@@ -236,6 +242,33 @@ const httpsListener = target.createListener("scorer-listener", {
   certificateArn: certificateValidation.certificateArn,
 });
 
+const targetPassport = new aws.lb.TargetGroup("scorer-target-passport", {
+  port: 80,
+  protocol: "HTTP",
+  vpcId: vpcID,
+  targetType: "ip",
+  healthCheck: { path: "/health/", unhealthyThreshold: 5 },
+});
+
+const targetPassportRule = new aws.lb.ListenerRule("scorer-passport", {
+  tags: { name: "scorer-passport" },
+  listenerArn: httpsListener.listener.arn,
+  priority: 100,
+  actions: [
+    {
+      type: "forward",
+      targetGroupArn: targetPassport.arn,
+    },
+  ],
+  conditions: [
+    {
+      pathPattern: {
+        values: ["/wip/ceramic-cache/*"],
+      },
+    },
+  ],
+});
+
 // Create a DNS record for the load balancer
 const www = new aws.route53.Record("scorer", {
   zoneId: route53Zone,
@@ -346,6 +379,20 @@ const baseScorerServiceConfig: ScorerService = {
   autoScaleMaxCapacity: 2,
   autoScaleMinCapacity: 1,
 };
+
+const servicePassport = createScorerECSService(
+  "scorer-passport",
+  {
+    cluster: cluster,
+    dockerImageScorer: dockerGtcPassportScorerImage,
+    dockerImageVerifier: dockerGtcPassportVerifierImage,
+    executionRole: dpoppEcsRole,
+    logGroup: serviceLogGroup,
+    subnets: vpc.privateSubnetIds,
+    targetGroup: targetPassport,
+  },
+  envConfig
+);
 
 const scorerServiceDefault = createScorerECSService(
   "scorer-api-default",
@@ -797,21 +844,25 @@ let redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
 let redashDbName = `${process.env["REDASH_DB_NAME"]}`;
 
 // Create an RDS instance
-const redashDb = new aws.rds.Instance("redash-db", {
-  allocatedStorage: 20,
-  maxAllocatedStorage: 20,
-  engine: "postgres",
-  engineVersion: "13.10",
-  instanceClass: "db.t3.micro",
-  dbName: redashDbName,
-  password: redashDbPassword,
-  username: redashDbUsername,
-  skipFinalSnapshot: true,
-  dbSubnetGroupName: dbSubnetGroup.id,
-  vpcSecurityGroupIds: [redashDbSecgrp.id],
-  backupRetentionPeriod: 5,
-  performanceInsightsEnabled: true,
-}, { protect: true });
+const redashDb = new aws.rds.Instance(
+  "redash-db",
+  {
+    allocatedStorage: 20,
+    maxAllocatedStorage: 20,
+    engine: "postgres",
+    engineVersion: "13.10",
+    instanceClass: "db.t3.micro",
+    dbName: redashDbName,
+    password: redashDbPassword,
+    username: redashDbUsername,
+    skipFinalSnapshot: true,
+    dbSubnetGroupName: dbSubnetGroup.id,
+    vpcSecurityGroupIds: [redashDbSecgrp.id],
+    backupRetentionPeriod: 5,
+    performanceInsightsEnabled: true,
+  },
+  { protect: true }
+);
 
 const dbUrl = redashDb.endpoint;
 export const redashDbUrl = pulumi.secret(
@@ -971,7 +1022,7 @@ const redashRecord = new aws.route53.Record("redash", {
   ],
 });
 
-new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
-  targetId: redashinstance.privateIp,
-  targetGroupArn: redashTarget.targetGroup.arn,
-});
+// new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
+//   targetId: redashinstance.privateIp,
+//   targetGroupArn: redashTarget.targetGroup.arn,
+// });
