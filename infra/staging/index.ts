@@ -401,148 +401,90 @@ const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
 });
 
 //////////////////////////////////////////////////////////////
-// Set up the Scorer ECS services
+// Set up the Scorer ECS service
 //////////////////////////////////////////////////////////////
-
-const desiredServices = [
-  {
-    name: "passport",
-    taskConfig: {
-      maxCapacity: 20,
-      minCapacity: 2,
-    },
-    routes: [
-      "ceramic-cache",
-    ]
-  },
-  {
-    name: "readOnlyPublic",
-    taskConfig: {
-      maxCapacity: 20,
-      minCapacity: 2,
-    }
-  },
-  {
-    name: "submitPassport",
-    taskConfig: {
-      maxCapacity: 20,
-      minCapacity: 2,
-    }
-  },
-  {
-    name: "internal",
-    taskConfig: {
-      maxCapacity: 20,
-      minCapacity: 2,
-    }
-  },
-]
-
-const services = desiredServices.map((service) => {
-  const fargateService = new awsx.ecs.FargateService(service.name, {
-    cluster,
-    desiredCount: 1,
-    subnets: vpc.privateSubnetIds,
-    taskDefinitionArgs: {
-      logGroup: serviceLogGroup,
-      executionRole: dpoppEcsRole,
-      containers: {
-        scorer: {
-          image: dockerGtcPassportScorerImage,
-          memory: 4096,
-          cpu: 4000,
-          portMappings: [httpsListener],
-          command: [
-            "gunicorn",
-            "-w",
-            "4",
-            "-k",
-            "uvicorn.workers.UvicornWorker",
-            "scorer.asgi:application",
-            "-b",
-            "0.0.0.0:80",
-          ],
-          links: [],
-          secrets: secrets,
-          environment: environment,
-          linuxParameters: {
-            initProcessEnabled: true,
-          },
+const service = new awsx.ecs.FargateService("scorer", {
+  cluster,
+  desiredCount: 1,
+  subnets: vpc.privateSubnetIds,
+  taskDefinitionArgs: {
+    logGroup: serviceLogGroup,
+    executionRole: dpoppEcsRole,
+    containers: {
+      scorer: {
+        image: dockerGtcPassportScorerImage,
+        memory: 4096,
+        cpu: 4000,
+        portMappings: [httpsListener],
+        command: [
+          "gunicorn",
+          "-w",
+          "4",
+          "-k",
+          "uvicorn.workers.UvicornWorker",
+          "scorer.asgi:application",
+          "-b",
+          "0.0.0.0:80",
+        ],
+        links: [],
+        secrets: secrets,
+        environment: environment,
+        linuxParameters: {
+          initProcessEnabled: true,
         },
-        verifier: {
-          image: dockerGtcPassportVerifierImage,
-          memory: 512,
-          links: [],
-          portMappings: [
-            {
-              containerPort: 8001,
-              hostPort: 8001,
-            },
-          ],
-          environment: [
-            {
-              name: "VERIFIER_PORT",
-              value: "8001",
-            },
-          ],
-          linuxParameters: {
-            initProcessEnabled: true,
+      },
+      verifier: {
+        image: dockerGtcPassportVerifierImage,
+        memory: 512,
+        links: [],
+        portMappings: [
+          {
+            containerPort: 8001,
+            hostPort: 8001,
           },
+        ],
+        environment: [
+          {
+            name: "VERIFIER_PORT",
+            value: "8001",
+          },
+        ],
+        linuxParameters: {
+          initProcessEnabled: true,
         },
       },
     },
-  });
-
-  const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
-    `${service.name}-autoscaling-target`,
-    {
-      maxCapacity: 20,
-      minCapacity: 2,
-      resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${fargateService.service.name}`,
-      scalableDimension: "ecs:service:DesiredCount",
-      serviceNamespace: "ecs",
-    }
-  );
-
-  const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
-    `${service.name}-autoscaling-policy`,
-    {
-      policyType: "TargetTrackingScaling",
-      resourceId: ecsScorerServiceAutoscalingTarget.resourceId,
-      scalableDimension: ecsScorerServiceAutoscalingTarget.scalableDimension,
-      serviceNamespace: ecsScorerServiceAutoscalingTarget.serviceNamespace,
-      targetTrackingScalingPolicyConfiguration: {
-        predefinedMetricSpecification: {
-          predefinedMetricType: "ECSServiceAverageCPUUtilization",
-        },
-        targetValue: 30,
-        scaleInCooldown: 300,
-        scaleOutCooldown: 300,
-      },
-    }
-  );
-
-  // Define the target groups for your ECS clusters
-  const targetGroup1 = new awsx.lb.ApplicationTargetGroup(`target-${service.name}`, {
-    port: 80,
-    targetType: 'ip',
-    vpc,
-  });
-
-  // if (service.routes) service.routes.forEach((route) => {
-  //   httpListener.addRoute("route-2", {
-  //     pathPattern: "/service2/*",
-  //     targetGroup: targetGroup2,
-  //   });
-  // });
-
-  return {
-    fargateService,
-    ecsScorerServiceAutoscalingTarget,
-    ecsScorerServiceAutoscaling
-  }
+  },
 });
 
+const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
+  "scorer-autoscaling-target",
+  {
+    maxCapacity: 20,
+    minCapacity: 2,
+    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${service.service.name}`,
+    scalableDimension: "ecs:service:DesiredCount",
+    serviceNamespace: "ecs",
+  }
+);
+
+const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
+  "scorer-autoscaling-policy",
+  {
+    policyType: "TargetTrackingScaling",
+    resourceId: ecsScorerServiceAutoscalingTarget.resourceId,
+    scalableDimension: ecsScorerServiceAutoscalingTarget.scalableDimension,
+    serviceNamespace: ecsScorerServiceAutoscalingTarget.serviceNamespace,
+    targetTrackingScalingPolicyConfiguration: {
+      predefinedMetricSpecification: {
+        predefinedMetricType: "ECSServiceAverageCPUUtilization",
+      },
+      targetValue: 30,
+      scaleInCooldown: 300,
+      scaleOutCooldown: 300,
+    },
+  }
+);
 
 //////////////////////////////////////////////////////////////
 // Set up the Celery Worker Secrvice
