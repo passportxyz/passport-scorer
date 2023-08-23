@@ -1,9 +1,13 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
+import { Listener } from "@pulumi/aws/lb";
+
 import {
   ScorerEnvironmentConfig,
+  ScorerService,
   createScorerECSService,
+  createTargetGroup,
   getEnvironment,
   secrets,
 } from "./gitcoin";
@@ -208,43 +212,29 @@ const httpListener = alb.createListener("web-listener", {
 });
 
 // Target group with the port of the Docker image
-const target = alb.createTargetGroup("scorer-target", {
+const target = alb.createTargetGroup("scorer-api-default", {
   vpc,
   port: 80,
   healthCheck: { path: "/health/", unhealthyThreshold: 5 },
 });
 
-// Listen to traffic on port 443 & route it through the target group
+//////////////////////////////////////////////////////////////
+// Set up the target groups
+//////////////////////////////////////////////////////////////
+const targetGroupDefault = target.targetGroup;
+const targetGroupPassport = createTargetGroup("scorer-api-passport", vpcID);
+const targetGroupRegistry = createTargetGroup("scorer-api-reg", vpcID);
+const targetGroupRegistrySubmitPassport = createTargetGroup(
+  "scorer-api-reg-sp",
+  vpcID
+);
+
+//////////////////////////////////////////////////////////////
+// Create the HTTPS listener, and set the default target group
+//////////////////////////////////////////////////////////////
 const httpsListener = target.createListener("scorer-listener", {
   port: 443,
   certificateArn: certificateValidation.certificateArn,
-});
-
-const targetPassport = new aws.lb.TargetGroup("scorer-target-passport", {
-  port: 80,
-  protocol: "HTTP",
-  vpcId: vpcID,
-  targetType: "ip",
-  healthCheck: { path: "/health/", unhealthyThreshold: 5 },
-});
-
-const targetPassportRule = new aws.lb.ListenerRule("scorer-passport", {
-  tags: { name: "scorer-passport" },
-  listenerArn: httpsListener.listener.arn,
-  priority: 100,
-  actions: [
-    {
-      type: "forward",
-      targetGroupArn: targetPassport.arn,
-    },
-  ],
-  conditions: [
-    {
-      pathPattern: {
-        values: ["/wip/ceramic-cache/*"],
-      },
-    },
-  ],
 });
 
 // Create a DNS record for the load balancer
@@ -342,102 +332,61 @@ const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
 //////////////////////////////////////////////////////////////
 // Set up the Scorer ECS service
 //////////////////////////////////////////////////////////////
+const baseScorerServiceConfig: ScorerService = {
+  cluster: cluster,
+  dockerImageScorer: dockerGtcPassportScorerImage,
+  dockerImageVerifier: dockerGtcPassportVerifierImage,
+  executionRole: dpoppEcsRole,
+  logGroup: serviceLogGroup,
+  subnets: vpc.privateSubnetIds,
+  needsVerifier: false,
+  httpListenerArn: httpsListener.listener.arn,
+  targetGroup: targetGroupDefault,
+  autoScaleMaxCapacity: 2,
+  autoScaleMinCapacity: 1,
+};
 
-const servicePassport = createScorerECSService(
-  "scorer-passport",
+const scorerServiceDefault = createScorerECSService(
+  "scorer-api-default",
   {
-    cluster: cluster,
-    dockerImageScorer: dockerGtcPassportScorerImage,
-    dockerImageVerifier: dockerGtcPassportVerifierImage,
-    executionRole: dpoppEcsRole,
-    logGroup: serviceLogGroup,
-    subnets: vpc.privateSubnetIds,
-    targetGroup: targetPassport,
+    ...baseScorerServiceConfig,
+    targetGroup: targetGroupDefault,
   },
   envConfig
 );
 
-const service = new awsx.ecs.FargateService("scorer", {
-  cluster,
-  desiredCount: 1,
-  subnets: vpc.privateSubnetIds,
-  taskDefinitionArgs: {
-    logGroup: serviceLogGroup,
-    executionRole: dpoppEcsRole,
-    containers: {
-      scorer: {
-        image: dockerGtcPassportScorerImage,
-        memory: 4096,
-        cpu: 4000,
-        portMappings: [httpsListener],
-        command: [
-          "gunicorn",
-          "-w",
-          "4",
-          "-k",
-          "uvicorn.workers.UvicornWorker",
-          "scorer.asgi:application",
-          "-b",
-          "0.0.0.0:80",
-        ],
-        links: [],
-        secrets: secrets,
-        environment: environment,
-        linuxParameters: {
-          initProcessEnabled: true,
-        },
-      },
-      verifier: {
-        image: dockerGtcPassportVerifierImage,
-        memory: 512,
-        links: [],
-        portMappings: [
-          {
-            containerPort: 8001,
-            hostPort: 8001,
-          },
-        ],
-        environment: [
-          {
-            name: "VERIFIER_PORT",
-            value: "8001",
-          },
-        ],
-        linuxParameters: {
-          initProcessEnabled: true,
-        },
-      },
-    },
-  },
-});
-
-const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
-  "scorer-autoscaling-target",
+const scorerServicePassport = createScorerECSService(
+  "scorer-api-passport",
   {
-    maxCapacity: 20,
-    minCapacity: 2,
-    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${service.service.name}`,
-    scalableDimension: "ecs:service:DesiredCount",
-    serviceNamespace: "ecs",
-  }
+    ...baseScorerServiceConfig,
+    needsVerifier: true,
+    listenerRulePriority: 2000,
+    httpListenerRulePaths: ["/ceramic-cache/*"],
+    targetGroup: targetGroupPassport,
+  },
+  envConfig
 );
 
-const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
-  "scorer-autoscaling-policy",
+const scorerServiceRegistry = createScorerECSService(
+  "scorer-api-reg",
   {
-    policyType: "TargetTrackingScaling",
-    resourceId: ecsScorerServiceAutoscalingTarget.resourceId,
-    scalableDimension: ecsScorerServiceAutoscalingTarget.scalableDimension,
-    serviceNamespace: ecsScorerServiceAutoscalingTarget.serviceNamespace,
-    targetTrackingScalingPolicyConfiguration: {
-      predefinedMetricSpecification: {
-        predefinedMetricType: "ECSServiceAverageCPUUtilization",
-      },
-      targetValue: 30,
-      scaleInCooldown: 300,
-      scaleOutCooldown: 300,
-    },
-  }
+    ...baseScorerServiceConfig,
+    listenerRulePriority: 3000,
+    httpListenerRulePaths: ["/registry/*"],
+    targetGroup: targetGroupRegistry,
+  },
+  envConfig
+);
+
+const scorerServiceRegistrySubmitPassport = createScorerECSService(
+  "scorer-api-reg-sp", // scorer-registry-submit-passport
+  {
+    ...baseScorerServiceConfig,
+    listenerRulePriority: 2500,
+    httpListenerRulePaths: ["/registry/submit-passport"],
+    targetGroup: targetGroupRegistrySubmitPassport,
+  },
+  envConfig
 );
 
 //////////////////////////////////////////////////////////////
@@ -595,7 +544,7 @@ const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
 const ecsScorerWorker2AutoscalingTarget = new aws.appautoscaling.Target(
   "scorer-worker2-autoscaling-target",
   {
-    maxCapacity: 400,
+    maxCapacity: 4,
     minCapacity: 2,
     resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celery2.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
@@ -725,39 +674,6 @@ const flower = new awsx.ecs.FargateService("flower", {
     },
   },
 });
-
-//////////////////////////////////////////////////////////////
-// ECS Scheduled Task
-//////////////////////////////////////////////////////////////
-// const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
-//   containers: {
-//     web: {
-//       image: dockerGtcPassportScorerImage,
-//       cpu: 256,
-//       memory: 2048,
-//       secrets,
-//       command: ["python", "manage.py", "dump_stamp_data"],
-//     },
-//   },
-// });
-
-// const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
-//   scheduleExpression: "rate(1 minute)", // Run the task every day at 12pm.
-// });
-
-// new aws.cloudwatch.EventTarget("scheduledEventTarget", {
-//   rule: scheduledEventRule.name,
-//   arn: cluster.cluster.arn,
-//   ecsTarget: {
-//     taskCount: 1,
-//     taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
-//     launchType: "FARGATE",
-//     networkConfiguration: {
-//       subnets: vpc.publicSubnetIds,
-//       securityGroups: [cluster.securityGroups[0].id],
-//     },
-//   },
-// });
 
 //////////////////////////////////////////////////////////////
 // Set up task to run migrations
@@ -1034,20 +950,20 @@ sudo docker-compose up -d
 `
 );
 
-// const redashinstance = new aws.ec2.Instance("redashinstance", {
-//   ami: ubuntu.then((ubuntu) => ubuntu.id),
-//   associatePublicIpAddress: true,
-//   instanceType: "t3.medium",
-//   subnetId: vpcPublicSubnetId2.then(),
-//   rootBlockDevice: {
-//     volumeSize: 50,
-//   },
-//   tags: {
-//     Name: "Redash Analytics",
-//   },
-//   userData: redashInitScript,
-//   securityGroups: [redashSecurityGroup.id],
-// });
+const redashinstance = new aws.ec2.Instance("redashinstance", {
+  ami: ubuntu.then((ubuntu) => ubuntu.id),
+  associatePublicIpAddress: true,
+  instanceType: "t3.medium",
+  subnetId: vpcPublicSubnetId2.then(),
+  rootBlockDevice: {
+    volumeSize: 50,
+  },
+  tags: {
+    Name: "Redash Analytics",
+  },
+  userData: redashInitScript,
+  securityGroups: [redashSecurityGroup.id],
+});
 
 // Generate an SSL certificate
 const redashCertificate = new aws.acm.Certificate("redash", {
@@ -1124,7 +1040,7 @@ const redashRecord = new aws.route53.Record("redash", {
   ],
 });
 
-// new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
-//   targetId: redashinstance.privateIp,
-//   targetGroupArn: redashTarget.targetGroup.arn,
-// });
+new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
+  targetId: redashinstance.privateIp,
+  targetGroupArn: redashTarget.targetGroup.arn,
+});
