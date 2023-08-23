@@ -1,9 +1,13 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
+import { Listener } from "@pulumi/aws/lb";
+
 import {
   ScorerEnvironmentConfig,
+  ScorerService,
   createScorerECSService,
+  createTargetGroup,
   getEnvironment,
   secrets,
 } from "./gitcoin";
@@ -242,33 +246,6 @@ const httpsListener = target.createListener("scorer-listener", {
   certificateArn: certificateValidation.certificateArn,
 });
 
-const targetPassport = new aws.lb.TargetGroup("scorer-target-passport", {
-  port: 80,
-  protocol: "HTTP",
-  vpcId: vpcID,
-  targetType: "ip",
-  healthCheck: { path: "/health/", unhealthyThreshold: 5 },
-});
-
-const targetPassportRule = new aws.lb.ListenerRule("scorer-passport", {
-  tags: { name: "scorer-passport" },
-  listenerArn: httpsListener.listener.arn,
-  priority: 100,
-  actions: [
-    {
-      type: "forward",
-      targetGroupArn: targetPassport.arn,
-    },
-  ],
-  conditions: [
-    {
-      pathPattern: {
-        values: ["/wip/ceramic-cache/*"],
-      },
-    },
-  ],
-});
-
 // Create a DNS record for the load balancer
 const www = new aws.route53.Record("scorer", {
   zoneId: route53Zone,
@@ -379,20 +356,6 @@ const baseScorerServiceConfig: ScorerService = {
   autoScaleMaxCapacity: 2,
   autoScaleMinCapacity: 1,
 };
-
-const servicePassport = createScorerECSService(
-  "scorer-passport",
-  {
-    cluster: cluster,
-    dockerImageScorer: dockerGtcPassportScorerImage,
-    dockerImageVerifier: dockerGtcPassportVerifierImage,
-    executionRole: dpoppEcsRole,
-    logGroup: serviceLogGroup,
-    subnets: vpc.privateSubnetIds,
-    targetGroup: targetPassport,
-  },
-  envConfig
-);
 
 const scorerServiceDefault = createScorerECSService(
   "scorer-api-default",
@@ -1022,7 +985,7 @@ const redashRecord = new aws.route53.Record("redash", {
   ],
 });
 
-// new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
-//   targetId: redashinstance.privateIp,
-//   targetGroupArn: redashTarget.targetGroup.arn,
-// });
+new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
+  targetId: redashinstance.privateIp,
+  targetGroupArn: redashTarget.targetGroup.arn,
+});

@@ -1,9 +1,10 @@
 import { LogGroup } from "@pulumi/aws/cloudwatch/logGroup";
-import { Cluster } from "@pulumi/awsx/ecs";
+import { Cluster, Container } from "@pulumi/awsx/ecs";
 import { Role } from "@pulumi/aws/iam/role";
 import * as awsx from "@pulumi/awsx";
-import { Input } from "@pulumi/pulumi";
-import { TargetGroup } from "@pulumi/aws/lb";
+import { Input, interpolate } from "@pulumi/pulumi";
+import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
+import * as aws from "@pulumi/aws";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -14,7 +15,13 @@ export type ScorerService = {
   cluster: Cluster;
   logGroup: LogGroup;
   subnets: Input<Input<string>[]>;
+  needsVerifier: boolean;
+  httpListenerArn: Input<string>;
+  httpListenerRulePaths?: Input<Input<string>[]>;
+  listenerRulePriority?: Input<number>;
   targetGroup: TargetGroup;
+  autoScaleMaxCapacity: number;
+  autoScaleMinCapacity: number;
 };
 
 export type ScorerEnvironmentConfig = {
@@ -134,12 +141,102 @@ export function getEnvironment(config: ScorerEnvironmentConfig) {
   ];
 }
 
+export function createTargetGroup(
+  name: string,
+  vpcId: Input<string>
+): TargetGroup {
+  return new TargetGroup(name, {
+    port: 80,
+    protocol: "HTTP",
+    vpcId: vpcId,
+    targetType: "ip",
+    healthCheck: { path: "/health/", unhealthyThreshold: 5 },
+  });
+}
+
 export function createScorerECSService(
   name: string,
   config: ScorerService,
   envConfig: ScorerEnvironmentConfig
 ): awsx.ecs.FargateService {
-  return new awsx.ecs.FargateService(name, {
+  //////////////////////////////////////////////////////////////
+  // Create target group and load balancer rules
+  //////////////////////////////////////////////////////////////
+
+  if (config.httpListenerRulePaths) {
+    const targetPassportRule = new ListenerRule(`lrule-${name}`, {
+      tags: { name: name },
+      listenerArn: config.httpListenerArn,
+      priority: config.listenerRulePriority,
+      actions: [
+        {
+          type: "forward",
+          targetGroupArn: config.targetGroup.arn,
+        },
+      ],
+      conditions: [
+        {
+          pathPattern: {
+            values: config.httpListenerRulePaths,
+          },
+        },
+      ],
+    });
+  }
+
+  //////////////////////////////////////////////////////////////
+  // Create the task definition and the service
+  //////////////////////////////////////////////////////////////
+
+  const containers: Record<string, Container> = {
+    scorer: {
+      image: config.dockerImageScorer,
+      memory: 4096,
+      cpu: 4000,
+      portMappings: [{ containerPort: 80, hostPort: 80 }],
+      command: [
+        "gunicorn",
+        "-w",
+        "4",
+        "-k",
+        "uvicorn.workers.UvicornWorker",
+        "scorer.asgi:application",
+        "-b",
+        "0.0.0.0:80",
+      ],
+      links: [],
+      secrets: secrets,
+      environment: getEnvironment(envConfig),
+      linuxParameters: {
+        initProcessEnabled: true,
+      },
+    },
+  };
+
+  if (config.needsVerifier) {
+    containers.verifier = {
+      image: config.dockerImageVerifier,
+      memory: 512,
+      links: [],
+      portMappings: [
+        {
+          containerPort: 8001,
+          hostPort: 8001,
+        },
+      ],
+      environment: [
+        {
+          name: "VERIFIER_PORT",
+          value: "8001",
+        },
+      ],
+      linuxParameters: {
+        initProcessEnabled: true,
+      },
+    };
+  }
+
+  const service = new awsx.ecs.FargateService(name, {
     cluster: config.cluster,
     desiredCount: 1,
     subnets: config.subnets,
@@ -153,50 +250,38 @@ export function createScorerECSService(
     taskDefinitionArgs: {
       logGroup: config.logGroup,
       executionRole: config.executionRole,
-      containers: {
-        scorer: {
-          image: config.dockerImageScorer,
-          memory: 4096,
-          cpu: 4000,
-          portMappings: [{ containerPort: 80, hostPort: 80 }],
-          command: [
-            "gunicorn",
-            "-w",
-            "4",
-            "-k",
-            "uvicorn.workers.UvicornWorker",
-            "scorer.asgi:application",
-            "-b",
-            "0.0.0.0:80",
-          ],
-          links: [],
-          secrets: secrets,
-          environment: getEnvironment(envConfig),
-          linuxParameters: {
-            initProcessEnabled: true,
-          },
-        },
-        verifier: {
-          image: config.dockerImageVerifier,
-          memory: 512,
-          links: [],
-          portMappings: [
-            {
-              containerPort: 8001,
-              hostPort: 8001,
-            },
-          ],
-          environment: [
-            {
-              name: "VERIFIER_PORT",
-              value: "8001",
-            },
-          ],
-          linuxParameters: {
-            initProcessEnabled: true,
-          },
-        },
-      },
+      containers,
     },
   });
+
+  const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
+    `autoscale-target-${name}`,
+    {
+      maxCapacity: 20,
+      minCapacity: 2,
+      resourceId: interpolate`service/${config.cluster.cluster.name}/${service.service.name}`,
+      scalableDimension: "ecs:service:DesiredCount",
+      serviceNamespace: "ecs",
+    }
+  );
+
+  const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
+    `autoscale-policy-${name}`,
+    {
+      policyType: "TargetTrackingScaling",
+      resourceId: ecsScorerServiceAutoscalingTarget.resourceId,
+      scalableDimension: ecsScorerServiceAutoscalingTarget.scalableDimension,
+      serviceNamespace: ecsScorerServiceAutoscalingTarget.serviceNamespace,
+      targetTrackingScalingPolicyConfiguration: {
+        predefinedMetricSpecification: {
+          predefinedMetricType: "ECSServiceAverageCPUUtilization",
+        },
+        targetValue: 30,
+        scaleInCooldown: 300,
+        scaleOutCooldown: 300,
+      },
+    }
+  );
+
+  return service;
 }
