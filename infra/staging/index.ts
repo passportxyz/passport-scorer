@@ -1,7 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
-import { Listener } from "@pulumi/aws/lb";
 
 import {
   ScorerEnvironmentConfig,
@@ -10,7 +9,7 @@ import {
   createTargetGroup,
   getEnvironment,
   secrets,
-} from "./lib/scorer/service";
+} from "../lib/scorer/service";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -211,6 +210,9 @@ const httpListener = alb.createListener("web-listener", {
   },
 });
 
+//////////////////////////////////////////////////////////////
+// Set up the target groups
+//////////////////////////////////////////////////////////////
 // Target group with the port of the Docker image
 const target = alb.createTargetGroup("scorer-api-default", {
   vpc,
@@ -218,9 +220,6 @@ const target = alb.createTargetGroup("scorer-api-default", {
   healthCheck: { path: "/health/", unhealthyThreshold: 5 },
 });
 
-//////////////////////////////////////////////////////////////
-// Set up the target groups
-//////////////////////////////////////////////////////////////
 const targetGroupDefault = target.targetGroup;
 const targetGroupPassport = createTargetGroup("scorer-api-passport", vpcID);
 const targetGroupRegistry = createTargetGroup("scorer-api-reg", vpcID);
@@ -316,6 +315,8 @@ const envConfig: ScorerEnvironmentConfig = {
     "scorer." + process.env["DOMAIN"],
     "www.scorer." + process.env["DOMAIN"],
   ]),
+  debug: "off",
+  passportPublicUrl: "https://staging.passport.gitcoin.co/",
 };
 const environment = getEnvironment(envConfig);
 
@@ -674,41 +675,6 @@ const flower = new awsx.ecs.FargateService("flower", {
     },
   },
 });
-
-//////////////////////////////////////////////////////////////
-// Set up task to run migrations
-//////////////////////////////////////////////////////////////
-const taskMigrate = new awsx.ecs.FargateTaskDefinition(`scorer-run-migrate`, {
-  executionRole: dpoppEcsRole,
-  containers: {
-    web: {
-      image: dockerGtcPassportScorerImage,
-      command: ["python", "manage.py", "migrate"],
-      memory: 4096,
-      cpu: 2000,
-      portMappings: [],
-      secrets: secrets.concat([
-        {
-          name: "DJANGO_SUPERUSER_USERNAME",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_USERNAME::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_EMAIL",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_EMAIL::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_PASSWORD",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_PASSWORD::`,
-        },
-      ]),
-      environment: environment,
-      dependsOn: [],
-      links: [],
-    },
-  },
-});
-
-export const taskMigrateDefinition = taskMigrate.taskDefinition.id;
 
 //////////////////////////////////////////////////////////////
 // Set up task to create superuser
