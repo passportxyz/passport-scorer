@@ -1,7 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
-import { Listener } from "@pulumi/aws/lb";
 
 import {
   ScorerEnvironmentConfig,
@@ -10,7 +9,7 @@ import {
   createTargetGroup,
   getEnvironment,
   secrets,
-} from "./lib/scorer/service";
+} from "../lib/scorer/service";
 
 import {
   ScorerEnvironmentConfig,
