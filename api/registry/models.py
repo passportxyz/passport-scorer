@@ -83,13 +83,18 @@ class Event(models.Model):
         max_length=3,
         choices=Action.choices,
         blank=False,
+        db_index=True,
     )
 
-    address = EthAddressField(blank=True, max_length=42)
+    address = EthAddressField(
+        blank=True,
+        max_length=42,
+        db_index=True,
+    )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    data = models.JSONField()
+    data = models.JSONField(db_index=True)
 
 
 class HashScorerLink(models.Model):

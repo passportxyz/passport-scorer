@@ -31,7 +31,7 @@ class CeramicCacheLegacy(models.Model):
     provider = models.CharField(
         null=False, blank=False, default="", max_length=256, db_index=True
     )
-    stamp = models.JSONField(default=dict)
+    stamp = models.JSONField(default=dict, db_index=True)
 
     class Meta:
         unique_together = ["address", "provider"]
