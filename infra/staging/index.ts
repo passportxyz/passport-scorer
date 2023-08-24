@@ -10,7 +10,7 @@ import {
   createTargetGroup,
   getEnvironment,
   secrets,
-} from "./gitcoin";
+} from "./lib/scorer/service";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
