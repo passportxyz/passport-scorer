@@ -103,7 +103,7 @@ export function getEnvironment(config: ScorerEnvironmentConfig) {
     },
     {
       name: "READ_REPLICA_0_URL",
-      value: config.readReplicaConnectionUrl,
+      value: config.readReplicaConnectionUrl || config.rdsConnectionUrl,
     },
     {
       name: "UI_DOMAINS",
@@ -139,7 +139,7 @@ export function getEnvironment(config: ScorerEnvironmentConfig) {
     },
     {
       name: "PASSPORT_PUBLIC_URL",
-      value: config.passportPublicUrl,
+      value: config.passportPublicUrl || "https://passport.gitcoin.co/",
     },
   ];
 }
