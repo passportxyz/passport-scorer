@@ -161,7 +161,7 @@ jobs:
         uses: actions/setup-node@v2
         with:
           cache: "yarn"
-          cache-dependency-path: infra/staging/package-lock.json
+          cache-dependency-path: infra/package-lock.json
 
       ################################################################################################################
       # TODO: to be fixed: only doing the aws-actions/configure-aws-credentials and aws-actions/amazon-ecr-login
