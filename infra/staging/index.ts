@@ -10,7 +10,7 @@ import {
   createTargetGroup,
   getEnvironment,
   secrets,
-} from "./gitcoin";
+} from "./lib/scorer/service";
 
 import {
   ScorerEnvironmentConfig,
