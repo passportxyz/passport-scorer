@@ -10,7 +10,6 @@ import {
   getEnvironment,
   secrets,
 } from "../lib/scorer/service";
-import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -751,6 +750,7 @@ const flower = new awsx.ecs.FargateService("flower", {
   },
 });
 
+
 const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
   description: "gitcoin-ecs-task",
   vpcId: vpc.id,
@@ -842,6 +842,7 @@ export const dockrRunCmd = pulumi.secret(
   pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
 
+
 ///////////////////////
 // Redash instance
 ///////////////////////
@@ -872,25 +873,21 @@ let redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
 let redashDbName = `${process.env["REDASH_DB_NAME"]}`;
 
 // Create an RDS instance
-const redashDb = new aws.rds.Instance(
-  "redash-db",
-  {
-    allocatedStorage: 20,
-    maxAllocatedStorage: 20,
-    engine: "postgres",
-    engineVersion: "13.10",
-    instanceClass: "db.t3.micro",
-    dbName: redashDbName,
-    password: redashDbPassword,
-    username: redashDbUsername,
-    skipFinalSnapshot: true,
-    dbSubnetGroupName: dbSubnetGroup.id,
-    vpcSecurityGroupIds: [redashDbSecgrp.id],
-    backupRetentionPeriod: 5,
-    performanceInsightsEnabled: true,
-  },
-  { protect: true }
-);
+const redashDb = new aws.rds.Instance("redash-db", {
+  allocatedStorage: 20,
+  maxAllocatedStorage: 20,
+  engine: "postgres",
+  engineVersion: "13.10",
+  instanceClass: "db.t3.micro",
+  dbName: redashDbName,
+  password: redashDbPassword,
+  username: redashDbUsername,
+  skipFinalSnapshot: true,
+  dbSubnetGroupName: dbSubnetGroup.id,
+  vpcSecurityGroupIds: [redashDbSecgrp.id],
+  backupRetentionPeriod: 5,
+  performanceInsightsEnabled: true,
+}, { protect: true });
 
 const dbUrl = redashDb.endpoint;
 export const redashDbUrl = pulumi.secret(
@@ -938,8 +935,7 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
 
 // const redashDbUrlString = redashDbUrl.apply((url) => url).toString();
 
-const redashInitScript = redashDbUrl.apply(
-  (url: any) => `#!/bin/bash
+const redashInitScript = redashDbUrl.apply((url: any) => `#!/bin/bash
 echo "Setting environment variables..."
 export POSTGRES_PASSWORD="${redashDbPassword}"
 export REDASH_DATABASE_URL="${url}"
@@ -952,11 +948,11 @@ sudo chmod +x ./setup.sh
 cd data
 sudo docker-compose run --rm server create_db
 sudo docker-compose up -d
-`
-);
+`);
+
 
 const redashinstance = new aws.ec2.Instance("redashinstance", {
-  ami: ubuntu.then((ubuntu: { id: any }) => ubuntu.id),
+  ami: ubuntu.then((ubuntu: { id: any; }) => ubuntu.id),
   associatePublicIpAddress: true,
   instanceType: "t3.medium",
   subnetId: vpcPublicSubnetId2.then(),
@@ -1049,14 +1045,3 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
   targetId: redashinstance.privateIp,
   targetGroupArn: redashTarget.targetGroup.arn,
 });
-
-export const weeklyDataDumpTaskDefinition = createScheduledTask(
-  "weekly-data-dump",
-  {
-    ...baseScorerServiceConfig,
-    securityGroup: secgrp,
-    command: ["python", "manage.py", "dump_stamp_data"],
-    scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
-  },
-  envConfig
-);

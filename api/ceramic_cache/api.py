@@ -150,20 +150,17 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
 
         address = get_address_from_did(request.did)
         stamp_objects = []
-        now = get_utc_time()
         for p in payload:
             stamp_object = CeramicCache(
                 address=address,
                 provider=p.provider,
                 stamp=p.stamp,
-                updated_at=now,
             )
             stamp_objects.append(stamp_object)
-
         created = CeramicCache.objects.bulk_create(
             stamp_objects,
             update_conflicts=True,
-            update_fields=["stamp", "updated_at"],
+            update_fields=["stamp"],
             unique_fields=["address", "provider"],
         )
 
@@ -186,7 +183,6 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
         stamp_objects = []
         providers_to_delete = []
         updated = []
-        now = get_utc_time()
 
         for p in payload:
             if p.stamp:
@@ -194,7 +190,6 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
                     address=address,
                     provider=p.provider,
                     stamp=p.stamp,
-                    updated_at=now,
                 )
                 stamp_objects.append(stamp_object)
             else:
@@ -204,7 +199,7 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
             updated = CeramicCache.objects.bulk_create(
                 stamp_objects,
                 update_conflicts=True,
-                update_fields=["stamp", "updated_at"],
+                update_fields=["stamp"],
                 unique_fields=["address", "provider"],
             )
 
@@ -263,7 +258,6 @@ def cache_stamp(request, payload: CacheStampPayload):
             provider=payload.provider,
             defaults=dict(
                 stamp=payload.stamp,
-                updated_at=get_utc_time(),
             ),
         )
 
