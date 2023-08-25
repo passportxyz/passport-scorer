@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("ceramic_cache", "0012_alter_ceramiccache_created_at_ceramiccachelegacy"),
+        ("ceramic_cache", "0013_alter_ceramiccachelegacy_stamp"),
     ]
 
     operations = [
@@ -13,6 +13,7 @@ class Migration(migrations.Migration):
             model_name="ceramiccache",
             name="updated_at",
             field=models.DateTimeField(
+                auto_now=True,
                 default="1970-01-01T00:00:00Z",
                 help_text="This is the timestamp that this DB record was updated (it is not necessarily the stamp issuance timestamp)",
             ),
@@ -28,6 +29,7 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.RunSQL(
-            "UPDATE ceramic_cache_ceramiccache SET updated_at = created_at where created_at is not null"
+            "UPDATE ceramic_cache_ceramiccache SET updated_at = created_at where created_at is not null",
+            reverse_sql="",
         ),
     ]
