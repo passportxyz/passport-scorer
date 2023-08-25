@@ -10,6 +10,7 @@ import {
   getEnvironment,
   secrets,
 } from "../lib/scorer/service";
+import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -1049,40 +1050,13 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
   targetGroupArn: redashTarget.targetGroup.arn,
 });
 
-//////////////////////////////////////////////////////////////
-// ECS Scheduled Task
-//////////////////////////////////////////////////////////////
-const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
-  executionRole: dpoppEcsRole,
-  containers: {
-    web: {
-      image: dockerGtcPassportScorerImage,
-      cpu: 256,
-      memory: 2048,
-      secrets,
-      environment,
-      command: ["python", "manage.py", "dump_stamp_data"],
-    },
+export const weeklyDataDumpTaskDefinition = createScheduledTask(
+  "weekly-data-dump",
+  {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: ["python", "manage.py", "dump_stamp_data"],
+    scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
   },
-});
-export const weeklyDataDumpTaskDefinition = weeklyDataDump.taskDefinition.id;
-
-const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
-  scheduleExpression: "cron(0 12 ? * FRI *)", // Run the task every friday at 12 UTC
-});
-
-new aws.cloudwatch.EventTarget("scheduledEventTarget", {
-  rule: scheduledEventRule.name,
-  arn: cluster.cluster.arn,
-  roleArn: dpoppEcsRole.arn,
-  ecsTarget: {
-    taskCount: 1,
-    taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
-    launchType: "FARGATE",
-    networkConfiguration: {
-      assignPublicIp: true,
-      subnets: vpcPublicSubnetIds,
-      securityGroups: [secgrp.id],
-    },
-  },
-});
+  envConfig
+);

@@ -10,6 +10,7 @@ import {
   getEnvironment,
   secrets,
 } from "../lib/scorer/service";
+import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 import {
   ScorerEnvironmentConfig,
@@ -989,139 +990,13 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
   targetGroupArn: redashTarget.targetGroup.arn,
 });
 
-//////////////////////////////////////////////////////////////
-// ECS Scheduled Task
-//////////////////////////////////////////////////////////////
-const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
-  executionRole: dpoppEcsRole,
-  containers: {
-    web: {
-      image: dockerGtcPassportScorerImage,
-      cpu: 256,
-      memory: 2048,
-      secrets,
-      environment,
-      command: ["python", "manage.py", "dump_stamp_data"],
-    },
+export const weeklyDataDumpTaskDefinition = createScheduledTask(
+  "weekly-data-dump",
+  {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: ["python", "manage.py", "dump_stamp_data"],
+    scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
   },
-});
-export const weeklyDataDumpTaskDefinition = weeklyDataDump.taskDefinition.id;
-
-const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
-  // TODO: remove on deployment
-  scheduleExpression: "cron(*/1 * ? * * *)", // Run the task every five minutes to test
-});
-
-const eventsStsAssumeRole = new aws.iam.Role("eventsStsAssumeRole", {
-  assumeRolePolicy: JSON.stringify({
-    Version: "2012-10-17",
-    Statement: [
-      {
-        Action: "sts:AssumeRole",
-        Effect: "Allow",
-        Sid: "",
-        Principal: {
-          Service: "ecs-tasks.amazonaws.com",
-        },
-      },
-      {
-        Action: "sts:AssumeRole",
-        Effect: "Allow",
-        Sid: "",
-        Principal: {
-          Service: "events.amazonaws.com",
-        },
-      },
-    ],
-  }),
-  inlinePolicies: [
-    {
-      name: "allow_exec",
-      policy: JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Effect: "Allow",
-            Action: [
-              "ssmmessages:CreateControlChannel",
-              "ssmmessages:CreateDataChannel",
-              "ssmmessages:OpenControlChannel",
-              "ssmmessages:OpenDataChannel",
-            ],
-            Resource: "*",
-          },
-        ],
-      }),
-    },
-    {
-      name: "allow_iam_secrets_access",
-      policy: JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Action: ["secretsmanager:GetSecretValue"],
-            Effect: "Allow",
-            Resource: SCORER_SERVER_SSM_ARN,
-          },
-        ],
-      }),
-    },
-    {
-      name: "allow_run_task",
-      policy: weeklyDataDump.taskDefinition.arn.apply((Resource) =>
-        JSON.stringify({
-          Version: "2012-10-17",
-          Statement: [
-            {
-              Action: ["ecs:RunTask"],
-              Effect: "Allow",
-              Resource: Resource,
-            },
-          ],
-        })
-      ),
-    },
-    {
-      name: "allow_pass_role",
-      policy: pulumi
-        .all([dpoppEcsRole.arn, weeklyDataDump.taskDefinition.taskRoleArn])
-        .apply(([dpoppEcsRoleArn, weeklyDataDumpTaskRoleArn]) =>
-          JSON.stringify({
-            Version: "2012-10-17",
-            Statement: [
-              {
-                Action: ["iam:PassRole"],
-                Effect: "Allow",
-                Resource: [dpoppEcsRoleArn, weeklyDataDumpTaskRoleArn],
-              },
-            ],
-          })
-        ),
-    },
-  ],
-  managedPolicyArns: [
-    "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
-  ],
-  tags: {
-    dpopp: "",
-  },
-});
-
-new aws.cloudwatch.EventTarget("scheduledEventTarget", {
-  rule: scheduledEventRule.name,
-  arn: cluster.cluster.arn,
-  roleArn: eventsStsAssumeRole.arn,
-  ecsTarget: {
-    taskCount: 1,
-    taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
-    launchType: "FARGATE",
-    networkConfiguration: {
-      assignPublicIp: false,
-      subnets: vpcPrivateSubnetIds,
-      securityGroups: [secgrp.id],
-    },
-  },
-  deadLetterConfig: {
-    arn: "arn:aws:sqs:us-west-2:515520736917:Gerald-Debug-Queue",
-  },
-});
+  envConfig
+);
