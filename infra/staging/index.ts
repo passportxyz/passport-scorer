@@ -2,6 +2,15 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 
+import {
+  ScorerEnvironmentConfig,
+  ScorerService,
+  createScorerECSService,
+  createTargetGroup,
+  getEnvironment,
+  secrets,
+} from "../lib/scorer/service";
+
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
 let route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
@@ -91,7 +100,7 @@ const postgresql = new aws.rds.Instance(
     backupRetentionPeriod: 5,
     performanceInsightsEnabled: true,
   },
-  { protect: false }
+  { protect: true }
 );
 
 export const rdsEndpoint = postgresql.endpoint;
@@ -201,14 +210,27 @@ const httpListener = alb.createListener("web-listener", {
   },
 });
 
+//////////////////////////////////////////////////////////////
+// Set up the target groups
+//////////////////////////////////////////////////////////////
 // Target group with the port of the Docker image
-const target = alb.createTargetGroup("scorer-target", {
+const target = alb.createTargetGroup("scorer-api-default", {
   vpc,
   port: 80,
   healthCheck: { path: "/health/", unhealthyThreshold: 5 },
 });
 
-// Listen to traffic on port 443 & route it through the target group
+const targetGroupDefault = target.targetGroup;
+const targetGroupPassport = createTargetGroup("scorer-api-passport", vpcID);
+const targetGroupRegistry = createTargetGroup("scorer-api-reg", vpcID);
+const targetGroupRegistrySubmitPassport = createTargetGroup(
+  "scorer-api-reg-sp",
+  vpcID
+);
+
+//////////////////////////////////////////////////////////////
+// Create the HTTPS listener, and set the default target group
+//////////////////////////////////////////////////////////////
 const httpsListener = target.createListener("scorer-listener", {
   port: 443,
   certificateArn: certificateValidation.certificateArn,
@@ -283,113 +305,21 @@ const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
   },
 });
 
-const secrets = [
-  {
-    name: "SECRET_KEY",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:SECRET_KEY::`,
-  },
-  {
-    name: "GOOGLE_OAUTH_CLIENT_ID",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:GOOGLE_OAUTH_CLIENT_ID::`,
-  },
-  {
-    name: "GOOGLE_CLIENT_SECRET",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:GOOGLE_CLIENT_SECRET::`,
-  },
-  {
-    name: "RATELIMIT_ENABLE",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:RATELIMIT_ENABLE::`,
-  },
-  {
-    name: "TRUSTED_IAM_ISSUER",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:TRUSTED_IAM_ISSUER::`,
-  },
-  {
-    name: "CERAMIC_CACHE_SCORER_ID",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:CERAMIC_CACHE_SCORER_ID::`,
-  },
-  {
-    name: "FF_API_ANALYTICS",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_API_ANALYTICS::`,
-  },
-  {
-    name: "FF_DEDUP_WITH_LINK_TABLE",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_DEDUP_WITH_LINK_TABLE::`,
-  },
-  {
-    name: "CGRANTS_API_TOKEN",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:CGRANTS_API_TOKEN::`,
-  },
-  {
-    name: "S3_DATA_AWS_SECRET_KEY_ID",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_KEY_ID::`,
-  },
-  {
-    name: "S3_DATA_AWS_SECRET_ACCESS_KEY",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_ACCESS_KEY::`,
-  },
-  {
-    name: "S3_WEEKLY_BACKUP_BUCKET_NAME",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_WEEKLY_BACKUP_BUCKET_NAME::`,
-  },
-  {
-    name: "REGISTRY_API_READ_DB",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:REGISTRY_API_READ_DB::`,
-  },
-];
-const environment = [
-  {
-    name: "DEBUG",
-    value: "on",
-  },
-  {
-    name: "DATABASE_URL",
-    value: rdsConnectionUrl,
-  },
-  {
-    name: "READ_REPLICA_0_URL",
-    value: rdsConnectionUrl,
-  },
-  {
-    name: "UI_DOMAINS",
-    value: JSON.stringify([
-      "scorer." + process.env["DOMAIN"],
-      "www.scorer." + process.env["DOMAIN"],
-    ]),
-  },
-  {
-    name: "ALLOWED_HOSTS",
-    value: JSON.stringify([domain, "*"]),
-  },
-  {
-    name: "CSRF_TRUSTED_ORIGINS",
-    value: JSON.stringify([`https://${domain}`]),
-  },
-  {
-    name: "CELERY_BROKER_URL",
-    value: redisCacheOpsConnectionUrl,
-  },
-  {
-    name: "CERAMIC_CACHE_CACAO_VALIDATION_URL",
-    value: "http://localhost:8001/verify",
-  },
-  {
-    name: "SECURE_SSL_REDIRECT",
-    value: "off",
-  },
-  {
-    name: "SECURE_PROXY_SSL_HEADER",
-    value: JSON.stringify(["HTTP_X_FORWARDED_PROTO", "https"]),
-  },
-  {
-    name: "LOGGING_STRATEGY",
-    value: "structlog_json",
-  },
-  {
-    name: "PASSPORT_PUBLIC_URL",
-    value: "https://staging.passport.gitcoin.co/",
-  },
-];
+const envConfig: ScorerEnvironmentConfig = {
+  allowedHosts: JSON.stringify([domain, "*"]),
+  domain: domain,
+  csrfTrustedOrigins: JSON.stringify([`https://${domain}`]),
+  rdsConnectionUrl: rdsConnectionUrl,
+  redisCacheOpsConnectionUrl: redisCacheOpsConnectionUrl,
+  uiDomains: JSON.stringify([
+    "scorer." + process.env["DOMAIN"],
+    "www.scorer." + process.env["DOMAIN"],
+  ]),
+  debug: "off",
+  passportPublicUrl: "https://staging.passport.gitcoin.co/",
+};
+const environment = getEnvironment(envConfig);
+
 //////////////////////////////////////////////////////////////
 // Set up log groups for API service and worker
 //////////////////////////////////////////////////////////////
@@ -403,87 +333,61 @@ const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
 //////////////////////////////////////////////////////////////
 // Set up the Scorer ECS service
 //////////////////////////////////////////////////////////////
-const service = new awsx.ecs.FargateService("scorer", {
-  cluster,
-  desiredCount: 1,
+const baseScorerServiceConfig: ScorerService = {
+  cluster: cluster,
+  dockerImageScorer: dockerGtcPassportScorerImage,
+  dockerImageVerifier: dockerGtcPassportVerifierImage,
+  executionRole: dpoppEcsRole,
+  logGroup: serviceLogGroup,
   subnets: vpc.privateSubnetIds,
-  taskDefinitionArgs: {
-    logGroup: serviceLogGroup,
-    executionRole: dpoppEcsRole,
-    containers: {
-      scorer: {
-        image: dockerGtcPassportScorerImage,
-        memory: 4096,
-        cpu: 4000,
-        portMappings: [httpsListener],
-        command: [
-          "gunicorn",
-          "-w",
-          "4",
-          "-k",
-          "uvicorn.workers.UvicornWorker",
-          "scorer.asgi:application",
-          "-b",
-          "0.0.0.0:80",
-        ],
-        links: [],
-        secrets: secrets,
-        environment: environment,
-        linuxParameters: {
-          initProcessEnabled: true,
-        },
-      },
-      verifier: {
-        image: dockerGtcPassportVerifierImage,
-        memory: 512,
-        links: [],
-        portMappings: [
-          {
-            containerPort: 8001,
-            hostPort: 8001,
-          },
-        ],
-        environment: [
-          {
-            name: "VERIFIER_PORT",
-            value: "8001",
-          },
-        ],
-        linuxParameters: {
-          initProcessEnabled: true,
-        },
-      },
-    },
-  },
-});
+  needsVerifier: false,
+  httpListenerArn: httpsListener.listener.arn,
+  targetGroup: targetGroupDefault,
+  autoScaleMaxCapacity: 2,
+  autoScaleMinCapacity: 1,
+};
 
-const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
-  "scorer-autoscaling-target",
+const scorerServiceDefault = createScorerECSService(
+  "scorer-api-default",
   {
-    maxCapacity: 20,
-    minCapacity: 2,
-    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${service.service.name}`,
-    scalableDimension: "ecs:service:DesiredCount",
-    serviceNamespace: "ecs",
-  }
+    ...baseScorerServiceConfig,
+    targetGroup: targetGroupDefault,
+  },
+  envConfig
 );
 
-const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
-  "scorer-autoscaling-policy",
+const scorerServicePassport = createScorerECSService(
+  "scorer-api-passport",
   {
-    policyType: "TargetTrackingScaling",
-    resourceId: ecsScorerServiceAutoscalingTarget.resourceId,
-    scalableDimension: ecsScorerServiceAutoscalingTarget.scalableDimension,
-    serviceNamespace: ecsScorerServiceAutoscalingTarget.serviceNamespace,
-    targetTrackingScalingPolicyConfiguration: {
-      predefinedMetricSpecification: {
-        predefinedMetricType: "ECSServiceAverageCPUUtilization",
-      },
-      targetValue: 30,
-      scaleInCooldown: 300,
-      scaleOutCooldown: 300,
-    },
-  }
+    ...baseScorerServiceConfig,
+    needsVerifier: true,
+    listenerRulePriority: 2000,
+    httpListenerRulePaths: ["/ceramic-cache/*"],
+    targetGroup: targetGroupPassport,
+  },
+  envConfig
+);
+
+const scorerServiceRegistry = createScorerECSService(
+  "scorer-api-reg",
+  {
+    ...baseScorerServiceConfig,
+    listenerRulePriority: 3000,
+    httpListenerRulePaths: ["/registry/*"],
+    targetGroup: targetGroupRegistry,
+  },
+  envConfig
+);
+
+const scorerServiceRegistrySubmitPassport = createScorerECSService(
+  "scorer-api-reg-sp", // scorer-registry-submit-passport
+  {
+    ...baseScorerServiceConfig,
+    listenerRulePriority: 2500,
+    httpListenerRulePaths: ["/registry/submit-passport"],
+    targetGroup: targetGroupRegistrySubmitPassport,
+  },
+  envConfig
 );
 
 //////////////////////////////////////////////////////////////
@@ -551,10 +455,10 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
   taskDefinitionArgs: {
     logGroup: workerLogGroup,
     executionRole: workerRole,
-    cpu: "16vCPU",
-    memory: "32GB",
     containers: {
       worker1: {
+        memory: 2048,
+        cpu: 2000,
         image: dockerGtcPassportScorerImage,
         command: [
           "celery",
@@ -641,7 +545,7 @@ const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
 const ecsScorerWorker2AutoscalingTarget = new aws.appautoscaling.Target(
   "scorer-worker2-autoscaling-target",
   {
-    maxCapacity: 400,
+    maxCapacity: 4,
     minCapacity: 2,
     resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celery2.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
@@ -771,109 +675,6 @@ const flower = new awsx.ecs.FargateService("flower", {
     },
   },
 });
-
-//////////////////////////////////////////////////////////////
-// ECS Scheduled Task
-//////////////////////////////////////////////////////////////
-// const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
-//   containers: {
-//     web: {
-//       image: dockerGtcPassportScorerImage,
-//       cpu: 256,
-//       memory: 2048,
-//       secrets,
-//       command: ["python", "manage.py", "dump_stamp_data"],
-//     },
-//   },
-// });
-
-// const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
-//   scheduleExpression: "rate(1 minute)", // Run the task every day at 12pm.
-// });
-
-// new aws.cloudwatch.EventTarget("scheduledEventTarget", {
-//   rule: scheduledEventRule.name,
-//   arn: cluster.cluster.arn,
-//   ecsTarget: {
-//     taskCount: 1,
-//     taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
-//     launchType: "FARGATE",
-//     networkConfiguration: {
-//       subnets: vpc.publicSubnetIds,
-//       securityGroups: [cluster.securityGroups[0].id],
-//     },
-//   },
-// });
-
-//////////////////////////////////////////////////////////////
-// Set up task to run migrations
-//////////////////////////////////////////////////////////////
-const taskMigrate = new awsx.ecs.FargateTaskDefinition(`scorer-run-migrate`, {
-  executionRole: dpoppEcsRole,
-  containers: {
-    web: {
-      image: dockerGtcPassportScorerImage,
-      command: ["python", "manage.py", "migrate"],
-      memory: 4096,
-      cpu: 2000,
-      portMappings: [],
-      secrets: secrets.concat([
-        {
-          name: "DJANGO_SUPERUSER_USERNAME",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_USERNAME::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_EMAIL",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_EMAIL::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_PASSWORD",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_PASSWORD::`,
-        },
-      ]),
-      environment: environment,
-      dependsOn: [],
-      links: [],
-    },
-  },
-});
-
-export const taskMigrateDefinition = taskMigrate.taskDefinition.id;
-
-//////////////////////////////////////////////////////////////
-// Set up task to create superuser
-//////////////////////////////////////////////////////////////
-const task = new awsx.ecs.FargateTaskDefinition(`scorer-run-createsuperuser`, {
-  executionRole: dpoppEcsRole,
-  containers: {
-    web: {
-      image: dockerGtcPassportScorerImage,
-      command: ["python", "manage.py", "createsuperuser", "--noinput"],
-      memory: 4096,
-      cpu: 2000,
-      portMappings: [],
-      secrets: secrets.concat([
-        {
-          name: "DJANGO_SUPERUSER_USERNAME",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_USERNAME::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_EMAIL",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_EMAIL::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_PASSWORD ",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_PASSWORD::`,
-        },
-      ]),
-      environment: environment,
-      dependsOn: [],
-      links: [],
-    },
-  },
-});
-
-export const taskDefinition = task.taskDefinition.id;
 
 const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
   description: "gitcoin-ecs-task",
@@ -1010,7 +811,7 @@ const redashDb = new aws.rds.Instance("redash-db", {
   vpcSecurityGroupIds: [redashDbSecgrp.id],
   backupRetentionPeriod: 5,
   performanceInsightsEnabled: true,
-});
+}, { protect: true });
 
 const dbUrl = redashDb.endpoint;
 export const redashDbUrl = pulumi.secret(
@@ -1058,7 +859,8 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
 
 // const redashDbUrlString = redashDbUrl.apply((url) => url).toString();
 
-const redashInitScript = redashDbUrl.apply((url) => `#!/bin/bash
+const redashInitScript = redashDbUrl.apply(
+  (url) => `#!/bin/bash
 echo "Setting environment variables..."
 export POSTGRES_PASSWORD="${redashDbPassword}"
 export REDASH_DATABASE_URL="${url}"
@@ -1076,8 +878,8 @@ cd data
 sudo docker-compose run --rm server create_db
 sudo docker-compose up -d
 
-`);
-
+`
+);
 
 const redashinstance = new aws.ec2.Instance("redashinstance", {
   ami: ubuntu.then((ubuntu) => ubuntu.id),

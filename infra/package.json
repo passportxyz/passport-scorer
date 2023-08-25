@@ -1,6 +1,5 @@
 {
-    "name": "prod",
-    "main": "index.ts",
+    "name": "infra",
     "devDependencies": {
         "@types/node": "^14"
     },
