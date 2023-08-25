@@ -34,8 +34,7 @@ class Command(BaseCommand):
         print(f"Getting Stamps updated since {latest_export.last_export_ts}")
 
         query = (
-            CeramicCache.objects.filter(created_at__gt=latest_export.last_export_ts)
-            .values("stamp", "updated_at")
+            CeramicCache.objects.values("stamp", "updated_at")
             .order_by("updated_at")
             .using("read_replica_0")
         )
