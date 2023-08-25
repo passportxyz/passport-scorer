@@ -750,40 +750,6 @@ const flower = new awsx.ecs.FargateService("flower", {
   },
 });
 
-//////////////////////////////////////////////////////////////
-// Set up task to create superuser
-//////////////////////////////////////////////////////////////
-const task = new awsx.ecs.FargateTaskDefinition(`scorer-run-createsuperuser`, {
-  executionRole: dpoppEcsRole,
-  containers: {
-    web: {
-      image: dockerGtcPassportScorerImage,
-      command: ["python", "manage.py", "createsuperuser", "--noinput"],
-      memory: 4096,
-      cpu: 2000,
-      portMappings: [],
-      secrets: secrets.concat([
-        {
-          name: "DJANGO_SUPERUSER_USERNAME",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_USERNAME::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_EMAIL",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_EMAIL::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_PASSWORD ",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_PASSWORD::`,
-        },
-      ]),
-      environment: environment,
-      dependsOn: [],
-      links: [],
-    },
-  },
-});
-
-export const taskDefinition = task.taskDefinition.id;
 
 const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
   description: "gitcoin-ecs-task",
