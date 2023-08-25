@@ -887,7 +887,7 @@ const redashDb = new aws.rds.Instance("redash-db", {
   vpcSecurityGroupIds: [redashDbSecgrp.id],
   backupRetentionPeriod: 5,
   performanceInsightsEnabled: true,
-});
+}, { protect: true });
 
 const dbUrl = redashDb.endpoint;
 export const redashDbUrl = pulumi.secret(

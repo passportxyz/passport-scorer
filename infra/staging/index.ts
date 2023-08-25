@@ -100,7 +100,7 @@ const postgresql = new aws.rds.Instance(
     backupRetentionPeriod: 5,
     performanceInsightsEnabled: true,
   },
-  { protect: false }
+  { protect: true }
 );
 
 export const rdsEndpoint = postgresql.endpoint;
@@ -811,7 +811,7 @@ const redashDb = new aws.rds.Instance("redash-db", {
   vpcSecurityGroupIds: [redashDbSecgrp.id],
   backupRetentionPeriod: 5,
   performanceInsightsEnabled: true,
-});
+}, { protect: true });
 
 const dbUrl = redashDb.endpoint;
 export const redashDbUrl = pulumi.secret(
