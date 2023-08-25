@@ -2,6 +2,9 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 
+import { ScorerEnvironmentConfig } from "../lib/scorer/service";
+import { createScheduledTask } from "../lib/scorer/scheduledTasks";
+
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
 let route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
@@ -683,48 +686,6 @@ const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
 export const securityGroupForTaskDefinition = secgrp.id;
 
 //////////////////////////////////////////////////////////////
-// ECS Scheduled Task
-//////////////////////////////////////////////////////////////
-// const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
-//   containers: {
-//     web: {
-//       image: dockerGtcPassportScorerImage,
-//       cpu: 256,
-//       memory: 2048,
-//       secrets,
-//       command: ["python", "manage.py", "dump_stamp_data"],
-//     },
-//   },
-// });
-
-// const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
-//   // scheduleExpression: "cron(0 12 * * ? *)", // Run the task every day at 12 UTC
-//   scheduleExpression: "cron(0/5 * ? * * *)", // Run the task every 5 min
-//   // scheduleExpression: "cron(0 12 ? * FRI *)", // Run the task every friday at 12 UTC
-// });
-
-// // const serviceLinkRoler = new aws.iam.ServiceLinkedRole("ecs_service_link_roler", {
-// //   customSuffix: "ecs_scheduled_event",
-// //   awsServiceName: "ecs.amazonaws.com",
-// // })
-
-// new aws.cloudwatch.EventTarget("scheduledEventTarget", {
-//   rule: scheduledEventRule.name,
-//   arn: cluster.cluster.arn,
-//   roleArn: dpoppEcsRole.arn,
-//   ecsTarget: {
-//     taskCount: 1,
-//     taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
-//     launchType: "FARGATE",
-//     networkConfiguration: {
-//       assignPublicIp: true,
-//       subnets: vpcPublicSubnetIds,
-//       securityGroups: [secgrp.id],
-//     },
-//   },
-// });
-
-//////////////////////////////////////////////////////////////
 // Set up EC2 instance
 //      - it is intended to be used for troubleshooting
 //////////////////////////////////////////////////////////////
@@ -795,4 +756,32 @@ export const ec2PublicIp = web.publicIp;
 
 export const dockrRunCmd = pulumi.secret(
   pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
+);
+
+const envConfig: ScorerEnvironmentConfig = {
+  allowedHosts: JSON.stringify([domain, "*"]),
+  domain: domain,
+  csrfTrustedOrigins: JSON.stringify([`https://${domain}`]),
+  rdsConnectionUrl: rdsConnectionUrl,
+  redisCacheOpsConnectionUrl: redisCacheOpsConnectionUrl,
+  uiDomains: JSON.stringify([
+    "scorer." + process.env["DOMAIN"],
+    "www.scorer." + process.env["DOMAIN"],
+  ]),
+  debug: "off",
+  passportPublicUrl: "https://staging.passport.gitcoin.co/",
+};
+
+export const weeklyDataDumpTaskDefinition = createScheduledTask(
+  "weekly-data-dump",
+  {
+    cluster,
+    executionRole: dpoppEcsRole,
+    subnets: vpcPrivateSubnetIds,
+    dockerImageScorer: dockerGtcPassportScorerImage,
+    securityGroup: secgrp,
+    command: ["python", "manage.py", "dump_stamp_data"],
+    scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
+  },
+  envConfig
 );
