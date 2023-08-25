@@ -36,6 +36,8 @@ django-debug-toolbar = "*"
 django-filter = "*"
 boto3 = "*"
 tqdm = "*"
+gql = "*"
+requests-toolbelt = "*"
 
 [dev-packages]
 black = "*"

@@ -73,6 +73,11 @@ class InvalidOrderByFieldException(APIException):
     default_detail = "Invalid order_by_field value"
 
 
+class StakingRequestError(APIException):
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    default_detail = "External API error requesting data from staking subgraph"
+
+
 def api_get_object_or_404(klass, *args, **kwargs):
     """
     Note: this is an adjusted clone of djangos get_object_or_404
