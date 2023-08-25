@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from urllib.parse import urljoin
 
 import api_logging as logging
@@ -11,8 +11,11 @@ from account.models import Account, Community, Nonce, Rules
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.core.cache import cache
+from gql import Client, gql
+from gql.transport.requests import RequestsHTTPTransport
 from ninja import Router
 from ninja.pagination import paginate
+from pydantic import BaseModel
 from registry.models import Passport, Score
 from registry.permissions import ResearcherPermission
 from registry.utils import (
@@ -33,6 +36,7 @@ from ..exceptions import (
     InvalidNonceException,
     InvalidOrderByFieldException,
     InvalidSignerException,
+    StakingRequestError,
     aapi_get_object_or_404,
     api_get_object_or_404,
 )
@@ -54,6 +58,15 @@ from .schema import (
     SigningMessageResponse,
     StampDisplayResponse,
     SubmitPassportPayload,
+)
+
+_transport = RequestsHTTPTransport(
+    url=f"https://gateway.thegraph.com/api/{settings.STAKING_SUBGRAPH_API_KEY}/subgraphs/id/6neBRm8wdXfbH9WQuFeizJRpsom4qovuqKhswPBRTC5Q",
+    use_json=True,
+)
+
+gqlClient = Client(
+    transport=_transport,
 )
 
 
@@ -648,3 +661,64 @@ def fetch_stamp_metadata_for_provider(provider: str):
 def stamp_display(request) -> List[StampDisplayResponse]:
     check_rate_limit(request)
     return fetch_all_stamp_metadata()
+
+
+class Round(BaseModel):
+    id: str
+
+
+class Stake(BaseModel):
+    stake: str
+    round: Round
+
+
+class User(BaseModel):
+    stakes: Optional[List[Stake]] = []
+    xstakeAggregates: Optional[List[str]] = []
+
+
+class GqlResponse(BaseModel):
+    users: List[User]
+
+
+@router.get(
+    "/gtc-stake/{address}",
+    description="Get self and community staking amounts based on address and round id",
+    auth=ApiKey(),
+    response=GqlResponse,
+)
+def get_gtc_stake(request, address: str):
+    """
+    Get GTC stake amount by address
+    """
+    try:
+        query = gql(
+            """
+                query User($address: String!) {
+                    users(where: {address: $address}) {
+                        stakes {
+                            stake
+                            round {
+                                id
+                            }
+                        }
+                        xstakeAggregates {
+                            total
+                            round {
+                                id
+                            }
+                        }
+                    }
+                }
+            """
+        )
+
+        variables = {
+            "address": address.lower(),
+        }
+
+        response = gqlClient.execute(query, variable_values=variables)
+
+        return response
+    except Exception as e:
+        raise StakingRequestError()

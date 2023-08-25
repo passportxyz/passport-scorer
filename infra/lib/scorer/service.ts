@@ -89,6 +89,10 @@ export const secrets = [
     name: "REGISTRY_API_READ_DB",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:REGISTRY_API_READ_DB::`,
   },
+  {
+    name: "STAKING_SUBGRAPH_API_KEY",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_SUBGRAPH_API_KEY::`,
+  },
 ];
 
 export function getEnvironment(config: ScorerEnvironmentConfig) {
