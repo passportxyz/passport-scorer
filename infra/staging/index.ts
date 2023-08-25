@@ -10,16 +10,6 @@ import {
   getEnvironment,
   secrets,
 } from "../lib/scorer/service";
-import { createScheduledTask } from "../lib/scorer/scheduledTasks";
-
-import {
-  ScorerEnvironmentConfig,
-  ScorerService,
-  createScorerECSService,
-  createTargetGroup,
-  getEnvironment,
-  secrets,
-} from "../lib/scorer/service";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -807,25 +797,21 @@ let redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
 let redashDbName = `${process.env["REDASH_DB_NAME"]}`;
 
 // Create an RDS instance
-const redashDb = new aws.rds.Instance(
-  "redash-db",
-  {
-    allocatedStorage: 20,
-    maxAllocatedStorage: 20,
-    engine: "postgres",
-    engineVersion: "13.10",
-    instanceClass: "db.t3.micro",
-    dbName: redashDbName,
-    password: redashDbPassword,
-    username: redashDbUsername,
-    skipFinalSnapshot: true,
-    dbSubnetGroupName: dbSubnetGroup.id,
-    vpcSecurityGroupIds: [redashDbSecgrp.id],
-    backupRetentionPeriod: 5,
-    performanceInsightsEnabled: true,
-  },
-  { protect: true }
-);
+const redashDb = new aws.rds.Instance("redash-db", {
+  allocatedStorage: 20,
+  maxAllocatedStorage: 20,
+  engine: "postgres",
+  engineVersion: "13.10",
+  instanceClass: "db.t3.micro",
+  dbName: redashDbName,
+  password: redashDbPassword,
+  username: redashDbUsername,
+  skipFinalSnapshot: true,
+  dbSubnetGroupName: dbSubnetGroup.id,
+  vpcSecurityGroupIds: [redashDbSecgrp.id],
+  backupRetentionPeriod: 5,
+  performanceInsightsEnabled: true,
+}, { protect: true });
 
 const dbUrl = redashDb.endpoint;
 export const redashDbUrl = pulumi.secret(
@@ -989,14 +975,3 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
   targetId: redashinstance.privateIp,
   targetGroupArn: redashTarget.targetGroup.arn,
 });
-
-export const weeklyDataDumpTaskDefinition = createScheduledTask(
-  "weekly-data-dump",
-  {
-    ...baseScorerServiceConfig,
-    securityGroup: secgrp,
-    command: ["python", "manage.py", "dump_stamp_data"],
-    scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
-  },
-  envConfig
-);
