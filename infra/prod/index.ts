@@ -1073,9 +1073,9 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
       "--config",
       JSON.stringify([
         { name: "ceramic_cache.CeramicCache" },
-        { name: "registry.Stamp", select_related: ["passport"] },
         { name: "registry.Event" },
         { name: "registry.HashScorerLink" },
+        { name: "registry.Stamp", select_related: ["passport"] },
       ]),
       "--s3-uri=s3://passport-scorer/daily_data_dumps/",
       "--batch-size=20000",
