@@ -113,7 +113,7 @@ def _get_contributor_statistics_for_cgrants(
 
 def _get_contributor_statistics_for_protocol(address: str) -> dict:
     protocol_filter = ProtocolContributions.objects.filter(
-        contributor=address, amount__gte=1
+        contributor=address, amount__gte=0.95
     )
     total_amount_usd = protocol_filter.aggregate(Sum("amount"))["amount__sum"]
     num_rounds = protocol_filter.aggregate(Count("round", distinct=True))[
