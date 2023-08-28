@@ -2,30 +2,16 @@ import datetime
 import json
 import os
 import traceback
-from io import BytesIO, StringIO
 from urllib.parse import urlparse
 
 import boto3
-from boto3.s3.transfer import TransferConfig
-from ceramic_cache.models import CeramicCache, StampExports
 from django.apps import apps
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from django.core.paginator import Paginator
-from django.core.serializers import serialize
 from django.core.serializers.json import DjangoJSONEncoder
-from django.core.serializers.jsonl import Serializer as JsonlSerializer
 from django.core.serializers.python import Serializer as PythonSerializer
-from django.db import DEFAULT_DB_ALIAS, router
-from django.forms.models import model_to_dict
-from django.utils import timezone
+from django.db import DEFAULT_DB_ALIAS
 from tqdm import tqdm
-
-settings.LOGGING["loggers"]["s3transfer"] = {
-    "level": "DEBUG",
-    "handlers": [],
-    "propagate": False,
-}
 
 
 class ProgressBar:
@@ -216,13 +202,35 @@ def export_data(model_config, file, database, batch_size=None):
 
 
 class Command(BaseCommand):
-    help = "Dump data to JSONL files on S3 directly"
+    help = """Dump data to JSONL files on S3 directly.
+
+    Example configs:
+
+        [{"name":"ceramic_cache.CeramicCache"},{"name":"registry.Stamp"},{"name":"registry.Event"},{"name":"registry.HashScorerLink"}]
+
+        [{"name":"registry.Score","filter": {"community_id":335}, "select_related":["passport"], "extra-args": {"ACL":"public-read"}}]
+
+        [{"name":"registry.Score","filename":"my_custom_file.json","filter": {"community_id":335}, "extra-args": {"ACL":"public-read"}}]
+
+    """
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--batch-size", type=int, default=None, help="Size of record batches"
         )
-        parser.add_argument("--config", type=str, help="Configure the dump process")
+        parser.add_argument(
+            "--config",
+            type=str,
+            help="""Configure the datat to be dumped. This needs to be an array, with 1 object per dump:
+                            {
+                                "name": "<model name> - for example ceramic_cache.CeramicCache",
+                                "filename": "custom filename for the export, otherwise the tablename will be used by default",
+                                "filter": "<filter to apply to query - this dict will be passed into the `filter(...) query method`>,
+                                "extra-args": "<extra args to the s3 upload. This can be used to set dump file permissions, see: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html>"
+                                "select_related":["<array of releated field names that should be expanded and included in the dump">]
+                            }
+                            """,
+        )
         parser.add_argument(
             "--s3-uri", type=str, help="The S3 URI target location for the files"
         )
@@ -231,6 +239,11 @@ class Command(BaseCommand):
             default=DEFAULT_DB_ALIAS,
             help="Nominates a specific database to dump fixtures from. "
             'Defaults to the "default" database.',
+        )
+        parser.add_argument(
+            "--summary-extra-args",
+            default="{}",
+            help="Extra args to add to the summary file upload. This can be used to set S3 permissions, see: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html. Defaults to {}.",
         )
 
     def handle(self, *args, **options):
@@ -243,11 +256,13 @@ class Command(BaseCommand):
         configured_models = json.loads(config)
         s3_uri = options["s3_uri"]
         database = options["database"]
+        summary_extra_args = json.loads(options["summary_extra_args"])
         self.stdout.write("-" * 40)
-        self.stdout.write(f"batch_size   : {batch_size}")
-        self.stdout.write(f"config       : {config}")
-        self.stdout.write(f"s3_uri       : {s3_uri}")
-        self.stdout.write(f"database     : {database}")
+        self.stdout.write(f"batch_size          : {batch_size}")
+        self.stdout.write(f"config              : {config}")
+        self.stdout.write(f"s3_uri              : {s3_uri}")
+        self.stdout.write(f"database            : {database}")
+        self.stdout.write(f"summary_extra_args  : {summary_extra_args}")
         self.stdout.write("-" * 40)
 
         s3 = boto3.client(
@@ -273,7 +288,11 @@ class Command(BaseCommand):
                 self.stdout.write(f"Processing model: {model_name}")
 
                 model = apps.get_model(model_name)
-                file_name = f"{model._meta.db_table}.jsonl"
+                file_name = (
+                    f"{model._meta.db_table}.jsonl"
+                    if "filename" not in model_config
+                    else model_config["filename"]
+                )
 
                 s3_key = f"{s3_folder}/{file_name}"
 
@@ -305,14 +324,14 @@ class Command(BaseCommand):
                     model_summary["s3_key"] = s3_key
                     model_summary["s3_bucket_name"] = s3_bucket_name
 
-                    # os.remove(file_name)
+                    os.remove(file_name)
                 except Exception as e:
                     self.stderr.write(self.style.ERROR(f"ERROR: {e}"))
                     self.stderr.write(traceback.format_exc())
                 finally:
-                    self.stdout.write(self.style.SUCCESS(f"Finished upload"))
+                    self.stdout.write(self.style.SUCCESS("Finished data dump"))
 
-            upload_summary_file = "upload_summary.json"
+            upload_summary_file = "export_summary.json"
             with open(upload_summary_file, "w", encoding="utf-8") as file:
                 json.dump(summary, file)
 
@@ -322,8 +341,9 @@ class Command(BaseCommand):
                 upload_summary_file,
                 s3_bucket_name,
                 s3_key,
-                # ExtraArgs=model_config["extra-args"],
+                ExtraArgs=summary_extra_args,
             )
+            os.remove(upload_summary_file)
 
         except Exception as e:
             self.stderr.write(self.style.ERROR(f"ERROR: {e}"))
