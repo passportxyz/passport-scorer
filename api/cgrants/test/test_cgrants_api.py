@@ -42,19 +42,19 @@ class CgrantsTest(TestCase):
         SquelchProfile.objects.create(profile=self.profile3, active=True)
 
         self.address = "0x12345"
-        project1 = "0xprj_1"
+        self.project1 = "0xprj_1"
         project2 = "0xprj_2"
         project3 = "0xprj_3"
         project4 = "0xprj_4"
-        round1 = "0xround_1"
+        self.round1 = "0xround_1"
         round2 = "0xround_2"
 
         ProtocolContributions.objects.bulk_create(
             [
                 ProtocolContributions(
                     contributor=self.address,
-                    project=project1,
-                    round=round1,
+                    project=self.project1,
+                    round=self.round1,
                     amount=1,
                     ext_id="0xext_1",
                 ),
@@ -68,7 +68,7 @@ class CgrantsTest(TestCase):
                 ProtocolContributions(
                     contributor=self.address,
                     project=project3,
-                    round=round1,
+                    round=self.round1,
                     amount=1,
                     ext_id="0xext_3",
                 ),
@@ -81,8 +81,8 @@ class CgrantsTest(TestCase):
                 ),
                 ProtocolContributions(
                     contributor=self.address,
-                    project=project1,
-                    round=round1,
+                    project=self.project1,
+                    round=self.round1,
                     amount=1,
                     ext_id="0xext_5",
                 ),
@@ -96,7 +96,7 @@ class CgrantsTest(TestCase):
                 ProtocolContributions(
                     contributor=self.address,
                     project=project3,
-                    round=round1,
+                    round=self.round1,
                     amount=1,
                     ext_id="0xext_7",
                 ),
@@ -109,8 +109,8 @@ class CgrantsTest(TestCase):
                 ),
                 ProtocolContributions(
                     contributor=self.address,
-                    project=project1,
-                    round=round1,
+                    project=self.project1,
+                    round=self.round1,
                     amount=1,
                     ext_id="0xext_9",
                 ),
@@ -120,6 +120,14 @@ class CgrantsTest(TestCase):
                     round=round2,
                     amount=1,
                     ext_id="0xext_10",
+                ),
+                # Ignored because the amount is too low
+                ProtocolContributions(
+                    contributor=self.address,
+                    project=self.project1,
+                    round=self.round1,
+                    amount=0.5,
+                    ext_id="0xext_11",
                 ),
             ]
         )
@@ -397,3 +405,31 @@ class CgrantsTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 401)
+
+    def test_grantee_statistics_depegged_protocol_donation(self):
+        address = "0x123low"
+
+        ProtocolContributions.objects.create(
+            contributor=address,
+            project=self.project1,
+            round=self.round1,
+            amount=0.99897,
+            ext_id=address,
+        )
+
+        # Edge case: User has made no contributions
+        response = self.client.get(
+            reverse("cgrants:allo_contributor_statistics"),
+            {"address": address},
+            **self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "num_grants_contribute_to": 1,
+                "num_rounds_contribute_to": 1,
+                "total_valid_contribution_amount": "0.999",
+                "num_gr14_contributions": 0,
+            },
+        )
