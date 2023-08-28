@@ -62,10 +62,21 @@ class ScorerApi(NinjaAPI):
 
 
 registry_api_v1 = ScorerApi(
-    urls_namespace="registry", title="Scorer API", version="1.0.0"
+    urls_namespace="registry",
+    title="Scorer API",
+    version="1.0.0",
+    docs_url="/v1/docs",
+    openapi_url="/v1/openapi.json",
 )
-registry_api_v2 = NinjaAPI(
-    urls_namespace="registry_v2", title="Scorer API", version="2.0.0"
+registry_api_v2 = ScorerApi(
+    urls_namespace="registry_v2",
+    title="Scorer API",
+    version="2.0.0",
+    docs_url="/docs",
+    openapi_url="/v2/openapi.json",
+    description="""
+The V1 API docs are available at [/v1/docs](/v1/docs)
+""",
 )
 
 
@@ -82,10 +93,13 @@ registry_api_v1.add_router(
     "/registry/", registry_router_v1, tags=["Score your passport"]
 )
 
+registry_api_v2.add_router(
+    "/registry/v2", registry_router_v2, tags=["Score your passport"]
+)
+
 feature_flag_api = NinjaAPI(urls_namespace="feature")
 feature_flag_api.add_router("", feature_flag_router)
 
-registry_api_v2.add_router("", registry_router_v2, tags=["Score your passport"])
 
 ceramic_cache_api = NinjaAPI(urls_namespace="ceramic-cache", docs_url=None)
 ceramic_cache_api.add_router("", ceramic_cache_router)

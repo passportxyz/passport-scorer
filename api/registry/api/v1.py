@@ -17,7 +17,6 @@ from ninja import Router
 from ninja.pagination import paginate
 from pydantic import BaseModel
 from registry.models import Passport, Score
-from registry.permissions import ResearcherPermission
 from registry.utils import (
     decode_cursor,
     encode_cursor,

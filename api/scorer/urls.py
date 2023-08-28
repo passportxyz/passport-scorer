@@ -29,7 +29,7 @@ from .api import (
 
 urlpatterns = [
     path("", registry_api_v1.urls),
-    path("registry/v2/", registry_api_v2.urls),
+    path("", registry_api_v2.urls),
     path("registry/feature/", feature_flag_api.urls),
     path("ceramic-cache/", ceramic_cache_api.urls),
     path("cgrants/", include("cgrants.urls")),

@@ -6,7 +6,7 @@ import api_logging as logging
 from account.models import Community
 from ninja import Router
 from registry.api import v1
-from registry.api.v1 import with_read_db
+from registry.api.v1 import ScoreFilter, with_read_db
 from registry.models import Score
 from registry.utils import decode_cursor, encode_cursor, reverse_lazy_with_query
 
@@ -98,6 +98,8 @@ def get_scores(
     request,
     scorer_id: int,
     address: Optional[str] = None,
+    last_score_timestamp__gt: str = "",
+    last_score_timestamp__gte: str = "",
     token: str = None,
     limit: int = 1000,
 ) -> CursorPaginatedScoreResponse:
@@ -111,27 +113,42 @@ def get_scores(
         Community, id=scorer_id, account=request.auth
     )
     try:
+        ordering_fields_asc = ["last_score_timestamp", "id"]
+        ordering_fields_desc = ["-last_score_timestamp", "-id"]
         query = (
             with_read_db(Score)
-            .order_by("id")
             .filter(passport__community__id=user_community.id)
             .select_related("passport")
         )
 
-        if address:
-            query = query.filter(passport__address=address.lower())
-
-        direction, id = decode_cursor(token) if token else (None, None)
+        direction, score_id = decode_cursor(token) if token else (None, None)
 
         if direction == "next":
-            scores = list(query.filter(id__gt=id)[:limit])
+            query = query.filter(id__gt=score_id).order_by(*ordering_fields_asc)
         elif direction == "prev":
-            scores = list(query.filter(id__lt=id).order_by("-id")[:limit])
-            scores.reverse()
+            query = query.filter(id__lt=score_id).order_by(*ordering_fields_desc)
         else:
-            scores = list(query[:limit])
+            query = query.order_by(*ordering_fields_asc)
 
+        query = query[:limit]
         has_more_scores = has_prev_scores = False
+
+        # Technically we could just pass request.GET to the filter. But since we have the parameters defined
+        # anyways (because we need them for the generated docs) we might as well use them explicitly in the
+        # filter_values.
+        scores = ScoreFilter(
+            {
+                "address": address,
+                "last_score_timestamp__gt": last_score_timestamp__gt,
+                "last_score_timestamp__gte": last_score_timestamp__gte,
+            },
+            queryset=query,
+        ).qs
+
+        scores = list(query)
+
+        if direction == "prev":
+            scores.reverse()
 
         if scores:
             next_id = scores[-1].id
