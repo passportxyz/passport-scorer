@@ -135,7 +135,7 @@ jobs:
         uses: actions/setup-node@v2
         with:
           cache: "yarn"
-          cache-dependency-path: infra/review/package-lock.json
+          cache-dependency-path: infra/package-lock.json
 
       # Update the pulumi stack with new image
       - run: |
