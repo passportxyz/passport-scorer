@@ -216,7 +216,13 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--batch-size", type=int, default=None, help="Size of record batches"
+            "--batch-size",
+            type=int,
+            default=None,
+            help="""Size of record batches.
+            If present, this will read the records in batches. The result list is ordered by pk (id), to get
+            to the next batch we query by id__gt=last_id.
+            """,
         )
         parser.add_argument(
             "--config",

@@ -1060,3 +1060,59 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask(
   },
   envConfig
 );
+
+export const dailyDataDumpTaskDefinition = createScheduledTask(
+  "daily-data-dump",
+  {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: [
+      "python",
+      "manage.py",
+      "scorer_dump_data",
+      "--config",
+      JSON.stringify([
+        { name: "ceramic_cache.CeramicCache" },
+        { name: "registry.Stamp", select_related: ["passport"] },
+        { name: "registry.Event" },
+        { name: "registry.HashScorerLink" },
+      ]),
+      "--s3-uri=s3://passport-scorer/daily_data_dumps/",
+      "--batch-size=20000",
+    ],
+
+    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
+  },
+  envConfig
+);
+
+// The follosing scorer dumps the Allo scorer scores to a public S3 bucket
+// for the Allo team to easily pull the data
+export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
+  "frequent-allo-scorer-data-dump",
+  {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: [
+      "python",
+      "manage.py",
+      "scorer_dump_data",
+      "--config",
+      JSON.stringify([
+        {
+          name: "registry.Score",
+          filter: { community_id: 335 },
+          select_related: ["passport"],
+          "extra-args": { ACL: "public-read" },
+        },
+      ]),
+
+      "--s3-uri=s3://passport-scorer-public/grants-stack/",
+      "--summary-extra-args",
+      JSON.stringify({ ACL: "public-read" }),
+    ],
+
+    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+  },
+  envConfig
+);
