@@ -277,62 +277,6 @@ def delete_stamps(request, payload: List[DeleteStampPayload]):
         raise e
 
 
-@router.post(
-    "stamp",
-    response={201: CachedStampResponse},
-    auth=JWTDidAuth(),
-)
-def cache_stamp(request, payload: CacheStampPayload):
-    try:
-        if request.did.lower() != get_did(payload.address):
-            raise InvalidSessionException()
-        stamp, created = CeramicCache.objects.update_or_create(
-            address=payload.address,
-            provider=payload.provider,
-            defaults=dict(
-                stamp=payload.stamp,
-                updated_at=get_utc_time(),
-            ),
-        )
-
-        submit_passport_from_cache(payload.address)
-
-        return stamp
-    except Exception as e:
-        raise e
-
-
-@router.delete(
-    "stamp",
-    response=DeleteStampResponse,
-    auth=JWTDidAuth(),
-)
-def delete_stamp(request, payload: DeleteStampPayload):
-    try:
-        if request.did.lower() != get_did(payload.address):
-            raise InvalidSessionException()
-
-        stamp = CeramicCache.objects.get(
-            address=payload.address,
-            provider=payload.provider,
-        )
-
-        address = stamp.address
-        provider = stamp.provider
-
-        stamp.delete()
-
-        submit_passport_from_cache(address)
-
-        return DeleteStampResponse(
-            address=address,
-            provider=provider,
-            status="deleted",
-        )
-    except Exception as e:
-        raise InvalidDeleteCacheRequestException()
-
-
 @router.get("stamp", response=GetStampResponse)
 def get_stamps(request, address):
     try:
