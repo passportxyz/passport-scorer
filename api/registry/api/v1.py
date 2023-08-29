@@ -472,14 +472,16 @@ def get_passport_stamps(
 
     query = CeramicCache.objects.order_by("-id").filter(address=address.lower())
 
-    direction, id = decode_cursor(token) if token else (None, None)
+    cursor = decode_cursor(token) if token else {}
+    direction = cursor.get("d")
+    id_ = cursor.get("id")
 
     if direction == "next":
         # note we use lt here because we're querying in descending order
-        cacheStamps = list(query.filter(id__lt=id)[:limit])
+        cacheStamps = list(query.filter(id__lt=id_)[:limit])
 
     elif direction == "prev":
-        cacheStamps = list(query.filter(id__gt=id).order_by("id")[:limit])
+        cacheStamps = list(query.filter(id__gt=id_).order_by("id")[:limit])
         cacheStamps.reverse()
 
     else:
@@ -514,7 +516,7 @@ def get_passport_stamps(
         f"""{domain}{reverse_lazy_with_query(
             "registry:get_passport_stamps",
             args=[address],
-            query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
+            query_kwargs={"token": encode_cursor(d="next", id=next_id), "limit": limit},
         )}"""
         if has_more_stamps
         else None
@@ -524,7 +526,7 @@ def get_passport_stamps(
         f"""{domain}{reverse_lazy_with_query(
             "registry:get_passport_stamps",
             args=[address],
-            query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
+            query_kwargs={"token": encode_cursor(d="prev", id=prev_id), "limit": limit},
         )}"""
         if has_prev_stamps
         else None

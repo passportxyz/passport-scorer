@@ -138,14 +138,15 @@ def permissions_required(permission_classes):
     return decorator
 
 
-def encode_cursor(direction: str, id: int) -> str:
-    encoded_bytes = base64.urlsafe_b64encode(json.dumps({"d": direction, "id": id}))
+def encode_cursor(**kwargs) -> str:
+    encoded_bytes = base64.urlsafe_b64encode(json.dumps(dict(**kwargs)).encode("utf-8"))
     return encoded_bytes
 
 
-def decode_cursor(token: str) -> Tuple[str, int]:
-    decoded_token = json.loads(base64.urlsafe_b64decode(token))
-    return decoded_token.get("d"), int(decoded_token.get("id", 0))
+def decode_cursor(token: str) -> dict:
+    if token:
+        return json.loads(base64.urlsafe_b64decode(token).decode("utf-8"))
+    return {}
 
 
 def get_utc_time():

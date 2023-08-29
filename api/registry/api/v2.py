@@ -1,9 +1,11 @@
+from datetime import datetime
 from typing import List, Optional
 
 import api_logging as logging
 
 # --- Deduplication Modules
 from account.models import Community
+from django.db.models import Q
 from ninja import Router
 from registry.api import v1
 from registry.api.v1 import ScoreFilter, with_read_db
@@ -92,6 +94,9 @@ def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
     summary="Get scores for all addresses that are associated with a scorer",
     description="""Use this endpoint to fetch the scores for all addresses that are associated with a scorer\n
 This endpoint will return a `CursorPaginatedScoreResponse`.\n
+\n
+
+Note: results will be sorted ascending by `["last_score_timestamp", "id"]`
 """,
 )
 def get_scores(
@@ -115,20 +120,40 @@ def get_scores(
     try:
         ordering_fields_asc = ["last_score_timestamp", "id"]
         ordering_fields_desc = ["-last_score_timestamp", "-id"]
-        query = (
+        base_query = (
             with_read_db(Score)
             .filter(passport__community__id=user_community.id)
             .select_related("passport")
         )
 
-        direction, score_id = decode_cursor(token) if token else (None, None)
+        cursor = decode_cursor(token)
+        direction = cursor.get("d")
+        score_id = cursor.get("id")
+        last_score_timestamp = cursor.get("lts")
+        last_score_timestamp = (
+            datetime.fromisoformat(last_score_timestamp)
+            if last_score_timestamp
+            else None
+        )
 
         if direction == "next":
-            query = query.filter(id__gt=score_id).order_by(*ordering_fields_asc)
+            query = base_query.filter(
+                Q(last_score_timestamp__gt=last_score_timestamp)
+                | (
+                    Q(last_score_timestamp__gte=last_score_timestamp)
+                    & Q(id__gt=score_id)
+                )
+            ).order_by(*ordering_fields_asc)
         elif direction == "prev":
-            query = query.filter(id__lt=score_id).order_by(*ordering_fields_desc)
+            query = base_query.filter(
+                Q(last_score_timestamp__lt=last_score_timestamp)
+                | (
+                    Q(last_score_timestamp__lte=last_score_timestamp)
+                    & Q(id__gt=score_id)
+                )
+            ).order_by(*ordering_fields_desc)
         else:
-            query = query.order_by(*ordering_fields_asc)
+            query = base_query.order_by(*ordering_fields_asc)
 
         query = query[:limit]
         has_more_scores = has_prev_scores = False
@@ -152,10 +177,12 @@ def get_scores(
 
         if scores:
             next_id = scores[-1].id
+            next_lts = scores[-1].last_score_timestamp
             prev_id = scores[0].id
+            prev_lts = scores[0].last_score_timestamp
 
-            has_more_scores = query.filter(id__gt=next_id).exists()
-            has_prev_scores = query.filter(id__lt=prev_id).exists()
+            has_more_scores = base_query.filter(id__gt=next_id).exists()
+            has_prev_scores = base_query.filter(id__lt=prev_id).exists()
 
         domain = request.build_absolute_uri("/")[:-1]
 
@@ -163,7 +190,7 @@ def get_scores(
             f"""{domain}{reverse_lazy_with_query(
                 "registry_v2:get_scores",
                 args=[scorer_id],
-                query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
+                query_kwargs={"token": encode_cursor(d="next", id=next_id, lts=next_lts.isoformat()), "limit": limit},
             )}"""
             if has_more_scores
             else None
@@ -173,7 +200,7 @@ def get_scores(
             f"""{domain}{reverse_lazy_with_query(
                 "registry_v2:get_scores",
                 args=[scorer_id],
-                query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
+                query_kwargs={"token": encode_cursor(d="prev", id=prev_id, lts=prev_lts.isoformat()), "limit": limit},
             )}"""
             if has_prev_scores
             else None
@@ -211,3 +238,13 @@ def get_passport_stamps(
     request, address: str, token: str = None, limit: int = 1000
 ) -> CursorPaginatedStampCredentialResponse:
     return v1.get_passport_stamps(request, address, token, limit)
+
+
+@router.get(
+    "/gtc-stake/{address}",
+    description="Get self and community staking amounts based on address and round id",
+    auth=ApiKey(),
+    response=v1.GqlResponse,
+)
+def get_gtc_stake(request, address: str):
+    return v1.get_gtc_stake(request, address)
