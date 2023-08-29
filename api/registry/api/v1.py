@@ -672,9 +672,14 @@ class Stake(BaseModel):
     round: Round
 
 
+class XstakeAggregate(BaseModel):
+    total: str
+    round: Round
+
+
 class User(BaseModel):
     stakes: Optional[List[Stake]] = []
-    xstakeAggregates: Optional[List[str]] = []
+    xstakeAggregates: Optional[List[XstakeAggregate]] = []
 
 
 class GqlResponse(BaseModel):
