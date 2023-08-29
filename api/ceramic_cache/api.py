@@ -140,9 +140,7 @@ class GetStampResponse(Schema):
     stamps: List[CachedStampResponse]
 
 
-@router.post(
-    "stamps/bulk", response={201: List[CachedStampResponse]}, auth=JWTDidAuth()
-)
+@router.post("stamps/bulk", response={201: GetStampResponse}, auth=JWTDidAuth())
 def cache_stamps(request, payload: List[CacheStampPayload]):
     try:
         if len(payload) > settings.MAX_BULK_CACHE_SIZE:
@@ -169,14 +167,23 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
 
         submit_passport_from_cache(address)
 
-        return created
+        updated_passport_state = CeramicCache.objects.filter(address=address)
+
+        return GetStampResponse(
+            success=True,
+            stamps=[
+                CachedStampResponse(
+                    address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                )
+                for stamp in updated_passport_state
+            ],
+        )
+
     except Exception as e:
         raise e
 
 
-@router.patch(
-    "stamps/bulk", response={200: List[CachedStampResponse]}, auth=JWTDidAuth()
-)
+@router.patch("stamps/bulk", response={200: GetStampResponse}, auth=JWTDidAuth())
 def patch_stamps(request, payload: List[CacheStampPayload]):
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
         raise TooManyStampsException()
@@ -217,7 +224,18 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
 
         submit_passport_from_cache(address)
 
-        return updated
+        updated_passport_state = CeramicCache.objects.filter(address=address)
+
+        return GetStampResponse(
+            success=True,
+            stamps=[
+                CachedStampResponse(
+                    address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                )
+                for stamp in updated_passport_state
+            ],
+        )
+
     except Exception as e:
         log.error(
             "Failed patch_stamps request: '%s'",
@@ -227,7 +245,7 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
         raise InternalServerException()
 
 
-@router.delete("stamps/bulk", response=BulkDeleteResponse, auth=JWTDidAuth())
+@router.delete("stamps/bulk", response=GetStampResponse, auth=JWTDidAuth())
 def delete_stamps(request, payload: List[DeleteStampPayload]):
     try:
         if len(payload) > settings.MAX_BULK_CACHE_SIZE:
@@ -244,65 +262,19 @@ def delete_stamps(request, payload: List[DeleteStampPayload]):
 
         submit_passport_from_cache(address)
 
-        return {"status": "success"}
+        updated_passport_state = CeramicCache.objects.filter(address=address)
+
+        return GetStampResponse(
+            success=True,
+            stamps=[
+                CachedStampResponse(
+                    address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                )
+                for stamp in updated_passport_state
+            ],
+        )
     except Exception as e:
         raise e
-
-
-@router.post(
-    "stamp",
-    response={201: CachedStampResponse},
-    auth=JWTDidAuth(),
-)
-def cache_stamp(request, payload: CacheStampPayload):
-    try:
-        if request.did.lower() != get_did(payload.address):
-            raise InvalidSessionException()
-        stamp, created = CeramicCache.objects.update_or_create(
-            address=payload.address,
-            provider=payload.provider,
-            defaults=dict(
-                stamp=payload.stamp,
-                updated_at=get_utc_time(),
-            ),
-        )
-
-        submit_passport_from_cache(payload.address)
-
-        return stamp
-    except Exception as e:
-        raise e
-
-
-@router.delete(
-    "stamp",
-    response=DeleteStampResponse,
-    auth=JWTDidAuth(),
-)
-def delete_stamp(request, payload: DeleteStampPayload):
-    try:
-        if request.did.lower() != get_did(payload.address):
-            raise InvalidSessionException()
-
-        stamp = CeramicCache.objects.get(
-            address=payload.address,
-            provider=payload.provider,
-        )
-
-        address = stamp.address
-        provider = stamp.provider
-
-        stamp.delete()
-
-        submit_passport_from_cache(address)
-
-        return DeleteStampResponse(
-            address=address,
-            provider=provider,
-            status="deleted",
-        )
-    except Exception as e:
-        raise InvalidDeleteCacheRequestException()
 
 
 @router.get("stamp", response=GetStampResponse)
