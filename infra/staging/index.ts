@@ -864,8 +864,6 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
   }
 );
 
-// const redashDbUrlString = redashDbUrl.apply((url) => url).toString();
-
 const redashInitScript = redashDbUrl.apply((url) => {
   return redashSecretKey.apply((secretKey) => {
     return `#!/bin/bash
