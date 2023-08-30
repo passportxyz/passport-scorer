@@ -796,6 +796,8 @@ const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp`, {
 let redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
 let redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
 let redashDbName = `${process.env["REDASH_DB_NAME"]}`;
+// used to encrypt settings values within the instance e.g. datasources
+let redashSecretKey = pulumi.secret(`${process.env["REDASH_SECRET_KEY"]}`);
 
 // Create an RDS instance
 const redashDb = new aws.rds.Instance(
@@ -869,6 +871,7 @@ const redashInitScript = redashDbUrl.apply(
 echo "Setting environment variables..."
 export POSTGRES_PASSWORD="${redashDbPassword}"
 export REDASH_DATABASE_URL="${url}"
+export REDASH_SECRET_KEY="${redashSecretKey}"
 
 echo "Cloning passport-redash repository..."
 git clone https://github.com/gitcoinco/passport-redash.git
