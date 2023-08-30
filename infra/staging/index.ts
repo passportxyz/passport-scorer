@@ -866,27 +866,28 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
 
 // const redashDbUrlString = redashDbUrl.apply((url) => url).toString();
 
-const redashInitScript = redashDbUrl.apply(
-  (url) => `#!/bin/bash
-echo "Setting environment variables..."
-export POSTGRES_PASSWORD="${redashDbPassword}"
-export REDASH_DATABASE_URL="${url}"
-export REDASH_SECRET_KEY="${redashSecretKey}"
+const redashInitScript = redashDbUrl.apply((url) => {
+  redashSecretKey.apply((secretKey) => {
+    return `#!/bin/bash
+    echo "Setting environment variables..."
+    export POSTGRES_PASSWORD="${redashDbPassword}"
+    export REDASH_DATABASE_URL="${url}"
+    export REDASH_SECRET_KEY="${secretKey}"
 
-echo "Cloning passport-redash repository..."
-git clone https://github.com/gitcoinco/passport-redash.git
+    echo "Cloning passport-redash repository..."
+    git clone https://github.com/gitcoinco/passport-redash.git
 
-echo "Changing directory and setting permissions..."
-cd passport-redash
-sudo chmod +x ./setup.sh
-./setup.sh
+    echo "Changing directory and setting permissions..."
+    cd passport-redash
+    sudo chmod +x ./setup.sh
+    ./setup.sh
 
-cd data
+    cd data
 
-sudo docker-compose up -d
-
-`
-);
+    sudo docker-compose up -d
+    `;
+  });
+});
 
 const redashinstance = new aws.ec2.Instance("redashinstance", {
   ami: ubuntu.then((ubuntu) => ubuntu.id),
