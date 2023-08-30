@@ -33,39 +33,83 @@ export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPOR
 //////////////////////////////////////////////////////////////
 
 const vpc = new awsx.ec2.Vpc("scorer", {
-  subnets: [{ type: "public" }, { type: "private", mapPublicIpOnLaunch: true }],
+  subnetSpecs: [{ type: "Public" }, { type: "Private" }],
+  numberOfAvailabilityZones: 2,
 });
 
-export const vpcID = vpc.id;
+export const vpcID = vpc.vpcId;
 export const vpcPrivateSubnetIds = vpc.privateSubnetIds;
 export const vpcPublicSubnetIds = vpc.publicSubnetIds;
-export const vpcPrivateSubnetId1 = vpcPrivateSubnetIds.then(
+export const vpcPrivateSubnetId1 = vpcPrivateSubnetIds.apply(
   (values) => values[0]
 );
-export const vpcPublicSubnetId1 = vpcPublicSubnetIds.then(
+export const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply(
   (values) => values[0]
 );
-export const vpcPrivateSubnetId2 = vpcPrivateSubnetIds.then(
+export const vpcPrivateSubnetId2 = vpcPrivateSubnetIds.apply(
   (values) => values[1]
 );
-export const vpcPublicSubnetId2 = vpcPublicSubnetIds.then(
+export const vpcPublicSubnetId2 = vpcPublicSubnetIds.apply(
   (values) => values[1]
 );
 
-export const vpcPublicSubnet1 = vpcPublicSubnetIds.then((subnets) => {
+export const vpcPublicSubnet1 = vpcPublicSubnetIds.apply((subnets) => {
   return subnets[0];
 });
+
+// This matches the default security group that awsx previously created when creating the Cluster.
+// https://github.com/pulumi/pulumi-awsx/blob/45136c540f29eb3dc6efa5b4f51cfe05ee75c7d8/awsx-classic/ecs/cluster.ts#L110
+const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
+  "private-subnet-secgrp",
+  {
+    description: "Security Group for Web Services",
+    vpcId: vpc.vpcId,
+    ingress: [
+      {
+        protocol: "TCP",
+        fromPort: 22,
+        toPort: 22,
+        cidrBlocks: ["0.0.0.0/0"],
+        description: "allow ssh in from any ipv4 address",
+      },
+      {
+        protocol: "TCP",
+        fromPort: 0,
+        toPort: 65535,
+        cidrBlocks: ["0.0.0.0/0"],
+        description: "allow incoming tcp on any port from any ipv4 address",
+      },
+    ],
+    egress: [
+      {
+        protocol: "-1",
+        fromPort: 0,
+        toPort: 0,
+        cidrBlocks: ["0.0.0.0/0"],
+        description: "allow output to any ipv4 address using any protocol",
+      },
+    ],
+  }
+);
 
 //////////////////////////////////////////////////////////////
 // Set up RDS instance
 //////////////////////////////////////////////////////////////
-let dbSubnetGroup = new aws.rds.SubnetGroup(`scorer-db-subnet`, {
-  subnetIds: vpcPrivateSubnetIds,
-});
+let dbSubnetGroup = new aws.rds.SubnetGroup(
+  `scorer-db-subnet`,
+  {
+    subnetIds: vpcPrivateSubnetIds,
+  },
+  {
+    // TODO delete this once the pulumi library update
+    // is released and running
+    replaceOnChanges: ["*"],
+  }
+);
 
 const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
   description: "Security Group for DB",
-  vpcId: vpc.id,
+  vpcId: vpc.vpcId,
   ingress: [
     {
       protocol: "tcp",
@@ -100,6 +144,9 @@ const postgresql = new aws.rds.Instance(
     vpcSecurityGroupIds: [db_secgrp.id],
     backupRetentionPeriod: 5,
     performanceInsightsEnabled: true,
+    // TODO delete this once the pulumi library update
+    // is released and running
+    applyImmediately: true,
   },
   { protect: true }
 );
@@ -119,12 +166,17 @@ const redisSubnetGroup = new aws.elasticache.SubnetGroup(
   "scorer-redis-subnet",
   {
     subnetIds: vpcPrivateSubnetIds,
+  },
+  {
+    // TODO delete this once the pulumi library update
+    // is released and running
+    replaceOnChanges: ["*"],
   }
 );
 
 const secgrp_redis = new aws.ec2.SecurityGroup("scorer-redis-secgrp", {
-  description: "scorer",
-  vpcId: vpc.id,
+  description: "scorer-redis-secgrp",
+  vpcId: vpc.vpcId,
   ingress: [
     {
       protocol: "tcp",
@@ -161,7 +213,7 @@ export const redisCacheOpsConnectionUrl = pulumi.interpolate`redis://${redisPrim
 // Set up ALB and ECS cluster
 //////////////////////////////////////////////////////////////
 
-const cluster = new awsx.ecs.Cluster("scorer", { vpc });
+const cluster = new aws.ecs.Cluster("scorer");
 // export const clusterInstance = cluster;
 export const clusterId = cluster.id;
 
@@ -194,34 +246,49 @@ const certificateValidation = new aws.acm.CertificateValidation(
   { customTimeouts: { create: "30s", update: "30s" } }
 );
 
+const albSecGrp = new aws.ec2.SecurityGroup(`scorer-service-alb`, {
+  description: "scorer-service-alb",
+  vpcId: vpcID,
+  ingress: [
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
+  ],
+  egress: [
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
+  ],
+});
+
 // Creates an ALB associated with our custom VPC.
-const alb = new awsx.lb.ApplicationLoadBalancer(`scorer-service`, { vpc });
+const alb = new aws.alb.LoadBalancer(`scorer-service`, {
+  loadBalancerType: "application",
+  internal: false,
+  securityGroups: [albSecGrp.id],
+  subnets: vpcPublicSubnetIds,
+});
 
 // Listen to HTTP traffic on port 80 and redirect to 443
-const httpListener = alb.createListener("web-listener", {
+const httpListener = new aws.alb.Listener("scorer-http-listener", {
+  loadBalancerArn: alb.arn,
   port: 80,
   protocol: "HTTP",
-  defaultAction: {
-    type: "redirect",
-    redirect: {
-      protocol: "HTTPS",
-      port: "443",
-      statusCode: "HTTP_301",
+  defaultActions: [
+    {
+      type: "redirect",
+      redirect: {
+        protocol: "HTTPS",
+        port: "443",
+        statusCode: "HTTP_301",
+      },
     },
-  },
+  ],
 });
 
 //////////////////////////////////////////////////////////////
 // Set up the target groups
 //////////////////////////////////////////////////////////////
 // Target group with the port of the Docker image
-const target = alb.createTargetGroup("scorer-api-default", {
-  vpc,
-  port: 80,
-  healthCheck: { path: "/health/", unhealthyThreshold: 5 },
-});
-
-const targetGroupDefault = target.targetGroup;
+const targetGroupDefault = createTargetGroup("scorer-api-default", vpcID);
 const targetGroupPassport = createTargetGroup("scorer-api-passport", vpcID);
 const targetGroupRegistry = createTargetGroup("scorer-api-reg", vpcID);
 const targetGroupRegistrySubmitPassport = createTargetGroup(
@@ -232,9 +299,17 @@ const targetGroupRegistrySubmitPassport = createTargetGroup(
 //////////////////////////////////////////////////////////////
 // Create the HTTPS listener, and set the default target group
 //////////////////////////////////////////////////////////////
-const httpsListener = target.createListener("scorer-listener", {
+const httpsListener = new aws.alb.Listener("scorer-https-listener", {
+  loadBalancerArn: alb.arn,
+  protocol: "HTTPS",
   port: 443,
   certificateArn: certificateValidation.certificateArn,
+  defaultActions: [
+    {
+      type: "forward",
+      targetGroupArn: targetGroupDefault.arn,
+    },
+  ],
 });
 
 // Create a DNS record for the load balancer
@@ -244,8 +319,8 @@ const www = new aws.route53.Record("scorer", {
   type: "A",
   aliases: [
     {
-      name: httpsListener.endpoint.hostname,
-      zoneId: httpsListener.loadBalancer.loadBalancer.zoneId,
+      name: alb.dnsName,
+      zoneId: alb.zoneId,
       evaluateTargetHealth: true,
     },
   ],
@@ -341,8 +416,9 @@ const baseScorerServiceConfig: ScorerService = {
   executionRole: dpoppEcsRole,
   logGroup: serviceLogGroup,
   subnets: vpc.privateSubnetIds,
+  securityGroup: privateSubnetSecurityGroup,
   needsVerifier: false,
-  httpListenerArn: httpsListener.listener.arn,
+  httpListenerArn: httpsListener.arn,
   targetGroup: targetGroupDefault,
   autoScaleMaxCapacity: 2,
   autoScaleMinCapacity: 1,
@@ -392,7 +468,7 @@ const scorerServiceRegistrySubmitPassport = createScorerECSService(
 );
 
 //////////////////////////////////////////////////////////////
-// Set up the Celery Worker Secrvice
+// Set up the Celery Worker Service
 //////////////////////////////////////////////////////////////
 const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
   assumeRolePolicy: JSON.stringify({
@@ -450,16 +526,24 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
 });
 
 const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
-  cluster,
+  cluster: cluster.arn,
   desiredCount: 0,
-  subnets: vpc.privateSubnetIds,
+  networkConfiguration: {
+    subnets: vpc.privateSubnetIds,
+    securityGroups: [privateSubnetSecurityGroup.id],
+  },
   taskDefinitionArgs: {
-    logGroup: workerLogGroup,
-    executionRole: workerRole,
+    logGroup: {
+      existing: workerLogGroup,
+    },
+    executionRole: {
+      roleArn: workerRole.arn,
+    },
     containers: {
       worker1: {
+        name: "worker1",
         memory: 2048,
-        cpu: 2000,
+        cpu: 1024,
         image: dockerGtcPassportScorerImage,
         command: [
           "celery",
@@ -488,7 +572,7 @@ const ecsScorerWorker1AutoscalingTarget = new aws.appautoscaling.Target(
   {
     maxCapacity: 4,
     minCapacity: 0,
-    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celery1.service.name}`,
+    resourceId: pulumi.interpolate`service/${cluster.name}/${celery1.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
     serviceNamespace: "ecs",
   }
@@ -513,13 +597,19 @@ const ecsScorerWorker1Autoscaling = new aws.appautoscaling.Policy(
 );
 
 const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
-  cluster,
+  cluster: cluster.arn,
   desiredCount: 1,
-  subnets: vpc.privateSubnetIds,
+  networkConfiguration: {
+    subnets: vpc.privateSubnetIds,
+    securityGroups: [privateSubnetSecurityGroup.id],
+  },
   taskDefinitionArgs: {
-    executionRole: workerRole,
+    executionRole: {
+      roleArn: workerRole.arn,
+    },
     containers: {
-      worker1: {
+      worker2: {
+        name: "worker2",
         image: dockerGtcPassportScorerImage,
         command: [
           "celery",
@@ -548,7 +638,7 @@ const ecsScorerWorker2AutoscalingTarget = new aws.appautoscaling.Target(
   {
     maxCapacity: 4,
     minCapacity: 2,
-    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celery2.service.name}`,
+    resourceId: pulumi.interpolate`service/${cluster.name}/${celery2.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
     serviceNamespace: "ecs",
   }
@@ -603,37 +693,71 @@ const flowerCertificateValidation = new aws.acm.CertificateValidation(
   { customTimeouts: { create: "30s", update: "30s" } }
 );
 
+const flowerAlbSecGrp = new aws.ec2.SecurityGroup(`flower-service-alb`, {
+  description: "flower-service-alb",
+  vpcId: vpcID,
+  ingress: [
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
+  ],
+  egress: [
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
+    {
+      protocol: "tcp",
+      fromPort: 5555,
+      toPort: 5555,
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+});
+
 // Creates an ALB associated with our custom VPC.
-const flowerAlb = new awsx.lb.ApplicationLoadBalancer(`flower-service`, {
-  vpc,
+const flowerAlb = new aws.alb.LoadBalancer(`flower-service`, {
+  loadBalancerType: "application",
+  internal: false,
+  securityGroups: [flowerAlbSecGrp.id],
+  subnets: vpcPublicSubnetIds,
 });
 
 // Listen to HTTP traffic on port 80 and redirect to 443
-const flowerHttpListener = flowerAlb.createListener("flower-listener", {
+const flowerHttpListener = new aws.alb.Listener("flower-http-listener", {
+  loadBalancerArn: flowerAlb.arn,
   port: 80,
   protocol: "HTTP",
-  defaultAction: {
-    type: "redirect",
-    redirect: {
-      protocol: "HTTPS",
-      port: "443",
-      statusCode: "HTTP_301",
+  defaultActions: [
+    {
+      type: "redirect",
+      redirect: {
+        protocol: "HTTPS",
+        port: "443",
+        statusCode: "HTTP_301",
+      },
     },
-  },
+  ],
 });
 
 // Target group with the port of the Docker image
-const flowerTarget = flowerAlb.createTargetGroup("flower-target", {
-  vpc,
+const flowerTarget = new aws.alb.TargetGroup("flower-target", {
+  vpcId: vpcID,
+  targetType: "ip",
   port: 5555,
   protocol: "HTTP",
   healthCheck: { path: "/healthcheck", unhealthyThreshold: 5 },
 });
 
 // Listen to traffic on port 443 & route it through the target group
-const flowerHttpsListener = flowerTarget.createListener("flower-listener", {
+const flowerHttpsListener = new aws.alb.Listener("flower-https-listener", {
+  loadBalancerArn: flowerAlb.arn,
+  protocol: "HTTPS",
   port: 443,
   certificateArn: flowerCertificate.arn,
+  defaultActions: [
+    {
+      type: "forward",
+      targetGroupArn: flowerTarget.arn,
+    },
+  ],
 });
 
 const flowerRecord = new aws.route53.Record("flower", {
@@ -642,24 +766,36 @@ const flowerRecord = new aws.route53.Record("flower", {
   type: "A",
   aliases: [
     {
-      name: flowerHttpsListener.endpoint.hostname,
-      zoneId: flowerHttpsListener.loadBalancer.loadBalancer.zoneId,
+      name: flowerAlb.dnsName,
+      zoneId: flowerAlb.zoneId,
       evaluateTargetHealth: true,
     },
   ],
 });
 
 const flower = new awsx.ecs.FargateService("flower", {
-  cluster,
+  cluster: cluster.arn,
   desiredCount: 1,
+  networkConfiguration: {
+    subnets: vpc.privateSubnetIds,
+    securityGroups: [privateSubnetSecurityGroup.id],
+  },
+  loadBalancers: [
+    {
+      containerName: "flower",
+      containerPort: 5555,
+      targetGroupArn: flowerTarget.arn,
+    },
+  ],
   taskDefinitionArgs: {
     containers: {
-      celery: {
+      flower: {
+        name: "flower",
         image: "mher/flower",
         command: ["celery", "flower", "-A", "taskapp", "--port=5555"],
-        memory: 4096,
-        cpu: 2000,
-        portMappings: [flowerHttpsListener],
+        portMappings: [{ containerPort: 5555, hostPort: 5555 }],
+        memory: 2048,
+        cpu: 1024,
         environment: [
           {
             name: "BROKER_URL",
@@ -679,7 +815,7 @@ const flower = new awsx.ecs.FargateService("flower", {
 
 const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
   description: "gitcoin-ecs-task",
-  vpcId: vpc.id,
+  vpcId: vpcID,
   ingress: [
     { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] },
     { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
@@ -751,8 +887,7 @@ const web = new aws.ec2.Instance("Web", {
   ami: ubuntu.then((ubuntu) => ubuntu.id),
   associatePublicIpAddress: true,
   instanceType: "t3.medium",
-  subnetId: vpcPublicSubnetId1.then(),
-
+  subnetId: vpcPublicSubnetId1,
   vpcSecurityGroupIds: [secgrp.id],
   rootBlockDevice: {
     volumeSize: 50,
@@ -774,7 +909,7 @@ export const dockrRunCmd = pulumi.secret(
 
 const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp`, {
   description: "Security Group for DB",
-  vpcId: vpc.id,
+  vpcId: vpcID,
   ingress: [
     {
       protocol: "tcp",
@@ -816,6 +951,9 @@ const redashDb = new aws.rds.Instance(
     vpcSecurityGroupIds: [redashDbSecgrp.id],
     backupRetentionPeriod: 5,
     performanceInsightsEnabled: true,
+    // TODO delete this once the pulumi library update
+    // is released and running
+    applyImmediately: true,
   },
   { protect: true }
 );
@@ -828,7 +966,7 @@ export const redashDbUrl = pulumi.secret(
 const redashSecurityGroup = new aws.ec2.SecurityGroup(
   "redashServerSecurityGroup",
   {
-    vpcId: vpc.id,
+    vpcId: vpcID,
     ingress: [
       {
         protocol: "tcp",
@@ -891,7 +1029,7 @@ const redashinstance = new aws.ec2.Instance("redashinstance", {
   ami: ubuntu.then((ubuntu) => ubuntu.id),
   associatePublicIpAddress: true,
   instanceType: "t3.medium",
-  subnetId: vpcPublicSubnetId2.then(),
+  subnetId: vpcPublicSubnetId2,
   rootBlockDevice: {
     volumeSize: 50,
   },
@@ -899,7 +1037,7 @@ const redashinstance = new aws.ec2.Instance("redashinstance", {
     Name: "Redash Analytics",
   },
   userData: redashInitScript,
-  securityGroups: [redashSecurityGroup.id],
+  vpcSecurityGroupIds: [redashSecurityGroup.id],
 });
 
 // Generate an SSL certificate
@@ -931,37 +1069,65 @@ const redashCertificateValidation = new aws.acm.CertificateValidation(
   { customTimeouts: { create: "30s", update: "30s" } }
 );
 
+const redashAlbSecGrp = new aws.ec2.SecurityGroup(`redash-service-alb`, {
+  description: "redash-service-alb",
+  vpcId: vpcID,
+  ingress: [
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
+  ],
+  egress: [
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
+  ],
+});
+
 // Creates an ALB associated with our custom VPC.
-const redashAlb = new awsx.lb.ApplicationLoadBalancer(`redash-service`, {
-  vpc,
+const redashAlb = new aws.alb.LoadBalancer(`redash-service`, {
+  loadBalancerType: "application",
+  internal: false,
+  securityGroups: [redashAlbSecGrp.id],
+  subnets: vpcPublicSubnetIds,
 });
 
 // Listen to HTTP traffic on port 80 and redirect to 443
-const redashHttpListener = redashAlb.createListener("redash-listener", {
+const redashHttpListener = new aws.alb.Listener("redash-http-listener", {
+  loadBalancerArn: redashAlb.arn,
   port: 80,
   protocol: "HTTP",
-  defaultAction: {
-    type: "redirect",
-    redirect: {
-      protocol: "HTTPS",
-      port: "443",
-      statusCode: "HTTP_301",
+  defaultActions: [
+    {
+      type: "redirect",
+      redirect: {
+        protocol: "HTTPS",
+        port: "443",
+        statusCode: "HTTP_301",
+      },
     },
-  },
+  ],
 });
 
 // Target group with the port of the UI
-const redashTarget = redashAlb.createTargetGroup("redash-target", {
-  vpc,
+const redashTarget = new aws.alb.TargetGroup("redash-target", {
+  vpcId: vpcID,
+  targetType: "ip",
   port: 80,
   protocol: "HTTP",
   healthCheck: { path: "/ping", unhealthyThreshold: 5 },
 });
 
 // Listen to traffic on port 443 & route it through the target group
-const redashHttpsListener = redashTarget.createListener("redash-listener", {
+const redashHttpsListener = new aws.alb.Listener("redash-https-listener", {
+  loadBalancerArn: redashAlb.arn,
+  protocol: "HTTPS",
   port: 443,
   certificateArn: redashCertificate.arn,
+  defaultActions: [
+    {
+      type: "forward",
+      targetGroupArn: redashTarget.arn,
+    },
+  ],
 });
 
 const redashRecord = new aws.route53.Record("redash", {
@@ -970,8 +1136,8 @@ const redashRecord = new aws.route53.Record("redash", {
   type: "A",
   aliases: [
     {
-      name: redashHttpsListener.endpoint.hostname,
-      zoneId: redashHttpsListener.loadBalancer.loadBalancer.zoneId,
+      name: redashAlb.dnsName,
+      zoneId: redashAlb.zoneId,
       evaluateTargetHealth: true,
     },
   ],
@@ -979,7 +1145,7 @@ const redashRecord = new aws.route53.Record("redash", {
 
 new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
   targetId: redashinstance.privateIp,
-  targetGroupArn: redashTarget.targetGroup.arn,
+  targetGroupArn: redashTarget.arn,
 });
 
 export const weeklyDataDumpTaskDefinition = createScheduledTask(

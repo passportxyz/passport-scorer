@@ -2,7 +2,10 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 
-import { ScorerEnvironmentConfig } from "../lib/scorer/service";
+import {
+  createTargetGroup,
+  ScorerEnvironmentConfig,
+} from "../lib/scorer/service";
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
@@ -24,39 +27,83 @@ export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPOR
 //////////////////////////////////////////////////////////////
 
 const vpc = new awsx.ec2.Vpc("scorer", {
-  subnets: [{ type: "public" }, { type: "private", mapPublicIpOnLaunch: true }],
+  subnetSpecs: [{ type: "Public" }, { type: "Private" }],
+  numberOfAvailabilityZones: 2,
 });
 
-export const vpcID = vpc.id;
+export const vpcID = vpc.vpcId;
 export const vpcPrivateSubnetIds = vpc.privateSubnetIds;
 export const vpcPublicSubnetIds = vpc.publicSubnetIds;
-export const vpcPrivateSubnetId1 = vpcPrivateSubnetIds.then(
+export const vpcPrivateSubnetId1 = vpcPrivateSubnetIds.apply(
   (values) => values[0]
 );
-export const vpcPublicSubnetId1 = vpcPublicSubnetIds.then(
+export const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply(
   (values) => values[0]
 );
-export const vpcPrivateSubnetId2 = vpcPrivateSubnetIds.then(
+export const vpcPrivateSubnetId2 = vpcPrivateSubnetIds.apply(
   (values) => values[1]
 );
-export const vpcPublicSubnetId2 = vpcPublicSubnetIds.then(
+export const vpcPublicSubnetId2 = vpcPublicSubnetIds.apply(
   (values) => values[1]
 );
 
-export const vpcPublicSubnet1 = vpcPublicSubnetIds.then((subnets) => {
+export const vpcPublicSubnet1 = vpcPublicSubnetIds.apply((subnets) => {
   return subnets[0];
 });
+
+// This matches the default security group that awsx previously created when creating the Cluster.
+// https://github.com/pulumi/pulumi-awsx/blob/45136c540f29eb3dc6efa5b4f51cfe05ee75c7d8/awsx-classic/ecs/cluster.ts#L110
+const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
+  "private-subnet-secgrp",
+  {
+    description: "Security Group for Web Services",
+    vpcId: vpc.vpcId,
+    ingress: [
+      {
+        protocol: "TCP",
+        fromPort: 22,
+        toPort: 22,
+        cidrBlocks: ["0.0.0.0/0"],
+        description: "allow ssh in from any ipv4 address",
+      },
+      {
+        protocol: "TCP",
+        fromPort: 0,
+        toPort: 65535,
+        cidrBlocks: ["0.0.0.0/0"],
+        description: "allow incoming tcp on any port from any ipv4 address",
+      },
+    ],
+    egress: [
+      {
+        protocol: "-1",
+        fromPort: 0,
+        toPort: 0,
+        cidrBlocks: ["0.0.0.0/0"],
+        description: "allow output to any ipv4 address using any protocol",
+      },
+    ],
+  }
+);
 
 //////////////////////////////////////////////////////////////
 // Set up RDS instance
 //////////////////////////////////////////////////////////////
-let dbSubnetGroup = new aws.rds.SubnetGroup(`scorer-db-subnet`, {
-  subnetIds: vpcPrivateSubnetIds,
-});
+let dbSubnetGroup = new aws.rds.SubnetGroup(
+  `scorer-db-subnet`,
+  {
+    subnetIds: vpcPrivateSubnetIds,
+  },
+  {
+    // TODO delete this once the pulumi library update
+    // is released and running
+    replaceOnChanges: ["*"],
+  }
+);
 
 const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
   description: "Security Group for DB",
-  vpcId: vpc.id,
+  vpcId: vpcID,
   ingress: [
     {
       protocol: "tcp",
@@ -89,6 +136,9 @@ const postgresql = new aws.rds.Instance(
     dbSubnetGroupName: dbSubnetGroup.id,
     vpcSecurityGroupIds: [db_secgrp.id],
     backupRetentionPeriod: 5,
+    // TODO delete this once the pulumi library update
+    // is released and running
+    applyImmediately: true,
   },
   { protect: true }
 );
@@ -108,12 +158,16 @@ const redisSubnetGroup = new aws.elasticache.SubnetGroup(
   "scorer-redis-subnet",
   {
     subnetIds: vpcPrivateSubnetIds,
+  },
+  {
+    // TODO delete this once the pulumi library update
+    // is released and running
   }
 );
 
 const secgrp_redis = new aws.ec2.SecurityGroup("scorer-redis-secgrp", {
-  description: "scorer",
-  vpcId: vpc.id,
+  description: "scorer-redis-secgrp",
+  vpcId: vpc.vpcId,
   ingress: [
     {
       protocol: "tcp",
@@ -150,7 +204,7 @@ export const redisCacheOpsConnectionUrl = pulumi.interpolate`redis://${redisPrim
 // Set up ALB and ECS cluster
 //////////////////////////////////////////////////////////////
 
-const cluster = new awsx.ecs.Cluster("scorer", { vpc });
+const cluster = new aws.ecs.Cluster("scorer");
 // export const clusterInstance = cluster;
 export const clusterId = cluster.id;
 
@@ -183,34 +237,61 @@ const certificateValidation = new aws.acm.CertificateValidation(
   { customTimeouts: { create: "30s", update: "30s" } }
 );
 
+const albSecGrp = new aws.ec2.SecurityGroup(`scorer-service-alb`, {
+  description: "scorer-service-alb",
+  vpcId: vpcID,
+  ingress: [
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
+  ],
+  egress: [
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
+  ],
+});
+
 // Creates an ALB associated with our custom VPC.
-const alb = new awsx.lb.ApplicationLoadBalancer(`scorer-service`, { vpc });
+const alb = new aws.alb.LoadBalancer(`scorer-service`, {
+  loadBalancerType: "application",
+  internal: false,
+  securityGroups: [albSecGrp.id],
+  subnets: vpcPublicSubnetIds,
+});
 
 // Listen to HTTP traffic on port 80 and redirect to 443
-const httpListener = alb.createListener("web-listener", {
+const httpListener = new aws.alb.Listener("scorer-http-listener", {
+  loadBalancerArn: alb.arn,
   port: 80,
   protocol: "HTTP",
-  defaultAction: {
-    type: "redirect",
-    redirect: {
-      protocol: "HTTPS",
-      port: "443",
-      statusCode: "HTTP_301",
+  defaultActions: [
+    {
+      type: "redirect",
+      redirect: {
+        protocol: "HTTPS",
+        port: "443",
+        statusCode: "HTTP_301",
+      },
     },
-  },
+  ],
 });
 
 // Target group with the port of the Docker image
-const target = alb.createTargetGroup("scorer-target", {
-  vpc,
-  port: 80,
-  healthCheck: { path: "/health/", unhealthyThreshold: 5 },
-});
+const targetGroupDefault = createTargetGroup("scorer-api-default", vpcID);
 
-// Listen to traffic on port 443 & route it through the target group
-const httpsListener = target.createListener("scorer-listener", {
+//////////////////////////////////////////////////////////////
+// Create the HTTPS listener, and set the default target group
+//////////////////////////////////////////////////////////////
+const httpsListener = new aws.alb.Listener("scorer-https-listener", {
+  loadBalancerArn: alb.arn,
+  protocol: "HTTPS",
   port: 443,
   certificateArn: certificateValidation.certificateArn,
+  defaultActions: [
+    {
+      type: "forward",
+      targetGroupArn: targetGroupDefault.arn,
+    },
+  ],
 });
 
 // Create a DNS record for the load balancer
@@ -220,8 +301,8 @@ const www = new aws.route53.Record("scorer", {
   type: "A",
   aliases: [
     {
-      name: httpsListener.endpoint.hostname,
-      zoneId: httpsListener.loadBalancer.loadBalancer.zoneId,
+      name: alb.dnsName,
+      zoneId: alb.zoneId,
       evaluateTargetHealth: true,
     },
   ],
@@ -408,14 +489,22 @@ const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
 // Set up the Scorer ECS service
 //////////////////////////////////////////////////////////////
 const service = new awsx.ecs.FargateService("scorer", {
-  cluster,
+  cluster: cluster.arn,
   desiredCount: 1,
-  subnets: vpc.privateSubnetIds,
+  networkConfiguration: {
+    subnets: vpc.privateSubnetIds,
+    securityGroups: [privateSubnetSecurityGroup.id],
+  },
   taskDefinitionArgs: {
-    logGroup: serviceLogGroup,
-    executionRole: dpoppEcsRole,
+    logGroup: {
+      existing: serviceLogGroup,
+    },
+    executionRole: {
+      roleArn: dpoppEcsRole.arn,
+    },
     containers: {
       scorer: {
+        name: "scorer",
         image: dockerGtcPassportScorerImage,
         memory: 1024,
         portMappings: [httpsListener],
@@ -437,6 +526,7 @@ const service = new awsx.ecs.FargateService("scorer", {
         },
       },
       verifier: {
+        name: "verifier",
         image: dockerGtcPassportVerifierImage,
         memory: 512,
         links: [],
@@ -513,16 +603,24 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
 });
 
 const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
-  cluster,
+  cluster: cluster.arn,
   desiredCount: 0,
-  subnets: vpc.privateSubnetIds,
+  networkConfiguration: {
+    subnets: vpc.privateSubnetIds,
+    securityGroups: [privateSubnetSecurityGroup.id],
+  },
   taskDefinitionArgs: {
-    logGroup: workerLogGroup,
-    executionRole: workerRole,
+    logGroup: {
+      existing: workerLogGroup,
+    },
+    executionRole: {
+      roleArn: workerRole.arn,
+    },
     cpu: "1vCPU",
     memory: "2GB",
     containers: {
       worker1: {
+        name: "worker1",
         image: dockerGtcPassportScorerImage,
         command: [
           "celery",
@@ -551,7 +649,7 @@ const ecsScorerWorker1AutoscalingTarget = new aws.appautoscaling.Target(
   {
     maxCapacity: 4,
     minCapacity: 0,
-    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celery1.service.name}`,
+    resourceId: pulumi.interpolate`service/${cluster.name}/${celery1.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
     serviceNamespace: "ecs",
   }
@@ -576,13 +674,19 @@ const ecsScorerWorker1Autoscaling = new aws.appautoscaling.Policy(
 );
 
 const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
-  cluster,
+  cluster: cluster.arn,
   desiredCount: 1,
-  subnets: vpc.privateSubnetIds,
+  networkConfiguration: {
+    subnets: vpc.privateSubnetIds,
+    securityGroups: [privateSubnetSecurityGroup.id],
+  },
   taskDefinitionArgs: {
-    executionRole: workerRole,
+    executionRole: {
+      roleArn: workerRole.arn,
+    },
     containers: {
-      worker1: {
+      worker2: {
+        name: "worker2",
         image: dockerGtcPassportScorerImage,
         command: [
           "celery",
@@ -611,7 +715,7 @@ const ecsScorerWorker2AutoscalingTarget = new aws.appautoscaling.Target(
   {
     maxCapacity: 2,
     minCapacity: 1,
-    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celery2.service.name}`,
+    resourceId: pulumi.interpolate`service/${cluster.name}/${celery2.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
     serviceNamespace: "ecs",
   }
@@ -635,44 +739,9 @@ const ecsScorerWorker2Autoscaling = new aws.appautoscaling.Policy(
   }
 );
 
-//////////////////////////////////////////////////////////////
-// Set up task to run migrations
-//////////////////////////////////////////////////////////////
-const taskMigrate = new awsx.ecs.FargateTaskDefinition(`scorer-run-migrate`, {
-  executionRole: dpoppEcsRole,
-  containers: {
-    web: {
-      image: dockerGtcPassportScorerImage,
-      command: ["python", "manage.py", "migrate"],
-      memory: 4096,
-      cpu: 2000,
-      portMappings: [],
-      secrets: secrets.concat([
-        {
-          name: "DJANGO_SUPERUSER_USERNAME",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_USERNAME::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_EMAIL",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_EMAIL::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_PASSWORD",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_PASSWORD::`,
-        },
-      ]),
-      environment: environment,
-      dependsOn: [],
-      links: [],
-    },
-  },
-});
-
-export const taskMigrateDefinition = taskMigrate.taskDefinition.id;
-
 const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
   description: "gitcoin-ecs-task",
-  vpcId: vpc.id,
+  vpcId: vpcID,
   ingress: [
     { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] },
     { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
@@ -744,8 +813,7 @@ const web = new aws.ec2.Instance("Web", {
   ami: ubuntu.then((ubuntu) => ubuntu.id),
   associatePublicIpAddress: true,
   instanceType: "t3.medium",
-  subnetId: vpcPublicSubnetId1.then(),
-
+  subnetId: vpcPublicSubnetId1,
   vpcSecurityGroupIds: [secgrp.id],
   rootBlockDevice: {
     volumeSize: 50,

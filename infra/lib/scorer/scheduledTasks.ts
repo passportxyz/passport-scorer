@@ -12,9 +12,12 @@ let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
 export type ScheduledTaskConfig = Pick<
   ScorerService,
-  "dockerImageScorer" | "executionRole" | "cluster" | "subnets"
+  | "dockerImageScorer"
+  | "executionRole"
+  | "cluster"
+  | "subnets"
+  | "securityGroup"
 > & {
-  securityGroup: aws.ec2.SecurityGroup;
   command: string[];
   scheduleExpression: string;
 };
@@ -35,9 +38,12 @@ export function createScheduledTask(
   } = config;
 
   const task = new awsx.ecs.FargateTaskDefinition(name, {
-    executionRole,
+    executionRole: {
+      roleArn: executionRole.arn,
+    },
     containers: {
       web: {
+        name: `${name}-container`,
         image: dockerImageScorer,
         cpu: 256,
         memory: 2048,
@@ -48,12 +54,11 @@ export function createScheduledTask(
     },
   });
 
-  const scheduledEventRule = new aws.cloudwatch.EventRule(
-    `rule-${name}`,
-    { scheduleExpression }
-  );
+  const scheduledEventRule = new aws.cloudwatch.EventRule(`rule-${name}`, {
+    scheduleExpression,
+  });
 
-  const eventsStsAssumeRole = new aws.iam.Role(`event-sts-${name}`, {
+  const eventsStsAssumeRole = new aws.iam.Role(`${name}-eventsStsAssumeRole`, {
     assumeRolePolicy: JSON.stringify({
       Version: "2012-10-17",
       Statement: [
@@ -149,7 +154,7 @@ export function createScheduledTask(
 
   new aws.cloudwatch.EventTarget(`scheduledEventTarget-${name}`, {
     rule: scheduledEventRule.name,
-    arn: cluster.cluster.arn,
+    arn: cluster.arn,
     roleArn: eventsStsAssumeRole.arn,
     ecsTarget: {
       taskCount: 1,

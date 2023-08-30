@@ -1,16 +1,18 @@
 import { LogGroup } from "@pulumi/aws/cloudwatch/logGroup";
-import { Cluster, Container } from "@pulumi/awsx/ecs";
 import { Role } from "@pulumi/aws/iam/role";
 import * as awsx from "@pulumi/awsx";
 import { Input, interpolate } from "@pulumi/pulumi";
 import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 import * as aws from "@pulumi/aws";
 
+import { Cluster } from "@pulumi/aws/ecs";
+
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
 export type ScorerService = {
   dockerImageScorer: Input<string>;
   dockerImageVerifier: Input<string>;
+  securityGroup: aws.ec2.SecurityGroup;
   executionRole: Role;
   cluster: Cluster;
   logGroup: LogGroup;
@@ -195,8 +197,12 @@ export function createScorerECSService(
   // Create the task definition and the service
   //////////////////////////////////////////////////////////////
 
-  const containers: Record<string, Container> = {
+  const containers: Record<
+    string,
+    awsx.types.input.ecs.TaskDefinitionContainerDefinitionArgs
+  > = {
     scorer: {
+      name: "scorer",
       image: config.dockerImageScorer,
       memory: 4096,
       cpu: 4000,
@@ -222,6 +228,7 @@ export function createScorerECSService(
 
   if (config.needsVerifier) {
     containers.verifier = {
+      name: "verifier",
       image: config.dockerImageVerifier,
       memory: 512,
       links: [],
@@ -244,9 +251,12 @@ export function createScorerECSService(
   }
 
   const service = new awsx.ecs.FargateService(name, {
-    cluster: config.cluster,
+    cluster: config.cluster.arn,
     desiredCount: 1,
-    subnets: config.subnets,
+    networkConfiguration: {
+      subnets: config.subnets,
+      securityGroups: [config.securityGroup.id],
+    },
     loadBalancers: [
       {
         containerName: "scorer",
@@ -255,8 +265,12 @@ export function createScorerECSService(
       },
     ],
     taskDefinitionArgs: {
-      logGroup: config.logGroup,
-      executionRole: config.executionRole,
+      logGroup: {
+        existing: config.logGroup,
+      },
+      executionRole: {
+        roleArn: config.executionRole.arn,
+      },
       containers,
     },
   });
@@ -266,7 +280,7 @@ export function createScorerECSService(
     {
       maxCapacity: 20,
       minCapacity: 2,
-      resourceId: interpolate`service/${config.cluster.cluster.name}/${service.service.name}`,
+      resourceId: interpolate`service/${config.cluster.name}/${service.service.name}`,
       scalableDimension: "ecs:service:DesiredCount",
       serviceNamespace: "ecs",
     }
