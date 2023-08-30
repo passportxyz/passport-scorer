@@ -49,11 +49,11 @@ export function createScheduledTask(
   });
 
   const scheduledEventRule = new aws.cloudwatch.EventRule(
-    "scheduledEventRule",
+    `rule-${name}`,
     { scheduleExpression }
   );
 
-  const eventsStsAssumeRole = new aws.iam.Role("eventsStsAssumeRole", {
+  const eventsStsAssumeRole = new aws.iam.Role(`event-sts-${name}`, {
     assumeRolePolicy: JSON.stringify({
       Version: "2012-10-17",
       Statement: [
@@ -147,7 +147,7 @@ export function createScheduledTask(
     },
   });
 
-  new aws.cloudwatch.EventTarget("scheduledEventTarget", {
+  new aws.cloudwatch.EventTarget(`scheduledEventTarget-${name}`, {
     rule: scheduledEventRule.name,
     arn: cluster.cluster.arn,
     roleArn: eventsStsAssumeRole.arn,

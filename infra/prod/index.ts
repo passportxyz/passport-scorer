@@ -114,7 +114,7 @@ const readreplica0 = new aws.rds.Instance(
     skipFinalSnapshot: true,
     vpcSecurityGroupIds: [db_secgrp.id],
     deletionProtection: true,
-    backupRetentionPeriod: 5,
+    // backupRetentionPeriod: 5,  - this is not supported for read replicas running PostgreSQL versions lower than 14
     replicateSourceDb: postgresql.id,
     performanceInsightsEnabled: true,
   },
