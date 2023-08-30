@@ -950,7 +950,7 @@ cd passport-redash
 sudo chmod +x ./setup.sh
 ./setup.sh
 cd data
-sudo docker-compose run --rm server create_db
+
 sudo docker-compose up -d
 `
 );
