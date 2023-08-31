@@ -45,7 +45,7 @@ def scorer_account(scorer_user):
 @pytest.fixture
 def passport_holder_addresses():
     ret = []
-    for i in range(5):
+    for i in range(10):
         web3_account = web3.eth.account.from_mnemonic(
             my_mnemonic, account_path=f"m/44'/60'/0'/0/{i + 1}"
         )
