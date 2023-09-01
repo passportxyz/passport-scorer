@@ -162,6 +162,7 @@ const redisSubnetGroup = new aws.elasticache.SubnetGroup(
   {
     // TODO delete this once the pulumi library update
     // is released and running
+    replaceOnChanges: ["*"],
   }
 );
 
