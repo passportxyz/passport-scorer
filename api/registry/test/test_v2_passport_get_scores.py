@@ -1,12 +1,11 @@
 import datetime
+import random
+from datetime import datetime as dt
 
 import pytest
-from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
 from django.test import Client
-from registry.api.v1 import get_scorer_by_id
 from registry.models import Passport, Score
 from web3 import Web3
 
@@ -144,7 +143,7 @@ class TestPassportGetScores:
                 score.last_score_timestamp = future_time_stamp
             score.save()
 
-        # Check the query when the filtered timestamo equals a score last_score_timestamp
+        # Check the query when the filtered timestamp equals a score last_score_timestamp
         client = Client()
         response = client.get(
             f"/registry/score/{scorer_community.id}?last_score_timestamp__gte={now.isoformat()}",
@@ -153,7 +152,7 @@ class TestPassportGetScores:
         assert response.status_code == 200
         assert len(response.json()["items"]) == len(newer_scores)
 
-        # Check the query when the filtered timestamo does not equal a score last_score_timestamp
+        # Check the query when the filtered timestamp does not equal a score last_score_timestamp
         response = client.get(
             f"/registry/score/{scorer_community.id}?last_score_timestamp__gte={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
@@ -192,7 +191,7 @@ class TestPassportGetScores:
                 score.last_score_timestamp = future_time_stamp
             score.save()
 
-        # Check the query when the filtered timestamo equals a score last_score_timestamp
+        # Check the query when the filtered timestamp equals a score last_score_timestamp
         client = Client()
         response = client.get(
             f"/registry/score/{scorer_community.id}?last_score_timestamp__gt={now.isoformat()}",
@@ -201,10 +200,103 @@ class TestPassportGetScores:
         assert response.status_code == 200
         assert len(response.json()["items"]) == len(newer_scores) - 1
 
-        # Check the query when the filtered timestamo does not equal a score last_score_timestamp
+        # Check the query when the filtered timestamp does not equal a score last_score_timestamp
         response = client.get(
             f"/registry/score/{scorer_community.id}?last_score_timestamp__gt={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         assert response.status_code == 200
         assert len(response.json()["items"]) == len(newer_scores)
+
+    def test_get_scores_with_shuffled_ids(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        limit = 6
+        scores = list(Score.objects.all())
+        random.shuffle(scores)
+
+        client = Client()
+        response = client.get(
+            f"/registry/v2/score/{scorer_community.id}?limit={limit}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        assert response.status_code == 200
+
+        for score, item in zip(list(Score.objects.all()), response_data["items"]):
+            dt_res_score = item["last_score_timestamp"]
+            dt_res_score_object = dt.fromisoformat(dt_res_score)
+            dt_res_score_object_str_space = dt_res_score_object.strftime(
+                "%Y-%m-%d %H:%M:%S.%f%z"
+            )
+            dt_last_score_string = score.last_score_timestamp.strftime(
+                "%Y-%m-%d %H:%M:%S.%f%z"
+            )
+            assert dt_last_score_string == dt_res_score_object_str_space
+
+    def test_last_score_timestamp(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        limit = 10
+        scores = list(Score.objects.all())
+
+        client = Client()
+        response = client.get(
+            f"/registry/v2/score/{scorer_community.id}?limit={limit}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        last_score = scores[len(scores) - 1]
+        last_response_score = response_data["items"][len(response_data["items"]) - 1]
+
+        dt_res_score = last_response_score["last_score_timestamp"]
+        dt_res_score_object = dt.fromisoformat(dt_res_score)
+        dt_res_score_object_str_space = dt_res_score_object.strftime(
+            "%Y-%m-%d %H:%M:%S.%f%z"
+        )
+        dt_last_score_string = last_score.last_score_timestamp.strftime(
+            "%Y-%m-%d %H:%M:%S.%f%z"
+        )
+
+        assert response.status_code == 200
+        assert dt_last_score_string == dt_res_score_object_str_space
+
+    def test_correct_ordering(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        limit = 10
+
+        def to_datetime(string_timestamp):
+            return dt.fromisoformat(string_timestamp)
+
+        client = Client()
+        response = client.get(
+            f"/registry/v2/score/{scorer_community.id}?limit={limit}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        response_data = response.json()
+
+        assert response.status_code == 200
+
+        is_sorted = all(
+            to_datetime(response_data["items"][i]["last_score_timestamp"])
+            <= to_datetime(response_data["items"][i + 1]["last_score_timestamp"])
+            for i in range(len(response_data) - 1)
+        )
+
+        assert is_sorted, "The scores are not in order"
