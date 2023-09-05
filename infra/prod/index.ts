@@ -1233,6 +1233,7 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
+    ephemeralStorageSizeInGiB: 100,
     command: [
       "python",
       "manage.py",

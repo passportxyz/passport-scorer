@@ -20,6 +20,7 @@ export type ScheduledTaskConfig = Pick<
 > & {
   command: string[];
   scheduleExpression: string;
+  ephemeralStorageSizeInGiB?: number;
 };
 
 export function createScheduledTask(
@@ -35,12 +36,18 @@ export function createScheduledTask(
     securityGroup,
     command,
     scheduleExpression,
+    ephemeralStorageSizeInGiB,
   } = config;
 
   const task = new awsx.ecs.FargateTaskDefinition(name, {
     executionRole: {
       roleArn: executionRole.arn,
     },
+    ephemeralStorage: ephemeralStorageSizeInGiB
+      ? {
+          sizeInGib: ephemeralStorageSizeInGiB,
+        }
+      : undefined,
     containers: {
       web: {
         name: `${name}-container`,
