@@ -484,7 +484,7 @@ const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
 });
 
 //////////////////////////////////////////////////////////////
-// Set up the Scorer ECS services
+// Set up the Scorer ECS service
 //////////////////////////////////////////////////////////////
 const baseScorerServiceConfig: ScorerService = {
   cluster: cluster,
@@ -545,7 +545,7 @@ const scorerServiceRegistrySubmitPassport = createScorerECSService(
 );
 
 //////////////////////////////////////////////////////////////
-// Set up the Celery Worker Secrvice
+// Set up the Celery Worker Service
 //////////////////////////////////////////////////////////////
 const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
   assumeRolePolicy: JSON.stringify({
@@ -855,6 +855,13 @@ const flower = new awsx.ecs.FargateService("flower", {
     subnets: vpc.privateSubnetIds,
     securityGroups: [privateSubnetSecurityGroup.id],
   },
+  loadBalancers: [
+    {
+      containerName: "flower",
+      containerPort: 5555,
+      targetGroupArn: flowerTarget.arn,
+    },
+  ],
   taskDefinitionArgs: {
     containers: {
       flower: {
@@ -863,7 +870,7 @@ const flower = new awsx.ecs.FargateService("flower", {
         command: ["celery", "flower", "-A", "taskapp", "--port=5555"],
         memory: 4096,
         cpu: 2048,
-        portMappings: [],
+        portMappings: [{ containerPort: 5555, hostPort: 5555 }],
         environment: [
           {
             name: "BROKER_URL",
@@ -1068,8 +1075,6 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
     ],
   }
 );
-
-// const redashDbUrlString = redashDbUrl.apply((url) => url).toString();
 
 const redashInitScript = redashDbUrl.apply((url) => {
   return redashSecretKey.apply((secretKey) => {

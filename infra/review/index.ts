@@ -125,7 +125,7 @@ const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
 const postgresql = new aws.rds.Instance(
   `scorer-db`,
   {
-    allocatedStorage: 10,
+    allocatedStorage: 12,
     engine: "postgres",
     // engineVersion: "5.7",
     instanceClass: "db.t3.micro",
@@ -496,6 +496,13 @@ const service = new awsx.ecs.FargateService("scorer", {
     subnets: vpc.privateSubnetIds,
     securityGroups: [privateSubnetSecurityGroup.id],
   },
+  loadBalancers: [
+    {
+      containerName: "scorer",
+      containerPort: 80,
+      targetGroupArn: targetGroupDefault.arn,
+    },
+  ],
   taskDefinitionArgs: {
     logGroup: {
       existing: serviceLogGroup,
@@ -508,7 +515,7 @@ const service = new awsx.ecs.FargateService("scorer", {
         name: "scorer",
         image: dockerGtcPassportScorerImage,
         memory: 1024,
-        portMappings: [httpsListener],
+        portMappings: [{ containerPort: 80, hostPort: 80 }],
         command: [
           "gunicorn",
           "-w",
