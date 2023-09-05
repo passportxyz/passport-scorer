@@ -1,5 +1,4 @@
 import datetime
-import random
 from datetime import datetime as dt
 
 import pytest
@@ -36,6 +35,39 @@ def paginated_scores(scorer_passport, passport_holder_addresses, scorer_communit
 
         scores.append(score)
         i += 1
+    return scores
+
+
+@pytest.fixture
+def shuffled_paginated_scores(
+    scorer_passport, passport_holder_addresses, scorer_community
+):
+    scores = []
+
+    timestamps = [
+        "2023-08-15 12:22:23.090489+00:00",
+        "2023-08-01 15:11:45.091219+00:00",
+        "2023-08-03 15:11:45.089987+00:00",
+        "2023-08-06 15:11:45.088379+00:00",
+        "2023-08-06 15:11:45.088379+00:00",
+        "2023-08-21 15:11:45.090981+00:00",
+        "2023-08-04 15:11:45.089262+00:00",
+        "2023-08-06 15:11:45.088379+00:00",
+        "2023-08-26 15:11:45.088988+00:00",
+        "2023-08-07 15:11:45.090489+00:00",
+    ]
+
+    for i, holder in enumerate(passport_holder_addresses):
+        passport = Passport.objects.create(
+            address=holder["address"],
+            community=scorer_community,
+        )
+
+        score = Score.objects.create(
+            passport=passport, score="1", last_score_timestamp=timestamps[i]
+        )
+        scores.append(score)
+
     return scores
 
 
@@ -213,22 +245,49 @@ class TestPassportGetScores:
         scorer_api_key,
         passport_holder_addresses,
         scorer_community,
-        paginated_scores,
+        shuffled_paginated_scores,
     ):
-        limit = 6
+        limit = 5
         scores = list(Score.objects.all())
-        random.shuffle(scores)
+        middle = len(scores) // 2
+        top_half_scores = scores[:middle]
+        bottom_half_scores = scores[middle:]
 
         client = Client()
         response = client.get(
             f"/registry/v2/score/{scorer_community.id}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
-        response_data = response.json()
+        first_response_data = response.json()
 
         assert response.status_code == 200
+        assert len(first_response_data["items"]) == len(top_half_scores)
 
-        for score, item in zip(list(Score.objects.all()), response_data["items"]):
+        first_five_scores = Score.objects.order_by("last_score_timestamp")[:5]
+
+        for score, item in zip(first_five_scores, first_response_data["items"]):
+            dt_res_score = item["last_score_timestamp"]
+            dt_res_score_object = dt.fromisoformat(dt_res_score)
+            dt_res_score_object_str_space = dt_res_score_object.strftime(
+                "%Y-%m-%d %H:%M:%S.%f%z"
+            )
+            dt_last_score_string = score.last_score_timestamp.strftime(
+                "%Y-%m-%d %H:%M:%S.%f%z"
+            )
+            assert dt_last_score_string == dt_res_score_object_str_space
+
+        response = client.get(
+            f"/registry/v2/score/{scorer_community.id}?limit={limit}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        last_response_data = response.json()
+        assert response.status_code == 200
+        assert len(last_response_data["items"]) == len(bottom_half_scores)
+
+        last_five_scores = Score.objects.order_by("last_score_timestamp")[:5]
+
+        for score, item in zip(last_five_scores, last_response_data["items"]):
             dt_res_score = item["last_score_timestamp"]
             dt_res_score_object = dt.fromisoformat(dt_res_score)
             dt_res_score_object_str_space = dt_res_score_object.strftime(
