@@ -324,7 +324,7 @@ class Command(BaseCommand):
                         file_name,
                         s3_bucket_name,
                         s3_key,
-                        ExtraArgs=model_config["extra-args"],
+                        ExtraArgs=model_config.get("extra-args", {}),
                     )
                     model_summary["finished_at"] = datetime.datetime.now().isoformat()
                     model_summary["s3_key"] = s3_key
