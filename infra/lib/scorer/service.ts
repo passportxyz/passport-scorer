@@ -306,3 +306,24 @@ export function createScorerECSService(
 
   return service;
 }
+
+export function createScoreExportBukcAndDomain(
+  domain: string,
+  route53Zone: string
+) {
+  const scorerExportBucket = new aws.s3.Bucket(`gitcoin-score-export`, {
+    acl: "public-read",
+    website: {
+      indexDocument: "registry_score.jsonl", // your static file name
+    },
+  });
+
+  // Step 3: Create a Route 53 DNS record that points to the S3 website endpoint
+  new aws.route53.Record("public-score-record", {
+    zoneId: route53Zone,
+    name: domain,
+    type: "CNAME",
+    records: [scorerExportBucket.websiteEndpoint],
+    ttl: 300,
+  });
+}
