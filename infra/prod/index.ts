@@ -5,6 +5,7 @@ import * as awsx from "@pulumi/awsx";
 import {
   ScorerEnvironmentConfig,
   ScorerService,
+  createScoreExportBucketAndDomain,
   createScorerECSService,
   createTargetGroup,
   getEnvironment,
@@ -1277,3 +1278,5 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
   },
   envConfig
 );
+
+createScoreExportBucketAndDomain(domain, route53Zone);
