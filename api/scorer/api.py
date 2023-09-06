@@ -3,7 +3,8 @@ The scorer API module
 """
 from typing import List, Optional
 
-from ceramic_cache.api import router as ceramic_cache_router
+from ceramic_cache.api.v1 import router as ceramic_cache_router_v1
+from ceramic_cache.api.v2 import router as ceramic_cache_router_v2
 from django_ratelimit.exceptions import Ratelimited
 from ninja import NinjaAPI
 from ninja.openapi.schema import OpenAPISchema
@@ -87,8 +88,11 @@ feature_flag_api.add_router("", feature_flag_router)
 
 registry_api_v2.add_router("", registry_router_v2, tags=["Score your passport"])
 
-ceramic_cache_api = NinjaAPI(urls_namespace="ceramic-cache", docs_url=None)
-ceramic_cache_api.add_router("", ceramic_cache_router)
+ceramic_cache_api_v1 = NinjaAPI(urls_namespace="ceramic-cache", docs_url=None)
+ceramic_cache_api_v1.add_router("", ceramic_cache_router_v1)
+
+ceramic_cache_api_v2 = NinjaAPI(urls_namespace="ceramic-cache-v2", docs_url=None)
+ceramic_cache_api_v2.add_router("", ceramic_cache_router_v2)
 
 passport_admin_api = NinjaAPI(urls_namespace="passport-admin", docs_url=None)
 passport_admin_api.add_router("", passport_admin_router)

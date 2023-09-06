@@ -4,7 +4,6 @@ from collections import namedtuple
 
 import pytest
 from account.models import Nonce
-from ceramic_cache.api import DbCacheToken
 from django.test import Client
 from ninja_jwt.tokens import AccessToken
 
@@ -34,6 +33,8 @@ sample_authenticate_payload = {
 
 
 class TestAuthenticate:
+    base_url = "/ceramic-cache"
+
     def test_authenticate_validates_payload(self, mocker):
         """
         We expect that the authenticate request:
@@ -44,16 +45,17 @@ class TestAuthenticate:
         """
         MockedRequestResponse = namedtuple("MockedRequestResponse", "status_code")
         with mocker.patch(
-            "ceramic_cache.api.requests.post", return_value=MockedRequestResponse(200)
+            "ceramic_cache.api.v1.requests.post",
+            return_value=MockedRequestResponse(200),
         ):
             with mocker.patch(
-                "ceramic_cache.api.validate_dag_jws_payload", return_value=True
+                "ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True
             ):
                 payload = copy.deepcopy(sample_authenticate_payload)
                 payload["nonce"] = Nonce.create_nonce().nonce
 
                 auth_response = client.post(
-                    "/ceramic-cache/authenticate",
+                    f"{self.base_url}/authenticate",
                     json.dumps(payload),
                     content_type="application/json",
                 )
@@ -75,10 +77,10 @@ class TestAuthenticate:
         The test should fail at step 1 as we will corupt the payload
         """
         with mocker.patch(
-            "ceramic_cache.api.validate_dag_jws_payload", return_value=False
+            "ceramic_cache.api.v1.validate_dag_jws_payload", return_value=False
         ):
             auth_response = client.post(
-                "/ceramic-cache/authenticate",
+                f"{self.base_url}/authenticate",
                 json.dumps(sample_authenticate_payload),
                 content_type="application/json",
                 # **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
@@ -100,11 +102,11 @@ class TestAuthenticate:
         """
 
         with mocker.patch(
-            "ceramic_cache.api.validate_dag_jws_payload",
+            "ceramic_cache.api.v1.validate_dag_jws_payload",
             side_effect=Exception("something bad happened"),
         ):
             auth_response = client.post(
-                "/ceramic-cache/authenticate",
+                f"{self.base_url}/authenticate",
                 json.dumps(sample_authenticate_payload),
                 content_type="application/json",
                 # **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
@@ -127,16 +129,16 @@ class TestAuthenticate:
 
         MockedRequestResponse = namedtuple("MockedRequestResponse", "status_code text")
         with mocker.patch(
-            "ceramic_cache.api.requests.post",
+            "ceramic_cache.api.v1.requests.post",
             return_value=MockedRequestResponse(400, "this failed"),
         ):
             with mocker.patch(
-                "ceramic_cache.api.validate_dag_jws_payload", return_value=True
+                "ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True
             ):
                 payload = copy.deepcopy(sample_authenticate_payload)
                 payload["nonce"] = Nonce.create_nonce().nonce
                 auth_response = client.post(
-                    "/ceramic-cache/authenticate",
+                    f"{self.base_url}/authenticate",
                     json.dumps(payload),
                     content_type="application/json",
                 )
@@ -158,15 +160,16 @@ class TestAuthenticate:
         """
 
         with mocker.patch(
-            "ceramic_cache.api.requests.post", side_effect=Exception("this is broken")
+            "ceramic_cache.api.v1.requests.post",
+            side_effect=Exception("this is broken"),
         ):
             with mocker.patch(
-                "ceramic_cache.api.validate_dag_jws_payload", return_value=True
+                "ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True
             ):
                 payload = copy.deepcopy(sample_authenticate_payload)
                 payload["nonce"] = Nonce.create_nonce().nonce
                 auth_response = client.post(
-                    "/ceramic-cache/authenticate",
+                    f"{self.base_url}/authenticate",
                     json.dumps(payload),
                     content_type="application/json",
                 )

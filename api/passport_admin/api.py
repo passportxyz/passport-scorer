@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from ceramic_cache.api import JWTDidAuth
+from ceramic_cache.api.v1 import JWTDidAuth
 from django.db.models import Subquery
 from ninja import Router, Schema
 

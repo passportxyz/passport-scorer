@@ -29,14 +29,14 @@ from registry.api.v1 import (
 )
 from registry.models import Score
 
-from .exceptions import (
+from ..exceptions import (
     InternalServerException,
     InvalidDeleteCacheRequestException,
     InvalidSessionException,
     TooManyStampsException,
 )
-from .models import CeramicCache
-from .utils import validate_dag_jws_payload
+from ..models import CeramicCache
+from ..utils import validate_dag_jws_payload
 
 log = logging.getLogger(__name__)
 
@@ -45,10 +45,6 @@ router = Router()
 
 def get_utc_time():
     return datetime.utcnow()
-
-
-def get_did(address: str):
-    return f"did:pkh:eip155:1:{address.lower()}"
 
 
 def get_address_from_did(did: str):
@@ -119,16 +115,6 @@ class DeleteStampPayload(Schema):
     provider: str
 
 
-class DeleteStampResponse(Schema):
-    address: str
-    provider: str
-    status: str
-
-
-class BulkDeleteResponse(Schema):
-    status: str
-
-
 class CachedStampResponse(Schema):
     address: str
     provider: str
@@ -162,7 +148,7 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
             stamp_objects,
             update_conflicts=True,
             update_fields=["stamp", "updated_at"],
-            unique_fields=["address", "provider"],
+            unique_fields=["type", "address", "provider"],
         )
 
         submit_passport_from_cache(address)
@@ -212,7 +198,7 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
                 stamp_objects,
                 update_conflicts=True,
                 update_fields=["stamp", "updated_at"],
-                unique_fields=["address", "provider"],
+                unique_fields=["type", "address", "provider"],
             )
 
         if providers_to_delete:
