@@ -311,25 +311,34 @@ export function createScoreExportBukcAndDomain(
   domain: string,
   route53Zone: string
 ) {
-  const bucketPolicy = JSON.stringify({
-    Version: "2012-10-17",
-    Statement: [
-      {
-        Effect: "Allow",
-        Principal: "*",
-        Action: "s3:GetObject",
-      },
-    ],
-  });
-
+  // Create the S3 bucket first, without the policy
   const scorerExportBucket = new aws.s3.Bucket(`gitcoin-score-export`, {
-    policy: bucketPolicy,
     website: {
       indexDocument: "registry_score.jsonl",
     },
   });
 
-  // Step 3: Create a Route 53 DNS record that points to the S3 website endpoint
+  // Generate and set the bucket policy
+  const bucketPolicy = scorerExportBucket.arn.apply((arn) =>
+    JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Principal: "*",
+          Action: "s3:GetObject",
+          Resource: `${arn}/*`,
+        },
+      ],
+    })
+  );
+
+  new aws.s3.BucketPolicy("bucketPolicy", {
+    bucket: scorerExportBucket.id,
+    policy: bucketPolicy,
+  });
+
+  // Create a Route 53 DNS record that points to the S3 website endpoint
   new aws.route53.Record("public-score-record", {
     zoneId: route53Zone,
     name: domain,
