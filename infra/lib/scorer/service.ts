@@ -311,10 +311,21 @@ export function createScoreExportBukcAndDomain(
   domain: string,
   route53Zone: string
 ) {
+  const bucketPolicy = JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Principal: "*",
+        Action: "s3:GetObject",
+      },
+    ],
+  });
+
   const scorerExportBucket = new aws.s3.Bucket(`gitcoin-score-export`, {
-    acl: "public-read",
+    policy: bucketPolicy,
     website: {
-      indexDocument: "registry_score.jsonl", // your static file name
+      indexDocument: "registry_score.jsonl",
     },
   });
 
