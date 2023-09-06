@@ -3,7 +3,7 @@ import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 
 import {
-  createScoreExportBukcAndDomain,
+  createScoreExportBucketAndDomain,
   createTargetGroup,
   ScorerEnvironmentConfig,
 } from "../lib/scorer/service";
@@ -851,4 +851,4 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask(
   envConfig
 );
 
-createScoreExportBukcAndDomain(domain, route53Zone);
+createScoreExportBucketAndDomain(domain, route53Zone);

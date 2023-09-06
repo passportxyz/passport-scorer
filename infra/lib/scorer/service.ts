@@ -307,7 +307,7 @@ export function createScorerECSService(
   return service;
 }
 
-export function createScoreExportBukcAndDomain(
+export function createScoreExportBucketAndDomain(
   domain: string,
   route53Zone: string
 ) {
@@ -341,7 +341,7 @@ export function createScoreExportBukcAndDomain(
   // Create a Route 53 DNS record that points to the S3 website endpoint
   new aws.route53.Record("public-score-record", {
     zoneId: route53Zone,
-    name: domain,
+    name: `public.${domain}`,
     type: "CNAME",
     records: [scorerExportBucket.websiteEndpoint],
     ttl: 300,
