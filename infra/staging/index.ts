@@ -1164,7 +1164,7 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
       JSON.stringify({ ACL: "public-read" }),
     ],
 
-    scheduleExpression: "cron(*/5 * ? * * *)", // Run the task every 30 min
+    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
   },
   envConfig
 );
