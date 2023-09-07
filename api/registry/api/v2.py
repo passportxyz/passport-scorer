@@ -8,9 +8,14 @@ from account.models import Community
 from django.db.models import Q
 from ninja import Router
 from registry.api import v1
-from registry.api.v1 import ScoreFilter, with_read_db
+from registry.api.v1 import with_read_db
 from registry.models import Score
-from registry.utils import decode_cursor, encode_cursor, reverse_lazy_with_query
+from registry.utils import (
+    decode_cursor,
+    encode_cursor,
+    get_cursor_query_condition,
+    reverse_lazy_with_query,
+)
 
 from ..exceptions import InvalidLimitException, api_get_object_or_404
 from .base import ApiKey, check_rate_limit
@@ -118,62 +123,44 @@ def get_scores(
         Community, id=scorer_id, account=request.auth
     )
     try:
-        ordering_fields_asc = ["last_score_timestamp", "id"]
-        ordering_fields_desc = ["-last_score_timestamp", "-id"]
         base_query = (
             with_read_db(Score)
             .filter(passport__community__id=user_community.id)
             .select_related("passport")
         )
 
-        cursor = decode_cursor(token)
-        direction = cursor.get("d")
-        score_id = cursor.get("id")
-        last_score_timestamp = cursor.get("lts")
-        last_score_timestamp = (
-            datetime.fromisoformat(last_score_timestamp)
-            if last_score_timestamp
-            else None
-        )
+        filter_condition = Q()
+        field_ordering = None
+        cursor = decode_cursor(token) if token else None
+        if cursor:
+            cursor = decode_cursor(token)
+            cursor["last_score_timestamp"] = datetime.fromisoformat(
+                cursor.get("last_score_timestamp")
+            )
+            filter_condition, field_ordering = get_cursor_query_condition(cursor)
 
-        if direction == "next":
-            query = base_query.filter(
-                Q(last_score_timestamp__gt=last_score_timestamp)
-                | (
-                    Q(last_score_timestamp__gte=last_score_timestamp)
-                    & Q(id__gt=score_id)
-                )
-            ).order_by(*ordering_fields_asc)
-        elif direction == "prev":
-            query = base_query.filter(
-                Q(last_score_timestamp__lt=last_score_timestamp)
-                | (
-                    Q(last_score_timestamp__lte=last_score_timestamp)
-                    & Q(id__gt=score_id)
-                )
-            ).order_by(*ordering_fields_desc)
         else:
-            query = base_query.order_by(*ordering_fields_asc)
+            field_ordering = ["last_score_timestamp", "id"]
+
+            if address:
+                filter_condition &= Q(passport__address=address)
+
+            if last_score_timestamp__gt:
+                filter_condition &= Q(last_score_timestamp__gt=last_score_timestamp__gt)
+
+            if last_score_timestamp__gte:
+                filter_condition &= Q(
+                    last_score_timestamp__gte=last_score_timestamp__gte
+                )
 
         has_more_scores = has_prev_scores = False
+        next_cursor = prev_cursor = {}
 
-        # Technically we could just pass request.GET to the filter. But since we have the parameters defined
-        # anyways (because we need them for the generated docs) we might as well use them explicitly in the
-        # filter_values.
-        scores = ScoreFilter(
-            {
-                "address": address,
-                "last_score_timestamp__gt": last_score_timestamp__gt,
-                "last_score_timestamp__gte": last_score_timestamp__gte,
-            },
-            queryset=query,
-        ).qs
+        query = base_query.filter(filter_condition).order_by(*field_ordering)
+        scores = query[:limit]
+        scores = list(scores)
 
-        query = query[:limit]
-
-        scores = list(query)
-
-        if direction == "prev":
+        if cursor and cursor["d"] == "prev":
             scores.reverse()
 
         if scores:
@@ -182,8 +169,28 @@ def get_scores(
             prev_id = scores[0].id
             prev_lts = scores[0].last_score_timestamp
 
-            has_more_scores = base_query.filter(id__gt=next_id).exists()
-            has_prev_scores = base_query.filter(id__lt=prev_id).exists()
+            next_cursor = dict(
+                d="next",
+                id=next_id,
+                last_score_timestamp=next_lts.isoformat(),
+                address=address,
+                last_score_timestamp__gt=last_score_timestamp__gt,
+                last_score_timestamp__gte=last_score_timestamp__gte,
+            )
+            prev_cursor = dict(
+                d="prev",
+                id=prev_id,
+                last_score_timestamp=prev_lts.isoformat(),
+                address=address,
+                last_score_timestamp__gt=last_score_timestamp__gt,
+                last_score_timestamp__gte=last_score_timestamp__gte,
+            )
+
+            next_filter_cond, _ = get_cursor_query_condition(next_cursor)
+            prev_filter_cond, _ = get_cursor_query_condition(prev_cursor)
+
+            has_more_scores = base_query.filter(next_filter_cond).exists()
+            has_prev_scores = base_query.filter(prev_filter_cond).exists()
 
         domain = request.build_absolute_uri("/")[:-1]
 
@@ -191,7 +198,7 @@ def get_scores(
             f"""{domain}{reverse_lazy_with_query(
                 "registry_v2:get_scores",
                 args=[scorer_id],
-                query_kwargs={"token": encode_cursor(d="next", id=next_id, lts=next_lts.isoformat()), "limit": limit},
+                query_kwargs={"token": encode_cursor(**next_cursor), "limit": limit},
             )}"""
             if has_more_scores
             else None
@@ -201,7 +208,7 @@ def get_scores(
             f"""{domain}{reverse_lazy_with_query(
                 "registry_v2:get_scores",
                 args=[scorer_id],
-                query_kwargs={"token": encode_cursor(d="prev", id=prev_id, lts=prev_lts.isoformat()), "limit": limit},
+                query_kwargs={"token": encode_cursor(**prev_cursor), "limit": limit},
             )}"""
             if has_prev_scores
             else None

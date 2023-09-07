@@ -8,6 +8,7 @@ from urllib.parse import unquote, urlencode
 import api_logging as logging
 import didkit
 from django.conf import settings
+from django.db.models import Q
 from django.shortcuts import render
 from django.urls import reverse_lazy
 from eth_account.messages import encode_defunct
@@ -151,3 +152,66 @@ def decode_cursor(token: str) -> dict:
 
 def get_utc_time():
     return datetime.now(timezone.utc)
+
+
+def get_cursor_query_condition(cursor):
+    """
+    This function will decode a cursor and return a query condition and ordering condition
+    The implementation is specific to the requirements in  "/score/{int:scorer_id}" but it could be made
+    more generic if required, and pass in the required:
+    - sort_fields
+    - filter_fields
+
+    in order to be able to return the filer and order conditions
+    """
+    if cursor["d"] == "next":
+        filter_condition = Q(
+            last_score_timestamp__gt=cursor["last_score_timestamp"]
+        ) | (
+            Q(last_score_timestamp__gte=cursor["last_score_timestamp"])
+            & Q(id__gt=cursor["id"])
+        )
+
+        if "address" in cursor and cursor["address"]:
+            filter_condition &= Q(passport__address=cursor["address"])
+
+        if "last_score_timestamp__gt" in cursor and cursor["last_score_timestamp__gt"]:
+            filter_condition &= Q(
+                last_score_timestamp__gt=cursor["last_score_timestamp__gt"]
+            )
+
+        if (
+            "last_score_timestamp__gte" in cursor
+            and cursor["last_score_timestamp__gte"]
+        ):
+            filter_condition &= Q(
+                last_score_timestamp__gte=cursor["last_score_timestamp__gte"]
+            )
+
+        field_ordering = ["last_score_timestamp", "id"]
+    else:
+        filter_condition = Q(
+            last_score_timestamp__lt=cursor["last_score_timestamp"]
+        ) | (
+            Q(last_score_timestamp__lte=cursor["last_score_timestamp"])
+            & Q(id__gt=cursor["id"])
+        )
+
+        if "address" in cursor and cursor["address"]:
+            filter_condition &= Q(passport__address=cursor["address"])
+
+        if "last_score_timestamp__gt" in cursor and cursor["last_score_timestamp__gt"]:
+            filter_condition &= Q(
+                last_score_timestamp__gt=cursor["last_score_timestamp__gt"]
+            )
+
+        if (
+            "last_score_timestamp__gte" in cursor
+            and cursor["last_score_timestamp__gte"]
+        ):
+            filter_condition &= Q(
+                last_score_timestamp__gte=cursor["last_score_timestamp__gte"]
+            )
+        field_ordering = ["-last_score_timestamp", "-id"]
+
+    return (filter_condition, field_ordering)
