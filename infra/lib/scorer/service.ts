@@ -311,39 +311,71 @@ export function createScoreExportBucketAndDomain(
   domain: string,
   route53Zone: string
 ) {
-  // Create the S3 bucket first, without the policy
-  const scorerExportBucket = new aws.s3.Bucket(`gitcoin-score-export`, {
+  const scoreBucket = new aws.s3.Bucket("score-export-bucket", {
+    acl: "public-read",
+    tags: {
+      Name: "Registry  bucket",
+    },
     website: {
       indexDocument: "registry_score.jsonl",
     },
   });
-
-  // Generate and set the bucket policy
-  const bucketPolicy = scorerExportBucket.arn.apply((arn) =>
-    JSON.stringify({
-      Version: "2012-10-17",
-      Statement: [
-        {
-          Effect: "Allow",
-          Principal: "*",
-          Action: "s3:GetObject",
-          Resource: `${arn}/*`,
-        },
-      ],
-    })
-  );
-
   new aws.s3.BucketPolicy("bucketPolicy", {
-    bucket: scorerExportBucket.id,
-    policy: bucketPolicy,
+    bucket: scoreBucket.id,
+    policy: interpolate`{
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": "*",
+          "Action": ["s3:GetObject"],
+          "Resource": ["arn:aws:s3:::${scoreBucket.id}/*"]
+        }
+      ]
+    }`,
   });
-
-  // Create a Route 53 DNS record that points to the S3 website endpoint
+  const cloudFront = new aws.cloudfront.Distribution("myCloudFront", {
+    origins: [
+      {
+        domainName: scoreBucket.bucketDomainName,
+        originId: "myS3Origin",
+      },
+    ],
+    defaultRootObject: "",
+    enabled: true,
+    defaultCacheBehavior: {
+      targetOriginId: "myS3Origin",
+      allowedMethods: ["GET", "HEAD"],
+      cachedMethods: ["GET", "HEAD"],
+      forwardedValues: {
+        queryString: false,
+        cookies: { forward: "none" },
+      },
+      viewerProtocolPolicy: "redirect-to-https",
+    },
+    customErrorResponses: [
+      {
+        errorCode: 404,
+        responseCode: 200,
+        responsePagePath: "/registry_score.jsonl",
+      },
+    ],
+    restrictions: {
+      geoRestriction: {
+        restrictionType: "none",
+      },
+    },
+    viewerCertificate: {
+      cloudfrontDefaultCertificate: true,
+    },
+  });
+  // Create a Route53 record to point to the bucket
   new aws.route53.Record("public-score-record", {
     zoneId: route53Zone,
     name: `public.${domain}`,
     type: "CNAME",
-    records: [scorerExportBucket.websiteEndpoint],
+    records: [cloudFront.domainName],
     ttl: 300,
   });
+
+  return cloudFront.domainName;
 }
