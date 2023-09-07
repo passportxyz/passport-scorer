@@ -307,7 +307,7 @@ export function createScorerECSService(
   return service;
 }
 
-export function createScoreExportBucketAndDomain(
+export async function createScoreExportBucketAndDomain(
   domain: string,
   route53Zone: string
 ) {
@@ -319,24 +319,6 @@ export function createScoreExportBucketAndDomain(
     },
   });
 
-  const serviceAccount = aws.elb.getServiceAccount({});
-
-  const accessLogsBucketPolicyDocument = aws.iam.getPolicyDocumentOutput({
-    statements: serviceAccount.then((serviceAccount) => [
-      {
-        effect: "Allow",
-        principals: [
-          {
-            type: "AWS",
-            identifiers: ["*"],
-          },
-        ],
-        actions: ["s3:GetObject"],
-        resources: [interpolate`arn:aws:s3:::${scoreBucket.id}/*`],
-      },
-    ]),
-  });
-
   new aws.s3.BucketPublicAccessBlock("myBucketPublicAccessBlock", {
     bucket: scoreBucket.bucket.apply((bucket) => bucket),
     blockPublicAcls: false,
@@ -345,57 +327,34 @@ export function createScoreExportBucketAndDomain(
     restrictPublicBuckets: false,
   });
 
+  const serviceAccount = await aws.elb.getServiceAccount({});
+
+  const bucketPolicy = scoreBucket.arn.apply((arn) =>
+    JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Principal: "*",
+          Action: "s3:GetObject",
+          Resource: `${arn}/registry_score.jsonl`,
+        },
+        {
+          Effect: "Allow",
+          Principal: {
+            AWS: serviceAccount.arn,
+          },
+          Action: ["s3:PutObject", "s3:PutObjectAcl"],
+          Resource: `${arn}/*`,
+        },
+      ],
+    })
+  );
+
   new aws.s3.BucketPolicy("bucketPolicy", {
     bucket: scoreBucket.bucket.apply((bucket: any) => bucket),
-    policy: scoreBucket.arn.apply((arn) =>
-      JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Effect: "Allow",
-            Principal: "*",
-            Action: "s3:GetObject",
-            Resource: `${arn}/*`,
-          },
-        ],
-      })
-    ),
+    policy: bucketPolicy,
   });
-  // const cloudFront = new aws.cloudfront.Distribution("myCloudFront", {
-  //   origins: [
-  //     {
-  //       domainName: scoreBucket.bucketDomainName,
-  //       originId: "myS3Origin",
-  //     },
-  //   ],
-  //   defaultRootObject: "",
-  //   enabled: true,
-  //   defaultCacheBehavior: {
-  //     targetOriginId: "myS3Origin",
-  //     allowedMethods: ["GET", "HEAD"],
-  //     cachedMethods: ["GET", "HEAD"],
-  //     forwardedValues: {
-  //       queryString: false,
-  //       cookies: { forward: "none" },
-  //     },
-  //     viewerProtocolPolicy: "redirect-to-https",
-  //   },
-  //   customErrorResponses: [
-  //     {
-  //       errorCode: 404,
-  //       responseCode: 200,
-  //       responsePagePath: "/registry_score.jsonl",
-  //     },
-  //   ],
-  //   restrictions: {
-  //     geoRestriction: {
-  //       restrictionType: "none",
-  //     },
-  //   },
-  //   viewerCertificate: {
-  //     cloudfrontDefaultCertificate: true,
-  //   },
-  // });
   // Create a Route53 record to point to the bucket
   new aws.route53.Record("public-score-record", {
     zoneId: route53Zone,
@@ -405,5 +364,5 @@ export function createScoreExportBucketAndDomain(
     ttl: 300,
   });
 
-  return scoreBucket.websiteEndpoint;
+  return { websiteEndpoint: scoreBucket.websiteEndpoint, bucketPolicy };
 }

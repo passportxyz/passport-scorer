@@ -1141,4 +1141,32 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask(
   envConfig
 );
 
+export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
+  "frequent-allo-scorer-data-dump",
+  {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: [
+      "python",
+      "manage.py",
+      "scorer_dump_data",
+      "--config",
+      JSON.stringify([
+        {
+          name: "registry.Score",
+          filter: { community_id: 14 },
+          select_related: ["passport"],
+        },
+      ]),
+
+      `--s3-uri=s3://public.${domain}`,
+      "--summary-extra-args",
+      JSON.stringify({ ACL: "public-read" }),
+    ],
+
+    scheduleExpression: "cron(*/5 * ? * * *)", // Run the task every 30 min
+  },
+  envConfig
+);
+
 createScoreExportBucketAndDomain(domain, route53Zone);

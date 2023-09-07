@@ -1265,11 +1265,9 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
           name: "registry.Score",
           filter: { community_id: 335 },
           select_related: ["passport"],
-          "extra-args": { ACL: "public-read" },
         },
       ]),
-
-      "--s3-uri=s3://passport-scorer-public/grants-stack/",
+      `--s3-uri=s3://public.${domain}`,
       "--summary-extra-args",
       JSON.stringify({ ACL: "public-read" }),
     ],

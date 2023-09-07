@@ -836,20 +836,3 @@ const envConfig: ScorerEnvironmentConfig = {
   debug: "off",
   passportPublicUrl: "https://staging.passport.gitcoin.co/",
 };
-
-export const weeklyDataDumpTaskDefinition = createScheduledTask(
-  "weekly-data-dump",
-  {
-    cluster,
-    executionRole: dpoppEcsRole,
-    subnets: vpcPrivateSubnetIds,
-    dockerImageScorer: dockerGtcPassportScorerImage,
-    securityGroup: secgrp,
-    command: ["python", "manage.py", "dump_stamp_data"],
-    scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
-  },
-  envConfig
-);
-
-const newBucketEndpoint = createScoreExportBucketAndDomain(domain, route53Zone);
-export const bucketEndpoint = newBucketEndpoint;
