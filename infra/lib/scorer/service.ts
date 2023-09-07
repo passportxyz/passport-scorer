@@ -311,71 +311,99 @@ export function createScoreExportBucketAndDomain(
   domain: string,
   route53Zone: string
 ) {
-  const scoreBucket = new aws.s3.Bucket("score-export-bucket", {
-    acl: "public-read",
-    tags: {
-      Name: "Registry  bucket",
-    },
+  const scoreBucket = new aws.s3.Bucket(`public.${domain}`, {
+    bucket: `public.${domain}`,
+    forceDestroy: true,
     website: {
       indexDocument: "registry_score.jsonl",
     },
   });
+
+  const serviceAccount = aws.elb.getServiceAccount({});
+
+  const accessLogsBucketPolicyDocument = aws.iam.getPolicyDocumentOutput({
+    statements: serviceAccount.then((serviceAccount) => [
+      {
+        effect: "Allow",
+        principals: [
+          {
+            type: "AWS",
+            identifiers: ["*"],
+          },
+        ],
+        actions: ["s3:GetObject"],
+        resources: [interpolate`arn:aws:s3:::${scoreBucket.id}/*`],
+      },
+    ]),
+  });
+
+  new aws.s3.BucketPublicAccessBlock("myBucketPublicAccessBlock", {
+    bucket: scoreBucket.bucket.apply((bucket) => bucket),
+    blockPublicAcls: false,
+    ignorePublicAcls: false,
+    blockPublicPolicy: false,
+    restrictPublicBuckets: false,
+  });
+
   new aws.s3.BucketPolicy("bucketPolicy", {
-    bucket: scoreBucket.id,
-    policy: interpolate`{
-      "Statement": [
-        {
-          "Effect": "Allow",
-          "Principal": "*",
-          "Action": ["s3:GetObject"],
-          "Resource": ["arn:aws:s3:::${scoreBucket.id}/*"]
-        }
-      ]
-    }`,
+    bucket: scoreBucket.bucket.apply((bucket: any) => bucket),
+    policy: scoreBucket.arn.apply((arn) =>
+      JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Principal: "*",
+            Action: "s3:GetObject",
+            Resource: `${arn}/*`,
+          },
+        ],
+      })
+    ),
   });
-  const cloudFront = new aws.cloudfront.Distribution("myCloudFront", {
-    origins: [
-      {
-        domainName: scoreBucket.bucketDomainName,
-        originId: "myS3Origin",
-      },
-    ],
-    defaultRootObject: "",
-    enabled: true,
-    defaultCacheBehavior: {
-      targetOriginId: "myS3Origin",
-      allowedMethods: ["GET", "HEAD"],
-      cachedMethods: ["GET", "HEAD"],
-      forwardedValues: {
-        queryString: false,
-        cookies: { forward: "none" },
-      },
-      viewerProtocolPolicy: "redirect-to-https",
-    },
-    customErrorResponses: [
-      {
-        errorCode: 404,
-        responseCode: 200,
-        responsePagePath: "/registry_score.jsonl",
-      },
-    ],
-    restrictions: {
-      geoRestriction: {
-        restrictionType: "none",
-      },
-    },
-    viewerCertificate: {
-      cloudfrontDefaultCertificate: true,
-    },
-  });
+  // const cloudFront = new aws.cloudfront.Distribution("myCloudFront", {
+  //   origins: [
+  //     {
+  //       domainName: scoreBucket.bucketDomainName,
+  //       originId: "myS3Origin",
+  //     },
+  //   ],
+  //   defaultRootObject: "",
+  //   enabled: true,
+  //   defaultCacheBehavior: {
+  //     targetOriginId: "myS3Origin",
+  //     allowedMethods: ["GET", "HEAD"],
+  //     cachedMethods: ["GET", "HEAD"],
+  //     forwardedValues: {
+  //       queryString: false,
+  //       cookies: { forward: "none" },
+  //     },
+  //     viewerProtocolPolicy: "redirect-to-https",
+  //   },
+  //   customErrorResponses: [
+  //     {
+  //       errorCode: 404,
+  //       responseCode: 200,
+  //       responsePagePath: "/registry_score.jsonl",
+  //     },
+  //   ],
+  //   restrictions: {
+  //     geoRestriction: {
+  //       restrictionType: "none",
+  //     },
+  //   },
+  //   viewerCertificate: {
+  //     cloudfrontDefaultCertificate: true,
+  //   },
+  // });
   // Create a Route53 record to point to the bucket
   new aws.route53.Record("public-score-record", {
     zoneId: route53Zone,
     name: `public.${domain}`,
     type: "CNAME",
-    records: [cloudFront.domainName],
+    records: [scoreBucket.websiteEndpoint],
     ttl: 300,
   });
 
-  return cloudFront.domainName;
+  return scoreBucket.websiteEndpoint;
 }
