@@ -89,17 +89,9 @@ const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
 //////////////////////////////////////////////////////////////
 // Set up RDS instance
 //////////////////////////////////////////////////////////////
-let dbSubnetGroup = new aws.rds.SubnetGroup(
-  `scorer-db-subnet`,
-  {
-    subnetIds: vpcPrivateSubnetIds,
-  },
-  {
-    // TODO delete this once the pulumi library update
-    // is released and running
-    replaceOnChanges: ["*"],
-  }
-);
+let dbSubnetGroup = new aws.rds.SubnetGroup(`scorer-db-subnet`, {
+  subnetIds: vpcPrivateSubnetIds,
+});
 
 const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
   description: "Security Group for DB",
@@ -136,9 +128,6 @@ const postgresql = new aws.rds.Instance(
     dbSubnetGroupName: dbSubnetGroup.id,
     vpcSecurityGroupIds: [db_secgrp.id],
     backupRetentionPeriod: 5,
-    // TODO delete this once the pulumi library update
-    // is released and running
-    applyImmediately: true,
   },
   { protect: true }
 );
@@ -158,11 +147,6 @@ const redisSubnetGroup = new aws.elasticache.SubnetGroup(
   "scorer-redis-subnet",
   {
     subnetIds: vpcPrivateSubnetIds,
-  },
-  {
-    // TODO delete this once the pulumi library update
-    // is released and running
-    replaceOnChanges: ["*"],
   }
 );
 
