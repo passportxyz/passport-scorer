@@ -851,4 +851,5 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask(
   envConfig
 );
 
-createScoreExportBucketAndDomain(domain, route53Zone);
+const newBucketEndpoint = createScoreExportBucketAndDomain(domain, route53Zone);
+export const bucketEndpoint = newBucketEndpoint;
