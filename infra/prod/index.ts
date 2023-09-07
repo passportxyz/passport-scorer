@@ -95,17 +95,9 @@ const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
 //////////////////////////////////////////////////////////////
 // Set up RDS instance
 //////////////////////////////////////////////////////////////
-let dbSubnetGroup = new aws.rds.SubnetGroup(
-  `scorer-db-subnet`,
-  {
-    subnetIds: vpcPrivateSubnetIds,
-  },
-  {
-    // TODO delete this once the pulumi library update
-    // is released and running
-    replaceOnChanges: ["*"],
-  }
-);
+let dbSubnetGroup = new aws.rds.SubnetGroup(`scorer-db-subnet`, {
+  subnetIds: vpcPrivateSubnetIds,
+});
 
 const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
   description: "Security Group for DB",
@@ -145,17 +137,15 @@ const postgresql = new aws.rds.Instance(
     deletionProtection: true,
     backupRetentionPeriod: 5,
     performanceInsightsEnabled: true,
-    // TODO delete this once the pulumi library update
-    // is released and running
-    applyImmediately: true,
   },
   { protect: true }
 );
 
 const readreplica0 = new aws.rds.Instance(
-  `scorer-db-read-0`,
+  "scorer-db-read-00679bbe",
   {
-    allocatedStorage: 20,
+    identifier: "scorer-db-read-00679bbe",
+    allocatedStorage: 130,
     maxAllocatedStorage: 500,
     instanceClass: "db.t3.xlarge",
     skipFinalSnapshot: true,
@@ -164,9 +154,6 @@ const readreplica0 = new aws.rds.Instance(
     // backupRetentionPeriod: 5,  - this is not supported for read replicas running PostgreSQL versions lower than 14
     replicateSourceDb: postgresql.id,
     performanceInsightsEnabled: true,
-    // TODO delete this once the pulumi library update
-    // is released and running
-    applyImmediately: true,
   },
   { protect: true }
 );
@@ -189,11 +176,6 @@ const redisSubnetGroup = new aws.elasticache.SubnetGroup(
   "scorer-redis-subnet",
   {
     subnetIds: vpcPrivateSubnetIds,
-  },
-  {
-    // TODO delete this once the pulumi library update
-    // is released and running
-    replaceOnChanges: ["*"],
   }
 );
 
@@ -616,8 +598,8 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
     executionRole: {
       roleArn: workerRole.arn,
     },
-    cpu: "16vCPU",
-    memory: "32GB",
+    cpu: "16384",
+    memory: "32768",
     containers: {
       worker1: {
         name: "worker1",
@@ -982,7 +964,7 @@ export const dockrRunCmd = pulumi.secret(
 // Redash instance
 ///////////////////////
 
-const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp`, {
+const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp-fe96c4b`, {
   description: "Security Group for DB",
   vpcId: vpcID,
   ingress: [
@@ -1001,6 +983,7 @@ const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp`, {
       cidrBlocks: ["0.0.0.0/0"],
     },
   ],
+  name: "redashDbSecgrp-fe96c4b",
 });
 
 let redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
@@ -1010,8 +993,9 @@ let redashSecretKey = pulumi.secret(`${process.env["REDASH_SECRET_KEY"]}`);
 
 // Create an RDS instance
 const redashDb = new aws.rds.Instance(
-  "redash-db",
+  "redash-db-0",
   {
+    identifier: "redash-db-0",
     allocatedStorage: 20,
     maxAllocatedStorage: 20,
     engine: "postgres",
@@ -1025,9 +1009,6 @@ const redashDb = new aws.rds.Instance(
     vpcSecurityGroupIds: [redashDbSecgrp.id],
     backupRetentionPeriod: 5,
     performanceInsightsEnabled: true,
-    // TODO delete this once the pulumi library update
-    // is released and running
-    applyImmediately: true,
   },
   { protect: true }
 );
@@ -1076,28 +1057,31 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
   }
 );
 
-const redashInitScript = redashDbUrl.apply((url) => {
-  return redashSecretKey.apply((secretKey) => {
-    return `#!/bin/bash
-    echo "Setting environment variables..."
-    export POSTGRES_PASSWORD="${redashDbPassword}"
-    export REDASH_DATABASE_URL="${url}"
-    export REDASH_SECRET_KEY="${secretKey}"
+const redashInitScript = redashDbUrl.apply((url) =>
+  redashDbPassword.apply((password) =>
+    redashSecretKey.apply(
+      (secretKey) =>
+        `#!/bin/bash
+         echo "Setting environment variables..."
+         export POSTGRES_PASSWORD="${password}"
+         export REDASH_DATABASE_URL="${url}"
+         export REDASH_SECRET_KEY="${secretKey}"
 
-    echo "Cloning passport-redash repository..."
-    git clone https://github.com/gitcoinco/passport-redash.git
+         echo "Cloning passport-redash repository..."
+         git clone https://github.com/gitcoinco/passport-redash.git
 
-    echo "Changing directory and setting permissions..."
-    cd passport-redash
-    sudo chmod +x ./setup.sh
-    ./setup.sh
+         echo "Changing directory and setting permissions..."
+         cd passport-redash
+         sudo chmod +x ./setup.sh
+         ./setup.sh
 
-    cd data
+         cd data
 
-    sudo docker-compose up -d
-    `;
-  });
-});
+         sudo docker-compose up -d
+        `
+    )
+  )
+);
 
 const redashinstance = new aws.ec2.Instance("redashinstance", {
   ami: ubuntu.then((ubuntu: { id: any }) => ubuntu.id),
