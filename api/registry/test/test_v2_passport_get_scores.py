@@ -309,7 +309,122 @@ class TestPassportGetScores:
             for s in newer_scores
         ]
 
-    def test_v2_get_scores_filter_by_last_score_timestamp__gte_with_pagination(
+    def test_v2_get_scores_pagination_when_having_multiple_identical_timestamps(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        shuffled_paginated_scores,
+    ):
+        """
+        Thi tests wants to ensure that when having multiple identical timestamps, the order of the scores
+        is properly handled when paginating with prev and next.
+        We split the set of scores into 2, such that the timestamps in the last one of rthe first set and
+        first one in the 2nd set are identical, and paginate around that split.
+        """
+        timestamps = [s.last_score_timestamp for s in shuffled_paginated_scores]
+        timestamp_idx = timestamps.index("2023-08-06 15:11:45.088379+00:00")
+
+        scores = list(Score.objects.order_by("last_score_timestamp"))
+        middle = len(scores) // 2
+        newer_scores = scores[: timestamp_idx + 1]
+        older_scores = scores[timestamp_idx + 1 :]
+
+        print(timestamp_idx)
+        for s in scores:
+            print(s.last_score_timestamp)
+
+        timestamp_to_filter_by = newer_scores[0].last_score_timestamp
+
+        # Make sure we have sufficient data in both queries
+        assert len(newer_scores) >= 2
+        assert len(older_scores) >= 2
+        print("---")
+        print(newer_scores[-1].last_score_timestamp)
+        print(older_scores[0].last_score_timestamp)
+        assert (
+            newer_scores[-1].last_score_timestamp
+            == older_scores[0].last_score_timestamp
+        )
+
+        ##########################################
+        # Read first page
+        ##########################################
+        client = Client()
+        response = client.get(
+            f"/registry/v2/score/{scorer_community.id}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            data={
+                "limit": timestamp_idx + 1,
+            },
+        )
+
+        assert response.status_code == 200
+        response_json = response.json()
+        response_data = response_json["items"]
+        next_page = response_json["next"]
+        assert len(response_data) == len(newer_scores)
+        assert response_data == [
+            {
+                "address": s.passport.address,
+                "score": str(s.score),
+                "status": s.status,
+                "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "evidence": s.evidence,
+                "error": s.error,
+            }
+            for s in newer_scores
+        ]
+
+        ##########################################
+        # Read 2nd page with next
+        ##########################################
+        response = client.get(
+            next_page,
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        response_data = response_json["items"]
+        prev_page = response_json["prev"]
+        expected_length = min(len(older_scores), timestamp_idx + 1)
+        assert len(response_data) == expected_length
+        assert response_data == [
+            {
+                "address": s.passport.address,
+                "score": str(s.score),
+                "status": s.status,
+                "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "evidence": s.evidence,
+                "error": s.error,
+            }
+            for s in older_scores[:expected_length]
+        ]
+
+        ##########################################
+        # Read 1st page with prev
+        ##########################################
+        response = client.get(
+            prev_page,
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        response_data = response_json["items"]
+        assert len(response_data) == len(newer_scores)
+        assert response_data == [
+            {
+                "address": s.passport.address,
+                "score": str(s.score),
+                "status": s.status,
+                "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "evidence": s.evidence,
+                "error": s.error,
+            }
+            for s in newer_scores
+        ]
+
+    def test_v2_get_scores_pagination_when_identical_timestamps(
         self,
         scorer_api_key,
         passport_holder_addresses,

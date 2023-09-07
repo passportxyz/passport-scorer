@@ -194,7 +194,7 @@ def get_cursor_query_condition(cursor):
             last_score_timestamp__lt=cursor["last_score_timestamp"]
         ) | (
             Q(last_score_timestamp__lte=cursor["last_score_timestamp"])
-            & Q(id__gt=cursor["id"])
+            & Q(id__lt=cursor["id"])
         )
 
         if "address" in cursor and cursor["address"]:
