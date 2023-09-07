@@ -155,7 +155,6 @@ def get_scores(
         else:
             query = base_query.order_by(*ordering_fields_asc)
 
-        query = query[:limit]
         has_more_scores = has_prev_scores = False
 
         # Technically we could just pass request.GET to the filter. But since we have the parameters defined
@@ -169,6 +168,8 @@ def get_scores(
             },
             queryset=query,
         ).qs
+
+        query = query[:limit]
 
         scores = list(query)
 

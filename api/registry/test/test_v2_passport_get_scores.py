@@ -240,97 +240,106 @@ class TestPassportGetScores:
         assert response.status_code == 200
         assert len(response.json()["items"]) == len(newer_scores)
 
-    # def test_v2_get_scores_filter_by_last_score_timestamp__gte(
-    #     self,
-    #     scorer_api_key,
-    #     passport_holder_addresses,
-    #     scorer_community,
-    #     paginated_scores,
-    # ):
-    #     scores = list(Score.objects.all())
-    #     middle = len(scores) // 2
-    #     older_scores = scores[:middle]
-    #     newer_scores = scores[middle:]
-    #     now = datetime.datetime.now()
-    #     past_time_stamp = now - datetime.timedelta(days=1)
-    #     future_time_stamp = now + datetime.timedelta(days=1)
+    def test_v2_get_scores_filter_by_last_score_timestamp__gte(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        scores = list(Score.objects.all())
+        middle = len(scores) // 2
+        older_scores = scores[:middle]
+        newer_scores = scores[middle:]
+        now = datetime.datetime.now()
+        past_time_stamp = now - datetime.timedelta(days=1)
+        future_time_stamp = now + datetime.timedelta(days=1)
 
-    #     # Make sure we have sufficient data in both queries
-    #     assert len(newer_scores) >= 2
-    #     assert len(older_scores) >= 2
+        # Make sure we have sufficient data in both queries
+        assert len(newer_scores) >= 2
+        assert len(older_scores) >= 2
 
-    #     for score in Score.objects.all():
-    #         if score in older_scores:
-    #             score.last_score_timestamp = past_time_stamp
-    #         elif score in newer_scores:
-    #             if score == newer_scores[0]:
-    #                 score.last_score_timestamp = now
-    #             else:
-    #                 score.last_score_timestamp = future_time_stamp
-    #         score.save()
+        for score in Score.objects.all():
+            if score in older_scores:
+                score.last_score_timestamp = past_time_stamp
+            elif score in newer_scores:
+                if score == newer_scores[0]:
+                    score.last_score_timestamp = now
+                else:
+                    score.last_score_timestamp = future_time_stamp
+            score.save()
 
-    #     # Check the query when the filtered timestamp equals a score last_score_timestamp
-    #     client = Client()
-    #     response = client.get(
-    #         f"/registry/v2/score/{scorer_community.id}?last_score_timestamp__gte={now.isoformat()}",
-    #         HTTP_AUTHORIZATION="Token " + scorer_api_key,
-    #     )
-    #     assert response.status_code == 200
-    #     assert len(response.json()["items"]) == len(newer_scores)
+        # Check the query when the filtered timestamp equals a score last_score_timestamp
+        client = Client()
+        response = client.get(
+            f"/registry/v2/score/{scorer_community.id}?last_score_timestamp__gte={now.isoformat()}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
 
-    #     # Check the query when the filtered timestamp does not equal a score last_score_timestamp
-    #     response = client.get(
-    #         f"/registry/v2/score/{scorer_community.id}?last_score_timestamp__gte={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
-    #         HTTP_AUTHORIZATION="Token " + scorer_api_key,
-    #     )
-    #     assert response.status_code == 200
-    #     assert len(response.json()["items"]) == len(newer_scores)
+        assert response.status_code == 200
+        response_data = response.json()["items"]
+        half_response_scores = response_data[middle:]
+        assert len(half_response_scores) == len(newer_scores)
 
-    # def test_v2_get_scores_filter_by_last_score_timestamp__gt(
-    #     self,
-    #     scorer_api_key,
-    #     passport_holder_addresses,
-    #     scorer_community,
-    #     paginated_scores,
-    # ):
-    #     scores = list(Score.objects.all())
-    #     middle = len(scores) // 2
-    #     older_scores = scores[:middle]
-    #     newer_scores = scores[middle:]
-    #     now = datetime.datetime.now()
-    #     past_time_stamp = now - datetime.timedelta(days=1)
-    #     future_time_stamp = now + datetime.timedelta(days=1)
+        # Check the query when the filtered timestamp does not equal a score last_score_timestamp
+        response = client.get(
+            f"/registry/v2/score/{scorer_community.id}?last_score_timestamp__gte={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        response_data = response.json()["items"]
+        half_response_scores = response_data[middle:]
+        assert len(half_response_scores) == len(newer_scores)
 
-    #     # Make sure we have sufficient data in both queries
-    #     assert len(newer_scores) >= 2
-    #     assert len(older_scores) >= 2
+    def test_v2_get_scores_filter_by_last_score_timestamp__gt(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        scores = list(Score.objects.all())
+        middle = len(scores) // 2
+        older_scores = scores[:middle]
+        newer_scores = scores[middle:]
+        now = datetime.datetime.now()
+        past_time_stamp = now - datetime.timedelta(days=1)
+        future_time_stamp = now + datetime.timedelta(days=1)
 
-    #     for score in Score.objects.all():
-    #         if score in older_scores:
-    #             score.last_score_timestamp = past_time_stamp
-    #         elif score in newer_scores:
-    #             if score == newer_scores[0]:
-    #                 score.last_score_timestamp = now
-    #             else:
-    #                 score.last_score_timestamp = future_time_stamp
-    #         score.save()
+        # Make sure we have sufficient data in both queries
+        assert len(newer_scores) >= 2
+        assert len(older_scores) >= 2
 
-    #     # Check the query when the filtered timestamp equals a score last_score_timestamp
-    #     client = Client()
-    #     response = client.get(
-    #         f"/registry/v2/score/{scorer_community.id}?last_score_timestamp__gt={now.isoformat()}",
-    #         HTTP_AUTHORIZATION="Token " + scorer_api_key,
-    #     )
-    #     assert response.status_code == 200
-    #     assert len(response.json()["items"]) == len(newer_scores) - 1
+        for score in Score.objects.all():
+            if score in older_scores:
+                score.last_score_timestamp = past_time_stamp
+            elif score in newer_scores:
+                if score == newer_scores[0]:
+                    score.last_score_timestamp = now
+                else:
+                    score.last_score_timestamp = future_time_stamp
+            score.save()
 
-    #     # Check the query when the filtered timestamp does not equal a score last_score_timestamp
-    #     response = client.get(
-    #         f"/registry/v2/score/{scorer_community.id}?last_score_timestamp__gt={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
-    #         HTTP_AUTHORIZATION="Token " + scorer_api_key,
-    #     )
-    #     assert response.status_code == 200
-    #     assert len(response.json()["items"]) == len(newer_scores)
+        # Check the query when the filtered timestamp equals a score last_score_timestamp
+        client = Client()
+        response = client.get(
+            f"/registry/v2/score/{scorer_community.id}?last_score_timestamp__gt={now.isoformat()}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        response_data = response.json()["items"]
+        half_response_scores = response_data[middle:]
+        assert len(half_response_scores) == len(newer_scores) - 1
+
+        # Check the query when the filtered timestamp does not equal a score last_score_timestamp
+        response = client.get(
+            f"/registry/v2/score/{scorer_community.id}?last_score_timestamp__gt={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        assert response.status_code == 200
+        response_data = response.json()["items"]
+        half_response_scores = response_data[middle:]
+        assert len(half_response_scores) == len(newer_scores)
 
     def test_get_scores_with_shuffled_ids(
         self,
