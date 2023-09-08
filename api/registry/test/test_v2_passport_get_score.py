@@ -1,11 +1,14 @@
 import datetime
 from datetime import datetime as dt
+from unittest.mock import patch
 
 import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
+from django.utils import timezone
 from registry.models import Passport, Score
+from registry.test.test_passport_get_score import TestPassportGetScore
 from web3 import Web3
 
 User = get_user_model()
@@ -33,8 +36,7 @@ def paginated_scores(scorer_passport, passport_holder_addresses, scorer_communit
         score = Score.objects.create(
             passport=passport,
             score="1",
-            last_score_timestamp=datetime.datetime.utcnow()
-            + datetime.timedelta(days=i + 1),
+            last_score_timestamp=timezone.now() + datetime.timedelta(days=i + 1),
         )
 
         scores.append(score)
@@ -75,7 +77,9 @@ def shuffled_paginated_scores(
     return scores
 
 
-class TestPassportGetScores:
+class TestPassportGetScoresV2(TestPassportGetScore):
+    base_url = "/registry/v2"
+
     def test_get_scores_returns_first_page_scores(
         self,
         scorer_api_key,
@@ -87,7 +91,7 @@ class TestPassportGetScores:
 
         client = Client()
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}?limit={limit}",
+            f"{self.base_url}/score/{scorer_community.id}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
@@ -119,7 +123,7 @@ class TestPassportGetScores:
 
         client = Client()
         page_one_response = client.get(
-            f"/registry/v2/score/{scorer_community.id}?limit={limit}",
+            f"{self.base_url}/score/{scorer_community.id}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         page_one_data = page_one_response.json()
@@ -264,7 +268,7 @@ class TestPassportGetScores:
         # Check the query when the filtered timestamp equals a score last_score_timestamp
         client = Client()
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}",
+            f"{self.base_url}/score/{scorer_community.id}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
             data={"last_score_timestamp__gte": timestamp_to_filter_by.isoformat()},
         )
@@ -286,7 +290,7 @@ class TestPassportGetScores:
 
         # Check the query when the filtered timestamp does not equal a score last_score_timestamp
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}",
+            f"{self.base_url}/score/{scorer_community.id}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
             data={
                 "last_score_timestamp__gte": (
@@ -352,7 +356,7 @@ class TestPassportGetScores:
         ##########################################
         client = Client()
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}",
+            f"{self.base_url}/score/{scorer_community.id}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
             data={
                 "limit": timestamp_idx + 1,
@@ -424,6 +428,10 @@ class TestPassportGetScores:
             for s in newer_scores
         ]
 
+    @patch(
+        "registry.api.base.check_rate_limit",
+        return_value=None,
+    )
     def test_v2_get_scores_pagination_when_identical_timestamps(
         self,
         scorer_api_key,
@@ -446,7 +454,7 @@ class TestPassportGetScores:
         ##########################################
         client = Client()
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}",
+            f"{self.base_url}/score/{scorer_community.id}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
             data={
                 "last_score_timestamp__gte": timestamp_to_filter_by.isoformat(),
@@ -506,6 +514,7 @@ class TestPassportGetScores:
         response_json = response.json()
         response_data = response_json["items"]
         prev_page = response_json["prev"]
+        print("prev maybe ----->>>>", response_json)
         assert response_json["next"] == None
         assert len(response_data) == 1
         assert response_data == [
@@ -589,7 +598,7 @@ class TestPassportGetScores:
         # Check the query when the filtered timestamp equals a score last_score_timestamp
         client = Client()
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}",
+            f"{self.base_url}/score/{scorer_community.id}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
             data={"last_score_timestamp__gt": timestamp_to_filter_by.isoformat()},
         )
@@ -613,7 +622,7 @@ class TestPassportGetScores:
 
         # Check the query when the filtered timestamp does not equal a score last_score_timestamp
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}",
+            f"{self.base_url}/score/{scorer_community.id}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
             data={
                 "last_score_timestamp__gt": (
@@ -651,7 +660,7 @@ class TestPassportGetScores:
 
         client = Client()
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}?limit={limit}",
+            f"{self.base_url}/score/{scorer_community.id}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         first_response_data = response.json()
@@ -673,7 +682,7 @@ class TestPassportGetScores:
             assert dt_last_score_string == dt_res_score_object_str_space
 
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}?limit={limit}",
+            f"{self.base_url}/score/{scorer_community.id}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
@@ -706,7 +715,7 @@ class TestPassportGetScores:
 
         client = Client()
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}?limit={limit}",
+            f"{self.base_url}/score/{scorer_community.id}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
@@ -740,7 +749,7 @@ class TestPassportGetScores:
 
         client = Client()
         response = client.get(
-            f"/registry/v2/score/{scorer_community.id}?limit={limit}",
+            f"{self.base_url}/score/{scorer_community.id}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 

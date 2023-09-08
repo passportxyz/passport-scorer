@@ -25,6 +25,7 @@ from .schema import (
     DetailedScoreResponse,
     ErrorMessageResponse,
     SigningMessageResponse,
+    StampDisplayResponse,
     SubmitPassportPayload,
 )
 
@@ -243,11 +244,30 @@ def get_scores(
     description="""Use this endpoint to fetch the passport for a specific address\n
 This endpoint will return a `CursorPaginatedStampCredentialResponse`.\n
 """,
+    # This prevents returning {metadata: None} in the response
+    exclude_unset=True,
 )
 def get_passport_stamps(
-    request, address: str, token: str = None, limit: int = 1000
+    request,
+    address: str,
+    token: str = "",
+    limit: int = 1000,
+    include_metadata: bool = False,
 ) -> CursorPaginatedStampCredentialResponse:
-    return v1.get_passport_stamps(request, address, token, limit)
+    return v1.get_passport_stamps(request, address, token, limit, include_metadata)
+
+
+@router.get(
+    "/stamp-metadata",
+    description="""**WARNING**: This endpoint is in beta and is subject to change.""",
+    auth=ApiKey(),
+    response={
+        200: List[StampDisplayResponse],
+        500: ErrorMessageResponse,
+    },
+)
+def stamp_display(request) -> List[StampDisplayResponse]:
+    return v1.stamp_display(request)
 
 
 @router.get(

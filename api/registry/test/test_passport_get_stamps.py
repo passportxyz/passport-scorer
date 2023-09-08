@@ -81,12 +81,14 @@ def paginated_stamps(scorer_community, passport_holder_addresses):
 
 
 class TestPassportGetStamps:
+    base_url = "/registry"
+
     def test_get_stamps_with_address_with_no_scores(
         self, scorer_api_key, passport_holder_addresses
     ):
         client = Client()
         response = client.get(
-            f"/registry/stamps/{passport_holder_addresses[0]['address']}",
+            f"{self.base_url}/stamps/{passport_holder_addresses[0]['address']}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
@@ -114,7 +116,7 @@ class TestPassportGetStamps:
 
         client = Client()
         response = client.get(
-            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
+            f"{self.base_url}/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
@@ -138,7 +140,7 @@ class TestPassportGetStamps:
         ):
             client = Client()
             response = client.get(
-                f"/registry/stamps/{passport_holder_addresses[0]['address']}?include_metadata=true&limit=1",
+                f"{self.base_url}/stamps/{passport_holder_addresses[0]['address']}?include_metadata=true&limit=1",
                 HTTP_AUTHORIZATION="Token " + scorer_api_key,
             )
             response_data = response.json()
@@ -169,7 +171,7 @@ class TestPassportGetStamps:
         ):
             client = Client()
             response = client.get(
-                f"/registry/stamp-metadata",
+                f"{self.base_url}/stamp-metadata",
                 HTTP_AUTHORIZATION="Token " + scorer_api_key,
             )
             response_data = response.json()
@@ -194,7 +196,7 @@ class TestPassportGetStamps:
 
         client = Client()
         response = client.get(
-            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
+            f"{self.base_url}/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
@@ -238,7 +240,7 @@ class TestPassportGetStamps:
 
         client = Client()
         page_one_response = client.get(
-            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
+            f"{self.base_url}/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         page_one_data = page_one_response.json()
@@ -280,7 +282,7 @@ class TestPassportGetStamps:
         client = Client()
 
         page_one_response = client.get(
-            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
+            f"{self.base_url}/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         page_one_data = page_one_response.json()
@@ -325,7 +327,7 @@ class TestPassportGetStamps:
     ):
         client = Client()
         response = client.get(
-            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit=1001",
+            f"{self.base_url}/stamps/{passport_holder_addresses[0]['address']}?limit=1001",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
@@ -337,7 +339,7 @@ class TestPassportGetStamps:
     def test_limit_of_1000_is_ok(self, passport_holder_addresses, scorer_api_key):
         client = Client()
         response = client.get(
-            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit=1000",
+            f"{self.base_url}/stamps/{passport_holder_addresses[0]['address']}?limit=1000",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
@@ -363,7 +365,7 @@ class TestPassportGetStamps:
 
         # Read the 1st batch
         response = client.get(
-            f"/registry/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
+            f"{self.base_url}/stamps/{passport_holder_addresses[0]['address']}?limit={limit}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
