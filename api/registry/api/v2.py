@@ -52,7 +52,7 @@ def signing_message(request) -> SigningMessageResponse:
 
 @router.post(
     "/submit-passport",
-    auth=ApiKey(),
+    auth=v1.aapi_key,
     response={
         200: DetailedScoreResponse,
         401: ErrorMessageResponse,
@@ -65,8 +65,10 @@ This API will return a `DetailedScoreResponse` structure with status **PROCESSIN
 You need to check for the status of the operation by calling the `/score/{int:scorer_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
 """,
 )
-def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
-    return v1.submit_passport(request, payload)
+async def a_submit_passport(
+    request, payload: SubmitPassportPayload
+) -> DetailedScoreResponse:
+    return await v1.a_submit_passport(request, payload)
 
 
 @router.get(

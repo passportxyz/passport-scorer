@@ -118,19 +118,19 @@ def signing_message(request) -> SigningMessageResponse:
 # You need to check for the status of the operation by calling the `/score/{int:scorer_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
 # """,
 # )
-def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
-    check_rate_limit(request)
+# def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
+#     check_rate_limit(request)
 
-    # Get DID from address
-    # did = get_did(payload.address)
-    log.debug("/submit-passport, payload=%s", payload)
+#     # Get DID from address
+#     # did = get_did(payload.address)
+#     log.debug("/submit-passport, payload=%s", payload)
 
-    account = request.auth
+#     account = request.auth
 
-    if not request.api_key.submit_passports:
-        raise InvalidAPIKeyPermissions()
+#     if not request.api_key.submit_passports:
+#         raise InvalidAPIKeyPermissions()
 
-    return handle_submit_passport(payload, account)
+#     return handle_submit_passport(payload, account)
 
 
 @router.post(
