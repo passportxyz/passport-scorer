@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
