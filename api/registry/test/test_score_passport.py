@@ -143,7 +143,7 @@ class TestScorePassportTestCase(TransactionTestCase):
 
         self._score_address(address)
 
-    def _score_address(self, address):
+    async def _score_address(self, address):
         class MockRequest:
             def __init__(self, account):
                 self.auth = account
@@ -152,7 +152,7 @@ class TestScorePassportTestCase(TransactionTestCase):
         mock_request = MockRequest(self.user_account)
 
         with patch("registry.api.v1.score_passport_passport.delay", return_value=None):
-            a_submit_passport(
+            await a_submit_passport(
                 mock_request,
                 SubmitPassportPayload(
                     address=address,
