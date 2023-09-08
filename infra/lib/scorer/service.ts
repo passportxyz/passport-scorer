@@ -315,7 +315,6 @@ export async function createScoreExportBucketAndDomain(
 ) {
   const scoreBucket = new aws.s3.Bucket(`public.${domain}`, {
     bucket: `public.${domain}`,
-    forceDestroy: true,
     website: {
       indexDocument: "registry_score.jsonl",
     },
@@ -339,7 +338,7 @@ export async function createScoreExportBucketAndDomain(
           Effect: "Allow",
           Principal: "*",
           Action: "s3:GetObject",
-          Resource: `${arn}/registry_score.jsonl`,
+          Resource: `${arn}/*`,
         },
         {
           Effect: "Allow",
@@ -358,81 +357,114 @@ export async function createScoreExportBucketAndDomain(
     policy: bucketPolicy,
   });
 
-  // Generate an SSL certificate
-  const certificate = new aws.acm.Certificate("cert", {
-    domainName: `public.${domain}`,
-    tags: {
-      Environment: "staging",
-    },
-    validationMethod: "DNS",
+  const eastRegion = new aws.Provider("east", {
+    profile: aws.config.profile,
+    region: "us-east-1", // Per AWS, ACM certificate must be in the us-east-1 region.
   });
 
-  const certificateValidationDomain = new aws.route53.Record(
+  const exportCertificate = new aws.acm.Certificate(
+    `public.${domain}`,
+    {
+      domainName: `public.${domain}`,
+      validationMethod: "DNS",
+    },
+    { provider: eastRegion }
+  );
+
+  const hostedZoneId = aws.route53
+    .getZone({ name: domain }, { async: true })
+    .then((zone) => zone.zoneId);
+
+  const publicExportCertificateValidationDomain = new aws.route53.Record(
     `public.${domain}-validation`,
     {
-      name: certificate.domainValidationOptions[0].resourceRecordName,
-      zoneId: route53Zone,
-      type: certificate.domainValidationOptions[0].resourceRecordType,
-      records: [certificate.domainValidationOptions[0].resourceRecordValue],
+      name: exportCertificate.domainValidationOptions[0].resourceRecordName,
+      zoneId: hostedZoneId,
+      type: exportCertificate.domainValidationOptions[0].resourceRecordType,
+      records: [
+        exportCertificate.domainValidationOptions[0].resourceRecordValue,
+      ],
       ttl: 600,
+    },
+    { provider: eastRegion }
+  );
+
+  const publicCertificateValidation = new aws.acm.CertificateValidation(
+    "publicCertificateValidation",
+    {
+      certificateArn: exportCertificate.arn,
+      validationRecordFqdns: [
+        publicExportCertificateValidationDomain.fqdn.apply((fqdn) => fqdn),
+      ],
+    },
+    {
+      provider: eastRegion,
     }
   );
 
-  const certificateValidation = new aws.acm.CertificateValidation(
-    "certificateValidation",
+  const cloudFront = new aws.cloudfront.Distribution(
+    "publicExportCloudFront",
     {
-      certificateArn: certificate.arn,
-      validationRecordFqdns: [certificateValidationDomain.fqdn],
+      origins: [
+        {
+          originId: scoreBucket.arn.apply((arn) => arn),
+          domainName: scoreBucket.bucketDomainName.apply(
+            (domainName) => domainName
+          ),
+        },
+      ],
+      defaultRootObject: "registry_score.jsonl",
+      enabled: true,
+      defaultCacheBehavior: {
+        targetOriginId: scoreBucket.arn.apply((arn) => arn),
+        allowedMethods: ["GET", "HEAD"],
+        cachedMethods: ["GET", "HEAD"],
+        forwardedValues: {
+          queryString: false,
+          cookies: { forward: "none" },
+        },
+        viewerProtocolPolicy: "redirect-to-https",
+      },
+      customErrorResponses: [
+        {
+          errorCode: 404,
+          responseCode: 200,
+          responsePagePath: "/registry_score.jsonl",
+        },
+      ],
+      restrictions: {
+        geoRestriction: {
+          restrictionType: "none",
+        },
+      },
+      viewerCertificate: {
+        acmCertificateArn: publicCertificateValidation.certificateArn.apply(
+          (arn) => arn
+        ), // Per AWS, ACM certificate must be in the us-east-1 region.
+        sslSupportMethod: "sni-only",
+      },
     },
-    { customTimeouts: { create: "30s", update: "30s" } }
+    {}
   );
 
-  const cloudFront = new aws.cloudfront.Distribution("myCloudFront", {
-    origins: [
-      {
-        domainName: scoreBucket.bucketDomainName,
-        originId: "myS3Origin",
-      },
-    ],
-    defaultRootObject: "",
-    enabled: true,
-    defaultCacheBehavior: {
-      targetOriginId: "myS3Origin",
-      allowedMethods: ["GET", "HEAD"],
-      cachedMethods: ["GET", "HEAD"],
-      forwardedValues: {
-        queryString: false,
-        cookies: { forward: "none" },
-      },
-      viewerProtocolPolicy: "redirect-to-https",
-    },
-    customErrorResponses: [
-      {
-        errorCode: 404,
-        responseCode: 200,
-        responsePagePath: "/registry_score.jsonl",
-      },
-    ],
-    restrictions: {
-      geoRestriction: {
-        restrictionType: "none",
-      },
-    },
-    viewerCertificate: {
-      cloudfrontDefaultCertificate: true,
-    },
-  });
-
-  return new aws.route53.Record(`public.${domain}`, {
+  new aws.route53.Record(`public.${domain}`, {
     name: `public.${domain}`,
-    zoneId: route53Zone,
+    zoneId: hostedZoneId,
     type: "A",
     aliases: [
       {
-        name: `public.${domain}`,
-        zoneId: route53Zone,
+        name: cloudFront.domainName,
+        zoneId: cloudFront.hostedZoneId,
         evaluateTargetHealth: true,
       },
     ],
   });
+
+  return {
+    hostedZoneId,
+    exportCertificate,
+    publicExportCertificateValidationDomain,
+    publicCertificateValidation,
+    cloudFront,
+  };
 }
