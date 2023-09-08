@@ -1,6 +1,5 @@
 import datetime
 from datetime import datetime as dt
-from unittest.mock import patch
 
 import pytest
 from django.conf import settings
@@ -428,10 +427,6 @@ class TestPassportGetScoresV2(TestPassportGetScore):
             for s in newer_scores
         ]
 
-    @patch(
-        "registry.api.base.check_rate_limit",
-        return_value=None,
-    )
     def test_v2_get_scores_pagination_when_identical_timestamps(
         self,
         scorer_api_key,
