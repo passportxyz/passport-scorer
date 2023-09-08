@@ -1277,4 +1277,4 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
   envConfig
 );
 
-createScoreExportBucketAndDomain(domain, route53Zone);
+const exportVals = createScoreExportBucketAndDomain(domain, route53Zone, alb);
