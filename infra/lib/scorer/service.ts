@@ -6,6 +6,7 @@ import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 import * as aws from "@pulumi/aws";
 
 import { Cluster } from "@pulumi/aws/ecs";
+import { LoadBalancer } from "@pulumi/aws/alb";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -309,7 +310,8 @@ export function createScorerECSService(
 
 export async function createScoreExportBucketAndDomain(
   domain: string,
-  route53Zone: string
+  route53Zone: string,
+  alb: LoadBalancer
 ) {
   const scoreBucket = new aws.s3.Bucket(`public.${domain}`, {
     bucket: `public.${domain}`,
@@ -355,14 +357,82 @@ export async function createScoreExportBucketAndDomain(
     bucket: scoreBucket.bucket.apply((bucket: any) => bucket),
     policy: bucketPolicy,
   });
-  // Create a Route53 record to point to the bucket
-  new aws.route53.Record("public-score-record", {
-    zoneId: route53Zone,
-    name: `public.${domain}`,
-    type: "CNAME",
-    records: [scoreBucket.websiteEndpoint],
-    ttl: 300,
+
+  // Generate an SSL certificate
+  const certificate = new aws.acm.Certificate("cert", {
+    domainName: `public.${domain}`,
+    tags: {
+      Environment: "staging",
+    },
+    validationMethod: "DNS",
   });
 
-  return { websiteEndpoint: scoreBucket.websiteEndpoint, bucketPolicy };
+  const certificateValidationDomain = new aws.route53.Record(
+    `public.${domain}-validation`,
+    {
+      name: certificate.domainValidationOptions[0].resourceRecordName,
+      zoneId: route53Zone,
+      type: certificate.domainValidationOptions[0].resourceRecordType,
+      records: [certificate.domainValidationOptions[0].resourceRecordValue],
+      ttl: 600,
+    }
+  );
+
+  const certificateValidation = new aws.acm.CertificateValidation(
+    "certificateValidation",
+    {
+      certificateArn: certificate.arn,
+      validationRecordFqdns: [certificateValidationDomain.fqdn],
+    },
+    { customTimeouts: { create: "30s", update: "30s" } }
+  );
+
+  const cloudFront = new aws.cloudfront.Distribution("myCloudFront", {
+    origins: [
+      {
+        domainName: scoreBucket.bucketDomainName,
+        originId: "myS3Origin",
+      },
+    ],
+    defaultRootObject: "",
+    enabled: true,
+    defaultCacheBehavior: {
+      targetOriginId: "myS3Origin",
+      allowedMethods: ["GET", "HEAD"],
+      cachedMethods: ["GET", "HEAD"],
+      forwardedValues: {
+        queryString: false,
+        cookies: { forward: "none" },
+      },
+      viewerProtocolPolicy: "redirect-to-https",
+    },
+    customErrorResponses: [
+      {
+        errorCode: 404,
+        responseCode: 200,
+        responsePagePath: "/registry_score.jsonl",
+      },
+    ],
+    restrictions: {
+      geoRestriction: {
+        restrictionType: "none",
+      },
+    },
+    viewerCertificate: {
+      cloudfrontDefaultCertificate: true,
+    },
+  });
+
+  return new aws.route53.Record(`public.${domain}`, {
+    name: `public.${domain}`,
+    zoneId: route53Zone,
+    type: "A",
+    aliases: [
+      {
+        name: `public.${domain}`,
+        zoneId: route53Zone,
+        evaluateTargetHealth: true,
+      },
+    ],
+  });
 }
