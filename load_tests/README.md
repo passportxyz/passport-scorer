@@ -24,7 +24,7 @@
 
 ```bash
 export MNEMONIC='chief loud snack trend chief net field husband vote message decide replace'
-export ALCHEMY_API_KEY='5QPthzD45A2kb7VKlphviV2voxiIEMqL'
+export ALCHEMY_API_KEY='<YOUR API KEY>'
 ```
 
 - run `node script_backup.js`
