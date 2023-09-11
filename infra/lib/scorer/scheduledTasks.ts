@@ -55,7 +55,7 @@ export function createScheduledTask(
     containers: {
       web: {
         name: `${name}-container`,
-        image: "public.ecr.aws/c8n6v8e9/passport-scorer", //dockerImageScorer,
+        image: dockerImageScorer,
         cpu: cpu ? cpu : 256,
         memory: memory ? memory : 2048,
         secrets,

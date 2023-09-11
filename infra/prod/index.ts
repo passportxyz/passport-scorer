@@ -1247,7 +1247,7 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
       "--batch-size=20000",
     ],
 
-    scheduleExpression: "cron(30 */1 ? * * *)", // Run the task daily at 00:30 UTC
+    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
   },
   envConfig
 );
