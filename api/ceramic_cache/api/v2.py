@@ -3,6 +3,7 @@
 from typing import List
 
 import api_logging as logging
+import requests
 from django.conf import settings
 from ninja import Router
 from registry.api.v1 import DetailedScoreResponse
@@ -34,16 +35,30 @@ router = Router()
 
 
 def migrate_stamp_to_v2(v1_stamp: CeramicCache) -> CeramicCache:
-    # TODO: dummy implementation, needs to be updated
-    v2_stamp = CeramicCache(
-        type=CeramicCache.StampType.V2,
-        address=v1_stamp.address,
-        provider=v1_stamp.provider,
-        created_at=v1_stamp.created_at,
-        updated_at=v1_stamp.updated_at,
+    v2_stamp_response = requests.post(
+        settings.CERAMIC_CACHE_CONVERT_STAMP_TO_V2_URL, json=v1_stamp.stamp
     )
-    v2_stamp.save()
-    return v2_stamp
+
+    if v2_stamp_response.status_code == 200:
+        v2_stamp = CeramicCache(
+            type=CeramicCache.StampType.V2,
+            address=v1_stamp.address,
+            provider=v1_stamp.provider,
+            created_at=v1_stamp.created_at,
+            updated_at=v1_stamp.updated_at,
+            stamp=v2_stamp_response.json(),
+        )
+        v2_stamp.save()
+        return v2_stamp
+    else:
+        log.error(
+            "Error converting stamp to V2: %s: %s",
+            v2_stamp_response.status_code,
+            v2_stamp_response.text,
+            exc_info=True,
+        )
+
+    return None
 
 
 def get_passport_state(address: str) -> list[CeramicCache]:
@@ -64,7 +79,8 @@ def get_passport_state(address: str) -> list[CeramicCache]:
         if v1_stamp.provider not in v2_stamps:
             # the v1 stamp is missing in v2_stamps, so we need to create that entry
             v2_stamp = migrate_stamp_to_v2(v1_stamp)
-            v2_stamps[v2_stamp.provider] = v2_stamp
+            if v2_stamp:
+                v2_stamps[v2_stamp.provider] = v2_stamp
 
     # There is also the edge case wher where the V1 stamp is not identical to the V2 stamp
     # (for example V1 stamp expires after the v2 stamp)
@@ -218,9 +234,7 @@ def delete_stamps(request, payload: List[DeleteStampPayload]):
 @router.get("stamp", response=GetStampResponse)
 def get_stamps(request, address):
     try:
-        stamps = CeramicCache.objects.filter(
-            type=CeramicCache.StampType.V2, address=address
-        )
+        stamps = get_passport_state(address)
 
         scorer_id = settings.CERAMIC_CACHE_SCORER_ID
         if (
