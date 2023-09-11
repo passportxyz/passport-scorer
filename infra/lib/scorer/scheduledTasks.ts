@@ -21,6 +21,8 @@ export type ScheduledTaskConfig = Pick<
   command: string[];
   scheduleExpression: string;
   ephemeralStorageSizeInGiB?: number;
+  cpu?: number;
+  memory?: number;
 };
 
 export function createScheduledTask(
@@ -37,6 +39,8 @@ export function createScheduledTask(
     command,
     scheduleExpression,
     ephemeralStorageSizeInGiB,
+    cpu,
+    memory,
   } = config;
 
   const task = new awsx.ecs.FargateTaskDefinition(name, {
@@ -52,8 +56,8 @@ export function createScheduledTask(
       web: {
         name: `${name}-container`,
         image: dockerImageScorer,
-        cpu: 256,
-        memory: 2048,
+        cpu: cpu ? cpu : 256,
+        memory: memory ? memory : 2048,
         secrets,
         environment: getEnvironment(envConfig),
         command,

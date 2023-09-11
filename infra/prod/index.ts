@@ -5,6 +5,7 @@ import * as awsx from "@pulumi/awsx";
 import {
   ScorerEnvironmentConfig,
   ScorerService,
+  createScoreExportBucketAndDomain,
   createScorerECSService,
   createTargetGroup,
   getEnvironment,
@@ -15,7 +16,9 @@ import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
 let route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
+let route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
 export const domain = `api.scorer.${process.env["DOMAIN"]}`;
+export const publicDataDomain = `public.scorer.${process.env["DOMAIN"]}`;
 export const publicServiceUrl = `https://${domain}`;
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
@@ -1221,6 +1224,8 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
   "daily-data-dump",
   {
     ...baseScorerServiceConfig,
+    cpu: 4,
+    memory: 8192,
     securityGroup: secgrp,
     ephemeralStorageSizeInGiB: 100,
     command: [
@@ -1264,11 +1269,9 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
           name: "registry.Score",
           filter: { community_id: 335 },
           select_related: ["passport"],
-          "extra-args": { ACL: "public-read" },
         },
       ]),
-
-      "--s3-uri=s3://passport-scorer-public/grants-stack/",
+      `--s3-uri=s3://${publicDataDomain}`,
       "--summary-extra-args",
       JSON.stringify({ ACL: "public-read" }),
     ],
@@ -1276,4 +1279,9 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
     scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
   },
   envConfig
+);
+
+const exportVals = createScoreExportBucketAndDomain(
+  publicDataDomain,
+  route53ZoneForPublicData
 );
