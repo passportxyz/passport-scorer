@@ -1,14 +1,21 @@
+from datetime import datetime
 from typing import List, Optional
 
 import api_logging as logging
 
 # --- Deduplication Modules
 from account.models import Community
+from django.db.models import Q
 from ninja import Router
 from registry.api import v1
 from registry.api.v1 import with_read_db
 from registry.models import Score
-from registry.utils import decode_cursor, encode_cursor, reverse_lazy_with_query
+from registry.utils import (
+    decode_cursor,
+    encode_cursor,
+    get_cursor_query_condition,
+    reverse_lazy_with_query,
+)
 
 from ..exceptions import InvalidLimitException, api_get_object_or_404
 from .base import ApiKey, check_rate_limit
@@ -18,6 +25,7 @@ from .schema import (
     DetailedScoreResponse,
     ErrorMessageResponse,
     SigningMessageResponse,
+    StampDisplayResponse,
     SubmitPassportPayload,
 )
 
@@ -45,7 +53,7 @@ def signing_message(request) -> SigningMessageResponse:
 
 @router.post(
     "/submit-passport",
-    auth=ApiKey(),
+    auth=v1.aapi_key,
     response={
         200: DetailedScoreResponse,
         401: ErrorMessageResponse,
@@ -58,8 +66,10 @@ This API will return a `DetailedScoreResponse` structure with status **PROCESSIN
 You need to check for the status of the operation by calling the `/score/{int:scorer_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
 """,
 )
-def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
-    return v1.submit_passport(request, payload)
+async def a_submit_passport(
+    request, payload: SubmitPassportPayload
+) -> DetailedScoreResponse:
+    return await v1.a_submit_passport(request, payload)
 
 
 @router.get(
@@ -92,12 +102,17 @@ def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
     summary="Get scores for all addresses that are associated with a scorer",
     description="""Use this endpoint to fetch the scores for all addresses that are associated with a scorer\n
 This endpoint will return a `CursorPaginatedScoreResponse`.\n
+\n
+
+Note: results will be sorted ascending by `["last_score_timestamp", "id"]`
 """,
 )
 def get_scores(
     request,
     scorer_id: int,
     address: Optional[str] = None,
+    last_score_timestamp__gt: str = "",
+    last_score_timestamp__gte: str = "",
     token: str = None,
     limit: int = 1000,
 ) -> CursorPaginatedScoreResponse:
@@ -111,34 +126,74 @@ def get_scores(
         Community, id=scorer_id, account=request.auth
     )
     try:
-        query = (
+        base_query = (
             with_read_db(Score)
-            .order_by("id")
             .filter(passport__community__id=user_community.id)
             .select_related("passport")
         )
 
-        if address:
-            query = query.filter(passport__address=address.lower())
+        filter_condition = Q()
+        field_ordering = None
+        cursor = decode_cursor(token) if token else None
+        if cursor:
+            cursor = decode_cursor(token)
+            cursor["last_score_timestamp"] = datetime.fromisoformat(
+                cursor.get("last_score_timestamp")
+            )
+            filter_condition, field_ordering = get_cursor_query_condition(cursor)
 
-        direction, id = decode_cursor(token) if token else (None, None)
-
-        if direction == "next":
-            scores = list(query.filter(id__gt=id)[:limit])
-        elif direction == "prev":
-            scores = list(query.filter(id__lt=id).order_by("-id")[:limit])
-            scores.reverse()
         else:
-            scores = list(query[:limit])
+            field_ordering = ["last_score_timestamp", "id"]
+
+            if address:
+                filter_condition &= Q(passport__address=address)
+
+            if last_score_timestamp__gt:
+                filter_condition &= Q(last_score_timestamp__gt=last_score_timestamp__gt)
+
+            if last_score_timestamp__gte:
+                filter_condition &= Q(
+                    last_score_timestamp__gte=last_score_timestamp__gte
+                )
 
         has_more_scores = has_prev_scores = False
+        next_cursor = prev_cursor = {}
+
+        query = base_query.filter(filter_condition).order_by(*field_ordering)
+        scores = query[:limit]
+        scores = list(scores)
+
+        if cursor and cursor["d"] == "prev":
+            scores.reverse()
 
         if scores:
             next_id = scores[-1].id
+            next_lts = scores[-1].last_score_timestamp
             prev_id = scores[0].id
+            prev_lts = scores[0].last_score_timestamp
 
-            has_more_scores = query.filter(id__gt=next_id).exists()
-            has_prev_scores = query.filter(id__lt=prev_id).exists()
+            next_cursor = dict(
+                d="next",
+                id=next_id,
+                last_score_timestamp=next_lts.isoformat(),
+                address=address,
+                last_score_timestamp__gt=last_score_timestamp__gt,
+                last_score_timestamp__gte=last_score_timestamp__gte,
+            )
+            prev_cursor = dict(
+                d="prev",
+                id=prev_id,
+                last_score_timestamp=prev_lts.isoformat(),
+                address=address,
+                last_score_timestamp__gt=last_score_timestamp__gt,
+                last_score_timestamp__gte=last_score_timestamp__gte,
+            )
+
+            next_filter_cond, _ = get_cursor_query_condition(next_cursor)
+            prev_filter_cond, _ = get_cursor_query_condition(prev_cursor)
+
+            has_more_scores = base_query.filter(next_filter_cond).exists()
+            has_prev_scores = base_query.filter(prev_filter_cond).exists()
 
         domain = request.build_absolute_uri("/")[:-1]
 
@@ -146,7 +201,7 @@ def get_scores(
             f"""{domain}{reverse_lazy_with_query(
                 "registry_v2:get_scores",
                 args=[scorer_id],
-                query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
+                query_kwargs={"token": encode_cursor(**next_cursor), "limit": limit},
             )}"""
             if has_more_scores
             else None
@@ -156,7 +211,7 @@ def get_scores(
             f"""{domain}{reverse_lazy_with_query(
                 "registry_v2:get_scores",
                 args=[scorer_id],
-                query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
+                query_kwargs={"token": encode_cursor(**prev_cursor), "limit": limit},
             )}"""
             if has_prev_scores
             else None
@@ -189,8 +244,37 @@ def get_scores(
     description="""Use this endpoint to fetch the passport for a specific address\n
 This endpoint will return a `CursorPaginatedStampCredentialResponse`.\n
 """,
+    # This prevents returning {metadata: None} in the response
+    exclude_unset=True,
 )
 def get_passport_stamps(
-    request, address: str, token: str = None, limit: int = 1000
+    request,
+    address: str,
+    token: str = "",
+    limit: int = 1000,
+    include_metadata: bool = False,
 ) -> CursorPaginatedStampCredentialResponse:
-    return v1.get_passport_stamps(request, address, token, limit)
+    return v1.get_passport_stamps(request, address, token, limit, include_metadata)
+
+
+@router.get(
+    "/stamp-metadata",
+    description="""**WARNING**: This endpoint is in beta and is subject to change.""",
+    auth=ApiKey(),
+    response={
+        200: List[StampDisplayResponse],
+        500: ErrorMessageResponse,
+    },
+)
+def stamp_display(request) -> List[StampDisplayResponse]:
+    return v1.stamp_display(request)
+
+
+@router.get(
+    "/gtc-stake/{address}",
+    description="Get self and community staking amounts based on address and round id",
+    auth=ApiKey(),
+    response=v1.GqlResponse,
+)
+def get_gtc_stake(request, address: str):
+    return v1.get_gtc_stake(request, address)

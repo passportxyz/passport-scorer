@@ -8,7 +8,7 @@ from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TransactionTestCase
-from registry.api.v2 import SubmitPassportPayload, get_score, submit_passport
+from registry.api.v2 import SubmitPassportPayload, a_submit_passport, get_score
 from registry.models import Event, HashScorerLink, Passport, Score, Stamp
 from registry.tasks import score_passport_passport, score_registry_passport
 from web3 import Web3
@@ -143,7 +143,7 @@ class TestScorePassportTestCase(TransactionTestCase):
 
         self._score_address(address)
 
-    def _score_address(self, address):
+    async def _score_address(self, address):
         class MockRequest:
             def __init__(self, account):
                 self.auth = account
@@ -152,7 +152,7 @@ class TestScorePassportTestCase(TransactionTestCase):
         mock_request = MockRequest(self.user_account)
 
         with patch("registry.api.v1.score_passport_passport.delay", return_value=None):
-            submit_passport(
+            await a_submit_passport(
                 mock_request,
                 SubmitPassportPayload(
                     address=address,

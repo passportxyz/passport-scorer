@@ -17,7 +17,6 @@ from ninja import Router
 from ninja.pagination import paginate
 from pydantic import BaseModel
 from registry.models import Passport, Score
-from registry.permissions import ResearcherPermission
 from registry.utils import (
     decode_cursor,
     encode_cursor,
@@ -119,19 +118,19 @@ def signing_message(request) -> SigningMessageResponse:
 # You need to check for the status of the operation by calling the `/score/{int:scorer_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
 # """,
 # )
-def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
-    check_rate_limit(request)
+# def submit_passport(request, payload: SubmitPassportPayload) -> DetailedScoreResponse:
+#     check_rate_limit(request)
 
-    # Get DID from address
-    # did = get_did(payload.address)
-    log.debug("/submit-passport, payload=%s", payload)
+#     # Get DID from address
+#     # did = get_did(payload.address)
+#     log.debug("/submit-passport, payload=%s", payload)
 
-    account = request.auth
+#     account = request.auth
 
-    if not request.api_key.submit_passports:
-        raise InvalidAPIKeyPermissions()
+#     if not request.api_key.submit_passports:
+#         raise InvalidAPIKeyPermissions()
 
-    return handle_submit_passport(payload, account)
+#     return handle_submit_passport(payload, account)
 
 
 @router.post(
@@ -473,14 +472,16 @@ def get_passport_stamps(
 
     query = CeramicCache.objects.order_by("-id").filter(address=address.lower())
 
-    direction, id = decode_cursor(token) if token else (None, None)
+    cursor = decode_cursor(token) if token else {}
+    direction = cursor.get("d")
+    id_ = cursor.get("id")
 
     if direction == "next":
         # note we use lt here because we're querying in descending order
-        cacheStamps = list(query.filter(id__lt=id)[:limit])
+        cacheStamps = list(query.filter(id__lt=id_)[:limit])
 
     elif direction == "prev":
-        cacheStamps = list(query.filter(id__gt=id).order_by("id")[:limit])
+        cacheStamps = list(query.filter(id__gt=id_).order_by("id")[:limit])
         cacheStamps.reverse()
 
     else:
@@ -515,7 +516,7 @@ def get_passport_stamps(
         f"""{domain}{reverse_lazy_with_query(
             "registry:get_passport_stamps",
             args=[address],
-            query_kwargs={"token": encode_cursor("next", next_id), "limit": limit},
+            query_kwargs={"token": encode_cursor(d="next", id=next_id), "limit": limit},
         )}"""
         if has_more_stamps
         else None
@@ -525,7 +526,7 @@ def get_passport_stamps(
         f"""{domain}{reverse_lazy_with_query(
             "registry:get_passport_stamps",
             args=[address],
-            query_kwargs={"token": encode_cursor("prev", prev_id), "limit": limit},
+            query_kwargs={"token": encode_cursor(d="prev", id=prev_id), "limit": limit},
         )}"""
         if has_prev_stamps
         else None

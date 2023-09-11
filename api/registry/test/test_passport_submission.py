@@ -264,6 +264,8 @@ mock_passport_with_soon_to_be_expired_stamp = {
 
 
 class ValidatePassportTestCase(TransactionTestCase):
+    base_url = "/registry"
+
     def setUp(self):
         # Just create 1 user, to make sure the user id is different than account id
         # This is to catch errors like the one where the user id is the same as the account id, and
@@ -348,7 +350,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION="Token 1234",
@@ -382,7 +384,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             **{
                 "content_type": "application/json",
@@ -413,7 +415,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             **{
                 "content_type": "application/json",
@@ -455,7 +457,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             **{
                 "content_type": "application/json",
@@ -487,7 +489,7 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         for _ in [1, 2]:
             response = self.client.post(
-                "/registry/submit-passport",
+                f"{self.base_url}/submit-passport",
                 json.dumps(payload),
                 **{
                     "content_type": "application/json",
@@ -512,7 +514,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             **{
                 "content_type": "application/json",
@@ -528,7 +530,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(all_passports[0].stamps.count(), 0)
 
         response = self.client.get(
-            f"/registry/score/{self.community.id}/{self.account.address}",
+            f"{self.base_url}/score/{self.community.id}/{self.account.address}",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
 
@@ -586,7 +588,7 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         # First submission
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             **{
                 "content_type": "application/tson",
@@ -618,7 +620,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             **{
                 "content_type": "application/tson",
@@ -664,7 +666,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -688,7 +690,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -718,7 +720,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -766,7 +768,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -808,7 +810,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -843,7 +845,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -894,7 +896,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         submission_response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(submission_test_payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
@@ -959,7 +961,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         }
 
         submission_response = self.client.post(
-            "/registry/submit-passport",
+            f"{self.base_url}/submit-passport",
             json.dumps(submission_test_payload),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
