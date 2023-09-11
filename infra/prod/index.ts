@@ -1224,6 +1224,8 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
   "daily-data-dump",
   {
     ...baseScorerServiceConfig,
+    cpu: 4,
+    memory: 8192,
     securityGroup: secgrp,
     ephemeralStorageSizeInGiB: 100,
     command: [
@@ -1245,7 +1247,7 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
       "--batch-size=20000",
     ],
 
-    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
+    scheduleExpression: "cron(30 */1 ? * * *)", // Run the task daily at 00:30 UTC
   },
   envConfig
 );
