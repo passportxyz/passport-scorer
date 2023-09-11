@@ -171,7 +171,7 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
             stamps = CeramicCache.objects.filter(
                 address=address,
                 provider__in=providers_to_delete,
-                type=CeramicCache.StampType.V2,
+                # We do not specify type because we delete both V1 and V2 stamps
             )
             stamps.delete()
 
@@ -206,7 +206,8 @@ def delete_stamps(request, payload: List[DeleteStampPayload]):
 
         address = get_address_from_did(request.did)
         stamps = CeramicCache.objects.filter(
-            type=CeramicCache.StampType.V2,
+            # We do not filter by type. The thinking is: if a user wants to delete a V2 stamp, then he wants to delete both the V1 and V2 stamps.
+            # Otherwise the `get_passport_state` function will re-create the V2 stamp from it's V2 version
             address=address,
             provider__in=[p.provider for p in payload],
         )
