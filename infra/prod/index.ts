@@ -16,7 +16,9 @@ import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
 let route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
+let route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
 export const domain = `api.scorer.${process.env["DOMAIN"]}`;
+export const publicDataDomain = `public.scorer.${process.env["DOMAIN"]}`;
 export const publicServiceUrl = `https://${domain}`;
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
@@ -1277,4 +1279,7 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
   envConfig
 );
 
-const exportVals = createScoreExportBucketAndDomain(domain, route53Zone, alb);
+const exportVals = createScoreExportBucketAndDomain(
+  publicDataDomain,
+  route53ZoneForPublicData
+);

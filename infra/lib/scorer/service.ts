@@ -310,11 +310,10 @@ export function createScorerECSService(
 
 export async function createScoreExportBucketAndDomain(
   domain: string,
-  route53Zone: string,
-  alb: LoadBalancer
+  route53Zone: string
 ) {
-  const scoreBucket = new aws.s3.Bucket(`public.${domain}`, {
-    bucket: `public.${domain}`,
+  const scoreBucket = new aws.s3.Bucket(domain, {
+    bucket: domain,
     website: {
       indexDocument: "registry_score.jsonl",
     },
@@ -363,23 +362,19 @@ export async function createScoreExportBucketAndDomain(
   });
 
   const exportCertificate = new aws.acm.Certificate(
-    `public.${domain}`,
+    domain,
     {
-      domainName: `public.${domain}`,
+      domainName: domain,
       validationMethod: "DNS",
     },
     { provider: eastRegion }
   );
 
-  const hostedZoneId = aws.route53
-    .getZone({ name: domain }, { async: true })
-    .then((zone) => zone.zoneId);
-
   const publicExportCertificateValidationDomain = new aws.route53.Record(
-    `public.${domain}-validation`,
+    `${domain}-validation`,
     {
       name: exportCertificate.domainValidationOptions[0].resourceRecordName,
-      zoneId: hostedZoneId,
+      zoneId: route53Zone,
       type: exportCertificate.domainValidationOptions[0].resourceRecordType,
       records: [
         exportCertificate.domainValidationOptions[0].resourceRecordValue,
@@ -447,9 +442,9 @@ export async function createScoreExportBucketAndDomain(
     {}
   );
 
-  new aws.route53.Record(`public.${domain}`, {
-    name: `public.${domain}`,
-    zoneId: hostedZoneId,
+  new aws.route53.Record(domain, {
+    name: domain,
+    zoneId: route53Zone,
     type: "A",
     aliases: [
       {
@@ -461,7 +456,6 @@ export async function createScoreExportBucketAndDomain(
   });
 
   return {
-    hostedZoneId,
     exportCertificate,
     publicExportCertificateValidationDomain,
     publicCertificateValidation,
