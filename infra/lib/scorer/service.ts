@@ -408,6 +408,7 @@ export async function createScoreExportBucketAndDomain(
           ),
         },
       ],
+      aliases: [domain],
       defaultRootObject: "registry_score.jsonl",
       enabled: true,
       defaultCacheBehavior: {
@@ -450,7 +451,7 @@ export async function createScoreExportBucketAndDomain(
       {
         name: cloudFront.domainName,
         zoneId: cloudFront.hostedZoneId,
-        evaluateTargetHealth: true,
+        evaluateTargetHealth: false,
       },
     ],
   });
