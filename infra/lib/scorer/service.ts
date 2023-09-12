@@ -403,9 +403,17 @@ export async function createScoreExportBucketAndDomain(
       origins: [
         {
           originId: scoreBucket.arn.apply((arn) => arn),
-          domainName: scoreBucket.bucketDomainName.apply(
+          domainName: scoreBucket.websiteEndpoint.apply(
             (domainName) => domainName
           ),
+          customOriginConfig: {
+            httpPort: 80,
+            httpsPort: 443,
+            originKeepaliveTimeout: 5,
+            originProtocolPolicy: "http-only",
+            originReadTimeout: 30,
+            originSslProtocols: ["TLSv1.2"],
+          },
         },
       ],
       aliases: [domain],

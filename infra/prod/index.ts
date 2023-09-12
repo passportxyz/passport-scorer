@@ -1271,7 +1271,7 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
           select_related: ["passport"],
         },
       ]),
-      `--s3-uri=s3://${publicDataDomain}`,
+      `--s3-uri=s3://${publicDataDomain}/passport_scores/`,
       "--summary-extra-args",
       JSON.stringify({ ACL: "public-read" }),
     ],
