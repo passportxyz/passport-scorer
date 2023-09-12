@@ -5,10 +5,6 @@ from ceramic_cache.models import CeramicCache
 
 from .passport_reader import get_passport
 
-# Location of a Ceramic node that we can read state from
-CERAMIC_URL = "https://ceramic.passport-iam.gitcoin.co"
-
-
 sample_stamps = [
     {
         "type": ["VerifiableCredential"],
@@ -89,42 +85,6 @@ sample_stamps = [
 
 
 class TestGetStamps:
-    @pytest.mark.django_db
-    def test_only_ceramic_stamps(self):
-        """Make sure cached ceramic stamps are returned when no cached stamps exist in the DB"""
-
-        address = "0x123test"
-
-        with patch(
-            "reader.passport_reader.get_stamps",
-            return_value={
-                "stamps": [
-                    {
-                        "provider": s["credentialSubject"]["provider"],
-                        "credential": s,
-                    }
-                    for s in sample_stamps
-                ]
-            },
-        ):
-            passport = get_passport(
-                address,
-                stream_ids=[
-                    "1",
-                    "2",
-                    "3",
-                ],
-            )
-
-        stamps = passport["stamps"]
-
-        assert len(sample_stamps) == len(stamps)
-        for (index, sample_stamp) in enumerate(sample_stamps):
-            assert (
-                stamps[index]["credential"]["issuanceDate"]
-                == sample_stamp["issuanceDate"]
-            )
-
     @pytest.mark.django_db
     def test_only_cached_stamps(self):
         """Make sure cached stamps are returned when they exist in the DB and the ceramic stamps are ignored"""
