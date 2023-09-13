@@ -1334,8 +1334,8 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
         },
       ]),
       `--s3-uri=s3://${publicDataDomain}/passport_scores/`,
-      "--summary-extra-args",
-      JSON.stringify({ ACL: "public-read" }),
+      // "--summary-extra-args",
+      // JSON.stringify({ ACL: "public-read" }),
     ],
 
     scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
