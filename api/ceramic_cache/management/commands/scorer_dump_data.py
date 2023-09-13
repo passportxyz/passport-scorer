@@ -300,7 +300,7 @@ class Command(BaseCommand):
                     else model_config["filename"]
                 )
 
-                s3_key = f"{file_name}"
+                s3_key = f"{s3_folder}/{file_name}"
 
                 # chunk_size = 1000
 
