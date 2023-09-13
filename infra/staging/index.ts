@@ -397,7 +397,8 @@ const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
 // Set up the Scorer ECS service
 //////////////////////////////////////////////////////////////
 const baseScorerServiceConfig: ScorerService = {
-  cluster: cluster,
+  cluster,
+  alb,
   dockerImageScorer: dockerGtcPassportScorerImage,
   dockerImageVerifier: dockerGtcPassportVerifierImage,
   executionRole: dpoppEcsRole,
@@ -1171,4 +1172,7 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
   envConfig
 );
 
-const exportVals = createScoreExportBucketAndDomain(publicDataDomain, route53ZoneForPublicData);
+const exportVals = createScoreExportBucketAndDomain(
+  publicDataDomain,
+  route53ZoneForPublicData
+);

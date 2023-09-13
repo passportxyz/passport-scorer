@@ -468,11 +468,65 @@ const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
   retentionInDays: 90,
 });
 
+const pagerdutyTopic = new aws.sns.Topic("pagerduty", {
+  name: "Pagerduty",
+  tracingConfig: "PassThrough",
+});
+
+const PAGERDUTY_INTEGRATION_ENDPOINT = pulumi.secret(
+  `${process.env["PAGERDUTY_INTEGRATION_ENDPOINT"]}`
+);
+
+const identity = aws.getCallerIdentity();
+
+const pagerdutyTopicPolicy = new aws.sns.TopicPolicy("pagerdutyTopicPolicy", {
+  arn: pagerdutyTopic.arn,
+  policy: pagerdutyTopic.arn.apply((arn) =>
+    identity.then(({ accountId }) =>
+      JSON.stringify({
+        Id: "__default_policy_ID",
+        Statement: [
+          {
+            Action: [
+              "SNS:GetTopicAttributes",
+              "SNS:SetTopicAttributes",
+              "SNS:AddPermission",
+              "SNS:RemovePermission",
+              "SNS:DeleteTopic",
+              "SNS:Subscribe",
+              "SNS:ListSubscriptionsByTopic",
+              "SNS:Publish",
+            ],
+            Condition: {
+              StringEquals: { "AWS:SourceOwner": accountId },
+            },
+            Effect: "Allow",
+            Principal: { AWS: "*" },
+            Resource: arn,
+            Sid: "__default_statement_ID",
+          },
+        ],
+        Version: "2008-10-17",
+      })
+    )
+  ),
+});
+
+const pagerdutySubscription = new aws.sns.TopicSubscription(
+  "pagerdutySubscription",
+  {
+    endpoint: PAGERDUTY_INTEGRATION_ENDPOINT,
+    protocol: "https",
+    topic: pagerdutyTopic.arn,
+  }
+);
+
 //////////////////////////////////////////////////////////////
 // Set up the Scorer ECS service
 //////////////////////////////////////////////////////////////
 const baseScorerServiceConfig: ScorerService = {
-  cluster: cluster,
+  cluster,
+  alb,
   dockerImageScorer: dockerGtcPassportScorerImage,
   dockerImageVerifier: dockerGtcPassportVerifierImage,
   executionRole: dpoppEcsRole,
@@ -484,6 +538,7 @@ const baseScorerServiceConfig: ScorerService = {
   targetGroup: targetGroupDefault,
   autoScaleMaxCapacity: 2,
   autoScaleMinCapacity: 1,
+  alertTopic: pagerdutyTopic,
 };
 
 const scorerServiceDefault = createScorerECSService(
