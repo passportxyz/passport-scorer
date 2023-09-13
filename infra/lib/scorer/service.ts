@@ -6,7 +6,7 @@ import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 import * as aws from "@pulumi/aws";
 
 import { Cluster } from "@pulumi/aws/ecs";
-import { LoadBalancer } from "@pulumi/aws/alb";
+import { Topic } from "@pulumi/aws/sns";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -25,6 +25,8 @@ export type ScorerService = {
   targetGroup: TargetGroup;
   autoScaleMaxCapacity: number;
   autoScaleMinCapacity: number;
+  alb: aws.lb.LoadBalancer;
+  alertTopic?: Topic;
 };
 
 export type ScorerEnvironmentConfig = {
@@ -304,6 +306,61 @@ export function createScorerECSService(
       },
     }
   );
+
+  if (config.alertTopic) {
+    const cpuAlarm = new aws.cloudwatch.MetricAlarm(`CPUUtilization-${name}`, {
+      alarmActions: [config.alertTopic.arn],
+      comparisonOperator: "GreaterThanThreshold",
+      datapointsToAlarm: 1,
+      dimensions: {
+        ClusterName: config.cluster.name,
+        ServiceName: service.service.name,
+      },
+      evaluationPeriods: 1,
+      metricName: "CPUUtilization",
+      name: `CPUUtilization-${name}`,
+      namespace: "AWS/ECS",
+      period: 300,
+      statistic: "Average",
+      threshold: 80,
+    });
+
+    const memoryAlarm = new aws.cloudwatch.MetricAlarm(
+      `MemoryUtilization-${name}`,
+      {
+        alarmActions: [config.alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm: 1,
+        dimensions: {
+          ClusterName: config.cluster.name,
+          ServiceName: service.service.name,
+        },
+        evaluationPeriods: 1,
+        metricName: "MemoryUtilization",
+        name: `MemoryUtilization-${name}`,
+        namespace: "AWS/ECS",
+        period: 900,
+        statistic: "Average",
+        threshold: 80,
+      }
+    );
+
+    const http5xxAlarm = new aws.cloudwatch.MetricAlarm(`HTTP-5xx-${name}`, {
+      alarmActions: [config.alertTopic.arn],
+      comparisonOperator: "GreaterThanThreshold",
+      datapointsToAlarm: 3,
+      dimensions: {
+        LoadBalancer: config.alb.name,
+        TargetGroup: config.targetGroup.name,
+      },
+      evaluationPeriods: 5,
+      metricName: "HTTPCode_Target_5XX_Count",
+      name: `HTTP-5xx-${name}`,
+      namespace: "AWS/ApplicationELB",
+      period: 60,
+      statistic: "Sum",
+    });
+  }
 
   return service;
 }
