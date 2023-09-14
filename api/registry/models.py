@@ -77,32 +77,19 @@ class Score(models.Model):
 
 @receiver(pre_save, sender=Score)
 def score_updated(sender, instance, **kwargs):
-    try:
-        old_instance = Score.objects.get(pk=instance.pk)
-        old_score = old_instance.score
-        old_evidence = old_instance.evidence
-    except Score.DoesNotExist:
-        old_score = 0
-        old_evidence = {}
+    if instance.status != Score.Status.DONE:
+        return instance
 
-    new_evidence = instance.evidence
-
-    if old_score != instance.score:
-        try:
-            Event.objects.create(
-                action=Event.Action.SCORE_UPDATE,
-                address=instance.passport.address,
-                data={
-                    "old_score": float(old_score) if instance.score != None else 0,
-                    "new_score": float(instance.score) if instance.score != None else 0,
-                    "old_evidence": json.dumps(old_evidence),
-                    "new_evidence": json.dumps(new_evidence)
-                    if new_evidence != None
-                    else {},
-                },
-            )
-        except Exception as e:
-            print(e)
+    if not Score.objects.filter(pk=instance.pk, score=instance.score).exists():
+        Event.objects.create(
+            action=Event.Action.SCORE_UPDATE,
+            address=instance.passport.address,
+            context=instance.passport.community.pk,
+            data={
+                "score": float(instance.score) if instance.score != None else 0,
+                "evidence": instance.evidence,
+            },
+        )
 
     return instance
 
@@ -114,24 +101,44 @@ class Event(models.Model):
         FIFO_DEDUPLICATION = "FDP"
         LIFO_DEDUPLICATION = "LDP"
         TRUSTALAB_SCORE = "TLS"
-        SCORE_UPDATE = "SU"
+        SCORE_UPDATE = "SCU"
 
     action = models.CharField(
         max_length=3,
         choices=Action.choices,
         blank=False,
-        db_index=True,
     )
 
     address = EthAddressField(
         blank=True,
         max_length=42,
-        db_index=True,
     )
 
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    # This generic field can store an additional data point which
+    # can be used to filter events efficiently, e.g. the scorer ID
+    # for a SCORE_UPDATE event.
+    context = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
 
-    data = models.JSONField(db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    data = models.JSONField()
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=[
+                    "action",
+                    "address",
+                    "context",
+                    "created_at",
+                ],
+                name="event_index",
+            ),
+        ]
 
 
 class HashScorerLink(models.Model):

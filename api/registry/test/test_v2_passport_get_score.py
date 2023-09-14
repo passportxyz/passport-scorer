@@ -33,6 +33,7 @@ def paginated_scores(scorer_passport, passport_holder_addresses, scorer_communit
         )
 
         score = Score.objects.create(
+            status="DONE",
             passport=passport,
             score="1",
             last_score_timestamp=timezone.now() + datetime.timedelta(days=i + 1),

@@ -82,12 +82,15 @@ async def a_submit_passport(
         404: ErrorMessageResponse,
     },
     summary="Get score for an address that is associated with a scorer",
-    description="""Use this endpoint to fetch the score for a specific address that is associated with a scorer\n
+    description=f"""Use this endpoint to fetch the score for a specific address that is associated with a scorer\n
 This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
+{v1.SCORE_TIMESTAMP_FIELD_DESCRIPTION}
 """,
 )
-def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
-    return v1.get_score(request, address, scorer_id)
+def get_score(
+    request, address: str, scorer_id: int, timestamp: str = ""
+) -> DetailedScoreResponse:
+    return v1.get_score(request, address, scorer_id, timestamp)
 
 
 @router.get(

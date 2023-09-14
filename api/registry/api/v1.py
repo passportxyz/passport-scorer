@@ -1,5 +1,8 @@
+from datetime import datetime
 from typing import List, Optional
 from urllib.parse import urljoin
+
+from ninja_extra.exceptions import APIException
 
 import api_logging as logging
 import django_filters
@@ -16,7 +19,7 @@ from gql.transport.requests import RequestsHTTPTransport
 from ninja import Router
 from ninja.pagination import paginate
 from pydantic import BaseModel
-from registry.models import Passport, Score
+from registry.models import Event, Passport, Score
 from registry.utils import (
     decode_cursor,
     encode_cursor,
@@ -35,6 +38,7 @@ from ..exceptions import (
     InvalidNonceException,
     InvalidOrderByFieldException,
     InvalidSignerException,
+    NotFoundApiException,
     StakingRequestError,
     aapi_get_object_or_404,
     api_get_object_or_404,
@@ -58,6 +62,17 @@ from .schema import (
     StampDisplayResponse,
     SubmitPassportPayload,
 )
+
+SCORE_TIMESTAMP_FIELD_DESCRIPTION = """
+The optional `timestamp` query parameter can be used to retrieve
+the latest score for an address as of that timestamp.
+It is expected to be an ISO 8601 formatted timestamp.\n
+
+Examples of valid values for `timestamp`: \n
+- 2023-05-10T07:49:08Z\n
+- 2023-05-10T07:49:08.610198+00:00\n
+- 2023-05-10\n
+"""
 
 _transport = RequestsHTTPTransport(
     url=f"https://gateway.thegraph.com/api/{settings.STAKING_SUBGRAPH_API_KEY}/subgraphs/id/6neBRm8wdXfbH9WQuFeizJRpsom4qovuqKhswPBRTC5Q",
@@ -153,13 +168,18 @@ async def a_submit_passport(
     request, payload: SubmitPassportPayload
 ) -> DetailedScoreResponse:
     check_rate_limit(request)
+    try:
+        log.error("/submit-passport, payload=%s", payload)
 
-    log.error("/submit-passport, payload=%s", payload)
+        if not request.api_key.submit_passports:
+            raise InvalidAPIKeyPermissions()
 
-    if not request.api_key.submit_passports:
-        raise InvalidAPIKeyPermissions()
-
-    return await ahandle_submit_passport(payload, request.auth)
+        return await ahandle_submit_passport(payload, request.auth)
+    except APIException as e:
+        raise e
+    except Exception as e:
+        log.exception("Error submitting passport: %s", e)
+        raise InternalServerErrorException("Unexpected error while submitting passport")
 
 
 async def ahandle_submit_passport(
@@ -303,33 +323,56 @@ async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community
         404: ErrorMessageResponse,
     },
     summary="Get score for an address that is associated with a scorer",
-    description="""Use this endpoint to fetch the score for a specific address that is associated with a scorer\n
+    description=f"""Use this endpoint to fetch the score for a specific address that is associated with a scorer\n
 This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
+{SCORE_TIMESTAMP_FIELD_DESCRIPTION}
 """,
 )
-def get_score(request, address: str, scorer_id: int | str) -> DetailedScoreResponse:
+def get_score(
+    request, address: str, scorer_id: int | str, timestamp: str = ""
+) -> DetailedScoreResponse:
     check_rate_limit(request)
     account = request.auth
 
     if not request.api_key.read_scores:
         raise InvalidAPIKeyPermissions()
 
-    return handle_get_score(address, scorer_id, account)
+    return handle_get_score(address, scorer_id, account, timestamp)
 
 
 def handle_get_score(
-    address: str, scorer_id: int, account: Account
+    address: str, scorer_id: int | str, account: Account, timestamp: str = ""
 ) -> DetailedScoreResponse:
     # Get community object
     user_community = get_scorer_by_id(scorer_id, account)
 
     try:
         lower_address = address.lower()
+        score = None
 
-        score = Score.objects.get(
-            passport__address=lower_address, passport__community=user_community
-        )
+        if timestamp:
+            parsedTimestamp = datetime.fromisoformat(timestamp)
+            score_event = api_get_object_or_404(
+                with_read_db(Event),
+                action=Event.Action.SCORE_UPDATE,
+                address=lower_address,
+                context=user_community.pk,
+                created_at__lte=parsedTimestamp,
+            )
+            score = {
+                "address": lower_address,
+                "score": score_event.data["score"],
+                "evidence": score_event.data["evidence"],
+            }
+
+        if not timestamp:
+            score = Score.objects.get(
+                passport__address=lower_address, passport__community=user_community
+            )
+
         return score
+    except NotFoundApiException as e:
+        raise e
     except Exception as e:
         log.error(
             "Error getting passport scores. scorer_id=%s",
