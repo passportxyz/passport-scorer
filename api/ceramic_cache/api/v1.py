@@ -29,14 +29,14 @@ from registry.api.v1 import (
 )
 from registry.models import Score
 
-from .exceptions import (
+from ..exceptions import (
     InternalServerException,
     InvalidDeleteCacheRequestException,
     InvalidSessionException,
     TooManyStampsException,
 )
-from .models import CeramicCache
-from .utils import validate_dag_jws_payload
+from ..models import CeramicCache
+from ..utils import validate_dag_jws_payload
 
 log = logging.getLogger(__name__)
 
@@ -45,10 +45,6 @@ router = Router()
 
 def get_utc_time():
     return datetime.utcnow()
-
-
-def get_did(address: str):
-    return f"did:pkh:eip155:1:{address.lower()}"
 
 
 def get_address_from_did(did: str):
@@ -119,16 +115,6 @@ class DeleteStampPayload(Schema):
     provider: str
 
 
-class DeleteStampResponse(Schema):
-    address: str
-    provider: str
-    status: str
-
-
-class BulkDeleteResponse(Schema):
-    status: str
-
-
 class CachedStampResponse(Schema):
     address: str
     provider: str
@@ -151,6 +137,7 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
         now = get_utc_time()
         for p in payload:
             stamp_object = CeramicCache(
+                type=CeramicCache.StampType.V1,
                 address=address,
                 provider=p.provider,
                 stamp=p.stamp,
@@ -162,7 +149,7 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
             stamp_objects,
             update_conflicts=True,
             update_fields=["stamp", "updated_at"],
-            unique_fields=["address", "provider"],
+            unique_fields=["type", "address", "provider"],
         )
 
         submit_passport_from_cache(address)
@@ -198,6 +185,7 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
         for p in payload:
             if p.stamp:
                 stamp_object = CeramicCache(
+                    type=CeramicCache.StampType.V1,
                     address=address,
                     provider=p.provider,
                     stamp=p.stamp,
@@ -212,11 +200,12 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
                 stamp_objects,
                 update_conflicts=True,
                 update_fields=["stamp", "updated_at"],
-                unique_fields=["address", "provider"],
+                unique_fields=["type", "address", "provider"],
             )
 
         if providers_to_delete:
             stamps = CeramicCache.objects.filter(
+                # No need to filter by type on delete ... we delete everything V1 ans V2 alike
                 address=address,
                 provider__in=providers_to_delete,
             )
@@ -253,6 +242,7 @@ def delete_stamps(request, payload: List[DeleteStampPayload]):
 
         address = get_address_from_did(request.did)
         stamps = CeramicCache.objects.filter(
+            # We do not filter by type. The thinking is: if a user wants to delete a V2 stamp, then he wants to delete both the V1 and V2 stamps ...
             address=address,
             provider__in=[p.provider for p in payload],
         )
@@ -280,7 +270,9 @@ def delete_stamps(request, payload: List[DeleteStampPayload]):
 @router.get("stamp", response=GetStampResponse)
 def get_stamps(request, address):
     try:
-        stamps = CeramicCache.objects.filter(address=address)
+        stamps = CeramicCache.objects.filter(
+            address=address, type=CeramicCache.StampType.V1
+        )
 
         scorer_id = settings.CERAMIC_CACHE_SCORER_ID
         if (

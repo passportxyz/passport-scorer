@@ -1,10 +1,16 @@
 """Ceramic Cache Models"""
 
+from enum import IntEnum
+
 from account.models import EthAddressField
 from django.db import models
 
 
 class CeramicCache(models.Model):
+    class StampType(IntEnum):
+        V1 = 1
+        V2 = 2
+
     address = EthAddressField(null=True, blank=False, max_length=100, db_index=True)
     provider = models.CharField(
         null=False, blank=False, default="", max_length=256, db_index=True
@@ -26,8 +32,12 @@ class CeramicCache(models.Model):
         help_text="This is the timestamp that this DB record was updated (it is not necessarily the stamp issuance timestamp)",
     )
 
+    type = models.IntegerField(
+        default=StampType.V1, choices=[(tag.value, tag.name) for tag in StampType]
+    )
+
     class Meta:
-        unique_together = ["address", "provider"]
+        unique_together = ["type", "address", "provider"]
 
 
 class StampExports(models.Model):

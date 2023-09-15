@@ -398,6 +398,10 @@ CACHES = {
 }
 
 CERAMIC_CACHE_SCORER_ID = env("CERAMIC_CACHE_SCORER_ID")
+CERAMIC_CACHE_CONVERT_STAMP_TO_V2_URL = env(
+    "CERAMIC_CACHE_CONVERT_STAMP_TO_V2_URL",
+    default="http://localhost:8003/api/v0.0.0/convert",
+)
 
 PASSPORT_PUBLIC_URL = env("PASSPORT_PUBLIC_URL", default="http://localhost:80")
 

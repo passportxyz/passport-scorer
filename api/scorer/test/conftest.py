@@ -1,7 +1,7 @@
 # pylint: disable=redefined-outer-name
 import pytest
 from account.models import Account, AccountAPIKey, Community
-from ceramic_cache.api import DbCacheToken
+from ceramic_cache.api.v1 import DbCacheToken
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from ninja_jwt.schema import RefreshToken
