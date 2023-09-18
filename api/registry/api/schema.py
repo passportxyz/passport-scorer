@@ -91,12 +91,6 @@ class DetailedScoreResponse(Schema):
         return obj.passport.address
 
 
-class CursorPaginatedScoreResponse(Schema):
-    next: Optional[str]
-    prev: Optional[str]
-    items: List[DetailedScoreResponse]
-
-
 class HistoricalScoreData(Schema):
     score: float
     evidence: Optional[ThresholdScoreEvidenceResponse]

@@ -775,7 +775,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
 
         client = Client()
         response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}/history?score_timestamp={score_timestamp}",
+            f"{self.base_url}/score/{scorer_community.id}/{address}/history?score_timestamp={score_timestamp}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
