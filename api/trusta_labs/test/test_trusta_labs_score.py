@@ -6,7 +6,18 @@ from registry.models import Event
 
 mock_trusta_labs_score_body = {
     "address": "0x8u3eu3ydh3rydh3irydhu",
-    "score": 20,
+    "scoreData": {
+        "address": "0x8u3eu3ydh3rydh3irydhu",
+        "sybilRiskScore": 20,
+        "sybilRiskLevel": "No Risk",
+        "subScore": {
+            "bulkOperationRisk": 10,
+            "starlikeAssetsNetworkRisk": 0,
+            "chainlikeAssetsNetworkRisk": 0,
+            "similarBehaviorSequenceRisk": 10,
+            "blacklistRisk": 0,
+        },
+    },
 }
 
 
@@ -30,7 +41,7 @@ class TrustaLabsScoreTestCase(TestCase):
         self.assertEqual(len(all_trusta_labs_scores), 1)
         score = all_trusta_labs_scores[0]
         self.assertEqual(score.address, mock_trusta_labs_score_body["address"])
-        self.assertEqual(score.data["score"], mock_trusta_labs_score_body["score"])
+        self.assertEqual(score.data["sybilRiskScore"], 20)
 
     def test_error_creating_trusta_lab_score(self):
         self.headers = {"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN}
