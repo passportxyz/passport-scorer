@@ -114,13 +114,25 @@ class Event(models.Model):
         max_length=42,
     )
 
+    ########################################################################################
+    # BEGIN: section containing fields that are only used for certain actions
+    # and will be set to None otherwise
+    ########################################################################################
     community = models.ForeignKey(
         Community,
         on_delete=models.PROTECT,
         related_name="event",
         null=True,
         default=None,
+        help_text="""
+This field is only used for the SCORE_UPDATE action, and will identify the scorer (alias `community`)
+for which a score has been updated.
+The reason to have this field (and not use the `data` JSON field) is to be able to easily have an index for the community_id for faster lookups.
+""",
     )
+    ########################################################################################
+    # END: section with action - specific fields
+    ########################################################################################
 
     created_at = models.DateTimeField(auto_now_add=True)
 
