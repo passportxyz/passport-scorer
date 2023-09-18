@@ -2,8 +2,6 @@ from datetime import datetime
 from typing import List, Optional
 from urllib.parse import urljoin
 
-from ninja_extra.exceptions import APIException
-
 import api_logging as logging
 import django_filters
 import requests
@@ -18,6 +16,7 @@ from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 from ninja import Router
 from ninja.pagination import paginate
+from ninja_extra.exceptions import APIException
 from pydantic import BaseModel
 from registry.models import Event, Passport, Score
 from registry.utils import (
@@ -328,48 +327,28 @@ This endpoint will return a `DetailedScoreResponse`. This endpoint will also ret
 {SCORE_TIMESTAMP_FIELD_DESCRIPTION}
 """,
 )
-def get_score(
-    request, address: str, scorer_id: int | str, timestamp: str = ""
-) -> DetailedScoreResponse:
+def get_score(request, address: str, scorer_id: int | str) -> DetailedScoreResponse:
     check_rate_limit(request)
     account = request.auth
 
     if not request.api_key.read_scores:
         raise InvalidAPIKeyPermissions()
 
-    return handle_get_score(address, scorer_id, account, timestamp)
+    return handle_get_score(address, scorer_id, account)
 
 
 def handle_get_score(
-    address: str, scorer_id: int | str, account: Account, timestamp: str = ""
+    address: str, scorer_id: int, account: Account
 ) -> DetailedScoreResponse:
     # Get community object
     user_community = get_scorer_by_id(scorer_id, account)
 
     try:
         lower_address = address.lower()
-        score = None
 
-        if timestamp:
-            parsedTimestamp = datetime.fromisoformat(timestamp)
-            score_event = api_get_object_or_404(
-                with_read_db(Event),
-                action=Event.Action.SCORE_UPDATE,
-                address=lower_address,
-                context=user_community.pk,
-                created_at__lte=parsedTimestamp,
-            )
-            score = {
-                "address": lower_address,
-                "score": score_event.data["score"],
-                "evidence": score_event.data["evidence"],
-            }
-
-        if not timestamp:
-            score = Score.objects.get(
-                passport__address=lower_address, passport__community=user_community
-            )
-
+        score = Score.objects.get(
+            passport__address=lower_address, passport__community=user_community
+        )
         return score
     except NotFoundApiException as e:
         raise e

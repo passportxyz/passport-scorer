@@ -84,7 +84,7 @@ def score_updated(sender, instance, **kwargs):
         Event.objects.create(
             action=Event.Action.SCORE_UPDATE,
             address=instance.passport.address,
-            context=instance.passport.community.pk,
+            community=instance.passport.community,
             data={
                 "score": float(instance.score) if instance.score != None else 0,
                 "evidence": instance.evidence,
@@ -114,13 +114,8 @@ class Event(models.Model):
         max_length=42,
     )
 
-    # This generic field can store an additional data point which
-    # can be used to filter events efficiently, e.g. the scorer ID
-    # for a SCORE_UPDATE event.
-    context = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
+    community = models.ForeignKey(
+        Community, on_delete=models.PROTECT, related_name="event"
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -133,10 +128,10 @@ class Event(models.Model):
                 fields=[
                     "action",
                     "address",
-                    "context",
+                    "community",
                     "created_at",
                 ],
-                name="event_index",
+                name="score_history_index",
             ),
         ]
 

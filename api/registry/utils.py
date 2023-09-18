@@ -154,64 +154,115 @@ def get_utc_time():
     return datetime.now(timezone.utc)
 
 
-def get_cursor_query_condition(cursor):
-    """
-    This function will decode a cursor and return a query condition and ordering condition
-    The implementation is specific to the requirements in  "/score/{int:scorer_id}" but it could be made
-    more generic if required, and pass in the required:
-    - sort_fields
-    - filter_fields
+def get_cursor_query_condition(cursor, sort_fields, filter_fields):
+    direction_multiplier = 1 if cursor["d"] == "next" else -1
 
-    in order to be able to return the filer and order conditions
-    """
-    if cursor["d"] == "next":
-        filter_condition = Q(
-            last_score_timestamp__gt=cursor["last_score_timestamp"]
-        ) | (
-            Q(last_score_timestamp__gte=cursor["last_score_timestamp"])
+    filter_condition = Q()
+
+    main_sort_field = sort_fields[0]
+
+    if direction_multiplier == 1:
+        filter_condition |= Q(**{f"{main_sort_field}__gt": cursor[main_sort_field]}) | (
+            Q(**{f"{main_sort_field}__gte": cursor[main_sort_field]})
             & Q(id__gt=cursor["id"])
         )
-
-        if "address" in cursor and cursor["address"]:
-            filter_condition &= Q(passport__address=cursor["address"])
-
-        if "last_score_timestamp__gt" in cursor and cursor["last_score_timestamp__gt"]:
-            filter_condition &= Q(
-                last_score_timestamp__gt=cursor["last_score_timestamp__gt"]
-            )
-
-        if (
-            "last_score_timestamp__gte" in cursor
-            and cursor["last_score_timestamp__gte"]
-        ):
-            filter_condition &= Q(
-                last_score_timestamp__gte=cursor["last_score_timestamp__gte"]
-            )
-
-        field_ordering = ["last_score_timestamp", "id"]
     else:
-        filter_condition = Q(
-            last_score_timestamp__lt=cursor["last_score_timestamp"]
-        ) | (
-            Q(last_score_timestamp__lte=cursor["last_score_timestamp"])
+        filter_condition |= Q(**{f"{main_sort_field}__lt": cursor[main_sort_field]}) | (
+            Q(**{f"{main_sort_field}__lte": cursor[main_sort_field]})
             & Q(id__lt=cursor["id"])
         )
 
-        if "address" in cursor and cursor["address"]:
-            filter_condition &= Q(passport__address=cursor["address"])
+    for filter_field in filter_fields:
+        if filter_field in cursor and cursor[filter_field]:
+            filter_condition &= Q(**{filter_field: cursor[filter_field]})
 
-        if "last_score_timestamp__gt" in cursor and cursor["last_score_timestamp__gt"]:
-            filter_condition &= Q(
-                last_score_timestamp__gt=cursor["last_score_timestamp__gt"]
-            )
+    field_ordering = [
+        f"{'-' if direction_multiplier == -1 else ''}{field}" for field in sort_fields
+    ]
 
-        if (
-            "last_score_timestamp__gte" in cursor
-            and cursor["last_score_timestamp__gte"]
-        ):
-            filter_condition &= Q(
-                last_score_timestamp__gte=cursor["last_score_timestamp__gte"]
-            )
-        field_ordering = ["-last_score_timestamp", "-id"]
+    return (filter_condition, field_ordering)
+
+
+# def get_cursor_query_condition(cursor):
+#     """
+#     This function will decode a cursor and return a query condition and ordering condition
+#     The implementation is specific to the requirements in  "/score/{int:scorer_id}" but it could be made
+#     more generic if required, and pass in the required:
+#     - sort_fields
+#     - filter_fields
+
+#     in order to be able to return the filer and order conditions
+#     """
+#     if cursor["d"] == "next":
+#         filter_condition = Q(
+#             last_score_timestamp__gt=cursor["last_score_timestamp"]
+#         ) | (
+#             Q(last_score_timestamp__gte=cursor["last_score_timestamp"])
+#             & Q(id__gt=cursor["id"])
+#         )
+
+#         if "address" in cursor and cursor["address"]:
+#             filter_condition &= Q(passport__address=cursor["address"])
+
+#         if "last_score_timestamp__gt" in cursor and cursor["last_score_timestamp__gt"]:
+#             filter_condition &= Q(
+#                 last_score_timestamp__gt=cursor["last_score_timestamp__gt"]
+#             )
+
+#         if (
+#             "last_score_timestamp__gte" in cursor
+#             and cursor["last_score_timestamp__gte"]
+#         ):
+#             filter_condition &= Q(
+#                 last_score_timestamp__gte=cursor["last_score_timestamp__gte"]
+#             )
+
+#         field_ordering = ["last_score_timestamp", "id"]
+#     else:
+#         filter_condition = Q(
+#             last_score_timestamp__lt=cursor["last_score_timestamp"]
+#         ) | (
+#             Q(last_score_timestamp__lte=cursor["last_score_timestamp"])
+#             & Q(id__lt=cursor["id"])
+#         )
+
+#         if "address" in cursor and cursor["address"]:
+#             filter_condition &= Q(passport__address=cursor["address"])
+
+#         if "last_score_timestamp__gt" in cursor and cursor["last_score_timestamp__gt"]:
+#             filter_condition &= Q(
+#                 last_score_timestamp__gt=cursor["last_score_timestamp__gt"]
+#             )
+
+#         if (
+#             "last_score_timestamp__gte" in cursor
+#             and cursor["last_score_timestamp__gte"]
+#         ):
+#             filter_condition &= Q(
+#                 last_score_timestamp__gte=cursor["last_score_timestamp__gte"]
+#             )
+#         field_ordering = ["-last_score_timestamp", "-id"]
+
+#     return (filter_condition, field_ordering)
+
+
+def get_cursor_query_condition_score_history(cursor):
+    if cursor["d"] == "next":
+        filter_condition = Q(
+            Q(created_at__lt=cursor["created_at"]) & Q(id=cursor["id"])
+        )
+
+        if "created_at" in cursor and cursor["created_at"]:
+            filter_condition &= Q(created_at__lt=cursor["created_at"])
+
+        field_ordering = ["created_at", "id"]
+    else:
+        filter_condition = Q(
+            Q(created_at__lt=cursor["created_at"]) & Q(id=cursor["id"])
+        )
+
+        if "created_at" in cursor and cursor["created_at"]:
+            filter_condition &= Q(created_at__lt=cursor["created_at"])
+        field_ordering = ["-created_at", "-id"]
 
     return (filter_condition, field_ordering)

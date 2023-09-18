@@ -188,26 +188,6 @@ class TestPassportGetScore:
             "detail": "No Community matches the given query.",
         }
 
-    def test_get_single_score_for_address(
-        self,
-        scorer_api_key,
-        passport_holder_addresses,
-        scorer_community,
-        paginated_scores,
-    ):
-        client = Client()
-        response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}?address={passport_holder_addresses[0]['address']}",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
-        assert response.status_code == 200
-        assert len(response.json()["items"]) == 1
-
-        assert (
-            response.json()["items"][0]["address"]
-            == passport_holder_addresses[0]["address"].lower()
-        )
-
     def test_get_single_score_for_address_in_path(
         self,
         scorer_api_key,
@@ -256,42 +236,6 @@ class TestPassportGetScore:
 
         assert response.status_code == 404
         assert response.json() == {"detail": "No Community matches the given query."}
-
-    def test_get_single_score_before_timestamp(
-        self,
-        scorer_api_key,
-        passport_holder_addresses,
-        scorer_community,
-        paginated_scores,
-    ):
-        client = Client()
-        now = datetime.datetime.utcnow()
-        response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}/{passport_holder_addresses[0]['address']}?timestamp={now.isoformat()}",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
-        assert response.status_code == 200
-
-        assert (
-            response.json()["address"]
-            == passport_holder_addresses[0]["address"].lower()
-        )
-
-    def test_get_single_score_before_timestamp(
-        self,
-        scorer_api_key,
-        passport_holder_addresses,
-        scorer_community,
-        paginated_scores,
-    ):
-        client = Client()
-        long_ago = datetime.datetime.utcnow() - datetime.timedelta(days=5000)
-        response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}/{passport_holder_addresses[0]['address']}?timestamp={long_ago.isoformat()}",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
-        print(response.json())
-        assert response.status_code == 404
 
     def test_limit_greater_than_1000_throws_an_error(
         self, scorer_community, passport_holder_addresses, scorer_api_key

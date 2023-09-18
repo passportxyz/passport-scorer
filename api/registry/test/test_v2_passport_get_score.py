@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
-from registry.models import Passport, Score
+from registry.models import Event, Passport, Score
 from registry.test.test_passport_get_score import TestPassportGetScore
 from web3 import Web3
 
@@ -25,6 +25,7 @@ def paginated_scores(scorer_passport, passport_holder_addresses, scorer_communit
     last_score_timestamp - will be incresaing from first to last, with a time delta of 1 day
     """
     scores = []
+    events = []
     i = 0
     for holder in passport_holder_addresses:
         passport = Passport.objects.create(
@@ -77,7 +78,7 @@ def shuffled_paginated_scores(
     return scores
 
 
-class TestPassportGetScoresV2(TestPassportGetScore):
+class TestPassportGetScoreV2(TestPassportGetScore):
     base_url = "/registry/v2"
 
     def test_get_scores_returns_first_page_scores(
@@ -510,7 +511,6 @@ class TestPassportGetScoresV2(TestPassportGetScore):
         response_json = response.json()
         response_data = response_json["items"]
         prev_page = response_json["prev"]
-        print("prev maybe ----->>>>", response_json)
         assert response_json["next"] == None
         assert len(response_data) == 1
         assert response_data == [
@@ -760,3 +760,40 @@ class TestPassportGetScoresV2(TestPassportGetScore):
         )
 
         assert is_sorted, "The scores are not in order"
+
+    def test_get_historical_score_by_distinct_address_and_timestamp(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        limit = 10
+        events = list(Event.objects.all())
+        for event in events:
+            print(event)
+
+        print("*#*#*#*#===> events", events[0].created_at)
+        print("*#*#*#*#===> timezs", (timezone.now() + datetime.timedelta(days=10)))
+
+        # middle = len(scores) // 2
+        # older_scores = scores[:middle]
+        # newer_scores = scores[middle:]
+        # timestamp_to_filter_by = newer_scores[0].last_score_timestamp
+        # now = datetime.datetime.utcnow()
+        # datessss = "2023-09-30 15:10:37.080658+00:00"
+
+        score_timestamp = timezone.now() + datetime.timedelta(days=10)
+        address = passport_holder_addresses[0]["address"]
+
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/score/{scorer_community.id}/history?score_timestamp={score_timestamp}&address={address}",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        response_data = response.json()
+
+        print(response_data)
+
+        assert False

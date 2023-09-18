@@ -4,12 +4,12 @@ from typing import List, Optional
 import api_logging as logging
 
 # --- Deduplication Modules
-from account.models import Community
-from django.db.models import Q
+from account.models import Account, Community
+from django.db.models import Max, Q
 from ninja import Router
 from registry.api import v1
 from registry.api.v1 import with_read_db
-from registry.models import Score
+from registry.models import Event, Score
 from registry.utils import (
     decode_cursor,
     encode_cursor,
@@ -87,10 +87,8 @@ This endpoint will return a `DetailedScoreResponse`. This endpoint will also ret
 {v1.SCORE_TIMESTAMP_FIELD_DESCRIPTION}
 """,
 )
-def get_score(
-    request, address: str, scorer_id: int, timestamp: str = ""
-) -> DetailedScoreResponse:
-    return v1.get_score(request, address, scorer_id, timestamp)
+def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
+    return v1.get_score(request, address, scorer_id)
 
 
 @router.get(
@@ -138,12 +136,20 @@ def get_scores(
         filter_condition = Q()
         field_ordering = None
         cursor = decode_cursor(token) if token else None
+        sort_fields = ["last_score_timestamp", "id"]
+        filter_fields = [
+            "address",
+            "last_score_timestamp__gt",
+            "last_score_timestamp__gte",
+        ]
         if cursor:
             cursor = decode_cursor(token)
             cursor["last_score_timestamp"] = datetime.fromisoformat(
                 cursor.get("last_score_timestamp")
             )
-            filter_condition, field_ordering = get_cursor_query_condition(cursor)
+            filter_condition, field_ordering = get_cursor_query_condition(
+                cursor, sort_fields, filter_fields
+            )
 
         else:
             field_ordering = ["last_score_timestamp", "id"]
@@ -192,8 +198,12 @@ def get_scores(
                 last_score_timestamp__gte=last_score_timestamp__gte,
             )
 
-            next_filter_cond, _ = get_cursor_query_condition(next_cursor)
-            prev_filter_cond, _ = get_cursor_query_condition(prev_cursor)
+            next_filter_cond, _ = get_cursor_query_condition(
+                next_cursor, sort_fields, filter_fields
+            )
+            prev_filter_cond, _ = get_cursor_query_condition(
+                prev_cursor, sort_fields, filter_fields
+            )
 
             has_more_scores = base_query.filter(next_filter_cond).exists()
             has_prev_scores = base_query.filter(prev_filter_cond).exists()
@@ -281,3 +291,152 @@ def stamp_display(request) -> List[StampDisplayResponse]:
 )
 def get_gtc_stake(request, address: str):
     return v1.get_gtc_stake(request, address)
+
+
+@router.get(
+    "/score/{int:scorer_id}/history",
+    auth=ApiKey(),
+    response={
+        200: CursorPaginatedScoreResponse,
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+        404: ErrorMessageResponse,
+    },
+    summary="Get score history based on timestamp and optional address that is associated with a scorer",
+    description="""Use this endpoint to get historical Passport score history based on timestamp and optional user address\n
+    This endpoint will return a `CursorPaginatedScoreResponse` that will include either a list of historical scores based on scorer ID and timestamp, or a single address representing the most recent score from the timestamp.\n
+    \n
+
+    Note: results will be sorted ascending by `["score_timestamp", "id"]`
+    """,
+)
+def get_score_history(
+    request,
+    scorer_id: int,
+    address: Optional[str] = None,
+    score_timestamp: str = "",
+    token: str = None,
+    limit: int = 1000,
+) -> CursorPaginatedScoreResponse:
+    # check_rate_limit(request)
+
+    if limit > 1000:
+        raise InvalidLimitException()
+
+    event = api_get_object_or_404(Event, id=scorer_id, account=request.auth)
+
+    community = event.community
+
+    try:
+        base_query = with_read_db(Event).filter(
+            community__id=community.id, action=Event.Action.SCORE_UPDATE
+        )
+
+        filter_condition = Q()
+        field_ordering = None
+        sort_fields = ["created_at", "id"]
+        filter_fields = ["created_at"]
+
+        cursor = decode_cursor(token) if token else None
+
+        if cursor:
+            cursor = decode_cursor(token)
+            cursor["created_at"] = datetime.fromisoformat(cursor.get("created_at"))
+            filter_condition, field_ordering = get_cursor_query_condition(
+                cursor, sort_fields, filter_fields
+            )
+
+        else:
+            field_ordering = ["-created_at", "id"]  # We want most recent first.
+
+            if address and score_timestamp:
+                base_query = base_query.filter(address=address)
+                filter_condition &= Q(created_at__lt=score_timestamp)
+                limit = 1
+            elif score_timestamp:
+                filter_condition &= Q(created_at__lt=score_timestamp)
+
+            # field_ordering = ["created_at", "id"]
+
+            # if address:
+            #     base_query = base_query.filter(address=address).distinct("address").annotate(latest_score=Max("created_at"))
+
+            # if score_timestamp:
+            #     filter_condition &= Q(created_at__lt=score_timestamp)
+
+        has_more_scores = has_prev_scores = False
+        next_cursor = prev_cursor = {}
+
+        query = base_query.filter(filter_condition).order_by(*field_ordering)
+        scores = query[:limit]
+        scores = list(scores)
+
+        if cursor and cursor["d"] == "prev":
+            scores.reverse()
+
+        if scores:
+            next_id = scores[-1].id
+            next_lts = scores[-1].created_at
+            prev_id = scores[0].id
+            prev_lts = scores[0].created_at
+
+            next_cursor = dict(
+                d="next",
+                id=next_id,
+                created_at=next_lts.isoformat(),
+                address=address,
+                score_timestamp=score_timestamp,
+            )
+            prev_cursor = dict(
+                d="prev",
+                id=prev_id,
+                created_at=prev_lts.isoformat(),
+                address=address,
+                score_timestamp=score_timestamp,
+            )
+
+            next_filter_cond, _ = get_cursor_query_condition(
+                next_cursor, sort_fields, filter_fields
+            )
+            prev_filter_cond, _ = get_cursor_query_condition(
+                prev_cursor, sort_fields, filter_fields
+            )
+
+            has_more_scores = base_query.filter(next_filter_cond).exists()
+            has_prev_scores = base_query.filter(prev_filter_cond).exists()
+
+        domain = request.build_absolute_uri("/")[:-1]
+
+        next_url = (
+            f"""{domain}{reverse_lazy_with_query(
+                "registry_v2:get_score_history",
+                args=[scorer_id],
+                query_kwargs={"token": encode_cursor(**next_cursor), "limit": limit},
+            )}"""
+            if has_more_scores
+            else None
+        )
+
+        prev_url = (
+            f"""{domain}{reverse_lazy_with_query(
+                "registry_v2:get_score_history",
+                args=[scorer_id],
+                query_kwargs={"token": encode_cursor(**prev_cursor), "limit": limit},
+            )}"""
+            if has_prev_scores
+            else None
+        )
+
+        response = CursorPaginatedScoreResponse(
+            next=next_url, prev=prev_url, items=scores
+        )
+
+        return response
+
+    except Exception as e:
+        log.error(
+            "Error getting passport scores. scorer_id=%s",
+            scorer_id,
+            exc_info=True,
+        )
+        raise e

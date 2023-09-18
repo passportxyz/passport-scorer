@@ -90,6 +90,12 @@ class CursorPaginatedScoreResponse(Schema):
     items: List[DetailedScoreResponse]
 
 
+class CursorPaginatedScoreResponse(Schema):
+    next: Optional[str]
+    prev: Optional[str]
+    items: List[DetailedScoreResponse]
+
+
 class SimpleScoreResponse(Schema):
     address: str
     score: Decimal  # The score should be represented as string as it will be a decimal number
