@@ -9,6 +9,7 @@ import api_logging as logging
 import didkit
 from django.conf import settings
 from django.db.models import Q
+from django.forms.models import model_to_dict
 from django.shortcuts import render
 from django.urls import reverse_lazy
 from eth_account.messages import encode_defunct
@@ -152,6 +153,61 @@ def decode_cursor(token: str) -> dict:
 
 def get_utc_time():
     return datetime.now(timezone.utc)
+
+
+def get_cursor_tokens_for_results(
+    base_query, domain, scores, sort_fields, limit, http_query_args
+):
+    prev_url = None
+    next_url = None
+    has_more_scores = None
+    has_prev_scores = None
+
+    if scores:
+        prev_values = model_to_dict(scores[0])
+        next_values = model_to_dict(scores[-1])
+
+        next_cursor = dict(
+            d="next",
+        )
+        prev_cursor = dict(
+            d="prev",
+        )
+
+        for field_name in sort_fields:
+            next_cursor[field_name] = next_values[field_name]
+            prev_cursor[field_name] = prev_values[field_name]
+
+        next_filter_cond, _ = get_cursor_query_condition(next_cursor, sort_fields)
+        prev_filter_cond, _ = get_cursor_query_condition(prev_cursor, sort_fields)
+
+        has_more_scores = base_query.filter(next_filter_cond).exists()
+        has_prev_scores = base_query.filter(prev_filter_cond).exists()
+
+    next_url = (
+        f"""{domain}{reverse_lazy_with_query(
+            "registry_v2:get_score_history",
+            args=http_query_args,
+            query_kwargs={"token": encode_cursor(**next_cursor), "limit": limit},
+        )}"""
+        if has_more_scores
+        else None
+    )
+
+    prev_url = (
+        f"""{domain}{reverse_lazy_with_query(
+            "registry_v2:get_score_history",
+            args=http_query_args,
+            query_kwargs={"token": encode_cursor(**prev_cursor), "limit": limit},
+        )}"""
+        if has_prev_scores
+        else None
+    )
+
+    return {
+        "prev": prev_url,
+        "next": next_url,
+    }
 
 
 def get_cursor_query_condition(cursor, sort_fields):
