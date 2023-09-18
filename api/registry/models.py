@@ -115,7 +115,11 @@ class Event(models.Model):
     )
 
     community = models.ForeignKey(
-        Community, on_delete=models.PROTECT, related_name="event"
+        Community,
+        on_delete=models.PROTECT,
+        related_name="event",
+        null=True,
+        default=None,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

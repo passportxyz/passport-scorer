@@ -768,29 +768,18 @@ class TestPassportGetScoreV2(TestPassportGetScore):
         scorer_community,
         paginated_scores,
     ):
-        limit = 10
         events = list(Event.objects.all())
-        for event in events:
-            print(event)
 
-        print("*#*#*#*#===> events", events[0].created_at)
-        print("*#*#*#*#===> timezs", (timezone.now() + datetime.timedelta(days=10)))
-
-        # middle = len(scores) // 2
-        # older_scores = scores[:middle]
-        # newer_scores = scores[middle:]
-        # timestamp_to_filter_by = newer_scores[0].last_score_timestamp
-        # now = datetime.datetime.utcnow()
-        # datessss = "2023-09-30 15:10:37.080658+00:00"
-
-        score_timestamp = timezone.now() + datetime.timedelta(days=10)
+        score_timestamp = timezone.now() + datetime.timedelta(days=40)
         address = passport_holder_addresses[0]["address"]
 
         client = Client()
         response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}/history?score_timestamp={score_timestamp}&address={address}",
+            f"{self.base_url}/score/{scorer_community.id}/history?score_timestamp={score_timestamp}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
+
+        print("response =====>", response.json())
 
         response_data = response.json()
 

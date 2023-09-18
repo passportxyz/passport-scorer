@@ -20,6 +20,7 @@ from registry.utils import (
 from ..exceptions import InvalidLimitException, api_get_object_or_404
 from .base import ApiKey, check_rate_limit
 from .schema import (
+    CursorPaginatedHistoricalScoreResponse,
     CursorPaginatedScoreResponse,
     CursorPaginatedStampCredentialResponse,
     DetailedScoreResponse,
@@ -117,7 +118,7 @@ def get_scores(
     token: str = None,
     limit: int = 1000,
 ) -> CursorPaginatedScoreResponse:
-    check_rate_limit(request)
+    # check_rate_limit(request)
 
     if limit > 1000:
         raise InvalidLimitException()
@@ -317,7 +318,7 @@ def get_score_history(
     score_timestamp: str = "",
     token: str = None,
     limit: int = 1000,
-) -> CursorPaginatedScoreResponse:
+) -> CursorPaginatedHistoricalScoreResponse:
     # check_rate_limit(request)
 
     if limit > 1000:
@@ -427,7 +428,7 @@ def get_score_history(
             else None
         )
 
-        response = CursorPaginatedScoreResponse(
+        response = CursorPaginatedHistoricalScoreResponse(
             next=next_url, prev=prev_url, items=scores
         )
 
@@ -435,7 +436,7 @@ def get_score_history(
 
     except Exception as e:
         log.error(
-            "Error getting passport scores. scorer_id=%s",
+            "Error getting historical passport scores. scorer_id=%s",
             scorer_id,
             exc_info=True,
         )
