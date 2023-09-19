@@ -102,7 +102,7 @@ class DetailedHistoricalScoreResponse(Schema):
     error: Optional[str]
     community_id: Optional[int]
     created_at: Optional[str]
-    data: HistoricalScoreData
+    data: dict
 
 
 class CursorPaginatedScoreResponse(Schema):

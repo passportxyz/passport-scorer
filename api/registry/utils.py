@@ -226,6 +226,8 @@ def get_cursor_query_condition(cursor, sort_fields):
 
     The field_ordering will be the same for all fields, and is only influenced by the direction of the pagination.
     """
+    if cursor is None:
+        cursor = {"d": "next"}
 
     is_next = cursor["d"] == "next"
     filter_condition = Q()
@@ -235,9 +237,11 @@ def get_cursor_query_condition(cursor, sort_fields):
             condition_for_or = Q()
             for j in range(i + 1):
                 if i == j:
-                    condition_for_or &= Q(
-                        **{f"{sort_fields[j]}__gt": cursor[sort_fields[j]]}
-                    )
+                    cursor_value = cursor.get(sort_fields[j], None)
+                    if cursor_value is not None:
+                        condition_for_or &= Q(
+                            **{f"{sort_fields[j]}__gt": cursor[sort_fields[j]]}
+                        )
                 else:
                     condition_for_or &= Q(
                         **{f"{sort_fields[j]}": cursor[sort_fields[j]]}
@@ -249,9 +253,11 @@ def get_cursor_query_condition(cursor, sort_fields):
             condition_for_or = Q()
             for j in range(i + 1):
                 if i == j:
-                    condition_for_or &= Q(
-                        **{f"{sort_fields[j]}__lt": cursor[sort_fields[j]]}
-                    )
+                    cursor_value = cursor.get(sort_fields[j], None)
+                    if cursor_value is not None:
+                        condition_for_or &= Q(
+                            **{f"{sort_fields[j]}__lt": cursor[sort_fields[j]]}
+                        )
                 else:
                     condition_for_or &= Q(
                         **{f"{sort_fields[j]}": cursor[sort_fields[j]]}
