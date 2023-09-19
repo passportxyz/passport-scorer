@@ -1,5 +1,6 @@
 import datetime
 from datetime import datetime as dt
+from unittest.mock import patch
 
 import pytest
 from django.conf import settings
@@ -768,21 +769,20 @@ class TestPassportGetScoreV2(TestPassportGetScore):
         scorer_community,
         paginated_scores,
     ):
-        events = list(Event.objects.all())
+        with patch("registry.models.score_updated", return_value=None):
+            events = list(Event.objects.all())
 
-        score_timestamp = timezone.now() + datetime.timedelta(days=40)
-        address = passport_holder_addresses[0]["address"]
+            created_at = timezone.now() + datetime.timedelta(days=1)
+            address = passport_holder_addresses[0]["address"]
 
-        client = Client()
-        response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}/{address}/history?score_timestamp={score_timestamp}",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
+            client = Client()
+            response = client.get(
+                f"{self.base_url}/score/{scorer_community.id}/history",
+                HTTP_AUTHORIZATION="Token " + scorer_api_key,
+                params={"created_at": created_at.isoformat(), "address": address},
+            )
 
-        print("response =====>", response.json())
-
-        response_data = response.json()
-
-        print(response_data)
+            response_data = response.json()
+            print(response_data)
 
         assert False

@@ -262,25 +262,3 @@ def get_cursor_query_condition(cursor, sort_fields):
     field_ordering = [f"{'-' if not is_next else ''}{field}" for field in sort_fields]
 
     return (filter_condition, field_ordering)
-
-
-def get_cursor_query_condition_score_history(cursor):
-    if cursor["d"] == "next":
-        filter_condition = Q(
-            Q(created_at__lt=cursor["created_at"]) & Q(id=cursor["id"])
-        )
-
-        if "created_at" in cursor and cursor["created_at"]:
-            filter_condition &= Q(created_at__lt=cursor["created_at"])
-
-        field_ordering = ["created_at", "id"]
-    else:
-        filter_condition = Q(
-            Q(created_at__lt=cursor["created_at"]) & Q(id=cursor["id"])
-        )
-
-        if "created_at" in cursor and cursor["created_at"]:
-            filter_condition &= Q(created_at__lt=cursor["created_at"])
-        field_ordering = ["-created_at", "-id"]
-
-    return (filter_condition, field_ordering)
