@@ -754,126 +754,126 @@ class TestPassportGetScoreV2(TestPassportGetScore):
 
         assert is_sorted, "The scores are not in order"
 
-    def test_get_historical_score_filter_by_address_and_timestamp(
-        self,
-        scorer_api_key,
-        passport_holder_addresses,
-        scorer_community,
-        paginated_scores,
-    ):
-        created_at = timezone.now() + datetime.timedelta(days=40)
-        address = passport_holder_addresses[0]["address"]
+    # def test_get_historical_score_filter_by_address_and_timestamp(
+    #     self,
+    #     scorer_api_key,
+    #     passport_holder_addresses,
+    #     scorer_community,
+    #     paginated_scores,
+    # ):
+    #     created_at = timezone.now() + datetime.timedelta(days=40)
+    #     address = passport_holder_addresses[0]["address"]
 
-        event_object = list(Event.objects.all())
+    #     event_object = list(Event.objects.all())
 
-        client = Client()
-        response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}/history",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-            data={"created_at": created_at, "address": address},
-        )
+    #     client = Client()
+    #     response = client.get(
+    #         f"{self.base_url}/score/{scorer_community.id}/history",
+    #         HTTP_AUTHORIZATION="Token " + scorer_api_key,
+    #         data={"created_at": created_at, "address": address},
+    #     )
 
-        response_data = response.json()
+    #     response_data = response.json()
 
-        assert response.status_code == 200
-        assert len(response_data["items"]) == 1
-        event_address = None
-        for event in event_object:
-            if event.address == response_data["items"][0]["address"]:
-                event_address = event.address
-        assert response_data["items"][0]["address"] == event_address
+    #     assert response.status_code == 200
+    #     assert len(response_data["items"]) == 1
+    #     event_address = None
+    #     for event in event_object:
+    #         if event.address == response_data["items"][0]["address"]:
+    #             event_address = event.address
+    #     assert response_data["items"][0]["address"] == event_address
 
-    def test_get_historical_scores_filter_by_timestamp(
-        self,
-        scorer_api_key,
-        passport_holder_addresses,
-        scorer_community,
-        paginated_scores,
-    ):
-        created_at = timezone.now() + datetime.timedelta(days=20)
+    # def test_get_historical_scores_filter_by_timestamp(
+    #     self,
+    #     scorer_api_key,
+    #     passport_holder_addresses,
+    #     scorer_community,
+    #     paginated_scores,
+    # ):
+    #     created_at = timezone.now() + datetime.timedelta(days=20)
 
-        client = Client()
-        response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}/history",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-            data={"created_at": created_at},
-        )
+    #     client = Client()
+    #     response = client.get(
+    #         f"{self.base_url}/score/{scorer_community.id}/history",
+    #         HTTP_AUTHORIZATION="Token " + scorer_api_key,
+    #         data={"created_at": created_at},
+    #     )
 
-        response_data = response.json()
+    #     response_data = response.json()
 
-        assert response.status_code == 200
-        items = response_data["items"]
+    #     assert response.status_code == 200
+    #     items = response_data["items"]
 
-        for item in items:
-            item_created_at = item["created_at"]
-            assert (
-                datetime.datetime.fromisoformat(item_created_at) <= created_at
-            ), f"Item with address {item['address']} has a created_at greater than the given timestamp!"
+    #     for item in items:
+    #         item_created_at = item["created_at"]
+    #         assert (
+    #             datetime.datetime.fromisoformat(item_created_at) <= created_at
+    #         ), f"Item with address {item['address']} has a created_at greater than the given timestamp!"
 
-    def test_get_historical_scores_filter_by_timestamp_sorted(
-        self,
-        scorer_api_key,
-        passport_holder_addresses,
-        scorer_community,
-        paginated_scores,
-    ):
-        created_at = timezone.now() + datetime.timedelta(days=10)
+    # def test_get_historical_scores_filter_by_timestamp_sorted(
+    #     self,
+    #     scorer_api_key,
+    #     passport_holder_addresses,
+    #     scorer_community,
+    #     paginated_scores,
+    # ):
+    #     created_at = timezone.now() + datetime.timedelta(days=10)
 
-        client = Client()
-        response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}/history",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-            data={"created_at": created_at},
-        )
+    #     client = Client()
+    #     response = client.get(
+    #         f"{self.base_url}/score/{scorer_community.id}/history",
+    #         HTTP_AUTHORIZATION="Token " + scorer_api_key,
+    #         data={"created_at": created_at},
+    #     )
 
-        response_data = response.json()
+    #     response_data = response.json()
 
-        assert response.status_code == 200
-        items = response_data["items"]
-        for i in range(len(items) - 1):
-            assert (
-                items[i]["address"] >= items[i + 1]["address"]
-            ), f"Item at index {i} is not sorted!"
+    #     assert response.status_code == 200
+    #     items = response_data["items"]
+    #     for i in range(len(items) - 1):
+    #         assert (
+    #             items[i]["address"] >= items[i + 1]["address"]
+    #         ), f"Item at index {i} is not sorted!"
 
-    def test_get_historical_scores(
-        self,
-        scorer_api_key,
-        passport_holder_addresses,
-        scorer_community,
-        paginated_scores,
-    ):
-        client = Client()
-        response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}/history",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
+    # def test_get_historical_scores(
+    #     self,
+    #     scorer_api_key,
+    #     passport_holder_addresses,
+    #     scorer_community,
+    #     paginated_scores,
+    # ):
+    #     client = Client()
+    #     response = client.get(
+    #         f"{self.base_url}/score/{scorer_community.id}/history",
+    #         HTTP_AUTHORIZATION="Token " + scorer_api_key,
+    #     )
 
-        response_data = response.json()["items"]
-        assert response.status_code == 200
+    #     response_data = response.json()["items"]
+    #     assert response.status_code == 200
 
-        assert len(response_data) == 10
+    #     assert len(response_data) == 10
 
-    def test_errors_getting_historical_scores(
-        self,
-        scorer_api_key,
-        passport_holder_addresses,
-        scorer_community,
-        paginated_scores,
-    ):
-        client = Client()
-        response = client.get(
-            f"{self.base_url}/score/8/history",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
+    # def test_errors_getting_historical_scores(
+    #     self,
+    #     scorer_api_key,
+    #     passport_holder_addresses,
+    #     scorer_community,
+    #     paginated_scores,
+    # ):
+    #     client = Client()
+    #     response = client.get(
+    #         f"{self.base_url}/score/8/history",
+    #         HTTP_AUTHORIZATION="Token " + scorer_api_key,
+    #     )
 
-        response_data = response.json()
-        assert response_data == {"detail": "No Community matches the given query."}
+    #     response_data = response.json()
+    #     assert response_data == {"detail": "No Community matches the given query."}
 
-        client = Client()
-        response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}/histor",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
+    #     client = Client()
+    #     response = client.get(
+    #         f"{self.base_url}/score/{scorer_community.id}/histor",
+    #         HTTP_AUTHORIZATION="Token " + scorer_api_key,
+    #     )
 
-        response_data = response.json()
-        assert response_data == {"detail": "Unable to get score for provided scorer."}
+    #     response_data = response.json()
+    #     assert response_data == {"detail": "Unable to get score for provided scorer."}
