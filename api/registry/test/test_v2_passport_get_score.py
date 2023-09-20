@@ -329,25 +329,17 @@ class TestPassportGetScoreV2(TestPassportGetScore):
         first one in the 2nd set are identical, and paginate around that split.
         """
         timestamps = [s.last_score_timestamp for s in shuffled_paginated_scores]
+
+        # We pick a duplicate timestamp, and we'll paginate around that
         timestamp_idx = timestamps.index("2023-08-06 15:11:45.088379+00:00")
 
-        scores = list(Score.objects.order_by("last_score_timestamp"))
-        middle = len(scores) // 2
+        scores = list(Score.objects.order_by("last_score_timestamp", "id"))
         newer_scores = scores[: timestamp_idx + 1]
         older_scores = scores[timestamp_idx + 1 :]
-
-        print(timestamp_idx)
-        for s in scores:
-            print(s.last_score_timestamp)
-
-        timestamp_to_filter_by = newer_scores[0].last_score_timestamp
 
         # Make sure we have sufficient data in both queries
         assert len(newer_scores) >= 2
         assert len(older_scores) >= 2
-        print("---")
-        print(newer_scores[-1].last_score_timestamp)
-        print(older_scores[0].last_score_timestamp)
         assert (
             newer_scores[-1].last_score_timestamp
             == older_scores[0].last_score_timestamp
