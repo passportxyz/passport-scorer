@@ -156,7 +156,7 @@ def get_utc_time():
 
 
 def get_cursor_tokens_for_results(
-    base_query, domain, scores, sort_fields, limit, http_query_args
+    base_query, domain, scores, sort_fields, limit, http_query_args, endpoint
 ):
     prev_url = None
     next_url = None
@@ -186,7 +186,7 @@ def get_cursor_tokens_for_results(
 
     next_url = (
         f"""{domain}{reverse_lazy_with_query(
-            "registry_v2:get_score_history",
+            f"registry_v2:{endpoint}",
             args=http_query_args,
             query_kwargs={"token": encode_cursor(**next_cursor), "limit": limit},
         )}"""
@@ -196,7 +196,7 @@ def get_cursor_tokens_for_results(
 
     prev_url = (
         f"""{domain}{reverse_lazy_with_query(
-            "registry_v2:get_score_history",
+            f"registry_v2:{endpoint}",
             args=http_query_args,
             query_kwargs={"token": encode_cursor(**prev_cursor), "limit": limit},
         )}"""
@@ -227,7 +227,7 @@ def get_cursor_query_condition(cursor, sort_fields):
     The field_ordering will be the same for all fields, and is only influenced by the direction of the pagination.
     """
     if cursor is None:
-        cursor = {"d": "next"}
+        return (Q(), [f"-{field}" for field in sort_fields])
 
     is_next = cursor["d"] == "next"
     filter_condition = Q()
@@ -244,7 +244,7 @@ def get_cursor_query_condition(cursor, sort_fields):
                         )
                 else:
                     condition_for_or &= Q(
-                        **{f"{sort_fields[j]}": cursor[sort_fields[j]]}
+                        **{f"{sort_fields[j]}__gte": cursor[sort_fields[j]]}
                     )
 
             filter_condition |= condition_for_or
@@ -260,7 +260,7 @@ def get_cursor_query_condition(cursor, sort_fields):
                         )
                 else:
                     condition_for_or &= Q(
-                        **{f"{sort_fields[j]}": cursor[sort_fields[j]]}
+                        **{f"{sort_fields[j]}__lte": cursor[sort_fields[j]]}
                     )
 
             filter_condition |= condition_for_or

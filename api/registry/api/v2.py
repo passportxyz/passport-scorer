@@ -307,6 +307,8 @@ def get_score_history(
 
     community = api_get_object_or_404(Community, id=scorer_id, account=request.auth)
 
+    endpoint = "get_score_history"
+
     try:
         base_query = with_read_db(Event).filter(
             community__id=community.id, action=Event.Action.SCORE_UPDATE
@@ -346,7 +348,6 @@ def get_score_history(
                 cursor, pagination_sort_fields
             )
 
-            field_ordering.insert(0, "address")
             field_ordering.append("-created_at")
             query = (
                 base_query.filter(filter_condition)
@@ -364,7 +365,13 @@ def get_score_history(
             domain = request.build_absolute_uri("/")[:-1]
 
             page_links = get_cursor_tokens_for_results(
-                base_query, domain, scores, pagination_sort_fields, limit, [scorer_id]
+                query,
+                domain,
+                scores,
+                pagination_sort_fields,
+                limit,
+                [scorer_id],
+                endpoint,
             )
 
             response = CursorPaginatedHistoricalScoreResponse(
@@ -396,7 +403,13 @@ def get_score_history(
             domain = request.build_absolute_uri("/")[:-1]
 
             page_links = get_cursor_tokens_for_results(
-                base_query, domain, scores, pagination_sort_fields, limit, [scorer_id]
+                query,
+                domain,
+                scores,
+                pagination_sort_fields,
+                limit,
+                [scorer_id],
+                endpoint,
             )
 
             response = CursorPaginatedHistoricalScoreResponse(
