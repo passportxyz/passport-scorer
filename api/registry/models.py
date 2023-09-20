@@ -1,5 +1,9 @@
+import json
+
 from account.models import Community, EthAddressField
 from django.db import models
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 
 
 class Passport(models.Model):
@@ -71,6 +75,25 @@ class Score(models.Model):
         return f"Score #{self.id}, score={self.score}, last_score_timestamp={self.last_score_timestamp}, status={self.status}, error={self.error}, evidence={self.evidence}, passport_id={self.passport_id}"
 
 
+@receiver(pre_save, sender=Score)
+def score_updated(sender, instance, **kwargs):
+    if instance.status != Score.Status.DONE:
+        return instance
+
+    if not Score.objects.filter(pk=instance.pk, score=instance.score).exists():
+        Event.objects.create(
+            action=Event.Action.SCORE_UPDATE,
+            address=instance.passport.address,
+            community=instance.passport.community,
+            data={
+                "score": float(instance.score) if instance.score != None else 0,
+                "evidence": instance.evidence,
+            },
+        )
+
+    return instance
+
+
 class Event(models.Model):
     # Example usage:
     #   obj.action = Event.Action.FIFO_DEDUPLICATION
@@ -78,23 +101,55 @@ class Event(models.Model):
         FIFO_DEDUPLICATION = "FDP"
         LIFO_DEDUPLICATION = "LDP"
         TRUSTALAB_SCORE = "TLS"
+        SCORE_UPDATE = "SCU"
 
     action = models.CharField(
         max_length=3,
         choices=Action.choices,
         blank=False,
-        db_index=True,
     )
 
     address = EthAddressField(
         blank=True,
         max_length=42,
-        db_index=True,
     )
 
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    ########################################################################################
+    # BEGIN: section containing fields that are only used for certain actions
+    # and will be set to None otherwise
+    ########################################################################################
+    community = models.ForeignKey(
+        Community,
+        on_delete=models.PROTECT,
+        related_name="event",
+        null=True,
+        default=None,
+        help_text="""
+This field is only used for the SCORE_UPDATE action, and will identify the scorer (alias `community`)
+for which a score has been updated.
+The reason to have this field (and not use the `data` JSON field) is to be able to easily have an index for the community_id for faster lookups.
+""",
+    )
+    ########################################################################################
+    # END: section with action - specific fields
+    ########################################################################################
 
-    data = models.JSONField(db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    data = models.JSONField()
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=[
+                    "action",
+                    "address",
+                    "community",
+                    "created_at",
+                ],
+                name="score_history_index",
+            ),
+        ]
 
 
 class HashScorerLink(models.Model):

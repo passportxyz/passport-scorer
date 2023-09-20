@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 from urllib.parse import urljoin
 
@@ -15,8 +16,9 @@ from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 from ninja import Router
 from ninja.pagination import paginate
+from ninja_extra.exceptions import APIException
 from pydantic import BaseModel
-from registry.models import Passport, Score
+from registry.models import Event, Passport, Score
 from registry.utils import (
     decode_cursor,
     encode_cursor,
@@ -35,6 +37,7 @@ from ..exceptions import (
     InvalidNonceException,
     InvalidOrderByFieldException,
     InvalidSignerException,
+    NotFoundApiException,
     StakingRequestError,
     aapi_get_object_or_404,
     api_get_object_or_404,
@@ -58,6 +61,17 @@ from .schema import (
     StampDisplayResponse,
     SubmitPassportPayload,
 )
+
+SCORE_TIMESTAMP_FIELD_DESCRIPTION = """
+The optional `timestamp` query parameter can be used to retrieve
+the latest score for an address as of that timestamp.
+It is expected to be an ISO 8601 formatted timestamp.\n
+
+Examples of valid values for `timestamp`: \n
+- 2023-05-10T07:49:08Z\n
+- 2023-05-10T07:49:08.610198+00:00\n
+- 2023-05-10\n
+"""
 
 _transport = RequestsHTTPTransport(
     url=f"https://gateway.thegraph.com/api/{settings.STAKING_SUBGRAPH_API_KEY}/subgraphs/id/6neBRm8wdXfbH9WQuFeizJRpsom4qovuqKhswPBRTC5Q",
@@ -153,13 +167,18 @@ async def a_submit_passport(
     request, payload: SubmitPassportPayload
 ) -> DetailedScoreResponse:
     check_rate_limit(request)
+    try:
+        log.error("/submit-passport, payload=%s", payload)
 
-    log.error("/submit-passport, payload=%s", payload)
+        if not request.api_key.submit_passports:
+            raise InvalidAPIKeyPermissions()
 
-    if not request.api_key.submit_passports:
-        raise InvalidAPIKeyPermissions()
-
-    return await ahandle_submit_passport(payload, request.auth)
+        return await ahandle_submit_passport(payload, request.auth)
+    except APIException as e:
+        raise e
+    except Exception as e:
+        log.exception("Error submitting passport: %s", e)
+        raise InternalServerErrorException("Unexpected error while submitting passport")
 
 
 async def ahandle_submit_passport(
@@ -303,8 +322,9 @@ async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community
         404: ErrorMessageResponse,
     },
     summary="Get score for an address that is associated with a scorer",
-    description="""Use this endpoint to fetch the score for a specific address that is associated with a scorer\n
+    description=f"""Use this endpoint to fetch the score for a specific address that is associated with a scorer\n
 This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
+{SCORE_TIMESTAMP_FIELD_DESCRIPTION}
 """,
 )
 def get_score(request, address: str, scorer_id: int | str) -> DetailedScoreResponse:
@@ -330,6 +350,8 @@ def handle_get_score(
             passport__address=lower_address, passport__community=user_community
         )
         return score
+    except NotFoundApiException as e:
+        raise e
     except Exception as e:
         log.error(
             "Error getting passport scores. scorer_id=%s",

@@ -3,6 +3,8 @@ import re
 from decimal import Decimal
 from unittest.mock import call, patch
 
+from asgiref.sync import async_to_sync
+
 from account.deduplication import Rules
 from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
@@ -508,3 +510,18 @@ class TestScorePassportTestCase(TransactionTestCase):
             assert (
                 Score.objects.get(passport=passport_with_duplicates).score
             ) == Decimal("5")
+
+    def test_score_events(self):
+        count = Event.objects.filter(action=Event.Action.SCORE_UPDATE).count()
+
+        Score.objects.create(
+            passport=Passport.objects.create(
+                address=self.account.address, community_id=self.community.pk
+            ),
+            score=1,
+            status="DONE",
+        )
+
+        assert (
+            Event.objects.filter(action=Event.Action.SCORE_UPDATE).count() == count + 1
+        )

@@ -29,6 +29,7 @@ def paginated_scores(scorer_passport, passport_holder_addresses, scorer_communit
         )
 
         score = Score.objects.create(
+            status="DONE",
             passport=passport,
             score="1",
             last_score_timestamp=datetime.datetime.now()
@@ -186,26 +187,6 @@ class TestPassportGetScore:
         assert response.json() == {
             "detail": "No Community matches the given query.",
         }
-
-    def test_get_single_score_for_address(
-        self,
-        scorer_api_key,
-        passport_holder_addresses,
-        scorer_community,
-        paginated_scores,
-    ):
-        client = Client()
-        response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}?address={passport_holder_addresses[0]['address']}",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
-        assert response.status_code == 200
-        assert len(response.json()["items"]) == 1
-
-        assert (
-            response.json()["items"][0]["address"]
-            == passport_holder_addresses[0]["address"].lower()
-        )
 
     def test_get_single_score_for_address_in_path(
         self,

@@ -4,24 +4,33 @@ from typing import List, Optional
 import api_logging as logging
 
 # --- Deduplication Modules
-from account.models import Community
-from django.db.models import Q
+from account.models import Account, Community
+from django.db.models import Max, Q
 from ninja import Router
 from registry.api import v1
 from registry.api.v1 import with_read_db
-from registry.models import Score
+from registry.models import Event, Score
 from registry.utils import (
     decode_cursor,
     encode_cursor,
     get_cursor_query_condition,
+    get_cursor_tokens_for_results,
     reverse_lazy_with_query,
 )
 
-from ..exceptions import InvalidLimitException, api_get_object_or_404
+from ..exceptions import (
+    InvalidAPIKeyPermissions,
+    InvalidCommunityScoreRequestException,
+    InvalidLimitException,
+    NotFoundApiException,
+    api_get_object_or_404,
+)
 from .base import ApiKey, check_rate_limit
 from .schema import (
+    CursorPaginatedHistoricalScoreResponse,
     CursorPaginatedScoreResponse,
     CursorPaginatedStampCredentialResponse,
+    DetailedHistoricalScoreResponse,
     DetailedScoreResponse,
     ErrorMessageResponse,
     SigningMessageResponse,
@@ -73,24 +82,6 @@ async def a_submit_passport(
 
 
 @router.get(
-    "/score/{int:scorer_id}/{str:address}",
-    auth=ApiKey(),
-    response={
-        200: DetailedScoreResponse,
-        401: ErrorMessageResponse,
-        400: ErrorMessageResponse,
-        404: ErrorMessageResponse,
-    },
-    summary="Get score for an address that is associated with a scorer",
-    description="""Use this endpoint to fetch the score for a specific address that is associated with a scorer\n
-This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
-""",
-)
-def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
-    return v1.get_score(request, address, scorer_id)
-
-
-@router.get(
     "/score/{int:scorer_id}",
     auth=ApiKey(),
     response={
@@ -135,12 +126,16 @@ def get_scores(
         filter_condition = Q()
         field_ordering = None
         cursor = decode_cursor(token) if token else None
+        sort_fields = ["last_score_timestamp", "id"]
+
         if cursor:
             cursor = decode_cursor(token)
             cursor["last_score_timestamp"] = datetime.fromisoformat(
                 cursor.get("last_score_timestamp")
             )
-            filter_condition, field_ordering = get_cursor_query_condition(cursor)
+            filter_condition, field_ordering = get_cursor_query_condition(
+                cursor, sort_fields
+            )
 
         else:
             field_ordering = ["last_score_timestamp", "id"]
@@ -189,8 +184,8 @@ def get_scores(
                 last_score_timestamp__gte=last_score_timestamp__gte,
             )
 
-            next_filter_cond, _ = get_cursor_query_condition(next_cursor)
-            prev_filter_cond, _ = get_cursor_query_condition(prev_cursor)
+            next_filter_cond, _ = get_cursor_query_condition(next_cursor, sort_fields)
+            prev_filter_cond, _ = get_cursor_query_condition(prev_cursor, sort_fields)
 
             has_more_scores = base_query.filter(next_filter_cond).exists()
             has_prev_scores = base_query.filter(prev_filter_cond).exists()
@@ -278,3 +273,173 @@ def stamp_display(request) -> List[StampDisplayResponse]:
 )
 def get_gtc_stake(request, address: str):
     return v1.get_gtc_stake(request, address)
+
+
+@router.get(
+    "/score/{int:scorer_id}/history",
+    auth=ApiKey(),
+    response={
+        200: CursorPaginatedHistoricalScoreResponse,
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+        404: ErrorMessageResponse,
+    },
+    summary="Get score history based on timestamp and optional address that is associated with a scorer",
+    description="""Use this endpoint to get historical Passport score history based on timestamp and optional user address\n
+    This endpoint will return a `CursorPaginatedScoreResponse` that will include either a list of historical scores based on scorer ID and timestamp, or a single address representing the most recent score from the timestamp.\n
+    \n
+
+    Note: results will be sorted descending by `["created_at", "id"]`
+    """,
+)
+def get_score_history(
+    request,
+    scorer_id: int,
+    address: Optional[str] = None,
+    created_at: str = "",
+    token: str = None,
+    limit: int = 1000,
+) -> CursorPaginatedHistoricalScoreResponse:
+    check_rate_limit(request)
+
+    if limit > 1000:
+        raise InvalidLimitException()
+
+    community = api_get_object_or_404(Community, id=scorer_id, account=request.auth)
+
+    endpoint = "get_score_history"
+
+    try:
+        base_query = with_read_db(Event).filter(
+            community__id=community.id, action=Event.Action.SCORE_UPDATE
+        )
+
+        cursor = decode_cursor(token) if token else None
+
+        if cursor and "created_at" in cursor:
+            created_at = datetime.fromisoformat(cursor.get("created_at"))
+        elif created_at:
+            created_at = datetime.fromisoformat(created_at)
+        else:
+            created_at = None
+
+        # Scenario 1 - Snapshot for 1 addresses
+        # the user has passed in the created_at and address
+        # In this case only 1 result will be returned
+        if address and created_at:
+            score = (
+                base_query.filter(address=address, created_at__lte=created_at)
+                .order_by("-created_at")
+                .first()
+            )
+
+            score.created_at = score.created_at.isoformat()
+
+            response = CursorPaginatedHistoricalScoreResponse(
+                next=None, prev=None, items=[score]
+            )
+            return response
+
+        # Scenario 2 - Snapshot for all addresses
+        # the user has passed in the created_at, but no address
+        elif created_at:
+            pagination_sort_fields = ["address"]
+            filter_condition, field_ordering = get_cursor_query_condition(
+                cursor, pagination_sort_fields
+            )
+
+            field_ordering.append("-created_at")
+            query = (
+                base_query.filter(filter_condition)
+                .order_by(*field_ordering)
+                .distinct("address")
+            )
+
+            scores = list(query[:limit])
+            for score in scores:
+                score.created_at = score.created_at.isoformat()
+
+            if cursor and cursor["d"] == "prev":
+                scores.reverse()
+
+            domain = request.build_absolute_uri("/")[:-1]
+
+            page_links = get_cursor_tokens_for_results(
+                query,
+                domain,
+                scores,
+                pagination_sort_fields,
+                limit,
+                [scorer_id],
+                endpoint,
+            )
+
+            response = CursorPaginatedHistoricalScoreResponse(
+                next=page_links["next"], prev=page_links["prev"], items=scores
+            )
+
+            return response
+        # Scenario 3 - Just return history ...
+        else:
+            pagination_sort_fields = ["id"]
+            filter_condition, field_ordering = get_cursor_query_condition(
+                cursor, pagination_sort_fields
+            )
+
+            field_ordering.insert(0, "address")
+            query = (
+                base_query.filter(filter_condition)
+                .order_by(*field_ordering)
+                .distinct("address")
+            )
+
+            scores = list(query[:limit])
+            for score in scores:
+                score.created_at = score.created_at.isoformat()
+
+            if cursor and cursor["d"] == "prev":
+                scores.reverse()
+
+            domain = request.build_absolute_uri("/")[:-1]
+
+            page_links = get_cursor_tokens_for_results(
+                query,
+                domain,
+                scores,
+                pagination_sort_fields,
+                limit,
+                [scorer_id],
+                endpoint,
+            )
+
+            response = CursorPaginatedHistoricalScoreResponse(
+                next=page_links["next"], prev=page_links["prev"], items=scores
+            )
+            return response
+
+    except Exception as e:
+        log.error(
+            "Error getting passport scores. scorer_id=%s",
+            scorer_id,
+            exc_info=True,
+        )
+        raise e
+
+
+@router.get(
+    "/score/{int:scorer_id}/{str:address}",
+    auth=ApiKey(),
+    response={
+        200: DetailedScoreResponse,
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+        404: ErrorMessageResponse,
+    },
+    summary="Get score for an address that is associated with a scorer",
+    description=f"""Use this endpoint to fetch the score for a specific address that is associated with a scorer\n
+This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
+{v1.SCORE_TIMESTAMP_FIELD_DESCRIPTION}
+""",
+)
+def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
+    return v1.get_score(request, address, scorer_id)

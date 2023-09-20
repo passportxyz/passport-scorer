@@ -1,12 +1,13 @@
 import datetime
 from datetime import datetime as dt
+from unittest.mock import patch
 
 import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
-from registry.models import Passport, Score
+from registry.models import Event, Passport, Score
 from registry.test.test_passport_get_score import TestPassportGetScore
 from web3 import Web3
 
@@ -25,6 +26,7 @@ def paginated_scores(scorer_passport, passport_holder_addresses, scorer_communit
     last_score_timestamp - will be incresaing from first to last, with a time delta of 1 day
     """
     scores = []
+    events = []
     i = 0
     for holder in passport_holder_addresses:
         passport = Passport.objects.create(
@@ -33,6 +35,7 @@ def paginated_scores(scorer_passport, passport_holder_addresses, scorer_communit
         )
 
         score = Score.objects.create(
+            status="DONE",
             passport=passport,
             score="1",
             last_score_timestamp=timezone.now() + datetime.timedelta(days=i + 1),
@@ -76,7 +79,7 @@ def shuffled_paginated_scores(
     return scores
 
 
-class TestPassportGetScoresV2(TestPassportGetScore):
+class TestPassportGetScoreV2(TestPassportGetScore):
     base_url = "/registry/v2"
 
     def test_get_scores_returns_first_page_scores(
@@ -326,25 +329,17 @@ class TestPassportGetScoresV2(TestPassportGetScore):
         first one in the 2nd set are identical, and paginate around that split.
         """
         timestamps = [s.last_score_timestamp for s in shuffled_paginated_scores]
+
+        # We pick a duplicate timestamp, and we'll paginate around that
         timestamp_idx = timestamps.index("2023-08-06 15:11:45.088379+00:00")
 
-        scores = list(Score.objects.order_by("last_score_timestamp"))
-        middle = len(scores) // 2
+        scores = list(Score.objects.order_by("last_score_timestamp", "id"))
         newer_scores = scores[: timestamp_idx + 1]
         older_scores = scores[timestamp_idx + 1 :]
-
-        print(timestamp_idx)
-        for s in scores:
-            print(s.last_score_timestamp)
-
-        timestamp_to_filter_by = newer_scores[0].last_score_timestamp
 
         # Make sure we have sufficient data in both queries
         assert len(newer_scores) >= 2
         assert len(older_scores) >= 2
-        print("---")
-        print(newer_scores[-1].last_score_timestamp)
-        print(older_scores[0].last_score_timestamp)
         assert (
             newer_scores[-1].last_score_timestamp
             == older_scores[0].last_score_timestamp
@@ -509,7 +504,6 @@ class TestPassportGetScoresV2(TestPassportGetScore):
         response_json = response.json()
         response_data = response_json["items"]
         prev_page = response_json["prev"]
-        print("prev maybe ----->>>>", response_json)
         assert response_json["next"] == None
         assert len(response_data) == 1
         assert response_data == [
@@ -759,3 +753,127 @@ class TestPassportGetScoresV2(TestPassportGetScore):
         )
 
         assert is_sorted, "The scores are not in order"
+
+    def test_get_historical_score_filter_by_address_and_timestamp(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        created_at = timezone.now() + datetime.timedelta(days=40)
+        address = passport_holder_addresses[0]["address"]
+
+        event_object = list(Event.objects.all())
+
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/score/{scorer_community.id}/history",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            data={"created_at": created_at, "address": address},
+        )
+
+        response_data = response.json()
+
+        assert response.status_code == 200
+        assert len(response_data["items"]) == 1
+        event_address = None
+        for event in event_object:
+            if event.address == response_data["items"][0]["address"]:
+                event_address = event.address
+        assert response_data["items"][0]["address"] == event_address
+
+    def test_get_historical_scores_filter_by_timestamp(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        created_at = timezone.now() + datetime.timedelta(days=20)
+
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/score/{scorer_community.id}/history",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            data={"created_at": created_at},
+        )
+
+        response_data = response.json()
+
+        assert response.status_code == 200
+        items = response_data["items"]
+
+        for item in items:
+            item_created_at = item["created_at"]
+            assert (
+                datetime.datetime.fromisoformat(item_created_at) <= created_at
+            ), f"Item with address {item['address']} has a created_at greater than the given timestamp!"
+
+    def test_get_historical_scores_filter_by_timestamp_sorted(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        created_at = timezone.now() + datetime.timedelta(days=10)
+
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/score/{scorer_community.id}/history",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            data={"created_at": created_at},
+        )
+
+        response_data = response.json()
+
+        assert response.status_code == 200
+        items = response_data["items"]
+        for i in range(len(items) - 1):
+            assert (
+                items[i]["address"] >= items[i + 1]["address"]
+            ), f"Item at index {i} is not sorted!"
+
+    def test_get_historical_scores(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/score/{scorer_community.id}/history",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        response_data = response.json()["items"]
+        assert response.status_code == 200
+
+        assert len(response_data) == 10
+
+    def test_errors_getting_historical_scores(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/score/8/history",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        response_data = response.json()
+        assert response_data == {"detail": "No Community matches the given query."}
+
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/score/{scorer_community.id}/histor",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        response_data = response.json()
+        assert response_data == {"detail": "Unable to get score for provided scorer."}
