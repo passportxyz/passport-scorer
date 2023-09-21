@@ -72,7 +72,12 @@ async def acalculate_weighted_score(
         scored_providers = []
         async for stamp in Stamp.objects.filter(passport_id=passport_id):
             if stamp.provider not in scored_providers:
-                sum_of_weights += Decimal(weights.get(stamp.provider, 0))
+                weight = Decimal(weights.get(stamp.provider, 0))
+                sum_of_weights += weight
                 scored_providers.append(stamp.provider)
+                stamp.points = weight
+            else:
+                stamp.points = Decimal(0)
+            await stamp.asave()
         ret.append(sum_of_weights)
     return ret
