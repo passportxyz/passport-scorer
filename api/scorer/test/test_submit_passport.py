@@ -165,10 +165,10 @@ def _(scorer_community_with_gitcoin_default, score_response):
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "evidence": None,
         "error": None,
-        "stamp_scores": [
-            {"points": "1000000.000000000", "provider": "Ens"},
-            {"points": "1234.000000000", "provider": "Google"},
-        ],
+        "stamp_scores": {
+            "Ens": "1000000.000000000",
+            "Google": "1234.000000000",
+        },
     }
 
 
@@ -336,8 +336,8 @@ def _(scorer_community_with_gitcoin_default, score_response):
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "evidence": None,
         "error": None,
-        "stamp_scores": [
-            {"points": "1000000.000000000", "provider": "Ens"},
-            {"points": "1234.000000000", "provider": "Google"},
-        ],
+        "stamp_scores": {
+            "Ens": "1000000.000000000",
+            "Google": "1234.000000000",
+        },
     }

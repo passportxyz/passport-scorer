@@ -342,9 +342,7 @@ def handle_get_stamp_scores(address: str, scorer_id: int):
         passport__address=address.lower(), passport__community_id=scorer_id
     )
 
-    stamp_scores = [
-        {"points": stamp.points, "provider": stamp.provider} for stamp in stamps
-    ]
+    stamp_scores = {stamp.provider: str(stamp.points) for stamp in stamps}
 
     return stamp_scores
 
