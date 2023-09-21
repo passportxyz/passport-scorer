@@ -36,6 +36,9 @@ class Stamp(models.Model):
         null=False, blank=False, default="", max_length=256, db_index=True
     )
     credential = models.JSONField(default=dict)
+    points = models.DecimalField(
+        null=True, blank=True, decimal_places=9, max_digits=18, default=0
+    )
 
     def __str__(self):
         return f"Stamp #{self.id}, hash={self.hash}, provider={self.provider}, passport={self.passport_id}"
