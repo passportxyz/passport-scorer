@@ -84,7 +84,7 @@ class DetailedScoreResponse(Schema):
     last_score_timestamp: Optional[str]
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
-    stamp_scores: dict
+    stamp_scores: Optional[dict]
 
     @staticmethod
     def resolve_last_score_timestamp(obj):

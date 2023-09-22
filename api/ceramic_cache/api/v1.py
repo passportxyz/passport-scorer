@@ -267,6 +267,11 @@ def delete_stamps(request, payload: List[DeleteStampPayload]):
         raise e
 
 
+@router.get("weights", response=Dict[str, str])
+def get_scorer_weights(request):
+    return settings.GITCOIN_PASSPORT_WEIGHTS
+
+
 @router.get("stamp", response=GetStampResponse)
 def get_stamps(request, address):
     try:
