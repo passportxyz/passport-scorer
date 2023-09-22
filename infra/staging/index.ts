@@ -408,8 +408,10 @@ const baseScorerServiceConfig: ScorerService = {
   needsVerifier: false,
   httpListenerArn: httpsListener.arn,
   targetGroup: targetGroupDefault,
-  autoScaleMaxCapacity: 2,
   autoScaleMinCapacity: 1,
+  autoScaleMaxCapacity: 2,
+  cpu: 512,
+  memory: 512,
 };
 
 const scorerServiceDefault = createScorerECSService(
@@ -530,7 +532,7 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
     containers: {
       worker1: {
         name: "worker1",
-        memory: 2048,
+        memory: 1024,
         cpu: 1024,
         image: dockerGtcPassportScorerImage,
         command: [
@@ -609,8 +611,8 @@ const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
           "-l",
           "DEBUG",
         ],
-        memory: 4096,
-        cpu: 2000,
+        memory: 1024,
+        cpu: 1024,
         portMappings: [],
         secrets: secrets,
         environment: environment,
@@ -624,8 +626,8 @@ const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
 const ecsScorerWorker2AutoscalingTarget = new aws.appautoscaling.Target(
   "scorer-worker2-autoscaling-target",
   {
-    maxCapacity: 4,
-    minCapacity: 2,
+    maxCapacity: 2,
+    minCapacity: 1,
     resourceId: pulumi.interpolate`service/${cluster.name}/${celery2.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
     serviceNamespace: "ecs",
@@ -874,7 +876,7 @@ echo $(date) "Finished installation of docker" >> /var/log/gitcoin/init.log
 const web = new aws.ec2.Instance("Web", {
   ami: ubuntu.then((ubuntu) => ubuntu.id),
   associatePublicIpAddress: true,
-  instanceType: "t3.medium",
+  instanceType: "t3.small",
   subnetId: vpcPublicSubnetId1,
   vpcSecurityGroupIds: [secgrp.id],
   rootBlockDevice: {
@@ -1013,7 +1015,7 @@ const redashInitScript = redashDbUrl.apply((url) => {
 const redashinstance = new aws.ec2.Instance("redashinstance", {
   ami: ubuntu.then((ubuntu) => ubuntu.id),
   associatePublicIpAddress: true,
-  instanceType: "t3.medium",
+  instanceType: "t3.small",
   subnetId: vpcPublicSubnetId2,
   rootBlockDevice: {
     volumeSize: 50,
@@ -1133,44 +1135,44 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
   targetGroupArn: redashTarget.arn,
 });
 
-export const weeklyDataDumpTaskDefinition = createScheduledTask(
-  "weekly-data-dump",
-  {
-    ...baseScorerServiceConfig,
-    securityGroup: secgrp,
-    command: ["python", "manage.py", "dump_stamp_data"],
-    scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
-  },
-  envConfig
-);
+// export const weeklyDataDumpTaskDefinition = createScheduledTask(
+//   "weekly-data-dump",
+//   {
+//     ...baseScorerServiceConfig,
+//     securityGroup: secgrp,
+//     command: ["python", "manage.py", "dump_stamp_data"],
+//     scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
+//   },
+//   envConfig
+// );
 
-export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
-  "frequent-allo-scorer-data-dump",
-  {
-    ...baseScorerServiceConfig,
-    securityGroup: secgrp,
-    command: [
-      "python",
-      "manage.py",
-      "scorer_dump_data",
-      "--config",
-      JSON.stringify([
-        {
-          name: "registry.Score",
-          filter: { community_id: 14 },
-          select_related: ["passport"],
-        },
-      ]),
+// export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
+//   "frequent-allo-scorer-data-dump",
+//   {
+//     ...baseScorerServiceConfig,
+//     securityGroup: secgrp,
+//     command: [
+//       "python",
+//       "manage.py",
+//       "scorer_dump_data",
+//       "--config",
+//       JSON.stringify([
+//         {
+//           name: "registry.Score",
+//           filter: { community_id: 14 },
+//           select_related: ["passport"],
+//         },
+//       ]),
 
-      `--s3-uri=s3://public.${domain}`,
-      "--summary-extra-args",
-      JSON.stringify({ ACL: "public-read" }),
-    ],
+//       `--s3-uri=s3://public.${domain}`,
+//       "--summary-extra-args",
+//       JSON.stringify({ ACL: "public-read" }),
+//     ],
 
-    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-  },
-  envConfig
-);
+//     scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+//   },
+//   envConfig
+// );
 
 const exportVals = createScoreExportBucketAndDomain(
   publicDataDomain,

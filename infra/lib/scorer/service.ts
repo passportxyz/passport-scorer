@@ -23,10 +23,12 @@ export type ScorerService = {
   httpListenerRulePaths?: Input<Input<string>[]>;
   listenerRulePriority?: Input<number>;
   targetGroup: TargetGroup;
-  autoScaleMaxCapacity: number;
-  autoScaleMinCapacity: number;
+  autoScaleMaxCapacity?: number;
+  autoScaleMinCapacity?: number;
   alb: aws.lb.LoadBalancer;
   alertTopic?: Topic;
+  cpu?: number;
+  memory?: number;
 };
 
 export type ScorerEnvironmentConfig = {
@@ -158,6 +160,7 @@ export function createTargetGroup(
   vpcId: Input<string>
 ): TargetGroup {
   return new TargetGroup(name, {
+    tags: { name: name },
     port: 80,
     protocol: "HTTP",
     vpcId: vpcId,
@@ -207,8 +210,8 @@ export function createScorerECSService(
     scorer: {
       name: "scorer",
       image: config.dockerImageScorer,
-      memory: 4096,
-      cpu: 4000,
+      memory: config.memory ? config.memory : 4096,
+      cpu: config.cpu ? config.cpu : 4096,
       portMappings: [{ containerPort: 80, hostPort: 80 }],
       command: [
         "gunicorn",
@@ -254,6 +257,7 @@ export function createScorerECSService(
   }
 
   const service = new awsx.ecs.FargateService(name, {
+    tags: { name: name },
     cluster: config.cluster.arn,
     desiredCount: 1,
     networkConfiguration: {
@@ -281,8 +285,13 @@ export function createScorerECSService(
   const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
     `autoscale-target-${name}`,
     {
-      maxCapacity: 20,
-      minCapacity: 2,
+      tags: { name: name },
+      maxCapacity: config.autoScaleMaxCapacity
+        ? config.autoScaleMaxCapacity
+        : 20,
+      minCapacity: config.autoScaleMinCapacity
+        ? config.autoScaleMinCapacity
+        : 1,
       resourceId: interpolate`service/${config.cluster.name}/${service.service.name}`,
       scalableDimension: "ecs:service:DesiredCount",
       serviceNamespace: "ecs",
@@ -309,6 +318,7 @@ export function createScorerECSService(
 
   if (config.alertTopic) {
     const cpuAlarm = new aws.cloudwatch.MetricAlarm(`CPUUtilization-${name}`, {
+      tags: { name: name },
       alarmActions: [config.alertTopic.arn],
       comparisonOperator: "GreaterThanThreshold",
       datapointsToAlarm: 1,
@@ -328,6 +338,7 @@ export function createScorerECSService(
     const memoryAlarm = new aws.cloudwatch.MetricAlarm(
       `MemoryUtilization-${name}`,
       {
+        tags: { name: name },
         alarmActions: [config.alertTopic.arn],
         comparisonOperator: "GreaterThanThreshold",
         datapointsToAlarm: 1,
@@ -346,6 +357,7 @@ export function createScorerECSService(
     );
 
     const http5xxAlarm = new aws.cloudwatch.MetricAlarm(`HTTP-5xx-${name}`, {
+      tags: { name: name },
       alarmActions: [config.alertTopic.arn],
       comparisonOperator: "GreaterThanThreshold",
       datapointsToAlarm: 3,

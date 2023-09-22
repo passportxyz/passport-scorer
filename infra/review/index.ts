@@ -691,8 +691,8 @@ const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
           "-l",
           "DEBUG",
         ],
-        memory: 4096,
-        cpu: 2000,
+        memory: 1024,
+        cpu: 1024,
         portMappings: [],
         secrets: secrets,
         environment: environment,
@@ -805,7 +805,7 @@ echo $(date) "Finished installation of docker" >> /var/log/gitcoin/init.log
 const web = new aws.ec2.Instance("Web", {
   ami: ubuntu.then((ubuntu) => ubuntu.id),
   associatePublicIpAddress: true,
-  instanceType: "t3.medium",
+  instanceType: "t3.small",
   subnetId: vpcPublicSubnetId1,
   vpcSecurityGroupIds: [secgrp.id],
   rootBlockDevice: {
