@@ -536,8 +536,8 @@ const baseScorerServiceConfig: ScorerService = {
   needsVerifier: false,
   httpListenerArn: httpsListener.arn,
   targetGroup: targetGroupDefault,
-  autoScaleMaxCapacity: 2,
-  autoScaleMinCapacity: 1,
+  autoScaleMaxCapacity: 20,
+  autoScaleMinCapacity: 2,
   alertTopic: pagerdutyTopic,
 };
 
@@ -737,7 +737,7 @@ const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
           "16",
         ],
         memory: 2048,
-        cpu: 1000,
+        cpu: 1024,
         portMappings: [],
         secrets: secrets,
         environment: environment,
@@ -751,7 +751,7 @@ const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
 const ecsScorerWorker2AutoscalingTarget = new aws.appautoscaling.Target(
   "scorer-worker2-autoscaling-target",
   {
-    maxCapacity: 400,
+    maxCapacity: 20,
     minCapacity: 2,
     resourceId: pulumi.interpolate`service/${cluster.name}/${celery2.service.name}`,
     scalableDimension: "ecs:service:DesiredCount",
@@ -1279,8 +1279,8 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
   "daily-data-dump",
   {
     ...baseScorerServiceConfig,
-    cpu: 4,
-    memory: 8192,
+    cpu: 1024,
+    memory: 2048,
     securityGroup: secgrp,
     ephemeralStorageSizeInGiB: 100,
     command: [
