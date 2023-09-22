@@ -3,6 +3,7 @@ from enum import Enum
 from typing import List, Optional
 
 from ninja import Schema
+from pydantic import Json
 from registry.models import Event, Score
 
 
@@ -72,11 +73,6 @@ class ActionEnum(str, Enum):
     score_update = Event.Action.SCORE_UPDATE
 
 
-class StampScoreSchema(Schema):
-    points: Decimal
-    provider: str
-
-
 class DetailedScoreResponse(Schema):
     address: str
     score: Optional[str]
@@ -84,7 +80,7 @@ class DetailedScoreResponse(Schema):
     last_score_timestamp: Optional[str]
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
-    stamp_scores: Optional[dict]
+    stamp_scores: Optional[Json]
 
     @staticmethod
     def resolve_last_score_timestamp(obj):

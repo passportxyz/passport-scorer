@@ -337,16 +337,6 @@ def get_score(request, address: str, scorer_id: int | str) -> DetailedScoreRespo
     return handle_get_score(address, scorer_id, account)
 
 
-def handle_get_stamp_scores(address: str, scorer_id: int):
-    stamps = Stamp.objects.filter(
-        passport__address=address.lower(), passport__community_id=scorer_id
-    )
-
-    stamp_scores = {stamp.provider: str(stamp.points) for stamp in stamps}
-
-    return stamp_scores
-
-
 def handle_get_score(
     address: str, scorer_id: int, account: Account
 ) -> DetailedScoreResponse:
@@ -359,7 +349,7 @@ def handle_get_score(
         score = Score.objects.get(
             passport__address=lower_address, passport__community=user_community
         )
-        stamp_scores = handle_get_stamp_scores(address, scorer_id)
+
         response_data = {
             "address": score.passport.address,
             "score": score.score,
@@ -369,7 +359,7 @@ def handle_get_score(
             else None,
             "evidence": score.evidence,
             "error": score.error,
-            "stamp_scores": stamp_scores,
+            "stamp_scores": score.points,
         }
 
         return DetailedScoreResponse(**response_data)

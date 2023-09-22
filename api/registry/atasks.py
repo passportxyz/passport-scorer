@@ -63,6 +63,7 @@ async def acalculate_score(passport: Passport, community_id: int, score: Score):
     score.last_score_timestamp = get_utc_time()
     score.evidence = scoreData.evidence[0].as_dict() if scoreData.evidence else None
     score.error = None
+    score.points = scoreData.points
     log.info("Calculated score: %s", score)
 
 

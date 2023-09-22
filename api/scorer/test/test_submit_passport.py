@@ -166,8 +166,8 @@ def _(scorer_community_with_gitcoin_default, score_response):
         "evidence": None,
         "error": None,
         "stamp_scores": {
-            "Ens": "1000000.000000000",
-            "Google": "1234.000000000",
+            "Ens": 1000000.0,
+            "Google": 1234.0,
         },
     }
 
@@ -337,7 +337,7 @@ def _(scorer_community_with_gitcoin_default, score_response):
         "evidence": None,
         "error": None,
         "stamp_scores": {
-            "Ens": "1000000.000000000",
-            "Google": "1234.000000000",
+            "Ens": 1000000.0,
+            "Google": 1234.0,
         },
     }
