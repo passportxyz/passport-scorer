@@ -411,7 +411,7 @@ const baseScorerServiceConfig: ScorerService = {
   autoScaleMinCapacity: 1,
   autoScaleMaxCapacity: 2,
   cpu: 512,
-  memory: 512,
+  memory: 1024,
 };
 
 const scorerServiceDefault = createScorerECSService(
