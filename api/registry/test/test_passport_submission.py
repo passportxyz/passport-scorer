@@ -542,6 +542,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "last_score_timestamp": None,
             "status": "ERROR",
             "error": "No Passport found for this address.",
+            "stamp_scores": None,
         }
 
     @patch("registry.atasks.validate_credential", side_effect=[[], [], [], []])
@@ -575,6 +576,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "score": Decimal("2.000000000"),
             "status": "DONE",
             "error": None,
+            "stamp_scores": None,
         }
 
         expected2ndResponse = {
@@ -584,6 +586,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "score": Decimal("2.000000000"),
             "status": "DONE",
             "error": None,
+            "stamp_scores": None,
         }
 
         # First submission

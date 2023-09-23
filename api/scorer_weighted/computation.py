@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 def calculate_weighted_score(
     scorer: WeightedScorer, passport_ids: List[int]
-) -> List[Decimal]:
+) -> List[dict]:
     """
     Calculate the weighted score for the given list of passport IDs and a single scorer.
 
@@ -27,7 +27,7 @@ def calculate_weighted_score(
     """
     from registry.models import Stamp
 
-    ret: List[Decimal] = []
+    ret: List[dict] = []
     log.debug(
         "calculate_weighted_score for scorer %s and passports %s", scorer, passport_ids
     )
@@ -35,17 +35,27 @@ def calculate_weighted_score(
     for passport_id in passport_ids:
         sum_of_weights: Decimal = Decimal(0)
         scored_providers = []
+        earned_points = {}
         for stamp in Stamp.objects.filter(passport_id=passport_id):
             if stamp.provider not in scored_providers:
-                sum_of_weights += Decimal(weights.get(stamp.provider, 0))
+                weight = Decimal(weights.get(stamp.provider, 0))
+                sum_of_weights += weight
                 scored_providers.append(stamp.provider)
-        ret.append(sum_of_weights)
+                earned_points[stamp.provider] = str(weight)
+            else:
+                earned_points[stamp.provider] = str(Decimal(0))
+        ret.append(
+            {
+                "sum_of_weights": sum_of_weights,
+                "earned_points": earned_points,
+            }
+        )
     return ret
 
 
 async def acalculate_weighted_score(
     scorer: WeightedScorer, passport_ids: List[int]
-) -> List[Decimal]:
+) -> List[dict]:
     """
     Calculate the weighted score for the given list of passport IDs and a single scorer.
 
@@ -62,17 +72,29 @@ async def acalculate_weighted_score(
     """
     from registry.models import Stamp
 
-    ret: List[Decimal] = []
+    ret: List[dict] = []
     log.debug(
         "calculate_weighted_score for scorer %s and passports %s", scorer, passport_ids
     )
     weights = scorer.weights
+
     for passport_id in passport_ids:
         sum_of_weights: Decimal = Decimal(0)
         scored_providers = []
+        earned_points = {}
         async for stamp in Stamp.objects.filter(passport_id=passport_id):
             if stamp.provider not in scored_providers:
-                sum_of_weights += Decimal(weights.get(stamp.provider, 0))
+                weight = Decimal(weights.get(stamp.provider, 0))
+                sum_of_weights += weight
                 scored_providers.append(stamp.provider)
-        ret.append(sum_of_weights)
+                earned_points[stamp.provider] = float(weight)
+            else:
+                earned_points[stamp.provider] = float(Decimal(0))
+
+        ret.append(
+            {
+                "sum_of_weights": sum_of_weights,
+                "earned_points": earned_points,
+            }
+        )
     return ret

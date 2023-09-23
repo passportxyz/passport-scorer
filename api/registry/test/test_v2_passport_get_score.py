@@ -199,6 +199,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
             f"/registry/score/{scorer_community.id}?last_score_timestamp__gte={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
+
         assert response.status_code == 200
         assert len(response.json()["items"]) == len(newer_scores)
 
@@ -286,6 +287,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
                 "evidence": s.evidence,
                 "error": s.error,
+                "stamp_scores": None,
             }
             for s in newer_scores
         ]
@@ -311,6 +313,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
                 "evidence": s.evidence,
                 "error": s.error,
+                "stamp_scores": None,
             }
             for s in newer_scores
         ]
@@ -370,6 +373,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
                 "evidence": s.evidence,
                 "error": s.error,
+                "stamp_scores": None,
             }
             for s in newer_scores
         ]
@@ -395,6 +399,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
                 "evidence": s.evidence,
                 "error": s.error,
+                "stamp_scores": None,
             }
             for s in older_scores[:expected_length]
         ]
@@ -418,6 +423,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
                 "evidence": s.evidence,
                 "error": s.error,
+                "stamp_scores": None,
             }
             for s in newer_scores
         ]
@@ -465,6 +471,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
                 "evidence": s.evidence,
                 "error": s.error,
+                "stamp_scores": None,
             }
             for s in newer_scores[:2]
         ]
@@ -489,6 +496,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
                 "evidence": s.evidence,
                 "error": s.error,
+                "stamp_scores": None,
             }
             for s in newer_scores[2:4]
         ]
@@ -514,6 +522,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
                 "evidence": s.evidence,
                 "error": s.error,
+                "stamp_scores": None,
             }
             for s in newer_scores[4:5]
         ]
@@ -538,6 +547,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
                 "evidence": s.evidence,
                 "error": s.error,
+                "stamp_scores": None,
             }
             for s in newer_scores[2:4]
         ]
@@ -562,6 +572,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
                 "evidence": s.evidence,
                 "error": s.error,
+                "stamp_scores": None,
             }
             for s in newer_scores[:2]
         ]
@@ -605,6 +616,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
                 "evidence": s.evidence,
                 "error": s.error,
+                "stamp_scores": None,
             }
             for s in newer_scores[1:]
         ]
@@ -630,6 +642,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
                 "evidence": s.evidence,
                 "error": s.error,
+                "stamp_scores": None,
             }
             for s in newer_scores
         ]

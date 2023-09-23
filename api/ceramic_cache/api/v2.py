@@ -1,6 +1,6 @@
 """Ceramic Cache API"""
 
-from typing import List
+from typing import Dict, List
 
 import api_logging as logging
 import requests
@@ -230,6 +230,11 @@ def delete_stamps(request, payload: List[DeleteStampPayload]):
         )
     except Exception as e:
         raise e
+
+
+@router.get("weights", response=Dict[str, str])
+def get_scorer_weights(request):
+    return settings.GITCOIN_PASSPORT_WEIGHTS
 
 
 @router.get("stamp", response=GetStampResponse)

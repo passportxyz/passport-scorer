@@ -18,7 +18,7 @@ from ninja import Router
 from ninja.pagination import paginate
 from ninja_extra.exceptions import APIException
 from pydantic import BaseModel
-from registry.models import Event, Passport, Score
+from registry.models import Event, Passport, Score, Stamp
 from registry.utils import (
     decode_cursor,
     encode_cursor,
@@ -349,7 +349,20 @@ def handle_get_score(
         score = Score.objects.get(
             passport__address=lower_address, passport__community=user_community
         )
-        return score
+
+        response_data = {
+            "address": score.passport.address,
+            "score": score.score,
+            "status": score.status,
+            "last_score_timestamp": score.last_score_timestamp.isoformat()
+            if score.last_score_timestamp
+            else None,
+            "evidence": score.evidence,
+            "error": score.error,
+            "stamp_scores": score.points,
+        }
+
+        return DetailedScoreResponse(**response_data)
     except NotFoundApiException as e:
         raise e
     except Exception as e:

@@ -105,6 +105,7 @@ def _(scorer_community_with_gitcoin_default, submit_passport_response):
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "evidence": None,
         "error": None,
+        "stamp_scores": None,
     }
 
 
@@ -164,6 +165,10 @@ def _(scorer_community_with_gitcoin_default, score_response):
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "evidence": None,
         "error": None,
+        "stamp_scores": {
+            "Ens": 1000000.0,
+            "Google": 1234.0,
+        },
     }
 
 
@@ -219,6 +224,7 @@ def _(scorer_community_with_gitcoin_default, scoring_failed_score_response):
         "last_score_timestamp": None,
         "evidence": None,
         "error": "something bad",
+        "stamp_scores": None,
     }
 
 
@@ -330,4 +336,8 @@ def _(scorer_community_with_gitcoin_default, score_response):
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "evidence": None,
         "error": None,
+        "stamp_scores": {
+            "Ens": 1000000.0,
+            "Google": 1234.0,
+        },
     }
