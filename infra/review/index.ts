@@ -118,7 +118,7 @@ const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
 const postgresql = new aws.rds.Instance(
   `scorer-db`,
   {
-    allocatedStorage: 12,
+    allocatedStorage: 20,
     engine: "postgres",
     // engineVersion: "5.7",
     instanceClass: "db.t3.micro",
