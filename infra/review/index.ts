@@ -609,8 +609,8 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
     executionRole: {
       roleArn: workerRole.arn,
     },
-    cpu: "1vCPU",
-    memory: "2GB",
+    cpu: "1024",
+    memory: "2048",
     containers: {
       worker1: {
         name: "worker1",
