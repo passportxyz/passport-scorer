@@ -118,7 +118,7 @@ const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
 const postgresql = new aws.rds.Instance(
   `scorer-db`,
   {
-    allocatedStorage: 12,
+    allocatedStorage: 20,
     engine: "postgres",
     // engineVersion: "5.7",
     instanceClass: "db.t3.micro",
@@ -609,8 +609,8 @@ const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
     executionRole: {
       roleArn: workerRole.arn,
     },
-    cpu: "1vCPU",
-    memory: "2GB",
+    cpu: "1024",
+    memory: "2048",
     containers: {
       worker1: {
         name: "worker1",
