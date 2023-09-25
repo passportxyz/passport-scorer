@@ -45,6 +45,11 @@ Run locally like:
 or
 `k6 run -e SCORER_API_KEY=<your API key> -e SCORER_ID=<your scorer id> script.js`
 
+To output results / stats in a CSV file, run k6 with the `--out` like:
+`k6 run -e SCORER_API_KEY='iE7QwgX9.rx9XIXdkPwZUYAHditFMgFVKvDp428OH' -e SCORER_ID=24 --vus 10 --duration 120s --out csv=k6_metrics.csv script.js`
+
+You can then use the `stats.ipynb` to analyse the results frm the `k6_metrics.csv` (after the run).
+
 ## In cloud
 
 First make sure to set the environment variables: https://k6.io/docs/cloud/manage/environment-variables/
