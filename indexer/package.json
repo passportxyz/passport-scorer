@@ -1,0 +1,15 @@
+{
+  "name": "indexer",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/pg": "^8.10.3",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "chainsauce": "^1.0.19",
+    "ethers": "^5.7.2",
+    "pg": "^8.11.3"
+  }
+}
