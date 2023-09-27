@@ -4,12 +4,14 @@
   "main": "index.ts",
   "license": "MIT",
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.5",
     "@types/pg": "^8.10.3",
     "typescript": "^5.2.2"
   },
   "dependencies": {
     "chainsauce": "^1.0.19",
     "ethers": "^5.7.2",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "ts-node": "^10.9.1"
   }
 }

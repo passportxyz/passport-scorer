@@ -1,15 +1,24 @@
 {
-  "include": ["src/**/*", "tests/**/*"],
   "compilerOptions": {
-    "target": "es2019",
-    "module": "esnext",
-    "esModuleInterop": true,
-    "moduleResolution": "node",
     "declaration": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "outDir": "dist"
+    "removeComments": true,
+    "noLib": false,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "lib": ["es6"],
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "es6",
+    "noImplicitAny": true,
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "resolveJsonModule": true,
+    "paths": {
+      "*": ["../node_modules/*", "node_modules/*"]
+    }
   },
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "__tests__/**/*"]
 }
