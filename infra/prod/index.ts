@@ -221,7 +221,10 @@ export const redisCacheOpsConnectionUrl = pulumi.interpolate`redis://${redisPrim
 // Set up ALB and ECS cluster
 //////////////////////////////////////////////////////////////
 
-const cluster = new aws.ecs.Cluster("scorer");
+const cluster = new aws.ecs.Cluster("scorer", {
+  settings: [{ name: "containerInsights", value: "enabled" }],
+});
+
 // export const clusterInstance = cluster;
 export const clusterId = cluster.id;
 
