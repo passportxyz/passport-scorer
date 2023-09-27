@@ -175,7 +175,7 @@ const secgrp_redis = new aws.ec2.SecurityGroup("scorer-redis-secgrp", {
 const redis = new aws.elasticache.Cluster("scorer-redis", {
   engine: "redis",
   engineVersion: "4.0.10",
-  nodeType: "cache.m5.large",
+  nodeType: "cache.t3.micro",
   numCacheNodes: 1,
   port: 6379,
   subnetGroupName: redisSubnetGroup.name,
