@@ -1,5 +1,5 @@
 [package]
-name = "rust-indexer"
+name = "indexer"
 version = "0.1.0"
 edition = "2021"
 

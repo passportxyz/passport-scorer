@@ -15,7 +15,6 @@ impl PostgresClient {
                 eprintln!("connection error: {}", e);
             }
         });
-        dbg!("Connected to Postgres!");
         Ok(Self { client })
     }
 
