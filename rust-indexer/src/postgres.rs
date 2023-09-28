@@ -1,6 +1,8 @@
 use tokio;
 use tokio_postgres::{Client, Error, NoTls};
 
+use crate::CONTRACT_START_BLOCK;
+
 pub struct PostgresClient {
     client: Client,
 }
@@ -27,7 +29,9 @@ impl PostgresClient {
                   staker CHAR(42) NOT NULL,
                   address CHAR(42),
                   amount CHAR(42) NOT NULL,
-                  staked BOOLEAN NOT NULL
+                  staked BOOLEAN NOT NULL,
+                  block_number INT NOT NULL,
+                  tx_hash CHAR(66) NOT NULL
                 );",
                 &[],
             )
@@ -43,10 +47,12 @@ impl PostgresClient {
         staker: &str,
         amount: &str,
         staked: bool,
+        block_number: i32,
+        tx_hash: &str,
     ) -> Result<(), Error> {
         self.client.execute(
-      "INSERT INTO GTCStakeEvents (event_type, round_id, staker, amount, staked) VALUES ($1, $2, $3, $4, $5)",
-      &[&"SelfStake", &round_id, &staker, &amount, &staked],
+      "INSERT INTO GTCStakeEvents (event_type, round_id, staker, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      &[&"SelfStake", &round_id, &staker, &amount, &staked, &block_number, &tx_hash],
   ).await?;
 
         println!("Row inserted into GTCStakeEvents with type SelfStake!");
@@ -60,13 +66,33 @@ impl PostgresClient {
         user: &str,
         amount: &str,
         staked: bool,
+        block_number: i32,
+        tx_hash: &str,
     ) -> Result<(), Error> {
         self.client.execute(
-      "INSERT INTO GTCStakeEvents (event_type, round_id, staker, address, amount, staked) VALUES ($1, $2, $3, $4, $5, $6)",
-      &[&"Xstake", &round_id, &staker, &user, &amount, &staked],
+      "INSERT INTO GTCStakeEvents (event_type, round_id, staker, address, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+      &[&"Xstake", &round_id, &staker, &user, &amount, &staked, &block_number, &tx_hash],
   ).await?;
 
         println!("Row inserted into GTCStakeEvents with type Xstake!");
         Ok(())
+    }
+    pub async fn get_latest_block(&self) -> Result<i32, Error> {
+        let latest_block_rows = self
+            .client
+            .query(
+                "SELECT block_number FROM GTCStakeEvents ORDER BY id DESC LIMIT 1;",
+                &[],
+            )
+            .await?;
+
+        if let Some(row) = latest_block_rows.get(0) {
+            // Extract and return the block number
+            let latest_block: i32 = row.get("block_number");
+            Ok(latest_block)
+        } else {
+            // return contract start block
+            Ok(CONTRACT_START_BLOCK)
+        }
     }
 }

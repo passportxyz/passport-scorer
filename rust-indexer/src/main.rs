@@ -1,4 +1,5 @@
 mod postgres;
+
 use dotenv::dotenv;
 use ethers::{
     contract::abigen,
@@ -6,6 +7,7 @@ use ethers::{
     providers::{Http, Middleware, Provider, StreamExt, Ws},
 };
 use eyre::Result;
+use postgres::PostgresClient;
 use std::{env, str::FromStr, sync::Arc};
 
 abigen!(
@@ -15,6 +17,8 @@ abigen!(
         event xStake(uint256 roundId,address staker,address user,uint256 amount,bool staked)
     ]"#,
 );
+
+pub const CONTRACT_START_BLOCK: i32 = 16403024;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -30,19 +34,20 @@ async fn main() -> Result<()> {
 
     let database_url = get_env("DATABASE_URL").unwrap();
 
-    let postgres_client = postgres::PostgresClient::new(&database_url).await?;
+    let postgres_client = PostgresClient::new(&database_url).await?;
     postgres_client.create_table().await?;
 
     let provider = Provider::<Ws>::connect(rpc_url).await?;
     let client = Arc::new(provider);
 
     let current_block = client.get_block_number().await?;
-    // block contract was deployed at
-    let contract_start_block = 16403024;
+
+    // This is the block number from which we want to start querying events. Either the contract initiation or the last block we queried.
+    let query_start_block = postgres_client.get_latest_block().await?;
 
     let id_staking = IDStaking::new(id_staking_address, client.clone());
 
-    let mut last_queried_block = contract_start_block;
+    let mut last_queried_block: u32 = query_start_block.try_into().unwrap();
 
     // You can make eth_getLogs requests with up to a 2K block range and no limit on the response size
     while last_queried_block < current_block.as_u32() {
@@ -51,13 +56,12 @@ async fn main() -> Result<()> {
             .events()
             .from_block(last_queried_block)
             .to_block(next_block_range)
-            .query()
+            .query_with_meta()
             .await;
 
         match previous_events_query {
             Ok(previous_events) => {
-                for event in previous_events.iter() {
-                    // match log.topics[
+                for (event, meta) in previous_events.iter() {
                     match event {
                         IDStakingEvents::SelfStakeFilter(SelfStakeFilter {
                             round_id,
@@ -65,6 +69,8 @@ async fn main() -> Result<()> {
                             amount,
                             staked,
                         }) => {
+                            let block_number = meta.block_number.as_u32();
+                            let tx_hash = format!("{:?}", meta.transaction_hash);
                             let round_id = round_id.as_u32();
 
                             // Convert H160 and U256 to String
@@ -73,13 +79,14 @@ async fn main() -> Result<()> {
 
                             // Dereference the bool (if needed)
                             let staked = *staked;
-
                             if let Err(err) = postgres_client
                                 .insert_into_combined_stake_filter_self_stake(
                                     round_id.try_into().unwrap(),
                                     &staker_str,
                                     &amount_str,
                                     staked,
+                                    block_number.try_into().unwrap(),
+                                    &tx_hash,
                                 )
                                 .await
                             {
@@ -93,6 +100,8 @@ async fn main() -> Result<()> {
                             amount,
                             staked,
                         }) => {
+                            let block_number = meta.block_number.as_u32();
+                            let tx_hash = format!("{:?}", meta.transaction_hash);
                             // Convert U256 to i32 for round_id
                             // Be cautious about overflow, and implement a proper check if necessary
                             let round_id_i32 = round_id.low_u32() as i32;
@@ -114,6 +123,8 @@ async fn main() -> Result<()> {
                                     &user_str,
                                     &amount_str,
                                     staked,
+                                    block_number.try_into().unwrap(),
+                                    &tx_hash,
                                 )
                                 .await
                             {
@@ -121,8 +132,6 @@ async fn main() -> Result<()> {
                             }
                         }
                     }
-
-                    last_queried_block = next_block_range;
                 }
             }
             Err(err) => {
@@ -130,6 +139,7 @@ async fn main() -> Result<()> {
                                                               // You can also implement additional logic here, like retries or alerting.
             }
         }
+        last_queried_block = next_block_range;
     }
 
     let future_events = id_staking.events().from_block(current_block);
@@ -144,6 +154,8 @@ async fn main() -> Result<()> {
                 amount,
                 staked,
             }) => {
+                let block_number = meta.block_number.as_u32();
+                let tx_hash = format!("{:?}", meta.transaction_hash);
                 // Convert U256 to i32 for round_id
                 // Be cautious about overflow, and implement a proper check if necessary
                 let round_id_i32 = round_id.low_u32() as i32;
@@ -163,6 +175,8 @@ async fn main() -> Result<()> {
                         &staker_str,
                         &amount_str,
                         staked,
+                        block_number.try_into().unwrap(),
+                        &tx_hash,
                     )
                     .await
                 {
@@ -176,6 +190,8 @@ async fn main() -> Result<()> {
                 amount,
                 staked,
             }) => {
+                let block_number = meta.block_number.as_u32();
+                let tx_hash = format!("{:?}", meta.transaction_hash);
                 // Convert U256 to i32 for round_id
                 // Be cautious about overflow, and implement a proper check if necessary
                 let round_id_i32 = round_id.low_u32() as i32;
@@ -197,6 +213,8 @@ async fn main() -> Result<()> {
                         &user_str,
                         &amount_str,
                         staked,
+                        block_number.try_into().unwrap(),
+                        &tx_hash,
                     )
                     .await
                 {
