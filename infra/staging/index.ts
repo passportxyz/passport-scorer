@@ -537,7 +537,7 @@ const indexer = new awsx.ecs.FargateService("scorer-staking-indexer", {
   },
   taskDefinitionArgs: {
     logGroup: {
-      existing: workerLogGroup,
+      existing: indexerLogGroup,
     },
     executionRole: {
       roleArn: workerRole.arn,

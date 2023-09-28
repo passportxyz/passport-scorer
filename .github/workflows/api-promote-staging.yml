@@ -156,6 +156,9 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f indexer/Dockerfile ./indexer/
           docker push $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
 
+    outputs:
+      dockerTag: ${{ steps.vars.outputs.sha_short }}
+
   build-verifier:
     environment: Staging
     runs-on: ubuntu-latest
