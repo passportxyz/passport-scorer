@@ -396,7 +396,7 @@ const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
   retentionInDays: 90,
 });
 const indexerLogGroup = new aws.cloudwatch.LogGroup("scorer-indexer", {
-  retentionInDays: 10,
+  retentionInDays: 90,
 });
 
 //////////////////////////////////////////////////////////////
