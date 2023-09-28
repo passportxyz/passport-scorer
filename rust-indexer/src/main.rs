@@ -1,3 +1,4 @@
+mod postgres;
 use dotenv::dotenv;
 use ethers::{
     contract::abigen,
@@ -27,43 +28,182 @@ async fn main() -> Result<()> {
 
     let rpc_url = get_env("RPC_URL").unwrap();
 
+    let database_url = get_env("DATABASE_URL").unwrap();
+
+    let postgres_client = postgres::PostgresClient::new(&database_url).await?;
+    postgres_client.create_table().await?;
+
     let provider = Provider::<Ws>::connect(rpc_url).await?;
     let client = Arc::new(provider);
 
     let current_block = client.get_block_number().await?;
     // block contract was deployed at
-    let contract_start_block = 16401336;
+    let contract_start_block = 16403024;
 
     let id_staking = IDStaking::new(id_staking_address, client.clone());
 
-    let mut last_queried_block = current_block;
+    let mut last_queried_block = contract_start_block;
 
     // You can make eth_getLogs requests with up to a 2K block range and no limit on the response size
-    while last_queried_block > current_block {
-        let next_block_range = last_queried_block + 2000;
-        let previous_events = id_staking
+    while last_queried_block < current_block.as_u32() {
+        let next_block_range = last_queried_block.clone() + 2000;
+        let previous_events_query = id_staking
             .events()
             .from_block(last_queried_block)
             .to_block(next_block_range)
             .query()
-            .await?;
+            .await;
 
-        for event in previous_events.iter() {
-            // match log.topics[
-            dbg!(event);
+        match previous_events_query {
+            Ok(previous_events) => {
+                for event in previous_events.iter() {
+                    // match log.topics[
+                    match event {
+                        IDStakingEvents::SelfStakeFilter(SelfStakeFilter {
+                            round_id,
+                            staker,
+                            amount,
+                            staked,
+                        }) => {
+                            let round_id = round_id.as_u32();
+
+                            // Convert H160 and U256 to String
+                            let staker_str = format!("{:?}", staker);
+                            let amount_str = format!("{}", amount);
+
+                            // Dereference the bool (if needed)
+                            let staked = *staked;
+
+                            if let Err(err) = postgres_client
+                                .insert_into_combined_stake_filter_self_stake(
+                                    round_id.try_into().unwrap(),
+                                    &staker_str,
+                                    &amount_str,
+                                    staked,
+                                )
+                                .await
+                            {
+                                eprintln!("Failed to insert SelfStakeFilter: {}", err);
+                            }
+                        }
+                        IDStakingEvents::XstakeFilter(XstakeFilter {
+                            round_id,
+                            staker,
+                            user,
+                            amount,
+                            staked,
+                        }) => {
+                            // Convert U256 to i32 for round_id
+                            // Be cautious about overflow, and implement a proper check if necessary
+                            let round_id_i32 = round_id.low_u32() as i32;
+
+                            // Convert H160 to String for staker and user
+                            let staker_str = format!("{:?}", staker);
+                            let user_str = format!("{:?}", user);
+
+                            // Convert U256 to String for amount
+                            let amount_str = format!("{}", amount);
+
+                            // Dereference the bool (if needed)
+                            let staked = *staked;
+
+                            if let Err(err) = postgres_client
+                                .insert_into_combined_stake_filter_xstake(
+                                    round_id_i32,
+                                    &staker_str,
+                                    &user_str,
+                                    &amount_str,
+                                    staked,
+                                )
+                                .await
+                            {
+                                eprintln!("Failed to insert XstakeFilter: {}", err);
+                            }
+                        }
+                    }
+
+                    last_queried_block = next_block_range;
+                }
+            }
+            Err(err) => {
+                eprintln!("Failed to query events: {}", err); // Log the error
+                                                              // You can also implement additional logic here, like retries or alerting.
+            }
         }
-
-        last_queried_block = next_block_range;
     }
 
     let future_events = id_staking.events().from_block(current_block);
 
     let mut stream = future_events.stream().await?.with_meta();
 
-    // https://www.gakonst.com/ethers-rs/contracts/events-with-meta.html
     while let Some(Ok((event, meta))) = stream.next().await {
-        dbg!(event);
-        dbg!(meta);
+        match event {
+            IDStakingEvents::SelfStakeFilter(SelfStakeFilter {
+                round_id,
+                staker,
+                amount,
+                staked,
+            }) => {
+                // Convert U256 to i32 for round_id
+                // Be cautious about overflow, and implement a proper check if necessary
+                let round_id_i32 = round_id.low_u32() as i32;
+
+                // Convert H160 to String for staker
+                let staker_str = format!("{:?}", staker);
+
+                // Convert U256 to String for amount
+                let amount_str = format!("{}", amount);
+
+                // Dereference the bool (if needed)
+                let staked = staked;
+
+                if let Err(err) = postgres_client
+                    .insert_into_combined_stake_filter_self_stake(
+                        round_id_i32,
+                        &staker_str,
+                        &amount_str,
+                        staked,
+                    )
+                    .await
+                {
+                    eprintln!("Failed to insert SelfStakeFilter: {}", err);
+                }
+            }
+            IDStakingEvents::XstakeFilter(XstakeFilter {
+                round_id,
+                staker,
+                user,
+                amount,
+                staked,
+            }) => {
+                // Convert U256 to i32 for round_id
+                // Be cautious about overflow, and implement a proper check if necessary
+                let round_id_i32 = round_id.low_u32() as i32;
+
+                // Convert H160 to String for staker and user
+                let staker_str = format!("{:?}", staker);
+                let user_str = format!("{:?}", user);
+
+                // Convert U256 to String for amount
+                let amount_str = format!("{}", amount);
+
+                // Dereference the bool (if needed)
+                let staked = staked;
+
+                if let Err(err) = postgres_client
+                    .insert_into_combined_stake_filter_xstake(
+                        round_id_i32,
+                        &staker_str,
+                        &user_str,
+                        &amount_str,
+                        staked,
+                    )
+                    .await
+                {
+                    eprintln!("Failed to insert XstakeFilter: {}", err);
+                }
+            }
+        }
     }
 
     Ok(())
