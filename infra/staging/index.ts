@@ -5,6 +5,7 @@ import * as awsx from "@pulumi/awsx";
 import {
   ScorerEnvironmentConfig,
   ScorerService,
+  createIndexerService,
   createScoreExportBucketAndDomain,
   createScorerECSService,
   createTargetGroup,
@@ -30,7 +31,6 @@ let flowerPassword = `${process.env["FLOWER_PASSWORD"]}`;
 
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
 export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
-export const dockerGtcStakingIndexerImage = `${process.env["DOCKER_GTC_PASSPORT_INDEXER_IMAGE"]}`;
 
 //////////////////////////////////////////////////////////////
 // Set up VPC
@@ -398,9 +398,6 @@ const serviceLogGroup = new aws.cloudwatch.LogGroup("scorer-service", {
 const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
   retentionInDays: 90,
 });
-const indexerLogGroup = new aws.cloudwatch.LogGroup("scorer-indexer", {
-  retentionInDays: 90,
-});
 
 //////////////////////////////////////////////////////////////
 // Set up the Scorer ECS service
@@ -521,51 +518,6 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
   ],
   tags: {
     dpopp: "",
-  },
-});
-
-const indexerSecrets = [
-  {
-    name: "RPC_URL",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:RPC_URL::`,
-  },
-];
-
-const indexerEnvironment = [
-  {
-    name: "DATABASE_URL",
-    value: indexerRdsConnectionUrl,
-  },
-];
-
-const indexer = new awsx.ecs.FargateService("scorer-staking-indexer", {
-  cluster: cluster.arn,
-  desiredCount: 1,
-  networkConfiguration: {
-    subnets: vpc.privateSubnetIds,
-    securityGroups: [privateSubnetSecurityGroup.id],
-  },
-  taskDefinitionArgs: {
-    logGroup: {
-      existing: indexerLogGroup,
-    },
-    executionRole: {
-      roleArn: workerRole.arn,
-    },
-    containers: {
-      worker1: {
-        name: "indexer-process",
-        memory: 1024,
-        cpu: 1024,
-        image: dockerGtcStakingIndexerImage,
-        command: ["cargo", "run"],
-        portMappings: [],
-        secrets: indexerSecrets,
-        environment: indexerEnvironment,
-        dependsOn: [],
-        links: [],
-      },
-    },
   },
 });
 
@@ -1231,4 +1183,13 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
 const exportVals = createScoreExportBucketAndDomain(
   publicDataDomain,
   route53ZoneForPublicData
+);
+
+// TODO: remove once prod is verified to be working
+createIndexerService(
+  indexerRdsConnectionUrl,
+  cluster,
+  vpc,
+  privateSubnetSecurityGroup,
+  workerRole
 );
