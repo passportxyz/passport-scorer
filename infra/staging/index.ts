@@ -150,6 +150,9 @@ export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
 );
+export const indexerRdsConnectionUrl = pulumi.secret(
+  pulumi.interpolate`postgres://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
+);
 export const rdsId = postgresql.id;
 
 //////////////////////////////////////////////////////////////
@@ -528,6 +531,13 @@ const indexerSecrets = [
   },
 ];
 
+const indexerEnvironment = [
+  {
+    name: "DATABASE_URL",
+    value: indexerRdsConnectionUrl,
+  },
+];
+
 const indexer = new awsx.ecs.FargateService("scorer-staking-indexer", {
   cluster: cluster.arn,
   desiredCount: 1,
@@ -551,7 +561,7 @@ const indexer = new awsx.ecs.FargateService("scorer-staking-indexer", {
         command: ["cargo", "run"],
         portMappings: [],
         secrets: indexerSecrets,
-        environment: environment,
+        environment: indexerEnvironment,
         dependsOn: [],
         links: [],
       },
