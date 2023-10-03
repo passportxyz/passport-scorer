@@ -5,6 +5,7 @@ import * as awsx from "@pulumi/awsx";
 import {
   ScorerEnvironmentConfig,
   ScorerService,
+  createIndexerService,
   createScoreExportBucketAndDomain,
   createScorerECSService,
   createTargetGroup,
@@ -148,6 +149,9 @@ export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
+);
+export const indexerRdsConnectionUrl = pulumi.secret(
+  pulumi.interpolate`postgres://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
 );
 export const rdsId = postgresql.id;
 
@@ -1179,4 +1183,13 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
 const exportVals = createScoreExportBucketAndDomain(
   publicDataDomain,
   route53ZoneForPublicData
+);
+
+// TODO: remove once prod is verified to be working
+createIndexerService(
+  indexerRdsConnectionUrl,
+  cluster,
+  vpc,
+  privateSubnetSecurityGroup,
+  workerRole
 );

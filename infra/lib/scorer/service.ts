@@ -540,3 +540,62 @@ export async function createScoreExportBucketAndDomain(
     cloudFront,
   };
 }
+
+export const dockerGtcStakingIndexerImage = `${process.env["DOCKER_GTC_PASSPORT_INDEXER_IMAGE"]}`;
+
+export function createIndexerService(
+  indexerRdsConnectionUrl: Input<string>,
+  cluster: Cluster,
+  vpc: awsx.ec2.Vpc,
+  privateSubnetSecurityGroup: aws.ec2.SecurityGroup,
+  workerRole: Role
+) {
+  const indexerLogGroup = new aws.cloudwatch.LogGroup("scorer-indexer", {
+    retentionInDays: 90,
+  });
+
+  const indexerSecrets = [
+    {
+      name: "RPC_URL",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:RPC_URL::`,
+    },
+  ];
+
+  const indexerEnvironment = [
+    {
+      name: "DATABASE_URL",
+      value: indexerRdsConnectionUrl,
+    },
+  ];
+
+  new awsx.ecs.FargateService("scorer-staking-indexer", {
+    cluster: cluster.arn,
+    desiredCount: 1,
+    networkConfiguration: {
+      subnets: vpc.privateSubnetIds,
+      securityGroups: [privateSubnetSecurityGroup.id],
+    },
+    taskDefinitionArgs: {
+      logGroup: {
+        existing: indexerLogGroup,
+      },
+      executionRole: {
+        roleArn: workerRole.arn,
+      },
+      containers: {
+        worker1: {
+          name: "indexer-process",
+          memory: 1024,
+          cpu: 1024,
+          image: dockerGtcStakingIndexerImage,
+          command: ["cargo", "run"],
+          portMappings: [],
+          secrets: indexerSecrets,
+          environment: indexerEnvironment,
+          dependsOn: [],
+          links: [],
+        },
+      },
+    },
+  });
+}

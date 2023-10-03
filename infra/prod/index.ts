@@ -5,6 +5,7 @@ import * as awsx from "@pulumi/awsx";
 import {
   ScorerEnvironmentConfig,
   ScorerService,
+  createIndexerService,
   createScoreExportBucketAndDomain,
   createScorerECSService,
   createTargetGroup,
@@ -165,6 +166,9 @@ export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
+);
+export const indexerRdsConnectionUrl = pulumi.secret(
+  pulumi.interpolate`postgres://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
 );
 export const readreplica0ConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${readreplica0.endpoint}/${dbName}`
@@ -1342,4 +1346,12 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
 const exportVals = createScoreExportBucketAndDomain(
   publicDataDomain,
   route53ZoneForPublicData
+);
+
+createIndexerService(
+  indexerRdsConnectionUrl,
+  cluster,
+  vpc,
+  privateSubnetSecurityGroup,
+  workerRole
 );
