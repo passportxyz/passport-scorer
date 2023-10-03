@@ -20,6 +20,72 @@ abigen!(
 
 pub const CONTRACT_START_BLOCK: i32 = 16403024;
 
+async fn format_and_save_self_stake_event(
+    event: &SelfStakeFilter,
+    block_number: u32,
+    transaction_hash: String,
+    postgres_client: &PostgresClient,
+) -> Result<()> {
+    let round_id = event.round_id.as_u32();
+
+    // Convert H160 and U256 to String
+    let staker_str = format!("{:?}", event.staker);
+    let amount_str = format!("{}", event.amount);
+
+    let staked = event.staked;
+    if let Err(err) = postgres_client
+        .insert_into_combined_stake_filter_self_stake(
+            round_id.try_into().unwrap(),
+            &staker_str,
+            &amount_str,
+            staked,
+            block_number.try_into().unwrap(),
+            &transaction_hash,
+        )
+        .await
+    {
+        eprintln!("Failed to insert SelfStakeFilter: {}", err);
+    }
+    Ok(())
+}
+
+async fn format_and_save_x_stake_event(
+    event: &XstakeFilter,
+    block_number: u32,
+    transaction_hash: String,
+    postgres_client: &PostgresClient,
+) -> Result<()> {
+    // Convert U256 to i32 for round_id
+    // Be cautious about overflow, and implement a proper check if necessary
+    let round_id_i32 = event.round_id.low_u32() as i32;
+
+    // Convert H160 to String for staker and user
+    let staker_str = format!("{:?}", event.staker);
+    let user_str = format!("{:?}", event.user);
+
+    // Convert U256 to String for amount
+    let amount_str = format!("{}", event.amount);
+
+    // Dereference the bool (if needed)
+    let staked = event.staked;
+
+    if let Err(err) = postgres_client
+        .insert_into_combined_stake_filter_xstake(
+            round_id_i32,
+            &staker_str,
+            &user_str,
+            &amount_str,
+            staked,
+            block_number.try_into().unwrap(),
+            &transaction_hash,
+        )
+        .await
+    {
+        eprintln!("Failed to insert XstakeFilter: {}", err);
+    }
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
@@ -63,73 +129,28 @@ async fn main() -> Result<()> {
             Ok(previous_events) => {
                 for (event, meta) in previous_events.iter() {
                     match event {
-                        IDStakingEvents::SelfStakeFilter(SelfStakeFilter {
-                            round_id,
-                            staker,
-                            amount,
-                            staked,
-                        }) => {
+                        IDStakingEvents::SelfStakeFilter(event) => {
                             let block_number = meta.block_number.as_u32();
                             let tx_hash = format!("{:?}", meta.transaction_hash);
-                            let round_id = round_id.as_u32();
 
-                            // Convert H160 and U256 to String
-                            let staker_str = format!("{:?}", staker);
-                            let amount_str = format!("{}", amount);
-
-                            // Dereference the bool (if needed)
-                            let staked = *staked;
-                            if let Err(err) = postgres_client
-                                .insert_into_combined_stake_filter_self_stake(
-                                    round_id.try_into().unwrap(),
-                                    &staker_str,
-                                    &amount_str,
-                                    staked,
-                                    block_number.try_into().unwrap(),
-                                    &tx_hash,
-                                )
-                                .await
-                            {
-                                eprintln!("Failed to insert SelfStakeFilter: {}", err);
-                            }
+                            format_and_save_self_stake_event(
+                                &event,
+                                block_number,
+                                tx_hash,
+                                &postgres_client,
+                            )
+                            .await?;
                         }
-                        IDStakingEvents::XstakeFilter(XstakeFilter {
-                            round_id,
-                            staker,
-                            user,
-                            amount,
-                            staked,
-                        }) => {
+                        IDStakingEvents::XstakeFilter(event) => {
                             let block_number = meta.block_number.as_u32();
                             let tx_hash = format!("{:?}", meta.transaction_hash);
-                            // Convert U256 to i32 for round_id
-                            // Be cautious about overflow, and implement a proper check if necessary
-                            let round_id_i32 = round_id.low_u32() as i32;
-
-                            // Convert H160 to String for staker and user
-                            let staker_str = format!("{:?}", staker);
-                            let user_str = format!("{:?}", user);
-
-                            // Convert U256 to String for amount
-                            let amount_str = format!("{}", amount);
-
-                            // Dereference the bool (if needed)
-                            let staked = *staked;
-
-                            if let Err(err) = postgres_client
-                                .insert_into_combined_stake_filter_xstake(
-                                    round_id_i32,
-                                    &staker_str,
-                                    &user_str,
-                                    &amount_str,
-                                    staked,
-                                    block_number.try_into().unwrap(),
-                                    &tx_hash,
-                                )
-                                .await
-                            {
-                                eprintln!("Failed to insert XstakeFilter: {}", err);
-                            }
+                            format_and_save_x_stake_event(
+                                &event,
+                                block_number,
+                                tx_hash,
+                                &postgres_client,
+                            )
+                            .await?
                         }
                     }
                 }
@@ -148,78 +169,18 @@ async fn main() -> Result<()> {
 
     while let Some(Ok((event, meta))) = stream.next().await {
         match event {
-            IDStakingEvents::SelfStakeFilter(SelfStakeFilter {
-                round_id,
-                staker,
-                amount,
-                staked,
-            }) => {
+            IDStakingEvents::SelfStakeFilter(event) => {
                 let block_number = meta.block_number.as_u32();
                 let tx_hash = format!("{:?}", meta.transaction_hash);
-                // Convert U256 to i32 for round_id
-                // Be cautious about overflow, and implement a proper check if necessary
-                let round_id_i32 = round_id.low_u32() as i32;
 
-                // Convert H160 to String for staker
-                let staker_str = format!("{:?}", staker);
-
-                // Convert U256 to String for amount
-                let amount_str = format!("{}", amount);
-
-                // Dereference the bool (if needed)
-                let staked = staked;
-
-                if let Err(err) = postgres_client
-                    .insert_into_combined_stake_filter_self_stake(
-                        round_id_i32,
-                        &staker_str,
-                        &amount_str,
-                        staked,
-                        block_number.try_into().unwrap(),
-                        &tx_hash,
-                    )
-                    .await
-                {
-                    eprintln!("Failed to insert SelfStakeFilter: {}", err);
-                }
+                format_and_save_self_stake_event(&event, block_number, tx_hash, &postgres_client)
+                    .await?;
             }
-            IDStakingEvents::XstakeFilter(XstakeFilter {
-                round_id,
-                staker,
-                user,
-                amount,
-                staked,
-            }) => {
+            IDStakingEvents::XstakeFilter(event) => {
                 let block_number = meta.block_number.as_u32();
                 let tx_hash = format!("{:?}", meta.transaction_hash);
-                // Convert U256 to i32 for round_id
-                // Be cautious about overflow, and implement a proper check if necessary
-                let round_id_i32 = round_id.low_u32() as i32;
-
-                // Convert H160 to String for staker and user
-                let staker_str = format!("{:?}", staker);
-                let user_str = format!("{:?}", user);
-
-                // Convert U256 to String for amount
-                let amount_str = format!("{}", amount);
-
-                // Dereference the bool (if needed)
-                let staked = staked;
-
-                if let Err(err) = postgres_client
-                    .insert_into_combined_stake_filter_xstake(
-                        round_id_i32,
-                        &staker_str,
-                        &user_str,
-                        &amount_str,
-                        staked,
-                        block_number.try_into().unwrap(),
-                        &tx_hash,
-                    )
-                    .await
-                {
-                    eprintln!("Failed to insert XstakeFilter: {}", err);
-                }
+                format_and_save_x_stake_event(&event, block_number, tx_hash, &postgres_client)
+                    .await?
             }
         }
     }
