@@ -18,18 +18,29 @@ from ninja import Router
 from ninja.pagination import paginate
 from ninja_extra.exceptions import APIException
 from pydantic import BaseModel
-from registry.models import Event, Passport, Score, Stamp
-from registry.utils import (
-    decode_cursor,
-    encode_cursor,
-    get_signer,
-    get_signing_message,
-    permissions_required,
-    reverse_lazy_with_query,
+from registry.api import common
+from registry.api.utils import (
+    ApiKey,
+    aapi_key,
+    check_rate_limit,
+    community_requires_signature,
+    get_scorer_id,
+    with_read_db,
 )
-
-from ..atasks import ascore_passport
-from ..exceptions import (
+from registry.api.schema import (
+    CursorPaginatedHistoricalScoreResponse,
+    CursorPaginatedScoreResponse,
+    CursorPaginatedStampCredentialResponse,
+    DetailedScoreResponse,
+    ErrorMessageResponse,
+    GenericCommunityPayload,
+    GenericCommunityResponse,
+    SigningMessageResponse,
+    StampDisplayResponse,
+    SubmitPassportPayload,
+)
+from registry.atasks import ascore_passport
+from registry.exceptions import (
     InternalServerErrorException,
     InvalidAPIKeyPermissions,
     InvalidCommunityScoreRequestException,
@@ -42,24 +53,15 @@ from ..exceptions import (
     aapi_get_object_or_404,
     api_get_object_or_404,
 )
-from ..tasks import score_passport_passport, score_registry_passport
-from .base import (
-    ApiKey,
-    aapi_key,
-    check_rate_limit,
-    community_requires_signature,
-    get_scorer_id,
-)
-from .schema import (
-    CursorPaginatedScoreResponse,
-    CursorPaginatedStampCredentialResponse,
-    DetailedScoreResponse,
-    ErrorMessageResponse,
-    GenericCommunityPayload,
-    GenericCommunityResponse,
-    SigningMessageResponse,
-    StampDisplayResponse,
-    SubmitPassportPayload,
+from registry.models import Event, Passport, Score, Stamp
+from registry.tasks import score_passport_passport, score_registry_passport
+from registry.utils import (
+    decode_cursor,
+    encode_cursor,
+    get_signer,
+    get_signing_message,
+    permissions_required,
+    reverse_lazy_with_query,
 )
 
 SCORE_TIMESTAMP_FIELD_DESCRIPTION = """
@@ -81,10 +83,6 @@ _transport = RequestsHTTPTransport(
 gqlClient = Client(
     transport=_transport,
 )
-
-
-def with_read_db(model):
-    return model.objects.using(settings.REGISTRY_API_READ_DB)
 
 
 METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
@@ -310,6 +308,26 @@ async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community
             "Error when getting score by ID (aget_scorer_by_id) %s", aget_scorer_by_id
         )
         return ret
+
+
+@router.get(
+    common.history_endpoint["url"],
+    auth=common.history_endpoint["auth"],
+    response=common.history_endpoint["response"],
+    summary=common.history_endpoint["summary"],
+    description=common.history_endpoint["description"],
+)
+def get_score_history(
+    request,
+    scorer_id: int,
+    address: Optional[str] = None,
+    created_at: str = "",
+    token: str = None,
+    limit: int = 1000,
+) -> CursorPaginatedHistoricalScoreResponse:
+    return common.history_endpoint["handler"](
+        request, scorer_id, address, created_at, token, limit
+    )
 
 
 @router.get(

@@ -66,17 +66,20 @@ registry_api_v1 = ScorerApi(
     urls_namespace="registry",
     title="Scorer API",
     version="1.0.0",
-    docs_url="/v1/docs",
+    docs_url="/docs",
     openapi_url="/v1/openapi.json",
+    description="""
+The V2 (beta) API docs are available at [/v2/docs](/v2/docs)
+""",
 )
 registry_api_v2 = ScorerApi(
     urls_namespace="registry_v2",
     title="Scorer API",
-    version="2.0.0",
-    docs_url="/docs",
+    version="2.0.0 (beta)",
+    docs_url="/v2/docs",
     openapi_url="/v2/openapi.json",
     description="""
-The V1 API docs are available at [/v1/docs](/v1/docs)
+The V1 API docs are available at [/docs](/docs)
 """,
 )
 

@@ -10,11 +10,10 @@ from django_ratelimit.exceptions import Ratelimited
 from ninja.compatibility.request import get_headers
 from ninja.security import APIKeyHeader
 from ninja.security.base import SecuritySchema
+from registry.api.schema import SubmitPassportPayload
 from registry.atasks import asave_api_key_analytics
+from registry.exceptions import InvalidScorerIdException, Unauthorized
 from registry.tasks import save_api_key_analytics
-
-from ..exceptions import InvalidScorerIdException, Unauthorized
-from .schema import SubmitPassportPayload
 
 log = logging.getLogger(__name__)
 
@@ -151,3 +150,7 @@ def get_scorer_id(payload: SubmitPassportPayload) -> str:
         raise InvalidScorerIdException()
 
     return scorer_id
+
+
+def with_read_db(model):
+    return model.objects.using(settings.REGISTRY_API_READ_DB)
