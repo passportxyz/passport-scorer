@@ -1198,7 +1198,7 @@ const exportVals = createScoreExportBucketAndDomain(
 // AWS SQS for rescoring
 //////////////////////////////////////////////
 
-let queue = new aws.sqs.Queue("passport-rescoring-queue", {
+let rescoringQueue = new aws.sqs.Queue("passport-rescoring-queue", {
   visibilityTimeoutSeconds: 180,
 });
 
@@ -1228,6 +1228,15 @@ const lambdaEc2PolicyDocument = aws.iam.getPolicyDocument({
         "ec2:DeleteNetworkInterface",
         "ec2:DescribeInstances",
         "ec2:AttachNetworkInterface",
+      ],
+      resources: ["*"],
+    },
+    {
+      effect: "Allow",
+      actions: [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes",
       ],
       resources: ["*"],
     },
@@ -1311,7 +1320,9 @@ const lambdaScoringFunction = new aws.lambda.Function(
 );
 
 const example = new aws.lambda.EventSourceMapping("example", {
-  eventSourceArn: queue.arn,
+  eventSourceArn: rescoringQueue.arn,
   functionName: lambdaScoringFunction.arn,
   // startingPosition: "TRIM_HORIZON",
+  batchSize: 100,
+  maximumBatchingWindowInSeconds: 5,
 });
