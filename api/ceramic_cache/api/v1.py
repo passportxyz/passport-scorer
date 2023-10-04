@@ -154,7 +154,9 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
 
         submit_passport_from_cache(address)
 
-        updated_passport_state = CeramicCache.objects.filter(address=address)
+        updated_passport_state = CeramicCache.objects.filter(
+            address=address, type=CeramicCache.StampType.V1
+        )
 
         return GetStampResponse(
             success=True,
@@ -213,7 +215,9 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
 
         submit_passport_from_cache(address)
 
-        updated_passport_state = CeramicCache.objects.filter(address=address)
+        updated_passport_state = CeramicCache.objects.filter(
+            address=address, type=CeramicCache.StampType.V1
+        )
 
         return GetStampResponse(
             success=True,
