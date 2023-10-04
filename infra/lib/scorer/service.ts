@@ -362,8 +362,8 @@ export function createScorerECSService(
       comparisonOperator: "GreaterThanThreshold",
       datapointsToAlarm: 3,
       dimensions: {
-        LoadBalancer: config.alb.name,
-        TargetGroup: config.targetGroup.name,
+        LoadBalancer: config.alb.arnSuffix,
+        TargetGroup: config.targetGroup.arnSuffix,
       },
       evaluationPeriods: 5,
       metricName: "HTTPCode_Target_5XX_Count",
