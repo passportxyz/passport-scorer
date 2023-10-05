@@ -32,6 +32,7 @@ let flowerPassword = `${process.env["FLOWER_PASSWORD"]}`;
 
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
 export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
+export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
 
 //////////////////////////////////////////////////////////////
 // Set up VPC
@@ -552,6 +553,7 @@ const testFunction = new aws.lambda.Function(
     },
     packageType: "Image",
     role: iamForLambda.arn,
+
     imageUri: "515520736917.dkr.ecr.us-west-2.amazonaws.com/test-lambda:v4",
     timeout: 30,
     memorySize: 1024,
@@ -1333,10 +1335,10 @@ const exportVals = createScoreExportBucketAndDomain(
 );
 
 // TODO: remove once prod is verified to be working
-createIndexerService(
-  indexerRdsConnectionUrl,
-  cluster,
-  vpc,
-  privateSubnetSecurityGroup,
-  workerRole
-);
+// createIndexerService(
+//   indexerRdsConnectionUrl,
+//   cluster,
+//   vpc,
+//   privateSubnetSecurityGroup,
+//   workerRole
+// );

@@ -1,7 +1,6 @@
-
-from pprint import pprint
 import json
 import os
+from pprint import pprint
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
@@ -22,10 +21,11 @@ else:
     print(f"{'!':!>40}")
 
 
-from registry.api.v1 import handle_submit_passport, SubmitPassportPayload
+from registry.api.v1 import SubmitPassportPayload, handle_submit_passport
 
 # Now this script or any imported module can use any part of Django it needs.
 # from myapp import models
+
 
 def handler(event, _context):
     pprint(event)
@@ -34,16 +34,17 @@ def handler(event, _context):
     print("DIR: ", os.listdir(os.getcwd()))
 
     try:
-        from account.models import  AccountAPIKey
+        # needs API auth and rate limiting
+        from account.models import AccountAPIKey
+
         print("AccountAPIKey is loaded")
 
-
         headers = event["headers"]
-        key = headers['x-api-key']
+        key = headers["x-api-key"]
         api_key = AccountAPIKey.objects.get_from_key(key)
         print("\nApi Key:", api_key)
 
-        payload = json.loads(event['body'])
+        payload = json.loads(event["body"])
         print("\nBody:")
         pprint(payload)
 
