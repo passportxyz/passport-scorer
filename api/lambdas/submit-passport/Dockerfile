@@ -25,12 +25,12 @@ WORKDIR /usr/src
 
 # RUN apt install -y libcurl3-gnutls libcurl4-gnutls-dev
 # RUN /root/.local/bin/pipenv lock
-ADD Pipfile /usr/src/
-ADD Pipfile.lock /usr/src/
 
 RUN /root/.local/bin/pipenv run pip freeze > requirements.txt
 
+RUN echo "====================="
 RUN cat requirements.txt
+RUN echo "====================="
 # RUN /usr/src/.venv/bin/python -c "import django; print(django.__version__)"
 RUN ls /usr/src/.venv/lib/
 
