@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import os
 import sys
 from pprint import pprint
@@ -13,6 +14,8 @@ os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
 import django
 from django.conf import settings
 from registry.api.base import ApiKey, check_rate_limit
+
+logger = logging.getLogger(__name__)
 
 # settings.configure(DEBUG=True)
 django.setup()
@@ -98,10 +101,11 @@ def handler(event, _context):
             }
 
     except Exception as e:
+        logger.exception("Error occured when attempting to submit passport")
         return {
             "statusCode": 400,
             "statusDescription": e,
             "isBase64Encoded": False,
             "headers": {"Content-Type": "text/html"},
-            "body": "<h1>Hello from Lambda!</h1>",
+            "body": "<h1>An error has occurred</h1>",
         }
