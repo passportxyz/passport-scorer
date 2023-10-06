@@ -155,7 +155,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REGISTRY_ALIAS: t1g3k9q8
-          ECR_REPOSITORY: lambda
+          ECR_REPOSITORY: submit-passport-lambdas
           IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f api/aws_lambdas/submit_passport/Dockerfile ./api/
