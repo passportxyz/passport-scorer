@@ -14,7 +14,6 @@ RUN pip install --user pipenv
 ENV PIPENV_VENV_IN_PROJECT=1
 
 ADD Pipfile.lock /usr/src/
-ADD Pipfile /usr/src/
 
 WORKDIR /usr/src
 
@@ -27,7 +26,7 @@ WORKDIR /usr/src
 # RUN apt install -y libcurl3-gnutls libcurl4-gnutls-dev
 # RUN /root/.local/bin/pipenv lock
 
-RUN /root/.local/bin/pipenv run pip freeze > /usr/src/requirements.txt
+RUN /root/.local/bin/pipenv run pip freeze > requirements.txt
 
 # RUN /usr/src/.venv/bin/python -c "import django; print(django.__version__)"
 RUN ls /usr/src/.venv/lib/
@@ -46,7 +45,6 @@ COPY ./ ${LAMBDA_TASK_ROOT}
 WORKDIR ${LAMBDA_TASK_ROOT}
 
 
-RUN cat requirements.txt
 RUN pip install -r requirements.txt
 # RUN pip install Django
 
