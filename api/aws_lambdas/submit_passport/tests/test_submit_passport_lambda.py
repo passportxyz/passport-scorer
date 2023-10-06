@@ -8,7 +8,8 @@ from scorer.test.conftest import (
     scorer_community_with_binary_scorer,
     scorer_user,
 )
-from submit_passport import handler
+
+from ..submit_passport import handler
 
 # Sample mock event
 sample_event = {
