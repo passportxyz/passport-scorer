@@ -45,6 +45,7 @@ COPY ./ ${LAMBDA_TASK_ROOT}
 
 WORKDIR ${LAMBDA_TASK_ROOT}
 
+
 RUN cat requirements.txt
 RUN pip install -r requirements.txt
 # RUN pip install Django

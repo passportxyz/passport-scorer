@@ -8,8 +8,8 @@ services:
 
   api:
     build:
-      context: ./api
-      dockerfile: Dockerfile.python3.11
+      context: ./api/aws_lambdas/submit-passport
+      dockerfile: Dockerfile
 
     ports:
       - "127.0.0.1:8000:8000"

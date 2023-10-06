@@ -32,6 +32,7 @@ class ApiKey(APIKeyHeader):
             # if X-API-Key was not specified in the header read the HTTP_AUTHORIZATION
             # and try to load the tey from there
             auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+
             if not auth_header:
                 raise Unauthorized()
 
