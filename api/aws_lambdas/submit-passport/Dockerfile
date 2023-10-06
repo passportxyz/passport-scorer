@@ -54,4 +54,4 @@ RUN python -c "import django; print(f\"\n{'*' * 40}\n* DJANGO VERSION: {django._
 
 RUN STATIC_ROOT=${LAMBDA_TASK_ROOT}/static SECRET_KEY=secret_is_irelevent_here CERAMIC_CACHE_SCORER_ID=1 DATABASE_URL=sqlite:////dunmmy_db.sqlite3 python manage.py collectstatic --noinput
 
-CMD [ "submit_passport.handler" ]
+CMD [ "aws_lambdas.submit-passport.submit_passport.handler" ]
