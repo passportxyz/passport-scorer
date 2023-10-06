@@ -554,7 +554,7 @@ const testFunction = new aws.lambda.Function(
     packageType: "Image",
     role: iamForLambda.arn,
 
-    imageUri: "515520736917.dkr.ecr.us-west-2.amazonaws.com/test-lambda:v4",
+    imageUri: dockerGtcSubmitPassportLambdaImage,
     timeout: 30,
     memorySize: 1024,
     environment: {
