@@ -1,7 +1,6 @@
-from unittest.mock import Mock, patch
-
 import pytest
 from account.models import AccountAPIKey
+from django.test import override_settings
 from registry.api import v1
 from scorer.test.conftest import (
     scorer_account,
@@ -21,6 +20,9 @@ pytestmark = pytest.mark.django_db
 
 
 def make_test_event(api_key, address, community_id):
+    """
+    Creates a mock event for testing purposes.
+    """
     return {
         "requestContext": {
             "elb": {
@@ -49,9 +51,58 @@ def make_test_event(api_key, address, community_id):
 def test_successful_authentication(
     scorer_api_key, scorer_account, scorer_community_with_binary_scorer
 ):
+    """
+    Tests that authentication is successful given correct credentials.
+    """
     event = make_test_event(
         scorer_api_key, scorer_account.address, scorer_community_with_binary_scorer.id
     )
 
     response = handler(event, None)
+
+    assert response is not None
+    assert (
+        response["body"]
+        == '{"address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c", "score": null, "status": "PROCESSING", "last_score_timestamp": null, "evidence": null, "error": null, "stamp_scores": null}'
+    )
     assert response["statusCode"] == 200
+
+
+def test_unsucessfull_auth(scorer_account, scorer_community_with_binary_scorer):
+    """
+    Tests that authentication fails given incorrect credentials.
+    """
+    event = make_test_event(
+        "bad_key", scorer_account.address, scorer_community_with_binary_scorer.id
+    )
+
+    response = handler(event, None)
+
+    assert response is not None
+    assert response["statusCode"] == 403
+
+
+@override_settings(RATELIMIT_ENABLE=True)
+def test_rate_limiting(
+    scorer_api_key, scorer_account, scorer_community_with_binary_scorer
+):
+    """
+    Tests that rate limiting works as expected.
+    """
+    (_, secret) = AccountAPIKey.objects.create_key(
+        account=scorer_account,
+        name="Token for user 1",
+        rate_limit="3/30seconds",
+    )
+    event = make_test_event(
+        secret, scorer_account.address, scorer_community_with_binary_scorer.id
+    )
+
+    for _ in range(3):
+        response = handler(event, None)
+        assert response is not None
+        assert response["statusCode"] == 200
+
+    rate_limit = handler(event, None)
+    assert rate_limit is not None
+    assert rate_limit["statusCode"] == 429
