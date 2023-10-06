@@ -6,6 +6,7 @@ import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 import {
   ScorerEnvironmentConfig,
   ScorerService,
+  buildLambdaFn,
   createIndexerService,
   createScoreExportBucketAndDomain,
   createScorerECSService,
@@ -290,9 +291,6 @@ const targetGroupRegistrySubmitPassport = createTargetGroup(
   "scorer-api-reg-sp",
   vpcID
 );
-const testTargetGroup = new aws.lb.TargetGroup("testTargetGroup", {
-  targetType: "lambda",
-});
 
 //////////////////////////////////////////////////////////////
 // Create the HTTPS listener, and set the default target group
@@ -468,149 +466,13 @@ const scorerServiceRegistrySubmitPassport = createScorerECSService(
   envConfig
 );
 
-const example = new aws.cloudwatch.LogGroup("example", { retentionInDays: 14 });
-const lambdaLoggingPolicyDocument = aws.iam.getPolicyDocument({
-  statements: [
-    {
-      effect: "Allow",
-      actions: [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents",
-      ],
-      resources: ["arn:aws:logs:*:*:*"],
-    },
-  ],
-});
-const lambdaEc2PolicyDocument = aws.iam.getPolicyDocument({
-  statements: [
-    {
-      effect: "Allow",
-      actions: [
-        "ec2:DescribeNetworkInterfaces",
-        "ec2:CreateNetworkInterface",
-        "ec2:DeleteNetworkInterface",
-        "ec2:DescribeInstances",
-        "ec2:AttachNetworkInterface",
-      ],
-      resources: ["*"],
-    },
-  ],
-});
-
-const lambdaLoggingPolicy = new aws.iam.Policy("lambdaLoggingPolicy", {
-  path: "/",
-  description: "IAM policy for logging from a lambda",
-  policy: lambdaLoggingPolicyDocument.then(
-    (lambdaLoggingPolicyDocument) => lambdaLoggingPolicyDocument.json
-  ),
-});
-
-const lambdaEc2Policy = new aws.iam.Policy("lambdaEc2Policy", {
-  path: "/",
-  description: "IAM policy for logging from a lambda",
-  policy: lambdaEc2PolicyDocument.then(
-    (lambdaEc2PolicyDocument) => lambdaEc2PolicyDocument.json
-  ),
-});
-
-const assumeRole = aws.iam.getPolicyDocument({
-  statements: [
-    {
-      effect: "Allow",
-      principals: [
-        {
-          type: "Service",
-          identifiers: ["lambda.amazonaws.com"],
-        },
-      ],
-      actions: ["sts:AssumeRole"],
-    },
-  ],
-});
-
-const iamForLambda = new aws.iam.Role("iamForLambda", {
-  assumeRolePolicy: assumeRole.then((assumeRole) => assumeRole.json),
-});
-
-const lambdaLogs = new aws.iam.RolePolicyAttachment("lambdaLogs", {
-  role: iamForLambda.name,
-  policyArn: lambdaLoggingPolicy.arn,
-});
-
-const lambdaEc2 = new aws.iam.RolePolicyAttachment("lambdaEc2", {
-  role: iamForLambda.name,
-  policyArn: lambdaEc2Policy.arn,
-});
-
-const testFunction = new aws.lambda.Function(
-  "testFunction",
-  {
-    vpcConfig: {
-      // vpcId: vpc.vpcId,
-      securityGroupIds: [privateSubnetSecurityGroup.id], // TODO: shall we create it's own security group ???
-      subnetIds: vpcPrivateSubnetIds,
-    },
-    packageType: "Image",
-    role: iamForLambda.arn,
-
-    imageUri: dockerGtcSubmitPassportLambdaImage,
-    timeout: 30,
-    memorySize: 1024,
-    environment: {
-      variables: environment.reduce(
-        (
-          acc: { [key: string]: pulumi.Input<string> },
-          e: { name: string; value: pulumi.Input<string> }
-        ) => {
-          acc[e.name] = e.value;
-          return acc;
-        },
-        {}
-      ),
-    },
-  },
-  {
-    dependsOn: [lambdaLogs, lambdaEc2],
-  }
+buildLambdaFn(
+  httpsListener,
+  dockerGtcSubmitPassportLambdaImage,
+  privateSubnetSecurityGroup,
+  vpcPrivateSubnetIds,
+  environment
 );
-
-const withLb = new aws.lambda.Permission("withLb", {
-  action: "lambda:InvokeFunction",
-  function: testFunction.name,
-  principal: "elasticloadbalancing.amazonaws.com",
-  sourceArn: testTargetGroup.arn,
-});
-
-const testTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
-  "testTargetGroupAttachment",
-  {
-    targetGroupArn: testTargetGroup.arn,
-    targetId: testFunction.arn,
-  },
-  {
-    dependsOn: [withLb],
-  }
-);
-
-const targetPassportRule = new ListenerRule(`lrule-lambda`, {
-  tags: { name: "lambda rule" },
-  listenerArn: httpsListener.arn,
-  priority: 1000,
-  actions: [
-    {
-      type: "forward",
-      targetGroupArn: testTargetGroup.arn,
-    },
-  ],
-  conditions: [
-    {
-      pathPattern: {
-        values: ["/registry/submit-passport"],
-      },
-    },
-  ],
-});
 
 //////////////////////////////////////////////////////////////
 // Set up the Celery Worker Service

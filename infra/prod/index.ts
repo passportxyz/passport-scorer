@@ -5,6 +5,7 @@ import * as awsx from "@pulumi/awsx";
 import {
   ScorerEnvironmentConfig,
   ScorerService,
+  buildLambdaFn,
   createIndexerService,
   createScoreExportBucketAndDomain,
   createScorerECSService,
@@ -1354,4 +1355,14 @@ createIndexerService(
   vpc,
   privateSubnetSecurityGroup,
   workerRole
+);
+
+export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
+
+buildLambdaFn(
+  httpsListener,
+  dockerGtcSubmitPassportLambdaImage,
+  privateSubnetSecurityGroup,
+  vpcPrivateSubnetIds,
+  environment
 );
