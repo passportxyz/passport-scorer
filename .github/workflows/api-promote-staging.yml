@@ -157,7 +157,7 @@ jobs:
           ECR_REPOSITORY: submit-passport-lambdas
           IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/aws_lambdas/submit_passport/Dockerfile ./api/
+          docker build -t ${{secrets.PRIVATE_ECR_URL}}:$IMAGE_TAG -f api/aws_lambdas/submit_passport/Dockerfile ./api/
           docker push ${{secrets.PRIVATE_ECR_URL}}:$IMAGE_TAG
 
     outputs:
