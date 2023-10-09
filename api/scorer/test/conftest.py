@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from ninja_jwt.schema import RefreshToken
 from registry.models import Passport, Score
-from scorer_weighted.models import BinaryWeightedScorer, Scorer
+from scorer_weighted.models import BinaryWeightedScorer, Scorer, WeightedScorer
 from web3 import Web3
 
 User = get_user_model()
@@ -94,6 +94,26 @@ def scorer_community_with_binary_scorer(mocker, scorer_account):
     )
 
     scorer = BinaryWeightedScorer.objects.create(type=Scorer.Type.WEIGHTED_BINARY)
+
+    community = Community.objects.create(
+        name="My Community",
+        description="My Community description",
+        account=scorer_account,
+        scorer=scorer,
+    )
+    return community
+
+
+@pytest.fixture
+def scorer_community_with_weighted_scorer(mocker, scorer_account):
+    mock_settings = {"Facebook": 1, "Google": 1, "Ens": 1}
+    # Mock gitcoin scoring settings
+    mocker.patch(
+        "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
+        mock_settings,
+    )
+
+    scorer = WeightedScorer.objects.create(type=Scorer.Type.WEIGHTED)
 
     community = Community.objects.create(
         name="My Community",
