@@ -5,7 +5,6 @@ import * as awsx from "@pulumi/awsx";
 import {
   ScorerEnvironmentConfig,
   ScorerService,
-  createIndexerService,
   createScoreExportBucketAndDomain,
   createScorerECSService,
   createTargetGroup,
@@ -149,9 +148,6 @@ export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
-);
-export const indexerRdsConnectionUrl = pulumi.secret(
-  pulumi.interpolate`postgres://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
 );
 export const rdsId = postgresql.id;
 
@@ -1184,145 +1180,3 @@ const exportVals = createScoreExportBucketAndDomain(
   publicDataDomain,
   route53ZoneForPublicData
 );
-
-// TODO: remove once prod is verified to be working
-// createIndexerService(
-//   indexerRdsConnectionUrl,
-//   cluster,
-//   vpc,
-//   privateSubnetSecurityGroup,
-//   workerRole
-// );
-
-//////////////////////////////////////////////
-// AWS SQS for rescoring
-//////////////////////////////////////////////
-
-let rescoringQueue = new aws.sqs.Queue("passport-rescoring-queue", {
-  visibilityTimeoutSeconds: 180,
-});
-
-const lambdaScoringLogGroup = new aws.cloudwatch.LogGroup("lambda-scoring", {
-  retentionInDays: 14,
-});
-const lambdaLoggingPolicyDocument = aws.iam.getPolicyDocument({
-  statements: [
-    {
-      effect: "Allow",
-      actions: [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents",
-      ],
-      resources: ["arn:aws:logs:*:*:*"],
-    },
-  ],
-});
-const lambdaEc2PolicyDocument = aws.iam.getPolicyDocument({
-  statements: [
-    {
-      effect: "Allow",
-      actions: [
-        "ec2:DescribeNetworkInterfaces",
-        "ec2:CreateNetworkInterface",
-        "ec2:DeleteNetworkInterface",
-        "ec2:DescribeInstances",
-        "ec2:AttachNetworkInterface",
-      ],
-      resources: ["*"],
-    },
-    {
-      effect: "Allow",
-      actions: [
-        "sqs:ReceiveMessage",
-        "sqs:DeleteMessage",
-        "sqs:GetQueueAttributes",
-      ],
-      resources: ["*"],
-    },
-  ],
-});
-
-const lambdaLoggingPolicy = new aws.iam.Policy("lambdaLoggingPolicy", {
-  path: "/",
-  description: "IAM policy for logging from a lambda",
-  policy: lambdaLoggingPolicyDocument.then(
-    (lambdaLoggingPolicyDocument) => lambdaLoggingPolicyDocument.json
-  ),
-});
-
-const lambdaEc2Policy = new aws.iam.Policy("lambdaEc2Policy", {
-  path: "/",
-  description: "IAM policy for logging from a lambda",
-  policy: lambdaEc2PolicyDocument.then(
-    (lambdaEc2PolicyDocument) => lambdaEc2PolicyDocument.json
-  ),
-});
-
-const assumeRole = aws.iam.getPolicyDocument({
-  statements: [
-    {
-      effect: "Allow",
-      principals: [
-        {
-          type: "Service",
-          identifiers: ["lambda.amazonaws.com"],
-        },
-      ],
-      actions: ["sts:AssumeRole"],
-    },
-  ],
-});
-
-const iamForLambda = new aws.iam.Role("iamForLambda", {
-  assumeRolePolicy: assumeRole.then((assumeRole) => assumeRole.json),
-});
-
-const lambdaLogs = new aws.iam.RolePolicyAttachment("lambdaLogs", {
-  role: iamForLambda.name,
-  policyArn: lambdaLoggingPolicy.arn,
-});
-
-const lambdaEc2 = new aws.iam.RolePolicyAttachment("lambdaEc2", {
-  role: iamForLambda.name,
-  policyArn: lambdaEc2Policy.arn,
-});
-
-const lambdaScoringFunction = new aws.lambda.Function(
-  "testFunction",
-  {
-    vpcConfig: {
-      // vpcId: vpc.vpcId,
-      securityGroupIds: [privateSubnetSecurityGroup.id], // TODO: shall we create it's own security group ???
-      subnetIds: vpcPrivateSubnetIds,
-    },
-    packageType: "Image",
-    role: iamForLambda.arn,
-    imageUri: "515520736917.dkr.ecr.us-west-2.amazonaws.com/test-lambda:v4",
-    timeout: 30,
-    memorySize: 1024,
-    environment: {
-      variables: environment.reduce(
-        (
-          acc: { [key: string]: pulumi.Input<string> },
-          e: { name: string; value: pulumi.Input<string> }
-        ) => {
-          acc[e.name] = e.value;
-          return acc;
-        },
-        {}
-      ),
-    },
-  },
-  {
-    dependsOn: [lambdaLogs, lambdaEc2],
-  }
-);
-
-const example = new aws.lambda.EventSourceMapping("example", {
-  eventSourceArn: rescoringQueue.arn,
-  functionName: lambdaScoringFunction.arn,
-  // startingPosition: "TRIM_HORIZON",
-  batchSize: 100,
-  maximumBatchingWindowInSeconds: 5,
-});

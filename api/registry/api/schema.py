@@ -1,6 +1,6 @@
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
 from ninja import Schema
 from pydantic import Json
