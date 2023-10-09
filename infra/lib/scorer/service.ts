@@ -605,7 +605,7 @@ export function createIndexerService(
 // TODO: make more generic to be used for other lambdas
 export function buildLambdaFn(
   httpsListener: Listener,
-  dockerGtcSubmitPassportLambdaImage: string,
+  imageUri: Output<string>,
   privateSubnetSecurityGroup: SecurityGroup,
   vpcPrivateSubnetIds: Output<string[]>,
   environment: { name: string; value: Input<string> }[]
@@ -701,7 +701,7 @@ export function buildLambdaFn(
       packageType: "Image",
       role: iamForLambda.arn,
 
-      imageUri: dockerGtcSubmitPassportLambdaImage,
+      imageUri,
       timeout: 30,
       memorySize: 1024,
       environment: {

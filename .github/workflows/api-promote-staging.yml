@@ -309,7 +309,7 @@ jobs:
           DOCKER_GTC_PASSPORT_VERIFIER_IMAGE: public.ecr.aws/t1g3k9q8/passport-verifier:${{ needs.build-verifier.outputs.dockerTag }}
           DOCKER_GTC_PASSPORT_INDEXER_IMAGE: public.ecr.aws/t1g3k9q8/passport-indexer:${{ needs.build-indexer.outputs.dockerTag }}
           # TODO: pull from prod account
-          DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE: public.ecr.aws/t1g3k9q8/submit-passport-lambdas:${{ needs.build-submit-passport-lambda.outputs.dockerTag }}
+          DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE: submit-passport-lambdas:${{ needs.build-submit-passport-lambda.outputs.dockerTag }}
           ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
           ROUTE_53_ZONE_FOR_PUBLIC_DATA: ${{ secrets.ROUTE_53_ZONE_FOR_PUBLIC_DATA }}
           DOMAIN: ${{ secrets.DOMAIN_STAGING }}

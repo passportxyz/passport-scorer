@@ -466,9 +466,17 @@ const scorerServiceRegistrySubmitPassport = createScorerECSService(
   envConfig
 );
 
+const user = aws.getCallerIdentity({});
+const accountId = user.then((user) => user.accountId);
+const region = aws.getRegion({});
+const regionName = region.then((region) => region.name);
+
+// {account_id}.dkr.ecr.{region}.amazonaws.com/amazonlinux:latest
+export const imageUri = pulumi.interpolate`${accountId}.dkr.ecr.${regionName}.amazonaws.com/${dockerGtcSubmitPassportLambdaImage}`;
+
 buildLambdaFn(
   httpsListener,
-  dockerGtcSubmitPassportLambdaImage,
+  imageUri,
   privateSubnetSecurityGroup,
   vpcPrivateSubnetIds,
   environment
