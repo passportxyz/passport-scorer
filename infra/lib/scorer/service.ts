@@ -605,7 +605,7 @@ export function createIndexerService(
 // TODO: make more generic to be used for other lambdas
 export function buildLambdaFn(
   httpsListener: Listener,
-  imageUri: Output<string>,
+  imageUri: string,
   privateSubnetSecurityGroup: SecurityGroup,
   vpcPrivateSubnetIds: Output<string[]>,
   environment: { name: string; value: Input<string> }[]
