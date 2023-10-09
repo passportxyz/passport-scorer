@@ -28,30 +28,12 @@ from registry.exceptions import Unauthorized
 # from myapp import models
 
 
-def lambda_to_django_request(event):
+def lambda_to_django_request(api_key):
     """
     Convert a Lambda event into a Django HttpRequest object.
     """
     request = HttpRequest()
-
-    # Basic attributes
-    request.method = event["httpMethod"]
-    request.path_info = event["path"]
-    request.content_type = event["headers"].get("content-type", "")
-    request.content_params = {}  # If required, can be populated
-
-    api_key = event["headers"].get("x-api-key", "")
-
-    request.META["HTTP_AUTHORIZATION"] = f"Token {api_key}"
-
-    # Other relevant attributes
-    request.META["SERVER_NAME"] = event["headers"].get("host", "")
-    request.META["SERVER_PORT"] = event["headers"].get("x-forwarded-port", "")
-    request.META["REQUEST_URI"] = event["path"]
-    request.META[
-        "QUERY_STRING"
-    ] = ""  # If needed, adapt from event['queryStringParameters']
-    request.META["SERVER_PROTOCOL"] = "HTTP/1.1"
+    request.META["X-Api-Key"] = api_key
 
     return request
 
@@ -61,10 +43,12 @@ def handler(event, _context):
     Handles the incoming events and translates them into Django's context.
     """
     try:
+        logger.info("Received event: %s", event)
+        api_key = event["headers"].get("x-api-key", "")
         # Authenticate
         api_key_instance = ApiKey()
-        request = lambda_to_django_request(event)
-        user_account = api_key_instance.authenticate(request, None)
+        request = lambda_to_django_request(api_key)
+        user_account = api_key_instance.authenticate(request, api_key)
 
         # rate limit
         check_rate_limit(request)
