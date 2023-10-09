@@ -148,6 +148,8 @@ jobs:
       - name: Login to Amazon ECR Private
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
+        with:
+          registry-type: private
 
       - name: Build, tag, and push image to Amazon ECR
         env:
