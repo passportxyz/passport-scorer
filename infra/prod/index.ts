@@ -1364,5 +1364,11 @@ buildLambdaFn(
   dockerGtcSubmitPassportLambdaImage,
   privateSubnetSecurityGroup,
   vpcPrivateSubnetIds,
-  environment
+  [
+    ...environment,
+    {
+      name: "TRUSTED_IAM_ISSUER",
+      value: `${SCORER_SERVER_SSM_ARN}:TRUSTED_IAM_ISSUER::`,
+    },
+  ]
 );
