@@ -22,8 +22,13 @@ logger = logging.getLogger(__name__)
 django.setup()
 
 
+from asgiref.sync import async_to_sync
 from registry.api.utils import ApiKey, check_rate_limit
-from registry.api.v1 import SubmitPassportPayload, handle_submit_passport
+from registry.api.v1 import (
+    DetailedScoreResponse,
+    SubmitPassportPayload,
+    ahandle_submit_passport,
+)
 from registry.exceptions import Unauthorized
 
 # Now this script or any imported module can use any part of Django it needs.
@@ -57,7 +62,14 @@ def handler(event, _context):
 
         body = json.loads(event["body"])
         if user_account:
-            ret = handle_submit_passport(SubmitPassportPayload(**body), user_account)
+            score = async_to_sync(ahandle_submit_passport)(
+                SubmitPassportPayload(**body), user_account
+            )
+            # TODO: preferably we would have a 1:1 mapping of the fields for DetailedScoreResponse
+            # or if not, then specify a resolver for stamp_scores
+            ret = DetailedScoreResponse.from_orm(score)
+            ret.stamp_scores = score.points
+
             return {
                 "statusCode": 200,
                 "statusDescription": "200 OK",
