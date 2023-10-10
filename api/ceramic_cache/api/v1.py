@@ -317,6 +317,15 @@ def get_score(request, address: str) -> DetailedScoreResponse:
     return handle_get_score(address, scorer_id, account)
 
 
+@router.post(
+    "/score/{str:address}",
+    response=DetailedScoreResponse,
+    auth=JWTDidAuth(),
+)
+def calc_score(request, address: str) -> DetailedScoreResponse:
+    return submit_passport_from_cache(address)
+
+
 class CacaoVerifySubmit(Schema):
     issuer: str
     signatures: List[Dict]
