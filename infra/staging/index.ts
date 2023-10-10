@@ -1,10 +1,12 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
+import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 
 import {
   ScorerEnvironmentConfig,
   ScorerService,
+  buildLambdaFn,
   createIndexerService,
   createScoreExportBucketAndDomain,
   createScorerECSService,
@@ -457,10 +459,20 @@ const scorerServiceRegistrySubmitPassport = createScorerECSService(
   {
     ...baseScorerServiceConfig,
     listenerRulePriority: 2500,
-    httpListenerRulePaths: ["/registry/submit-passport"],
+    httpListenerRulePaths: ["/registry/submit-passport-old"],
     targetGroup: targetGroupRegistrySubmitPassport,
   },
   envConfig
+);
+
+export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
+
+buildLambdaFn(
+  httpsListener,
+  dockerGtcSubmitPassportLambdaImage,
+  privateSubnetSecurityGroup,
+  vpcPrivateSubnetIds,
+  environment
 );
 
 //////////////////////////////////////////////////////////////
@@ -1186,10 +1198,10 @@ const exportVals = createScoreExportBucketAndDomain(
 );
 
 // TODO: remove once prod is verified to be working
-createIndexerService(
-  indexerRdsConnectionUrl,
-  cluster,
-  vpc,
-  privateSubnetSecurityGroup,
-  workerRole
-);
+// createIndexerService(
+//   indexerRdsConnectionUrl,
+//   cluster,
+//   vpc,
+//   privateSubnetSecurityGroup,
+//   workerRole
+// );

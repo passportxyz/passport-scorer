@@ -1,12 +1,14 @@
 import { LogGroup } from "@pulumi/aws/cloudwatch/logGroup";
 import { Role } from "@pulumi/aws/iam/role";
 import * as awsx from "@pulumi/awsx";
-import { Input, interpolate } from "@pulumi/pulumi";
+import { Input, Output, interpolate } from "@pulumi/pulumi";
 import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 import * as aws from "@pulumi/aws";
 
 import { Cluster } from "@pulumi/aws/ecs";
 import { Topic } from "@pulumi/aws/sns";
+import { Listener } from "@pulumi/aws/alb";
+import { SecurityGroup } from "@pulumi/aws/ec2";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -597,5 +599,163 @@ export function createIndexerService(
         },
       },
     },
+  });
+}
+
+// TODO: make more generic to be used for other lambdas
+export function buildLambdaFn(
+  httpsListener: Listener,
+  imageUri: string,
+  privateSubnetSecurityGroup: SecurityGroup,
+  vpcPrivateSubnetIds: Output<string[]>,
+  environment: { name: string; value: Input<string> }[]
+) {
+  const lambdaTargetGroup = new aws.lb.TargetGroup("lambdaTargetGroup", {
+    targetType: "lambda",
+  });
+  const example = new aws.cloudwatch.LogGroup("example", {
+    retentionInDays: 14,
+  });
+  const lambdaLoggingPolicyDocument = aws.iam.getPolicyDocument({
+    statements: [
+      {
+        effect: "Allow",
+        actions: [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+        ],
+        resources: ["arn:aws:logs:*:*:*"],
+      },
+    ],
+  });
+  const lambdaEc2PolicyDocument = aws.iam.getPolicyDocument({
+    statements: [
+      {
+        effect: "Allow",
+        actions: [
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:CreateNetworkInterface",
+          "ec2:DeleteNetworkInterface",
+          "ec2:DescribeInstances",
+          "ec2:AttachNetworkInterface",
+        ],
+        resources: ["*"],
+      },
+    ],
+  });
+
+  const lambdaLoggingPolicy = new aws.iam.Policy("lambdaLoggingPolicy", {
+    path: "/",
+    description: "IAM policy for logging from a lambda",
+    policy: lambdaLoggingPolicyDocument.then(
+      (lambdaLoggingPolicyDocument) => lambdaLoggingPolicyDocument.json
+    ),
+  });
+
+  const lambdaEc2Policy = new aws.iam.Policy("lambdaEc2Policy", {
+    path: "/",
+    description: "IAM policy for logging from a lambda",
+    policy: lambdaEc2PolicyDocument.then(
+      (lambdaEc2PolicyDocument) => lambdaEc2PolicyDocument.json
+    ),
+  });
+
+  const assumeRole = aws.iam.getPolicyDocument({
+    statements: [
+      {
+        effect: "Allow",
+        principals: [
+          {
+            type: "Service",
+            identifiers: ["lambda.amazonaws.com"],
+          },
+        ],
+        actions: ["sts:AssumeRole"],
+      },
+    ],
+  });
+
+  const iamForLambda = new aws.iam.Role("iamForLambda", {
+    assumeRolePolicy: assumeRole.then((assumeRole) => assumeRole.json),
+  });
+
+  const lambdaLogs = new aws.iam.RolePolicyAttachment("lambdaLogs", {
+    role: iamForLambda.name,
+    policyArn: lambdaLoggingPolicy.arn,
+  });
+
+  const lambdaEc2 = new aws.iam.RolePolicyAttachment("lambdaEc2", {
+    role: iamForLambda.name,
+    policyArn: lambdaEc2Policy.arn,
+  });
+
+  const submitPassportFunction = new aws.lambda.Function(
+    "submitPassportFunction",
+    {
+      vpcConfig: {
+        // vpcId: vpc.vpcId,
+        securityGroupIds: [privateSubnetSecurityGroup.id], // TODO: shall we create it's own security group ???
+        subnetIds: vpcPrivateSubnetIds,
+      },
+      packageType: "Image",
+      role: iamForLambda.arn,
+
+      imageUri,
+      timeout: 30,
+      memorySize: 1024,
+      environment: {
+        variables: environment.reduce(
+          (
+            acc: { [key: string]: Input<string> },
+            e: { name: string; value: Input<string> }
+          ) => {
+            acc[e.name] = e.value;
+            return acc;
+          },
+          {}
+        ),
+      },
+    },
+    {
+      dependsOn: [lambdaLogs, lambdaEc2],
+    }
+  );
+
+  const withLb = new aws.lambda.Permission("withLb", {
+    action: "lambda:InvokeFunction",
+    function: submitPassportFunction.name,
+    principal: "elasticloadbalancing.amazonaws.com",
+    sourceArn: lambdaTargetGroup.arn,
+  });
+
+  const lambdaTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
+    "testTargetGroupAttachment",
+    {
+      targetGroupArn: lambdaTargetGroup.arn,
+      targetId: submitPassportFunction.arn,
+    },
+    {
+      dependsOn: [withLb],
+    }
+  );
+
+  const targetPassportRule = new ListenerRule(`lrule-lambda`, {
+    tags: { name: "lambda rule" },
+    listenerArn: httpsListener.arn,
+    priority: 1000,
+    actions: [
+      {
+        type: "forward",
+        targetGroupArn: lambdaTargetGroup.arn,
+      },
+    ],
+    conditions: [
+      {
+        pathPattern: {
+          values: ["/registry/submit-passport", "/registry/v2/submit-passport"],
+        },
+      },
+    ],
   });
 }

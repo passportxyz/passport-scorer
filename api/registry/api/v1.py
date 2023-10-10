@@ -19,14 +19,6 @@ from ninja.pagination import paginate
 from ninja_extra.exceptions import APIException
 from pydantic import BaseModel
 from registry.api import common
-from registry.api.utils import (
-    ApiKey,
-    aapi_key,
-    check_rate_limit,
-    community_requires_signature,
-    get_scorer_id,
-    with_read_db,
-)
 from registry.api.schema import (
     CursorPaginatedHistoricalScoreResponse,
     CursorPaginatedScoreResponse,
@@ -38,6 +30,14 @@ from registry.api.schema import (
     SigningMessageResponse,
     StampDisplayResponse,
     SubmitPassportPayload,
+)
+from registry.api.utils import (
+    ApiKey,
+    aapi_key,
+    check_rate_limit,
+    community_requires_signature,
+    get_scorer_id,
+    with_read_db,
 )
 from registry.atasks import ascore_passport
 from registry.exceptions import (
