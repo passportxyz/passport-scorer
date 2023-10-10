@@ -753,7 +753,7 @@ export function buildLambdaFn(
     conditions: [
       {
         pathPattern: {
-          values: ["/registry/submit-passport"],
+          values: ["/registry/submit-passport", "/registry/v2/submit-passport"],
         },
       },
     ],
