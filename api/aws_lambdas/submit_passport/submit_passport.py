@@ -11,6 +11,8 @@ from django_ratelimit.exceptions import Ratelimited
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
 
+import json
+
 import django
 from django.conf import settings
 
@@ -53,10 +55,9 @@ def handler(event, _context):
         # rate limit
         check_rate_limit(request)
 
+        body = json.loads(event["body"])
         if user_account:
-            ret = handle_submit_passport(
-                SubmitPassportPayload(**event["body"]), user_account
-            )
+            ret = handle_submit_passport(SubmitPassportPayload(**body), user_account)
             return {
                 "statusCode": 200,
                 "statusDescription": "200 OK",
