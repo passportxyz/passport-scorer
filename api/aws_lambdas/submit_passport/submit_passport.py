@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 django.setup()
 
 
-from registry.api.base import ApiKey, check_rate_limit
+from registry.api.utils import ApiKey, check_rate_limit
 from registry.api.v1 import SubmitPassportPayload, handle_submit_passport
 from registry.exceptions import Unauthorized
 
