@@ -1,6 +1,6 @@
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from ninja import Schema
 from pydantic import Json
@@ -80,7 +80,7 @@ class DetailedScoreResponse(Schema):
     last_score_timestamp: Optional[str]
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
-    stamp_scores: Optional[Json]
+    stamp_scores: Optional[Dict]
 
     @staticmethod
     def resolve_last_score_timestamp(obj):
