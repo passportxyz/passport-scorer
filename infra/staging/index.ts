@@ -33,7 +33,6 @@ let flowerPassword = `${process.env["FLOWER_PASSWORD"]}`;
 
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
 export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
-export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
 
 //////////////////////////////////////////////////////////////
 // Set up VPC
@@ -465,6 +464,8 @@ const scorerServiceRegistrySubmitPassport = createScorerECSService(
   },
   envConfig
 );
+
+export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
 
 buildLambdaFn(
   httpsListener,

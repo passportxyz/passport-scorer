@@ -196,7 +196,6 @@ jobs:
     outputs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
 
-  # TODO: ideally we don't need this step if built on staging
   build-submit-passport-lambda:
     environment: Staging
     runs-on: ubuntu-latest
@@ -219,23 +218,20 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION_STAGING }}
+          aws-region: us-west-2
 
-      - name: Login to Amazon ECR Public
+      - name: Login to Amazon ECR Private
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-        with:
-          registry-type: public
 
       - name: Build, tag, and push image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REGISTRY_ALIAS: c8n6v8e9
           ECR_REPOSITORY: submit-passport-lambdas
           IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f api/aws_lambdas/submit_passport/Dockerfile ./api/
-          docker push $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/aws_lambdas/submit_passport/Dockerfile ./api/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
     outputs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
@@ -298,7 +294,7 @@ jobs:
           DOCKER_GTC_PASSPORT_SCORER_IMAGE: public.ecr.aws/c8n6v8e9/passport-scorer:${{ needs.build-api.outputs.dockerTag }}
           DOCKER_GTC_PASSPORT_VERIFIER_IMAGE: public.ecr.aws/c8n6v8e9/passport-verifier:${{ needs.build-verifier.outputs.dockerTag }}
           DOCKER_GTC_PASSPORT_INDEXER_IMAGE: public.ecr.aws/c8n6v8e9/passport-indexer:${{ needs.build-indexer.outputs.dockerTag }}
-          DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE: public.ecr.aws/c8n6v8e9/submit-passport-lambdas:${{ needs.build-submit-passport-lambda.outputs.dockerTag }}
+          DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE: ${{secrets.PRIVATE_ECR_URL}}:${{ needs.build-submit-passport-lambda.outputs.dockerTag }}
           ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
           ROUTE_53_ZONE_FOR_PUBLIC_DATA: ${{ secrets.ROUTE_53_ZONE_FOR_PUBLIC_DATA }}
           DOMAIN: ${{ secrets.DOMAIN }}

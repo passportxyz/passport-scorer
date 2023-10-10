@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from account.models import AccountAPIKey
 from django.test import override_settings
@@ -44,7 +46,7 @@ def make_test_event(api_key, address, community_id):
             "x-forwarded-port": "443",
             "x-forwarded-proto": "https",
         },
-        "body": {"address": address, "community": community_id},
+        "body": json.dumps({"address": address, "community": community_id}),
         "isBase64Encoded": False,
     }
 
