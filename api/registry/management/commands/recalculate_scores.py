@@ -55,14 +55,14 @@ class Command(BaseCommand):
             else {}
         )
         batch_size = kwargs["batch_size"]
-        has_more = True
-        last_id = None
         count = 0
         start = datetime.now()
         communities = Community.objects.filter(**filter).exclude(**exclude)
         self.stdout.write(f"Recalculating scores for communities: {list(communities)}")
         for community in communities:
+            # Reset has_more and last_id for each community
             has_more = True
+            last_id = 0
             scorer = community.get_scorer()
             self.stdout.write(
                 f"""
@@ -132,11 +132,14 @@ scorer type: {scorer.type}, {type(scorer)}"""
                         )
 
                 elapsed = datetime.now() - start
+                rate = "-"
+                if count > 0:
+                    rate = elapsed / count
                 self.stdout.write(
                     f"""
 Community id: {community}
 Elapsed: {elapsed}
 Count: {count}
-Rate: {elapsed / count}
+Rate: {rate}
 """
                 )
