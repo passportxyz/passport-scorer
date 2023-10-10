@@ -25,15 +25,13 @@ class Command(BaseCommand):
             "--filter-community-include",
             type=str,
             default="{}",
-            help="""Filter:
-                            {
-                                "name": "<model name> - for example ceramic_cache.CeramicCache",
-                                "filename": "custom filename for the export, otherwise the tablename will be used by default",
-                                "filter": "<filter to apply to query - this dict will be passed into the `filter(...) query method`>,
-                                "extra-args": "<extra args to the s3 upload. This can be used to set dump file permissions, see: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html>"
-                                "select_related":["<array of releated field names that should be expanded and included in the dump">]
-                            }
-                            """,
+            help="""Filter as JSON formatted dict, this will be expanded and passed in directly to the django query `.filter`, for example: '{"id": excluded_community.id}'""",
+        )
+        parser.add_argument(
+            "--filter-community-exclude",
+            type=str,
+            default="{}",
+            help="""Filter as JSON formatted dict, this will be expanded and passed in directly to the django query `.exclude`, for example: '{"id": excluded_community.id}'""",
         )
         parser.add_argument(
             "--batch-size",
@@ -43,16 +41,17 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **kwargs):
-        # update_all_scores = kwargs.get("update_all_scores", True)
-        # weights = settings.GITCOIN_PASSPORT_WEIGHTS
-        # threshold = settings.GITCOIN_PASSPORT_THRESHOLD
-
-        print("Running ...")
-        print("args     :", args)
-        print("kwargs   :", kwargs)
+        self.stdout.write("Running ...")
+        self.stdout.write(f"args     : {args}")
+        self.stdout.write(f"kwargs   : {kwargs}")
         filter = (
             json.loads(kwargs["filter_community_include"])
             if kwargs["filter_community_include"]
+            else {}
+        )
+        exclude = (
+            json.loads(kwargs["filter_community_exclude"])
+            if kwargs["filter_community_exclude"]
             else {}
         )
         batch_size = kwargs["batch_size"]
@@ -60,16 +59,20 @@ class Command(BaseCommand):
         last_id = None
         count = 0
         start = datetime.now()
-        communities = Community.objects.filter(**filter)
-        print("recalculate_scores => 1")
-        print("recalculate_scores => 1", list(communities))
+        communities = Community.objects.filter(**filter).exclude(**exclude)
+        self.stdout.write(f"Recalculating scores for communities: {list(communities)}")
         for community in communities:
+            has_more = True
             scorer = community.get_scorer()
-            print("scorer type", scorer.type)
-            print("scorer type", type(scorer))
-            print("recalculate_scores => 2")
+            self.stdout.write(
+                f"""
+Community:{community}
+scorer type: {scorer.type}, {type(scorer)}"""
+            )
             while has_more:
-                print(f"{has_more} / {last_id} / {count}")
+                self.stdout.write(
+                    f"has more: {has_more} / last id: {last_id} / count: {count}"
+                )
                 passport_query = Passport.objects.order_by("id").select_related("score")
                 if last_id:
                     passport_query = passport_query.filter(id__gt=last_id)
@@ -78,7 +81,6 @@ class Command(BaseCommand):
                 passport_ids = [p.id for p in passports]
                 count += len(passports)
                 has_more = len(passports) > 0
-                print("recalculate_scores => 3")
                 if len(passports) > 0:
                     last_id = passport_ids[-1]
                     stamp_query = Stamp.objects.filter(passport_id__in=passport_ids)
@@ -113,8 +115,6 @@ class Command(BaseCommand):
                         score.error = None
                         score.points = scoreData.points
 
-                    print("scores_to_create : ", scores_to_create)
-                    print("scores_to_update : ", scores_to_update)
                     if scores_to_create:
                         Score.objects.bulk_create(scores_to_create)
 
@@ -132,10 +132,11 @@ class Command(BaseCommand):
                         )
 
                 elapsed = datetime.now() - start
-                print("*" * 80)
-                print(f"Elapsed: {elapsed}")
-                print(f"Count: {count}")
-                print(f"Rate: {elapsed / count}")
-                print("*" * 80)
-                # has_more = has_more and count < 100
-                print(f"Has more: {has_more}")
+                self.stdout.write(
+                    f"""
+Community id: {community}
+Elapsed: {elapsed}
+Count: {count}
+Rate: {elapsed / count}
+"""
+                )

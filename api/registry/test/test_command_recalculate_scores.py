@@ -1,4 +1,7 @@
+import json
+
 import pytest
+from account.models import Community
 from django.core.management import call_command
 from registry.models import Passport, Score, Stamp
 
@@ -271,3 +274,108 @@ class TestRecalculatScores:
         assert "Facebook" in s3.points
         assert "Google" in s3.points
         assert "Ens" in s3.points
+
+    def test_rescoring_include_filter(
+        self,
+        weighted_scorer_passports,
+        binary_weighted_scorer_passports,
+        passport_holder_addresses,
+        scorer_community_with_weighted_scorer,
+        scorer_community_with_binary_scorer,
+    ):
+        """Test the recalculate_scores command uses the include filter properly"""
+
+        communities = list(Community.objects.all())
+        # Make sure the pre-test condition is fulfilled we have 2 communities
+        # and each one has at least 1 passport
+        assert len(communities) == 2
+        for c in Community.objects.all():
+            assert c.passports.count() > 0
+
+        included_community = communities[0]
+        excluded_community = communities[1]
+
+        call_command(
+            "recalculate_scores",
+            *[],
+            **{
+                "filter_community_include": json.dumps({"id": included_community.id}),
+            },
+        )
+
+        # We check for scores only in the included community
+        # and make sure the ones for exluded community have not been calculated
+        Score.objects.filter(passport__community=excluded_community).count() == 0
+        Score.objects.filter(passport__community=included_community).count() == len(
+            weighted_scorer_passports
+        )
+
+    def test_rescoring_exclude_filter(
+        self,
+        weighted_scorer_passports,
+        binary_weighted_scorer_passports,
+        passport_holder_addresses,
+        scorer_community_with_weighted_scorer,
+        scorer_community_with_binary_scorer,
+    ):
+        """Test the recalculate_scores command uses the exclude filter properly"""
+
+        # Make sure the pre-test condition is fulfilled we have 2 communities
+        # and each one has at least 1 passport
+        assert len(weighted_scorer_passports) > 0
+        assert len(binary_weighted_scorer_passports) > 0
+        communities = list(Community.objects.all())
+        assert len(communities) == 2
+
+        included_community = scorer_community_with_weighted_scorer
+        excluded_community = scorer_community_with_binary_scorer
+
+        call_command(
+            "recalculate_scores",
+            *[],
+            **{
+                "filter_community_exclude": json.dumps({"id": excluded_community.id}),
+            },
+        )
+
+        # We check for scores only in the included community
+        # and make sure the ones for exluded community have not been calculated
+        Score.objects.filter(passport__community=excluded_community).count() == 0
+        Score.objects.filter(passport__community=included_community).count() == len(
+            weighted_scorer_passports
+        )
+
+    def test_rescoring_no_filter(
+        self,
+        weighted_scorer_passports,
+        binary_weighted_scorer_passports,
+        passport_holder_addresses,
+        scorer_community_with_weighted_scorer,
+        scorer_community_with_binary_scorer,
+    ):
+        """Test the recalculate_scores command re-calculates all scores for all communities with no include or exclude filter"""
+
+        # Make sure the pre-test condition is fulfilled we have 2 communities
+        # and each one has at least 1 passport
+        assert len(weighted_scorer_passports) > 0
+        assert len(binary_weighted_scorer_passports) > 0
+        communities = list(Community.objects.all())
+        assert len(communities) == 2
+
+        included_community = scorer_community_with_weighted_scorer
+        excluded_community = scorer_community_with_binary_scorer
+
+        call_command(
+            "recalculate_scores",
+            *[],
+            **{},
+        )
+
+        # We check for scores only in the included community
+        # and make sure the ones for exluded community have not been calculated
+        Score.objects.filter(passport__community=excluded_community).count() == len(
+            binary_weighted_scorer_passports
+        )
+        Score.objects.filter(passport__community=included_community).count() == len(
+            weighted_scorer_passports
+        )
