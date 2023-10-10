@@ -309,6 +309,9 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
+          # TODO: pull for secrets manager or use this instead of secrets manage value
+          TRUSTED_IAM_ISSUER: ${{ secrets.TRUSTED_IAM_ISSUER }}
+
           REDASH_DB_NAME: ${{ secrets.REDASH_DB_NAME }}
           REDASH_DB_PASSWORD: ${{ secrets.REDASH_DB_PASSWORD }}
           REDASH_DB_USER: ${{ secrets.REDASH_DB_USER }}

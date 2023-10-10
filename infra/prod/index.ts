@@ -1358,11 +1358,18 @@ createIndexerService(
 );
 
 export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
+const trustedIAMIssuer = `${process.env["TRUSTED_IAM_ISSUER"]}`;
 
 buildLambdaFn(
   httpsListener,
   dockerGtcSubmitPassportLambdaImage,
   privateSubnetSecurityGroup,
   vpcPrivateSubnetIds,
-  environment
+  [
+    ...environment,
+    {
+      name: "TRUSTED_IAM_ISSUER",
+      value: trustedIAMIssuer,
+    },
+  ]
 );
