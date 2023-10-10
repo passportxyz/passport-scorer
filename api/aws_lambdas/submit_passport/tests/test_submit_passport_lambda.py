@@ -1,15 +1,7 @@
 import json
 
 import pytest
-from account.models import AccountAPIKey
-from django.test import override_settings
-from registry.api import v1
-from scorer.test.conftest import (
-    scorer_account,
-    scorer_api_key,
-    scorer_community_with_binary_scorer,
-    scorer_user,
-)
+from registry.test.test_passport_submission import mock_passport
 
 from ..submit_passport import handler
 
@@ -52,23 +44,47 @@ def make_test_event(api_key, address, community_id):
 
 
 def test_successful_authentication(
-    scorer_api_key, scorer_account, scorer_community_with_binary_scorer
+    scorer_api_key,
+    scorer_community_with_binary_scorer,
+    passport_holder_addresses,
+    mocker,
 ):
     """
     Tests that authentication is successful given correct credentials.
     """
-    event = make_test_event(
-        scorer_api_key, scorer_account.address, scorer_community_with_binary_scorer.id
-    )
 
-    response = handler(event, None)
+    with mocker.patch(
+        "registry.atasks.aget_passport",
+        return_value=mock_passport,
+    ):
+        with mocker.patch(
+            "registry.atasks.validate_credential", side_effect=[[], [], []]
+        ):
+            address = passport_holder_addresses[0]["address"].lower()
+            event = make_test_event(
+                scorer_api_key, address, scorer_community_with_binary_scorer.id
+            )
 
-    assert response is not None
-    assert (
-        response["body"]
-        == '{"address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c", "score": null, "status": "PROCESSING", "last_score_timestamp": null, "evidence": null, "error": null, "stamp_scores": null}'
-    )
-    assert response["statusCode"] == 200
+            response = handler(event, None)
+
+            assert response is not None
+            body = json.loads(response["body"])
+
+            assert body["address"] == address
+            assert body["score"] == "0"
+            assert body["status"] == "DONE"
+            assert body["evidence"] == {
+                "type": "ThresholdScoreCheck",
+                "success": False,
+                "rawScore": 2,
+                "threshold": 75.0,
+            }
+            assert body["error"] is None
+            assert body["stamp_scores"] == {"Ens": 1.0, "Google": 1.0}
+            # We just check that something != None was recorded for the last timestamp
+            assert body["last_score_timestamp"] is not None
+
+            assert response["statusCode"] == 200
 
 
 def test_unsucessfull_auth(scorer_account, scorer_community_with_binary_scorer):
