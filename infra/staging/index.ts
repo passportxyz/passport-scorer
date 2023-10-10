@@ -466,6 +466,7 @@ const scorerServiceRegistrySubmitPassport = createScorerECSService(
 );
 
 export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
+const trustedIAMIssuer = `${process.env["TRUSTED_IAM_ISSUER"]}`;
 
 buildLambdaFn(
   httpsListener,
@@ -476,7 +477,7 @@ buildLambdaFn(
     ...environment,
     {
       name: "TRUSTED_IAM_ISSUER",
-      value: `${SCORER_SERVER_SSM_ARN}:TRUSTED_IAM_ISSUER::`,
+      value: trustedIAMIssuer,
     },
   ]
 );
