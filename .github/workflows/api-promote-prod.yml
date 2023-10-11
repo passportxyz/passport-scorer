@@ -130,9 +130,9 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION_STAGING }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
       - name: Login to Amazon ECR Public
         id: login-ecr
@@ -143,7 +143,7 @@ jobs:
       - name: Build, tag, and push image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REGISTRY_ALIAS: t1g3k9q8
+          ECR_REGISTRY_ALIAS: c8n6v8e9
           ECR_REPOSITORY: passport-indexer
           IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
@@ -197,7 +197,7 @@ jobs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
 
   build-submit-passport-lambda:
-    environment: Staging
+    environment: Production
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -216,8 +216,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
 
       - name: Login to Amazon ECR Private
