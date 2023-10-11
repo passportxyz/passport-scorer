@@ -12,6 +12,7 @@ from account.models import Account, Community, Nonce, Rules
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.core.cache import cache
+from eth_utils import is_checksum_address, is_checksum_formatted_address, is_hex_address
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 from ninja import Router
@@ -42,8 +43,8 @@ from registry.api.utils import (
 from registry.atasks import ascore_passport
 from registry.exceptions import (
     InternalServerErrorException,
-    InvalidAPIKeyPermissions,
     InvalidAddressException,
+    InvalidAPIKeyPermissions,
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
     InvalidNonceException,
@@ -184,7 +185,8 @@ async def ahandle_submit_passport(
     payload: SubmitPassportPayload, account: Account
 ) -> DetailedScoreResponse:
     address_lower = payload.address.lower()
-    validate_address(address_lower)
+    if not is_valid_address(address_lower):
+        raise InvalidAddressException()
 
     try:
         scorer_id = get_scorer_id(payload)
@@ -230,9 +232,12 @@ async def ahandle_submit_passport(
     return score
 
 
-def validate_address(address: str):
-    if not len(address) == 42:
-        raise InvalidAddressException()
+def is_valid_address(address: str) -> bool:
+    return (
+        is_checksum_address(address)
+        if is_checksum_formatted_address(address)
+        else is_hex_address(address)
+    )
 
 
 def handle_submit_passport(
