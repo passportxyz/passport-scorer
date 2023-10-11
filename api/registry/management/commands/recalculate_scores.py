@@ -40,26 +40,8 @@ class Command(BaseCommand):
             help="""Batch size for recoring""",
         )
 
-    def handle(self, *args, **kwargs):
-        self.stdout.write("Running ...")
-        self.stdout.write(f"args     : {args}")
-        self.stdout.write(f"kwargs   : {kwargs}")
-        filter = (
-            json.loads(kwargs["filter_community_include"])
-            if kwargs["filter_community_include"]
-            else {}
-        )
-        exclude = (
-            json.loads(kwargs["filter_community_exclude"])
-            if kwargs["filter_community_exclude"]
-            else {}
-        )
-        batch_size = kwargs["batch_size"]
-        count = 0
-        start = datetime.now()
-        communities = Community.objects.filter(**filter).exclude(**exclude)
-        self.stdout.write(f"Recalculating scores for communities: {list(communities)}")
-        for community in communities:
+    def rescore_community(self, community: Community, batch_size: int):
+        try:
             # Reset has_more and last_id for each community
             has_more = True
             last_id = 0
@@ -71,7 +53,7 @@ scorer type: {scorer.type}, {type(scorer)}"""
             )
             while has_more:
                 self.stdout.write(
-                    f"has more: {has_more} / last id: {last_id} / count: {count}"
+                    f"has more: {has_more} / last id: {last_id} / count: {self.total_count}"
                 )
                 passport_query = Passport.objects.order_by("id").select_related("score")
                 if last_id:
@@ -79,7 +61,7 @@ scorer type: {scorer.type}, {type(scorer)}"""
                 passport_query = passport_query.filter(community=community)
                 passports = list(passport_query[:batch_size].iterator())
                 passport_ids = [p.id for p in passports]
-                count += len(passports)
+                self.total_count += len(passports)
                 has_more = len(passports) > 0
                 if len(passports) > 0:
                     last_id = passport_ids[-1]
@@ -131,15 +113,64 @@ scorer type: {scorer.type}, {type(scorer)}"""
                             ],
                         )
 
-                elapsed = datetime.now() - start
+                elapsed = datetime.now() - self.command_start
                 rate = "-"
-                if count > 0:
-                    rate = elapsed / count
+                if self.total_count > 0:
+                    rate = elapsed / self.total_count
                 self.stdout.write(
                     f"""
 Community id: {community}
 Elapsed: {elapsed}
-Count: {count}
+Count: {self.total_count}
 Rate: {rate}
 """
                 )
+
+        except Exception as e:
+            self.stderr.write(
+                f"""
+ERROR     : {e}
+Community : {community}
+"""
+            )
+            self.errors.append(dict(community=community, error=e))
+
+    def handle(self, *args, **kwargs):
+        self.stdout.write("Running ...")
+        self.stdout.write(f"args     : {args}")
+        self.stdout.write(f"kwargs   : {kwargs}")
+        filter = (
+            json.loads(kwargs["filter_community_include"])
+            if kwargs["filter_community_include"]
+            else {}
+        )
+        exclude = (
+            json.loads(kwargs["filter_community_exclude"])
+            if kwargs["filter_community_exclude"]
+            else {}
+        )
+        batch_size = kwargs["batch_size"]
+        self.total_count = 0
+        self.command_start = datetime.now()
+        self.errors = []
+        communities = Community.objects.filter(**filter).exclude(**exclude)
+        self.stdout.write(f"Recalculating scores for communities: {list(communities)}")
+        for community in communities:
+            self.rescore_community(community, batch_size)
+
+        if len(self.errors) > 0:
+            self.stderr.write(
+                f"""
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Num errors: {len(self.errors)}
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"""
+            )
+
+        for e in self.errors:
+            self.stderr.write(
+                f"""
+----------------------------------------
+ERROR     : {e["error"]}
+Community : {e["community"]}
+"""
+            )
