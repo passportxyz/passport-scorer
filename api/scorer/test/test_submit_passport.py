@@ -341,3 +341,20 @@ def _(scorer_community_with_gitcoin_default, score_response):
             "Google": 1234.0,
         },
     }
+
+
+def test_invalid_address(scorer_api_key, scorer_community_with_gitcoin_default):
+    payload = {
+        "community": scorer_community_with_gitcoin_default.id,
+        "address": scorer_community_with_gitcoin_default.account.address + "q",
+    }
+
+    client = Client()
+    submit_response = client.post(
+        "/registry/submit-passport",
+        json.dumps(payload),
+        content_type="application/json",
+        HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
+    )
+
+    assert submit_response.status_code == 400

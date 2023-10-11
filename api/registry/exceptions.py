@@ -13,6 +13,11 @@ class InvalidNonceException(APIException):
     default_detail = "Invalid nonce."
 
 
+class InvalidAddressException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Invalid address."
+
+
 class InvalidPassportCreationException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Error Creating Passport."
