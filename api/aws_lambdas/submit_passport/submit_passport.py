@@ -2,6 +2,7 @@
 This module provides a handler to manage API requests in AWS Lambda.
 """
 
+import base64
 import logging
 import os
 
@@ -60,7 +61,11 @@ def handler(event, _context):
         # rate limit
         check_rate_limit(request)
 
-        body = json.loads(event["body"])
+        if event["isBase64Encoded"]:
+            body = json.loads(base64.b64decode(event["body"]).decode("utf-8"))
+        else:
+            body = json.loads(event["body"])
+
         if user_account:
             score = async_to_sync(ahandle_submit_passport)(
                 SubmitPassportPayload(**body), user_account
