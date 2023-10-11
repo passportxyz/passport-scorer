@@ -373,6 +373,7 @@ export function createScorerECSService(
       namespace: "AWS/ApplicationELB",
       period: 60,
       statistic: "Sum",
+      treatMissingData: "notBreaching",
     });
   }
 

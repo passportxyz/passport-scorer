@@ -43,6 +43,7 @@ from registry.atasks import ascore_passport
 from registry.exceptions import (
     InternalServerErrorException,
     InvalidAPIKeyPermissions,
+    InvalidAddressException,
     InvalidCommunityScoreRequestException,
     InvalidLimitException,
     InvalidNonceException,
@@ -183,6 +184,7 @@ async def ahandle_submit_passport(
     payload: SubmitPassportPayload, account: Account
 ) -> DetailedScoreResponse:
     address_lower = payload.address.lower()
+    validate_address(address_lower)
 
     try:
         scorer_id = get_scorer_id(payload)
@@ -226,6 +228,11 @@ async def ahandle_submit_passport(
 
     log.error("=> score.id=%s score.error=%s", score.id, score.error)
     return score
+
+
+def validate_address(address: str):
+    if not len(address) == 42:
+        raise InvalidAddressException()
 
 
 def handle_submit_passport(
