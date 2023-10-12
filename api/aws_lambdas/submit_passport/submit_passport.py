@@ -46,13 +46,27 @@ def lambda_to_django_request(api_key):
     return request
 
 
-def handler(event, _context):
+def strip_event(event) -> tuple:
+    """
+    Strips the event of all sensitive fields.
+    This will return a tuple like: (sensitive_data_dict, event_without_sensitive_data)
+    """
+    sensitive_data = {}
+    headers = event.get("headers", {})
+    if "x-api-key" in headers:
+        sensitive_data["x-api-key"] = headers["x-api-key"]
+        headers["x-api-key"] = "***"
+    return sensitive_data, event
+
+
+def handler(_event, _context):
     """
     Handles the incoming events and translates them into Django's context.
     """
     try:
+        sensitive_data, event = strip_event(_event)
         logger.info("Received event: %s", event)
-        api_key = event["headers"].get("x-api-key", "")
+        api_key = sensitive_data.get("x-api-key", "")
         # Authenticate
         api_key_instance = ApiKey()
         request = lambda_to_django_request(api_key)

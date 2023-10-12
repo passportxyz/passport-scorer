@@ -315,13 +315,14 @@ async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community
             ret = await aapi_get_object_or_404(
                 with_read_db(Community), id=scorer_id, account=account
             )
+            return ret
         except Exception:
             log.error(
                 "Error when getting score by internal or external ID (aget_scorer_by_id): scorer_id/external_scorer_id=%s, account='%s'",
                 scorer_id,
                 account,
             )
-        return ret
+            raise
 
 
 @router.get(
