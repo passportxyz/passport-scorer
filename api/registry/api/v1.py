@@ -168,7 +168,7 @@ async def a_submit_passport(
 ) -> DetailedScoreResponse:
     check_rate_limit(request)
     try:
-        log.error("/submit-passport, payload=%s", payload)
+        log.debug("called a_submit_passport, payload=%s", payload)
 
         if not request.api_key.submit_passports:
             raise InvalidAPIKeyPermissions()
@@ -195,7 +195,6 @@ async def ahandle_submit_passport(
 
     # Get community object
     user_community = await aget_scorer_by_id(scorer_id, account)
-    log.error("===> user_community %s", user_community)
 
     # Verify the signer
     if payload.signature or community_requires_signature(user_community):
@@ -228,7 +227,6 @@ async def ahandle_submit_passport(
     await ascore_passport(user_community, db_passport, payload.address, score)
     await score.asave()
 
-    log.error("=> score.id=%s score.error=%s", score.id, score.error)
     return score
 
 
@@ -313,13 +311,18 @@ async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community
         )
         return ret
     except Exception:
-        ret = await aapi_get_object_or_404(
-            with_read_db(Community), id=scorer_id, account=account
-        )
-        log.error(
-            "Error when getting score by ID (aget_scorer_by_id) %s", aget_scorer_by_id
-        )
-        return ret
+        try:
+            ret = await aapi_get_object_or_404(
+                with_read_db(Community), id=scorer_id, account=account
+            )
+            return ret
+        except Exception:
+            log.error(
+                "Error when getting score by internal or external ID (aget_scorer_by_id): scorer_id/external_scorer_id=%s, account='%s'",
+                scorer_id,
+                account,
+            )
+            raise
 
 
 @router.get(

@@ -1,10 +1,11 @@
 import base64
 import json
+from copy import deepcopy
 
 import pytest
 from registry.test.test_passport_submission import mock_passport
 
-from ..submit_passport import handler
+from ..submit_passport import handler, strip_event
 
 # Sample mock event
 sample_event = {
@@ -176,6 +177,60 @@ def test_unsucessfull_auth(scorer_account, scorer_community_with_binary_scorer):
 
     assert response is not None
     assert response["statusCode"] == 403
+
+
+def test_strip_event():
+    stripped_data, event = strip_event(sample_event)
+
+
+def test_strip_event_strips_the_api_key(
+    scorer_api_key,
+    scorer_community_with_binary_scorer,
+    passport_holder_addresses,
+):
+    """
+    Tests that authentication is successful given correct credentials.
+    """
+
+    address = passport_holder_addresses[0]["address"].lower()
+    event = make_test_event(
+        scorer_api_key, address, scorer_community_with_binary_scorer.id
+    )
+    initial_event = deepcopy(event)
+    sensitive_data, event = strip_event(event)
+
+    assert sensitive_data["x-api-key"] == initial_event["headers"]["x-api-key"]
+    assert event["headers"]["x-api-key"] == "***"
+
+    # Events hould equal the initial event after adding back the stripped data
+    event["headers"]["x-api-key"] = sensitive_data["x-api-key"]
+    assert event == initial_event
+
+
+def test_strip_event_handle_missing_api_key(
+    scorer_api_key,
+    scorer_community_with_binary_scorer,
+    passport_holder_addresses,
+):
+    """
+    Tests that authentication is successful given correct credentials.
+    """
+
+    address = passport_holder_addresses[0]["address"].lower()
+    event = make_test_event(
+        scorer_api_key, address, scorer_community_with_binary_scorer.id
+    )
+
+    # Delete the "x-api-key" we want to assume our event does not have it at the beginning
+    del event["headers"]["x-api-key"]
+    assert "x-api-key" not in event["headers"]
+
+    initial_event = deepcopy(event)
+
+    sensitive_data, event = strip_event(event)
+
+    assert len(sensitive_data) == 0
+    assert event == initial_event
 
 
 # Conflicting with other rate limiting tests
