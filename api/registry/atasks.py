@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 Hash = str
 
 
-def asave_api_key_analytics(api_key_id, path):
+async def asave_api_key_analytics(api_key_id, path):
     try:
         await AccountAPIKeyAnalytics.objects.acreate(
             api_key_id=api_key_id,
@@ -27,6 +27,8 @@ def asave_api_key_analytics(api_key_id, path):
         )
     except Exception as e:
         pass
+
+    return None
 
 
 async def aremove_stale_stamps_from_db(passport: Passport, passport_data: dict):
