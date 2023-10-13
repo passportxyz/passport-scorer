@@ -379,6 +379,9 @@ def handle_get_score(
     try:
         lower_address = address.lower()
 
+        if not is_valid_address(lower_address):
+            raise InvalidAddressException()
+
         score = Score.objects.get(
             passport__address=lower_address, passport__community=user_community
         )
@@ -538,7 +541,12 @@ def get_passport_stamps(
 
     # ref: https://medium.com/swlh/how-to-implement-cursor-pagination-like-a-pro-513140b65f32
 
-    query = CeramicCache.objects.order_by("-id").filter(address=address.lower())
+    address = address.lower()
+
+    if not is_valid_address(address):
+        raise InvalidAddressException()
+
+    query = CeramicCache.objects.order_by("-id").filter(address=address)
 
     cursor = decode_cursor(token) if token else {}
     direction = cursor.get("d")

@@ -8,31 +8,27 @@ from account.models import Account, Community
 from django.db.models import Max, Q
 from ninja import Router
 from registry.api import common, v1
-from registry.api.utils import ApiKey, check_rate_limit, with_read_db
 from registry.api.schema import (
     CursorPaginatedHistoricalScoreResponse,
     CursorPaginatedScoreResponse,
     CursorPaginatedStampCredentialResponse,
-    DetailedHistoricalScoreResponse,
     DetailedScoreResponse,
     ErrorMessageResponse,
     SigningMessageResponse,
     StampDisplayResponse,
     SubmitPassportPayload,
 )
+from registry.api.utils import ApiKey, check_rate_limit, with_read_db
 from registry.exceptions import (
-    InvalidAPIKeyPermissions,
-    InvalidCommunityScoreRequestException,
+    InvalidAddressException,
     InvalidLimitException,
-    NotFoundApiException,
     api_get_object_or_404,
 )
-from registry.models import Event, Score
+from registry.models import Score
 from registry.utils import (
     decode_cursor,
     encode_cursor,
     get_cursor_query_condition,
-    get_cursor_tokens_for_results,
     reverse_lazy_with_query,
 )
 
@@ -139,6 +135,8 @@ def get_scores(
             field_ordering = ["last_score_timestamp", "id"]
 
             if address:
+                if not v1.is_valid_address(address):
+                    raise InvalidAddressException()
                 filter_condition &= Q(passport__address=address)
 
             if last_score_timestamp__gt:
@@ -270,6 +268,8 @@ def stamp_display(request) -> List[StampDisplayResponse]:
     response=v1.GqlResponse,
 )
 def get_gtc_stake(request, address: str):
+    if not v1.is_valid_address(address):
+        raise InvalidAddressException()
     return v1.get_gtc_stake(request, address)
 
 
@@ -288,6 +288,8 @@ def get_score_history(
     token: str = None,
     limit: int = 1000,
 ) -> CursorPaginatedHistoricalScoreResponse:
+    if address and not v1.is_valid_address(address):
+        raise InvalidAddressException()
     return common.history_endpoint["handler"](
         request, scorer_id, address, created_at, token, limit
     )
