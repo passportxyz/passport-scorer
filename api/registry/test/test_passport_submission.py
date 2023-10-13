@@ -542,7 +542,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "last_score_timestamp": None,
             "status": "ERROR",
             "error": "No Passport found for this address.",
-            "stamp_scores": None,
+            "stamp_scores": {},
         }
 
     @patch("registry.atasks.validate_credential", side_effect=[[], [], [], []])
