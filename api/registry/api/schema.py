@@ -92,6 +92,12 @@ class DetailedScoreResponse(Schema):
     def resolve_address(obj):
         return obj.passport.address
 
+    @staticmethod
+    def resolve_stamp_scores(obj):
+        if obj.stamp_scores is None or obj.stamp_scores == "":
+            return {}
+        return obj.stamp_scores
+
 
 class HistoricalScoreData(Schema):
     score: float
