@@ -395,7 +395,7 @@ def handle_get_score(
             else None,
             "evidence": score.evidence,
             "error": score.error,
-            "stamp_scores": score.points,
+            "stamp_scores": score.stamp_scores,
         }
 
         return DetailedScoreResponse(**response_data)

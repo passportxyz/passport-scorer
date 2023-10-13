@@ -87,7 +87,7 @@ def handler(_event, _context):
             # TODO: preferably we would have a 1:1 mapping of the fields for DetailedScoreResponse
             # or if not, then specify a resolver for stamp_scores
             ret = DetailedScoreResponse.from_orm(score)
-            ret.stamp_scores = score.points
+            ret.stamp_scores = score.stamp_scores
 
             return {
                 "statusCode": 200,

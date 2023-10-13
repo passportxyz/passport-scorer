@@ -45,7 +45,7 @@ class ScoreData:
     ):
         self.score = score
         self.evidence = evidence
-        self.points = points
+        self.stamp_scores = points
 
     def __repr__(self):
         return f"ScoreData(score={self.score}, evidence={self.evidence})"

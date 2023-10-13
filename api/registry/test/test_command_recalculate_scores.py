@@ -178,21 +178,21 @@ class TestRecalculatScores:
 
         s1 = Score.objects.get(passport=binary_weighted_scorer_passports[0])
         assert s1.evidence["rawScore"] == "75"
-        assert len(s1.points) == 1
-        assert "Facebook" in s1.points
+        assert len(s1.stamp_scores) == 1
+        assert "Facebook" in s1.stamp_scores
 
         s2 = Score.objects.get(passport=binary_weighted_scorer_passports[1])
         assert s2.evidence["rawScore"] == "76"
-        assert len(s2.points) == 2
-        assert "Facebook" in s2.points
-        assert "Google" in s2.points
+        assert len(s2.stamp_scores) == 2
+        assert "Facebook" in s2.stamp_scores
+        assert "Google" in s2.stamp_scores
 
         s3 = Score.objects.get(passport=binary_weighted_scorer_passports[2])
         assert s3.evidence["rawScore"] == "77"
-        assert len(s3.points) == 3
-        assert "Facebook" in s3.points
-        assert "Google" in s3.points
-        assert "Ens" in s3.points
+        assert len(s3.stamp_scores) == 3
+        assert "Facebook" in s3.stamp_scores
+        assert "Google" in s3.stamp_scores
+        assert "Ens" in s3.stamp_scores
 
     def test_rescoring_weighted_scorer(
         self,
@@ -224,21 +224,21 @@ class TestRecalculatScores:
 
         s1 = Score.objects.get(passport=weighted_scorer_passports[0])
         assert s1.score == 1
-        assert len(s1.points) == 1
-        assert "Facebook" in s1.points
+        assert len(s1.stamp_scores) == 1
+        assert "Facebook" in s1.stamp_scores
 
         s2 = Score.objects.get(passport=weighted_scorer_passports[1])
         assert s2.score == 2
-        assert len(s2.points) == 2
-        assert "Facebook" in s2.points
-        assert "Google" in s2.points
+        assert len(s2.stamp_scores) == 2
+        assert "Facebook" in s2.stamp_scores
+        assert "Google" in s2.stamp_scores
 
         s3 = Score.objects.get(passport=weighted_scorer_passports[2])
         assert s3.score == 3
-        assert len(s3.points) == 3
-        assert "Facebook" in s3.points
-        assert "Google" in s3.points
-        assert "Ens" in s3.points
+        assert len(s3.stamp_scores) == 3
+        assert "Facebook" in s3.stamp_scores
+        assert "Google" in s3.stamp_scores
+        assert "Ens" in s3.stamp_scores
 
         #########################################################
         # Change weights and rescore ...
@@ -259,21 +259,21 @@ class TestRecalculatScores:
 
         s1 = Score.objects.get(passport=weighted_scorer_passports[0])
         assert s1.score == 75
-        assert len(s1.points) == 1
-        assert "Facebook" in s1.points
+        assert len(s1.stamp_scores) == 1
+        assert "Facebook" in s1.stamp_scores
 
         s2 = Score.objects.get(passport=weighted_scorer_passports[1])
         assert s2.score == 76
-        assert len(s2.points) == 2
-        assert "Facebook" in s2.points
-        assert "Google" in s2.points
+        assert len(s2.stamp_scores) == 2
+        assert "Facebook" in s2.stamp_scores
+        assert "Google" in s2.stamp_scores
 
         s3 = Score.objects.get(passport=weighted_scorer_passports[2])
         assert s3.score == 77
-        assert len(s3.points) == 3
-        assert "Facebook" in s3.points
-        assert "Google" in s3.points
-        assert "Ens" in s3.points
+        assert len(s3.stamp_scores) == 3
+        assert "Facebook" in s3.stamp_scores
+        assert "Google" in s3.stamp_scores
+        assert "Ens" in s3.stamp_scores
 
     def test_rescoring_include_filter(
         self,
