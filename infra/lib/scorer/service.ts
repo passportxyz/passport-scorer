@@ -31,6 +31,7 @@ export type ScorerService = {
   alertTopic?: Topic;
   cpu?: number;
   memory?: number;
+  desiredCount?: number;
 };
 
 export type ScorerEnvironmentConfig = {
@@ -261,7 +262,7 @@ export function createScorerECSService(
   const service = new awsx.ecs.FargateService(name, {
     tags: { name: name },
     cluster: config.cluster.arn,
-    desiredCount: 1,
+    desiredCount: config.desiredCount ? config.desiredCount : 1,
     networkConfiguration: {
       subnets: config.subnets,
       securityGroups: [config.securityGroup.id],
@@ -274,6 +275,7 @@ export function createScorerECSService(
       },
     ],
     taskDefinitionArgs: {
+      tags: { name: name },
       logGroup: {
         existing: config.logGroup,
       },
