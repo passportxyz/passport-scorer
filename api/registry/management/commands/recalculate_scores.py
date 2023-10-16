@@ -113,7 +113,7 @@ scorer type: {scorer.type}, {type(scorer)}"""
                             else None
                         )
                         score.error = None
-                        score.points = scoreData.points
+                        score.stamp_scores = scoreData.stamp_scores
 
                     if scores_to_create:
                         Score.objects.bulk_create(scores_to_create)
@@ -127,7 +127,7 @@ scorer type: {scorer.type}, {type(scorer)}"""
                                 "last_score_timestamp",
                                 "evidence",
                                 "error",
-                                "points",
+                                "stamp_scores",
                             ],
                         )
 

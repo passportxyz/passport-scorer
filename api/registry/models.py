@@ -70,7 +70,7 @@ class Score(models.Model):
     )
     error = models.TextField(null=True, blank=True)
     evidence = models.JSONField(null=True, blank=True)
-    points = models.JSONField(null=True, blank=True)
+    stamp_scores = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"Score #{self.id}, score={self.score}, last_score_timestamp={self.last_score_timestamp}, status={self.status}, error={self.error}, evidence={self.evidence}, passport_id={self.passport_id}"
@@ -81,16 +81,15 @@ def score_updated(sender, instance, **kwargs):
     if instance.status != Score.Status.DONE:
         return instance
 
-    if not Score.objects.filter(pk=instance.pk, score=instance.score).exists():
-        Event.objects.create(
-            action=Event.Action.SCORE_UPDATE,
-            address=instance.passport.address,
-            community=instance.passport.community,
-            data={
-                "score": float(instance.score) if instance.score != None else 0,
-                "evidence": instance.evidence,
-            },
-        )
+    Event.objects.create(
+        action=Event.Action.SCORE_UPDATE,
+        address=instance.passport.address,
+        community=instance.passport.community,
+        data={
+            "score": float(instance.score) if instance.score != None else 0,
+            "evidence": instance.evidence,
+        },
+    )
 
     return instance
 
