@@ -767,6 +767,29 @@ class TestPassportGetScoreV2(TestPassportGetScore):
 
         assert is_sorted, "The scores are not in order"
 
+    def test_get_historical_score_filter_by_address(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        address = passport_holder_addresses[0]["address"]
+
+        event_object = list(Event.objects.all())
+
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/score/{scorer_community.id}/history",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            data={"address": address},
+        )
+
+        response_data = response.json()
+        assert response.status_code == 200
+        assert len(response_data["items"]) == 1
+        assert response_data["items"][0]["address"] == address.lower()
+
     def test_get_historical_score_filter_by_address_and_timestamp(
         self,
         scorer_api_key,
@@ -787,14 +810,9 @@ class TestPassportGetScoreV2(TestPassportGetScore):
         )
 
         response_data = response.json()
-
         assert response.status_code == 200
         assert len(response_data["items"]) == 1
-        event_address = None
-        for event in event_object:
-            if event.address == response_data["items"][0]["address"]:
-                event_address = event.address
-        assert response_data["items"][0]["address"] == event_address
+        assert response_data["items"][0]["address"] == address
 
     def test_get_historical_scores_filter_by_timestamp(
         self,
@@ -818,9 +836,9 @@ class TestPassportGetScoreV2(TestPassportGetScore):
         items = response_data["items"]
 
         for item in items:
-            item_created_at = item["created_at"]
+            last_score_timestamp = item["last_score_timestamp"]
             assert (
-                datetime.datetime.fromisoformat(item_created_at) <= created_at
+                datetime.datetime.fromisoformat(last_score_timestamp) <= created_at
             ), f"Item with address {item['address']} has a created_at greater than the given timestamp!"
 
     def test_get_historical_scores_filter_by_timestamp_sorted(

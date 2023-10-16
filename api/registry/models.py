@@ -81,16 +81,15 @@ def score_updated(sender, instance, **kwargs):
     if instance.status != Score.Status.DONE:
         return instance
 
-    if not Score.objects.filter(pk=instance.pk, score=instance.score).exists():
-        Event.objects.create(
-            action=Event.Action.SCORE_UPDATE,
-            address=instance.passport.address,
-            community=instance.passport.community,
-            data={
-                "score": float(instance.score) if instance.score != None else 0,
-                "evidence": instance.evidence,
-            },
-        )
+    Event.objects.create(
+        action=Event.Action.SCORE_UPDATE,
+        address=instance.passport.address,
+        community=instance.passport.community,
+        data={
+            "score": float(instance.score) if instance.score != None else 0,
+            "evidence": instance.evidence,
+        },
+    )
 
     return instance
 

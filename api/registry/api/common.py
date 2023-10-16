@@ -5,13 +5,14 @@ import api_logging as logging
 
 # --- Deduplication Modules
 from account.models import Community
-from registry.api.utils import ApiKey, check_rate_limit, with_read_db
 from registry.api.schema import (
     CursorPaginatedHistoricalScoreResponse,
+    DetailedScoreResponse,
     ErrorMessageResponse,
 )
+from registry.api.utils import ApiKey, check_rate_limit, with_read_db
 from registry.exceptions import InvalidLimitException, api_get_object_or_404
-from registry.models import Event
+from registry.models import Event, Score
 from registry.utils import (
     decode_cursor,
     get_cursor_query_condition,
@@ -52,7 +53,33 @@ def get_score_history(
         else:
             created_at = None
 
-        # Scenario 1 - Snapshot for 1 addresses
+        # Scenario 2 - Snapshot for 1 addresses
+        # the user has passed in the address, but no created_at
+        # In this case only 1 result will be returned
+        if address and not created_at:
+            scores = base_query.filter(address=address).order_by("-created_at")
+
+            score_response = []
+            for score in scores:
+                score_data = DetailedScoreResponse(
+                    address=score.address,
+                    score=score.data["score"],
+                    status=Score.Status.DONE,
+                    last_score_timestamp=score.created_at.isoformat(),
+                    evidence=score.data["evidence"],
+                    # below aren't currently stored in the events table, but can be
+                    error=None,
+                    stamp_scores=None,
+                )
+
+                score_response.append(score_data)
+
+            response = CursorPaginatedHistoricalScoreResponse(
+                next=None, prev=None, items=score_response
+            )
+            return response
+
+        # Scenario 2 - Snapshot for 1 addresses and timestamp
         # the user has passed in the created_at and address
         # In this case only 1 result will be returned
         if address and created_at:
@@ -62,14 +89,30 @@ def get_score_history(
                 .first()
             )
 
+            if not score:
+                return CursorPaginatedHistoricalScoreResponse(
+                    next=None, prev=None, items=[]
+                )
+
             score.created_at = score.created_at.isoformat()
 
+            score_data = DetailedScoreResponse(
+                address=address,
+                score=score.data["score"],
+                status=Score.Status.DONE,
+                last_score_timestamp=score.created_at,
+                evidence=score.data["evidence"],
+                # below aren't currently stored in the events table, but can be
+                error=None,
+                stamp_scores=None,
+            )
+
             response = CursorPaginatedHistoricalScoreResponse(
-                next=None, prev=None, items=[score]
+                next=None, prev=None, items=[score_data]
             )
             return response
 
-        # Scenario 2 - Snapshot for all addresses
+        # Scenario 3 - Snapshot for all addresses
         # the user has passed in the created_at, but no address
         elif created_at:
             pagination_sort_fields = ["address"]
@@ -103,12 +146,27 @@ def get_score_history(
                 endpoint,
             )
 
+            score_response = []
+            for score in scores:
+                score_data = DetailedScoreResponse(
+                    address=score.address,
+                    score=score.data["score"],
+                    status=Score.Status.DONE,
+                    last_score_timestamp=score.created_at,
+                    evidence=score.data["evidence"],
+                    # below aren't currently stored in the events table, but can be
+                    error=None,
+                    stamp_scores=None,
+                )
+
+                score_response.append(score_data)
+
             response = CursorPaginatedHistoricalScoreResponse(
-                next=page_links["next"], prev=page_links["prev"], items=scores
+                next=page_links["next"], prev=page_links["prev"], items=score_response
             )
 
             return response
-        # Scenario 3 - Just return history ...
+        # # Scenario 4 - Just return history ...
         else:
             pagination_sort_fields = ["id"]
             filter_condition, field_ordering = get_cursor_query_condition(
@@ -141,8 +199,23 @@ def get_score_history(
                 endpoint,
             )
 
+            score_response = []
+            for score in scores:
+                score_data = DetailedScoreResponse(
+                    address=score.address,
+                    score=score.data["score"],
+                    status=Score.Status.DONE,
+                    last_score_timestamp=score.created_at,
+                    evidence=score.data["evidence"],
+                    # below aren't currently stored in the events table, but can be
+                    error=None,
+                    stamp_scores=None,
+                )
+
+                score_response.append(score_data)
+
             response = CursorPaginatedHistoricalScoreResponse(
-                next=page_links["next"], prev=page_links["prev"], items=scores
+                next=page_links["next"], prev=page_links["prev"], items=score_response
             )
             return response
 

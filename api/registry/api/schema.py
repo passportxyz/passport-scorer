@@ -122,7 +122,7 @@ class CursorPaginatedScoreResponse(Schema):
 class CursorPaginatedHistoricalScoreResponse(Schema):
     next: Optional[str]
     prev: Optional[str]
-    items: List[DetailedHistoricalScoreResponse]
+    items: List[DetailedScoreResponse]
 
 
 class SimpleScoreResponse(Schema):
