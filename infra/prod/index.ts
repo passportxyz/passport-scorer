@@ -1404,5 +1404,9 @@ buildLambdaFn(
       name: "TRUSTED_IAM_ISSUER",
       value: trustedIAMIssuer,
     },
+    {
+      name: "FF_API_ANALYTICS",
+      value: "on",
+    },
   ]
 );
