@@ -3,18 +3,23 @@ mod postgres;
 use dotenv::dotenv;
 use ethers::{
     contract::abigen,
-    core::types::{Address, Filter, H160, H256, U256},
-    providers::{Http, Middleware, Provider, StreamExt, Ws},
+    core::types::Address,
+    providers::{Middleware, Provider, StreamExt, Ws},
 };
 use eyre::Result;
 use postgres::PostgresClient;
-use std::{env, str::FromStr, sync::Arc};
+use std::{env, sync::Arc};
 
 abigen!(
     IDStaking,
     r#"[
         event selfStake(uint256 roundId,address staker,uint256 amount,bool staked)
         event xStake(uint256 roundId,address staker,address user,uint256 amount,bool staked)
+        event tokenMigrated(address staker,uint256 amount,uint256 fromRound,uint256 toRound)
+        event roundCreated(uint256 id)
+        event RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole)
+        event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)
+        event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender)
     ]"#,
 );
 
@@ -152,12 +157,17 @@ async fn main() -> Result<()> {
                             )
                             .await?
                         }
+                        _ => {
+                            // Catch all for unhandled events
+                        }
                     }
                 }
             }
             Err(err) => {
-                eprintln!("Failed to query events: {}", err); // Log the error
-                                                              // You can also implement additional logic here, like retries or alerting.
+                eprintln!(
+                    "Failed to query events: {}, {}, {}",
+                    err, last_queried_block, next_block_range
+                );
             }
         }
         last_queried_block = next_block_range;
@@ -181,6 +191,9 @@ async fn main() -> Result<()> {
                 let tx_hash = format!("{:?}", meta.transaction_hash);
                 format_and_save_x_stake_event(&event, block_number, tx_hash, &postgres_client)
                     .await?
+            }
+            _ => {
+                // Catch all for unhandled events
             }
         }
     }

@@ -49,11 +49,7 @@ impl PostgresClient {
         block_number: i32,
         tx_hash: &str,
     ) -> Result<(), Error> {
-        self.client.execute(
-      "INSERT INTO GTCStakeEvents (event_type, round_id, staker, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-      &[&"SelfStake", &round_id, &staker, &amount, &staked, &block_number, &tx_hash],
-  ).await?;
-
+        self.client.execute("INSERT INTO GTCStakeEvents (event_type, round_id, staker, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",&[&"SelfStake", &round_id, &staker, &amount, &staked, &block_number, &tx_hash]).await?;
         println!("Row inserted into GTCStakeEvents with type SelfStake!");
         Ok(())
     }
@@ -68,11 +64,7 @@ impl PostgresClient {
         block_number: i32,
         tx_hash: &str,
     ) -> Result<(), Error> {
-        self.client.execute(
-      "INSERT INTO GTCStakeEvents (event_type, round_id, staker, address, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-      &[&"Xstake", &round_id, &staker, &user, &amount, &staked, &block_number, &tx_hash],
-  ).await?;
-
+        self.client.execute("INSERT INTO GTCStakeEvents (event_type, round_id, staker, address, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", &[&"Xstake", &round_id, &staker, &user, &amount, &staked, &block_number, &tx_hash]).await?;
         println!("Row inserted into GTCStakeEvents with type Xstake!");
         Ok(())
     }
