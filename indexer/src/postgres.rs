@@ -49,17 +49,9 @@ impl PostgresClient {
         block_number: i32,
         tx_hash: &str,
     ) -> Result<(), Error> {
-        let insert = self.client.execute("INSERT INTO GTCStakeEvents (event_type, round_id, staker, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",&[&"SelfStake", &round_id, &staker, &amount, &staked, &block_number, &tx_hash]).await;
-        match insert {
-            Ok(_) => {
-                println!("Row inserted into GTCStakeEvents with type SelfStake!");
-                return Ok(());
-            }
-            Err(e) => {
-                println!("Error inserting into GTCStakeEvents: {}", e);
-                return Err(e);
-            }
-        }
+        self.client.execute("INSERT INTO GTCStakeEvents (event_type, round_id, staker, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",&[&"SelfStake", &round_id, &staker, &amount, &staked, &block_number, &tx_hash]).await?;
+        println!("Row inserted into GTCStakeEvents with type SelfStake!");
+        Ok(())
     }
 
     pub async fn insert_into_combined_stake_filter_xstake(
@@ -72,21 +64,9 @@ impl PostgresClient {
         block_number: i32,
         tx_hash: &str,
     ) -> Result<(), Error> {
-        let insert = self.client.execute(
-      "INSERT INTO GTCStakeEvents (event_type, round_id, staker, address, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-      &[&"Xstake", &round_id, &staker, &user, &amount, &staked, &block_number, &tx_hash],
-  ).await;
-
-        match insert {
-            Ok(_) => {
-                println!("Row inserted into GTCStakeEvents with type XStake!");
-                return Ok(());
-            }
-            Err(e) => {
-                println!("Error inserting into GTCStakeEvents: {}", e);
-                return Err(e);
-            }
-        }
+        self.client.execute("INSERT INTO GTCStakeEvents (event_type, round_id, staker, address, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", &[&"Xstake", &round_id, &staker, &user, &amount, &staked, &block_number, &tx_hash]).await?;
+        println!("Row inserted into GTCStakeEvents with type Xstake!");
+        Ok(())
     }
     pub async fn get_latest_block(&self) -> Result<i32, Error> {
         let latest_block_rows = self
