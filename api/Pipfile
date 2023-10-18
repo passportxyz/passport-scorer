@@ -38,6 +38,7 @@ boto3 = "*"
 tqdm = "*"
 gql = "*"
 requests-toolbelt = "*"
+pyarrow = "*"
 
 [dev-packages]
 black = "*"
