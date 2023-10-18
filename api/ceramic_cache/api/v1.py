@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Type
 import api_logging as logging
 import requests
 from account.models import Account, Nonce
+from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -24,6 +25,7 @@ from ninja_schema import Schema
 from registry.api.v1 import (
     DetailedScoreResponse,
     SubmitPassportPayload,
+    ahandle_submit_passport,
     handle_get_score,
     handle_submit_passport,
 )
@@ -32,7 +34,6 @@ from registry.models import Score
 from ..exceptions import (
     InternalServerException,
     InvalidDeleteCacheRequestException,
-    InvalidSessionException,
     TooManyStampsException,
 )
 from ..models import CeramicCache
@@ -126,108 +127,71 @@ class GetStampResponse(Schema):
     stamps: List[CachedStampResponse]
 
 
-@router.post("stamps/bulk", response={201: GetStampResponse}, auth=JWTDidAuth())
+class GetStampsWithScoreResponse(GetStampResponse):
+    score: DetailedScoreResponse
+
+
+@router.post(
+    "stamps/bulk", response={201: GetStampsWithScoreResponse}, auth=JWTDidAuth()
+)
 def cache_stamps(request, payload: List[CacheStampPayload]):
     try:
-        if len(payload) > settings.MAX_BULK_CACHE_SIZE:
-            raise TooManyStampsException()
-
         address = get_address_from_did(request.did)
-        stamp_objects = []
-        now = get_utc_time()
-        for p in payload:
-            stamp_object = CeramicCache(
-                type=CeramicCache.StampType.V1,
-                address=address,
-                provider=p.provider,
-                stamp=p.stamp,
-                updated_at=now,
-            )
-            stamp_objects.append(stamp_object)
 
-        created = CeramicCache.objects.bulk_create(
-            stamp_objects,
-            update_conflicts=True,
-            update_fields=["stamp", "updated_at"],
-            unique_fields=["type", "address", "provider"],
-        )
-
-        submit_passport_from_cache(address)
-
-        updated_passport_state = CeramicCache.objects.filter(
-            address=address, type=CeramicCache.StampType.V1
-        )
-
-        return GetStampResponse(
-            success=True,
-            stamps=[
-                CachedStampResponse(
-                    address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
-                )
-                for stamp in updated_passport_state
-            ],
-        )
+        return handle_add_stamps(address, payload)
 
     except Exception as e:
         raise e
 
 
-@router.patch("stamps/bulk", response={200: GetStampResponse}, auth=JWTDidAuth())
-def patch_stamps(request, payload: List[CacheStampPayload]):
+def handle_add_stamps(
+    address, payload: List[CacheStampPayload]
+) -> GetStampsWithScoreResponse:
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
         raise TooManyStampsException()
 
+    stamp_objects = []
+    now = get_utc_time()
+    for p in payload:
+        stamp_object = CeramicCache(
+            type=CeramicCache.StampType.V1,
+            address=address,
+            provider=p.provider,
+            stamp=p.stamp,
+            updated_at=now,
+        )
+        stamp_objects.append(stamp_object)
+
+    created = CeramicCache.objects.bulk_create(
+        stamp_objects,
+        update_conflicts=True,
+        update_fields=["stamp", "updated_at"],
+        unique_fields=["type", "address", "provider"],
+    )
+
+    updated_passport_state = CeramicCache.objects.filter(
+        address=address, type=CeramicCache.StampType.V1
+    )
+
+    return GetStampsWithScoreResponse(
+        success=True,
+        stamps=[
+            CachedStampResponse(
+                address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+            )
+            for stamp in updated_passport_state
+        ],
+        score=get_detailed_score_response_for_address(address),
+    )
+
+
+@router.patch(
+    "stamps/bulk", response={200: GetStampsWithScoreResponse}, auth=JWTDidAuth()
+)
+def patch_stamps(request, payload: List[CacheStampPayload]):
     try:
         address = get_address_from_did(request.did)
-        stamp_objects = []
-        providers_to_delete = []
-        updated = []
-        now = get_utc_time()
-
-        for p in payload:
-            if p.stamp:
-                stamp_object = CeramicCache(
-                    type=CeramicCache.StampType.V1,
-                    address=address,
-                    provider=p.provider,
-                    stamp=p.stamp,
-                    updated_at=now,
-                )
-                stamp_objects.append(stamp_object)
-            else:
-                providers_to_delete.append(p.provider)
-
-        if stamp_objects:
-            updated = CeramicCache.objects.bulk_create(
-                stamp_objects,
-                update_conflicts=True,
-                update_fields=["stamp", "updated_at"],
-                unique_fields=["type", "address", "provider"],
-            )
-
-        if providers_to_delete:
-            stamps = CeramicCache.objects.filter(
-                # No need to filter by type on delete ... we delete everything V1 ans V2 alike
-                address=address,
-                provider__in=providers_to_delete,
-            )
-            stamps.delete()
-
-        submit_passport_from_cache(address)
-
-        updated_passport_state = CeramicCache.objects.filter(
-            address=address, type=CeramicCache.StampType.V1
-        )
-
-        return GetStampResponse(
-            success=True,
-            stamps=[
-                CachedStampResponse(
-                    address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
-                )
-                for stamp in updated_passport_state
-            ],
-        )
+        return handle_patch_stamps(address, payload)
 
     except Exception as e:
         log.error(
@@ -238,72 +202,141 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
         raise InternalServerException()
 
 
+def handle_patch_stamps(
+    address: str, payload: List[CacheStampPayload]
+) -> GetStampsWithScoreResponse:
+    if len(payload) > settings.MAX_BULK_CACHE_SIZE:
+        raise TooManyStampsException()
+
+    stamp_objects = []
+    providers_to_delete = []
+    updated = []
+    now = get_utc_time()
+
+    for p in payload:
+        if p.stamp:
+            stamp_object = CeramicCache(
+                type=CeramicCache.StampType.V1,
+                address=address,
+                provider=p.provider,
+                stamp=p.stamp,
+                updated_at=now,
+            )
+            stamp_objects.append(stamp_object)
+        else:
+            providers_to_delete.append(p.provider)
+
+    if stamp_objects:
+        updated = CeramicCache.objects.bulk_create(
+            stamp_objects,
+            update_conflicts=True,
+            update_fields=["stamp", "updated_at"],
+            unique_fields=["type", "address", "provider"],
+        )
+
+    if providers_to_delete:
+        stamps = CeramicCache.objects.filter(
+            # No need to filter by type on delete ... we delete everything V1 ans V2 alike
+            address=address,
+            provider__in=providers_to_delete,
+        )
+        stamps.delete()
+
+    updated_passport_state = CeramicCache.objects.filter(
+        address=address, type=CeramicCache.StampType.V1
+    )
+
+    return GetStampsWithScoreResponse(
+        success=True,
+        stamps=[
+            CachedStampResponse(
+                address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+            )
+            for stamp in updated_passport_state
+        ],
+        score=get_detailed_score_response_for_address(address),
+    )
+
+
 @router.delete("stamps/bulk", response=GetStampResponse, auth=JWTDidAuth())
 def delete_stamps(request, payload: List[DeleteStampPayload]):
     try:
-        if len(payload) > settings.MAX_BULK_CACHE_SIZE:
-            raise TooManyStampsException()
-
         address = get_address_from_did(request.did)
-        stamps = CeramicCache.objects.filter(
-            # We do not filter by type. The thinking is: if a user wants to delete a V2 stamp, then he wants to delete both the V1 and V2 stamps ...
-            address=address,
-            provider__in=[p.provider for p in payload],
-        )
-        if not stamps:
-            raise InvalidDeleteCacheRequestException()
-        stamps.delete()
-
-        submit_passport_from_cache(address)
-
-        updated_passport_state = CeramicCache.objects.filter(address=address)
-
-        return GetStampResponse(
-            success=True,
-            stamps=[
-                CachedStampResponse(
-                    address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
-                )
-                for stamp in updated_passport_state
-            ],
-        )
+        return handle_delete_stamps(address, payload)
     except Exception as e:
         raise e
 
 
+def handle_delete_stamps(
+    address: str, payload: List[DeleteStampPayload]
+) -> GetStampsWithScoreResponse:
+    if len(payload) > settings.MAX_BULK_CACHE_SIZE:
+        raise TooManyStampsException()
+
+    stamps = CeramicCache.objects.filter(
+        # We do not filter by type. The thinking is: if a user wants to delete a V2 stamp, then he wants to delete both the V1 and V2 stamps ...
+        address=address,
+        provider__in=[p.provider for p in payload],
+    )
+    if not stamps:
+        raise InvalidDeleteCacheRequestException()
+    stamps.delete()
+
+    updated_passport_state = CeramicCache.objects.filter(address=address)
+
+    return GetStampsWithScoreResponse(
+        success=True,
+        stamps=[
+            CachedStampResponse(
+                address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+            )
+            for stamp in updated_passport_state
+        ],
+        score=get_detailed_score_response_for_address(address),
+    )
+
+
 @router.get("weights", response=Dict[str, str])
 def get_scorer_weights(request):
+    return handle_get_scorer_weights()
+
+
+def handle_get_scorer_weights() -> Dict[str, str]:
     return settings.GITCOIN_PASSPORT_WEIGHTS
 
 
 @router.get("stamp", response=GetStampResponse)
 def get_stamps(request, address):
     try:
-        stamps = CeramicCache.objects.filter(
-            address=address, type=CeramicCache.StampType.V1
-        )
-
-        scorer_id = settings.CERAMIC_CACHE_SCORER_ID
-        if (
-            scorer_id
-            and not Score.objects.filter(
-                passport__address=address.lower(),
-                passport__community_id=scorer_id,
-            ).exists()
-        ):
-            submit_passport_from_cache(address)
-
-        return GetStampResponse(
-            success=True,
-            stamps=[
-                CachedStampResponse(
-                    address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
-                )
-                for stamp in stamps
-            ],
-        )
+        return handle_get_stamps(address)
     except Exception as e:
         raise e
+
+
+def handle_get_stamps(address):
+    stamps = CeramicCache.objects.filter(
+        address=address, type=CeramicCache.StampType.V1
+    )
+
+    scorer_id = settings.CERAMIC_CACHE_SCORER_ID
+    if (
+        scorer_id
+        and not Score.objects.filter(
+            passport__address=address.lower(),
+            passport__community_id=scorer_id,
+        ).exists()
+    ):
+        get_detailed_score_response_for_address(address)
+
+    return GetStampResponse(
+        success=True,
+        stamps=[
+            CachedStampResponse(
+                address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+            )
+            for stamp in stamps
+        ],
+    )
 
 
 @router.get(
@@ -312,6 +345,10 @@ def get_stamps(request, address):
     auth=JWTDidAuth(),
 )
 def get_score(request, address: str) -> DetailedScoreResponse:
+    return handle_get_ui_score(address)
+
+
+def handle_get_ui_score(address: str) -> DetailedScoreResponse:
     scorer_id = settings.CERAMIC_CACHE_SCORER_ID
     account = get_object_or_404(Account, community__id=scorer_id)
     return handle_get_score(address, scorer_id, account)
@@ -323,7 +360,7 @@ def get_score(request, address: str) -> DetailedScoreResponse:
     auth=JWTDidAuth(),
 )
 def calc_score(request, address: str) -> DetailedScoreResponse:
-    return submit_passport_from_cache(address)
+    return get_detailed_score_response_for_address(address)
 
 
 class CacaoVerifySubmit(Schema):
@@ -400,6 +437,23 @@ def authenticate(request, payload: CacaoVerifySubmit):
     except Exception as esc:
         log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
         raise APIException(detail=f"Failed authenticate request: {str(esc)}") from esc
+
+
+def get_detailed_score_response_for_address(address: str) -> DetailedScoreResponse:
+    scorer_id = settings.CERAMIC_CACHE_SCORER_ID
+    if not scorer_id:
+        raise InternalServerException("Scorer ID not set")
+
+    account = get_object_or_404(Account, community__id=scorer_id)
+
+    submit_passport_payload = SubmitPassportPayload(
+        address=address,
+        scorer_id=scorer_id,
+    )
+
+    score = async_to_sync(ahandle_submit_passport)(submit_passport_payload, account)
+
+    return DetailedScoreResponse.from_orm(score)
 
 
 def submit_passport_from_cache(address: str) -> Optional[DetailedScoreResponse]:

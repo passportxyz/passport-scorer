@@ -14,7 +14,7 @@ class TestGetStamp:
     stamp_version = CeramicCache.StampType.V1
 
     def test_succesfully_get_stamp(
-        self, sample_provider, sample_address, verifiable_credential
+        self, sample_provider, sample_address, verifiable_credential, ui_scorer
     ):
         CeramicCache.objects.create(
             type=self.stamp_version,
@@ -34,7 +34,9 @@ class TestGetStamp:
         assert first_stamp["provider"] == sample_provider
         assert first_stamp["stamp"] == verifiable_credential
 
-    def test_get_stamp_returns_empty_list_if_no_stamps_exist(self, sample_address):
+    def test_get_stamp_returns_empty_list_if_no_stamps_exist(
+        self, sample_address, ui_scorer
+    ):
         response = client.get(
             f"{self.base_url}/stamp?address={sample_address}",
         )

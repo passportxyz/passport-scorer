@@ -16,7 +16,12 @@ class TestBulkStampUpdates:
     stamp_version = CeramicCache.StampType.V1
 
     def test_bulk_create(
-        self, sample_providers, sample_address, sample_stamps, sample_token
+        self,
+        sample_providers,
+        sample_address,
+        sample_stamps,
+        sample_token,
+        ui_scorer,
     ):
         bulk_payload = []
         for i in range(0, len(sample_providers)):
@@ -38,7 +43,13 @@ class TestBulkStampUpdates:
         assert len(cache_stamp_response.json()["stamps"]) == len(sample_providers)
 
     def test_bulk_update(
-        self, sample_providers, sample_address, sample_stamps, sample_token
+        self,
+        sample_providers,
+        sample_address,
+        sample_stamps,
+        sample_token,
+        scorer_account,
+        ui_scorer,
     ):
         bulk_payload = []
         for i in range(0, len(sample_providers)):
@@ -84,7 +95,12 @@ class TestBulkStampUpdates:
             }
 
     def test_bulk_patch(
-        self, sample_providers, sample_address, sample_stamps, sample_token
+        self,
+        sample_providers,
+        sample_address,
+        sample_stamps,
+        sample_token,
+        ui_scorer,
     ):
         # create two stamps
         bulk_payload = []
@@ -181,7 +197,7 @@ class TestBulkStampUpdates:
         }
 
     def test_successful_bulk_delete(
-        self, sample_providers, sample_address, sample_stamps, sample_token
+        self, sample_providers, sample_address, sample_stamps, sample_token, ui_scorer
     ):
         bulk_payload = []
         for i in range(0, 3):
@@ -207,7 +223,12 @@ class TestBulkStampUpdates:
         assert len(cache_stamp_response.json()["stamps"]) == 0
 
     def test_bulk_delete_indicates_a_subset_of_stamps_were_deleted(
-        self, sample_providers, sample_address, sample_stamps, sample_token
+        self,
+        sample_providers,
+        sample_address,
+        sample_stamps,
+        sample_token,
+        ui_scorer,
     ):
         bulk_payload = []
         for i in range(0, 3):
