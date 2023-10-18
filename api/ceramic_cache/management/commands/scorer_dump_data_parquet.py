@@ -133,7 +133,7 @@ class Command(BaseCommand):
 
                         if data:
                             progress_bar.update(len(data))
-                            has_more = False
+                            has_more = True
                             last_id = data[-1]["id"]
 
                             # Write the Pandas DataFrame to a Parquet file
