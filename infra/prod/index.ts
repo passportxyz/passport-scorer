@@ -1348,6 +1348,28 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
   envConfig
 );
 
+export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
+  "daily-data-dump",
+  {
+    ...baseScorerServiceConfig,
+    cpu: 1024,
+    memory: 2048,
+    securityGroup: secgrp,
+    ephemeralStorageSizeInGiB: 100,
+    command: [
+      "python",
+      "manage.py",
+      "scorer_dump_data_parquet",
+      "--apps=registry,ceramic_cache,account,scorer_weighted,trusta_labs",
+      "--s3-uri=s3://passport-scorer/daily_data_dumps/",
+      "--batch-size=20000",
+    ],
+
+    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
+  },
+  envConfig
+);
+
 // The follosing scorer dumps the Allo scorer scores to a public S3 bucket
 // for the Allo team to easily pull the data
 export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
