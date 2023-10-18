@@ -76,7 +76,6 @@ class Command(BaseCommand):
                 for field in model._meta.fields
             ]
         )
-        print("SCHEMA:", schema)
         return schema
 
     def map_to_pa_schema_field(self, django_internal_field_type):
