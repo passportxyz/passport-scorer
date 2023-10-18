@@ -7,7 +7,7 @@ from account.deduplication.fifo import afifo
 from account.deduplication.lifo import alifo
 
 # --- Deduplication Modules
-from account.models import Community, Rules
+from account.models import AccountAPIKeyAnalytics, Community, Rules
 from ninja_extra.exceptions import APIException
 from reader.passport_reader import aget_passport, get_did
 from registry.exceptions import NoPassportException
@@ -19,14 +19,16 @@ log = logging.getLogger(__name__)
 Hash = str
 
 
-def asave_api_key_analytics(api_key_id, path):
+async def asave_api_key_analytics(api_key_id, path):
     try:
-        AccountAPIKeyAnalytics.objects.acreate(
+        await AccountAPIKeyAnalytics.objects.acreate(
             api_key_id=api_key_id,
             path=path,
         )
     except Exception as e:
         pass
+
+    return None
 
 
 async def aremove_stale_stamps_from_db(passport: Passport, passport_data: dict):

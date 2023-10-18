@@ -402,6 +402,38 @@ class ValidatePassportTestCase(TransactionTestCase):
         "registry.atasks.aget_passport",
         return_value=mock_passport,
     )
+    def test_submit_passport_saves_analyitcs(self, aget_passport, validate_credential):
+        # get_passport.return_value = mock_passport
+        settings.FF_API_ANALYTICS = "on"
+
+        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
+
+        payload = {
+            "community": self.community.id,
+            "address": self.account.address,
+            "signature": self.signed_message.signature.hex(),
+            "nonce": self.nonce,
+        }
+
+        response = self.client.post(
+            f"{self.base_url}/submit-passport",
+            json.dumps(payload),
+            **{
+                "content_type": "application/json",
+                "HTTP_AUTHORIZATION": f"Token {self.secret}",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+
+        prefix, _, _ = self.secret.partition(".")
+        queryset = AccountAPIKey.objects.get_usable_keys()
+        assert (queryset.get(prefix=prefix)).id == self.account_api_key.id
+
+    @patch("registry.atasks.validate_credential", side_effect=[[], []])
+    @patch(
+        "registry.atasks.aget_passport",
+        return_value=mock_passport,
+    )
     def test_submit_passport(self, aget_passport, validate_credential):
         # get_passport.return_value = mock_passport
 
