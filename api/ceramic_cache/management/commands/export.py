@@ -25,7 +25,7 @@ pa_schema_map = {
     "DateTimeField": {"pa_type": pa.timestamp("ms")},
     "IntegerField": {"pa_type": pa.int64()},
     "BooleanField": {"pa_type": pa.bool_()},
-    "DecimalField": {"pa_type": pa.decimal256(38, 2)},
+    "DecimalField": {"pa_type": pa.decimal256(18, 9)},
 }
 
 
