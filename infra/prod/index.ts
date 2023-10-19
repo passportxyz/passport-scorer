@@ -1089,6 +1089,10 @@ let redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
 let redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
 let redashDbName = `${process.env["REDASH_DB_NAME"]}`;
 let redashSecretKey = pulumi.secret(`${process.env["REDASH_SECRET_KEY"]}`);
+const redashMailUsername = `${process.env["REDASH_MAIL_USERNAME"]}`;
+const redashMailPassword = pulumi.secret(
+  `${process.env["REDASH_MAIL_PASSWORD"]}`
+);
 
 // Create an RDS instance
 const redashDb = new aws.rds.Instance(
@@ -1158,26 +1162,32 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
 
 const redashInitScript = redashDbUrl.apply((url) =>
   redashDbPassword.apply((password) =>
-    redashSecretKey.apply(
-      (secretKey) =>
-        `#!/bin/bash
-         echo "Setting environment variables..."
-         export POSTGRES_PASSWORD="${password}"
-         export REDASH_DATABASE_URL="${url}"
-         export REDASH_SECRET_KEY="${secretKey}"
+    redashSecretKey.apply((secretKey) =>
+      redashMailPassword.apply(
+        (mailPassword) =>
+          `#!/bin/bash
+           echo "Setting environment variables..."
+           export POSTGRES_PASSWORD="${password}"
+           export REDASH_DATABASE_URL="${url}"
+           export REDASH_SECRET_KEY="${secretKey}"
+           export REDASH_MAIL_USERNAME="${redashMailUsername}"
+           export REDASH_MAIL_PASSWORD="${mailPassword}"
+           export REDASH_HOST="https://redash.api.scorer.gitcoin.co"
+           export REDASH_MAIL_DEFAULT_SENDER="passport+redash@gitcoin.co"
 
-         echo "Cloning passport-redash repository..."
-         git clone https://github.com/gitcoinco/passport-redash.git
+           echo "Cloning passport-redash repository..."
+           git clone https://github.com/gitcoinco/passport-redash.git
 
-         echo "Changing directory and setting permissions..."
-         cd passport-redash
-         sudo chmod +x ./setup.sh
-         ./setup.sh
+           echo "Changing directory and setting permissions..."
+           cd passport-redash
+           sudo chmod +x ./setup.sh
+           ./setup.sh
 
-         cd data
+           cd data
 
-         sudo docker-compose up -d
-        `
+           sudo docker-compose up -d
+           `
+      )
     )
   )
 );
