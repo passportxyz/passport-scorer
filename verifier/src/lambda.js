@@ -38,16 +38,11 @@ async function load_libs() {
   let base64_bases = await import("multiformats/bases/base64");
 
   let fromStringModule = await import("uint8arrays/from-string");
-  console.log("fromStringModule", fromStringModule);
   fromString = fromStringModule.fromString;
-  console.log("fromString", fromString);
 
   let toStringModule = await import("uint8arrays/to-string");
-  console.log("toStringModule", toStringModule);
   toString = toStringModule.toString;
-  console.log("toString", toString);
 
-  console.log("base64_bases", base64_bases);
   base64 = base64_bases.base64;
   hasher = hasherLib.sha256;
   DID = dids.DID;
@@ -59,14 +54,10 @@ async function load_libs() {
 
 exports.handler = async (event, context) => {
   const awsRequestId = context.awsRequestId;
-  console.log("=============================================================");
   console.log(" === event \n" + JSON.stringify(event, undefined, 2));
-  console.log("=============================================================");
   const body = JSON.parse(event.body);
   console.log(" === body \n" + JSON.stringify(body, undefined, 2));
-  console.log("=============================================================");
   console.log(" === context \n" + JSON.stringify(context, undefined, 2));
-  console.log("=============================================================");
 
   function log() {
     console.log(`RequestID=${awsRequestId}`, ...arguments);
@@ -85,18 +76,18 @@ exports.handler = async (event, context) => {
   // - run a DB query that checks the the nonce has not been used and also set it as used
   const nonce = body.nonce;
   log(" === nonce " + nonce);
-  //   const nonceVerificationResul = await pool.query(nonceQuery, [nonce]);
+  const nonceVerificationResult = await pool.query(nonceQuery, [nonce]);
 
-  //   log("res: ", nonceVerificationResul);
-  //   if (nonceVerificationResul.rowCount > 0) {
-  //     log("Num affected rows:", nonceVerificationResul.rowCount);
-  //   } else {
-  //     log("No affected rows. Returning: Invalid nonce or payload!");
-  //     return {
-  //       statusCode: 400,
-  //       body: JSON.stringify({ detail: "Invalid nonce or payload!" }),
-  //     };
-  //   }
+  log("res: ", nonceVerificationResult);
+  if (nonceVerificationResult.rowCount > 0) {
+    log("Nonce is valid, num affected rows:", nonceVerificationResult.rowCount);
+  } else {
+    log("No affected rows. Returning: Invalid nonce or payload!");
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ detail: "Invalid nonce or payload!" }),
+    };
+  }
 
   // Step 2: Validate payload
   // Compute the CID, and make sure it is correct for the given nonce
@@ -109,11 +100,12 @@ exports.handler = async (event, context) => {
   const expectedCID = body.payload;
   const computedCID = toString(block.cid.bytes, "base64url");
 
-  if (expectedCID != computedCID) {
-    err("Invalid nonce or payload!");
+
+  if (expectedCID !== computedCID) {
+    err("Invalid nonce or payload (CID)!");
     return {
       statusCode: 400,
-      body: JSON.stringify({ detail: "Invalid nonce or payload!" }),
+      body: JSON.stringify({ detail: "Invalid nonce or payload, CID validation failed!" }),
     };
   }
 
@@ -144,7 +136,6 @@ exports.handler = async (event, context) => {
     };
   }
 
-  const secretKey = "some-secret-value";
   const iat = Math.floor(Date.now() / 1000);
   const exp = iat + 7 * 24 * 60 * 60;
   const token = jwt.sign(
@@ -155,7 +146,7 @@ exports.handler = async (event, context) => {
       iat,
       exp,
     },
-    secretKey,
+    process.env.SECRET_KEY,
     { algorithm: "HS256" }
   );
 
@@ -164,31 +155,3 @@ exports.handler = async (event, context) => {
     body: JSON.stringify({ access: token }),
   };
 };
-
-// Validate payload
-
-// load_libs().then(async () => {
-//   const expected_payload = "AXESIIVo4Lmvlkfun-p2u3Bu92F6p3goA3n_sTK67E8_n8GS";
-//   console.log("Block", Block);
-//   const nonce = "957c990fa32753e1550ea2766466f7f73aa0949f63812d87a13a452f5051";
-
-//   const block = await Block.encode({
-//     value: { nonce: nonce },
-//     codec,
-//     hasher,
-//   });
-//   const computedCID = toString(block.cid.bytes, "base64url");
-//   console.log("Encoded block: ", block);
-//   console.log("Encoded block cid: ", block.cid);
-
-//   console.log("computedCID      :   ", computedCID);
-//   console.log("expected_payload :   ", expected_payload);
-
-//   // const expected_paylod_bytes = fromString(expected_payload, "base64url");
-//   // console.log("expected_paylod_bytes: ", expected_paylod_bytes);
-//   // const expected_cid = CID.decode(expected_paylod_bytes);
-//   // console.log("expected_cid: ", expected_cid);
-
-//   // const expectedCID = CID.parse(expected_payload, base64);
-//   // console.log("expectedCID: ", expectedCID);
-// });
