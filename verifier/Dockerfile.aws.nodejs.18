@@ -1,0 +1,11 @@
+
+FROM public.ecr.aws/lambda/nodejs:18
+
+ADD src ${LAMBDA_TASK_ROOT}/src
+ADD yarn.lock ${LAMBDA_TASK_ROOT}/
+ADD package.json ${LAMBDA_TASK_ROOT}/
+
+WORKDIR ${LAMBDA_TASK_ROOT}
+RUN npm install --global yarn && yarn install --frozen-lockfile && npm uninstall --global yarn
+
+CMD [ "src/lambda.handler" ]
