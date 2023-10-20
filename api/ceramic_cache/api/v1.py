@@ -37,7 +37,7 @@ from ..exceptions import (
     TooManyStampsException,
 )
 from ..models import CeramicCache
-from ..utils import validate_dag_jws_payload
+from ..utils import validate_dag_jws_payload, verify_jws
 
 log = logging.getLogger(__name__)
 
@@ -412,30 +412,43 @@ def authenticate(request, payload: CacaoVerifySubmit):
         raise FailedVerificationException(detail="Invalid nonce or payload!") from exc
 
     try:
-        r = requests.post(
-            settings.CERAMIC_CACHE_CACAO_VALIDATION_URL, json=payload.dict(), timeout=30
-        )
-        if r.status_code == 200:
-            token = DbCacheToken()
-            token["did"] = payload.issuer
+        payload.signatures
+        verify_jws(payload.dict())
+        token = DbCacheToken()
+        token["did"] = payload.issuer
 
-            return {
-                "access": str(token.access_token),
-            }
+        return {
+            "access": str(token.access_token),
+        }
 
-        log.error(
-            "Failed to validate did signature for: %s.\n%s\n%s",
-            payload.dict(),
-            r,
-            r.text,
-        )
-        raise FailedVerificationException(detail=f"Verifier response: {str(r)}")
+        # r = requests.post(
+        #     settings.CERAMIC_CACHE_CACAO_VALIDATION_URL, json=payload.dict(), timeout=30
+        # )
+        # if r.status_code == 200:
+        #     token = DbCacheToken()
+        #     token["did"] = payload.issuer
+
+        #     return {
+        #         "access": str(token.access_token),
+        #     }
+
+        # log.error(
+        #     "Failed to validate did signature for: %s.\n%s\n%s",
+        #     payload.dict(),
+        #     r,
+        #     r.text,
+        # )
+        # raise FailedVerificationException(detail=f"Verifier response: {str(r)}")
 
     except APIException:
         # re-raise API exceptions
         raise
     except Exception as esc:
-        log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
+        log.error(
+            "Failed authenticate request (verify_jws failed): '%s'",
+            payload.dict(),
+            exc_info=True,
+        )
         raise APIException(detail=f"Failed authenticate request: {str(esc)}") from esc
 
 
