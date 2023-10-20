@@ -3,9 +3,9 @@ This module provides a handler to manage API requests in AWS Lambda.
 """
 
 import base64
-import logging
 import os
 
+import api_logging as logging
 from django.http import HttpRequest
 from django_ratelimit.exceptions import Ratelimited
 

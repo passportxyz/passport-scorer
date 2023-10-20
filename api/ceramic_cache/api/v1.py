@@ -396,6 +396,10 @@ def authenticate(request, payload: CacaoVerifySubmit):
     This method will validate a jws created with DagJWS, will validate by forwarding this to our validator
     it and return a JWT token.
     """
+    return handle_authenticate(payload)
+
+
+def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
     # First validate the payload
     # This will ensure that the payload signature was made for our unique nonce
     try:

@@ -3,11 +3,12 @@ This module provides utils to manage Passport API requests in AWS Lambda.
 """
 
 import base64
-import logging
 import os
 from functools import wraps
 from typing import Any, Dict, Tuple
 
+import api_logging as logging
+from ceramic_cache.api.v1 import JWTDidAuthentication
 from structlog.contextvars import bind_contextvars
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
@@ -16,7 +17,6 @@ os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
 import json
 
 import django
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +24,13 @@ django.setup()
 
 from registry.exceptions import Unauthorized
 
+auth = JWTDidAuthentication()
+
 
 def authenticate_did_and_get_address(token: str) -> str:
-    # TODO this is just for testing, need to actually parse the token
-    if re.search("0x[a-fA-F0-9]{40}", (token)):
-        return token
-    else:
-        return "0x96DB2c6D93A8a12089f7a6EdA5464e967308AdEd"
+    valid_token = auth.get_validated_token(token)
+    did = valid_token["did"]
+    return did.split(":")[-1]
 
 
 def get_token_from_event(event) -> str:
@@ -56,7 +56,7 @@ def preprocess_event(event, context):
 
 
 RESPONSE_HEADERS = {
-    "Content-Type": "text/html",
+    "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "*",
     "Access-Control-Allow-Headers": "Accept,Accept-Encoding,Authorization,Content-Type,Dnt,Origin,User-Agent,X-Csrftoken,X-Requested-With,X-Api-Key",
