@@ -482,25 +482,3 @@ def get_detailed_score_response_for_address(address: str) -> DetailedScoreRespon
     score = async_to_sync(ahandle_submit_passport)(submit_passport_payload, account)
 
     return DetailedScoreResponse.from_orm(score)
-
-
-def submit_passport_from_cache(address: str) -> Optional[DetailedScoreResponse]:
-    try:
-        scorer_id = settings.CERAMIC_CACHE_SCORER_ID
-        if not scorer_id:
-            return None
-
-        account = get_object_or_404(Account, community__id=scorer_id)
-
-        payload = SubmitPassportPayload(
-            address=address,
-            scorer_id=scorer_id,
-        )
-
-        return handle_submit_passport(payload, account, True)
-    except Exception:
-        log.error(
-            "Error when calling submit_passport_from_cache for address: '%s'",
-            address,
-            exc_info=True,
-        )

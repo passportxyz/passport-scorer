@@ -16,7 +16,6 @@ import {
   createSharedLambdaResources,
 } from "../lib/scorer/service";
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
-import { getParameter } from "@pulumi/aws/ssm";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -432,18 +431,6 @@ const scorerServiceDefault = createScorerECSService(
   envConfig
 );
 
-const scorerServicePassport = createScorerECSService(
-  "scorer-api-passport",
-  {
-    ...baseScorerServiceConfig,
-    needsVerifier: true,
-    listenerRulePriority: 2000,
-    httpListenerRulePaths: ["/ceramic-cache/*"],
-    targetGroup: targetGroupPassport,
-  },
-  envConfig
-);
-
 const scorerServiceRegistry = createScorerECSService(
   "scorer-api-reg",
   {
@@ -451,17 +438,6 @@ const scorerServiceRegistry = createScorerECSService(
     listenerRulePriority: 3000,
     httpListenerRulePaths: ["/registry/*"],
     targetGroup: targetGroupRegistry,
-  },
-  envConfig
-);
-
-const scorerServiceRegistrySubmitPassport = createScorerECSService(
-  "scorer-api-reg-sp", // scorer-registry-submit-passport
-  {
-    ...baseScorerServiceConfig,
-    listenerRulePriority: 2500,
-    httpListenerRulePaths: ["/registry/submit-passport-old"],
-    targetGroup: targetGroupRegistrySubmitPassport,
   },
   envConfig
 );
@@ -484,7 +460,6 @@ const lambdaSettings = {
     },
     {
       name: "CERAMIC_CACHE_SCORER_ID",
-      // TODO
       value: "14",
     },
   ],
@@ -535,7 +510,10 @@ buildLambdaFn({
   name: "cache_authenticate",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
-  pathPatterns: ["/ceramic-cache/authenticate"],
+  pathPatterns: [
+    "/ceramic-cache/authenticate",
+    "/ceramic-cache/v2/authenticate",
+  ],
   httpRequestMethods: ["POST"],
   listenerPriority: 1005,
 });
@@ -545,7 +523,7 @@ buildLambdaFn({
   name: "cache_v1_score_POST",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
-  pathPatterns: ["/ceramic-cache/score/*"],
+  pathPatterns: ["/ceramic-cache/score/*", "/ceramic-cache/v2/score/*"],
   httpRequestMethods: ["POST"],
   listenerPriority: 1006,
 });
@@ -555,19 +533,19 @@ buildLambdaFn({
   name: "cache_v1_score_GET",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
-  pathPatterns: ["/ceramic-cache/score/*"],
+  pathPatterns: ["/ceramic-cache/score/*", "/ceramic-cache/v2/score/*"],
   httpRequestMethods: ["GET"],
   listenerPriority: 1007,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_weights_GET",
+  name: "cache_weights_GET",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
-  pathPatterns: ["/ceramic-cache/weights"],
+  pathPatterns: ["/ceramic-cache/weights", "/ceramic-cache/v2/weights"],
   httpRequestMethods: ["GET"],
-  listenerPriority: 1008,
+  listenerPriority: 1015,
 });
 
 buildLambdaFn({
@@ -578,6 +556,46 @@ buildLambdaFn({
   pathPatterns: ["/ceramic-cache/stamp"],
   httpRequestMethods: ["GET"],
   listenerPriority: 1010,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cache_v2_stamps_bulk_POST",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_POST.handler"],
+  pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
+  httpRequestMethods: ["POST"],
+  listenerPriority: 1011,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cache_v2_stamps_bulk_PATCH",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_PATCH.handler"],
+  pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
+  httpRequestMethods: ["PATCH"],
+  listenerPriority: 1012,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cache_v2_stamps_bulk_DELETE",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_DELETE.handler"],
+  pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
+  httpRequestMethods: ["DELETE"],
+  listenerPriority: 1013,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cache_v2_stamp_GET",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamp_GET.handler"],
+  pathPatterns: ["/ceramic-cache/v2/stamp"],
+  httpRequestMethods: ["GET"],
+  listenerPriority: 1014,
 });
 
 //////////////////////////////////////////////////////////////
