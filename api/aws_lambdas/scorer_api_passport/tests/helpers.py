@@ -4,9 +4,7 @@ class MockContext:
 
 address = "0x0de6eC538957216Fed96803c63902C3Aa5f39640"
 
-authorization = "Bearer " + address
-
-headers = {"Authorization": authorization}
+headers = {"Authorization": "bla"}
 
 good_stamp = {
     "provider": "Google",

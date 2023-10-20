@@ -6,7 +6,7 @@ from pprint import pprint
 import api_logging as logging
 import base58
 import dag_cbor
-from ed25519.keys import VerifyingKey
+from nacl.signing import VerifyKey
 from multibase import decode
 from multiformats import CID
 
@@ -115,8 +115,8 @@ def verify_jws(data):
     signing_input = signing_input.encode("utf-8")
     print("signing_input    : ", signing_input, len(signing_input))
 
-    vk = VerifyingKey(decoded_bytes)
-    v = vk.verify(signature, signing_input)
+    vk = VerifyKey(decoded_bytes)
+    v = vk.verify(signing_input, signature)
 
     print("v   " + "=" * 40)
     print(v)

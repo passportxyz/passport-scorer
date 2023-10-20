@@ -5,7 +5,6 @@ This module provides a handler to manage API requests in AWS Lambda.
 import base64
 import os
 
-import api_logging as logging
 from django.http import HttpRequest
 from django_ratelimit.exceptions import Ratelimited
 
@@ -17,11 +16,12 @@ import json
 import django
 from django.conf import settings
 
-logger = logging.getLogger(__name__)
-
 # settings.configure(DEBUG=True)
 django.setup()
 
+import api_logging as logging
+
+logger = logging.getLogger(__name__)
 
 from asgiref.sync import async_to_sync
 from registry.api.utils import ApiKey, check_rate_limit

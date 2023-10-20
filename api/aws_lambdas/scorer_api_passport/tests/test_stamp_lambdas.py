@@ -19,6 +19,7 @@ pytestmark = pytest.mark.django_db
 
 def test_score_get(
     scorer_community_with_binary_scorer,
+    mock_authentication,
 ):
     settings.CERAMIC_CACHE_SCORER_ID = scorer_community_with_binary_scorer.pk
 
@@ -57,6 +58,7 @@ def test_score_get(
 
 def test_score_post(
     scorer_community_with_binary_scorer,
+    mock_authentication,
 ):
     settings.CERAMIC_CACHE_SCORER_ID = scorer_community_with_binary_scorer.pk
 
@@ -88,7 +90,9 @@ def test_stamp_get(
     )
 
     event = {
-        "headers": headers,
+        "queryStringParameters": {
+            "address": address,
+        },
         "isBase64Encoded": False,
     }
 
@@ -104,7 +108,6 @@ def test_stamp_get(
 
 def test_weights_get():
     event = {
-        "headers": headers,
         "isBase64Encoded": False,
     }
 

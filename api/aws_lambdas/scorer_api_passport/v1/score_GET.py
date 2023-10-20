@@ -4,7 +4,7 @@ This module provides a handler to manage API requests in AWS Lambda.
 
 from aws_lambdas.scorer_api_passport.utils import (
     format_response,
-    preprocess_event,
+    authenticate_and_get_address,
     with_request_exception_handling,
 )
 from ceramic_cache.api.v1 import handle_get_ui_score
@@ -12,6 +12,6 @@ from ceramic_cache.api.v1 import handle_get_ui_score
 
 @with_request_exception_handling
 def handler(event, context):
-    address, _ = preprocess_event(event, context)
+    address = authenticate_and_get_address(event)
 
     return format_response(handle_get_ui_score(address))

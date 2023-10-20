@@ -13,6 +13,7 @@ pytestmark = pytest.mark.django_db
 def test_patch(
     scorer_community_with_binary_scorer,
     mocker,
+    mock_authentication,
 ):
     settings.CERAMIC_CACHE_SCORER_ID = scorer_community_with_binary_scorer.pk
     event = {
@@ -46,6 +47,7 @@ def test_patch(
 def test_delete(
     scorer_community_with_binary_scorer,
     mocker,
+    mock_authentication,
 ):
     settings.CERAMIC_CACHE_SCORER_ID = scorer_community_with_binary_scorer.pk
     CeramicCache.objects.create(
@@ -78,6 +80,7 @@ def test_delete(
 def test_post(
     scorer_community_with_binary_scorer,
     mocker,
+    mock_authentication,
 ):
     settings.CERAMIC_CACHE_SCORER_ID = scorer_community_with_binary_scorer.pk
     event = {
