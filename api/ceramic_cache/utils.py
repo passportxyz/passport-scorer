@@ -6,9 +6,9 @@ from pprint import pprint
 import api_logging as logging
 import base58
 import dag_cbor
-from nacl.signing import VerifyKey
 from multibase import decode
 from multiformats import CID
+from nacl.signing import VerifyKey
 
 log = logging.getLogger(__name__)
 

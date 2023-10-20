@@ -24,7 +24,7 @@ class TestConvertStamps:
     stamp_version = CeramicCache.StampType.V1
 
     def test_succesfully_get_v2_stamp(
-        self, sample_provider, sample_address, verifiable_credential, mocker
+        self, sample_provider, sample_address, verifiable_credential, mocker, ui_scorer
     ):
         # Create V1 stamps
         CeramicCache.objects.create(
@@ -55,7 +55,13 @@ class TestConvertStamps:
             assert first_stamp["stamp"] == verifiable_credential
 
     def test_bulk_delete_and_get_back_v2_state(
-        self, sample_providers, sample_address, sample_stamps, sample_token, mocker
+        self,
+        sample_providers,
+        sample_address,
+        sample_stamps,
+        sample_token,
+        mocker,
+        ui_scorer,
     ):
         for provider, stamp in zip(sample_providers, sample_stamps):
             CeramicCache.objects.create(
@@ -92,6 +98,7 @@ class TestConvertStamps:
                 **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
             )
 
+            print(cache_stamp_response.json())
             assert cache_stamp_response.status_code == 200
             data = cache_stamp_response.json()
             assert data["success"] == True
@@ -99,7 +106,13 @@ class TestConvertStamps:
             assert [s["provider"] for s in stamps] == providers_to_keep
 
     def test_bulk_patch_and_get_back_v2_state(
-        self, sample_providers, sample_address, sample_stamps, sample_token, mocker
+        self,
+        sample_providers,
+        sample_address,
+        sample_stamps,
+        sample_token,
+        mocker,
+        ui_scorer,
     ):
         middle = int(len(sample_providers) / 2)
         providers_that_exist_in_db = sample_providers[:middle]

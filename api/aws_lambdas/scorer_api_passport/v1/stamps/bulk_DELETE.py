@@ -3,8 +3,8 @@ This module provides a handler to manage API requests in AWS Lambda.
 """
 
 from aws_lambdas.scorer_api_passport.utils import (
-    format_response,
     authenticate_and_get_address,
+    format_response,
     parse_body,
     with_request_exception_handling,
 )
