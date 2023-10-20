@@ -412,8 +412,19 @@ def authenticate(request, payload: CacaoVerifySubmit):
         raise FailedVerificationException(detail="Invalid nonce or payload!") from exc
 
     try:
-        payload.signatures
-        verify_jws(payload.dict())
+        try:
+            verify_jws(payload.dict())
+
+        except Exception as exc:
+            log.error(
+                "Failed to authenticate request (verify_jws failed): '%s'",
+                payload.dict(),
+                exc_info=True,
+            )
+            raise FailedVerificationException(
+                detail=f"Failed to authenticate request: {str(exc)}"
+            ) from exc
+
         token = DbCacheToken()
         token["did"] = payload.issuer
 
