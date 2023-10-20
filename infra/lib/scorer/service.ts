@@ -9,6 +9,8 @@ import { Cluster } from "@pulumi/aws/ecs";
 import { Topic } from "@pulumi/aws/sns";
 import { Listener } from "@pulumi/aws/alb";
 import { SecurityGroup } from "@pulumi/aws/ec2";
+import { RolePolicyAttachment } from "@pulumi/aws/iam";
+import { keccak256 } from "ethers";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -605,20 +607,7 @@ export function createIndexerService(
   });
 }
 
-// TODO: make more generic to be used for other lambdas
-export function buildLambdaFn(
-  httpsListener: Listener,
-  imageUri: string,
-  privateSubnetSecurityGroup: SecurityGroup,
-  vpcPrivateSubnetIds: Output<string[]>,
-  environment: { name: string; value: Input<string> }[]
-) {
-  const lambdaTargetGroup = new aws.lb.TargetGroup("lambdaTargetGroup", {
-    targetType: "lambda",
-  });
-  const example = new aws.cloudwatch.LogGroup("example", {
-    retentionInDays: 14,
-  });
+export const createSharedLambdaResources = () => {
   const lambdaLoggingPolicyDocument = aws.iam.getPolicyDocument({
     statements: [
       {
@@ -632,6 +621,7 @@ export function buildLambdaFn(
       },
     ],
   });
+
   const lambdaEc2PolicyDocument = aws.iam.getPolicyDocument({
     statements: [
       {
@@ -658,7 +648,7 @@ export function buildLambdaFn(
 
   const lambdaEc2Policy = new aws.iam.Policy("lambdaEc2Policy", {
     path: "/",
-    description: "IAM policy for logging from a lambda",
+    description: "IAM policy for interfacing with EC2 network",
     policy: lambdaEc2PolicyDocument.then(
       (lambdaEc2PolicyDocument) => lambdaEc2PolicyDocument.json
     ),
@@ -679,34 +669,86 @@ export function buildLambdaFn(
     ],
   });
 
-  const iamForLambda = new aws.iam.Role("iamForLambda", {
+  const lambdaRole = new aws.iam.Role("lambdaRole", {
     assumeRolePolicy: assumeRole.then((assumeRole) => assumeRole.json),
   });
 
-  const lambdaLogs = new aws.iam.RolePolicyAttachment("lambdaLogs", {
-    role: iamForLambda.name,
-    policyArn: lambdaLoggingPolicy.arn,
-  });
+  const lambdaLogRoleAttachment = new aws.iam.RolePolicyAttachment(
+    "lambdaLogRoleAttachment",
+    {
+      role: lambdaRole.name,
+      policyArn: lambdaLoggingPolicy.arn,
+    }
+  );
 
-  const lambdaEc2 = new aws.iam.RolePolicyAttachment("lambdaEc2", {
-    role: iamForLambda.name,
-    policyArn: lambdaEc2Policy.arn,
+  const lambdaEc2RoleAttachment = new aws.iam.RolePolicyAttachment(
+    "lambdaEc2RoleAttachment",
+    {
+      role: lambdaRole.name,
+      policyArn: lambdaEc2Policy.arn,
+    }
+  );
+
+  return {
+    lambdaRole,
+    lambdaLogRoleAttachment,
+    lambdaEc2RoleAttachment,
+  };
+};
+
+export function buildLambdaFn({
+  name,
+  httpsListener,
+  listenerPriority,
+  imageUri,
+  privateSubnetSecurityGroup,
+  vpcPrivateSubnetIds,
+  environment,
+  lambdaRole,
+  lambdaLogRoleAttachment,
+  lambdaEc2RoleAttachment,
+  pathPatterns,
+  memorySize,
+  dockerCmd,
+  httpRequestMethods,
+}: {
+  name: string;
+  httpsListener: Listener;
+  listenerPriority: number;
+  imageUri: string;
+  privateSubnetSecurityGroup: SecurityGroup;
+  vpcPrivateSubnetIds: Output<string[]>;
+  environment: { name: string; value: Input<string> }[];
+  lambdaRole: Role;
+  lambdaLogRoleAttachment: RolePolicyAttachment;
+  lambdaEc2RoleAttachment: RolePolicyAttachment;
+  pathPatterns: string[];
+  memorySize: number;
+  dockerCmd: string[];
+  httpRequestMethods?: string[];
+}) {
+  const shortName = keccak256(Buffer.from(name)).slice(2, 10);
+  // Target group needs a name < 25 chars including prefix
+  const lambdaTargetGroup = new aws.lb.TargetGroup(`lambda-tg-${shortName}`, {
+    targetType: "lambda",
   });
 
   const submitPassportFunction = new aws.lambda.Function(
-    "submitPassportFunction",
+    name,
     {
+      imageConfig: {
+        commands: dockerCmd,
+      },
       vpcConfig: {
         // vpcId: vpc.vpcId,
         securityGroupIds: [privateSubnetSecurityGroup.id], // TODO: shall we create it's own security group ???
         subnetIds: vpcPrivateSubnetIds,
       },
       packageType: "Image",
-      role: iamForLambda.arn,
-
+      role: lambdaRole.arn,
       imageUri,
       timeout: 30,
-      memorySize: 1024,
+      memorySize,
       environment: {
         variables: environment.reduce(
           (
@@ -721,11 +763,11 @@ export function buildLambdaFn(
       },
     },
     {
-      dependsOn: [lambdaLogs, lambdaEc2],
+      dependsOn: [lambdaLogRoleAttachment, lambdaEc2RoleAttachment],
     }
   );
 
-  const withLb = new aws.lambda.Permission("withLb", {
+  const withLb = new aws.lambda.Permission(`withLb-${name}`, {
     action: "lambda:InvokeFunction",
     function: submitPassportFunction.name,
     principal: "elasticloadbalancing.amazonaws.com",
@@ -733,7 +775,7 @@ export function buildLambdaFn(
   });
 
   const lambdaTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
-    "testTargetGroupAttachment",
+    `lambdaTargetGroupAttachment-${name}`,
     {
       targetGroupArn: lambdaTargetGroup.arn,
       targetId: submitPassportFunction.arn,
@@ -743,22 +785,32 @@ export function buildLambdaFn(
     }
   );
 
-  const targetPassportRule = new ListenerRule(`lrule-lambda`, {
+  const conditions: any = [
+    {
+      pathPattern: {
+        values: pathPatterns,
+      },
+    },
+  ];
+
+  if (httpRequestMethods) {
+    conditions.push({
+      httpRequestMethod: {
+        values: httpRequestMethods,
+      },
+    });
+  }
+
+  const targetPassportRule = new ListenerRule(`lrule-lambda-${name}`, {
     tags: { name: "lambda rule" },
     listenerArn: httpsListener.arn,
-    priority: 1000,
+    priority: listenerPriority,
     actions: [
       {
         type: "forward",
         targetGroupArn: lambdaTargetGroup.arn,
       },
     ],
-    conditions: [
-      {
-        pathPattern: {
-          values: ["/registry/submit-passport", "/registry/v2/submit-passport"],
-        },
-      },
-    ],
+    conditions,
   });
 }

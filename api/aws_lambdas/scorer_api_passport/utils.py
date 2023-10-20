@@ -16,6 +16,7 @@ os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
 import json
 
 import django
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +26,11 @@ from registry.exceptions import Unauthorized
 
 
 def authenticate_did_and_get_address(token: str) -> str:
-    # TODO
-    return token
+    # TODO this is just for testing, need to actually parse the token
+    if re.search("0x[a-fA-F0-9]{40}", (token)):
+        return token
+    else:
+        return "0x96DB2c6D93A8a12089f7a6EdA5464e967308AdEd"
 
 
 def get_token_from_event(event) -> str:
@@ -51,6 +55,14 @@ def preprocess_event(event, context):
     return address, body
 
 
+RESPONSE_HEADERS = {
+    "Content-Type": "text/html",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "*",
+    "Access-Control-Allow-Headers": "Accept,Accept-Encoding,Authorization,Content-Type,Dnt,Origin,User-Agent,X-Csrftoken,X-Requested-With,X-Api-Key",
+}
+
+
 def with_request_exception_handling(func):
     @wraps(func)
     def wrapper(event, context):
@@ -71,7 +83,7 @@ def with_request_exception_handling(func):
                 "statusCode": status,
                 "statusDescription": str(e),
                 "isBase64Encoded": False,
-                "headers": {"Content-Type": "text/html"},
+                "headers": RESPONSE_HEADERS,
                 "body": message,
             }
 
@@ -83,6 +95,6 @@ def format_response(ret: Any):
         "statusCode": 200,
         "statusDescription": "200 OK",
         "isBase64Encoded": False,
-        "headers": {"Content-Type": "application/json"},
+        "headers": RESPONSE_HEADERS,
         "body": ret.json() if hasattr(ret, "json") else json.dumps(ret),
     }

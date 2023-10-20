@@ -13,8 +13,10 @@ import {
   createTargetGroup,
   getEnvironment,
   secrets,
+  createSharedLambdaResources,
 } from "../lib/scorer/service";
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
+import { getParameter } from "@pulumi/aws/ssm";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -468,19 +470,46 @@ const scorerServiceRegistrySubmitPassport = createScorerECSService(
 export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
 const trustedIAMIssuer = `${process.env["TRUSTED_IAM_ISSUER"]}`;
 
-buildLambdaFn(
+const sharedLambdaResources = createSharedLambdaResources();
+
+const lambdaSettings = {
   httpsListener,
-  dockerGtcSubmitPassportLambdaImage,
+  imageUri: dockerGtcSubmitPassportLambdaImage,
   privateSubnetSecurityGroup,
   vpcPrivateSubnetIds,
-  [
+  environment: [
     ...environment,
     {
       name: "TRUSTED_IAM_ISSUER",
       value: trustedIAMIssuer,
     },
-  ]
-);
+    {
+      name: "CERAMIC_CACHE_SCORER_ID",
+      // TODO
+      value: "14",
+    },
+  ],
+  ...sharedLambdaResources,
+};
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "submit_passport",
+  memorySize: 1024,
+  dockerCmd: ["aws_lambdas.submit_passport.submit_passport.handler"],
+  pathPatterns: ["/registry/submit-passport", "/registry/v2/submit-passport"],
+  listenerPriority: 1001,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "v1_stamps_bulk_POST",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
+  pathPatterns: ["/ceramic-cache/stamps/bulk"],
+  httpRequestMethods: ["POST"],
+  listenerPriority: 1002,
+});
 
 //////////////////////////////////////////////////////////////
 // Set up the Celery Worker Service
