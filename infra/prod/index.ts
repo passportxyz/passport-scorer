@@ -189,25 +189,6 @@ const readreplica0 = new aws.rds.Instance(
   { protect: true }
 );
 
-const readreplicaAnalytics = new aws.rds.Instance(
-  "scorer-db-read-analytics",
-  {
-    allocatedStorage: 130,
-    maxAllocatedStorage: 500,
-    instanceClass: "db.r5.large",
-    skipFinalSnapshot: true,
-    vpcSecurityGroupIds: [db_secgrp.id],
-    deletionProtection: true,
-    // backupRetentionPeriod: 5,  - this is not supported for read replicas running PostgreSQL versions lower than 14
-    replicateSourceDb: postgresql.id,
-    performanceInsightsEnabled: true,
-    tags: {
-      name: "scorer-db-read-analytics",
-    },
-  },
-  { protect: true }
-);
-
 export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
@@ -219,9 +200,7 @@ export const indexerRdsConnectionUrl = pulumi.secret(
 export const readreplica0ConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${readreplica0.endpoint}/${dbName}`
 );
-export const readreplicaAnalyticsConnectionUrl = pulumi.secret(
-  pulumi.interpolate`psql://<YOUR USER>:<YOUR PASSWORD>@${readreplicaAnalytics.endpoint}/${dbName}`
-);
+
 export const rdsId = postgresql.id;
 
 //////////////////////////////////////////////////////////////
