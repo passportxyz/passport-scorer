@@ -10,7 +10,6 @@ import { Topic } from "@pulumi/aws/sns";
 import { Listener } from "@pulumi/aws/alb";
 import { SecurityGroup } from "@pulumi/aws/ec2";
 import { RolePolicyAttachment } from "@pulumi/aws/iam";
-import { keccak256 } from "ethers";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -262,6 +261,7 @@ export function createScorerECSService(
   }
 
   const service = new awsx.ecs.FargateService(name, {
+    propagateTags: "TASK_DEFINITION",
     tags: { name: name },
     cluster: config.cluster.arn,
     desiredCount: config.desiredCount ? config.desiredCount : 1,
@@ -727,15 +727,15 @@ export function buildLambdaFn({
   dockerCmd: string[];
   httpRequestMethods?: string[];
 }) {
-  const shortName = keccak256(Buffer.from(name)).slice(2, 10);
-  // Target group needs a name < 25 chars including prefix
-  const lambdaTargetGroup = new aws.lb.TargetGroup(`lambda-tg-${shortName}`, {
+  const lambdaTargetGroup = new aws.lb.TargetGroup(`l-${name}`, {
+    name: `l-${name}`,
     targetType: "lambda",
   });
 
   const submitPassportFunction = new aws.lambda.Function(
     name,
     {
+      name: name,
       imageConfig: {
         commands: dockerCmd,
       },
@@ -761,6 +761,7 @@ export function buildLambdaFn({
           {}
         ),
       },
+      tags: { name: name },
     },
     {
       dependsOn: [lambdaLogRoleAttachment, lambdaEc2RoleAttachment],
@@ -802,7 +803,7 @@ export function buildLambdaFn({
   }
 
   const targetPassportRule = new ListenerRule(`lrule-lambda-${name}`, {
-    tags: { name: "lambda rule" },
+    tags: { name: `lrule-lambda-${name}` },
     listenerArn: httpsListener.arn,
     priority: listenerPriority,
     actions: [

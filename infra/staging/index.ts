@@ -468,46 +468,46 @@ const lambdaSettings = {
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "submit_passport",
+  name: "submit-passport",
   memorySize: 1024,
   dockerCmd: ["aws_lambdas.submit_passport.submit_passport.handler"],
   pathPatterns: ["/registry/submit-passport", "/registry/v2/submit-passport"],
-  listenerPriority: 1001,
+  listenerPriority: 2001,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_stamps_bulk_POST",
+  name: "cc-v1-st-bulk-POST",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
   pathPatterns: ["/ceramic-cache/stamps/bulk"],
   httpRequestMethods: ["POST"],
-  listenerPriority: 1002,
+  listenerPriority: 2002,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_stamps_bulk_PATCH",
+  name: "cc-v1-st-bulk-PATCH",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_PATCH.handler"],
   pathPatterns: ["/ceramic-cache/stamps/bulk"],
   httpRequestMethods: ["PATCH"],
-  listenerPriority: 1003,
+  listenerPriority: 2003,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_stamps_bulk_DELETE",
+  name: "cc-v1-st-bulk-DELETE",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_DELETE.handler"],
   pathPatterns: ["/ceramic-cache/stamps/bulk"],
   httpRequestMethods: ["DELETE"],
-  listenerPriority: 1004,
+  listenerPriority: 2004,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_authenticate",
+  name: "cc-auhenticate",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
   pathPatterns: [
@@ -515,87 +515,87 @@ buildLambdaFn({
     "/ceramic-cache/v2/authenticate",
   ],
   httpRequestMethods: ["POST"],
-  listenerPriority: 1005,
+  listenerPriority: 2005,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_score_POST",
+  name: "cc-v1-score-POST",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
   pathPatterns: ["/ceramic-cache/score/*", "/ceramic-cache/v2/score/*"],
   httpRequestMethods: ["POST"],
-  listenerPriority: 1006,
+  listenerPriority: 2006,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_score_GET",
+  name: "cc-v1-score-GET",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
   pathPatterns: ["/ceramic-cache/score/*", "/ceramic-cache/v2/score/*"],
   httpRequestMethods: ["GET"],
-  listenerPriority: 1007,
+  listenerPriority: 2007,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_weights_GET",
+  name: "cc-weights-GET",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
   pathPatterns: ["/ceramic-cache/weights", "/ceramic-cache/v2/weights"],
   httpRequestMethods: ["GET"],
-  listenerPriority: 1015,
+  listenerPriority: 2015,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_stamp_GET",
+  name: "cc-v1-st-GET",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamp_GET.handler"],
   pathPatterns: ["/ceramic-cache/stamp"],
   httpRequestMethods: ["GET"],
-  listenerPriority: 1010,
+  listenerPriority: 2010,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v2_stamps_bulk_POST",
+  name: "cc-v2-st-bulk-POST",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_POST.handler"],
   pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
   httpRequestMethods: ["POST"],
-  listenerPriority: 1011,
+  listenerPriority: 2011,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v2_stamps_bulk_PATCH",
+  name: "cc-v2-st-bulk-PATCH",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_PATCH.handler"],
   pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
   httpRequestMethods: ["PATCH"],
-  listenerPriority: 1012,
+  listenerPriority: 2012,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v2_stamps_bulk_DELETE",
+  name: "cc-v2-st-bulk-DELETE",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_DELETE.handler"],
   pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
   httpRequestMethods: ["DELETE"],
-  listenerPriority: 1013,
+  listenerPriority: 2013,
 });
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v2_stamp_GET",
+  name: "cc-v2-st-GET",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamp_GET.handler"],
   pathPatterns: ["/ceramic-cache/v2/stamp"],
   httpRequestMethods: ["GET"],
-  listenerPriority: 1014,
+  listenerPriority: 2014,
 });
 
 //////////////////////////////////////////////////////////////
@@ -729,7 +729,7 @@ const ecsScorerWorker1Autoscaling = new aws.appautoscaling.Policy(
 
 const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
   cluster: cluster.arn,
-  desiredCount: 1,
+  desiredCount: 0,
   networkConfiguration: {
     subnets: vpc.privateSubnetIds,
     securityGroups: [privateSubnetSecurityGroup.id],
@@ -906,7 +906,7 @@ const flowerRecord = new aws.route53.Record("flower", {
 
 const flower = new awsx.ecs.FargateService("flower", {
   cluster: cluster.arn,
-  desiredCount: 1,
+  desiredCount: 0,
   networkConfiguration: {
     subnets: vpc.privateSubnetIds,
     securityGroups: [privateSubnetSecurityGroup.id],
