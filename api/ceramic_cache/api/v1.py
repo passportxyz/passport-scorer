@@ -436,25 +436,6 @@ def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
             "access": str(token.access_token),
         }
 
-        # r = requests.post(
-        #     settings.CERAMIC_CACHE_CACAO_VALIDATION_URL, json=payload.dict(), timeout=30
-        # )
-        # if r.status_code == 200:
-        #     token = DbCacheToken()
-        #     token["did"] = payload.issuer
-
-        #     return {
-        #         "access": str(token.access_token),
-        #     }
-
-        # log.error(
-        #     "Failed to validate did signature for: %s.\n%s\n%s",
-        #     payload.dict(),
-        #     r,
-        #     r.text,
-        # )
-        # raise FailedVerificationException(detail=f"Verifier response: {str(r)}")
-
     except APIException:
         # re-raise API exceptions
         raise
