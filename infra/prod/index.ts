@@ -727,7 +727,7 @@ const ecsScorerWorker1Autoscaling = new aws.appautoscaling.Policy(
 
 const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
   cluster: cluster.arn,
-  desiredCount: 1,
+  desiredCount: 0,
   networkConfiguration: {
     subnets: vpc.privateSubnetIds,
     securityGroups: [privateSubnetSecurityGroup.id],
@@ -904,7 +904,7 @@ const flowerRecord = new aws.route53.Record("flower", {
 
 const flower = new awsx.ecs.FargateService("flower", {
   cluster: cluster.arn,
-  desiredCount: 1,
+  desiredCount: 0,
   networkConfiguration: {
     subnets: vpc.privateSubnetIds,
     securityGroups: [privateSubnetSecurityGroup.id],
@@ -1332,7 +1332,7 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
 );
 
 export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
-  "daily-data-dump",
+  "daily-data-dump-parquet",
   {
     ...baseScorerServiceConfig,
     cpu: 1024,
