@@ -18,21 +18,40 @@ import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
-let route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
-let route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
+//////////////////////////////////////////////////////////////
+// Loading environment variables
+//////////////////////////////////////////////////////////////
+const route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
+const route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
 export const domain = `api.scorer.${process.env["DOMAIN"]}`;
+const rootDomain = process.env["DOMAIN"];
+
 export const publicDataDomain = `public.scorer.${process.env["DOMAIN"]}`;
 export const publicServiceUrl = `https://${domain}`;
 
-let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
-let dbUsername = `${process.env["DB_USER"]}`;
-let dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
-let dbName = `${process.env["DB_NAME"]}`;
-let flowerUser = `${process.env["FLOWER_USER"]}`;
-let flowerPassword = `${process.env["FLOWER_PASSWORD"]}`;
+const SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
+const dbUsername = `${process.env["DB_USER"]}`;
+const dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
+const dbName = `${process.env["DB_NAME"]}`;
+const flowerUser = `${process.env["FLOWER_USER"]}`;
+const flowerPassword = `${process.env["FLOWER_PASSWORD"]}`;
 
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
 export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
+
+export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
+const trustedIAMIssuer = `${process.env["TRUSTED_IAM_ISSUER"]}`;
+
+const redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
+const redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
+const redashDbName = `${process.env["REDASH_DB_NAME"]}`;
+const redashSecretKey = pulumi.secret(`${process.env["REDASH_SECRET_KEY"]}`);
+const redashMailUsername = `${process.env["REDASH_MAIL_USERNAME"]}`;
+const redashMailPassword = pulumi.secret(
+  `${process.env["REDASH_MAIL_PASSWORD"]}`
+);
+
+const pagerDutyIntegrationEndpoint = `${process.env["PAGERDUTY_INTEGRATION_ENDPOINT"]}`;
 
 //////////////////////////////////////////////////////////////
 // Set up VPC
@@ -486,8 +505,8 @@ const envConfig: ScorerEnvironmentConfig = {
   readReplicaConnectionUrl: readreplica0ConnectionUrl,
   redisCacheOpsConnectionUrl: redisCacheOpsConnectionUrl,
   uiDomains: JSON.stringify([
-    "scorer." + process.env["DOMAIN"],
-    "www.scorer." + process.env["DOMAIN"],
+    "scorer." + rootDomain,
+    "www.scorer." + rootDomain,
   ]),
   debug: "off",
   passportPublicUrl: "https://passport.gitcoin.co/",
@@ -511,7 +530,7 @@ const pagerdutyTopic = new aws.sns.Topic("pagerduty", {
 });
 
 const PAGERDUTY_INTEGRATION_ENDPOINT = pulumi.secret(
-  `${process.env["PAGERDUTY_INTEGRATION_ENDPOINT"]}`
+  pagerDutyIntegrationEndpoint
 );
 
 const identity = aws.getCallerIdentity();
@@ -1058,15 +1077,6 @@ const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp-fe96c4b`, {
   name: "redashDbSecgrp-fe96c4b",
 });
 
-let redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
-let redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
-let redashDbName = `${process.env["REDASH_DB_NAME"]}`;
-let redashSecretKey = pulumi.secret(`${process.env["REDASH_SECRET_KEY"]}`);
-const redashMailUsername = `${process.env["REDASH_MAIL_USERNAME"]}`;
-const redashMailPassword = pulumi.secret(
-  `${process.env["REDASH_MAIL_PASSWORD"]}`
-);
-
 // Create an RDS instance
 const redashDb = new aws.rds.Instance(
   "redash-db-0",
@@ -1395,9 +1405,6 @@ createIndexerService(
   workerRole
 );
 
-export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
-const trustedIAMIssuer = `${process.env["TRUSTED_IAM_ISSUER"]}`;
-
 const sharedLambdaResources = createSharedLambdaResources();
 
 const lambdaSettings = {
@@ -1422,7 +1429,6 @@ const lambdaSettings = {
   ],
   ...sharedLambdaResources,
 };
-
 
 buildLambdaFn({
   ...lambdaSettings,
