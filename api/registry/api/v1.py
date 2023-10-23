@@ -385,7 +385,8 @@ def handle_get_score(
         score = Score.objects.get(
             passport__address=lower_address, passport__community=user_community
         )
-        return score
+        return DetailedScoreResponse.from_orm(score)
+
     except NotFoundApiException as e:
         raise e
     except Exception as e:

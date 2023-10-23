@@ -13,26 +13,43 @@ import {
   createTargetGroup,
   getEnvironment,
   secrets,
+  createSharedLambdaResources,
 } from "../lib/scorer/service";
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
-let route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
-let route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
+//////////////////////////////////////////////////////////////
+// Loading environment variables
+//////////////////////////////////////////////////////////////
+const route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
+const route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
 export const domain = `api.staging.scorer.${process.env["DOMAIN"]}`;
 export const publicDataDomain = `public.staging.scorer.${process.env["DOMAIN"]}`;
 export const publicServiceUrl = `https://${domain}`;
+const rootDomain = process.env["DOMAIN"];
 
-let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
-let dbUsername = `${process.env["DB_USER"]}`;
-let dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
-let dbName = `${process.env["DB_NAME"]}`;
-let flowerUser = `${process.env["FLOWER_USER"]}`;
-let flowerPassword = `${process.env["FLOWER_PASSWORD"]}`;
+const SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
+const dbUsername = `${process.env["DB_USER"]}`;
+const dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
+const dbName = `${process.env["DB_NAME"]}`;
+const flowerUser = `${process.env["FLOWER_USER"]}`;
+const flowerPassword = `${process.env["FLOWER_PASSWORD"]}`;
 
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
 export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
+
+export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
+const trustedIAMIssuer = `${process.env["TRUSTED_IAM_ISSUER"]}`;
+
+const redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
+const redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
+const redashDbName = `${process.env["REDASH_DB_NAME"]}`;
+const redashSecretKey = pulumi.secret(`${process.env["REDASH_SECRET_KEY"]}`);
+const redashMailUsername = `${process.env["REDASH_MAIL_USERNAME"]}`;
+const redashMailPassword = pulumi.secret(
+  `${process.env["REDASH_MAIL_PASSWORD"]}`
+);
 
 //////////////////////////////////////////////////////////////
 // Set up VPC
@@ -134,7 +151,7 @@ const postgresql = new aws.rds.Instance(
     engine: "postgres",
     // engineVersion: "5.7",
     // instanceClass: "db.t3.2xlarge",
-    instanceClass: "db.t3.small",
+    instanceClass: "db.t3.2xlarge",
     dbName: dbName,
     password: dbPassword,
     username: dbUsername,
@@ -192,8 +209,7 @@ const secgrp_redis = new aws.ec2.SecurityGroup("scorer-redis-secgrp", {
 const redis = new aws.elasticache.Cluster("scorer-redis", {
   engine: "redis",
   engineVersion: "4.0.10",
-  // nodeType: "cache.m5.large",
-  nodeType: "cache.t3.small",
+  nodeType: "cache.m5.large",
   numCacheNodes: 1,
   port: 6379,
   subnetGroupName: redisSubnetGroup.name,
@@ -383,8 +399,8 @@ const envConfig: ScorerEnvironmentConfig = {
   rdsConnectionUrl: rdsConnectionUrl,
   redisCacheOpsConnectionUrl: redisCacheOpsConnectionUrl,
   uiDomains: JSON.stringify([
-    "scorer." + process.env["DOMAIN"],
-    "www.scorer." + process.env["DOMAIN"],
+    "scorer." + rootDomain,
+    "www.scorer." + rootDomain,
   ]),
   debug: "off",
   passportPublicUrl: "https://staging.passport.gitcoin.co/",
@@ -431,18 +447,6 @@ const scorerServiceDefault = createScorerECSService(
   envConfig
 );
 
-const scorerServicePassport = createScorerECSService(
-  "scorer-api-passport",
-  {
-    ...baseScorerServiceConfig,
-    needsVerifier: true,
-    listenerRulePriority: 2000,
-    httpListenerRulePaths: ["/ceramic-cache/*"],
-    targetGroup: targetGroupPassport,
-  },
-  envConfig
-);
-
 const scorerServiceRegistry = createScorerECSService(
   "scorer-api-reg",
   {
@@ -454,33 +458,158 @@ const scorerServiceRegistry = createScorerECSService(
   envConfig
 );
 
-const scorerServiceRegistrySubmitPassport = createScorerECSService(
-  "scorer-api-reg-sp", // scorer-registry-submit-passport
-  {
-    ...baseScorerServiceConfig,
-    listenerRulePriority: 2500,
-    httpListenerRulePaths: ["/registry/submit-passport-old"],
-    targetGroup: targetGroupRegistrySubmitPassport,
-  },
-  envConfig
-);
+const sharedLambdaResources = createSharedLambdaResources();
 
-export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
-const trustedIAMIssuer = `${process.env["TRUSTED_IAM_ISSUER"]}`;
-
-buildLambdaFn(
+const lambdaSettings = {
   httpsListener,
-  dockerGtcSubmitPassportLambdaImage,
+  imageUri: dockerGtcSubmitPassportLambdaImage,
   privateSubnetSecurityGroup,
   vpcPrivateSubnetIds,
-  [
+  environment: [
     ...environment,
     {
       name: "TRUSTED_IAM_ISSUER",
       value: trustedIAMIssuer,
     },
-  ]
-);
+    {
+      name: "CERAMIC_CACHE_SCORER_ID",
+      value: "14",
+    },
+  ],
+  ...sharedLambdaResources,
+};
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "submit-passport",
+  memorySize: 1024,
+  dockerCmd: ["aws_lambdas.submit_passport.submit_passport.handler"],
+  pathPatterns: ["/registry/submit-passport", "/registry/v2/submit-passport"],
+  listenerPriority: 2001,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v1-st-bulk-POST",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
+  pathPatterns: ["/ceramic-cache/stamps/bulk"],
+  httpRequestMethods: ["POST"],
+  listenerPriority: 2002,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v1-st-bulk-PATCH",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_PATCH.handler"],
+  pathPatterns: ["/ceramic-cache/stamps/bulk"],
+  httpRequestMethods: ["PATCH"],
+  listenerPriority: 2003,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v1-st-bulk-DELETE",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_DELETE.handler"],
+  pathPatterns: ["/ceramic-cache/stamps/bulk"],
+  httpRequestMethods: ["DELETE"],
+  listenerPriority: 2004,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-auhenticate",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
+  pathPatterns: [
+    "/ceramic-cache/authenticate",
+    "/ceramic-cache/v2/authenticate",
+  ],
+  httpRequestMethods: ["POST"],
+  listenerPriority: 2005,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v1-score-POST",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
+  pathPatterns: ["/ceramic-cache/score/*", "/ceramic-cache/v2/score/*"],
+  httpRequestMethods: ["POST"],
+  listenerPriority: 2006,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v1-score-GET",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
+  pathPatterns: ["/ceramic-cache/score/*", "/ceramic-cache/v2/score/*"],
+  httpRequestMethods: ["GET"],
+  listenerPriority: 2007,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-weights-GET",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
+  pathPatterns: ["/ceramic-cache/weights", "/ceramic-cache/v2/weights"],
+  httpRequestMethods: ["GET"],
+  listenerPriority: 2015,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v1-st-GET",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamp_GET.handler"],
+  pathPatterns: ["/ceramic-cache/stamp"],
+  httpRequestMethods: ["GET"],
+  listenerPriority: 2010,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v2-st-bulk-POST",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_POST.handler"],
+  pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
+  httpRequestMethods: ["POST"],
+  listenerPriority: 2011,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v2-st-bulk-PATCH",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_PATCH.handler"],
+  pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
+  httpRequestMethods: ["PATCH"],
+  listenerPriority: 2012,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v2-st-bulk-DELETE",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_DELETE.handler"],
+  pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
+  httpRequestMethods: ["DELETE"],
+  listenerPriority: 2013,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v2-st-GET",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamp_GET.handler"],
+  pathPatterns: ["/ceramic-cache/v2/stamp"],
+  httpRequestMethods: ["GET"],
+  listenerPriority: 2014,
+});
 
 //////////////////////////////////////////////////////////////
 // Set up the Celery Worker Service
@@ -613,7 +742,7 @@ const ecsScorerWorker1Autoscaling = new aws.appautoscaling.Policy(
 
 const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
   cluster: cluster.arn,
-  desiredCount: 1,
+  desiredCount: 0,
   networkConfiguration: {
     subnets: vpc.privateSubnetIds,
     securityGroups: [privateSubnetSecurityGroup.id],
@@ -790,7 +919,7 @@ const flowerRecord = new aws.route53.Record("flower", {
 
 const flower = new awsx.ecs.FargateService("flower", {
   cluster: cluster.arn,
-  desiredCount: 1,
+  desiredCount: 0,
   networkConfiguration: {
     subnets: vpc.privateSubnetIds,
     securityGroups: [privateSubnetSecurityGroup.id],
@@ -942,16 +1071,6 @@ const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp`, {
     },
   ],
 });
-
-let redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
-let redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
-let redashDbName = `${process.env["REDASH_DB_NAME"]}`;
-// used to encrypt settings values within the instance e.g. datasources
-let redashSecretKey = pulumi.secret(`${process.env["REDASH_SECRET_KEY"]}`);
-const redashMailUsername = `${process.env["REDASH_MAIL_USERNAME"]}`;
-const redashMailPassword = pulumi.secret(
-  `${process.env["REDASH_MAIL_PASSWORD"]}`
-);
 
 // Create an RDS instance
 const redashDb = new aws.rds.Instance(

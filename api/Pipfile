@@ -39,6 +39,7 @@ tqdm = "*"
 gql = "*"
 requests-toolbelt = "*"
 pyarrow = "*"
+pynacl = "*"
 
 [dev-packages]
 black = "*"

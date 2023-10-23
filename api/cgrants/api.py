@@ -3,9 +3,9 @@
 This file re-iplements the API endpoints from the original cgrants API: https://github.com/gitcoinco/web/blob/master/app/grants/views_api_vc.py
 
 """
-import logging
 from enum import Enum
 
+import api_logging as logging
 from django.conf import settings
 from django.db.models import Count, Q, Sum
 from django.http import JsonResponse

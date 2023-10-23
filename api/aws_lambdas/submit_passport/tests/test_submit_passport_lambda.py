@@ -3,6 +3,8 @@ import json
 from copy import deepcopy
 
 import pytest
+
+from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
 from registry.test.test_passport_submission import mock_passport
 
 from ..submit_passport import handler, strip_event
@@ -98,7 +100,7 @@ def test_successful_authentication(
                 scorer_api_key, address, scorer_community_with_binary_scorer.id
             )
 
-            response = handler(event, None)
+            response = handler(event, MockContext())
 
             assert response is not None
             body = json.loads(response["body"])
@@ -143,7 +145,7 @@ def test_successful_authentication_and_base64_encoded_body(
                 scorer_api_key, address, scorer_community_with_binary_scorer.id
             )
 
-            response = handler(event, None)
+            response = handler(event, MockContext())
 
             assert response is not None
             body = json.loads(response["body"])
@@ -173,7 +175,7 @@ def test_unsucessfull_auth(scorer_account, scorer_community_with_binary_scorer):
         "bad_key", scorer_account.address, scorer_community_with_binary_scorer.id
     )
 
-    response = handler(event, None)
+    response = handler(event, MockContext())
 
     assert response is not None
     assert response["statusCode"] == 403
