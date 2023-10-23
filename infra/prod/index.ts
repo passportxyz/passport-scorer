@@ -1423,9 +1423,10 @@ const lambdaSettings = {
   ...sharedLambdaResources,
 };
 
+
 buildLambdaFn({
   ...lambdaSettings,
-  name: "submit_passport",
+  name: "submit-passport",
   memorySize: 1024,
   dockerCmd: ["aws_lambdas.submit_passport.submit_passport.handler"],
   pathPatterns: ["/registry/submit-passport", "/registry/v2/submit-passport"],
@@ -1434,7 +1435,7 @@ buildLambdaFn({
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_stamps_bulk_POST",
+  name: "cc-v1-st-bulk-POST",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
   pathPatterns: ["/ceramic-cache/stamps/bulk"],
@@ -1444,7 +1445,7 @@ buildLambdaFn({
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_stamps_bulk_PATCH",
+  name: "cc-v1-st-bulk-PATCH",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_PATCH.handler"],
   pathPatterns: ["/ceramic-cache/stamps/bulk"],
@@ -1454,7 +1455,7 @@ buildLambdaFn({
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_stamps_bulk_DELETE",
+  name: "cc-v1-st-bulk-DELETE",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_DELETE.handler"],
   pathPatterns: ["/ceramic-cache/stamps/bulk"],
@@ -1464,7 +1465,7 @@ buildLambdaFn({
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_authenticate",
+  name: "cc-auhenticate",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
   pathPatterns: [
@@ -1477,7 +1478,7 @@ buildLambdaFn({
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_score_POST",
+  name: "cc-v1-score-POST",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
   pathPatterns: ["/ceramic-cache/score/*", "/ceramic-cache/v2/score/*"],
@@ -1487,7 +1488,7 @@ buildLambdaFn({
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_score_GET",
+  name: "cc-v1-score-GET",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
   pathPatterns: ["/ceramic-cache/score/*", "/ceramic-cache/v2/score/*"],
@@ -1497,7 +1498,7 @@ buildLambdaFn({
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_weights_GET",
+  name: "cc-weights-GET",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
   pathPatterns: ["/ceramic-cache/weights", "/ceramic-cache/v2/weights"],
@@ -1507,7 +1508,7 @@ buildLambdaFn({
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v1_stamp_GET",
+  name: "cc-v1-st-GET",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamp_GET.handler"],
   pathPatterns: ["/ceramic-cache/stamp"],
@@ -1517,7 +1518,7 @@ buildLambdaFn({
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v2_stamps_bulk_POST",
+  name: "cc-v2-st-bulk-POST",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_POST.handler"],
   pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
@@ -1527,7 +1528,7 @@ buildLambdaFn({
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v2_stamps_bulk_PATCH",
+  name: "cc-v2-st-bulk-PATCH",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_PATCH.handler"],
   pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
@@ -1537,7 +1538,7 @@ buildLambdaFn({
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v2_stamps_bulk_DELETE",
+  name: "cc-v2-st-bulk-DELETE",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_DELETE.handler"],
   pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
@@ -1547,7 +1548,7 @@ buildLambdaFn({
 
 buildLambdaFn({
   ...lambdaSettings,
-  name: "cache_v2_stamp_GET",
+  name: "cc-v2-st-GET",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamp_GET.handler"],
   pathPatterns: ["/ceramic-cache/v2/stamp"],
