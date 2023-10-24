@@ -17,13 +17,14 @@ export type ScheduledTaskConfig = Pick<
   | "cluster"
   | "subnets"
   | "securityGroup"
-> & {
-  command: string[];
-  scheduleExpression: string;
-  ephemeralStorageSizeInGiB?: number;
-  cpu?: number;
-  memory?: number;
-};
+  | "cpu"
+  | "memory"
+> &
+  Required<Pick<ScorerService, "alertTopic">> & {
+    command: string;
+    scheduleExpression: string;
+    ephemeralStorageSizeInGiB?: number;
+  };
 
 export function createScheduledTask(
   name: string,
@@ -31,6 +32,7 @@ export function createScheduledTask(
   envConfig: ScorerEnvironmentConfig
 ) {
   const {
+    alertTopic,
     executionRole,
     subnets,
     dockerImageScorer,
@@ -43,6 +45,17 @@ export function createScheduledTask(
     memory,
   } = config;
 
+  const commandSuccessMessage = `SUCCESS <${name}>`;
+  const commandWithTest = [
+    "/bin/bash",
+    "-c",
+    command + ` && echo "${commandSuccessMessage}"`,
+  ];
+
+  const logGroup = new aws.cloudwatch.LogGroup(`scheduled-${name}`, {
+    retentionInDays: 90,
+  });
+
   const task = new awsx.ecs.FargateTaskDefinition(name, {
     executionRole: {
       roleArn: executionRole.arn,
@@ -52,6 +65,11 @@ export function createScheduledTask(
           sizeInGib: ephemeralStorageSizeInGiB,
         }
       : undefined,
+    logGroup: {
+      existing: {
+        arn: logGroup.arn,
+      },
+    },
     containers: {
       web: {
         name: `${name}-container`,
@@ -60,7 +78,7 @@ export function createScheduledTask(
         memory: memory ? memory : 2048,
         secrets,
         environment: getEnvironment(envConfig),
-        command,
+        command: commandWithTest,
       },
     },
   });
@@ -177,6 +195,63 @@ export function createScheduledTask(
         subnets,
       },
     },
+  });
+
+  const metricNamespace = "/scheduled-tasks/runs/success";
+  const metricName = `SuccessfulRun-${name}`;
+
+  new aws.cloudwatch.LogMetricFilter(metricName, {
+    logGroupName: logGroup.name,
+    metricTransformation: {
+      defaultValue: "0",
+      name: metricName,
+      namespace: metricNamespace,
+      unit: "Count",
+      value: "1",
+    },
+    name: metricName,
+    pattern: `"${commandSuccessMessage}"`,
+  });
+
+  const SIX_HOURS_IN_SECONDS = 6 * 60 * 60;
+
+  new aws.cloudwatch.MetricAlarm("UnsuccessfulRuns-" + name, {
+    alarmActions: [alertTopic.arn],
+    comparisonOperator: "GreaterThanOrEqualToThreshold",
+    datapointsToAlarm: 1,
+    evaluationPeriods: 1,
+    metricQueries: [
+      {
+        id: "m1",
+        metric: {
+          metricName,
+          namespace: metricNamespace,
+          period: SIX_HOURS_IN_SECONDS,
+          stat: "Sum",
+        },
+      },
+      {
+        id: "m2",
+        metric: {
+          dimensions: {
+            RuleName: scheduledEventRule.name,
+          },
+          metricName: "Invocations",
+          namespace: "AWS/Events",
+          period: SIX_HOURS_IN_SECONDS,
+          stat: "Sum",
+        },
+      },
+      {
+        expression: "m2 - m1",
+        id: "e1",
+        label: "UnsuccessfulRuns",
+        returnData: true,
+      },
+    ],
+    threshold: 1,
+    name: "UnsuccessfulRuns-" + name,
+    treatMissingData: "notBreaching",
   });
 
   return task.taskDefinition.id;
