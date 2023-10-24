@@ -4,7 +4,6 @@ This module provides utils to manage Passport API requests in AWS Lambda.
 
 import json
 
-import api_logging as logging
 from aws_lambdas.utils import *
 
 logger = logging.getLogger(__name__)
