@@ -18,6 +18,7 @@ from tqdm import tqdm
 pa_schema_map = {
     "AutoField": {"pa_type": pa.int64()},
     "BigAutoField": {"pa_type": pa.int64()},
+    "BigIntegerField": {"pa_type": pa.int64()},
     # "ForeignKey": {"pa_type": pa.int64()},
     # "OneToOneField": {"pa_type": pa.int64()},
     "CharField": {"pa_type": pa.string()},
@@ -25,7 +26,7 @@ pa_schema_map = {
     "DateTimeField": {"pa_type": pa.timestamp("ms")},
     "IntegerField": {"pa_type": pa.int64()},
     "BooleanField": {"pa_type": pa.bool_()},
-    "DecimalField": {"pa_type": pa.decimal256(18, 9)},
+    "DecimalField": {"pa_type": pa.decimal256(56, 18)},
 }
 
 
