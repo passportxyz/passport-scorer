@@ -187,7 +187,7 @@ class GrantContributionIndex(models.Model):
     """
     Stores data brought over from cgrants. Original model: https://github.com/gitcoinco/web/blob/master/app/grants/models/grant_contribution_index.py
 
-    Stores the grants and round number to shich a user contributed to.
+    Stores the grants and round number to which a user contributed to.
     The purpose of this table is to allow a a fast query. This will be used from
     the `contributor_statistics` API"""
 
@@ -220,6 +220,8 @@ class GrantContributionIndex(models.Model):
         db_index=True,
         help_text=_("The USD amount contributed"),
     )
+
+    contributor_address = EthAddressField(null=True, blank=True, max_length=100)
 
 
 class ProtocolContributions(models.Model):
