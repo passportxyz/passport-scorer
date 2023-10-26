@@ -55,7 +55,8 @@ from registry.exceptions import (
     aapi_get_object_or_404,
     api_get_object_or_404,
 )
-from registry.models import Event, Passport, Score, Stamp
+from registry.filters import GTCStakeEventsFilter
+from registry.models import Event, GTCStakeEvents, Passport, Score, Stamp
 from registry.tasks import score_passport_passport, score_registry_passport
 from registry.utils import (
     decode_cursor,
@@ -733,62 +734,52 @@ class Round(BaseModel):
 
 
 class Stake(BaseModel):
-    stake: str
-    round: Round
+    id: int
+    event_type: str
+    round_id: int
+    staker: Optional[str] = None
+    address: Optional[str] = None
+    amount: int
+    staked: bool
+    block_number: int
+    tx_hash: str
 
 
-class XstakeAggregate(BaseModel):
-    total: str
-    round: Round
+class GtcEventsResponse(BaseModel):
+    results: List[Stake]
 
 
-class User(BaseModel):
-    stakes: Optional[List[Stake]] = []
-    xstakeAggregates: Optional[List[XstakeAggregate]] = []
-
-
-class GqlResponse(BaseModel):
-    users: List[User]
+class GtcStakeEventsSchema(BaseModel):
+    address: str
+    round_id: int
 
 
 @router.get(
-    "/gtc-stake/{address}",
+    "/gtc-stake",
     description="Get self and community staking amounts based on address and round id",
     auth=ApiKey(),
-    response=GqlResponse,
+    response={
+        200: GtcEventsResponse,
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+    },
 )
-def get_gtc_stake(request, address: str):
+def get_gtc_stake(request, params: GtcStakeEventsSchema) -> GtcEventsResponse:
     """
-    Get GTC stake amount by address
+    Get GTC stake amount by address and round ID
     """
+    print("request -=-=-==-=-=>", request)
+    addressLower = params.address.lower()
+    params.address = addressLower
+    print("-=-=-=-=>", params)
     try:
-        query = gql(
-            """
-                query User($address: String!) {
-                    users(where: {address: $address}) {
-                        stakes {
-                            stake
-                            round {
-                                id
-                            }
-                        }
-                        xstakeAggregates {
-                            total
-                            round {
-                                id
-                            }
-                        }
-                    }
-                }
-            """
-        )
-
-        variables = {
-            "address": address.lower(),
-        }
-
-        response = gqlClient.execute(query, variable_values=variables)
-
-        return response
+        # queryset = with_read_db(GTCStakeEvents).objects.all()
+        queryset = GTCStakeEvents.objects.all()
+        print("queryset -=-=-=-=>", queryset)
+        filtered_queryset = GTCStakeEventsFilter(
+            data=params.dict(), queryset=queryset
+        ).qs
+        print({"results": [obj for obj in filtered_queryset.values()]})
+        return {"results": [obj for obj in filtered_queryset.values()]}
     except Exception as e:
         raise StakingRequestError()
