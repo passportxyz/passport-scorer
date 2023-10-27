@@ -9,6 +9,7 @@ class Command(BaseCommand):
     batch_size = 1000
 
     def handle(self, *args, **options):
+        self.stdout.write("Adding contributor_address to GrantContributionIndex")
         last_id = None
         while True:
             contributions = self.get_data(last_id)
@@ -27,6 +28,7 @@ class Command(BaseCommand):
                                 "originated_address"
                             ]
                         except:
+                            self.stdout.write(f"Error parsing address: {last_id}")
                             address = None
                         contribution_index.contributor_address = address
 

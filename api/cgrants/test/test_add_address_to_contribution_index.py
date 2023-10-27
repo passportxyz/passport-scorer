@@ -43,7 +43,10 @@ class TestContribAggregation:
         bad_grant_contribution_indices = GrantContributionIndex.objects.filter(
             contribution_id__in=bad_contributions
         )
+
         assert (
             bad_grant_contribution_indices.count()
-            == GrantContributionIndex.objects.filter(contributor_address=None).count()
+            == GrantContributionIndex.objects.filter(
+                contribution__in=bad_contributions
+            ).count()
         )
