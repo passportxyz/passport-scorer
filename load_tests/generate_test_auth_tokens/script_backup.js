@@ -7,7 +7,6 @@ const mnemonicPhrase =
   "chief loud snack trend chief net field husband vote message decide replace";
 const alchemyApiKey = process.env.ALCHEMY_API_KEY;
 
-
 // Generate multiple wallets from the HDNode instance
 const wallets = [];
 for (let i = 0; i < 1000; i++) {
@@ -164,6 +163,7 @@ import("./bridge.js").then(({ Eip1193Bridge }) => {
                   return acc;
                 }, {});
                 let data = JSON.stringify(userTokens);
+                console.log("num tokens:", Object.keys(userTokens).length);
                 fs.writeFileSync("user-tokens.json", data);
               });
             }

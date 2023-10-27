@@ -747,7 +747,7 @@ export function buildLambdaFn({
       packageType: "Image",
       role: lambdaRole.arn,
       imageUri,
-      timeout: 30,
+      timeout: 60,
       memorySize,
       environment: {
         variables: environment.reduce(
