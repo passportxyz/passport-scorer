@@ -1,8 +1,8 @@
 import http from "k6/http";
-import { sleep } from "k6";
 import exec from "k6/execution";
 import { randomSeed } from "k6";
 import { check } from "k6";
+import { SharedArray } from "k6/data";
 
 randomSeed(234123521532);
 function getRandomInt(max) {
@@ -36,28 +36,32 @@ export function setup() {}
 export function teardown(data) {}
 
 const addresses = JSON.parse(
-  open(`./test_data/generated_accounts_${numAccounts}.json`)
+  open(`../test_data/generated_accounts_${numAccounts}.json`)
 );
 
 const userTokens = JSON.parse(
-  open("./generate_test_auth_tokens/user-tokens.json")
+  open("../generate_test_auth_tokens/user-tokens.json")
 );
 
-const allVcs = [];
+const userVcs = new SharedArray("userVcs", function () {
+  const userVcs = [];
 
-for (let i = 0; i < 100; i++) {
-  const address = addresses[i];
-  const vcs = JSON.parse(open(`./test_data/vcs/${address}_vcs.json`));
-  // vcsForAddress.push(vcs);
-  for (let j = 0; j < vcs.length; j++) {
-    allVcs.push(vcs[j]);
+  for (let i = 0; i < numAccounts; i++) {
+    const address = addresses[i];
+    const vcs = JSON.parse(open(`../test_data/vcs/${address}_vcs.json`));
+    userVcs.push(vcs);
   }
-}
+
+  return userVcs;
+});
 
 // create k6 setup and teardown
 export default function () {
-  const addressIdx = getRandomInt(numAccounts);
+  // To avoid deadlock, # VUs should be <= # accounts
+  const addressIdx = (exec.vu.idInTest - 1) % numAccounts;
+
   const address = addresses[addressIdx];
+  const vcs = userVcs[addressIdx];
   const token = userTokens[address];
 
   const options = {
@@ -70,9 +74,8 @@ export default function () {
   // We simulate 4 batches of changes to a users passport
   for (let i = 0; i < 4; i++) {
     const body = [];
-    for (let j = 0; j < 10; j++) {
-      const vcIdx = getRandomInt(allVcs.length);
-      const stamp = allVcs[vcIdx];
+    for (let j = 0; j < 6; j++) {
+      const stamp = vcs[getRandomInt(vcs.length)];
       const provider = stamp.credentialSubject.provider;
 
       // Make sure we do not have duplicate providers in our request
@@ -144,32 +147,4 @@ export default function () {
       JSON.stringify(res, undefined, 2)
     );
   }
-
-  // let isScorePending = true;
-  // const maxRequests = 10;
-  // let numRequests = 0;
-  // let sleepTime = 1;
-  // while (isScorePending && numRequests < maxRequests) {
-  //   numRequests += 1;
-
-  //   const res = http.get(
-  //     `https://api.staging.scorer.gitcoin.co/registry/score/${scorerId}/${address}`,
-  //     Object.assign({}, scoringOptions, { tags: { name: "score" } })
-  //   );
-
-  //   check(res, {
-  //     "is status 200": (r) => r.status === 200,
-  //   });
-
-  //   const data = res.json();
-
-  //   console.log("data", data);
-
-  //   if (data["status"] !== "PROCESSING") {
-  //     isScorePending = false;
-  //   } else {
-  //     sleep(sleepTime);
-  //     sleepTime *= 2;
-  //   }
-  // }
 }

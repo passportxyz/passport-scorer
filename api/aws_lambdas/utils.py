@@ -2,21 +2,22 @@
 This module provides utils to manage Passport API requests in AWS Lambda.
 """
 
+import json
 import os
 from functools import wraps
 from typing import Any, Dict, Tuple
 
-from structlog.contextvars import bind_contextvars
-
 from aws_lambdas.exceptions import InvalidRequest
+from structlog.contextvars import bind_contextvars
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
 
-import json
+# pylint: disable=wrong-import-position
 
 import django
 from django_ratelimit.exceptions import Ratelimited
+from ninja_jwt.exceptions import InvalidToken
 
 django.setup()
 
@@ -46,6 +47,7 @@ def with_request_exception_handling(func):
         except Exception as e:
             error_descriptions: Dict[Any, Tuple[int, str]] = {
                 Unauthorized: (403, "Unauthorized"),
+                InvalidToken: (403, "Invalid token"),
                 InvalidRequest: (400, "Bad request"),
                 Ratelimited: (
                     429,
