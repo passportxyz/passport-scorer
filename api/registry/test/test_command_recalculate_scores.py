@@ -2,10 +2,14 @@ import json
 
 import pytest
 from account.models import Community
+from django.conf import settings
 from django.core.management import call_command
+from django.test import override_settings
 from registry.models import Passport, Score, Stamp
 
 pytestmark = pytest.mark.django_db
+
+current_weights = settings.GITCOIN_PASSPORT_WEIGHTS
 
 
 @pytest.fixture(name="binary_weighted_scorer_passports")
@@ -159,12 +163,30 @@ class TestRecalculatScores:
             assert s.status == "DONE"
             assert s.error == None
 
-        #########################################################
-        # Change weights and rescore ...
-        #########################################################
-        scorer.weights["Facebook"] = 75
-        scorer.save()
+    updated_weights = {
+        "Facebook": "75",
+        "Google": "1",
+        "Ens": "1",
+    }
 
+    @override_settings(GITCOIN_PASSPORT_WEIGHTS=updated_weights)
+    def test_rescoring_binary_scorer_w_updated_settings(
+        self,
+        binary_weighted_scorer_passports,
+        passport_holder_addresses,
+        scorer_community_with_binary_scorer,
+    ):
+        community = scorer_community_with_binary_scorer
+        args = []
+        opts = {}
+
+        scores = list(Score.objects.all())
+
+        scorer = community.get_scorer()
+
+        # Check the initial threshold
+        assert scorer.threshold == 75
+        assert len(scores) == 0
         call_command("recalculate_scores", *args, **opts)
 
         scores = list(Score.objects.all())
@@ -240,9 +262,31 @@ class TestRecalculatScores:
         assert "Google" in s3.stamp_scores
         assert "Ens" in s3.stamp_scores
 
-        #########################################################
-        # Change weights and rescore ...
-        #########################################################
+    updated_weights = {
+        "Facebook": "75",
+        "Google": "1",
+        "Ens": "1",
+    }
+
+    @override_settings(GITCOIN_PASSPORT_WEIGHTS=updated_weights)
+    def test_rescoring_weighted_scorer_w_updated_settings(
+        self,
+        weighted_scorer_passports,
+        passport_holder_addresses,
+        scorer_community_with_weighted_scorer,
+    ):
+        """Change weights and rescore ..."""
+        community = scorer_community_with_weighted_scorer
+        args = []
+        opts = {}
+
+        scores = list(Score.objects.all())
+
+        scorer = community.get_scorer()
+
+        # Check the initial threshold
+        assert len(scores) == 0
+        call_command("recalculate_scores", *args, **opts)
         scorer.weights["Facebook"] = 75
         scorer.save()
 

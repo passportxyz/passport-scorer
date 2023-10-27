@@ -54,10 +54,15 @@ class Command(BaseCommand):
             if kwargs["filter_community_exclude"]
             else {}
         )
+
         batch_size = kwargs["batch_size"]
         count = 0
         start = datetime.now()
         communities = Community.objects.filter(**filter).exclude(**exclude)
+
+        # Update Score weights
+        self.update_scorers(communities)
+
         self.stdout.write(f"Recalculating scores for communities: {list(communities)}")
         for community in communities:
             # Reset has_more and last_id for each community
@@ -143,3 +148,20 @@ Count: {count}
 Rate: {rate}
 """
                 )
+
+    def update_scorers(self, communities: QuerySet[Community]):
+        weights = settings.GITCOIN_PASSPORT_WEIGHTS
+        threshold = settings.GITCOIN_PASSPORT_THRESHOLD
+
+        filter = {"scorer_ptr__community__in": communities}
+
+        binary_weighted_scorers = BinaryWeightedScorer.objects.filter(**filter)
+        weighted_scorers = WeightedScorer.objects.filter(**filter)
+
+        weighted_scorers.update(weights=weights)
+        binary_weighted_scorers.update(weights=weights, threshold=threshold)
+
+        print(
+            "Updated scorers:",
+            weighted_scorers.count() + binary_weighted_scorers.count(),
+        )
