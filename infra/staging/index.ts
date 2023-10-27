@@ -1297,7 +1297,7 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
 //   {
 //     ...baseScorerServiceConfig,
 //     securityGroup: secgrp,
-//     command: ["python", "manage.py", "dump_stamp_data"],
+//     command: "python manage.py dump_stamp_data",
 //     scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
 //   },
 //   envConfig
@@ -1324,7 +1324,7 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
 //       `--s3-uri=s3://public.${domain}`,
 //       "--summary-extra-args",
 //       JSON.stringify({ ACL: "public-read" }),
-//     ],
+//     ].join(" "),
 
 //     scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
 //   },

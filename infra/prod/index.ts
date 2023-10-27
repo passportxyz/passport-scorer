@@ -1282,8 +1282,9 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask(
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
-    command: ["python", "manage.py", "dump_stamp_data"],
+    command: "python manage.py dump_stamp_data",
     scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
+    alertTopic: pagerdutyTopic,
   },
   envConfig
 );
@@ -1313,9 +1314,9 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
       ]),
       "--s3-uri=s3://passport-scorer/daily_data_dumps/",
       "--batch-size=20000",
-    ],
-
+    ].join(" "),
     scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
+    alertTopic: pagerdutyTopic,
   },
   envConfig
 );
@@ -1335,9 +1336,9 @@ export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
       "--apps=registry,ceramic_cache,account,scorer_weighted,trusta_labs",
       "--s3-uri=s3://passport-scorer/daily_data_dumps/",
       "--batch-size=20000",
-    ],
-
+    ].join(" "),
     scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
+    alertTopic: pagerdutyTopic,
   },
   envConfig
 );
@@ -1364,9 +1365,9 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
       `--s3-uri=s3://${publicDataDomain}/passport_scores/`,
       // "--summary-extra-args",
       // JSON.stringify({ ACL: "public-read" }),
-    ],
-
+    ].join(" "),
     scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+    alertTopic: pagerdutyTopic,
   },
   envConfig
 );
