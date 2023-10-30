@@ -28,6 +28,7 @@ from registry.api.schema import (
     ErrorMessageResponse,
     GenericCommunityPayload,
     GenericCommunityResponse,
+    GtcEventsResponse,
     SigningMessageResponse,
     StampDisplayResponse,
     SubmitPassportPayload,
@@ -56,7 +57,7 @@ from registry.exceptions import (
     api_get_object_or_404,
 )
 from registry.filters import GTCStakeEventsFilter
-from registry.models import Event, GTCStakeEvents, Passport, Score, Stamp
+from registry.models import Event, GTCStakeEvent, Passport, Score, Stamp
 from registry.tasks import score_passport_passport, score_registry_passport
 from registry.utils import (
     decode_cursor,
@@ -77,15 +78,6 @@ Examples of valid values for `timestamp`: \n
 - 2023-05-10T07:49:08.610198+00:00\n
 - 2023-05-10\n
 """
-
-_transport = RequestsHTTPTransport(
-    url=f"https://gateway.thegraph.com/api/{settings.STAKING_SUBGRAPH_API_KEY}/subgraphs/id/6neBRm8wdXfbH9WQuFeizJRpsom4qovuqKhswPBRTC5Q",
-    use_json=True,
-)
-
-gqlClient = Client(
-    transport=_transport,
-)
 
 
 METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
@@ -729,57 +721,21 @@ def stamp_display(request) -> List[StampDisplayResponse]:
     return fetch_all_stamp_metadata()
 
 
-class Round(BaseModel):
-    id: str
-
-
-class Stake(BaseModel):
-    id: int
-    event_type: str
-    round_id: int
-    staker: Optional[str] = None
-    address: Optional[str] = None
-    amount: int
-    staked: bool
-    block_number: int
-    tx_hash: str
-
-
-class GtcEventsResponse(BaseModel):
-    results: List[Stake]
-
-
-class GtcStakeEventsSchema(BaseModel):
-    address: str
-    round_id: int
-
-
 @router.get(
-    "/gtc-stake",
-    description="Get self and community staking amounts based on address and round id",
+    "/gtc-stake/{str:address}/{int:round_id}",
     auth=ApiKey(),
-    response={
-        200: GtcEventsResponse,
-        401: ErrorMessageResponse,
-        400: ErrorMessageResponse,
-    },
+    response=GtcEventsResponse,
+    summary="Retrieve GTC stake amounts for the GTC Staking stamp",
+    description="Get self and community staking amounts based on address and round ID",
 )
-def get_gtc_stake(request, params: GtcStakeEventsSchema) -> GtcEventsResponse:
+def get_gtc_stake(request, address: str, round_id: int) -> GtcEventsResponse:
     """
     Get GTC stake amount by address and round ID
     """
-    print("request -=-=-==-=-=>", request)
-    addressLower = params.address.lower()
-    params.address = addressLower
-    print("-=-=-=-=>", params)
+    params = {"address": address, "round_id": round_id}
     try:
-        # queryset = with_read_db(GTCStakeEvents).objects.all()
-        queryset = GTCStakeEvents.objects.all()
-        print("queryset -=-=-=-=>", queryset)
-        filtered_queryset = GTCStakeEventsFilter(
-            data=params.dict(), queryset=queryset
-        ).qs
-        print({"results": [obj for obj in filtered_queryset.values()]})
+        queryset = with_read_db(GTCStakeEvent)
+        filtered_queryset = GTCStakeEventsFilter(data=params, queryset=queryset).qs
         return {"results": [obj for obj in filtered_queryset.values()]}
     except Exception as e:
         raise StakingRequestError()

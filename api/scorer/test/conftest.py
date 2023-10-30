@@ -5,7 +5,7 @@ from ceramic_cache.api.v1 import DbCacheToken
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from ninja_jwt.schema import RefreshToken
-from registry.models import Passport, Score
+from registry.models import GTCStakeEvent, Passport, Score
 from scorer_weighted.models import BinaryWeightedScorer, Scorer, WeightedScorer
 from web3 import Web3
 
@@ -251,3 +251,101 @@ def sample_token(sample_address):
     token["did"] = f"did:pkh:eip155:1:{sample_address.lower()}"
 
     return str(token)
+
+
+@pytest.fixture
+def gtc_staking_response():
+    user_address = "0x00Ac00000e4AbE2d293586A1f4F9C73e5512121e"
+    # Make sure this one is filtered out because it's below the minimum amount
+    # 1 self stake of 3000000000000000000
+    GTCStakeEvent.objects.create(
+        id=16,
+        event_type="SelfStake",
+        round_id=1,
+        staker=user_address,
+        address=None,
+        amount=2000000000000000000,
+        staked=True,
+        block_number=16,
+        tx_hash="0x431",
+    )
+
+    # 1 self stake of 125000000000000000000
+    GTCStakeEvent.objects.create(
+        id=17,
+        event_type="SelfStake",
+        round_id=1,
+        staker=user_address,
+        address=None,
+        amount=5000000000000000000,
+        staked=True,
+        block_number=16,
+        tx_hash="0x931",
+    )
+
+    # Stake >= 5 GTC on at least 1 account
+    GTCStakeEvent.objects.create(
+        id=18,
+        event_type="Xstake",
+        round_id=1,
+        staker=user_address,
+        address="0x70Ac77777e4AbE2d293586A1f4F9C73e5512121e",
+        amount=5000000000000000000,
+        staked=True,
+        block_number=16,
+        tx_hash="0xa32",
+    )
+
+    # Have 1 account stake >= 5 GTC on you
+    GTCStakeEvent.objects.create(
+        id=19,
+        event_type="Xstake",
+        round_id=1,
+        staker="0x70Ac77777e4AbE2d293586A1f4F9C73e5512121e",
+        address=user_address,
+        amount=5000000000000000000,
+        staked=True,
+        block_number=16,
+        tx_hash="0xb32",
+    )
+    # Stake 10 GTC on at least 2 accounts
+    # Create a loop to catch each 2
+    for i in range(0, 2, 1):
+        GTCStakeEvent.objects.create(
+            id=i + 110,
+            event_type="Xstake",
+            round_id=1,
+            staker=user_address,
+            address=f"0x90Ac99999e4AbE2d293586A1f4F9C73e551216b{i}",
+            amount=10000000000000000000,
+            staked=True,
+            block_number=16,
+            tx_hash=f"0x79{i}",
+        )
+    # 2 accounts stake 10 GTC on you
+    for i in range(0, 2, 1):
+        GTCStakeEvent.objects.create(
+            id=i + 33,
+            event_type="Xstake",
+            round_id=1,
+            address=user_address,
+            staker=f"0x90Ac99999e4AbE2d293586A1f4F9C73e551912c{i}",
+            amount=10000000000000000000,
+            staked=True,
+            block_number=16,
+            tx_hash=f"0x39{i}",
+        )
+
+    # Receive stakes from 5 unique users, each staking a minimum of 20 GTC on you.
+    for i in range(0, 5, 1):
+        GTCStakeEvent.objects.create(
+            id=i + 20,
+            event_type="Xstake",
+            round_id=1,
+            staker=f"0x90Ac99999e4AbE2d293586A1f4F9C73e551212e{i}",
+            address=user_address,
+            amount=21000000000000000000,
+            staked=True,
+            block_number=16,
+            tx_hash=f"0x89{i}",
+        )

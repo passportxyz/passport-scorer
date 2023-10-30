@@ -1,5 +1,6 @@
 # pylint: disable=unused-import
 from scorer.test.conftest import (
+    gtc_staking_response,
     passport_holder_addresses,
     scorer_account,
     scorer_api_key,
