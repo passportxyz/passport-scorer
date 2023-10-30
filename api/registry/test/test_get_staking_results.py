@@ -100,31 +100,46 @@ class TestGetStakingResults:
         response = client.get(
             f"/registry/gtc-stake/{user_address}/",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
-            data={"address": "0x", "round_id": 1},
         )
 
-        print("response -=-=->", response)
+        response_data = response.json()["results"]
+        assert response.status_code == 200
 
-        assert False
-        # assert response.json() == mock_gql_response
+        # an extra stake event was added that is below the filtered amount, hence the minus 1
+        assert len(stakes) - 1 == len(response_data)
 
-    # def test_failed_graphql_request(self, client, scorer_api_key):
-    #     with patch("registry.api.v1.gqlClient.execute") as mock_gql_execute:
-    #         mock_gql_execute.side_effect = Exception(
-    #             "GraphQL Request Failed"
-    #         )  # Simulate an exception
+    def test_item_in_filter_condition_is_not_present(
+        self, scorer_api_key, gtc_staking_response
+    ):
+        client = Client()
+        response = client.get(
+            f"/registry/gtc-stake/{user_address}/1",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
 
-    #         response = client.get(
-    #             "/registry/gtc-stake/0x",
-    #             HTTP_AUTHORIZATION="Token " + scorer_api_key,
-    #         )
+        response_data = response.json()["results"]
+        assert response.status_code == 200
 
-    #         assert response.status_code == 500
+        for item in response_data:
+            # ID 16 belongs to the item that does not meet the filter criteria
+            assert item["id"] != 16
 
-    # def test_missing_address(self, client, scorer_api_key):
-    #     response = client.get(
-    #         "/registry/gtc-stake",
-    #         HTTP_AUTHORIZATION="Token " + scorer_api_key,
-    #     )
+    def test_missing_address_error_response(self, scorer_api_key, gtc_staking_response):
+        client = Client()
+        response = client.get(
+            f"/registry/gtc-stake//1",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
 
-    #     assert response.status_code == 404
+        assert response.status_code == 404
+
+    def test_missing_round_id_error_response(
+        self, scorer_api_key, gtc_staking_response
+    ):
+        client = Client()
+        response = client.get(
+            f"/registry/gtc-stake/{user_address}/",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert response.status_code == 404
