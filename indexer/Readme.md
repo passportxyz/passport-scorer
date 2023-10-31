@@ -22,12 +22,12 @@ The smart contract events we're interested in are `selfStake` and `xStake`, each
 
 Create a `.env` file in the root directory and add the following:
 
-```env
-RPC_URL=your_ethereum_rpc_url
+\```env
+RPC_URL=your_ethereum_websockets_rpc_url
 DATABASE_URL=your_postgresql_database_url
 ```
 
-Replace `your_ethereum_rpc_url` and `your_postgresql_database_url` with your Ethereum RPC URL and PostgreSQL database URL, respectively.
+Replace `your_ethereum_rpc_url` and `your_postgresql_database_url` with your Ethereum RPC Websockets URL and PostgreSQL database URL, respectively.
 
 ### PostgreSQL
 

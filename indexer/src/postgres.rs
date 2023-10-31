@@ -1,3 +1,6 @@
+use std::str::FromStr;
+
+use rust_decimal::prelude::*;
 use tokio;
 use tokio_postgres::{Client, Error, NoTls};
 
@@ -27,7 +30,7 @@ impl PostgresClient {
                   round_id INT NOT NULL,
                   staker CHAR(42) NOT NULL,
                   address CHAR(42),
-                  amount CHAR(42) NOT NULL,
+                  amount NUMERIC(78, 0) NOT NULL,
                   staked BOOLEAN NOT NULL,
                   block_number INT NOT NULL,
                   tx_hash CHAR(66) NOT NULL
@@ -49,7 +52,8 @@ impl PostgresClient {
         block_number: i32,
         tx_hash: &str,
     ) -> Result<(), Error> {
-        self.client.execute("INSERT INTO GTCStakeEvents (event_type, round_id, staker, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",&[&"SelfStake", &round_id, &staker, &amount, &staked, &block_number, &tx_hash]).await?;
+        let decimal_amount = Decimal::from_str(amount).unwrap();
+        self.client.execute("INSERT INTO GTCStakeEvents (event_type, round_id, staker, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",&[&"SelfStake", &round_id, &staker, &decimal_amount, &staked, &block_number, &tx_hash]).await?;
         println!("Row inserted into GTCStakeEvents with type SelfStake!");
         Ok(())
     }
@@ -64,7 +68,8 @@ impl PostgresClient {
         block_number: i32,
         tx_hash: &str,
     ) -> Result<(), Error> {
-        self.client.execute("INSERT INTO GTCStakeEvents (event_type, round_id, staker, address, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", &[&"Xstake", &round_id, &staker, &user, &amount, &staked, &block_number, &tx_hash]).await?;
+        let decimal_amount = Decimal::from_str(amount).unwrap();
+        self.client.execute("INSERT INTO GTCStakeEvents (event_type, round_id, staker, address, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", &[&"Xstake", &round_id, &staker, &user, &decimal_amount, &staked, &block_number, &tx_hash]).await?;
         println!("Row inserted into GTCStakeEvents with type Xstake!");
         Ok(())
     }

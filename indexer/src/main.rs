@@ -36,6 +36,7 @@ async fn format_and_save_self_stake_event(
 
     // Convert H160 and U256 to String
     let staker_str = format!("{:?}", event.staker);
+
     let amount_str = format!("{}", event.amount);
 
     let staked = event.staked;
@@ -68,7 +69,6 @@ async fn format_and_save_x_stake_event(
     // Convert H160 to String for staker and user
     let staker_str = format!("{:?}", event.staker);
     let user_str = format!("{:?}", event.user);
-
     // Convert U256 to String for amount
     let amount_str = format!("{}", event.amount);
 
