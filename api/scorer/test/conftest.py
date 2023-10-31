@@ -257,27 +257,27 @@ def sample_token(sample_address):
 def gtc_staking_response():
     user_address = "0x00Ac00000e4AbE2d293586A1f4F9C73e5512121e"
     # Make sure this one is filtered out because it's below the minimum amount
-    # 1 self stake of 3000000000000000000
+    # 1 self stake of 2
     GTCStakeEvent.objects.create(
         id=16,
         event_type="SelfStake",
         round_id=1,
         staker=user_address,
         address=None,
-        amount=2000000000000000000,
+        amount=2,
         staked=True,
         block_number=16,
         tx_hash="0x431",
     )
 
-    # 1 self stake of 125000000000000000000
+    # 1 self stake of 125
     GTCStakeEvent.objects.create(
         id=17,
         event_type="SelfStake",
         round_id=1,
         staker=user_address,
         address=None,
-        amount=5000000000000000000,
+        amount=125,
         staked=True,
         block_number=16,
         tx_hash="0x931",
@@ -290,7 +290,7 @@ def gtc_staking_response():
         round_id=1,
         staker=user_address,
         address="0x70Ac77777e4AbE2d293586A1f4F9C73e5512121e",
-        amount=5000000000000000000,
+        amount=5,
         staked=True,
         block_number=16,
         tx_hash="0xa32",
@@ -303,7 +303,7 @@ def gtc_staking_response():
         round_id=1,
         staker="0x70Ac77777e4AbE2d293586A1f4F9C73e5512121e",
         address=user_address,
-        amount=5000000000000000000,
+        amount=5,
         staked=True,
         block_number=16,
         tx_hash="0xb32",
@@ -317,7 +317,7 @@ def gtc_staking_response():
             round_id=1,
             staker=user_address,
             address=f"0x90Ac99999e4AbE2d293586A1f4F9C73e551216b{i}",
-            amount=10000000000000000000,
+            amount=10,
             staked=True,
             block_number=16,
             tx_hash=f"0x79{i}",
@@ -330,7 +330,7 @@ def gtc_staking_response():
             round_id=1,
             address=user_address,
             staker=f"0x90Ac99999e4AbE2d293586A1f4F9C73e551912c{i}",
-            amount=10000000000000000000,
+            amount=10,
             staked=True,
             block_number=16,
             tx_hash=f"0x39{i}",
@@ -344,7 +344,7 @@ def gtc_staking_response():
             round_id=1,
             staker=f"0x90Ac99999e4AbE2d293586A1f4F9C73e551212e{i}",
             address=user_address,
-            amount=21000000000000000000,
+            amount=21,
             staked=True,
             block_number=16,
             tx_hash=f"0x89{i}",

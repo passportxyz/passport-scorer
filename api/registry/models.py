@@ -173,11 +173,11 @@ class GTCStakeEvent(models.Model):
     round_id = models.IntegerField()
     staker = models.CharField(max_length=42)
     address = models.CharField(max_length=42, null=True, blank=True)
-    amount = models.DecimalField(max_digits=100, decimal_places=6)
+    amount = models.DecimalField(max_digits=78, decimal_places=0)
     staked = models.BooleanField()
     block_number = models.IntegerField()
     tx_hash = models.CharField(max_length=66)
 
     class Meta:
         managed = True
-        db_table = "GTCStakeEvents"
+        db_table = "gtcstakeevents"
