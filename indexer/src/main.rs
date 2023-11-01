@@ -104,8 +104,7 @@ async fn main() -> Result<()> {
 
     let database_url = get_env("DATABASE_URL").unwrap();
 
-    let f1 = listen_for_blocks(&rpc_url);
-    let f2 = listen_for_stake_events(&rpc_url, &database_url);
+    let postgres_client = PostgresClient::new(&database_url).await?;
 
     try_join!(f1, f2)?;
 

@@ -732,7 +732,13 @@ def get_gtc_stake(request, address: str, round_id: int) -> GtcEventsResponse:
     """
     Get GTC stake amount by address and round ID
     """
+    address = address.lower()
+
+    if not is_valid_address(address):
+        raise InvalidAddressException()
+
     params = {"address": address, "round_id": round_id}
+
     try:
         queryset = with_read_db(GTCStakeEvent)
         filtered_queryset = GTCStakeEventsFilter(data=params, queryset=queryset).qs

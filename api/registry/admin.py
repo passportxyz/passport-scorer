@@ -1,5 +1,5 @@
 from django.contrib import admin
-from registry.models import Event, HashScorerLink, Passport, Score, Stamp
+from registry.models import Event, GTCStakeEvent, HashScorerLink, Passport, Score, Stamp
 from scorer.scorer_admin import ScorerModelAdmin
 
 
@@ -81,4 +81,21 @@ class HashScorerLinkAdmin(ScorerModelAdmin):
         "hash",
         "community",
         "address",
+    ]
+
+
+@admin.register(GTCStakeEvent)
+class GTCStakeEventAdmin(ScorerModelAdmin):
+    list_display = ["round_id", "address", "staker", "round_id", "amount", "event_type"]
+
+    list_filter = [
+        "round_id",
+        "event_type",
+    ]
+
+    search_fields = [
+        "round_id",
+        "address",
+        "staker",
+        "event_type",
     ]
