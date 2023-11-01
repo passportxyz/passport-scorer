@@ -12,7 +12,7 @@ impl PostgresClient {
         let (client, connection) = tokio_postgres::connect(database_url, NoTls).await?;
         tokio::spawn(async move {
             if let Err(e) = connection.await {
-                eprintln!("connection error: {}", e);
+                eprintln!("Error - Failed to establish postgres connection: {}", e);
             }
         });
         Ok(Self { client })

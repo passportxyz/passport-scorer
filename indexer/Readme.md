@@ -22,10 +22,10 @@ The smart contract events we're interested in are `selfStake` and `xStake`, each
 
 Create a `.env` file in the root directory and add the following:
 
-\```env
+```env
 RPC_URL=your_ethereum_rpc_url
 DATABASE_URL=your_postgresql_database_url
-\```
+```
 
 Replace `your_ethereum_rpc_url` and `your_postgresql_database_url` with your Ethereum RPC URL and PostgreSQL database URL, respectively.
 
@@ -41,27 +41,27 @@ If you don't have Rust and Cargo installed, you can install them from [here](htt
 
 1. **Clone the repository**:
 
-   \```bash
+   ```bash
    git clone https://github.com/yourusername/yourrepository.git
-   \```
+   ```
 
 2. **Navigate into the project directory**:
 
-   \```bash
+   ```bash
    cd yourrepository
-   \```
+   ```
 
 3. **Build the project**:
 
-   \```bash
+   ```bash
    cargo build
-   \```
+   ```
 
 4. **Run the project**:
 
-   \```bash
+   ```bash
    cargo run
-   \```
+   ```
 
 The program will start listening for `selfStake` and `xStake` events from the specified smart contract starting from a specific block number. Events will be stored in the PostgreSQL database as they are detected.
 

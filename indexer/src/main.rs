@@ -7,6 +7,7 @@ use ethers::{
     providers::{Middleware, Provider, StreamExt, Ws},
 };
 use eyre::Result;
+use futures::try_join;
 use postgres::PostgresClient;
 use std::{env, sync::Arc};
 
@@ -49,7 +50,7 @@ async fn format_and_save_self_stake_event(
         )
         .await
     {
-        eprintln!("Failed to insert SelfStakeFilter: {}", err);
+        eprintln!("Error - Failed to insert SelfStakeFilter: {}", err);
     }
     Ok(())
 }
@@ -86,7 +87,7 @@ async fn format_and_save_x_stake_event(
         )
         .await
     {
-        eprintln!("Failed to insert XstakeFilter: {}", err);
+        eprintln!("Error - Failed to insert XstakeFilter: {}", err);
     }
     Ok(())
 }
@@ -99,24 +100,50 @@ async fn main() -> Result<()> {
         env::var(var).map_err(|_| panic!("Required environment variable \"{}\" not set", var))
     };
 
-    let id_staking_address = "0x0E3efD5BE54CC0f4C64e0D186b0af4b7F2A0e95F".parse::<Address>()?;
-
     let rpc_url = get_env("RPC_URL").unwrap();
 
     let database_url = get_env("DATABASE_URL").unwrap();
 
-    let postgres_client = PostgresClient::new(&database_url).await?;
-    postgres_client.create_table().await?;
+    let f1 = listen_for_blocks(&rpc_url);
+    let f2 = listen_for_stake_events(&rpc_url, &database_url);
 
+    try_join!(f1, f2)?;
+
+    Ok(())
+}
+
+async fn listen_for_blocks(rpc_url: &str) -> Result<()> {
     let provider = Provider::<Ws>::connect(rpc_url).await?;
+
+    let mut stream = provider.subscribe_blocks().await?;
+
+    while let Some(block) = stream.next().await {
+        println!(
+            "New Block - timestamp: {:?}, number: {}, hash: {:?}",
+            block.timestamp,
+            block.number.unwrap(),
+            block.hash.unwrap()
+        );
+    }
+
+    return Ok(());
+}
+
+async fn listen_for_stake_events(rpc_url: &str, database_url: &str) -> Result<()> {
+    let provider = Provider::<Ws>::connect(rpc_url).await?;
+
+    let id_staking_address = "0x0E3efD5BE54CC0f4C64e0D186b0af4b7F2A0e95F".parse::<Address>()?;
     let client = Arc::new(provider);
+
+    let id_staking = IDStaking::new(id_staking_address, client.clone());
 
     let current_block = client.get_block_number().await?;
 
+    let postgres_client = PostgresClient::new(&database_url).await?;
+    postgres_client.create_table().await?;
+
     // This is the block number from which we want to start querying events. Either the contract initiation or the last block we queried.
     let query_start_block = postgres_client.get_latest_block().await?;
-
-    let id_staking = IDStaking::new(id_staking_address, client.clone());
 
     let mut last_queried_block: u32 = query_start_block.try_into().unwrap();
 
@@ -165,7 +192,7 @@ async fn main() -> Result<()> {
             }
             Err(err) => {
                 eprintln!(
-                    "Failed to query events: {}, {}, {}",
+                    "Error - Failed to query events: {}, {}, {}",
                     err, last_queried_block, next_block_range
                 );
             }
@@ -198,5 +225,5 @@ async fn main() -> Result<()> {
         }
     }
 
-    Ok(())
+    return Ok(());
 }

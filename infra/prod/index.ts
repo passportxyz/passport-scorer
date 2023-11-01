@@ -1302,16 +1302,18 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
       "manage.py",
       "scorer_dump_data",
       "--config",
-      JSON.stringify([
-        { name: "ceramic_cache.CeramicCache", "extra-args": {} },
-        { name: "registry.Event", "extra-args": {} },
-        { name: "registry.HashScorerLink", "extra-args": {} },
-        {
-          name: "registry.Stamp",
-          select_related: ["passport"],
-          "extra-args": {},
-        },
-      ]),
+      "'" +
+        JSON.stringify([
+          { name: "ceramic_cache.CeramicCache", "extra-args": {} },
+          { name: "registry.Event", "extra-args": {} },
+          { name: "registry.HashScorerLink", "extra-args": {} },
+          {
+            name: "registry.Stamp",
+            select_related: ["passport"],
+            "extra-args": {},
+          },
+        ]) +
+        "'",
       "--s3-uri=s3://passport-scorer/daily_data_dumps/",
       "--batch-size=20000",
     ].join(" "),
@@ -1355,13 +1357,15 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
       "manage.py",
       "scorer_dump_data",
       "--config",
-      JSON.stringify([
-        {
-          name: "registry.Score",
-          filter: { community_id: 335 },
-          select_related: ["passport"],
-        },
-      ]),
+      "'" +
+        JSON.stringify([
+          {
+            name: "registry.Score",
+            filter: { community_id: 335 },
+            select_related: ["passport"],
+          },
+        ]) +
+        "'",
       `--s3-uri=s3://${publicDataDomain}/passport_scores/`,
       // "--summary-extra-args",
       // JSON.stringify({ ACL: "public-read" }),
@@ -1377,13 +1381,14 @@ const exportVals = createScoreExportBucketAndDomain(
   route53ZoneForPublicData
 );
 
-createIndexerService(
+createIndexerService({
   indexerRdsConnectionUrl,
   cluster,
   vpc,
   privateSubnetSecurityGroup,
-  workerRole
-);
+  workerRole,
+  alertTopic: pagerdutyTopic,
+});
 
 const sharedLambdaResources = createSharedLambdaResources();
 
