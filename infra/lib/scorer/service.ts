@@ -550,13 +550,23 @@ export async function createScoreExportBucketAndDomain(
 
 export const dockerGtcStakingIndexerImage = `${process.env["DOCKER_GTC_PASSPORT_INDEXER_IMAGE"]}`;
 
-export function createIndexerService(
-  indexerRdsConnectionUrl: Input<string>,
-  cluster: Cluster,
-  vpc: awsx.ec2.Vpc,
-  privateSubnetSecurityGroup: aws.ec2.SecurityGroup,
-  workerRole: Role
-) {
+type IndexerServiceParams = {
+  indexerRdsConnectionUrl: Input<string>;
+  cluster: Cluster;
+  vpc: awsx.ec2.Vpc;
+  privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
+  workerRole: Role;
+  alertTopic: aws.sns.Topic;
+};
+
+export function createIndexerService({
+  indexerRdsConnectionUrl,
+  cluster,
+  vpc,
+  privateSubnetSecurityGroup,
+  workerRole,
+  alertTopic,
+}: IndexerServiceParams) {
   const indexerLogGroup = new aws.cloudwatch.LogGroup("scorer-indexer", {
     retentionInDays: 90,
   });
@@ -605,6 +615,76 @@ export function createIndexerService(
       },
     },
   });
+
+  const indexerErrorsMetric = new aws.cloudwatch.LogMetricFilter(
+    "indexerErrorsMetric",
+    {
+      logGroupName: indexerLogGroup.name,
+      metricTransformation: {
+        defaultValue: "0",
+        name: "indexerError",
+        namespace: "/scorer/indexer",
+        unit: "Count",
+        value: "1",
+      },
+      name: "Indexer Errors",
+      pattern: '"Error - Failed"',
+    }
+  );
+
+  const indexerErrorsAlarm = new aws.cloudwatch.MetricAlarm(
+    "indexerErrorsAlarm",
+    {
+      alarmActions: [alertTopic.arn],
+      comparisonOperator: "GreaterThanOrEqualToThreshold",
+      datapointsToAlarm: 1,
+      evaluationPeriods: 1,
+      insufficientDataActions: [],
+      metricName: "indexerError",
+      name: "Indexer Errors",
+      namespace: "/scorer/indexer",
+      okActions: [],
+      period: 3600,
+      statistic: "Sum",
+      threshold: 1,
+      treatMissingData: "notBreaching",
+    }
+  );
+
+  const indexerHeartbeatMetric = new aws.cloudwatch.LogMetricFilter(
+    "indexerHeartbeatMetric",
+    {
+      logGroupName: indexerLogGroup.name,
+      metricTransformation: {
+        defaultValue: "0",
+        name: "indexerHeartbeat",
+        namespace: "/scorer/indexer",
+        unit: "Count",
+        value: "1",
+      },
+      name: "Indexer Heartbeat",
+      pattern: '"New Block - timestamp" number hash',
+    }
+  );
+
+  const indexerHeartbeatAlarm = new aws.cloudwatch.MetricAlarm(
+    "indexerHeartbeatAlarm",
+    {
+      alarmActions: [alertTopic.arn],
+      comparisonOperator: "LessThanThreshold",
+      datapointsToAlarm: 1,
+      evaluationPeriods: 1,
+      insufficientDataActions: [],
+      metricName: "indexerHeartbeat",
+      name: "Indexer Heartbeat",
+      namespace: "/scorer/indexer",
+      okActions: [],
+      period: 60,
+      statistic: "Sum",
+      threshold: 1,
+      treatMissingData: "breaching",
+    }
+  );
 }
 
 export const createSharedLambdaResources = () => {
