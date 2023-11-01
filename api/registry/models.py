@@ -173,7 +173,7 @@ class GTCStakeEvent(models.Model):
     round_id = models.IntegerField(db_index=True)
     staker = EthAddressField(blank=False, db_index=True)
     address = EthAddressField(null=True, blank=False, db_index=True)
-    amount = models.DecimalField(max_digits=78, decimal_places=0)
+    amount = models.DecimalField(max_digits=78, decimal_places=18)
     staked = models.BooleanField()
     block_number = models.IntegerField()
     tx_hash = models.CharField(max_length=66)

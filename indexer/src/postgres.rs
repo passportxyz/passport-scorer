@@ -30,7 +30,8 @@ impl PostgresClient {
         block_number: i32,
         tx_hash: &str,
     ) -> Result<(), Error> {
-        let decimal_amount = Decimal::from_str(amount).unwrap();
+        let mut decimal_amount = Decimal::from_str(amount).unwrap();
+        let _ = decimal_amount.set_scale(18).unwrap();
         self.client.execute("INSERT INTO registry_gtcstakeevent (event_type, round_id, staker, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",&[&"SelfStake", &round_id, &staker, &decimal_amount, &staked, &block_number, &tx_hash]).await?;
         println!("Row inserted into registry_gtcstakeevent with type SelfStake!");
         Ok(())
@@ -46,7 +47,8 @@ impl PostgresClient {
         block_number: i32,
         tx_hash: &str,
     ) -> Result<(), Error> {
-        let decimal_amount = Decimal::from_str(amount).unwrap();
+        let mut decimal_amount = Decimal::from_str(amount).unwrap();
+        let _ = decimal_amount.set_scale(18).unwrap();
         self.client.execute("INSERT INTO registry_gtcstakeevent (event_type, round_id, staker, address, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", &[&"Xstake", &round_id, &staker, &user, &decimal_amount, &staked, &block_number, &tx_hash]).await?;
         println!("Row inserted into registry_gtcstakeevent with type Xstake!");
         Ok(())

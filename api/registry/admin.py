@@ -86,7 +86,7 @@ class HashScorerLinkAdmin(ScorerModelAdmin):
 
 @admin.register(GTCStakeEvent)
 class GTCStakeEventAdmin(ScorerModelAdmin):
-    list_display = ["round_id", "address", "staker", "round_id", "amount", "event_type"]
+    list_display = ["id", "address", "staker", "round_id", "amount", "event_type"]
 
     list_filter = [
         "round_id",
