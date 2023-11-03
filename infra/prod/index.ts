@@ -29,7 +29,8 @@ const rootDomain = process.env["DOMAIN"];
 export const publicDataDomain = `public.scorer.${process.env["DOMAIN"]}`;
 export const publicServiceUrl = `https://${domain}`;
 
-const SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
+const SCORER_SERVER_SSM_ARN = `${process.env["SCORER_RDS_SECRET_ARN"]}`;
+const RDS_SECRET_ARN = `${process.env["RDS_SECRET_ARN"]}`;
 const dbUsername = `${process.env["DB_USER"]}`;
 const dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
 const dbName = `${process.env["DB_NAME"]}`;
@@ -202,6 +203,82 @@ export const readreplica0ConnectionUrl = pulumi.secret(
 );
 
 export const rdsId = postgresql.id;
+
+//////////////////////////////////////////////////////////////
+// Setup RDS PROXY
+//////////////////////////////////////////////////////////////
+
+const rdsProxyRole = new aws.iam.Role("scorer-proxy-role", {
+  name: "scorer-proxy-role",
+  assumeRolePolicy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [{
+      Sid: "AllowRDSProxy",
+      Effect: "Allow",
+      Principal: {
+          Service: "rds.amazonaws.com"
+      },
+      Action: "sts:AssumeRole"
+    }]
+  }),
+  inlinePolicies: [{
+    name: "rds-proxy-policy",
+    policy: JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [{
+        Sid: "GetSecretValue",
+        Action: ["secretsmanager:GetSecretValue"],
+        Effect: "Allow",
+        Resource:[RDS_SECRET_ARN,]
+      },
+      {
+        Sid: "DecryptSecretValue",
+        Action: ["kms:Decrypt"],
+        Effect: "Allow",
+        Resource: ["*"],
+        Condition: {
+          StringEquals: {
+            "kmsViaService": "secretsmanager.us-west-2.amazonaws.com"
+          }
+        }
+      }]
+    }),
+  }]
+});
+
+const scorerDbProxy = new aws.rds.Proxy("scorer-db-proxy", {
+  auths: [{
+    authScheme: "SECRETS",
+    description: "SecretAccess",
+    iamAuth: "DISABLED",
+    secretArn: RDS_SECRET_ARN,
+  }],
+  engineFamily: "POSTGRESQL",
+  roleArn: rdsProxyRole.arn,
+  vpcSubnetIds: vpcPrivateSubnetIds,
+  debugLogging: false,
+  idleClientTimeout: 600, // 10 minutes
+  name: "scorer-db-proxy",
+  requireTls: true,
+  vpcSecurityGroupIds: [db_secgrp.id]
+});
+
+export const scorerDbProxyEndpoint = scorerDbProxy.endpoint;
+
+const scorerDbProxyDefaultTargetGroup = new aws.rds.ProxyDefaultTargetGroup("scorer-default-tg", {
+  dbProxyName: scorerDbProxy.name,
+  // connectionPoolConfig: {
+  //     connectionBorrowTimeout: 120,
+  //     maxConnectionsPercent: 100,
+  //     maxIdleConnectionsPercent: 50
+  // },
+});
+
+const scorerDefaultProxyTarget = new aws.rds.ProxyTarget("scorer-default-target", {
+  dbInstanceIdentifier: postgresql.identifier,
+  dbProxyName: scorerDbProxy.name,
+  targetGroupName: scorerDbProxyDefaultTargetGroup.name,
+});
 
 //////////////////////////////////////////////////////////////
 // Set up Redis
