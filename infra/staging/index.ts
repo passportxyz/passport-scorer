@@ -183,73 +183,88 @@ const rdsProxyRole = new aws.iam.Role("scorer-proxy-role", {
   name: "scorer-proxy-role",
   assumeRolePolicy: JSON.stringify({
     Version: "2012-10-17",
-    Statement: [{
-      Sid: "AllowRDSProxy",
-      Effect: "Allow",
-      Principal: {
-          Service: "rds.amazonaws.com"
-      },
-      Action: "sts:AssumeRole"
-    }]
-  }),
-  inlinePolicies: [{
-    name: "rds-proxy-policy",
-    policy: JSON.stringify({
-      Version: "2012-10-17",
-      Statement: [{
-        Sid: "GetSecretValue",
-        Action: ["secretsmanager:GetSecretValue"],
-        Effect: "Allow",
-        Resource:[RDS_SECRET_ARN,] 
-      },
+    Statement: [
       {
-        Sid: "DecryptSecretValue",
-        Action: ["kms:Decrypt"],
+        Sid: "AllowRDSProxy",
         Effect: "Allow",
-        Resource: ["*"],
-        Condition: {
-          StringEquals: {
-            "kmsViaService": "secretsmanager.us-west-2.amazonaws.com"
-          }
-        }
-      }]
-    }),
-  }]
+        Principal: {
+          Service: "rds.amazonaws.com",
+        },
+        Action: "sts:AssumeRole",
+      },
+    ],
+  }),
+  inlinePolicies: [
+    {
+      name: "rds-proxy-policy",
+      policy: JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Sid: "GetSecretValue",
+            Action: ["secretsmanager:GetSecretValue"],
+            Effect: "Allow",
+            Resource: [RDS_SECRET_ARN],
+          },
+          {
+            Sid: "DecryptSecretValue",
+            Action: ["kms:Decrypt"],
+            Effect: "Allow",
+            Resource: ["*"],
+            Condition: {
+              StringEquals: {
+                kmsViaService: "secretsmanager.us-west-2.amazonaws.com",
+              },
+            },
+          },
+        ],
+      }),
+    },
+  ],
 });
 
 const scorerDbProxy = new aws.rds.Proxy("scorer-db-proxy", {
-  auths: [{
-    authScheme: "SECRETS",
-    description: "SecretAccess",
-    iamAuth: "DISABLED",
-    secretArn: RDS_SECRET_ARN,
-  }],
+  auths: [
+    {
+      authScheme: "SECRETS",
+      description: "SecretAccess",
+      iamAuth: "DISABLED",
+      secretArn: RDS_SECRET_ARN,
+    },
+  ],
   engineFamily: "POSTGRESQL",
   roleArn: rdsProxyRole.arn,
   vpcSubnetIds: vpcPrivateSubnetIds,
   debugLogging: false,
   idleClientTimeout: 600, // 10 minutes
-  name: "scorer-db-proxy", 
+  name: "scorer-db-proxy",
   requireTls: true,
-  vpcSecurityGroupIds: [db_secgrp.id]
+  vpcSecurityGroupIds: [db_secgrp.id],
 });
 
 export const scorerDbProxyEndpoint = scorerDbProxy.endpoint;
 
-const scorerDbProxyDefaultTargetGroup = new aws.rds.ProxyDefaultTargetGroup("scorer-default-tg", {
-  dbProxyName: scorerDbProxy.name,
-  // connectionPoolConfig: {
-  //     connectionBorrowTimeout: 120,
-  //     maxConnectionsPercent: 100,
-  //     maxIdleConnectionsPercent: 50
-  // },
-});
+const scorerDbProxyDefaultTargetGroup = new aws.rds.ProxyDefaultTargetGroup(
+  "scorer-default-tg",
+  {
+    dbProxyName: scorerDbProxy.name,
+    connectionPoolConfig: {
+      // connectionBorrowTimeout: 120,
+      // Just leave some connections for edge cases, when we connect directly to DB
+      maxConnectionsPercent: 98,
+      // maxIdleConnectionsPercent: 50
+    },
+  }
+);
 
-const scorerDefaultProxyTarget = new aws.rds.ProxyTarget("scorer-default-target", {
-  dbInstanceIdentifier: postgresql.identifier,
-  dbProxyName: scorerDbProxy.name,
-  targetGroupName: scorerDbProxyDefaultTargetGroup.name,
-});
+const scorerDefaultProxyTarget = new aws.rds.ProxyTarget(
+  "scorer-default-target",
+  {
+    dbInstanceIdentifier: postgresql.identifier,
+    dbProxyName: scorerDbProxy.name,
+    targetGroupName: scorerDbProxyDefaultTargetGroup.name,
+  }
+);
 
 //////////////////////////////////////////////////////////////
 // Set up Redis
@@ -1121,7 +1136,7 @@ const web = new aws.ec2.Instance("Web", {
 
 export const ec2PublicIp = web.publicIp;
 export const dockrRunCmd = pulumi.secret(
-  pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
+  pulumi.interpolate`docker run -it -e 'DATABASE_URL=${scorerDbProxyEndpoint}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
 
 ///////////////////////
