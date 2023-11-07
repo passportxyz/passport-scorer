@@ -30,6 +30,7 @@ export const publicDataDomain = `public.scorer.${process.env["DOMAIN"]}`;
 export const publicServiceUrl = `https://${domain}`;
 
 const SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
+const RDS_SECRET_ARN = `${process.env["SCORER_RDS_SECRET_ARN"]}`;
 const dbUsername = `${process.env["DB_USER"]}`;
 const dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
 const dbName = `${process.env["DB_NAME"]}`;
@@ -189,13 +190,103 @@ const readreplica0 = new aws.rds.Instance(
   { protect: true }
 );
 
+//////////////////////////////////////////////////////////////
+// Setup RDS PROXY
+//////////////////////////////////////////////////////////////
+
+const rdsProxyRole = new aws.iam.Role("scorer-proxy-role", {
+  name: "scorer-proxy-role",
+  assumeRolePolicy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Sid: "AllowRDSProxy",
+        Effect: "Allow",
+        Principal: {
+          Service: "rds.amazonaws.com",
+        },
+        Action: "sts:AssumeRole",
+      },
+    ],
+  }),
+  inlinePolicies: [
+    {
+      name: "rds-proxy-policy",
+      policy: JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Sid: "GetSecretValue",
+            Action: ["secretsmanager:GetSecretValue"],
+            Effect: "Allow",
+            Resource: [RDS_SECRET_ARN],
+          },
+          {
+            Sid: "DecryptSecretValue",
+            Action: ["kms:Decrypt"],
+            Effect: "Allow",
+            Resource: ["*"],
+            Condition: {
+              StringEquals: {
+                kmsViaService: "secretsmanager.us-west-2.amazonaws.com",
+              },
+            },
+          },
+        ],
+      }),
+    },
+  ],
+});
+
+const scorerDbProxy = new aws.rds.Proxy("scorer-db-proxy", {
+  auths: [
+    {
+      authScheme: "SECRETS",
+      description: "SecretAccess",
+      iamAuth: "DISABLED",
+      secretArn: RDS_SECRET_ARN,
+    },
+  ],
+  engineFamily: "POSTGRESQL",
+  roleArn: rdsProxyRole.arn,
+  vpcSubnetIds: vpcPrivateSubnetIds,
+  debugLogging: false,
+  idleClientTimeout: 600, // 10 minutes
+  name: "scorer-db-proxy",
+  requireTls: true,
+  vpcSecurityGroupIds: [db_secgrp.id],
+});
+
+const scorerDbProxyDefaultTargetGroup = new aws.rds.ProxyDefaultTargetGroup(
+  "scorer-default-tg",
+  {
+    dbProxyName: scorerDbProxy.name,
+    connectionPoolConfig: {
+      // connectionBorrowTimeout: 120,
+      // Just leave some connections for edge cases, when we connect directly to DB
+      maxConnectionsPercent: 98,
+      // maxIdleConnectionsPercent: 50
+    },
+  }
+);
+
+const scorerDefaultProxyTarget = new aws.rds.ProxyTarget(
+  "scorer-default-target",
+  {
+    dbInstanceIdentifier: postgresql.identifier,
+    dbProxyName: scorerDbProxy.name,
+    targetGroupName: scorerDbProxyDefaultTargetGroup.name,
+  }
+);
+
+export const scorerDbProxyEndpoint = scorerDbProxy.endpoint;
 export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
-  pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
+  pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${scorerDbProxyEndpoint}/${dbName}`
 );
 export const indexerRdsConnectionUrl = pulumi.secret(
-  pulumi.interpolate`postgres://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
+  pulumi.interpolate`postgres://${dbUsername}:${dbPassword}@${scorerDbProxyEndpoint}/${dbName}`
 );
 export const readreplica0ConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${readreplica0.endpoint}/${dbName}`
@@ -1027,7 +1118,7 @@ const web = new aws.ec2.Instance("Web", {
 
 export const ec2PublicIp = web.publicIp;
 export const dockrRunCmd = pulumi.secret(
-  pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
+  pulumi.interpolate`docker run -it -e 'DATABASE_URL=${scorerDbProxyEndpoint}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
 
 ///////////////////////
