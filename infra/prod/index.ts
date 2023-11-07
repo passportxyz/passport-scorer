@@ -30,7 +30,7 @@ export const publicDataDomain = `public.scorer.${process.env["DOMAIN"]}`;
 export const publicServiceUrl = `https://${domain}`;
 
 const SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
-const RDS_SECRET_ARN = `${process.env["RDS_SECRET_ARN"]}`;
+const RDS_SECRET_ARN = `${process.env["SCORER_RDS_SECRET_ARN"]}`;
 const dbUsername = `${process.env["DB_USER"]}`;
 const dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
 const dbName = `${process.env["DB_NAME"]}`;
