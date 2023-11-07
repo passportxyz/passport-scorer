@@ -79,8 +79,8 @@ class InvalidOrderByFieldException(APIException):
 
 
 class StakingRequestError(APIException):
-    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-    default_detail = "External API error requesting data from staking subgraph"
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Error pulling GTC staking data"
 
 
 def api_get_object_or_404(klass, *args, **kwargs):

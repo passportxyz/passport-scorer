@@ -262,15 +262,15 @@ def stamp_display(request) -> List[StampDisplayResponse]:
 
 
 @router.get(
-    "/gtc-stake/{address}",
+    "gtc-stake/{str:address}/{int:round_id}",
     description="Get self and community staking amounts based on address and round id",
     auth=ApiKey(),
-    response=v1.GqlResponse,
+    response=v1.GtcEventsResponse,
 )
-def get_gtc_stake(request, address: str):
+def get_gtc_stake(request, address: str, round_id: str):
     if not v1.is_valid_address(address):
         raise InvalidAddressException()
-    return v1.get_gtc_stake(request, address)
+    return v1.get_gtc_stake(request, address, round_id)
 
 
 @router.get(

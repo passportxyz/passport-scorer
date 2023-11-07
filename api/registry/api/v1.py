@@ -28,6 +28,7 @@ from registry.api.schema import (
     ErrorMessageResponse,
     GenericCommunityPayload,
     GenericCommunityResponse,
+    GtcEventsResponse,
     SigningMessageResponse,
     StampDisplayResponse,
     SubmitPassportPayload,
@@ -55,7 +56,8 @@ from registry.exceptions import (
     aapi_get_object_or_404,
     api_get_object_or_404,
 )
-from registry.models import Event, Passport, Score, Stamp
+from registry.filters import GTCStakeEventsFilter
+from registry.models import Event, GTCStakeEvent, Passport, Score, Stamp
 from registry.tasks import score_passport_passport, score_registry_passport
 from registry.utils import (
     decode_cursor,
@@ -76,15 +78,6 @@ Examples of valid values for `timestamp`: \n
 - 2023-05-10T07:49:08.610198+00:00\n
 - 2023-05-10\n
 """
-
-_transport = RequestsHTTPTransport(
-    url=f"https://gateway.thegraph.com/api/{settings.STAKING_SUBGRAPH_API_KEY}/subgraphs/id/6neBRm8wdXfbH9WQuFeizJRpsom4qovuqKhswPBRTC5Q",
-    use_json=True,
-)
-
-gqlClient = Client(
-    transport=_transport,
-)
 
 
 METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
@@ -728,67 +721,27 @@ def stamp_display(request) -> List[StampDisplayResponse]:
     return fetch_all_stamp_metadata()
 
 
-class Round(BaseModel):
-    id: str
-
-
-class Stake(BaseModel):
-    stake: str
-    round: Round
-
-
-class XstakeAggregate(BaseModel):
-    total: str
-    round: Round
-
-
-class User(BaseModel):
-    stakes: Optional[List[Stake]] = []
-    xstakeAggregates: Optional[List[XstakeAggregate]] = []
-
-
-class GqlResponse(BaseModel):
-    users: List[User]
-
-
 @router.get(
-    "/gtc-stake/{address}",
-    description="Get self and community staking amounts based on address and round id",
+    "/gtc-stake/{str:address}/{int:round_id}",
     auth=ApiKey(),
-    response=GqlResponse,
+    response=GtcEventsResponse,
+    summary="Retrieve GTC stake amounts for the GTC Staking stamp",
+    description="Get self and community staking amounts based on address and round ID",
 )
-def get_gtc_stake(request, address: str):
+def get_gtc_stake(request, address: str, round_id: int) -> GtcEventsResponse:
     """
-    Get GTC stake amount by address
+    Get GTC stake amount by address and round ID
     """
+    address = address.lower()
+
+    if not is_valid_address(address):
+        raise InvalidAddressException()
+
+    params = {"address": address, "round_id": round_id}
+
     try:
-        query = gql(
-            """
-                query User($address: String!) {
-                    users(where: {address: $address}) {
-                        stakes {
-                            stake
-                            round {
-                                id
-                            }
-                        }
-                        xstakeAggregates {
-                            total
-                            round {
-                                id
-                            }
-                        }
-                    }
-                }
-            """
-        )
-
-        variables = {
-            "address": address.lower(),
-        }
-
-        response = gqlClient.execute(query, variable_values=variables)
-
-        return response
+        queryset = with_read_db(GTCStakeEvent)
+        filtered_queryset = GTCStakeEventsFilter(data=params, queryset=queryset).qs
+        return {"results": [obj for obj in filtered_queryset.values()]}
     except Exception as e:
         raise StakingRequestError()

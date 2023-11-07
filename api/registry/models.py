@@ -166,3 +166,22 @@ class HashScorerLink(models.Model):
 
     class Meta:
         unique_together = ["hash", "community"]
+
+
+class GTCStakeEvent(models.Model):
+    event_type = models.CharField(max_length=15)
+    round_id = models.IntegerField(db_index=True)
+    staker = EthAddressField(blank=False, db_index=True)
+    address = EthAddressField(null=True, blank=False, db_index=True)
+    amount = models.DecimalField(max_digits=78, decimal_places=18)
+    staked = models.BooleanField()
+    block_number = models.IntegerField()
+    tx_hash = models.CharField(max_length=66)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["round_id", "address", "staker"],
+                name="gtc_staking_index",
+            ),
+        ]

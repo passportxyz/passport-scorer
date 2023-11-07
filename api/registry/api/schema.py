@@ -163,3 +163,24 @@ class StampDisplayResponse(Schema):
     description: str
     connectMessage: str
     groups: List[StampDisplayResponseGroup]
+
+
+class Stake(Schema):
+    id: int
+    event_type: str
+    round_id: int
+    staker: Optional[str] = None
+    address: Optional[str] = None
+    amount: str
+    staked: bool
+    block_number: int
+    tx_hash: str
+
+
+class GtcEventsResponse(Schema):
+    results: List[Stake]
+
+
+class GtcStakeEventsSchema(Schema):
+    address: str
+    round_id: int

@@ -1,50 +1,59 @@
-from unittest.mock import patch
-
 import pytest
 from django.test import Client
-
-mock_gql_response = {
-    "users": [
-        {
-            "stakes": [{"stake": "10000000000000000000", "round": {"id": "2"}}],
-            "xstakeAggregates": [],
-        }
-    ]
-}
-
-client = Client()
-
+from registry.models import GTCStakeEvent
 
 pytestmark = pytest.mark.django_db
 
+user_address = "0x00Ac00000e4AbE2d293586A1f4F9C73e5512121e"
+
 
 class TestGetStakingResults:
-    def test_successful_get_staking_results(self, client, scorer_api_key):
-        with patch("registry.api.v1.gqlClient.execute") as mock_gql_execute:
-            mock_gql_execute.return_value = mock_gql_response
-            response = client.get(
-                "/registry/gtc-stake/0x",
-                HTTP_AUTHORIZATION="Token " + scorer_api_key,
-            )  # Adjust the URL as needed
-            assert response.status_code == 200
-            assert response.json() == mock_gql_response
+    def test_successful_get_staking_results(self, scorer_api_key, gtc_staking_response):
+        stakes = list(GTCStakeEvent.objects.all())
 
-    def test_failed_graphql_request(self, client, scorer_api_key):
-        with patch("registry.api.v1.gqlClient.execute") as mock_gql_execute:
-            mock_gql_execute.side_effect = Exception(
-                "GraphQL Request Failed"
-            )  # Simulate an exception
-
-            response = client.get(
-                "/registry/gtc-stake/0x",
-                HTTP_AUTHORIZATION="Token " + scorer_api_key,
-            )
-
-            assert response.status_code == 500
-
-    def test_missing_address(self, client, scorer_api_key):
+        client = Client()
         response = client.get(
-            "/registry/gtc-stake",
+            f"/registry/gtc-stake/{user_address}/1",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        response_data = response.json()["results"]
+        assert response.status_code == 200
+
+        # an extra stake event was added that is below the filtered amount, hence the minus 1
+        assert len(stakes) - 1 == len(response_data)
+
+    def test_item_in_filter_condition_is_not_present(
+        self, scorer_api_key, gtc_staking_response
+    ):
+        client = Client()
+        response = client.get(
+            f"/registry/gtc-stake/{user_address}/1",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        response_data = response.json()["results"]
+        assert response.status_code == 200
+
+        for item in response_data:
+            # ID 16 belongs to the item that does not meet the filter criteria
+            assert item["id"] != 16
+
+    def test_missing_address_error_response(self, scorer_api_key, gtc_staking_response):
+        client = Client()
+        response = client.get(
+            f"/registry/gtc-stake//1",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        assert response.status_code == 404
+
+    def test_missing_round_id_error_response(
+        self, scorer_api_key, gtc_staking_response
+    ):
+        client = Client()
+        response = client.get(
+            f"/registry/gtc-stake/{user_address}/",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
