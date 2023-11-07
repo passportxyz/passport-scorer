@@ -165,15 +165,6 @@ const postgresql = new aws.rds.Instance(
   { protect: true }
 );
 
-export const rdsEndpoint = postgresql.endpoint;
-export const rdsArn = postgresql.arn;
-export const rdsConnectionUrl = pulumi.secret(
-  pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
-);
-export const indexerRdsConnectionUrl = pulumi.secret(
-  pulumi.interpolate`postgres://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
-);
-export const rdsId = postgresql.id;
 
 //////////////////////////////////////////////////////////////
 // Setup RDS PROXY
@@ -242,7 +233,6 @@ const scorerDbProxy = new aws.rds.Proxy("scorer-db-proxy", {
   vpcSecurityGroupIds: [db_secgrp.id],
 });
 
-export const scorerDbProxyEndpoint = scorerDbProxy.endpoint;
 
 const scorerDbProxyDefaultTargetGroup = new aws.rds.ProxyDefaultTargetGroup(
   "scorer-default-tg",
@@ -265,6 +255,17 @@ const scorerDefaultProxyTarget = new aws.rds.ProxyTarget(
     targetGroupName: scorerDbProxyDefaultTargetGroup.name,
   }
 );
+
+export const scorerDbProxyEndpoint = scorerDbProxy.endpoint;
+export const rdsEndpoint = postgresql.endpoint;
+export const rdsArn = postgresql.arn;
+export const rdsConnectionUrl = pulumi.secret(
+  pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${scorerDbProxyEndpoint}/${dbName}`
+);
+export const indexerRdsConnectionUrl = pulumi.secret(
+  pulumi.interpolate`postgres://${dbUsername}:${dbPassword}@${scorerDbProxyEndpoint}/${dbName}`
+);
+export const rdsId = postgresql.id;
 
 //////////////////////////////////////////////////////////////
 // Set up Redis
