@@ -1571,6 +1571,7 @@ dependencies = [
  "dotenv",
  "ethers",
  "eyre",
+ "futures",
  "rust_decimal",
  "rust_decimal_macros",
  "tokio",
