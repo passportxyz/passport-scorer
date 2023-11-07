@@ -316,5 +316,6 @@ jobs:
           REDASH_DB_PASSWORD: ${{ secrets.REDASH_DB_PASSWORD }}
           REDASH_DB_USER: ${{ secrets.REDASH_DB_USER }}
           REDASH_SECRET_KEY: ${{ secrets.REDASH_SECRET_KEY }}
+          SCORER_RDS_SECRET_ARN: ${{ secrets.SCORER_RDS_SECRET_ARN }}
 
           PAGERDUTY_INTEGRATION_ENDPOINT: ${{ secrets.PAGERDUTY_INTEGRATION_ENDPOINT }}
