@@ -104,7 +104,8 @@ async fn main() -> Result<()> {
 
     let database_url = get_env("DATABASE_URL").unwrap();
 
-    let postgres_client = PostgresClient::new(&database_url).await?;
+    let f1 = listen_for_blocks(&rpc_url);
+    let f2 = listen_for_stake_events(&rpc_url, &database_url);
 
     try_join!(f1, f2)?;
 
@@ -139,7 +140,6 @@ async fn listen_for_stake_events(rpc_url: &str, database_url: &str) -> Result<()
     let current_block = client.get_block_number().await?;
 
     let postgres_client = PostgresClient::new(&database_url).await?;
-    postgres_client.create_table().await?;
 
     // This is the block number from which we want to start querying events. Either the contract initiation or the last block we queried.
     let query_start_block = postgres_client.get_latest_block().await?;

@@ -9,6 +9,7 @@ edition = "2021"
 dotenv = "0.15.0"
 ethers = { version = "2.0.10", features = ["abigen", "ws"] }
 eyre = "0.6.8"
+futures = "0.3.29"
 rust_decimal = { version = "1.32", features = ["db-tokio-postgres"] }
 rust_decimal_macros = "1.32"
 tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread"] }
