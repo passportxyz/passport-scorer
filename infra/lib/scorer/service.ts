@@ -556,7 +556,7 @@ type IndexerServiceParams = {
     dbPassword: string;
     dbName: string;
     dbHost: string;
-    dbPort: number;
+    dbPort: string;
   };
   cluster: Cluster;
   vpc: awsx.ec2.Vpc;
@@ -584,7 +584,7 @@ export function createIndexerService({
     },
   ];
 
-  const indexerEnvironment = [
+  const indexerEnvironment: { name: string; value: Input<string> }[] = [
     {
       name: "DB_USER",
       value: rdsConnectionConfig.dbUsername,

@@ -1470,16 +1470,12 @@ const exportVals = createScoreExportBucketAndDomain(
   route53ZoneForPublicData
 );
 
-export const indexerRdsConnectionUrl = pulumi.secret(
-  pulumi.interpolate`postgres://${dbUsername}:${dbPassword}@${scorerDbProxyEndpoint}/${dbName}`
-);
-
 const rdsConnectionConfig = {
   dbUsername,
   dbPassword: dbPassword.get(),
   dbName,
   dbHost: scorerDbProxyEndpoint.get(),
-  dbPort: 5432,
+  dbPort: String(5432),
 };
 
 createIndexerService({

@@ -1435,7 +1435,7 @@ const rdsConnectionConfig = {
   dbPassword: dbPassword.get(),
   dbName,
   dbHost: scorerDbProxyEndpoint.get(),
-  dbPort: 5432,
+  dbPort: String(5432),
 };
 
 createIndexerService({
