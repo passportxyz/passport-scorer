@@ -551,7 +551,13 @@ export async function createScoreExportBucketAndDomain(
 export const dockerGtcStakingIndexerImage = `${process.env["DOCKER_GTC_PASSPORT_INDEXER_IMAGE"]}`;
 
 type IndexerServiceParams = {
-  indexerRdsConnectionUrl: Input<string>;
+  rdsConnectionConfig: {
+    dbUsername: string;
+    dbPassword: Output<string>;
+    dbName: string;
+    dbHost: Output<string>;
+    dbPort: string;
+  };
   cluster: Cluster;
   vpc: awsx.ec2.Vpc;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
@@ -560,7 +566,7 @@ type IndexerServiceParams = {
 };
 
 export function createIndexerService({
-  indexerRdsConnectionUrl,
+  rdsConnectionConfig,
   cluster,
   vpc,
   privateSubnetSecurityGroup,
@@ -578,10 +584,26 @@ export function createIndexerService({
     },
   ];
 
-  const indexerEnvironment = [
+  const indexerEnvironment: { name: string; value: Input<string> }[] = [
     {
-      name: "DATABASE_URL",
-      value: indexerRdsConnectionUrl,
+      name: "DB_USER",
+      value: rdsConnectionConfig.dbUsername,
+    },
+    {
+      name: "DB_PASSWORD",
+      value: rdsConnectionConfig.dbPassword,
+    },
+    {
+      name: "DB_HOST",
+      value: rdsConnectionConfig.dbHost,
+    },
+    {
+      name: "DB_PORT",
+      value: rdsConnectionConfig.dbPort,
+    },
+    {
+      name: "DB_NAME",
+      value: rdsConnectionConfig.dbName,
     },
   ];
 

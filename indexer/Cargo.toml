@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+deadpool-postgres = "0.11.0"
 dotenv = "0.15.0"
 ethers = { version = "2.0.10", features = ["abigen", "ws"] }
 eyre = "0.6.8"
