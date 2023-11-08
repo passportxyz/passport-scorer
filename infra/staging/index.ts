@@ -165,7 +165,6 @@ const postgresql = new aws.rds.Instance(
   { protect: true }
 );
 
-
 //////////////////////////////////////////////////////////////
 // Setup RDS PROXY
 //////////////////////////////////////////////////////////////
@@ -229,10 +228,9 @@ const scorerDbProxy = new aws.rds.Proxy("scorer-db-proxy", {
   debugLogging: false,
   idleClientTimeout: 600, // 10 minutes
   name: "scorer-db-proxy",
-  requireTls: true,
+  requireTls: false,
   vpcSecurityGroupIds: [db_secgrp.id],
 });
-
 
 const scorerDbProxyDefaultTargetGroup = new aws.rds.ProxyDefaultTargetGroup(
   "scorer-default-tg",
@@ -1137,7 +1135,7 @@ const web = new aws.ec2.Instance("Web", {
 
 export const ec2PublicIp = web.publicIp;
 export const dockrRunCmd = pulumi.secret(
-  pulumi.interpolate`docker run -it -e 'DATABASE_URL=${scorerDbProxyEndpoint}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
+  pulumi.interpolate`docker run -it -e CERAMIC_CACHE_SCORER_ID=1 -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
 
 ///////////////////////
@@ -1437,3 +1435,17 @@ const exportVals = createScoreExportBucketAndDomain(
 //   privateSubnetSecurityGroup,
 //   workerRole
 // );
+
+const pagerdutyTopic = new aws.sns.Topic("pagerduty", {
+  name: "Pagerduty",
+  tracingConfig: "PassThrough",
+});
+
+createIndexerService({
+  indexerRdsConnectionUrl,
+  cluster,
+  vpc,
+  privateSubnetSecurityGroup,
+  workerRole,
+  alertTopic: pagerdutyTopic,
+});

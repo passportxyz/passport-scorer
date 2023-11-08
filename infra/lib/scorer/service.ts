@@ -605,7 +605,7 @@ export function createIndexerService({
           memory: 1024,
           cpu: 1024,
           image: dockerGtcStakingIndexerImage,
-          command: ["cargo", "run"],
+          // command: ["cargo", "run"],
           portMappings: [],
           secrets: indexerSecrets,
           environment: indexerEnvironment,
