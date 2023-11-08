@@ -1432,9 +1432,9 @@ const pagerdutyTopic = new aws.sns.Topic("pagerduty", {
 
 const rdsConnectionConfig = {
   dbUsername,
-  dbPassword: dbPassword.get(),
+  dbPassword,
   dbName,
-  dbHost: scorerDbProxyEndpoint.get(),
+  dbHost: scorerDbProxyEndpoint,
   dbPort: String(5432),
 };
 

@@ -553,9 +553,9 @@ export const dockerGtcStakingIndexerImage = `${process.env["DOCKER_GTC_PASSPORT_
 type IndexerServiceParams = {
   rdsConnectionConfig: {
     dbUsername: string;
-    dbPassword: string;
+    dbPassword: Output<string>;
     dbName: string;
-    dbHost: string;
+    dbHost: Output<string>;
     dbPort: string;
   };
   cluster: Cluster;
