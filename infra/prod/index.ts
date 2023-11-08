@@ -285,9 +285,7 @@ export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${scorerDbProxyEndpoint}/${dbName}`
 );
-export const indexerRdsConnectionUrl = pulumi.secret(
-  pulumi.interpolate`postgres://${dbUsername}:${dbPassword}@${scorerDbProxyEndpoint}/${dbName}`
-);
+
 export const readreplica0ConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${readreplica0.endpoint}/${dbName}`
 );
@@ -1472,8 +1470,20 @@ const exportVals = createScoreExportBucketAndDomain(
   route53ZoneForPublicData
 );
 
+export const indexerRdsConnectionUrl = pulumi.secret(
+  pulumi.interpolate`postgres://${dbUsername}:${dbPassword}@${scorerDbProxyEndpoint}/${dbName}`
+);
+
+const rdsConnectionConfig = {
+  dbUsername,
+  dbPassword: dbPassword.get(),
+  dbName,
+  dbHost: scorerDbProxyEndpoint.get(),
+  dbPort: 5432,
+};
+
 createIndexerService({
-  indexerRdsConnectionUrl,
+  rdsConnectionConfig,
   cluster,
   vpc,
   privateSubnetSecurityGroup,

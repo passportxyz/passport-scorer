@@ -260,9 +260,7 @@ export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${scorerDbProxyEndpoint}/${dbName}`
 );
-export const indexerRdsConnectionUrl = pulumi.secret(
-  pulumi.interpolate`postgres://${dbUsername}:${dbPassword}@${scorerDbProxyEndpoint}/${dbName}`
-);
+
 export const rdsId = postgresql.id;
 
 //////////////////////////////////////////////////////////////
@@ -1427,22 +1425,21 @@ const exportVals = createScoreExportBucketAndDomain(
   route53ZoneForPublicData
 );
 
-// TODO: remove once prod is verified to be working
-// createIndexerService(
-//   indexerRdsConnectionUrl,
-//   cluster,
-//   vpc,
-//   privateSubnetSecurityGroup,
-//   workerRole
-// );
-
 const pagerdutyTopic = new aws.sns.Topic("pagerduty", {
   name: "Pagerduty",
   tracingConfig: "PassThrough",
 });
 
+const rdsConnectionConfig = {
+  dbUsername,
+  dbPassword: dbPassword.get(),
+  dbName,
+  dbHost: scorerDbProxyEndpoint.get(),
+  dbPort: 5432,
+};
+
 createIndexerService({
-  indexerRdsConnectionUrl,
+  rdsConnectionConfig,
   cluster,
   vpc,
   privateSubnetSecurityGroup,

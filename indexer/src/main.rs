@@ -92,20 +92,18 @@ async fn format_and_save_x_stake_event(
     Ok(())
 }
 
+pub fn get_env(var: &str) -> String {
+    env::var(var).unwrap_or_else(|_| panic!("Required environment variable \"{}\" not set", var))
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
 
-    let get_env = |var| {
-        env::var(var).map_err(|_| panic!("Required environment variable \"{}\" not set", var))
-    };
-
-    let rpc_url = get_env("RPC_URL").unwrap();
-
-    let database_url = get_env("DATABASE_URL").unwrap();
+    let rpc_url = get_env("RPC_URL");
 
     let f1 = listen_for_blocks(&rpc_url);
-    let f2 = listen_for_stake_events(&rpc_url, &database_url);
+    let f2 = listen_for_stake_events(&rpc_url);
 
     try_join!(f1, f2)?;
 
@@ -129,7 +127,7 @@ async fn listen_for_blocks(rpc_url: &str) -> Result<()> {
     return Ok(());
 }
 
-async fn listen_for_stake_events(rpc_url: &str, database_url: &str) -> Result<()> {
+async fn listen_for_stake_events(rpc_url: &str) -> Result<()> {
     let provider = Provider::<Ws>::connect(rpc_url).await?;
 
     let id_staking_address = "0x0E3efD5BE54CC0f4C64e0D186b0af4b7F2A0e95F".parse::<Address>()?;
@@ -139,7 +137,7 @@ async fn listen_for_stake_events(rpc_url: &str, database_url: &str) -> Result<()
 
     let current_block = client.get_block_number().await?;
 
-    let postgres_client = PostgresClient::new(&database_url).await?;
+    let postgres_client = PostgresClient::new().await?;
 
     // This is the block number from which we want to start querying events. Either the contract initiation or the last block we queried.
     let query_start_block = postgres_client.get_latest_block().await?;
