@@ -723,7 +723,8 @@ def stamp_display(request) -> List[StampDisplayResponse]:
 
 @router.get(
     "/gtc-stake/{str:address}/{int:round_id}",
-    auth=ApiKey(),
+    # auth=ApiKey(),
+    auth=None,
     response=GtcEventsResponse,
     summary="Retrieve GTC stake amounts for the GTC Staking stamp",
     description="Get self and community staking amounts based on address and round ID",
