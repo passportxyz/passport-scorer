@@ -184,4 +184,8 @@ class GTCStakeEvent(models.Model):
                 fields=["round_id", "address", "staker"],
                 name="gtc_staking_index",
             ),
+            models.Index(
+                fields=["round_id", "staker"],
+                name="gtc_staking_index_by_staker",
+            ),
         ]
