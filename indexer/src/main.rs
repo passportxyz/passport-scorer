@@ -82,23 +82,28 @@ where
 
     pub async fn listen_for_blocks(&mut self) -> Result<()> {
         match self.client.subscribe_blocks().await {
-            Ok(mut stream) => {
-                while let Some(block) = stream.next().await {
-                    println!(
-                        "New Block - timestamp: {:?}, number: {}, hash: {:?}",
-                        block.timestamp,
-                        block.number.unwrap(),
-                        block.hash.unwrap()
-                    );
+            Ok(mut stream) => loop {
+                let block = stream.next().await;
+                match block {
+                    Some(block) => {
+                        println!(
+                            "New Block - timestamp: {:?}, number: {}, hash: {:?}",
+                            block.timestamp,
+                            block.number.unwrap(),
+                            block.hash.unwrap()
+                        );
+                    }
+                    None => {
+                        eprintln!("Error - Failed to get block");
+                        panic!("Failed to get block");
+                    }
                 }
-            }
+            },
             Err(err) => {
                 eprintln!("Error - Failed to subscribe to blocks: {}", err);
                 panic!("Failed to subscribe to blocks");
             }
         }
-
-        return Ok(());
     }
 
     async fn listen_for_stake_events(&mut self) -> Result<()> {
@@ -110,6 +115,9 @@ where
         let mut last_queried_block: u32 = (*query_start_block)
             .try_into()
             .expect("Block number out of range");
+
+        // Increment the last queried block by 1 to avoid querying the same block twice
+        last_queried_block = last_queried_block + 1;
 
         // You can make eth_getLogs requests with up to a 2K block range and no limit on the response size
         while last_queried_block < current_block.as_u32() {
