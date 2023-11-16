@@ -6,6 +6,7 @@ use tokio_postgres::{Error, NoTls};
 
 use crate::{get_env, CONTRACT_START_BLOCK};
 
+#[derive(Debug, Clone)]
 pub struct PostgresClient {
     pool: Pool,
 }

@@ -4,7 +4,7 @@ use dotenv::dotenv;
 use ethers::{
     contract::abigen,
     core::types::Address,
-    providers::{Middleware, Provider, StreamExt, Ws},
+    providers::{Middleware, Provider, PubsubClient, StreamExt, Ws},
 };
 use eyre::Result;
 use futures::try_join;
@@ -26,72 +26,6 @@ abigen!(
 
 pub const CONTRACT_START_BLOCK: i32 = 16403024;
 
-async fn format_and_save_self_stake_event(
-    event: &SelfStakeFilter,
-    block_number: u32,
-    transaction_hash: String,
-    postgres_client: &PostgresClient,
-) -> Result<()> {
-    let round_id = event.round_id.as_u32();
-
-    // Convert H160 and U256 to String
-    let staker_str = format!("{:?}", event.staker);
-
-    let amount_str = format!("{}", event.amount);
-
-    let staked = event.staked;
-    if let Err(err) = postgres_client
-        .insert_into_combined_stake_filter_self_stake(
-            round_id.try_into().unwrap(),
-            &staker_str,
-            &amount_str,
-            staked,
-            block_number.try_into().unwrap(),
-            &transaction_hash,
-        )
-        .await
-    {
-        eprintln!("Error - Failed to insert SelfStakeFilter: {}", err);
-    }
-    Ok(())
-}
-
-async fn format_and_save_x_stake_event(
-    event: &XstakeFilter,
-    block_number: u32,
-    transaction_hash: String,
-    postgres_client: &PostgresClient,
-) -> Result<()> {
-    // Convert U256 to i32 for round_id
-    // Be cautious about overflow, and implement a proper check if necessary
-    let round_id_i32 = event.round_id.low_u32() as i32;
-
-    // Convert H160 to String for staker and user
-    let staker_str = format!("{:?}", event.staker);
-    let user_str = format!("{:?}", event.user);
-    // Convert U256 to String for amount
-    let amount_str = format!("{}", event.amount);
-
-    // Dereference the bool (if needed)
-    let staked = event.staked;
-
-    if let Err(err) = postgres_client
-        .insert_into_combined_stake_filter_xstake(
-            round_id_i32,
-            &staker_str,
-            &user_str,
-            &amount_str,
-            staked,
-            block_number.try_into().unwrap(),
-            &transaction_hash,
-        )
-        .await
-    {
-        eprintln!("Error - Failed to insert XstakeFilter: {}", err);
-    }
-    Ok(())
-}
-
 pub fn get_env(var: &str) -> String {
     env::var(var).unwrap_or_else(|_| panic!("Required environment variable \"{}\" not set", var))
 }
@@ -102,125 +36,233 @@ async fn main() -> Result<()> {
 
     let rpc_url = get_env("RPC_URL");
 
-    let f1 = listen_for_blocks(&rpc_url);
-    let f2 = listen_for_stake_events(&rpc_url);
+    let client = Provider::<Ws>::connect(&rpc_url).await?;
 
-    try_join!(f1, f2)?;
+    let postgres_client = PostgresClient::new().await?;
+
+    let mut block_indexer = StakingIndexer::new(Arc::new(client.clone()), postgres_client.clone());
+
+    let mut staking_indexer =
+        StakingIndexer::new(Arc::new(client.clone()), postgres_client.clone());
+
+    let _result = try_join!(
+        block_indexer.listen_for_blocks(),
+        staking_indexer.listen_for_stake_events()
+    )?;
 
     Ok(())
 }
 
-async fn listen_for_blocks(rpc_url: &str) -> Result<()> {
-    let provider = Provider::<Ws>::connect(rpc_url).await?;
-
-    let mut stream = provider.subscribe_blocks().await?;
-
-    while let Some(block) = stream.next().await {
-        println!(
-            "New Block - timestamp: {:?}, number: {}, hash: {:?}",
-            block.timestamp,
-            block.number.unwrap(),
-            block.hash.unwrap()
-        );
-    }
-
-    return Ok(());
+pub struct StakingIndexer<M: Middleware>
+where
+    M::Provider: PubsubClient,
+{
+    client: Arc<M>,
+    id_staking_contract: IDStaking<M>,
+    postgres_client: PostgresClient,
 }
 
-async fn listen_for_stake_events(rpc_url: &str) -> Result<()> {
-    let provider = Provider::<Ws>::connect(rpc_url).await?;
+impl<M: Middleware + 'static> StakingIndexer<M>
+where
+    M::Provider: PubsubClient,
+{
+    pub fn new(client: Arc<M>, postgres_client: PostgresClient) -> Self {
+        let id_staking_address = "0x0E3efD5BE54CC0f4C64e0D186b0af4b7F2A0e95F"
+            .parse::<Address>()
+            .unwrap();
 
-    let id_staking_address = "0x0E3efD5BE54CC0f4C64e0D186b0af4b7F2A0e95F".parse::<Address>()?;
-    let client = Arc::new(provider);
+        let id_staking_contract = IDStaking::new(id_staking_address, client.clone());
 
-    let id_staking = IDStaking::new(id_staking_address, client.clone());
+        Self {
+            client,
+            id_staking_contract,
+            postgres_client,
+        }
+    }
 
-    let current_block = client.get_block_number().await?;
+    pub async fn listen_for_blocks(&mut self) -> Result<()> {
+        match self.client.subscribe_blocks().await {
+            Ok(mut stream) => {
+                while let Some(block) = stream.next().await {
+                    println!(
+                        "New Block - timestamp: {:?}, number: {}, hash: {:?}",
+                        block.timestamp,
+                        block.number.unwrap(),
+                        block.hash.unwrap()
+                    );
+                }
+            }
+            Err(err) => {
+                eprintln!("Error - Failed to subscribe to blocks: {}", err);
+                panic!("Failed to subscribe to blocks");
+            }
+        }
 
-    let postgres_client = PostgresClient::new().await?;
+        return Ok(());
+    }
 
-    // This is the block number from which we want to start querying events. Either the contract initiation or the last block we queried.
-    let query_start_block = postgres_client.get_latest_block().await?;
+    async fn listen_for_stake_events(&mut self) -> Result<()> {
+        let current_block = self.client.get_block_number().await?;
 
-    let mut last_queried_block: u32 = query_start_block.try_into().unwrap();
+        // This is the block number from which we want to start querying events. Either the contract initiation or the last block we queried.
+        let query_start_block = &self.postgres_client.get_latest_block().await?;
 
-    // You can make eth_getLogs requests with up to a 2K block range and no limit on the response size
-    while last_queried_block < current_block.as_u32() {
-        let next_block_range = last_queried_block.clone() + 2000;
-        let previous_events_query = id_staking
-            .events()
-            .from_block(last_queried_block)
-            .to_block(next_block_range)
-            .query_with_meta()
-            .await;
+        let mut last_queried_block: u32 = (*query_start_block)
+            .try_into()
+            .expect("Block number out of range");
 
-        match previous_events_query {
-            Ok(previous_events) => {
-                for (event, meta) in previous_events.iter() {
-                    match event {
-                        IDStakingEvents::SelfStakeFilter(event) => {
+        // You can make eth_getLogs requests with up to a 2K block range and no limit on the response size
+        while last_queried_block < current_block.as_u32() {
+            let next_block_range = last_queried_block.clone() + 2000;
+            let previous_events_query = self
+                .id_staking_contract
+                .events()
+                .from_block(last_queried_block)
+                .to_block(next_block_range)
+                .query_with_meta()
+                .await;
+
+            match previous_events_query {
+                Ok(previous_events) => {
+                    for (event, meta) in previous_events.iter() {
+                        match event {
+                            IDStakingEvents::SelfStakeFilter(event) => {
+                                let block_number = meta.block_number.as_u32();
+                                let tx_hash = format!("{:?}", meta.transaction_hash);
+
+                                self.format_and_save_self_stake_event(
+                                    &event,
+                                    block_number,
+                                    tx_hash,
+                                )
+                                .await?;
+                            }
+                            IDStakingEvents::XstakeFilter(event) => {
+                                let block_number = meta.block_number.as_u32();
+                                let tx_hash = format!("{:?}", meta.transaction_hash);
+                                self.format_and_save_x_stake_event(&event, block_number, tx_hash)
+                                    .await?
+                            }
+                            _ => {
+                                // Catch all for unhandled events
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    eprintln!(
+                        "Error - Failed to query events: {}, {}, {}",
+                        err, last_queried_block, next_block_range
+                    );
+                }
+            }
+            last_queried_block = next_block_range;
+        }
+
+        let future_events = self.id_staking_contract.events().from_block(current_block);
+
+        let mut stream = future_events.stream().await?.with_meta();
+
+        while let Some(event) = stream.next().await {
+            match event {
+                Ok((event_value, meta)) => {
+                    match event_value {
+                        IDStakingEvents::SelfStakeFilter(event_value) => {
                             let block_number = meta.block_number.as_u32();
                             let tx_hash = format!("{:?}", meta.transaction_hash);
 
-                            format_and_save_self_stake_event(
-                                &event,
+                            self.format_and_save_self_stake_event(
+                                &event_value,
                                 block_number,
                                 tx_hash,
-                                &postgres_client,
                             )
                             .await?;
                         }
-                        IDStakingEvents::XstakeFilter(event) => {
+                        IDStakingEvents::XstakeFilter(event_value) => {
                             let block_number = meta.block_number.as_u32();
                             let tx_hash = format!("{:?}", meta.transaction_hash);
-                            format_and_save_x_stake_event(
-                                &event,
-                                block_number,
-                                tx_hash,
-                                &postgres_client,
-                            )
-                            .await?
+                            self.format_and_save_x_stake_event(&event_value, block_number, tx_hash)
+                                .await?
                         }
                         _ => {
                             // Catch all for unhandled events
                         }
                     }
                 }
-            }
-            Err(err) => {
-                eprintln!(
-                    "Error - Failed to query events: {}, {}, {}",
-                    err, last_queried_block, next_block_range
-                );
+                Err(err) => {
+                    eprintln!("Error - Failed to IDStaking events: {}", err);
+                    panic!("Failed to stream event")
+                }
             }
         }
-        last_queried_block = next_block_range;
+
+        return Ok(());
     }
+    pub async fn format_and_save_self_stake_event(
+        &mut self,
+        event: &SelfStakeFilter,
+        block_number: u32,
+        transaction_hash: String,
+    ) -> Result<()> {
+        let round_id = event.round_id.as_u32();
 
-    let future_events = id_staking.events().from_block(current_block);
+        // Convert H160 and U256 to String
+        let staker_str = format!("{:?}", event.staker);
 
-    let mut stream = future_events.stream().await?.with_meta();
+        let amount_str = format!("{}", event.amount);
 
-    while let Some(Ok((event, meta))) = stream.next().await {
-        match event {
-            IDStakingEvents::SelfStakeFilter(event) => {
-                let block_number = meta.block_number.as_u32();
-                let tx_hash = format!("{:?}", meta.transaction_hash);
-
-                format_and_save_self_stake_event(&event, block_number, tx_hash, &postgres_client)
-                    .await?;
-            }
-            IDStakingEvents::XstakeFilter(event) => {
-                let block_number = meta.block_number.as_u32();
-                let tx_hash = format!("{:?}", meta.transaction_hash);
-                format_and_save_x_stake_event(&event, block_number, tx_hash, &postgres_client)
-                    .await?
-            }
-            _ => {
-                // Catch all for unhandled events
-            }
+        let staked = event.staked;
+        if let Err(err) = self
+            .postgres_client
+            .insert_into_combined_stake_filter_self_stake(
+                round_id.try_into().unwrap(),
+                &staker_str,
+                &amount_str,
+                staked,
+                block_number.try_into().unwrap(),
+                &transaction_hash,
+            )
+            .await
+        {
+            eprintln!("Error - Failed to insert SelfStakeFilter: {}", err);
         }
+        Ok(())
     }
 
-    return Ok(());
+    async fn format_and_save_x_stake_event(
+        &mut self,
+        event: &XstakeFilter,
+        block_number: u32,
+        transaction_hash: String,
+    ) -> Result<()> {
+        // Convert U256 to i32 for round_id
+        // Be cautious about overflow, and implement a proper check if necessary
+        let round_id_i32 = event.round_id.low_u32() as i32;
+
+        // Convert H160 to String for staker and user
+        let staker_str = format!("{:?}", event.staker);
+        let user_str = format!("{:?}", event.user);
+        // Convert U256 to String for amount
+        let amount_str = format!("{}", event.amount);
+
+        // Dereference the bool (if needed)
+        let staked = event.staked;
+
+        if let Err(err) = self
+            .postgres_client
+            .insert_into_combined_stake_filter_xstake(
+                round_id_i32,
+                &staker_str,
+                &user_str,
+                &amount_str,
+                staked,
+                block_number.try_into().unwrap(),
+                &transaction_hash,
+            )
+            .await
+        {
+            eprintln!("Error - Failed to insert XstakeFilter: {}", err);
+        }
+        Ok(())
+    }
 }
