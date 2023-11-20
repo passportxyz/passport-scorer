@@ -365,6 +365,9 @@ const alb = new aws.alb.LoadBalancer(`scorer-service`, {
   internal: false,
   securityGroups: [albSecGrp.id],
   subnets: vpcPublicSubnetIds,
+  tags: {
+    name: "lb-scorer-service",
+  },
 });
 
 // Listen to HTTP traffic on port 80 and redirect to 443
@@ -762,294 +765,6 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
   },
 });
 
-const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
-  cluster: cluster.arn,
-  desiredCount: 0,
-  networkConfiguration: {
-    subnets: vpc.privateSubnetIds,
-    securityGroups: [privateSubnetSecurityGroup.id],
-  },
-  taskDefinitionArgs: {
-    logGroup: {
-      existing: workerLogGroup,
-    },
-    executionRole: {
-      roleArn: workerRole.arn,
-    },
-    containers: {
-      worker1: {
-        name: "worker1",
-        memory: 1024,
-        cpu: 1024,
-        image: dockerGtcPassportScorerImage,
-        command: [
-          "celery",
-          "-A",
-          "scorer",
-          "worker",
-          "-Q",
-          "score_registry_passport",
-          "-l",
-          "DEBUG",
-          "-c",
-          "32",
-        ],
-        portMappings: [],
-        secrets: secrets,
-        environment: environment,
-        dependsOn: [],
-        links: [],
-      },
-    },
-  },
-});
-
-const ecsScorerWorker1AutoscalingTarget = new aws.appautoscaling.Target(
-  "scorer-worker1-autoscaling-target",
-  {
-    maxCapacity: 4,
-    minCapacity: 0,
-    resourceId: pulumi.interpolate`service/${cluster.name}/${celery1.service.name}`,
-    scalableDimension: "ecs:service:DesiredCount",
-    serviceNamespace: "ecs",
-  }
-);
-
-const ecsScorerWorker1Autoscaling = new aws.appautoscaling.Policy(
-  "scorer-worker1-autoscaling-policy",
-  {
-    policyType: "TargetTrackingScaling",
-    resourceId: ecsScorerWorker1AutoscalingTarget.resourceId,
-    scalableDimension: ecsScorerWorker1AutoscalingTarget.scalableDimension,
-    serviceNamespace: ecsScorerWorker1AutoscalingTarget.serviceNamespace,
-    targetTrackingScalingPolicyConfiguration: {
-      predefinedMetricSpecification: {
-        predefinedMetricType: "ECSServiceAverageCPUUtilization",
-      },
-      targetValue: 30,
-      scaleInCooldown: 300,
-      scaleOutCooldown: 300,
-    },
-  }
-);
-
-const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
-  cluster: cluster.arn,
-  desiredCount: 0,
-  networkConfiguration: {
-    subnets: vpc.privateSubnetIds,
-    securityGroups: [privateSubnetSecurityGroup.id],
-  },
-  taskDefinitionArgs: {
-    executionRole: {
-      roleArn: workerRole.arn,
-    },
-    containers: {
-      worker2: {
-        name: "worker2",
-        image: dockerGtcPassportScorerImage,
-        command: [
-          "celery",
-          "-A",
-          "scorer",
-          "worker",
-          "-Q",
-          "score_passport_passport",
-          "-l",
-          "DEBUG",
-        ],
-        memory: 1024,
-        cpu: 1024,
-        portMappings: [],
-        secrets: secrets,
-        environment: environment,
-        dependsOn: [],
-        links: [],
-      },
-    },
-  },
-});
-
-const ecsScorerWorker2AutoscalingTarget = new aws.appautoscaling.Target(
-  "scorer-worker2-autoscaling-target",
-  {
-    maxCapacity: 2,
-    minCapacity: 1,
-    resourceId: pulumi.interpolate`service/${cluster.name}/${celery2.service.name}`,
-    scalableDimension: "ecs:service:DesiredCount",
-    serviceNamespace: "ecs",
-  }
-);
-
-const ecsScorerWorker2Autoscaling = new aws.appautoscaling.Policy(
-  "scorer-worker2-autoscaling-policy",
-  {
-    policyType: "TargetTrackingScaling",
-    resourceId: ecsScorerWorker2AutoscalingTarget.resourceId,
-    scalableDimension: ecsScorerWorker2AutoscalingTarget.scalableDimension,
-    serviceNamespace: ecsScorerWorker2AutoscalingTarget.serviceNamespace,
-    targetTrackingScalingPolicyConfiguration: {
-      predefinedMetricSpecification: {
-        predefinedMetricType: "ECSServiceAverageCPUUtilization",
-      },
-      targetValue: 30,
-      scaleInCooldown: 300,
-      scaleOutCooldown: 300,
-    },
-  }
-);
-
-// Flower
-
-// Generate an SSL certificate
-const flowerCertificate = new aws.acm.Certificate("flower", {
-  domainName: "flower." + domain,
-  tags: {
-    Environment: "staging",
-  },
-  validationMethod: "DNS",
-});
-
-const flowerCertificateValidationDomain = new aws.route53.Record(
-  `flower.${domain}-validation`,
-  {
-    name: flowerCertificate.domainValidationOptions[0].resourceRecordName,
-    zoneId: route53Zone,
-    type: flowerCertificate.domainValidationOptions[0].resourceRecordType,
-    records: [flowerCertificate.domainValidationOptions[0].resourceRecordValue],
-    ttl: 600,
-  }
-);
-
-const flowerCertificateValidation = new aws.acm.CertificateValidation(
-  "flowerCertificateValidation",
-  {
-    certificateArn: flowerCertificate.arn,
-    validationRecordFqdns: [flowerCertificateValidationDomain.fqdn],
-  },
-  { customTimeouts: { create: "30s", update: "30s" } }
-);
-
-const flowerAlbSecGrp = new aws.ec2.SecurityGroup(`flower-service-alb`, {
-  description: "flower-service-alb",
-  vpcId: vpcID,
-  ingress: [
-    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
-    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
-  ],
-  egress: [
-    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
-    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
-    {
-      protocol: "tcp",
-      fromPort: 5555,
-      toPort: 5555,
-      cidrBlocks: ["0.0.0.0/0"],
-    },
-  ],
-});
-
-// Creates an ALB associated with our custom VPC.
-const flowerAlb = new aws.alb.LoadBalancer(`flower-service`, {
-  loadBalancerType: "application",
-  internal: false,
-  securityGroups: [flowerAlbSecGrp.id],
-  subnets: vpcPublicSubnetIds,
-});
-
-// Listen to HTTP traffic on port 80 and redirect to 443
-const flowerHttpListener = new aws.alb.Listener("flower-http-listener", {
-  loadBalancerArn: flowerAlb.arn,
-  port: 80,
-  protocol: "HTTP",
-  defaultActions: [
-    {
-      type: "redirect",
-      redirect: {
-        protocol: "HTTPS",
-        port: "443",
-        statusCode: "HTTP_301",
-      },
-    },
-  ],
-});
-
-// Target group with the port of the Docker image
-const flowerTarget = new aws.alb.TargetGroup("flower-target", {
-  vpcId: vpcID,
-  targetType: "ip",
-  port: 5555,
-  protocol: "HTTP",
-  healthCheck: { path: "/healthcheck", unhealthyThreshold: 5 },
-});
-
-// Listen to traffic on port 443 & route it through the target group
-const flowerHttpsListener = new aws.alb.Listener("flower-https-listener", {
-  loadBalancerArn: flowerAlb.arn,
-  protocol: "HTTPS",
-  port: 443,
-  certificateArn: flowerCertificate.arn,
-  defaultActions: [
-    {
-      type: "forward",
-      targetGroupArn: flowerTarget.arn,
-    },
-  ],
-});
-
-const flowerRecord = new aws.route53.Record("flower", {
-  zoneId: route53Zone,
-  name: "flower." + domain,
-  type: "A",
-  aliases: [
-    {
-      name: flowerAlb.dnsName,
-      zoneId: flowerAlb.zoneId,
-      evaluateTargetHealth: true,
-    },
-  ],
-});
-
-const flower = new awsx.ecs.FargateService("flower", {
-  cluster: cluster.arn,
-  desiredCount: 0,
-  networkConfiguration: {
-    subnets: vpc.privateSubnetIds,
-    securityGroups: [privateSubnetSecurityGroup.id],
-  },
-  loadBalancers: [
-    {
-      containerName: "flower",
-      containerPort: 5555,
-      targetGroupArn: flowerTarget.arn,
-    },
-  ],
-  taskDefinitionArgs: {
-    containers: {
-      flower: {
-        name: "flower",
-        image: "mher/flower",
-        command: ["celery", "flower", "-A", "taskapp", "--port=5555"],
-        portMappings: [{ containerPort: 5555, hostPort: 5555 }],
-        memory: 2048,
-        cpu: 1024,
-        environment: [
-          {
-            name: "BROKER_URL",
-            value: redisCacheOpsConnectionUrl,
-          },
-          {
-            name: "FLOWER_BASIC_AUTH",
-            value: flowerUser + ":" + flowerPassword,
-          },
-        ],
-        dependsOn: [],
-        links: [],
-      },
-    },
-  },
-});
-
 const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
   description: "gitcoin-ecs-task",
   vpcId: vpcID,
@@ -1130,7 +845,7 @@ const web = new aws.ec2.Instance("Web", {
     volumeSize: 50,
   },
   tags: {
-    Name: "Passport Scorer - troubleshooting instance",
+    name: "Passport Scorer - troubleshooting instance",
   },
   userData: ec2InitScript,
 });
@@ -1271,7 +986,7 @@ const redashinstance = new aws.ec2.Instance("redashinstance", {
     volumeSize: 50,
   },
   tags: {
-    Name: "Redash Analytics",
+    name: "Redash Analytics",
   },
   userData: redashInitScript,
   vpcSecurityGroupIds: [redashSecurityGroup.id],
@@ -1325,6 +1040,9 @@ const redashAlb = new aws.alb.LoadBalancer(`redash-service`, {
   internal: false,
   securityGroups: [redashAlbSecGrp.id],
   subnets: vpcPublicSubnetIds,
+  tags: {
+    name: "lb-redash-service",
+  },
 });
 
 // Listen to HTTP traffic on port 80 and redirect to 443
