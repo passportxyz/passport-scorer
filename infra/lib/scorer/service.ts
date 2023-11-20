@@ -297,7 +297,7 @@ export function createScorerECSService(
         : 20,
       minCapacity: config.autoScaleMinCapacity
         ? config.autoScaleMinCapacity
-        : 1,
+        : 2,
       resourceId: interpolate`service/${config.cluster.name}/${service.service.name}`,
       scalableDimension: "ecs:service:DesiredCount",
       serviceNamespace: "ecs",
@@ -315,7 +315,7 @@ export function createScorerECSService(
         predefinedMetricSpecification: {
           predefinedMetricType: "ECSServiceAverageCPUUtilization",
         },
-        targetValue: 30,
+        targetValue: 50,
         scaleInCooldown: 300,
         scaleOutCooldown: 300,
       },
@@ -625,7 +625,7 @@ export function createIndexerService({
         worker1: {
           name: "indexer-process",
           memory: 1024,
-          cpu: 1024,
+          cpu: 512,
           image: dockerGtcStakingIndexerImage,
           // command: ["cargo", "run"],
           portMappings: [],
