@@ -297,7 +297,7 @@ export function createScorerECSService(
         : 20,
       minCapacity: config.autoScaleMinCapacity
         ? config.autoScaleMinCapacity
-        : 1,
+        : 2,
       resourceId: interpolate`service/${config.cluster.name}/${service.service.name}`,
       scalableDimension: "ecs:service:DesiredCount",
       serviceNamespace: "ecs",
@@ -315,7 +315,7 @@ export function createScorerECSService(
         predefinedMetricSpecification: {
           predefinedMetricType: "ECSServiceAverageCPUUtilization",
         },
-        targetValue: 30,
+        targetValue: 50,
         scaleInCooldown: 300,
         scaleOutCooldown: 300,
       },
@@ -324,7 +324,7 @@ export function createScorerECSService(
 
   if (config.alertTopic) {
     const cpuAlarm = new aws.cloudwatch.MetricAlarm(`CPUUtilization-${name}`, {
-      tags: { name: name },
+      tags: { name: `CPUUtilization-${name}` },
       alarmActions: [config.alertTopic.arn],
       comparisonOperator: "GreaterThanThreshold",
       datapointsToAlarm: 1,
@@ -344,7 +344,7 @@ export function createScorerECSService(
     const memoryAlarm = new aws.cloudwatch.MetricAlarm(
       `MemoryUtilization-${name}`,
       {
-        tags: { name: name },
+        tags: { name: `MemoryUtilization-${name}` },
         alarmActions: [config.alertTopic.arn],
         comparisonOperator: "GreaterThanThreshold",
         datapointsToAlarm: 1,
@@ -363,7 +363,7 @@ export function createScorerECSService(
     );
 
     const http5xxAlarm = new aws.cloudwatch.MetricAlarm(`HTTP-5xx-${name}`, {
-      tags: { name: name },
+      tags: { name: `HTTP-5xx-${name}` },
       alarmActions: [config.alertTopic.arn],
       comparisonOperator: "GreaterThanThreshold",
       datapointsToAlarm: 3,
@@ -393,6 +393,7 @@ export async function createScoreExportBucketAndDomain(
     website: {
       indexDocument: "registry_score.jsonl",
     },
+    tags: { name: `s3-domain` },
   });
 
   new aws.s3.BucketPublicAccessBlock("myBucketPublicAccessBlock", {
@@ -523,6 +524,7 @@ export async function createScoreExportBucketAndDomain(
         ), // Per AWS, ACM certificate must be in the us-east-1 region.
         sslSupportMethod: "sni-only",
       },
+      tags: { name: "publicExportCloudFront" },
     },
     {}
   );
@@ -625,7 +627,7 @@ export function createIndexerService({
         worker1: {
           name: "indexer-process",
           memory: 1024,
-          cpu: 1024,
+          cpu: 512,
           image: dockerGtcStakingIndexerImage,
           // command: ["cargo", "run"],
           portMappings: [],
@@ -635,6 +637,9 @@ export function createIndexerService({
           links: [],
         },
       },
+    },
+    tags: {
+      name: "scorer-staking-indexer",
     },
   });
 
@@ -670,6 +675,7 @@ export function createIndexerService({
       statistic: "Sum",
       threshold: 1,
       treatMissingData: "notBreaching",
+      tags: { name: "indexerErrorsAlarm" },
     }
   );
 
@@ -705,6 +711,7 @@ export function createIndexerService({
       statistic: "Sum",
       threshold: 1,
       treatMissingData: "breaching",
+      tags: { name: "indexerHeartbeatAlarm" },
     }
   );
 }
