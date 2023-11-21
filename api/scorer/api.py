@@ -1,3 +1,10 @@
+# Update the following description:
+# FROM: The V1 API docs are available at /v1/docs
+# TO: Useful links:
+# Developer Portal
+# Developer docs
+# Passport API V1 playground -- To be retired on April 4th, 2024
+# Fix formatting for the new historical endpoint's description.
 """
 The scorer API module
 """
@@ -64,7 +71,7 @@ class ScorerApi(NinjaAPI):
 
 registry_api_v1 = ScorerApi(
     urls_namespace="registry",
-    title="Scorer API",
+    title="Passport API Playground.",
     version="1.0.0",
     docs_url="/docs",
     openapi_url="/v1/openapi.json",
@@ -74,12 +81,15 @@ The V2 (beta) API docs are available at [/v2/docs](/v2/docs)
 )
 registry_api_v2 = ScorerApi(
     urls_namespace="registry_v2",
-    title="Scorer API",
+    title="Passport API Playground.",
     version="2.0.0 (beta)",
     docs_url="/v2/docs",
     openapi_url="/v2/openapi.json",
     description="""
-The V1 API docs are available at [/docs](/docs)
+Useful links:\n
+[Developer Portal](https://scorer.gitcoin.co/)\n
+[Developer docs](https://docs.passport.gitcoin.co/)\n
+[Passport API V1 playground](/docs) -- To be retired on April 4th, 2024
 """,
 )
 
@@ -93,13 +103,9 @@ def service_unavailable(request, _):
     )
 
 
-registry_api_v1.add_router(
-    "/registry/", registry_router_v1, tags=["Score your passport"]
-)
+registry_api_v1.add_router("/registry/", registry_router_v1, tags=["Passport API."])
 
-registry_api_v2.add_router(
-    "/registry/v2", registry_router_v2, tags=["Score your passport"]
-)
+registry_api_v2.add_router("/registry/v2", registry_router_v2, tags=["Passport API."])
 
 feature_flag_api = NinjaAPI(urls_namespace="feature")
 feature_flag_api.add_router("", feature_flag_router)

@@ -98,7 +98,7 @@ feature_flag_router = Router()
         401: ErrorMessageResponse,
         400: ErrorMessageResponse,
     },
-    summary="Submit passport for scoring",
+    summary="Retrieve a signing message",
     description="""Use this API to get a message to sign and a nonce to use when submitting your passport for scoring.""",
 )
 def signing_message(request) -> SigningMessageResponse:
@@ -149,7 +149,7 @@ def signing_message(request) -> SigningMessageResponse:
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
     },
-    summary="Submit passport for scoring",
+    summary="Submit an Ethereum address to the Scorer",
     description="""Use this API to submit your passport for scoring.\n
 This API will return a `DetailedScoreResponse` structure with status **PROCESSING** or **DONE**.\n
 If the status is **DONE** the final score is provided in this response.\n
@@ -347,7 +347,7 @@ def get_score_history(
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
     },
-    summary="Get score for an address that is associated with a scorer",
+    summary="Retrieve a Passport score for one address",
     description=f"""Use this endpoint to fetch the score for a specific address that is associated with a scorer\n
 This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
 {SCORE_TIMESTAMP_FIELD_DESCRIPTION}
@@ -416,7 +416,7 @@ class ScoreFilter(django_filters.FilterSet):
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
     },
-    summary="Get scores for all addresses that are associated with a scorer",
+    summary="Retrieve the Passport scores for all submitted addresses",
     description="""Use this endpoint to fetch the scores for all addresses that are associated with a scorer\n
 This API will return a list of `DetailedScoreResponse` objects. The endpoint supports pagination and will return a maximum of 1000 scores per request.\n
 Pass a limit and offset query parameter to paginate the results. For example: `/score/1?limit=100&offset=100` will return the second page of 100 scores.\n
@@ -500,7 +500,7 @@ def get_scores(
         400: ErrorMessageResponse,
         401: ErrorMessageResponse,
     },
-    summary="Get passport for an address",
+    summary="Receive Stamps verified by submitted Passports",
     description="""Use this endpoint to fetch the passport for a specific address\n
 This endpoint will return a `CursorPaginatedStampCredentialResponse`.\n
 **WARNING**: The **include_metadata** feature is in beta, the metadata response format may change in the future.\n
@@ -709,6 +709,7 @@ def fetch_stamp_metadata_for_provider(provider: str):
 
 @router.get(
     "/stamp-metadata",
+    summary="Receive all Stamps available in Passport",
     description="""**WARNING**: This endpoint is in beta and is subject to change.""",
     auth=ApiKey(),
     response={
@@ -727,7 +728,7 @@ def stamp_display(request) -> List[StampDisplayResponse]:
     auth=None,
     response=GtcEventsResponse,
     summary="Retrieve GTC stake amounts for the GTC Staking stamp",
-    description="Get self and community staking amounts based on address and round ID",
+    description="Get self and community GTC staking amounts based on address and round ID",
 )
 def get_gtc_stake(request, address: str, round_id: int) -> GtcEventsResponse:
     """
