@@ -6,7 +6,7 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "CivicCaptchaPass": "0.49",
     "CivicLivenessPass": "2.25",
     "CivicUniquenessPass": "3.2685",
-    "Coinbase": "1.35",
+    "CoinbaseDualVerification": "2",
     "CommunityStakingBronze": "0",
     "CommunityStakingGold": "0",
     "CommunityStakingSilver": "0",
