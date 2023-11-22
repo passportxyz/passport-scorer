@@ -610,6 +610,7 @@ export function createIndexerService({
   ];
 
   new awsx.ecs.FargateService("scorer-staking-indexer", {
+    propagateTags: "TASK_DEFINITION",
     cluster: cluster.arn,
     desiredCount: 1,
     networkConfiguration: {
@@ -637,6 +638,7 @@ export function createIndexerService({
           links: [],
         },
       },
+      tags: { name: "scorer-staking-indexer" },
     },
     tags: {
       name: "scorer-staking-indexer",
