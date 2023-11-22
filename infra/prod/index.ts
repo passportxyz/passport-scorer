@@ -685,6 +685,9 @@ const scorerServiceDefault = createScorerECSService(
   {
     ...baseScorerServiceConfig,
     targetGroup: targetGroupDefault,
+    memory: 1024,
+    cpu: 512,
+    desiredCount: 2,
   },
   envConfig
 );
@@ -696,6 +699,9 @@ const scorerServiceRegistry = createScorerECSService(
     listenerRulePriority: 3000,
     httpListenerRulePaths: ["/registry/*"],
     targetGroup: targetGroupRegistry,
+    memory: 4096,
+    cpu: 2048,
+    desiredCount: 2,
   },
   envConfig
 );
