@@ -240,7 +240,7 @@ history_endpoint = {
     "summary": "Get score history based on timestamp and optional address that is associated with a scorer",
     "description": """
 Use this endpoint to get historical Passport score history based on
-timestamp and optional user address\n
+timestamp and optional user address.\n
 This endpoint will return a `CursorPaginatedScoreResponse`.\n
 The response will include a list of historical scores based on scorer ID and timestamp.\n
 If a specific address is provided, then the list will be of max length 1.\n

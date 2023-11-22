@@ -47,7 +47,7 @@ analytics_router = Router()
         401: ErrorMessageResponse,
         400: ErrorMessageResponse,
     },
-    summary="Submit passport for scoring",
+    summary="Retrieve a signing message",
     description="""Use this API to get a message to sign and a nonce to use when submitting your passport for scoring.""",
 )
 def signing_message(request) -> SigningMessageResponse:
@@ -63,7 +63,7 @@ def signing_message(request) -> SigningMessageResponse:
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
     },
-    summary="Submit passport for scoring",
+    summary="Submit an Ethereum address to the Scorer",
     description="""Use this API to submit your passport for scoring.\n
 This API will return a `DetailedScoreResponse` structure with status **PROCESSING** immediatly while your passport is being pulled from storage and the scoring algorithm is run.\n
 You need to check for the status of the operation by calling the `/score/{int:scorer_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
@@ -84,7 +84,7 @@ async def a_submit_passport(
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
     },
-    summary="Get scores for all addresses that are associated with a scorer",
+    summary="Retrieve the Passport scores for all submitted addresses",
     description="""Use this endpoint to fetch the scores for all addresses that are associated with a scorer\n
 This endpoint will return a `CursorPaginatedScoreResponse`.\n
 \n
@@ -231,7 +231,7 @@ def get_scores(
         400: ErrorMessageResponse,
         401: ErrorMessageResponse,
     },
-    summary="Get passport for an address",
+    summary="Receive Stamps verified by submitted Passports",
     description="""Use this endpoint to fetch the passport for a specific address\n
 This endpoint will return a `CursorPaginatedStampCredentialResponse`.\n
 """,
@@ -250,6 +250,7 @@ def get_passport_stamps(
 
 @router.get(
     "/stamp-metadata",
+    summary="Receive all Stamps available in Passport",
     description="""**WARNING**: This endpoint is in beta and is subject to change.""",
     auth=ApiKey(),
     response={
@@ -263,7 +264,8 @@ def stamp_display(request) -> List[StampDisplayResponse]:
 
 @router.get(
     "gtc-stake/{str:address}/{int:round_id}",
-    description="Get self and community staking amounts based on address and round id",
+    summary="Retrieve GTC stake amounts for the GTC Staking stamp",
+    description="Get self and community GTC staking amounts based on address and round ID",
     auth=ApiKey(),
     response=v1.GtcEventsResponse,
 )
@@ -304,7 +306,7 @@ def get_score_history(
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
     },
-    summary="Get score for an address that is associated with a scorer",
+    summary="Retrieve a Passport score for one address",
     description=f"""Use this endpoint to fetch the score for a specific address that is associated with a scorer\n
 This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
 {v1.SCORE_TIMESTAMP_FIELD_DESCRIPTION}
