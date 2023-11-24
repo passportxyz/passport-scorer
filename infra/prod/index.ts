@@ -1252,6 +1252,10 @@ const lambdaSettings = {
       name: "CERAMIC_CACHE_SCORER_ID",
       value: "335",
     },
+    {
+      name: "SCORER_SERVER_SSM_ARN",
+      value: SCORER_SERVER_SSM_ARN,
+    },
   ],
   ...sharedLambdaResources,
 };

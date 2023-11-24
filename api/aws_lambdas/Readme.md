@@ -40,8 +40,3 @@ curl -X 'POST' \
   "isBase64Encoded": false
 }'
 ```
-````
-
-```
-
-```

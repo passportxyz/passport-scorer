@@ -5,6 +5,7 @@ This module provides utils to manage Passport API requests in AWS Lambda.
 import json
 import os
 from functools import wraps
+from traceback import print_exc
 from typing import Any, Dict, Tuple
 
 from aws_lambdas.exceptions import InvalidRequest
@@ -12,6 +13,45 @@ from structlog.contextvars import bind_contextvars
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
+
+###########################################################
+# Loading secrets from secrets manager
+# https://aws.amazon.com/developer/language/python/
+# For a list of exceptions thrown, see
+# https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+# https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+###########################################################
+
+import boto3
+from botocore.exceptions import ClientError
+
+
+def load_secrets():
+    ssm_srn = os.environ["SCORER_SERVER_SSM_ARN"]
+
+    # Create a Secrets Manager client
+    session = boto3.session.Session()
+    client = session.client(service_name="secretsmanager")
+
+    try:
+        get_secret_value_response = client.get_secret_value(SecretId=ssm_srn)
+    except ClientError as e:
+        print(f"Error occurred while loading secret value: {e}")
+        print_exc()
+        raise e
+
+    # Decrypts secret using the associated KMS key.
+    # Load secrets and store them in env variables
+    secrets = json.loads(get_secret_value_response["SecretString"])
+    os.environ["SECRET_KEY"] = secrets["SECRET_KEY"]
+
+
+load_secrets()
+
+###########################################################
+# END: Loading secrets from secrets manager
+###########################################################
+
 
 # pylint: disable=wrong-import-position
 

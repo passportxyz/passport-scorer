@@ -749,6 +749,16 @@ export const createSharedLambdaResources = () => {
     ],
   });
 
+  const lambdaSecretsManagerPolicyDocument = aws.iam.getPolicyDocument({
+    statements: [
+      {
+        effect: "Allow",
+        actions: ["secretsmanager:GetSecretValue"],
+        resources: ["arn:aws:secretsmanager:*:*:*"],
+      },
+    ],
+  });
+
   const lambdaLoggingPolicy = new aws.iam.Policy("lambdaLoggingPolicy", {
     path: "/",
     description: "IAM policy for logging from a lambda",
@@ -762,6 +772,15 @@ export const createSharedLambdaResources = () => {
     description: "IAM policy for interfacing with EC2 network",
     policy: lambdaEc2PolicyDocument.then(
       (lambdaEc2PolicyDocument) => lambdaEc2PolicyDocument.json
+    ),
+  });
+
+  const lambdaSecretsManagerPolicy = new aws.iam.Policy("lambdaSecretManagerPolicy", {
+    path: "/",
+    description: "IAM policy for interfacing with EC2 network",
+    policy: lambdaSecretsManagerPolicyDocument.then(
+      (lambdaSecretsManagerPolicyDocument) =>
+        lambdaSecretsManagerPolicyDocument.json
     ),
   });
 
@@ -800,10 +819,17 @@ export const createSharedLambdaResources = () => {
     }
   );
 
+  const lambdaSecretsManagerPolicyAttachement =
+    new aws.iam.RolePolicyAttachment("lambdaSecretManagerRoleAttachment", {
+      role: lambdaRole.name,
+      policyArn: lambdaSecretsManagerPolicy.arn,
+    });
+
   return {
     lambdaRole,
     lambdaLogRoleAttachment,
     lambdaEc2RoleAttachment,
+    lambdaSecretsManagerPolicyAttachement,
   };
 };
 
