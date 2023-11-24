@@ -69,6 +69,7 @@ jobs:
         working-directory: ./api
         env:
           CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
         run: python manage.py check
 
       - name: Run API unittests
@@ -76,6 +77,7 @@ jobs:
         run: pytest
         env:
           CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
           DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
 
   build-api:
