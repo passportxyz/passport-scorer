@@ -46,7 +46,8 @@ def load_secrets():
     os.environ["SECRET_KEY"] = secrets["SECRET_KEY"]
 
 
-load_secrets()
+if "SCORER_SERVER_SSM_ARN" in os.environ:
+    load_secrets()
 
 ###########################################################
 # END: Loading secrets from secrets manager
