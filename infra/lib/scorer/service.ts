@@ -77,10 +77,6 @@ export const secrets = [
     valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_API_ANALYTICS::`,
   },
   {
-    name: "FF_DEDUP_WITH_LINK_TABLE",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_DEDUP_WITH_LINK_TABLE::`,
-  },
-  {
     name: "CGRANTS_API_TOKEN",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:CGRANTS_API_TOKEN::`,
   },
