@@ -411,8 +411,6 @@ TRUSTED_IAM_ISSUER = env(
 
 CGRANTS_API_TOKEN = env("CGRANTS_API_TOKEN", default="abc")
 
-FF_DEDUP_WITH_LINK_TABLE = env("FF_DEDUP_WITH_LINK_TABLE", default="off")
-
 IPWARE_META_PRECEDENCE_ORDER = (
     "X_FORWARDED_FOR",
     "HTTP_X_FORWARDED_FOR",  # <client>, <proxy1>, <proxy2>
