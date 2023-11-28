@@ -3,10 +3,9 @@ import re
 from decimal import Decimal
 from unittest.mock import call, patch
 
-from asgiref.sync import async_to_sync
-
 from account.deduplication import Rules
 from account.models import Account, AccountAPIKey, Community
+from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TransactionTestCase
@@ -369,147 +368,6 @@ class TestScorePassportTestCase(TransactionTestCase):
                 Event.objects.filter(action=Event.Action.LIFO_DEDUPLICATION).count()
                 == 2
             )
-
-    def test_fifo_duplicate_stamp_scoring(self):
-        with patch(
-            "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
-            {
-                "Google": 1,
-                "Ens": 2,
-                "POAP": 4,
-            },
-        ):
-            fifo_community = Community.objects.create(
-                name="My Community",
-                description="My Community description",
-                account=self.user_account,
-                rule=Rules.FIFO.value,
-            )
-
-        passport, _ = Passport.objects.update_or_create(
-            address=self.account.address,
-            community_id=fifo_community.pk,
-            requires_calculation=True,
-        )
-
-        passport_for_already_existing_stamp, _ = Passport.objects.update_or_create(
-            address=self.account_2.address,
-            community_id=fifo_community.pk,
-            requires_calculation=True,
-        )
-
-        passport_with_duplicates, _ = Passport.objects.update_or_create(
-            address=self.account_3.address,
-            community_id=fifo_community.pk,
-            requires_calculation=True,
-        )
-
-        already_existing_stamp = {
-            "provider": "POAP",
-            "credential": {
-                "type": ["VerifiableCredential"],
-                "credentialSubject": {
-                    "id": settings.TRUSTED_IAM_ISSUER,
-                    "hash": "0x1111",
-                    "provider": "Gitcoin",
-                },
-                "issuer": settings.TRUSTED_IAM_ISSUER,
-                "issuanceDate": "2023-02-06T23:22:58.848Z",
-                "expirationDate": "2099-02-06T23:22:58.848Z",
-            },
-        }
-
-        Stamp.objects.update_or_create(
-            hash=already_existing_stamp["credential"]["credentialSubject"]["hash"],
-            passport=passport_for_already_existing_stamp,
-            defaults={
-                "provider": already_existing_stamp["provider"],
-                "credential": json.dumps(already_existing_stamp["credential"]),
-            },
-        )
-
-        mock_passport_data_with_duplicates = {
-            "stamps": [
-                mock_passport_data["stamps"][0],
-                already_existing_stamp,
-                {
-                    "provider": "Google",
-                    "credential": {
-                        "type": ["VerifiableCredential"],
-                        "credentialSubject": {
-                            "id": settings.TRUSTED_IAM_ISSUER,
-                            "hash": "0x12121",
-                            "provider": "Google",
-                        },
-                        "issuer": settings.TRUSTED_IAM_ISSUER,
-                        "issuanceDate": "2023-02-06T23:22:58.848Z",
-                        "expirationDate": "2099-02-06T23:22:58.848Z",
-                    },
-                },
-            ]
-        }
-
-        with patch("registry.atasks.validate_credential", side_effect=mock_validate):
-            # Score original passport
-            with patch(
-                "registry.atasks.aget_passport", return_value=mock_passport_data
-            ):
-                score_registry_passport(fifo_community.pk, passport.address)
-
-            assert (
-                Event.objects.filter(action=Event.Action.FIFO_DEDUPLICATION).count()
-                == 0
-            )
-
-            assert Stamp.objects.filter(passport=passport).count() == 3
-            assert (Score.objects.get(passport=passport).score) == Decimal("3")
-
-            # Score passport with duplicates (one duplicate from original passport,
-            # one duplicate from already existing stamp)
-            with patch(
-                "registry.atasks.aget_passport",
-                return_value=mock_passport_data_with_duplicates,
-            ):
-                score_registry_passport(
-                    fifo_community.pk, passport_with_duplicates.address
-                )
-
-            # One stamp should be removed from original passport
-            original_stamps = Stamp.objects.filter(passport=passport)
-            assert len(original_stamps) == 2
-
-            assert (Score.objects.get(passport=passport).score) == Decimal("1")
-
-            assert (
-                Event.objects.filter(action=Event.Action.FIFO_DEDUPLICATION).count()
-                == 2
-            )
-
-            new_stamps = Stamp.objects.filter(passport=passport_with_duplicates)
-            assert len(new_stamps) == 3
-
-            assert (
-                Score.objects.get(passport=passport_with_duplicates).score
-            ) == Decimal("7")
-
-            passport.requires_calculation = True
-            passport.save()
-            # Re-score original passport, it should get the full score again
-            with patch(
-                "registry.atasks.aget_passport", return_value=mock_passport_data
-            ):
-                score_registry_passport(fifo_community.pk, passport.address)
-
-            assert (
-                Event.objects.filter(action=Event.Action.FIFO_DEDUPLICATION).count()
-                == 3
-            )
-
-            assert (Score.objects.get(passport=passport).score) == Decimal("3")
-
-            assert (
-                Score.objects.get(passport=passport_with_duplicates).score
-            ) == Decimal("5")
 
     def test_score_events(self):
         count = Event.objects.filter(action=Event.Action.SCORE_UPDATE).count()

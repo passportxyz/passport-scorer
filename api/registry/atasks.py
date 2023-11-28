@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import Dict, List
 
 import api_logging as logging
-from account.deduplication.fifo import afifo
 from account.deduplication.lifo import alifo
 
 # --- Deduplication Modules
@@ -75,7 +74,6 @@ async def aprocess_deduplication(passport, community, passport_data, score: Scor
     """
     rule_map = {
         Rules.LIFO.value: alifo,
-        Rules.FIFO.value: afifo,
     }
 
     method = rule_map.get(community.rule)
