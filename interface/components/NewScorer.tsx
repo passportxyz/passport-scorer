@@ -27,7 +27,7 @@ import { createCommunity } from "../utils/account-requests";
 import PopoverInfo from "./PopoverInfo";
 import { warningToast } from "./Toasts";
 
-type DeduplicationType = "LIFO";
+type DeduplicationType = "FIFO" | "LIFO";
 
 interface GitcoinScoringMechanismInterface {
   icon: (classes?: string) => JSX.Element;
@@ -273,6 +273,7 @@ const NewScorer = () => {
               onChange={(e: any) => setDeduplication(e.target.value)}
             >
               <option value="LIFO">Last in first out (default)</option>
+              <option value="FIFO">First in first out</option>
             </Select>
           </div>
         </div>

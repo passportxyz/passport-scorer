@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Dict, List
 
 import api_logging as logging
+from account.deduplication.fifo import afifo
 from account.deduplication.lifo import alifo
 
 # --- Deduplication Modules
@@ -74,6 +75,7 @@ async def aprocess_deduplication(passport, community, passport_data, score: Scor
     """
     rule_map = {
         Rules.LIFO.value: alifo,
+        Rules.FIFO.value: afifo,
     }
 
     method = rule_map.get(community.rule)
@@ -98,19 +100,19 @@ async def aprocess_deduplication(passport, community, passport_data, score: Scor
     )
 
     # If the rule is FIFO, we need to re-score all affected passports
-    # if community.rule == Rules.FIFO.value:
-    #     for passport in affected_passports:
-    #         log.debug(
-    #             "FIFO scoring selected, rescoring passport='%s'",
-    #             passport,
-    #         )
+    if community.rule == Rules.FIFO.value:
+        for passport in affected_passports:
+            log.debug(
+                "FIFO scoring selected, rescoring passport='%s'",
+                passport,
+            )
 
-    #         affected_score, _ = await Score.objects.aupdate_or_create(
-    #             passport=passport,
-    #             defaults=dict(score=None, status=score.status),
-    #         )
-    #         await acalculate_score(passport, passport.community_id, affected_score)
-    #         await affected_score.asave()
+            affected_score, _ = await Score.objects.aupdate_or_create(
+                passport=passport,
+                defaults=dict(score=None, status=score.status),
+            )
+            await acalculate_score(passport, passport.community_id, affected_score)
+            await affected_score.asave()
 
     return deduplicated_passport
 

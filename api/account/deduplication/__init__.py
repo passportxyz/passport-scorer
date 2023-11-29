@@ -3,7 +3,7 @@ from enum import Enum
 
 class Rules(Enum):
     LIFO = "LIFO"
-    FIFO = "FIFO"  # DEPRECATED - this shall not be used any more
+    FIFO = "FIFO"
 
     @classmethod
     def choices(cls):
