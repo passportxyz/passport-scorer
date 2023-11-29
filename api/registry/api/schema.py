@@ -67,7 +67,9 @@ class GenericCommunityResponse(Schema):
 
 
 class ActionEnum(str, Enum):
-    fifo_deduplication = Event.Action.FIFO_DEDUPLICATION
+    fifo_deduplication = (
+        Event.Action.FIFO_DEDUPLICATION
+    )  # DEPRECATED: this deduplication method was deprecated
     lifo_deduplication = Event.Action.LIFO_DEDUPLICATION
     trustalab_score = Event.Action.TRUSTALAB_SCORE
     score_update = Event.Action.SCORE_UPDATE
