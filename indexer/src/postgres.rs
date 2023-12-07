@@ -45,7 +45,10 @@ impl PostgresClient {
         let _ = decimal_amount.set_scale(18).unwrap();
         let client = self.pool.get().await.unwrap();
         client.execute("INSERT INTO registry_gtcstakeevent (event_type, round_id, staker, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",&[&"SelfStake", &round_id, &staker, &decimal_amount, &staked, &block_number, &tx_hash]).await?;
-        println!("Row inserted into registry_gtcstakeevent with type SelfStake!");
+        println!(
+            "Row inserted into registry_gtcstakeevent with type SelfStake for block {}!",
+            block_number
+        );
         Ok(())
     }
 
@@ -63,9 +66,13 @@ impl PostgresClient {
         let _ = decimal_amount.set_scale(18).unwrap();
         let client = self.pool.get().await.unwrap();
         client.execute("INSERT INTO registry_gtcstakeevent (event_type, round_id, staker, address, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", &[&"Xstake", &round_id, &staker, &user, &decimal_amount, &staked, &block_number, &tx_hash]).await?;
-        println!("Row inserted into registry_gtcstakeevent with type Xstake!");
+        println!(
+            "Row inserted into registry_gtcstakeevent with type Xstake for block {}!",
+            block_number
+        );
         Ok(())
     }
+
     pub async fn get_latest_block(&self) -> Result<i32, Error> {
         let client = self.pool.get().await.unwrap();
         let latest_block_rows = client

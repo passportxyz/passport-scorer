@@ -676,42 +676,6 @@ export function createIndexerService({
       tags: { name: "indexerErrorsAlarm" },
     }
   );
-
-  const indexerHeartbeatMetric = new aws.cloudwatch.LogMetricFilter(
-    "indexerHeartbeatMetric",
-    {
-      logGroupName: indexerLogGroup.name,
-      metricTransformation: {
-        defaultValue: "0",
-        name: "indexerHeartbeat",
-        namespace: "/scorer/indexer",
-        unit: "Count",
-        value: "1",
-      },
-      name: "Indexer Heartbeat",
-      pattern: '"New Block - timestamp" number hash',
-    }
-  );
-
-  const indexerHeartbeatAlarm = new aws.cloudwatch.MetricAlarm(
-    "indexerHeartbeatAlarm",
-    {
-      alarmActions: [alertTopic.arn],
-      comparisonOperator: "LessThanThreshold",
-      datapointsToAlarm: 1,
-      evaluationPeriods: 1,
-      insufficientDataActions: [],
-      metricName: "indexerHeartbeat",
-      name: "Indexer Heartbeat",
-      namespace: "/scorer/indexer",
-      okActions: [],
-      period: 60,
-      statistic: "Sum",
-      threshold: 1,
-      treatMissingData: "breaching",
-      tags: { name: "indexerHeartbeatAlarm" },
-    }
-  );
 }
 
 export const createSharedLambdaResources = () => {
