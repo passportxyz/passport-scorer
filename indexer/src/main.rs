@@ -7,7 +7,6 @@ use ethers::{
     providers::{Middleware, Provider, PubsubClient, StreamExt, Ws},
 };
 use eyre::Result;
-use futures::try_join;
 use postgres::PostgresClient;
 use std::{env, sync::Arc};
 
@@ -30,27 +29,57 @@ pub fn get_env(var: &str) -> String {
     env::var(var).unwrap_or_else(|_| panic!("Required environment variable \"{}\" not set", var))
 }
 
+pub async fn connect_with_reconnects(rpc_url: &String) -> Option<Provider<Ws>> {
+    match Provider::<Ws>::connect_with_reconnects(rpc_url, 0).await {
+        Ok(p) => Some(p),
+        Err(e) => {
+            eprintln!("Warning - Stream reconnect attempt failed: {e}");
+            None
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
 
     let rpc_url = get_env("RPC_URL");
 
-    let client = Provider::<Ws>::connect(&rpc_url).await?;
-
     let postgres_client = PostgresClient::new().await?;
 
-    let mut block_indexer = StakingIndexer::new(Arc::new(client.clone()), postgres_client.clone());
+    let mut num_retries = 0;
+    let delay_base: u64 = 2;
 
-    let mut staking_indexer =
-        StakingIndexer::new(Arc::new(client.clone()), postgres_client.clone());
+    loop {
+        let Some(client) = connect_with_reconnects(&rpc_url).await else {
+            eprintln!(
+                "Warning - Failed to connect to RPC, retry attempt #{}",
+                num_retries
+            );
+            tokio::time::sleep(tokio::time::Duration::from_secs(
+                delay_base.pow(num_retries),
+            ))
+            .await;
+            if num_retries % 4 == 0 {
+                eprintln!("Error - Failed repeatedly to connect to RPC");
+            }
+            num_retries += 1;
+            continue;
+        };
+        num_retries = 0;
 
-    let _result = try_join!(
-        block_indexer.listen_for_blocks(),
-        staking_indexer.listen_for_stake_events()
-    )?;
+        let mut staking_indexer =
+            StakingIndexer::new(Arc::new(client.clone()), postgres_client.clone());
 
-    Ok(())
+        match staking_indexer.listen_for_stake_events().await {
+            Ok(_) => {
+                eprintln!("Warning - listen_for_stake_events ended without error");
+            }
+            Err(err) => {
+                eprintln!("Error - Failed listen_for_stake_events with error {}", err);
+            }
+        }
+    }
 }
 
 pub struct StakingIndexer<M: Middleware>
@@ -77,32 +106,6 @@ where
             client,
             id_staking_contract,
             postgres_client,
-        }
-    }
-
-    pub async fn listen_for_blocks(&mut self) -> Result<()> {
-        match self.client.subscribe_blocks().await {
-            Ok(mut stream) => loop {
-                let block = stream.next().await;
-                match block {
-                    Some(block) => {
-                        println!(
-                            "New Block - timestamp: {:?}, number: {}, hash: {:?}",
-                            block.timestamp,
-                            block.number.unwrap(),
-                            block.hash.unwrap()
-                        );
-                    }
-                    None => {
-                        eprintln!("Error - Failed to get block");
-                        panic!("Failed to get block");
-                    }
-                }
-            },
-            Err(err) => {
-                eprintln!("Error - Failed to subscribe to blocks: {}", err);
-                panic!("Failed to subscribe to blocks");
-            }
         }
     }
 
@@ -167,45 +170,44 @@ where
             last_queried_block = next_block_range;
         }
 
+        eprintln!("Debug - Finished querying past events");
+
         let future_events = self.id_staking_contract.events().from_block(current_block);
 
         let mut stream = future_events.stream().await?.with_meta();
 
-        while let Some(event) = stream.next().await {
-            match event {
-                Ok((event_value, meta)) => {
-                    match event_value {
-                        IDStakingEvents::SelfStakeFilter(event_value) => {
-                            let block_number = meta.block_number.as_u32();
-                            let tx_hash = format!("{:?}", meta.transaction_hash);
+        eprintln!("Debug - Listening for future events");
 
-                            self.format_and_save_self_stake_event(
-                                &event_value,
-                                block_number,
-                                tx_hash,
-                            )
-                            .await?;
-                        }
-                        IDStakingEvents::XstakeFilter(event_value) => {
-                            let block_number = meta.block_number.as_u32();
-                            let tx_hash = format!("{:?}", meta.transaction_hash);
-                            self.format_and_save_x_stake_event(&event_value, block_number, tx_hash)
-                                .await?
-                        }
-                        _ => {
-                            // Catch all for unhandled events
-                        }
-                    }
-                }
+        while let Some(event) = stream.next().await {
+            let (event_value, meta) = match event {
                 Err(err) => {
-                    eprintln!("Error - Failed to IDStaking events: {}", err);
-                    panic!("Failed to stream event")
+                    eprintln!("Error - Failed to fetch IDStaking events: {}", err);
+                    break;
+                }
+                Ok(event) => event,
+            };
+
+            let block_number = meta.block_number.as_u32();
+            let tx_hash = format!("{:?}", meta.transaction_hash);
+
+            match event_value {
+                IDStakingEvents::SelfStakeFilter(event_value) => {
+                    self.format_and_save_self_stake_event(&event_value, block_number, tx_hash)
+                        .await?
+                }
+                IDStakingEvents::XstakeFilter(event_value) => {
+                    self.format_and_save_x_stake_event(&event_value, block_number, tx_hash)
+                        .await?
+                }
+                _ => {
+                    eprintln!("Debug - Unhandled event in tx {}", tx_hash);
                 }
             }
         }
 
         return Ok(());
     }
+
     pub async fn format_and_save_self_stake_event(
         &mut self,
         event: &SelfStakeFilter,
