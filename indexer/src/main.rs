@@ -7,6 +7,7 @@ use ethers::{
     providers::{Middleware, Provider, PubsubClient, StreamExt, Ws},
 };
 use eyre::Result;
+use futures::try_join;
 use postgres::PostgresClient;
 use std::{env, sync::Arc};
 
@@ -43,9 +44,51 @@ pub async fn connect_with_reconnects(rpc_url: &String) -> Option<Provider<Ws>> {
 async fn main() -> Result<()> {
     dotenv().ok();
 
-    let rpc_url = get_env("RPC_URL");
+    loop {
+        let postgres_client = PostgresClient::new().await?;
 
-    let postgres_client = PostgresClient::new().await?;
+        // This is the block number from which we want to start querying events. Either the contract initiation or the last block we queried.
+        let query_start_block = postgres_client.get_latest_block().await?;
+
+        match try_join!(
+            throw_when_no_events_logged(&query_start_block, &postgres_client),
+            run_listen_loop(&query_start_block, &postgres_client),
+        ) {
+            Ok(_) => {
+                eprintln!("Warning - top-level join ended without error");
+            }
+            Err(err) => {
+                if err.to_string().contains("No events logged in the last 15 minutes") {
+                    eprintln!("Warning - resetting due to no events logged in the last 15 minutes");
+                } else {
+                    eprintln!("Warning - top-level join ended with error, {}", err);
+                }
+            }
+        }
+    }
+}
+
+async fn throw_when_no_events_logged(
+    starting_event_block: &i32,
+    postgres_client: &PostgresClient,
+) -> Result<()> {
+    let mut start_block = *starting_event_block;
+    loop {
+        // sleep for 15 minutes
+        tokio::time::sleep(tokio::time::Duration::from_secs(900)).await;
+
+        let latest_logged_block = postgres_client.get_latest_block().await?;
+
+        if latest_logged_block == start_block {
+            return Err(eyre::eyre!("No events logged in the last 15 minutes"));
+        }
+
+        start_block = latest_logged_block;
+    }
+}
+
+async fn run_listen_loop(query_start_block: &i32, postgres_client: &PostgresClient) -> Result<()> {
+    let rpc_url = get_env("RPC_URL");
 
     let mut num_retries = 0;
     let delay_base: u64 = 2;
@@ -71,7 +114,10 @@ async fn main() -> Result<()> {
         let mut staking_indexer =
             StakingIndexer::new(Arc::new(client.clone()), postgres_client.clone());
 
-        match staking_indexer.listen_for_stake_events().await {
+        match staking_indexer
+            .listen_for_stake_events(&query_start_block)
+            .await
+        {
             Ok(_) => {
                 eprintln!("Warning - listen_for_stake_events ended without error");
             }
@@ -109,11 +155,8 @@ where
         }
     }
 
-    async fn listen_for_stake_events(&mut self) -> Result<()> {
+    async fn listen_for_stake_events(&mut self, query_start_block: &i32) -> Result<()> {
         let current_block = self.client.get_block_number().await?;
-
-        // This is the block number from which we want to start querying events. Either the contract initiation or the last block we queried.
-        let query_start_block = &self.postgres_client.get_latest_block().await?;
 
         let mut last_queried_block: u32 = (*query_start_block)
             .try_into()
