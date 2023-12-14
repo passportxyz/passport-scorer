@@ -2534,7 +2534,7 @@
     bech32 "1.1.4"
     ws "7.4.6"
 
-"@ethersproject/providers@5.7.2", "@ethersproject/providers@^5.5.0":
+"@ethersproject/providers@5.7.2":
   version "5.7.2"
   resolved "https://registry.yarnpkg.com/@ethersproject/providers/-/providers-5.7.2.tgz#f8b1a4f275d7ce58cf0a2eec222269a08beb18cb"
   integrity sha512-g34EWZ1WWAVgr4aptGlVBF8mhl3VWjv+8hoAnzStu8Ah22VHBsuGzP17eb6xDVRzw895G4W7vvx60lFFur/1Rg==
@@ -3140,11 +3140,6 @@
   dependencies:
     "@jridgewell/resolve-uri" "3.1.0"
     "@jridgewell/sourcemap-codec" "1.4.14"
-
-"@ledgerhq/connect-kit-loader@^1.0.2":
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/@ledgerhq/connect-kit-loader/-/connect-kit-loader-1.0.2.tgz#8554e16943f86cc2a5f6348a14dfe6e5bd0c572a"
-  integrity sha512-TQ21IjcZOw/scqypaVFY3jHVqI7X7Hta3qN/us6FvTol3AY06UmrhhXGww0E9xHmAbdX241ddwXEiMBSQZFr9g==
 
 "@lit-labs/ssr-dom-shim@^1.0.0", "@lit-labs/ssr-dom-shim@^1.1.0":
   version "1.1.1"
@@ -3912,7 +3907,7 @@
     "@walletconnect/window-metadata" "1.0.0"
     detect-browser "5.2.0"
 
-"@walletconnect/client@^1.7.1", "@walletconnect/client@^1.8.0":
+"@walletconnect/client@^1.8.0":
   version "1.8.0"
   resolved "https://registry.yarnpkg.com/@walletconnect/client/-/client-1.8.0.tgz#6f46b5499c7c861c651ff1ebe5da5b66225ca696"
   integrity sha512-svyBQ14NHx6Cs2j4TpkQaBI/2AF4+LXz64FojTjMtV4VMMhl81jSO1vNeg+yYhQzvjcGH/GpSwixjyCW0xFBOQ==
@@ -4346,17 +4341,6 @@
     "@web3-onboard/common" "^2.3.3"
     joi "17.9.1"
     lodash.uniqby "^4.7.0"
-
-"@web3-onboard/ledger@^2.4.6":
-  version "2.4.6"
-  resolved "https://registry.yarnpkg.com/@web3-onboard/ledger/-/ledger-2.4.6.tgz#1e92c2a5b59920f9ee70294314854dcea905e18d"
-  integrity sha512-TuWtZvhaxRXNKHRoqryt6cFRVpmVo3z4Zvos4+FS1/ZaNB5aBgZAH3MGWZhX0OFAKRki8JyOWVFJNdM7yUO4pA==
-  dependencies:
-    "@ethersproject/providers" "^5.5.0"
-    "@ledgerhq/connect-kit-loader" "^1.0.2"
-    "@walletconnect/client" "^1.7.1"
-    "@web3-onboard/common" "^2.3.3"
-    rxjs "^7.5.2"
 
 "@web3-onboard/react@^2.8.9":
   version "2.8.9"
