@@ -323,5 +323,7 @@ jobs:
           REDASH_DB_NAME: ${{ secrets.REDASH_DB_NAME }}
           REDASH_DB_PASSWORD: ${{ secrets.REDASH_DB_PASSWORD }}
           REDASH_DB_USER: ${{ secrets.REDASH_DB_USER }}
+          REDASH_MAIL_PASSWORD: ${{ secrets.REDASH_MAIL_PASSWORD }}
+          REDASH_MAIL_USERNAME: ${{ secrets.REDASH_MAIL_USERNAME }}
           REDASH_SECRET_KEY: ${{ secrets.REDASH_SECRET_KEY }}
           SCORER_RDS_SECRET_ARN: ${{ secrets.SCORER_RDS_SECRET_ARN }}
