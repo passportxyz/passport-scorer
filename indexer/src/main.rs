@@ -5,6 +5,7 @@ use ethers::{
     contract::abigen,
     core::types::Address,
     providers::{Middleware, Provider, PubsubClient, StreamExt, Ws},
+    types::Filter,
 };
 use eyre::Result;
 use postgres::PostgresClient;
@@ -172,13 +173,21 @@ where
 
         eprintln!("Debug - Finished querying past events");
 
-        let future_events = self.id_staking_contract.events().from_block(current_block);
+        let filter = Filter::new()
+            .from_block(last_queried_block + 1)
+            .address(self.id_staking_contract.address());
 
-        let mut stream = future_events.stream().await?.with_meta();
+        let cloned_client = Arc::new(self.client.clone());
+        let future_logs = cloned_client
+            .subscribe_logs(&filter)
+            .await
+            .map_err(|e| dbg!(e))?;
+
+        // let mut stream = future_logs.stream().await?.with_meta();
 
         eprintln!("Debug - Listening for future events");
 
-        while let Some(event) = stream.next().await {
+        while let Some(event) = future_logs.next().await {
             let (event_value, meta) = match event {
                 Err(err) => {
                     eprintln!("Error - Failed to fetch IDStaking events: {}", err);
