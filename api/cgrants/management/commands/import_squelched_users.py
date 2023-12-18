@@ -1,22 +1,19 @@
-import itertools
 import json
 from urllib.parse import urlparse
 
+import boto3
 from cgrants.management.commands.utils import batch_iterator, stream_jsonl_from_s3_uri
-from cgrants.models import ProtocolContributions
+from cgrants.models import SquelchedAccounts
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from tqdm import tqdm
 
 
-def get_prodocol_contribution_for_json(json_data):
-    return ProtocolContributions(
-        ext_id=json_data["id"],
-        contributor=json_data["voter"],
-        amount=json_data["amountUSD"],
-        project=json_data["projectId"],
-        round=json_data["roundId"],
-        data=json_data,
+def get_squelch_data_from_json(json_data):
+    return SquelchedAccounts(
+        address=json_data["voter"],
+        score_when_squelched=json_data["score"],
+        sybil_signal=json_data["sybil_signal"],
     )
 
 
@@ -37,7 +34,6 @@ class Command(BaseCommand):
         s3_uri = options["in"]
         self.stdout.write(f'Input file "{s3_uri}"')
         num_errors = 0
-
         stream = stream_jsonl_from_s3_uri(s3_uri, self.stdout, self.style)
         if stream:
             self.stdout.write(self.style.SUCCESS(f"Got stream, processing JSONL"))
@@ -52,12 +48,12 @@ class Command(BaseCommand):
                 chunk_size = 1000
 
                 for dataset in batch_iterator(stream.iter_lines(), chunk_size):
-                    protocol_contributions = []
+                    squelched_accounts = []
                     for line in dataset:
                         try:
                             json_data = json.loads(line)
-                            protocol_contributions.append(
-                                get_prodocol_contribution_for_json(json_data)
+                            squelched_accounts.append(
+                                get_squelch_data_from_json(json_data)
                             )
                         except json.JSONDecodeError as e:
                             self.stdout.write(
@@ -69,8 +65,8 @@ class Command(BaseCommand):
                         # Update the progress bar with the number of bytes read
                         pbar.update(len(line))
 
-                    ProtocolContributions.objects.bulk_create(
-                        protocol_contributions,
+                    SquelchedAccounts.objects.bulk_create(
+                        squelched_accounts,
                         ignore_conflicts=True,
                     )
         else:

@@ -254,13 +254,13 @@ class ProtocolContributions(models.Model):
     )
 
 
-class SquelchedProtocolAddresses(models.Model):
+class SquelchedAccounts(models.Model):
     """
     This will store allo protocol contributors who have been flagged as sybil.
     """
 
-    address = EthAddressField(null=True, blank=True, max_length=100)
+    address = EthAddressField(null=True, blank=True, max_length=100, db_index=True)
     score_when_squelched = models.DecimalField(
         default=0, decimal_places=18, max_digits=64
     )
-    duplicate_credential = models.BooleanField(default=False)
+    sybil_signal = models.BooleanField(default=False)
