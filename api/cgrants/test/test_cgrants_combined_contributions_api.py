@@ -3,12 +3,9 @@
 import pytest
 from account.test.conftest import scorer_account, scorer_user
 from cgrants.models import (
-    Contribution,
-    Grant,
     GrantContributionIndex,
-    Profile,
     ProtocolContributions,
-    Subscription,
+    SquelchedAccounts,
 )
 from cgrants.test.test_add_address_to_contribution_index import (
     generate_bulk_cgrant_data,
@@ -16,6 +13,7 @@ from cgrants.test.test_add_address_to_contribution_index import (
 from django.conf import settings
 from django.test import Client
 from django.urls import reverse
+from numpy import add
 
 pytestmark = pytest.mark.django_db
 
@@ -126,6 +124,25 @@ class TestCombinedContributionsApi:
         assert response.json() == {
             "num_grants_contribute_to": 4.0,
             "total_contribution_amount": 10.0,
+        }
+
+    def test_has_contributions_but_squelched_profile(
+        self, protocol_contributions, scorer_account
+    ):
+        SquelchedAccounts.objects.create(
+            address=scorer_account.address, score_when_squelched=0.0, sybil_signal=True
+        )
+
+        response = client.get(
+            reverse("cgrants:contributor_statistics"),
+            {"address": scorer_account.address},
+            **headers,
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "num_grants_contribute_to": 0.0,
+            "total_contribution_amount": 0.0,
         }
 
     def test_depegged_protocol_contribution(self, scorer_account):

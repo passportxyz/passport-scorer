@@ -252,3 +252,15 @@ class ProtocolContributions(models.Model):
     data = models.JSONField(
         help_text=_("Original contribution data in JSON format"), default=dict
     )
+
+
+class SquelchedAccounts(models.Model):
+    """
+    This will store allo protocol contributors who have been flagged as sybil.
+    """
+
+    address = EthAddressField(null=True, blank=True, max_length=100, db_index=True)
+    score_when_squelched = models.DecimalField(
+        default=0, decimal_places=18, max_digits=64
+    )
+    sybil_signal = models.BooleanField(default=False)

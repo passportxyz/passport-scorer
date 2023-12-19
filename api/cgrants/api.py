@@ -21,6 +21,7 @@ from .models import (
     Grant,
     GrantContributionIndex,
     ProtocolContributions,
+    SquelchedAccounts,
     SquelchProfile,
 )
 
@@ -101,6 +102,12 @@ def _get_contributor_statistics_for_protocol(address: str) -> dict:
     num_projects = protocol_filter.aggregate(Count("project", distinct=True))[
         "project__count"
     ]
+
+    if SquelchedAccounts.objects.filter(address=address).exists():
+        return {
+            "num_grants_contribute_to": 0,
+            "total_contribution_amount": 0,
+        }
 
     return {
         "num_grants_contribute_to": num_projects if num_projects is not None else 0,
