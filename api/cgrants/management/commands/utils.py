@@ -27,7 +27,6 @@ def stream_jsonl_from_s3_uri(s3_uri, stdout, style):
 
     folder_name, file_name = path.rsplit("/", 1)
 
-    print(settings.S3_DATA_AWS_SECRET_KEY_ID, "settings.S3_DATA_AWS_SECRET_KEY_ID")
     s3 = boto3.client(
         "s3",
         aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
