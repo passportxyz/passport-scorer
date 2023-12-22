@@ -1,5 +1,9 @@
+import json
+
 from account.models import Community, EthAddressField
 from django.db import models
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 
 
 class Passport(models.Model):
@@ -66,9 +70,28 @@ class Score(models.Model):
     )
     error = models.TextField(null=True, blank=True)
     evidence = models.JSONField(null=True, blank=True)
+    stamp_scores = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"Score #{self.id}, score={self.score}, last_score_timestamp={self.last_score_timestamp}, status={self.status}, error={self.error}, evidence={self.evidence}, passport_id={self.passport_id}"
+
+
+@receiver(pre_save, sender=Score)
+def score_updated(sender, instance, **kwargs):
+    if instance.status != Score.Status.DONE:
+        return instance
+
+    Event.objects.create(
+        action=Event.Action.SCORE_UPDATE,
+        address=instance.passport.address,
+        community=instance.passport.community,
+        data={
+            "score": float(instance.score) if instance.score != None else 0,
+            "evidence": instance.evidence,
+        },
+    )
+
+    return instance
 
 
 class Event(models.Model):
@@ -77,6 +100,8 @@ class Event(models.Model):
     class Action(models.TextChoices):
         FIFO_DEDUPLICATION = "FDP"
         LIFO_DEDUPLICATION = "LDP"
+        TRUSTALAB_SCORE = "TLS"
+        SCORE_UPDATE = "SCU"
 
     action = models.CharField(
         max_length=3,
@@ -84,11 +109,47 @@ class Event(models.Model):
         blank=False,
     )
 
-    address = EthAddressField(blank=True, max_length=42)
+    address = EthAddressField(
+        blank=True,
+        max_length=42,
+    )
+
+    ########################################################################################
+    # BEGIN: section containing fields that are only used for certain actions
+    # and will be set to None otherwise
+    ########################################################################################
+    community = models.ForeignKey(
+        Community,
+        on_delete=models.PROTECT,
+        related_name="event",
+        null=True,
+        default=None,
+        help_text="""
+This field is only used for the SCORE_UPDATE action, and will identify the scorer (alias `community`)
+for which a score has been updated.
+The reason to have this field (and not use the `data` JSON field) is to be able to easily have an index for the community_id for faster lookups.
+""",
+    )
+    ########################################################################################
+    # END: section with action - specific fields
+    ########################################################################################
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     data = models.JSONField()
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=[
+                    "action",
+                    "address",
+                    "community",
+                    "created_at",
+                ],
+                name="score_history_index",
+            ),
+        ]
 
 
 class HashScorerLink(models.Model):
@@ -105,3 +166,26 @@ class HashScorerLink(models.Model):
 
     class Meta:
         unique_together = ["hash", "community"]
+
+
+class GTCStakeEvent(models.Model):
+    event_type = models.CharField(max_length=15)
+    round_id = models.IntegerField(db_index=True)
+    staker = EthAddressField(blank=False, db_index=True)
+    address = EthAddressField(null=True, blank=False, db_index=True)
+    amount = models.DecimalField(max_digits=78, decimal_places=18)
+    staked = models.BooleanField()
+    block_number = models.IntegerField()
+    tx_hash = models.CharField(max_length=66)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["round_id", "address", "staker"],
+                name="gtc_staking_index",
+            ),
+            models.Index(
+                fields=["round_id", "staker"],
+                name="gtc_staking_index_by_staker",
+            ),
+        ]

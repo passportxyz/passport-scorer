@@ -187,7 +187,7 @@ class GrantContributionIndex(models.Model):
     """
     Stores data brought over from cgrants. Original model: https://github.com/gitcoinco/web/blob/master/app/grants/models/grant_contribution_index.py
 
-    Stores the grants and round number to shich a user contributed to.
+    Stores the grants and round number to which a user contributed to.
     The purpose of this table is to allow a a fast query. This will be used from
     the `contributor_statistics` API"""
 
@@ -221,6 +221,8 @@ class GrantContributionIndex(models.Model):
         help_text=_("The USD amount contributed"),
     )
 
+    contributor_address = EthAddressField(null=True, blank=True, max_length=100)
+
 
 class ProtocolContributions(models.Model):
     """
@@ -250,3 +252,15 @@ class ProtocolContributions(models.Model):
     data = models.JSONField(
         help_text=_("Original contribution data in JSON format"), default=dict
     )
+
+
+class SquelchedAccounts(models.Model):
+    """
+    This will store allo protocol contributors who have been flagged as sybil.
+    """
+
+    address = EthAddressField(null=True, blank=True, max_length=100, db_index=True)
+    score_when_squelched = models.DecimalField(
+        default=0, decimal_places=18, max_digits=64
+    )
+    sybil_signal = models.BooleanField(default=False)

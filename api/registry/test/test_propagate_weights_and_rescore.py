@@ -13,13 +13,21 @@ from django.core.management import call_command
 def test_update_scores(
     mock_delay_score, scorer_community, scorer_passport, scorer_score, capsys
 ):
-    call_command("propagate_weights_and_rescore")
+    call_command("propagate_weights_and_rescore", update_all_scores=True)
 
     assert mock_delay_score.called is True
 
     captured = capsys.readouterr()
     assert "Updated scorers: 1" in captured.out
     assert "Updating scores: 1" in captured.out
+
+
+def test_update_only_scorers(scorer_community, scorer_passport, scorer_score, capsys):
+    call_command("propagate_weights_and_rescore")
+
+    captured = capsys.readouterr()
+    assert "Updated scorers: 1" in captured.out
+    assert "Updating scores: 1" not in captured.out
 
 
 def test_fifo_not_included(scorer_account, scorer_community):

@@ -321,22 +321,33 @@ class CommunityTestCase(TestCase):
             )
             self.assertEqual(community_response.status_code, 200)
 
+        community_response = client.get(
+            "/account/communities",
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response.status_code, 200)
+        community_id = community_response.json()[2]["id"]
+
+        self.assertEqual(community_response.status_code, 200)
+        json_response = community_response.json()
+
         # check that we are throwing a 401 if they have already created an account
         community_body = dict(**mock_community_body)
         community_body["name"] = "New Name"
         community_body["description"] = "New Description"
         community_response = client.put(
-            "/account/communities/3",
+            f"/account/communities/{community_id}",
             json.dumps(community_body),
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
         self.assertEqual(community_response.status_code, 200)
         # Check that the community was updated
-        community = list(Community.objects.all())
-        self.assertEqual(len(community), 5)
-        self.assertEqual(community[2].name, "New Name")
-        self.assertEqual(community[2].description, "New Description")
+        community = Community.objects.get(pk=community_id)
+        self.assertEqual(len(list(Community.objects.all())), 5)
+        self.assertEqual(community.name, "New Name")
+        self.assertEqual(community.description, "New Description")
 
     def test_delete_community(self):
         """Test successfully deleting a community"""

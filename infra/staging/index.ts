@@ -1,50 +1,120 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
+import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
+
+import {
+  ScorerEnvironmentConfig,
+  ScorerService,
+  buildLambdaFn,
+  createIndexerService,
+  createScoreExportBucketAndDomain,
+  createScorerECSService,
+  createTargetGroup,
+  getEnvironment,
+  secrets,
+  createSharedLambdaResources,
+} from "../lib/scorer/service";
+import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
-let route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
+//////////////////////////////////////////////////////////////
+// Loading environment variables
+//////////////////////////////////////////////////////////////
+const route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
+const route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
 export const domain = `api.staging.scorer.${process.env["DOMAIN"]}`;
+export const publicDataDomain = `public.staging.scorer.${process.env["DOMAIN"]}`;
 export const publicServiceUrl = `https://${domain}`;
+const rootDomain = process.env["DOMAIN"];
 
-let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
-let dbUsername = `${process.env["DB_USER"]}`;
-let dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
-let dbName = `${process.env["DB_NAME"]}`;
-let flowerUser = `${process.env["FLOWER_USER"]}`;
-let flowerPassword = `${process.env["FLOWER_PASSWORD"]}`;
+const SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
+const RDS_SECRET_ARN = `${process.env["SCORER_RDS_SECRET_ARN"]}`;
+const dbUsername = `${process.env["DB_USER"]}`;
+const dbPassword = pulumi.secret(`${process.env["DB_PASSWORD"]}`);
+const dbName = `${process.env["DB_NAME"]}`;
+const flowerUser = `${process.env["FLOWER_USER"]}`;
+const flowerPassword = `${process.env["FLOWER_PASSWORD"]}`;
 
 export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
 export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
+
+export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
+const trustedIAMIssuer = `${process.env["TRUSTED_IAM_ISSUER"]}`;
+
+const redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
+const redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
+const redashDbName = `${process.env["REDASH_DB_NAME"]}`;
+const redashSecretKey = pulumi.secret(`${process.env["REDASH_SECRET_KEY"]}`);
+const redashMailUsername = `${process.env["REDASH_MAIL_USERNAME"]}`;
+const redashMailPassword = pulumi.secret(
+  `${process.env["REDASH_MAIL_PASSWORD"]}`
+);
 
 //////////////////////////////////////////////////////////////
 // Set up VPC
 //////////////////////////////////////////////////////////////
 
 const vpc = new awsx.ec2.Vpc("scorer", {
-  subnets: [{ type: "public" }, { type: "private", mapPublicIpOnLaunch: true }],
+  subnetSpecs: [{ type: "Public" }, { type: "Private" }],
+  numberOfAvailabilityZones: 2,
 });
 
-export const vpcID = vpc.id;
+export const vpcID = vpc.vpcId;
 export const vpcPrivateSubnetIds = vpc.privateSubnetIds;
 export const vpcPublicSubnetIds = vpc.publicSubnetIds;
-export const vpcPrivateSubnetId1 = vpcPrivateSubnetIds.then(
+export const vpcPrivateSubnetId1 = vpcPrivateSubnetIds.apply(
   (values) => values[0]
 );
-export const vpcPublicSubnetId1 = vpcPublicSubnetIds.then(
+export const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply(
   (values) => values[0]
 );
-export const vpcPrivateSubnetId2 = vpcPrivateSubnetIds.then(
+export const vpcPrivateSubnetId2 = vpcPrivateSubnetIds.apply(
   (values) => values[1]
 );
-export const vpcPublicSubnetId2 = vpcPublicSubnetIds.then(
+export const vpcPublicSubnetId2 = vpcPublicSubnetIds.apply(
   (values) => values[1]
 );
 
-export const vpcPublicSubnet1 = vpcPublicSubnetIds.then((subnets) => {
+export const vpcPublicSubnet1 = vpcPublicSubnetIds.apply((subnets) => {
   return subnets[0];
 });
+
+// This matches the default security group that awsx previously created when creating the Cluster.
+// https://github.com/pulumi/pulumi-awsx/blob/45136c540f29eb3dc6efa5b4f51cfe05ee75c7d8/awsx-classic/ecs/cluster.ts#L110
+const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
+  "private-subnet-secgrp",
+  {
+    description: "Security Group for Web Services",
+    vpcId: vpc.vpcId,
+    ingress: [
+      {
+        protocol: "TCP",
+        fromPort: 22,
+        toPort: 22,
+        cidrBlocks: ["0.0.0.0/0"],
+        description: "allow ssh in from any ipv4 address",
+      },
+      {
+        protocol: "TCP",
+        fromPort: 0,
+        toPort: 65535,
+        cidrBlocks: ["0.0.0.0/0"],
+        description: "allow incoming tcp on any port from any ipv4 address",
+      },
+    ],
+    egress: [
+      {
+        protocol: "-1",
+        fromPort: 0,
+        toPort: 0,
+        cidrBlocks: ["0.0.0.0/0"],
+        description: "allow output to any ipv4 address using any protocol",
+      },
+    ],
+  }
+);
 
 //////////////////////////////////////////////////////////////
 // Set up RDS instance
@@ -55,7 +125,7 @@ let dbSubnetGroup = new aws.rds.SubnetGroup(`scorer-db-subnet`, {
 
 const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
   description: "Security Group for DB",
-  vpcId: vpc.id,
+  vpcId: vpc.vpcId,
   ingress: [
     {
       protocol: "tcp",
@@ -81,6 +151,7 @@ const postgresql = new aws.rds.Instance(
     maxAllocatedStorage: 100,
     engine: "postgres",
     // engineVersion: "5.7",
+    // instanceClass: "db.t3.2xlarge",
     instanceClass: "db.t3.2xlarge",
     dbName: dbName,
     password: dbPassword,
@@ -91,14 +162,105 @@ const postgresql = new aws.rds.Instance(
     backupRetentionPeriod: 5,
     performanceInsightsEnabled: true,
   },
-  { protect: false }
+  { protect: true }
 );
 
+//////////////////////////////////////////////////////////////
+// Setup RDS PROXY
+//////////////////////////////////////////////////////////////
+
+const rdsProxyRole = new aws.iam.Role("scorer-proxy-role", {
+  name: "scorer-proxy-role",
+  assumeRolePolicy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Sid: "AllowRDSProxy",
+        Effect: "Allow",
+        Principal: {
+          Service: "rds.amazonaws.com",
+        },
+        Action: "sts:AssumeRole",
+      },
+    ],
+  }),
+  inlinePolicies: [
+    {
+      name: "rds-proxy-policy",
+      policy: JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Sid: "GetSecretValue",
+            Action: ["secretsmanager:GetSecretValue"],
+            Effect: "Allow",
+            Resource: [RDS_SECRET_ARN],
+          },
+          {
+            Sid: "DecryptSecretValue",
+            Action: ["kms:Decrypt"],
+            Effect: "Allow",
+            Resource: ["*"],
+            Condition: {
+              StringEquals: {
+                kmsViaService: "secretsmanager.us-west-2.amazonaws.com",
+              },
+            },
+          },
+        ],
+      }),
+    },
+  ],
+});
+
+const scorerDbProxy = new aws.rds.Proxy("scorer-db-proxy", {
+  auths: [
+    {
+      authScheme: "SECRETS",
+      description: "SecretAccess",
+      iamAuth: "DISABLED",
+      secretArn: RDS_SECRET_ARN,
+    },
+  ],
+  engineFamily: "POSTGRESQL",
+  roleArn: rdsProxyRole.arn,
+  vpcSubnetIds: vpcPrivateSubnetIds,
+  debugLogging: false,
+  idleClientTimeout: 600, // 10 minutes
+  name: "scorer-db-proxy",
+  requireTls: false,
+  vpcSecurityGroupIds: [db_secgrp.id],
+});
+
+const scorerDbProxyDefaultTargetGroup = new aws.rds.ProxyDefaultTargetGroup(
+  "scorer-default-tg",
+  {
+    dbProxyName: scorerDbProxy.name,
+    connectionPoolConfig: {
+      // connectionBorrowTimeout: 120,
+      // Just leave some connections for edge cases, when we connect directly to DB
+      maxConnectionsPercent: 98,
+      // maxIdleConnectionsPercent: 50
+    },
+  }
+);
+
+const scorerDefaultProxyTarget = new aws.rds.ProxyTarget(
+  "scorer-default-target",
+  {
+    dbInstanceIdentifier: postgresql.identifier,
+    dbProxyName: scorerDbProxy.name,
+    targetGroupName: scorerDbProxyDefaultTargetGroup.name,
+  }
+);
+
+export const scorerDbProxyEndpoint = scorerDbProxy.endpoint;
 export const rdsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
-  pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${rdsEndpoint}/${dbName}`
+  pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${scorerDbProxyEndpoint}/${dbName}`
 );
+
 export const rdsId = postgresql.id;
 
 //////////////////////////////////////////////////////////////
@@ -113,8 +275,8 @@ const redisSubnetGroup = new aws.elasticache.SubnetGroup(
 );
 
 const secgrp_redis = new aws.ec2.SecurityGroup("scorer-redis-secgrp", {
-  description: "scorer",
-  vpcId: vpc.id,
+  description: "scorer-redis-secgrp",
+  vpcId: vpc.vpcId,
   ingress: [
     {
       protocol: "tcp",
@@ -151,7 +313,7 @@ export const redisCacheOpsConnectionUrl = pulumi.interpolate`redis://${redisPrim
 // Set up ALB and ECS cluster
 //////////////////////////////////////////////////////////////
 
-const cluster = new awsx.ecs.Cluster("scorer", { vpc });
+const cluster = new aws.ecs.Cluster("scorer");
 // export const clusterInstance = cluster;
 export const clusterId = cluster.id;
 
@@ -184,34 +346,73 @@ const certificateValidation = new aws.acm.CertificateValidation(
   { customTimeouts: { create: "30s", update: "30s" } }
 );
 
-// Creates an ALB associated with our custom VPC.
-const alb = new awsx.lb.ApplicationLoadBalancer(`scorer-service`, { vpc });
+const albSecGrp = new aws.ec2.SecurityGroup(`scorer-service-alb`, {
+  description: "scorer-service-alb",
+  vpcId: vpcID,
+  ingress: [
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
+  ],
+  egress: [
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
+  ],
+});
 
-// Listen to HTTP traffic on port 80 and redirect to 443
-const httpListener = alb.createListener("web-listener", {
-  port: 80,
-  protocol: "HTTP",
-  defaultAction: {
-    type: "redirect",
-    redirect: {
-      protocol: "HTTPS",
-      port: "443",
-      statusCode: "HTTP_301",
-    },
+// Creates an ALB associated with our custom VPC.
+const alb = new aws.alb.LoadBalancer(`scorer-service`, {
+  loadBalancerType: "application",
+  internal: false,
+  securityGroups: [albSecGrp.id],
+  subnets: vpcPublicSubnetIds,
+  tags: {
+    name: "lb-scorer-service",
   },
 });
 
-// Target group with the port of the Docker image
-const target = alb.createTargetGroup("scorer-target", {
-  vpc,
+// Listen to HTTP traffic on port 80 and redirect to 443
+const httpListener = new aws.alb.Listener("scorer-http-listener", {
+  loadBalancerArn: alb.arn,
   port: 80,
-  healthCheck: { path: "/health/", unhealthyThreshold: 5 },
+  protocol: "HTTP",
+  defaultActions: [
+    {
+      type: "redirect",
+      redirect: {
+        protocol: "HTTPS",
+        port: "443",
+        statusCode: "HTTP_301",
+      },
+    },
+  ],
 });
 
-// Listen to traffic on port 443 & route it through the target group
-const httpsListener = target.createListener("scorer-listener", {
+//////////////////////////////////////////////////////////////
+// Set up the target groups
+//////////////////////////////////////////////////////////////
+// Target group with the port of the Docker image
+const targetGroupDefault = createTargetGroup("scorer-api-default", vpcID);
+const targetGroupPassport = createTargetGroup("scorer-api-passport", vpcID);
+const targetGroupRegistry = createTargetGroup("scorer-api-reg", vpcID);
+const targetGroupRegistrySubmitPassport = createTargetGroup(
+  "scorer-api-reg-sp",
+  vpcID
+);
+
+//////////////////////////////////////////////////////////////
+// Create the HTTPS listener, and set the default target group
+//////////////////////////////////////////////////////////////
+const httpsListener = new aws.alb.Listener("scorer-https-listener", {
+  loadBalancerArn: alb.arn,
+  protocol: "HTTPS",
   port: 443,
   certificateArn: certificateValidation.certificateArn,
+  defaultActions: [
+    {
+      type: "forward",
+      targetGroupArn: targetGroupDefault.arn,
+    },
+  ],
 });
 
 // Create a DNS record for the load balancer
@@ -221,8 +422,8 @@ const www = new aws.route53.Record("scorer", {
   type: "A",
   aliases: [
     {
-      name: httpsListener.endpoint.hostname,
-      zoneId: httpsListener.loadBalancer.loadBalancer.zoneId,
+      name: alb.dnsName,
+      zoneId: alb.zoneId,
       evaluateTargetHealth: true,
     },
   ],
@@ -283,109 +484,21 @@ const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
   },
 });
 
-const secrets = [
-  {
-    name: "SECRET_KEY",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:SECRET_KEY::`,
-  },
-  {
-    name: "GOOGLE_OAUTH_CLIENT_ID",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:GOOGLE_OAUTH_CLIENT_ID::`,
-  },
-  {
-    name: "GOOGLE_CLIENT_SECRET",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:GOOGLE_CLIENT_SECRET::`,
-  },
-  {
-    name: "RATELIMIT_ENABLE",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:RATELIMIT_ENABLE::`,
-  },
-  {
-    name: "TRUSTED_IAM_ISSUER",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:TRUSTED_IAM_ISSUER::`,
-  },
-  {
-    name: "CERAMIC_CACHE_SCORER_ID",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:CERAMIC_CACHE_SCORER_ID::`,
-  },
-  {
-    name: "FF_API_ANALYTICS",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_API_ANALYTICS::`,
-  },
-  {
-    name: "FF_DEDUP_WITH_LINK_TABLE",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_DEDUP_WITH_LINK_TABLE::`,
-  },
-  {
-    name: "CGRANTS_API_TOKEN",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:CGRANTS_API_TOKEN::`,
-  },
-  {
-    name: "S3_DATA_AWS_SECRET_KEY_ID",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_KEY_ID::`,
-  },
-  {
-    name: "S3_DATA_AWS_SECRET_ACCESS_KEY",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_ACCESS_KEY::`,
-  },
-  {
-    name: "S3_WEEKLY_BACKUP_BUCKET_NAME",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_WEEKLY_BACKUP_BUCKET_NAME::`,
-  },
-];
-const environment = [
-  {
-    name: "DEBUG",
-    value: "on",
-  },
-  {
-    name: "DATABASE_URL",
-    value: rdsConnectionUrl,
-  },
-  {
-    name: "READ_REPLICA_0_URL",
-    value: rdsConnectionUrl,
-  },
-  {
-    name: "UI_DOMAINS",
-    value: JSON.stringify([
-      "scorer." + process.env["DOMAIN"],
-      "www.scorer." + process.env["DOMAIN"],
-    ]),
-  },
-  {
-    name: "ALLOWED_HOSTS",
-    value: JSON.stringify([domain, "*"]),
-  },
-  {
-    name: "CSRF_TRUSTED_ORIGINS",
-    value: JSON.stringify([`https://${domain}`]),
-  },
-  {
-    name: "CELERY_BROKER_URL",
-    value: redisCacheOpsConnectionUrl,
-  },
-  {
-    name: "CERAMIC_CACHE_CACAO_VALIDATION_URL",
-    value: "http://localhost:8001/verify",
-  },
-  {
-    name: "SECURE_SSL_REDIRECT",
-    value: "off",
-  },
-  {
-    name: "SECURE_PROXY_SSL_HEADER",
-    value: JSON.stringify(["HTTP_X_FORWARDED_PROTO", "https"]),
-  },
-  {
-    name: "LOGGING_STRATEGY",
-    value: "structlog_json",
-  },
-  {
-    name: "PASSPORT_PUBLIC_URL",
-    value: "https://staging.passport.gitcoin.co/",
-  },
-];
+const envConfig: ScorerEnvironmentConfig = {
+  allowedHosts: JSON.stringify([domain, "*"]),
+  domain: domain,
+  csrfTrustedOrigins: JSON.stringify([`https://${domain}`]),
+  rdsConnectionUrl: rdsConnectionUrl,
+  redisCacheOpsConnectionUrl: redisCacheOpsConnectionUrl,
+  uiDomains: JSON.stringify([
+    "scorer." + rootDomain,
+    "www.scorer." + rootDomain,
+  ]),
+  debug: "off",
+  passportPublicUrl: "https://staging.passport.gitcoin.co/",
+};
+const environment = getEnvironment(envConfig);
+
 //////////////////////////////////////////////////////////////
 // Set up log groups for API service and worker
 //////////////////////////////////////////////////////////////
@@ -399,91 +512,207 @@ const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
 //////////////////////////////////////////////////////////////
 // Set up the Scorer ECS service
 //////////////////////////////////////////////////////////////
-const service = new awsx.ecs.FargateService("scorer", {
+const baseScorerServiceConfig: ScorerService = {
   cluster,
-  desiredCount: 1,
+  alb,
+  dockerImageScorer: dockerGtcPassportScorerImage,
+  dockerImageVerifier: dockerGtcPassportVerifierImage,
+  executionRole: dpoppEcsRole,
+  logGroup: serviceLogGroup,
   subnets: vpc.privateSubnetIds,
-  taskDefinitionArgs: {
-    logGroup: serviceLogGroup,
-    executionRole: dpoppEcsRole,
-    containers: {
-      scorer: {
-        image: dockerGtcPassportScorerImage,
-        memory: 4096,
-        cpu: 4000,
-        portMappings: [httpsListener],
-        command: [
-          "gunicorn",
-          "-w",
-          "4",
-          "-k",
-          "uvicorn.workers.UvicornWorker",
-          "scorer.asgi:application",
-          "-b",
-          "0.0.0.0:80",
-        ],
-        links: [],
-        secrets: secrets,
-        environment: environment,
-        linuxParameters: {
-          initProcessEnabled: true,
-        },
-      },
-      verifier: {
-        image: dockerGtcPassportVerifierImage,
-        memory: 512,
-        links: [],
-        portMappings: [
-          {
-            containerPort: 8001,
-            hostPort: 8001,
-          },
-        ],
-        environment: [
-          {
-            name: "VERIFIER_PORT",
-            value: "8001",
-          },
-        ],
-        linuxParameters: {
-          initProcessEnabled: true,
-        },
-      },
-    },
+  securityGroup: privateSubnetSecurityGroup,
+  needsVerifier: false,
+  httpListenerArn: httpsListener.arn,
+  targetGroup: targetGroupDefault,
+  autoScaleMinCapacity: 1,
+  autoScaleMaxCapacity: 2,
+  cpu: 512,
+  memory: 1024,
+};
+
+const scorerServiceDefault = createScorerECSService(
+  "scorer-api-default",
+  {
+    ...baseScorerServiceConfig,
+    targetGroup: targetGroupDefault,
+    memory: 2048,
+    cpu: 1024,
   },
+  envConfig
+);
+
+const scorerServiceRegistry = createScorerECSService(
+  "scorer-api-reg",
+  {
+    ...baseScorerServiceConfig,
+    listenerRulePriority: 3000,
+    httpListenerRulePaths: ["/registry/*"],
+    targetGroup: targetGroupRegistry,
+    memory: 4096,
+    cpu: 2048,
+  },
+  envConfig
+);
+
+const sharedLambdaResources = createSharedLambdaResources();
+
+const lambdaSettings = {
+  httpsListener,
+  imageUri: dockerGtcSubmitPassportLambdaImage,
+  privateSubnetSecurityGroup,
+  vpcPrivateSubnetIds,
+  environment: [
+    ...environment,
+    {
+      name: "TRUSTED_IAM_ISSUER",
+      value: trustedIAMIssuer,
+    },
+    {
+      name: "CERAMIC_CACHE_SCORER_ID",
+      value: "14",
+    },
+    {
+      name: "SCORER_SERVER_SSM_ARN",
+      value: SCORER_SERVER_SSM_ARN,
+    },
+  ],
+  ...sharedLambdaResources,
+};
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "submit-passport",
+  memorySize: 1024,
+  dockerCmd: ["aws_lambdas.submit_passport.submit_passport.handler"],
+  pathPatterns: ["/registry/submit-passport", "/registry/v2/submit-passport"],
+  listenerPriority: 2001,
 });
 
-const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
-  "scorer-autoscaling-target",
-  {
-    maxCapacity: 20,
-    minCapacity: 2,
-    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${service.service.name}`,
-    scalableDimension: "ecs:service:DesiredCount",
-    serviceNamespace: "ecs",
-  }
-);
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v1-st-bulk-POST",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
+  pathPatterns: ["/ceramic-cache/stamps/bulk"],
+  httpRequestMethods: ["POST"],
+  listenerPriority: 2002,
+});
 
-const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
-  "scorer-autoscaling-policy",
-  {
-    policyType: "TargetTrackingScaling",
-    resourceId: ecsScorerServiceAutoscalingTarget.resourceId,
-    scalableDimension: ecsScorerServiceAutoscalingTarget.scalableDimension,
-    serviceNamespace: ecsScorerServiceAutoscalingTarget.serviceNamespace,
-    targetTrackingScalingPolicyConfiguration: {
-      predefinedMetricSpecification: {
-        predefinedMetricType: "ECSServiceAverageCPUUtilization",
-      },
-      targetValue: 30,
-      scaleInCooldown: 300,
-      scaleOutCooldown: 300,
-    },
-  }
-);
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v1-st-bulk-PATCH",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_PATCH.handler"],
+  pathPatterns: ["/ceramic-cache/stamps/bulk"],
+  httpRequestMethods: ["PATCH"],
+  listenerPriority: 2003,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v1-st-bulk-DELETE",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_DELETE.handler"],
+  pathPatterns: ["/ceramic-cache/stamps/bulk"],
+  httpRequestMethods: ["DELETE"],
+  listenerPriority: 2004,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-auhenticate",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
+  pathPatterns: [
+    "/ceramic-cache/authenticate",
+    "/ceramic-cache/v2/authenticate",
+  ],
+  httpRequestMethods: ["POST"],
+  listenerPriority: 2005,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v1-score-POST",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
+  pathPatterns: ["/ceramic-cache/score/*", "/ceramic-cache/v2/score/*"],
+  httpRequestMethods: ["POST"],
+  listenerPriority: 2006,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v1-score-GET",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
+  pathPatterns: ["/ceramic-cache/score/*", "/ceramic-cache/v2/score/*"],
+  httpRequestMethods: ["GET"],
+  listenerPriority: 2007,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-weights-GET",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
+  pathPatterns: ["/ceramic-cache/weights", "/ceramic-cache/v2/weights"],
+  httpRequestMethods: ["GET"],
+  listenerPriority: 2015,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v1-st-GET",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamp_GET.handler"],
+  pathPatterns: ["/ceramic-cache/stamp"],
+  httpRequestMethods: ["GET"],
+  listenerPriority: 2010,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v2-st-bulk-POST",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_POST.handler"],
+  pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
+  httpRequestMethods: ["POST"],
+  listenerPriority: 2011,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v2-st-bulk-PATCH",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_PATCH.handler"],
+  pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
+  httpRequestMethods: ["PATCH"],
+  listenerPriority: 2012,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v2-st-bulk-DELETE",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_DELETE.handler"],
+  pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
+  httpRequestMethods: ["DELETE"],
+  listenerPriority: 2013,
+});
+
+buildLambdaFn({
+  ...lambdaSettings,
+  name: "cc-v2-st-GET",
+  memorySize: 512,
+  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamp_GET.handler"],
+  pathPatterns: ["/ceramic-cache/v2/stamp"],
+  httpRequestMethods: ["GET"],
+  listenerPriority: 2014,
+});
 
 //////////////////////////////////////////////////////////////
-// Set up the Celery Worker Secrvice
+// Set up the Celery Worker Service
 //////////////////////////////////////////////////////////////
 const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
   assumeRolePolicy: JSON.stringify({
@@ -540,340 +769,9 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
   },
 });
 
-const celery1 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-registry", {
-  cluster,
-  desiredCount: 0,
-  subnets: vpc.privateSubnetIds,
-  taskDefinitionArgs: {
-    logGroup: workerLogGroup,
-    executionRole: workerRole,
-    cpu: "16vCPU",
-    memory: "32GB",
-    containers: {
-      worker1: {
-        image: dockerGtcPassportScorerImage,
-        command: [
-          "celery",
-          "-A",
-          "scorer",
-          "worker",
-          "-Q",
-          "score_registry_passport",
-          "-l",
-          "DEBUG",
-          "-c",
-          "32",
-        ],
-        portMappings: [],
-        secrets: secrets,
-        environment: environment,
-        dependsOn: [],
-        links: [],
-      },
-    },
-  },
-});
-
-const ecsScorerWorker1AutoscalingTarget = new aws.appautoscaling.Target(
-  "scorer-worker1-autoscaling-target",
-  {
-    maxCapacity: 4,
-    minCapacity: 0,
-    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celery1.service.name}`,
-    scalableDimension: "ecs:service:DesiredCount",
-    serviceNamespace: "ecs",
-  }
-);
-
-const ecsScorerWorker1Autoscaling = new aws.appautoscaling.Policy(
-  "scorer-worker1-autoscaling-policy",
-  {
-    policyType: "TargetTrackingScaling",
-    resourceId: ecsScorerWorker1AutoscalingTarget.resourceId,
-    scalableDimension: ecsScorerWorker1AutoscalingTarget.scalableDimension,
-    serviceNamespace: ecsScorerWorker1AutoscalingTarget.serviceNamespace,
-    targetTrackingScalingPolicyConfiguration: {
-      predefinedMetricSpecification: {
-        predefinedMetricType: "ECSServiceAverageCPUUtilization",
-      },
-      targetValue: 30,
-      scaleInCooldown: 300,
-      scaleOutCooldown: 300,
-    },
-  }
-);
-
-const celery2 = new awsx.ecs.FargateService("scorer-bkgrnd-worker-passport", {
-  cluster,
-  desiredCount: 1,
-  subnets: vpc.privateSubnetIds,
-  taskDefinitionArgs: {
-    executionRole: workerRole,
-    containers: {
-      worker1: {
-        image: dockerGtcPassportScorerImage,
-        command: [
-          "celery",
-          "-A",
-          "scorer",
-          "worker",
-          "-Q",
-          "score_passport_passport",
-          "-l",
-          "DEBUG",
-        ],
-        memory: 4096,
-        cpu: 2000,
-        portMappings: [],
-        secrets: secrets,
-        environment: environment,
-        dependsOn: [],
-        links: [],
-      },
-    },
-  },
-});
-
-const ecsScorerWorker2AutoscalingTarget = new aws.appautoscaling.Target(
-  "scorer-worker2-autoscaling-target",
-  {
-    maxCapacity: 400,
-    minCapacity: 2,
-    resourceId: pulumi.interpolate`service/${cluster.cluster.name}/${celery2.service.name}`,
-    scalableDimension: "ecs:service:DesiredCount",
-    serviceNamespace: "ecs",
-  }
-);
-
-const ecsScorerWorker2Autoscaling = new aws.appautoscaling.Policy(
-  "scorer-worker2-autoscaling-policy",
-  {
-    policyType: "TargetTrackingScaling",
-    resourceId: ecsScorerWorker2AutoscalingTarget.resourceId,
-    scalableDimension: ecsScorerWorker2AutoscalingTarget.scalableDimension,
-    serviceNamespace: ecsScorerWorker2AutoscalingTarget.serviceNamespace,
-    targetTrackingScalingPolicyConfiguration: {
-      predefinedMetricSpecification: {
-        predefinedMetricType: "ECSServiceAverageCPUUtilization",
-      },
-      targetValue: 30,
-      scaleInCooldown: 300,
-      scaleOutCooldown: 300,
-    },
-  }
-);
-
-// Flower
-
-// Generate an SSL certificate
-const flowerCertificate = new aws.acm.Certificate("flower", {
-  domainName: "flower." + domain,
-  tags: {
-    Environment: "staging",
-  },
-  validationMethod: "DNS",
-});
-
-const flowerCertificateValidationDomain = new aws.route53.Record(
-  `flower.${domain}-validation`,
-  {
-    name: flowerCertificate.domainValidationOptions[0].resourceRecordName,
-    zoneId: route53Zone,
-    type: flowerCertificate.domainValidationOptions[0].resourceRecordType,
-    records: [flowerCertificate.domainValidationOptions[0].resourceRecordValue],
-    ttl: 600,
-  }
-);
-
-const flowerCertificateValidation = new aws.acm.CertificateValidation(
-  "flowerCertificateValidation",
-  {
-    certificateArn: flowerCertificate.arn,
-    validationRecordFqdns: [flowerCertificateValidationDomain.fqdn],
-  },
-  { customTimeouts: { create: "30s", update: "30s" } }
-);
-
-// Creates an ALB associated with our custom VPC.
-const flowerAlb = new awsx.lb.ApplicationLoadBalancer(`flower-service`, {
-  vpc,
-});
-
-// Listen to HTTP traffic on port 80 and redirect to 443
-const flowerHttpListener = flowerAlb.createListener("flower-listener", {
-  port: 80,
-  protocol: "HTTP",
-  defaultAction: {
-    type: "redirect",
-    redirect: {
-      protocol: "HTTPS",
-      port: "443",
-      statusCode: "HTTP_301",
-    },
-  },
-});
-
-// Target group with the port of the Docker image
-const flowerTarget = flowerAlb.createTargetGroup("flower-target", {
-  vpc,
-  port: 5555,
-  protocol: "HTTP",
-  healthCheck: { path: "/healthcheck", unhealthyThreshold: 5 },
-});
-
-// Listen to traffic on port 443 & route it through the target group
-const flowerHttpsListener = flowerTarget.createListener("flower-listener", {
-  port: 443,
-  certificateArn: flowerCertificate.arn,
-});
-
-const flowerRecord = new aws.route53.Record("flower", {
-  zoneId: route53Zone,
-  name: "flower." + domain,
-  type: "A",
-  aliases: [
-    {
-      name: flowerHttpsListener.endpoint.hostname,
-      zoneId: flowerHttpsListener.loadBalancer.loadBalancer.zoneId,
-      evaluateTargetHealth: true,
-    },
-  ],
-});
-
-const flower = new awsx.ecs.FargateService("flower", {
-  cluster,
-  desiredCount: 1,
-  taskDefinitionArgs: {
-    containers: {
-      celery: {
-        image: "mher/flower",
-        command: ["celery", "flower", "-A", "taskapp", "--port=5555"],
-        memory: 4096,
-        cpu: 2000,
-        portMappings: [flowerHttpsListener],
-        environment: [
-          {
-            name: "BROKER_URL",
-            value: redisCacheOpsConnectionUrl,
-          },
-          {
-            name: "FLOWER_BASIC_AUTH",
-            value: flowerUser + ":" + flowerPassword,
-          },
-        ],
-        dependsOn: [],
-        links: [],
-      },
-    },
-  },
-});
-
-//////////////////////////////////////////////////////////////
-// ECS Scheduled Task
-//////////////////////////////////////////////////////////////
-// const weeklyDataDump = new awsx.ecs.FargateTaskDefinition("weekly-data-dump", {
-//   containers: {
-//     web: {
-//       image: dockerGtcPassportScorerImage,
-//       cpu: 256,
-//       memory: 2048,
-//       secrets,
-//       command: ["python", "manage.py", "dump_stamp_data"],
-//     },
-//   },
-// });
-
-// const scheduledEventRule = new aws.cloudwatch.EventRule("scheduledEventRule", {
-//   scheduleExpression: "rate(1 minute)", // Run the task every day at 12pm.
-// });
-
-// new aws.cloudwatch.EventTarget("scheduledEventTarget", {
-//   rule: scheduledEventRule.name,
-//   arn: cluster.cluster.arn,
-//   ecsTarget: {
-//     taskCount: 1,
-//     taskDefinitionArn: weeklyDataDump.taskDefinition.arn,
-//     launchType: "FARGATE",
-//     networkConfiguration: {
-//       subnets: vpc.publicSubnetIds,
-//       securityGroups: [cluster.securityGroups[0].id],
-//     },
-//   },
-// });
-
-//////////////////////////////////////////////////////////////
-// Set up task to run migrations
-//////////////////////////////////////////////////////////////
-const taskMigrate = new awsx.ecs.FargateTaskDefinition(`scorer-run-migrate`, {
-  executionRole: dpoppEcsRole,
-  containers: {
-    web: {
-      image: dockerGtcPassportScorerImage,
-      command: ["python", "manage.py", "migrate"],
-      memory: 4096,
-      cpu: 2000,
-      portMappings: [],
-      secrets: secrets.concat([
-        {
-          name: "DJANGO_SUPERUSER_USERNAME",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_USERNAME::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_EMAIL",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_EMAIL::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_PASSWORD",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_PASSWORD::`,
-        },
-      ]),
-      environment: environment,
-      dependsOn: [],
-      links: [],
-    },
-  },
-});
-
-export const taskMigrateDefinition = taskMigrate.taskDefinition.id;
-
-//////////////////////////////////////////////////////////////
-// Set up task to create superuser
-//////////////////////////////////////////////////////////////
-const task = new awsx.ecs.FargateTaskDefinition(`scorer-run-createsuperuser`, {
-  executionRole: dpoppEcsRole,
-  containers: {
-    web: {
-      image: dockerGtcPassportScorerImage,
-      command: ["python", "manage.py", "createsuperuser", "--noinput"],
-      memory: 4096,
-      cpu: 2000,
-      portMappings: [],
-      secrets: secrets.concat([
-        {
-          name: "DJANGO_SUPERUSER_USERNAME",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_USERNAME::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_EMAIL",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_EMAIL::`,
-        },
-        {
-          name: "DJANGO_SUPERUSER_PASSWORD ",
-          valueFrom: `${SCORER_SERVER_SSM_ARN}:DJANGO_SUPERUSER_PASSWORD::`,
-        },
-      ]),
-      environment: environment,
-      dependsOn: [],
-      links: [],
-    },
-  },
-});
-
-export const taskDefinition = task.taskDefinition.id;
-
 const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
   description: "gitcoin-ecs-task",
-  vpcId: vpc.id,
+  vpcId: vpcID,
   ingress: [
     { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] },
     { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
@@ -944,20 +842,333 @@ echo $(date) "Finished installation of docker" >> /var/log/gitcoin/init.log
 const web = new aws.ec2.Instance("Web", {
   ami: ubuntu.then((ubuntu) => ubuntu.id),
   associatePublicIpAddress: true,
-  instanceType: "t3.medium",
-  subnetId: vpcPublicSubnetId1.then(),
-
+  instanceType: "t3.small",
+  subnetId: vpcPublicSubnetId1,
   vpcSecurityGroupIds: [secgrp.id],
   rootBlockDevice: {
     volumeSize: 50,
   },
   tags: {
-    Name: "Passport Scorer - troubleshooting instance",
+    name: "Passport Scorer - troubleshooting instance",
   },
   userData: ec2InitScript,
 });
 
 export const ec2PublicIp = web.publicIp;
 export const dockrRunCmd = pulumi.secret(
-  pulumi.interpolate`docker run -it -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
+  pulumi.interpolate`docker run -it -e CERAMIC_CACHE_SCORER_ID=1 -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
+
+///////////////////////
+// Redash instance
+///////////////////////
+
+const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp`, {
+  description: "Security Group for DB",
+  vpcId: vpcID,
+  ingress: [
+    {
+      protocol: "tcp",
+      fromPort: 5432,
+      toPort: 5432,
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+  egress: [
+    {
+      protocol: "-1",
+      fromPort: 0,
+      toPort: 0,
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+});
+
+// Create an RDS instance
+const redashDb = new aws.rds.Instance(
+  "redash-db",
+  {
+    allocatedStorage: 20,
+    maxAllocatedStorage: 20,
+    engine: "postgres",
+    engineVersion: "13.10",
+    instanceClass: "db.t3.micro",
+    dbName: redashDbName,
+    password: redashDbPassword,
+    username: redashDbUsername,
+    skipFinalSnapshot: true,
+    dbSubnetGroupName: dbSubnetGroup.id,
+    vpcSecurityGroupIds: [redashDbSecgrp.id],
+    backupRetentionPeriod: 5,
+    performanceInsightsEnabled: true,
+  },
+  { protect: true }
+);
+
+const dbUrl = redashDb.endpoint;
+export const redashDbUrl = pulumi.secret(
+  pulumi.interpolate`postgresql://${redashDbUsername}:${redashDbPassword}@${dbUrl}/${redashDbName}`
+);
+
+const redashSecurityGroup = new aws.ec2.SecurityGroup(
+  "redashServerSecurityGroup",
+  {
+    vpcId: vpcID,
+    ingress: [
+      {
+        protocol: "tcp",
+        fromPort: 443,
+        toPort: 443,
+        cidrBlocks: ["0.0.0.0/0"],
+      }, // IPv4 HTTPS
+      { protocol: "tcp", fromPort: 443, toPort: 443, ipv6CidrBlocks: ["::/0"] }, // IPv6 HTTPS
+      { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 SSH
+      { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] }, // IPv4 HTTP
+      { protocol: "tcp", fromPort: 80, toPort: 80, ipv6CidrBlocks: ["::/0"] }, // IPv6 HTTP
+      {
+        protocol: "tcp",
+        fromPort: 5000,
+        toPort: 5000,
+        cidrBlocks: ["0.0.0.0/0"],
+      }, // IPv4 Custom TCP 5000
+      {
+        protocol: "tcp",
+        fromPort: 5000,
+        toPort: 5000,
+        ipv6CidrBlocks: ["::/0"],
+      }, // IPv6 Custom TCP 5000
+    ],
+    egress: [
+      {
+        protocol: "-1",
+        fromPort: 0,
+        toPort: 0,
+        cidrBlocks: ["0.0.0.0/0"],
+      },
+    ],
+  }
+);
+
+const redashInitScript = redashDbUrl.apply((url) =>
+  redashSecretKey.apply((secretKey) =>
+    redashDbPassword.apply((dbPassword) =>
+      redashMailPassword.apply(
+        (mailPassword) =>
+          `#!/bin/bash
+          echo "Setting environment variables..."
+          export POSTGRES_PASSWORD="${dbPassword}"
+          export REDASH_DATABASE_URL="${url}"
+          export REDASH_SECRET_KEY="${secretKey}"
+          export REDASH_MAIL_USERNAME="${redashMailUsername}"
+          export REDASH_MAIL_PASSWORD="${mailPassword}"
+          export REDASH_HOST="https://redash.api.staging.scorer.gitcoin.co"
+          export REDASH_MAIL_DEFAULT_SENDER="passport+redash_staging@gitcoin.co"
+
+          echo "Cloning passport-redash repository..."
+          git clone https://github.com/gitcoinco/passport-redash.git
+
+          echo "Changing directory and setting permissions..."
+          cd passport-redash
+          sudo chmod +x ./setup.sh
+          ./setup.sh
+
+          cd data
+
+          sudo docker-compose up -d
+          `
+      )
+    )
+  )
+);
+
+const redashinstance = new aws.ec2.Instance("redashinstance", {
+  ami: ubuntu.then((ubuntu) => ubuntu.id),
+  associatePublicIpAddress: true,
+  instanceType: "t3.small",
+  subnetId: vpcPublicSubnetId2,
+  rootBlockDevice: {
+    volumeSize: 50,
+  },
+  tags: {
+    name: "Redash Analytics",
+  },
+  userData: redashInitScript,
+  vpcSecurityGroupIds: [redashSecurityGroup.id],
+});
+
+// Generate an SSL certificate
+const redashCertificate = new aws.acm.Certificate("redash", {
+  domainName: "redash." + domain,
+  tags: {
+    Environment: "staging",
+  },
+  validationMethod: "DNS",
+});
+
+const redashCertificateValidationDomain = new aws.route53.Record(
+  `redash.${domain}-validation`,
+  {
+    name: redashCertificate.domainValidationOptions[0].resourceRecordName,
+    zoneId: route53Zone,
+    type: redashCertificate.domainValidationOptions[0].resourceRecordType,
+    records: [redashCertificate.domainValidationOptions[0].resourceRecordValue],
+    ttl: 600,
+  }
+);
+
+const redashCertificateValidation = new aws.acm.CertificateValidation(
+  "redashCertificateValidation",
+  {
+    certificateArn: redashCertificate.arn,
+    validationRecordFqdns: [redashCertificateValidationDomain.fqdn],
+  },
+  { customTimeouts: { create: "30s", update: "30s" } }
+);
+
+const redashAlbSecGrp = new aws.ec2.SecurityGroup(`redash-service-alb`, {
+  description: "redash-service-alb",
+  vpcId: vpcID,
+  ingress: [
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
+  ],
+  egress: [
+    { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
+  ],
+});
+
+// Creates an ALB associated with our custom VPC.
+const redashAlb = new aws.alb.LoadBalancer(`redash-service`, {
+  loadBalancerType: "application",
+  internal: false,
+  securityGroups: [redashAlbSecGrp.id],
+  subnets: vpcPublicSubnetIds,
+  tags: {
+    name: "lb-redash-service",
+  },
+});
+
+// Listen to HTTP traffic on port 80 and redirect to 443
+const redashHttpListener = new aws.alb.Listener("redash-http-listener", {
+  loadBalancerArn: redashAlb.arn,
+  port: 80,
+  protocol: "HTTP",
+  defaultActions: [
+    {
+      type: "redirect",
+      redirect: {
+        protocol: "HTTPS",
+        port: "443",
+        statusCode: "HTTP_301",
+      },
+    },
+  ],
+});
+
+// Target group with the port of the UI
+const redashTarget = new aws.alb.TargetGroup("redash-target", {
+  vpcId: vpcID,
+  targetType: "ip",
+  port: 80,
+  protocol: "HTTP",
+  healthCheck: { path: "/ping", unhealthyThreshold: 5 },
+});
+
+// Listen to traffic on port 443 & route it through the target group
+const redashHttpsListener = new aws.alb.Listener("redash-https-listener", {
+  loadBalancerArn: redashAlb.arn,
+  protocol: "HTTPS",
+  port: 443,
+  certificateArn: redashCertificate.arn,
+  defaultActions: [
+    {
+      type: "forward",
+      targetGroupArn: redashTarget.arn,
+    },
+  ],
+});
+
+const redashRecord = new aws.route53.Record("redash", {
+  zoneId: route53Zone,
+  name: "redash." + domain,
+  type: "A",
+  aliases: [
+    {
+      name: redashAlb.dnsName,
+      zoneId: redashAlb.zoneId,
+      evaluateTargetHealth: true,
+    },
+  ],
+});
+
+new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
+  targetId: redashinstance.privateIp,
+  targetGroupArn: redashTarget.arn,
+});
+
+// export const weeklyDataDumpTaskDefinition = createScheduledTask(
+//   "weekly-data-dump",
+//   {
+//     ...baseScorerServiceConfig,
+//     securityGroup: secgrp,
+//     command: "python manage.py dump_stamp_data",
+//     scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
+//   },
+//   envConfig
+// );
+
+// export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
+//   "frequent-allo-scorer-data-dump",
+//   {
+//     ...baseScorerServiceConfig,
+//     securityGroup: secgrp,
+//     command: [
+//       "python",
+//       "manage.py",
+//       "scorer_dump_data",
+//       "--config",
+//       JSON.stringify([
+//         {
+//           name: "registry.Score",
+//           filter: { community_id: 14 },
+//           select_related: ["passport"],
+//         },
+//       ]),
+
+//       `--s3-uri=s3://public.${domain}`,
+//       "--summary-extra-args",
+//       JSON.stringify({ ACL: "public-read" }),
+//     ].join(" "),
+
+//     scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+//   },
+//   envConfig
+// );
+
+const exportVals = createScoreExportBucketAndDomain(
+  publicDataDomain,
+  route53ZoneForPublicData
+);
+
+const pagerdutyTopic = new aws.sns.Topic("pagerduty", {
+  name: "Pagerduty",
+  tracingConfig: "PassThrough",
+});
+
+const rdsConnectionConfig = {
+  dbUsername,
+  dbPassword,
+  dbName,
+  dbHost: scorerDbProxyEndpoint,
+  dbPort: String(5432),
+};
+
+createIndexerService({
+  rdsConnectionConfig,
+  cluster,
+  vpc,
+  privateSubnetSecurityGroup,
+  workerRole,
+  alertTopic: pagerdutyTopic,
+});

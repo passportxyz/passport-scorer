@@ -8,6 +8,8 @@ from urllib.parse import unquote, urlencode
 import api_logging as logging
 import didkit
 from django.conf import settings
+from django.db.models import Q
+from django.forms.models import model_to_dict
 from django.shortcuts import render
 from django.urls import reverse_lazy
 from eth_account.messages import encode_defunct
@@ -138,18 +140,131 @@ def permissions_required(permission_classes):
     return decorator
 
 
-def encode_cursor(direction: str, id: int) -> str:
-    token = f"{direction}__{id}"
-    encoded_bytes = base64.urlsafe_b64encode(token.encode("ascii"))
-    return encoded_bytes.decode("ascii")
+def encode_cursor(**kwargs) -> str:
+    encoded_bytes = base64.urlsafe_b64encode(json.dumps(dict(**kwargs)).encode("utf-8"))
+    return encoded_bytes
 
 
-def decode_cursor(token: str) -> Tuple[str, int]:
-    token = unquote(token)
-    decoded_bytes = base64.urlsafe_b64decode(token.encode("ascii"))
-    direction, id = decoded_bytes.decode("ascii").split("__")
-    return direction, int(id)
+def decode_cursor(token: str) -> dict:
+    if token:
+        return json.loads(base64.urlsafe_b64decode(token).decode("utf-8"))
+    return {}
 
 
 def get_utc_time():
     return datetime.now(timezone.utc)
+
+
+def get_cursor_tokens_for_results(
+    base_query, domain, scores, sort_fields, limit, http_query_args, endpoint
+):
+    prev_url = None
+    next_url = None
+    has_more_scores = None
+    has_prev_scores = None
+
+    if scores:
+        prev_values = model_to_dict(scores[0])
+        next_values = model_to_dict(scores[-1])
+
+        next_cursor = dict(
+            d="next",
+        )
+        prev_cursor = dict(
+            d="prev",
+        )
+
+        for field_name in sort_fields:
+            next_cursor[field_name] = next_values[field_name]
+            prev_cursor[field_name] = prev_values[field_name]
+
+        next_filter_cond, _ = get_cursor_query_condition(next_cursor, sort_fields)
+        prev_filter_cond, _ = get_cursor_query_condition(prev_cursor, sort_fields)
+
+        has_more_scores = base_query.filter(next_filter_cond).exists()
+        has_prev_scores = base_query.filter(prev_filter_cond).exists()
+
+    next_url = (
+        f"""{domain}{reverse_lazy_with_query(
+            f"registry_v2:{endpoint}",
+            args=http_query_args,
+            query_kwargs={"token": encode_cursor(**next_cursor), "limit": limit},
+        )}"""
+        if has_more_scores
+        else None
+    )
+
+    prev_url = (
+        f"""{domain}{reverse_lazy_with_query(
+            f"registry_v2:{endpoint}",
+            args=http_query_args,
+            query_kwargs={"token": encode_cursor(**prev_cursor), "limit": limit},
+        )}"""
+        if has_prev_scores
+        else None
+    )
+
+    return {
+        "prev": prev_url,
+        "next": next_url,
+    }
+
+
+def get_cursor_query_condition(cursor, sort_fields):
+    """
+    This function will decode a cursor and return a query condition and ordering condition.
+    The last values for all 3 sort fields are expected to be present in the cursor.
+
+    Assuming the the sort fields are a, b and c the query condition constructed will be the equivalent of this SQL WHERE clause:
+
+    WHERE (a > cursor_a)
+    OR (a = cursor_a AND b > cursor_b)
+    OR (a = cursor_a AND b = cursor_b AND c > cursor_c)
+
+    This will take into account that values a, b and c can have duplicates, but that the combination of these 3 is always unique,
+    and cand be used as an key for paginating when the records are sorted by these values.
+
+    The field_ordering will be the same for all fields, and is only influenced by the direction of the pagination.
+    """
+    if cursor is None:
+        return (Q(), [f"-{field}" for field in sort_fields])
+
+    is_next = cursor["d"] == "next"
+    filter_condition = Q()
+
+    if is_next:
+        for i in range(len(sort_fields)):
+            condition_for_or = Q()
+            for j in range(i + 1):
+                if i == j:
+                    cursor_value = cursor.get(sort_fields[j], None)
+                    if cursor_value is not None:
+                        condition_for_or &= Q(
+                            **{f"{sort_fields[j]}__gt": cursor[sort_fields[j]]}
+                        )
+                else:
+                    condition_for_or &= Q(
+                        **{f"{sort_fields[j]}__gte": cursor[sort_fields[j]]}
+                    )
+
+            filter_condition |= condition_for_or
+    else:
+        for i in range(len(sort_fields)):
+            condition_for_or = Q()
+            for j in range(i + 1):
+                if i == j:
+                    cursor_value = cursor.get(sort_fields[j], None)
+                    if cursor_value is not None:
+                        condition_for_or &= Q(
+                            **{f"{sort_fields[j]}__lt": cursor[sort_fields[j]]}
+                        )
+                else:
+                    condition_for_or &= Q(
+                        **{f"{sort_fields[j]}__lte": cursor[sort_fields[j]]}
+                    )
+
+            filter_condition |= condition_for_or
+
+    field_ordering = [f"{'-' if not is_next else ''}{field}" for field in sort_fields]
+
+    return (filter_condition, field_ordering)

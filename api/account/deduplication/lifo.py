@@ -23,7 +23,7 @@ async def alifo(
     tries_remaining = 5
     while True:
         try:
-            return await run_correct_alifo_version(community, lifo_passport, address)
+            return await arun_lifo_dedup(community, lifo_passport, address)
         except HashScorerLinkIntegrityError:
             tries_remaining -= 1
             # If we get integrity errors from trying to create
@@ -34,102 +34,7 @@ async def alifo(
                 raise
 
 
-# TODO once this is fully released, we can
-# 1. remove the _stamp_table function, the FF, and the update function below
-# 2. rename the _link_table function
-async def run_correct_alifo_version(
-    community: Community, lifo_passport: dict, address: str
-) -> Tuple[dict, list | None]:
-    if settings.FF_DEDUP_WITH_LINK_TABLE == "on":
-        return await alifo_with_link_table(community, lifo_passport, address)
-    else:
-        return await alifo_with_stamp_table(community, lifo_passport, address)
-
-
-# --> LIFO deduplication
-async def alifo_with_stamp_table(
-    community: Community, lifo_passport: dict, address: str
-) -> Tuple[dict, list | None]:
-    deduped_passport = copy.deepcopy(lifo_passport)
-    deduped_passport["stamps"] = []
-
-    if "stamps" in lifo_passport:
-        stamp_hashes = [
-            stamp["credential"]["credentialSubject"]["hash"]
-            for stamp in lifo_passport["stamps"]
-        ]
-
-        clashing_stamps = (
-            Stamp.objects.filter(hash__in=stamp_hashes, passport__community=community)
-            .exclude(passport__address=address)
-            .values("hash", "passport__address", "provider")
-        )
-
-        clashing_hashes = {stamp["hash"] async for stamp in clashing_stamps}
-
-        existing_hash_links = HashScorerLink.objects.filter(
-            hash__in=stamp_hashes, community=community
-        )
-
-        hash_links_to_create = []
-        hash_links_to_update = []
-
-        for stamp in lifo_passport["stamps"]:
-            hash = stamp["credential"]["credentialSubject"]["hash"]
-            expires_at = stamp["credential"]["expirationDate"]
-
-            if hash not in clashing_hashes:
-                deduped_passport["stamps"].append(copy.deepcopy(stamp))
-
-                done = False
-                async for hash_link in existing_hash_links:
-                    if hash_link.hash == hash:
-                        # Update without checking the address or
-                        # expiration date, we're just trying to capture
-                        # this data in the new table without applying the
-                        # new deduplication logic
-                        hash_link.address = address
-                        hash_link.expires_at = expires_at
-                        hash_links_to_update.append(hash_link)
-                        done = True
-                        break
-
-                if not done:
-                    hash_links_to_create.append(
-                        HashScorerLink(
-                            hash=hash,
-                            address=address,
-                            community=community,
-                            expires_at=expires_at,
-                        )
-                    )
-
-        await save_hash_links(
-            hash_links_to_create, hash_links_to_update, address, community
-        )
-
-        if clashing_stamps.aexists():
-            await Event.objects.abulk_create(
-                [
-                    Event(
-                        action=Event.Action.LIFO_DEDUPLICATION,
-                        address=address,
-                        data={
-                            "hash": stamp["hash"],
-                            "provider": stamp["provider"],
-                            "owner": stamp["passport__address"],
-                            "address": address,
-                            "community_id": community.pk,
-                        },
-                    )
-                    async for stamp in clashing_stamps
-                ]
-            )
-
-    return (deduped_passport, None)
-
-
-async def alifo_with_link_table(
+async def arun_lifo_dedup(
     community: Community, lifo_passport: dict, address: str
 ) -> Tuple[dict, list | None]:
     deduped_passport = copy.deepcopy(lifo_passport)
@@ -256,35 +161,3 @@ async def save_hash_links(
             hash__in=(updated_hashes + created_hashes),
         ).acount() != len(hash_links_to_update) + len(hash_links_to_create):
             raise HashScorerLinkIntegrityError("Unexpected number of HashScorerLinks")
-
-
-# TODO this can be deleted in the next release
-def update_to_be_run_once_manually():
-    import dateutil.parser
-    from django.core.paginator import Paginator
-
-    now = get_utc_time()
-    paginator = Paginator(Stamp.objects.select_related("passport").all(), 1000)
-
-    for page in paginator.page_range:
-        print(f"Page {page} of {paginator.num_pages}")
-        hash_links = [
-            HashScorerLink(
-                hash=stamp.hash,
-                address=stamp.passport.address,
-                community=stamp.passport.community,
-                expires_at=stamp.credential["expirationDate"],
-            )
-            for stamp in paginator.page(page).object_list
-            if dateutil.parser.isoparse(stamp.credential["expirationDate"]) > now
-        ]
-        HashScorerLink.objects.bulk_create(hash_links, ignore_conflicts=True)
-
-
-## 1. Migrate to create table
-## 2. Update code which writes to new table without respecting new rules for dedup
-##    This is just to support new stamps that come in while the update is running
-## 3. Populate with historical data, ignoring lines that fail uniqueness constraints
-##    If there's a uniqueness issue, this user has used the same hash with multiple addresses
-##    and a random one of them will end up with the stamp
-## 4. Turn on FF to use new dedup logic

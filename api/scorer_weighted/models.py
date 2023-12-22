@@ -1,5 +1,6 @@
 # TODO: remove pylint skip once circular dependency removed
 # pylint: disable=import-outside-toplevel
+import json
 from decimal import Decimal
 from typing import List, Optional, Union
 
@@ -37,10 +38,14 @@ class ScoreData:
     # do multiple evidence types like:
     # Optional[List[Union[ThresholdScoreEvidence, RequiredStampEvidence]]]
     def __init__(
-        self, score: Decimal, evidence: Optional[List[ThresholdScoreEvidence]]
+        self,
+        score: Decimal,
+        evidence: Optional[List[ThresholdScoreEvidence]],
+        points: dict,
     ):
         self.score = score
         self.evidence = evidence
+        self.stamp_scores = points
 
     def __repr__(self):
         return f"ScoreData(score={self.score}, evidence={self.evidence})"
@@ -91,8 +96,24 @@ class WeightedScorer(Scorer):
         from .computation import calculate_weighted_score
 
         return [
-            ScoreData(score=s, evidence=None)
+            ScoreData(
+                score=s["sum_of_weights"], evidence=None, points=s["earned_points"]
+            )
             for s in calculate_weighted_score(self, passport_ids)
+        ]
+
+    def recompute_score(self, passport_ids, stamps) -> List[ScoreData]:
+        """
+        Compute the weighted score for the passports identified by `ids`
+        Note: the `ids` are not validated. The caller shall ensure that these are indeed proper IDs, from the correct community
+        """
+        from .computation import recalculate_weighted_score
+
+        return [
+            ScoreData(
+                score=s["sum_of_weights"], evidence=None, points=s["earned_points"]
+            )
+            for s in recalculate_weighted_score(self, passport_ids, stamps)
         ]
 
     async def acompute_score(self, passport_ids) -> List[ScoreData]:
@@ -103,7 +124,12 @@ class WeightedScorer(Scorer):
         from .computation import acalculate_weighted_score
 
         scores = await acalculate_weighted_score(self, passport_ids)
-        return [ScoreData(score=s, evidence=None) for s in scores]
+        return [
+            ScoreData(
+                score=s["sum_of_weights"], evidence=None, points=s["earned_points"]
+            )
+            for s in scores
+        ]
 
     def __str__(self):
         return f"WeightedScorer #{self.id}"
@@ -126,7 +152,8 @@ class BinaryWeightedScorer(Scorer):
 
         rawScores = calculate_weighted_score(self, passport_ids)
         binaryScores = [
-            Decimal(1) if s >= self.threshold else Decimal(0) for s in rawScores
+            Decimal(1) if s["sum_of_weights"] >= self.threshold else Decimal(0)
+            for s in rawScores
         ]
 
         return list(
@@ -136,10 +163,42 @@ class BinaryWeightedScorer(Scorer):
                     evidence=[
                         ThresholdScoreEvidence(
                             threshold=Decimal(str(self.threshold)),
-                            rawScore=Decimal(rawScore),
+                            rawScore=Decimal(rawScore["sum_of_weights"]),
                             success=bool(binaryScore),
                         )
                     ],
+                    points=rawScore["earned_points"],
+                ),
+                rawScores,
+                binaryScores,
+            )
+        )
+
+    def recompute_score(self, passport_ids, stamps) -> List[ScoreData]:
+        """
+        Compute the weighted score for the passports identified by `ids`
+        Note: the `ids` are not validated. The caller shall ensure that these are indeed proper IDs, from the correct community
+        """
+        from .computation import recalculate_weighted_score
+
+        rawScores = recalculate_weighted_score(self, passport_ids, stamps)
+        binaryScores = [
+            Decimal(1) if s["sum_of_weights"] >= self.threshold else Decimal(0)
+            for s in rawScores
+        ]
+
+        return list(
+            map(
+                lambda rawScore, binaryScore: ScoreData(
+                    score=binaryScore,
+                    evidence=[
+                        ThresholdScoreEvidence(
+                            threshold=Decimal(str(self.threshold)),
+                            rawScore=Decimal(rawScore["sum_of_weights"]),
+                            success=bool(binaryScore),
+                        )
+                    ],
+                    points=rawScore["earned_points"],
                 ),
                 rawScores,
                 binaryScores,
@@ -155,7 +214,8 @@ class BinaryWeightedScorer(Scorer):
 
         rawScores = await acalculate_weighted_score(self, passport_ids)
         binaryScores = [
-            Decimal(1) if s >= self.threshold else Decimal(0) for s in rawScores
+            Decimal(1) if s["sum_of_weights"] >= self.threshold else Decimal(0)
+            for s in rawScores
         ]
 
         return list(
@@ -165,10 +225,11 @@ class BinaryWeightedScorer(Scorer):
                     evidence=[
                         ThresholdScoreEvidence(
                             threshold=Decimal(str(self.threshold)),
-                            rawScore=Decimal(rawScore),
+                            rawScore=Decimal(rawScore["sum_of_weights"]),
                             success=bool(binaryScore),
                         )
                     ],
+                    points=rawScore["earned_points"],
                 ),
                 rawScores,
                 binaryScores,

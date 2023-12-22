@@ -13,6 +13,11 @@ class InvalidNonceException(APIException):
     default_detail = "Invalid nonce."
 
 
+class InvalidAddressException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Invalid address."
+
+
 class InvalidPassportCreationException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Error Creating Passport."
@@ -66,6 +71,16 @@ class NotFoundApiException(APIException):
 class InvalidAPIKeyPermissions(APIException):
     status_code = status.HTTP_403_FORBIDDEN
     default_detail = "Invalid permissions for action."
+
+
+class InvalidOrderByFieldException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Invalid order_by_field value"
+
+
+class StakingRequestError(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Error pulling GTC staking data"
 
 
 def api_get_object_or_404(klass, *args, **kwargs):

@@ -3,18 +3,21 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from rest_framework_api_key.admin import APIKeyAdmin
+from scorer.scorer_admin import ScorerModelAdmin
 from scorer_weighted.models import Scorer
 
 from .models import Account, AccountAPIKey, Community, RateLimits
 
 
-class AccountAdmin(admin.ModelAdmin):
+@admin.register(Account)
+class AccountAdmin(ScorerModelAdmin):
     list_display = ("id", "address", "user")
     search_fields = ("address", "user__username")
     raw_id_fields = ("user",)
 
 
-class CommunityAdmin(admin.ModelAdmin):
+@admin.register(Community)
+class CommunityAdmin(ScorerModelAdmin):
     list_display = (
         "id",
         "name",
@@ -55,6 +58,7 @@ class CommunityAdmin(admin.ModelAdmin):
     scorer_link.short_description = "Scorer Link"
 
 
+@admin.register(AccountAPIKey)
 class AccountAPIKeyAdmin(APIKeyAdmin):
     raw_id_fields = ("account",)
     search_fields = (
@@ -97,10 +101,5 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
     actions = [edit_selected]
 
 
-class APIKeyPermissionsAdmin(admin.ModelAdmin):
+class APIKeyPermissionsAdmin(ScorerModelAdmin):
     list_display = ("id", "submit_passports", "read_scores", "create_scorers")
-
-
-admin.site.register(Account, AccountAdmin)
-admin.site.register(Community, CommunityAdmin)
-admin.site.register(AccountAPIKey, AccountAPIKeyAdmin)

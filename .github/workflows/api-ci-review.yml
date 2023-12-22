@@ -19,6 +19,21 @@ jobs:
         ports:
           - 6379:6379
 
+      postgres:
+        image: postgres:12.3-alpine
+        env:
+          POSTGRES_USER: passport_scorer
+          POSTGRES_PASSWORD: passport_scorer_pwd
+          POSTGRES_DB: passport_scorer
+
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
@@ -40,13 +55,17 @@ jobs:
         working-directory: ./api
         env:
           CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
         run: python manage.py check
 
       - name: Run API unittests
         working-directory: ./api
+        run: pytest
         env:
           CERAMIC_CACHE_SCORER_ID: ""
-        run: pytest
+          SECRET_KEY: secret-test-value
+          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+
 
   build-api:
     runs-on: ubuntu-latest
@@ -135,14 +154,15 @@ jobs:
         uses: actions/setup-node@v2
         with:
           cache: "yarn"
-          cache-dependency-path: infra/review/package-lock.json
+          cache-dependency-path: infra/package-lock.json
 
       # Update the pulumi stack with new image
       - run: |
           npm install
+          cd review
           pulumi stack select -c gitcoin/passport-scorer/review
           pulumi config -s gitcoin/passport-scorer/review set aws:region us-east-1 --non-interactive
-        working-directory: infra/review
+        working-directory: infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
