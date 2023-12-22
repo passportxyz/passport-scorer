@@ -1,4 +1,4 @@
-const resolverAbi = [{ "inputs": [{ "internalType": "contract IEAS", "name": "eas", "type": "address" }, { "internalType": "contract GitcoinAttester", "name": "gitcoinAttester", "type": "address" }], "stateMutability": "nonpayable", "type": "constructor" }, { "inputs": [], "name": "AccessDenied", "type": "error" }, { "inputs": [], "name": "InsufficientValue", "type": "error" }, { "inputs": [], "name": "InvalidEAS", "type": "error" }, { "inputs": [], "name": "NotPayable", "type": "error" }, { "inputs": [{ "components": [{ "internalType": "bytes32", "name": "uid", "type": "bytes32" }, { "internalType": "bytes32", "name": "schema", "type": "bytes32" }, { "internalType": "uint64", "name": "time", "type": "uint64" }, { "internalType": "uint64", "name": "expirationTime", "type": "uint64" }, { "internalType": "uint64", "name": "revocationTime", "type": "uint64" }, { "internalType": "bytes32", "name": "refUID", "type": "bytes32" }, { "internalType": "address", "name": "recipient", "type": "address" }, { "internalType": "address", "name": "attester", "type": "address" }, { "internalType": "bool", "name": "revocable", "type": "bool" }, { "internalType": "bytes", "name": "data", "type": "bytes" }], "internalType": "struct Attestation", "name": "attestation", "type": "tuple" }], "name": "attest", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "payable", "type": "function" }, { "inputs": [], "name": "isPayable", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "pure", "type": "function" }, { "inputs": [{ "components": [{ "internalType": "bytes32", "name": "uid", "type": "bytes32" }, { "internalType": "bytes32", "name": "schema", "type": "bytes32" }, { "internalType": "uint64", "name": "time", "type": "uint64" }, { "internalType": "uint64", "name": "expirationTime", "type": "uint64" }, { "internalType": "uint64", "name": "revocationTime", "type": "uint64" }, { "internalType": "bytes32", "name": "refUID", "type": "bytes32" }, { "internalType": "address", "name": "recipient", "type": "address" }, { "internalType": "address", "name": "attester", "type": "address" }, { "internalType": "bool", "name": "revocable", "type": "bool" }, { "internalType": "bytes", "name": "data", "type": "bytes" }], "internalType": "struct Attestation[]", "name": "attestations", "type": "tuple[]" }, { "internalType": "uint256[]", "name": "values", "type": "uint256[]" }], "name": "multiAttest", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "payable", "type": "function" }, { "inputs": [{ "components": [{ "internalType": "bytes32", "name": "uid", "type": "bytes32" }, { "internalType": "bytes32", "name": "schema", "type": "bytes32" }, { "internalType": "uint64", "name": "time", "type": "uint64" }, { "internalType": "uint64", "name": "expirationTime", "type": "uint64" }, { "internalType": "uint64", "name": "revocationTime", "type": "uint64" }, { "internalType": "bytes32", "name": "refUID", "type": "bytes32" }, { "internalType": "address", "name": "recipient", "type": "address" }, { "internalType": "address", "name": "attester", "type": "address" }, { "internalType": "bool", "name": "revocable", "type": "bool" }, { "internalType": "bytes", "name": "data", "type": "bytes" }], "internalType": "struct Attestation[]", "name": "attestations", "type": "tuple[]" }, { "internalType": "uint256[]", "name": "values", "type": "uint256[]" }], "name": "multiRevoke", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "payable", "type": "function" }, { "inputs": [{ "internalType": "address", "name": "", "type": "address" }], "name": "passports", "outputs": [{ "internalType": "bytes32", "name": "", "type": "bytes32" }], "stateMutability": "view", "type": "function" }, { "inputs": [{ "components": [{ "internalType": "bytes32", "name": "uid", "type": "bytes32" }, { "internalType": "bytes32", "name": "schema", "type": "bytes32" }, { "internalType": "uint64", "name": "time", "type": "uint64" }, { "internalType": "uint64", "name": "expirationTime", "type": "uint64" }, { "internalType": "uint64", "name": "revocationTime", "type": "uint64" }, { "internalType": "bytes32", "name": "refUID", "type": "bytes32" }, { "internalType": "address", "name": "recipient", "type": "address" }, { "internalType": "address", "name": "attester", "type": "address" }, { "internalType": "bool", "name": "revocable", "type": "bool" }, { "internalType": "bytes", "name": "data", "type": "bytes" }], "internalType": "struct Attestation", "name": "attestation", "type": "tuple" }], "name": "revoke", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "payable", "type": "function" }]
+const ResolverAbi = [{ "inputs": [{ "internalType": "contract IEAS", "name": "eas", "type": "address" }, { "internalType": "contract GitcoinAttester", "name": "gitcoinAttester", "type": "address" }], "stateMutability": "nonpayable", "type": "constructor" }, { "inputs": [], "name": "AccessDenied", "type": "error" }, { "inputs": [], "name": "InsufficientValue", "type": "error" }, { "inputs": [], "name": "InvalidEAS", "type": "error" }, { "inputs": [], "name": "NotPayable", "type": "error" }, { "inputs": [{ "components": [{ "internalType": "bytes32", "name": "uid", "type": "bytes32" }, { "internalType": "bytes32", "name": "schema", "type": "bytes32" }, { "internalType": "uint64", "name": "time", "type": "uint64" }, { "internalType": "uint64", "name": "expirationTime", "type": "uint64" }, { "internalType": "uint64", "name": "revocationTime", "type": "uint64" }, { "internalType": "bytes32", "name": "refUID", "type": "bytes32" }, { "internalType": "address", "name": "recipient", "type": "address" }, { "internalType": "address", "name": "attester", "type": "address" }, { "internalType": "bool", "name": "revocable", "type": "bool" }, { "internalType": "bytes", "name": "data", "type": "bytes" }], "internalType": "struct Attestation", "name": "attestation", "type": "tuple" }], "name": "attest", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "payable", "type": "function" }, { "inputs": [], "name": "isPayable", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "pure", "type": "function" }, { "inputs": [{ "components": [{ "internalType": "bytes32", "name": "uid", "type": "bytes32" }, { "internalType": "bytes32", "name": "schema", "type": "bytes32" }, { "internalType": "uint64", "name": "time", "type": "uint64" }, { "internalType": "uint64", "name": "expirationTime", "type": "uint64" }, { "internalType": "uint64", "name": "revocationTime", "type": "uint64" }, { "internalType": "bytes32", "name": "refUID", "type": "bytes32" }, { "internalType": "address", "name": "recipient", "type": "address" }, { "internalType": "address", "name": "attester", "type": "address" }, { "internalType": "bool", "name": "revocable", "type": "bool" }, { "internalType": "bytes", "name": "data", "type": "bytes" }], "internalType": "struct Attestation[]", "name": "attestations", "type": "tuple[]" }, { "internalType": "uint256[]", "name": "values", "type": "uint256[]" }], "name": "multiAttest", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "payable", "type": "function" }, { "inputs": [{ "components": [{ "internalType": "bytes32", "name": "uid", "type": "bytes32" }, { "internalType": "bytes32", "name": "schema", "type": "bytes32" }, { "internalType": "uint64", "name": "time", "type": "uint64" }, { "internalType": "uint64", "name": "expirationTime", "type": "uint64" }, { "internalType": "uint64", "name": "revocationTime", "type": "uint64" }, { "internalType": "bytes32", "name": "refUID", "type": "bytes32" }, { "internalType": "address", "name": "recipient", "type": "address" }, { "internalType": "address", "name": "attester", "type": "address" }, { "internalType": "bool", "name": "revocable", "type": "bool" }, { "internalType": "bytes", "name": "data", "type": "bytes" }], "internalType": "struct Attestation[]", "name": "attestations", "type": "tuple[]" }, { "internalType": "uint256[]", "name": "values", "type": "uint256[]" }], "name": "multiRevoke", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "payable", "type": "function" }, { "inputs": [{ "internalType": "address", "name": "", "type": "address" }], "name": "passports", "outputs": [{ "internalType": "bytes32", "name": "", "type": "bytes32" }], "stateMutability": "view", "type": "function" }, { "inputs": [{ "components": [{ "internalType": "bytes32", "name": "uid", "type": "bytes32" }, { "internalType": "bytes32", "name": "schema", "type": "bytes32" }, { "internalType": "uint64", "name": "time", "type": "uint64" }, { "internalType": "uint64", "name": "expirationTime", "type": "uint64" }, { "internalType": "uint64", "name": "revocationTime", "type": "uint64" }, { "internalType": "bytes32", "name": "refUID", "type": "bytes32" }, { "internalType": "address", "name": "recipient", "type": "address" }, { "internalType": "address", "name": "attester", "type": "address" }, { "internalType": "bool", "name": "revocable", "type": "bool" }, { "internalType": "bytes", "name": "data", "type": "bytes" }], "internalType": "struct Attestation", "name": "attestation", "type": "tuple" }], "name": "revoke", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "payable", "type": "function" }]
 const EasAbi = [
     {
         "inputs": [
@@ -1033,5 +1033,114 @@ const EasAbi = [
     }
 ]
 
-export { resolverAbi };
+const DecoderAbi = {
+    "0xe704": [
+      "error ProviderAlreadyExists(string provider)",
+      "event AdminChanged(address previousAdmin, address newAdmin)",
+      "event BeaconUpgraded(address indexed beacon)",
+      "event Initialized(uint8 version)",
+      "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)",
+      "event Paused(address account)",
+      "event Unpaused(address account)",
+      "event Upgraded(address indexed implementation)",
+      "function addProviders(string[] providers)",
+      "function createNewVersion(string[] providerNames)",
+      "function currentVersion() view returns (uint32)",
+      "function eas() view returns (address)",
+      "function getAttestation(bytes32 attestationUID) view returns (tuple(bytes32 uid, bytes32 schema, uint64 time, uint64 expirationTime, uint64 revocationTime, bytes32 refUID, address recipient, address attester, bool revocable, bytes data))",
+      "function getEASContract() view returns (address)",
+      "function getPassport(address userAddress) view returns (tuple(string provider, bytes32 hash, uint64 issuanceDate, uint64 expirationDate)[])",
+      "function gitcoinResolver() view returns (address)",
+      "function initialize()",
+      "function owner() view returns (address)",
+      "function pause()",
+      "function paused() view returns (bool)",
+      "function providerVersions(uint32, uint256) view returns (string)",
+      "function proxiableUUID() view returns (bytes32)",
+      "function renounceOwnership()",
+      "function savedProviders(string) view returns (uint256)",
+      "function schemaUID() view returns (bytes32)",
+      "function setEASAddress(address _easContractAddress)",
+      "function setGitcoinResolver(address _gitcoinResolver)",
+      "function setSchemaUID(bytes32 _schemaUID)",
+      "function transferOwnership(address newOwner)",
+      "function unpause()",
+      "function upgradeTo(address newImplementation)",
+      "function upgradeToAndCall(address newImplementation, bytes data) payable"
+    ],
+    "0x1a4": [
+      "event AdminChanged(address previousAdmin, address newAdmin)",
+      "event BeaconUpgraded(address indexed beacon)",
+      "event Initialized(uint8 version)",
+      "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)",
+      "event Paused(address account)",
+      "event Unpaused(address account)",
+      "event Upgraded(address indexed implementation)",
+      "function addProvider(string provider)",
+      "function createNewVersion(string[] providerNames)",
+      "function currentVersion() view returns (uint32)",
+      "function getAttestation(bytes32 attestationUID) view returns (tuple(bytes32 uid, bytes32 schema, uint64 time, uint64 expirationTime, uint64 revocationTime, bytes32 refUID, address recipient, address attester, bool revocable, bytes data))",
+      "function getPassport(address userAddress) view returns (tuple(string provider, bytes32 hash, uint64 issuanceDate, uint64 expirationDate)[])",
+      "function gitcoinResolver() view returns (address)",
+      "function initialize()",
+      "function owner() view returns (address)",
+      "function pause()",
+      "function paused() view returns (bool)",
+      "function providerVersions(uint32, uint256) view returns (string)",
+      "function proxiableUUID() view returns (bytes32)",
+      "function renounceOwnership()",
+      "function schemaUID() view returns (bytes32)",
+      "function setEASAddress(address _easContractAddress)",
+      "function setGitcoinResolver(address _gitcoinResolver)",
+      "function setSchemaUID(bytes32 _schemaUID)",
+      "function transferOwnership(address newOwner)",
+      "function unpause()",
+      "function upgradeTo(address newImplementation)",
+      "function upgradeToAndCall(address newImplementation, bytes data) payable"
+    ],
+    "0x14a33": [
+      "error ProviderAlreadyExists(string provider)",
+      "error ZeroValue()",
+      "event AdminChanged(address previousAdmin, address newAdmin)",
+      "event BeaconUpgraded(address indexed beacon)",
+      "event EASSet(address easAddress)",
+      "event Initialized(uint8 version)",
+      "event NewVersionCreated()",
+      "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)",
+      "event Paused(address account)",
+      "event ProvidersAdded(string[] providers)",
+      "event ResolverSet(address resolverAddress)",
+      "event SchemaSet(bytes32 schemaUID)",
+      "event Unpaused(address account)",
+      "event Upgraded(address indexed implementation)",
+      "function addProviders(string[] providers)",
+      "function createNewVersion(string[] providers)",
+      "function currentVersion() view returns (uint32)",
+      "function eas() view returns (address)",
+      "function getAttestation(bytes32 attestationUID) view returns (tuple(bytes32 uid, bytes32 schema, uint64 time, uint64 expirationTime, uint64 revocationTime, bytes32 refUID, address recipient, address attester, bool revocable, bytes data))",
+      "function getEASAddress() view returns (address)",
+      "function getPassport(address userAddress) view returns (tuple(string provider, bytes32 hash, uint64 issuanceDate, uint64 expirationDate)[])",
+      "function getProviders(uint32 version) view returns (string[])",
+      "function gitcoinResolver() view returns (address)",
+      "function initialize()",
+      "function owner() view returns (address)",
+      "function pause()",
+      "function paused() view returns (bool)",
+      "function providerVersions(uint32, uint256) view returns (string)",
+      "function proxiableUUID() view returns (bytes32)",
+      "function renounceOwnership()",
+      "function savedProviders(uint32, string) view returns (uint256)",
+      "function schemaUID() view returns (bytes32)",
+      "function setEASAddress(address _easContractAddress)",
+      "function setGitcoinResolver(address _gitcoinResolver)",
+      "function setSchemaUID(bytes32 _schemaUID)",
+      "function transferOwnership(address newOwner)",
+      "function unpause()",
+      "function upgradeTo(address newImplementation)",
+      "function upgradeToAndCall(address newImplementation, bytes data) payable"
+    ]
+  };
+
+export { ResolverAbi };
 export { EasAbi };
+export { DecoderAbi };

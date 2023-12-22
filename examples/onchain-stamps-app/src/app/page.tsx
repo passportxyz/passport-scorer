@@ -1,16 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { ethers } from 'ethers'
-import { BigNumber } from "@ethersproject/bignumber";
 import { ChakraProvider, Flex, Heading, Button } from '@chakra-ui/react'
 import { TabLayout } from './tab-contents'
-import { Attestation, SchemaEncoder } from "@ethereum-attestation-service/eas-sdk";
-import { resolverAbi, EasAbi } from "./abis";
-import { PROVIDER_ID, providerBitMapInfo, DecodedProviderInfo } from "./providerInfo";
 import { GITCOIN_PASSPORT_WEIGHTS } from './stamp-weights';
 
-const resolverContractAddress = "0xc0fF118369894100b652b5Bb8dF5A2C3d7b2E343";
-const EasContractAddress = "0xAcfE09Fd03f7812F022FBf636700AdEA18Fd2A7A"
+const decoderContractAddress = "0xa652BE6A92c7efbBfEEf6b67eEF10A146AAA8ADc";
+const abi = require('./PassportDecoderABI.json')
 
 declare global {
   interface Window {
@@ -62,95 +58,49 @@ export default function Passport() {
     return true
   }
 
-  async function getUuid() {
-    const resolverContract: ethers.Contract = new ethers.Contract(resolverContractAddress, resolverAbi, provider)
-    const uuid = await resolverContract.passports(address)
-    console.log(uuid)
-    if (uuid == "0x0000000000000000000000000000000000000000000000000000000000000000") {
-      (console.log("no passport data on chain!"))
-    } else {
-      return uuid
+
+  async function getPassportInfo() {
+    const decoderContract: ethers.Contract = new ethers.Contract(decoderContractAddress, new ethers.Interface(abi['0x1a4']), provider)
+    const passportInfo: [] = await decoderContract.getPassport(address) // test address '0x85fF01cfF157199527528788ec4eA6336615C989'
+    if (passportInfo.length > 1) {
+      setHasStamps(true)
     }
+    return passportInfo
   }
 
-  async function getAttestation(uuid: string) {
-    const EasContract: ethers.Contract = new ethers.Contract(EasContractAddress, EasAbi, provider)
-    const attestation = await EasContract.getAttestation(uuid)
-    return attestation
-  }
 
-  async function decodeAttestation(attestation: Attestation) {
-    const schemaEncoder = new SchemaEncoder(
-      "uint256[] providers,bytes32[] hashes,uint64[] issuanceDates,uint64[] expirationDates,uint16 providerMapVersion"
-    );
-    const decodedData = schemaEncoder.decodeData(attestation.data)
-    const providers = decodedData.find((data) => data.name === "providers")?.value.value as BigNumber[];
-    type DecodedProviderInfo = {
-      providerName: PROVIDER_ID;
-      providerNumber: number;
-    };
-    const onChainProviderInfo: DecodedProviderInfo[] = providerBitMapInfo
-      .map((info) => {
-        const providerMask = BigNumber.from(1).shl(info.bit);
-        const currentProvidersBitmap = providers[info.index];
-        if (currentProvidersBitmap && !providerMask.and(currentProvidersBitmap).eq(BigNumber.from(0))) {
-          return {
-            providerName: info.name,
-            providerNumber: info.index * 256 + info.bit,
-          };
-        }
-      })
-      .filter((provider): provider is DecodedProviderInfo => provider !== undefined);
-
-    return onChainProviderInfo
-  }
-
-  function getStamps(onChainProviderInfo: DecodedProviderInfo[]) {
-    const stamps: Array<Stamp> = []
-    onChainProviderInfo.forEach(toArray)
-    function toArray(item: any, index: number) {
-      let s = { id: index, stamp: item.providerName }
-      stamps.push(s)
+  async function getStamps(passportInfo: []) {
+    var stamps: Stamp[] = [];
+    for (var i = 0; i < passportInfo.length; i++) {
+      stamps.push({ id: i, stamp: passportInfo[i][0] })
     }
     setStamps(stamps)
-    setHasStamps(stamps.length > 0)
     return stamps
   }
 
   async function queryPassport() {
-    try {
-      const uuid = await getUuid()
-      const att = await getAttestation(uuid)
-      const onChainProviderInfo = await decodeAttestation(att)
-      const stampData = getStamps(onChainProviderInfo)
-      const scoreData = calculate_score(stampData)
-      setScore(scoreData)
-    } catch {
-      console.log("error decoding data - you might not have any data onchain!")
-    }
+    const passportInfo = await getPassportInfo()
+    const stamps = await getStamps(passportInfo);
+    const score = calculate_score(stamps)
+    setScore(score)
   }
 
   function calculate_score(stampData: Array<Stamp>) {
     let i = 0
     var scores: Array<number> = []
-    var score = 0;
-    while (i < stampData.length) {
-      let id = stampData[i].stamp
-      if (GITCOIN_PASSPORT_WEIGHTS.hasOwnProperty(id)) {
-        try {
-          let temp_score = GITCOIN_PASSPORT_WEIGHTS[id]
-          scores.push(parseFloat(temp_score))
-        } catch {
-          console.log("element cannot be added to cumulative score")
-        }
+    let names = stampData.map(entry => entry.stamp);
+
+    names.forEach(name => {
+      if (GITCOIN_PASSPORT_WEIGHTS.hasOwnProperty(name)) {
+        let key = name as keyof Object;
+        let value = GITCOIN_PASSPORT_WEIGHTS[key].toString();
+        scores.push(parseFloat(value))
       }
-      i++;
-    }
-    for (let i = 0; i < scores.length; i++) {
-      console.log("in loop")
-      score += scores[i]
-    }
-    return score
+    })
+
+    const totalScore = scores.reduce((acc, currentScore) => acc + currentScore, 0)
+
+    return totalScore
   }
 
   const styles = {
