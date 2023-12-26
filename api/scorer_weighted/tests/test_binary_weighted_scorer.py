@@ -17,7 +17,7 @@ def fixture_weighted_scorer_passports(
     )
     Stamp.objects.create(
         passport=passport,
-        provider="Facebook",
+        provider="FirstEthTxnProvider",
         hash="0x1234",
         credential={},
     )
@@ -29,7 +29,7 @@ def fixture_weighted_scorer_passports(
 
     Stamp.objects.create(
         passport=passport1,
-        provider="Facebook",
+        provider="FirstEthTxnProvider",
         hash="0x12345",
         credential={},
     )
@@ -47,7 +47,7 @@ def fixture_weighted_scorer_passports(
 
     Stamp.objects.create(
         passport=passport2,
-        provider="Facebook",
+        provider="FirstEthTxnProvider",
         hash="0x12345a",
         credential={},
     )
@@ -70,7 +70,7 @@ def fixture_weighted_scorer_passports(
 class TestBinaraWeightedScorer:
     def test_binary_weighted_scorer(self, weighted_scorer_passports):
         scorer = BinaryWeightedScorer(
-            threshold=2, weights={"Facebook": 1, "Google": 1, "Ens": 1}
+            threshold=2, weights={"FirstEthTxnProvider": 1, "Google": 1, "Ens": 1}
         )
         scorer.save()
 
@@ -88,13 +88,13 @@ class TestBinaraWeightedScorer:
 
         Stamp.objects.create(
             passport=weighted_scorer_passports[0],
-            provider="Facebook",
+            provider="FirstEthTxnProvider",
             hash="0x12345",
             credential={},
         )
 
         scorer = BinaryWeightedScorer(
-            threshold=2, weights={"Facebook": 1, "Google": 1, "Ens": 1}
+            threshold=2, weights={"FirstEthTxnProvider": 1, "Google": 1, "Ens": 1}
         )
         scorer.save()
 

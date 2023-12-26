@@ -22,7 +22,7 @@ def fixture_binaty_weighted_scorer_passports(
     )
     Stamp.objects.create(
         passport=passport,
-        provider="Facebook",
+        provider="FirstEthTxnProvider",
         hash="0x1234",
         credential={},
     )
@@ -34,7 +34,7 @@ def fixture_binaty_weighted_scorer_passports(
 
     Stamp.objects.create(
         passport=passport1,
-        provider="Facebook",
+        provider="FirstEthTxnProvider",
         hash="0x12345",
         credential={},
     )
@@ -52,7 +52,7 @@ def fixture_binaty_weighted_scorer_passports(
 
     Stamp.objects.create(
         passport=passport2,
-        provider="Facebook",
+        provider="FirstEthTxnProvider",
         hash="0x12345a",
         credential={},
     )
@@ -82,7 +82,7 @@ def fixture_weighted_scorer_passports(
     )
     Stamp.objects.create(
         passport=passport,
-        provider="Facebook",
+        provider="FirstEthTxnProvider",
         hash="0x1234",
         credential={},
     )
@@ -94,7 +94,7 @@ def fixture_weighted_scorer_passports(
 
     Stamp.objects.create(
         passport=passport1,
-        provider="Facebook",
+        provider="FirstEthTxnProvider",
         hash="0x12345",
         credential={},
     )
@@ -112,7 +112,7 @@ def fixture_weighted_scorer_passports(
 
     Stamp.objects.create(
         passport=passport2,
-        provider="Facebook",
+        provider="FirstEthTxnProvider",
         hash="0x12345a",
         credential={},
     )
@@ -164,7 +164,7 @@ class TestRecalculatScores:
             assert s.error == None
 
     updated_weights = {
-        "Facebook": "75",
+        "FirstEthTxnProvider": "75",
         "Google": "1",
         "Ens": "1",
     }
@@ -201,18 +201,18 @@ class TestRecalculatScores:
         s1 = Score.objects.get(passport=binary_weighted_scorer_passports[0])
         assert s1.evidence["rawScore"] == "75"
         assert len(s1.stamp_scores) == 1
-        assert "Facebook" in s1.stamp_scores
+        assert "FirstEthTxnProvider" in s1.stamp_scores
 
         s2 = Score.objects.get(passport=binary_weighted_scorer_passports[1])
         assert s2.evidence["rawScore"] == "76"
         assert len(s2.stamp_scores) == 2
-        assert "Facebook" in s2.stamp_scores
+        assert "FirstEthTxnProvider" in s2.stamp_scores
         assert "Google" in s2.stamp_scores
 
         s3 = Score.objects.get(passport=binary_weighted_scorer_passports[2])
         assert s3.evidence["rawScore"] == "77"
         assert len(s3.stamp_scores) == 3
-        assert "Facebook" in s3.stamp_scores
+        assert "FirstEthTxnProvider" in s3.stamp_scores
         assert "Google" in s3.stamp_scores
         assert "Ens" in s3.stamp_scores
 
@@ -247,23 +247,23 @@ class TestRecalculatScores:
         s1 = Score.objects.get(passport=weighted_scorer_passports[0])
         assert s1.score == 1
         assert len(s1.stamp_scores) == 1
-        assert "Facebook" in s1.stamp_scores
+        assert "FirstEthTxnProvider" in s1.stamp_scores
 
         s2 = Score.objects.get(passport=weighted_scorer_passports[1])
         assert s2.score == 2
         assert len(s2.stamp_scores) == 2
-        assert "Facebook" in s2.stamp_scores
+        assert "FirstEthTxnProvider" in s2.stamp_scores
         assert "Google" in s2.stamp_scores
 
         s3 = Score.objects.get(passport=weighted_scorer_passports[2])
         assert s3.score == 3
         assert len(s3.stamp_scores) == 3
-        assert "Facebook" in s3.stamp_scores
+        assert "FirstEthTxnProvider" in s3.stamp_scores
         assert "Google" in s3.stamp_scores
         assert "Ens" in s3.stamp_scores
 
     updated_weights = {
-        "Facebook": "75",
+        "FirstEthTxnProvider": "75",
         "Google": "1",
         "Ens": "1",
     }
@@ -287,7 +287,7 @@ class TestRecalculatScores:
         # Check the initial threshold
         assert len(scores) == 0
         call_command("recalculate_scores", *args, **opts)
-        scorer.weights["Facebook"] = 75
+        scorer.weights["FirstEthTxnProvider"] = 75
         scorer.save()
 
         call_command("recalculate_scores", *args, **opts)
@@ -304,18 +304,18 @@ class TestRecalculatScores:
         s1 = Score.objects.get(passport=weighted_scorer_passports[0])
         assert s1.score == 75
         assert len(s1.stamp_scores) == 1
-        assert "Facebook" in s1.stamp_scores
+        assert "FirstEthTxnProvider" in s1.stamp_scores
 
         s2 = Score.objects.get(passport=weighted_scorer_passports[1])
         assert s2.score == 76
         assert len(s2.stamp_scores) == 2
-        assert "Facebook" in s2.stamp_scores
+        assert "FirstEthTxnProvider" in s2.stamp_scores
         assert "Google" in s2.stamp_scores
 
         s3 = Score.objects.get(passport=weighted_scorer_passports[2])
         assert s3.score == 77
         assert len(s3.stamp_scores) == 3
-        assert "Facebook" in s3.stamp_scores
+        assert "FirstEthTxnProvider" in s3.stamp_scores
         assert "Google" in s3.stamp_scores
         assert "Ens" in s3.stamp_scores
 

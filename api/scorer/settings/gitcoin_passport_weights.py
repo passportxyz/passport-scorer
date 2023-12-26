@@ -17,8 +17,6 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "ethPossessionsGte#1": "3.12",
     "ethPossessionsGte#10": "1.27",
     "ethPossessionsGte#32": "1.27",
-    "Facebook": "0.689",
-    "FacebookProfilePicture": "0.689",
     "FirstEthTxnProvider": "1.16",
     "GitcoinContributorStatistics#numGrantsContributeToGte#1": "2.91",
     "GitcoinContributorStatistics#numGrantsContributeToGte#10": "3.64",
