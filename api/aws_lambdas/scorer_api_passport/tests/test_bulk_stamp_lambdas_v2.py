@@ -21,7 +21,7 @@ def test_patch(
         "body": json.dumps(
             [
                 good_stamp,
-                {"provider": "Facebook"},
+                {"provider": "Ens"},
             ]
         ),
         "isBase64Encoded": False,
