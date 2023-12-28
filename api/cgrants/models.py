@@ -259,6 +259,9 @@ class SquelchedAccounts(models.Model):
     This will store allo protocol contributors who have been flagged as sybil.
     """
 
+    class Meta:
+        verbose_name_plural = "Squelched Accounts - GG Rounds 18 +"
+
     address = EthAddressField(null=True, blank=True, max_length=100, db_index=True)
     score_when_squelched = models.DecimalField(
         default=0, decimal_places=18, max_digits=64
