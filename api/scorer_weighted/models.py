@@ -77,6 +77,11 @@ class Scorer(models.Model):
         max_length=100,
     )
 
+    exclude_from_weight_updates = models.BooleanField(
+        default=False,
+        help_text="If true, this scorer will be excluded from automatic weight updates and associated rescores",
+    )
+
     def compute_score(self, passport_ids) -> List[ScoreData]:
         """Compute the score. This shall be overridden in child classes"""
         raise NotImplemented()

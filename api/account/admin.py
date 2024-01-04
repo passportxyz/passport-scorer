@@ -1,3 +1,5 @@
+import boto3
+from django.conf import settings
 from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -6,7 +8,7 @@ from rest_framework_api_key.admin import APIKeyAdmin
 from scorer.scorer_admin import ScorerModelAdmin
 from scorer_weighted.models import Scorer
 
-from .models import Account, AccountAPIKey, Community, RateLimits
+from .models import Account, AccountAPIKey, Community
 
 
 @admin.register(Account)
@@ -14,6 +16,38 @@ class AccountAdmin(ScorerModelAdmin):
     list_display = ("id", "address", "user")
     search_fields = ("address", "user__username")
     raw_id_fields = ("user",)
+
+
+@admin.action(description="Recalculate scores", permissions=["change"])
+def recalculate_scores(modeladmin, request, queryset):
+    community_ids = [str(id) for id in queryset.values_list("id", flat=True)]
+
+    # Create SQS client
+    sqs = boto3.client("sqs", region_name="us-west-2")
+
+    queue_url = settings.RESCORE_QUEUE_URL
+
+    if queue_url == "":
+        modeladmin.message_user(
+            request,
+            "Please set the RESCORE_QUEUE_URL environment variable to the URL of the SQS queue to use for rescoring.",
+            level=messages.ERROR,
+        )
+        return
+
+    # Send message to SQS queue
+    response = sqs.send_message(
+        QueueUrl=queue_url,
+        MessageAttributes={
+            "type": {"DataType": "String", "StringValue": "rescore"},
+        },
+        MessageBody=(",".join(community_ids)),
+    )
+
+    modeladmin.message_user(
+        request,
+        f"Submitted {len(community_ids)} communities for recalculation with message id {response['MessageId']}",
+    )
 
 
 @admin.register(Community)
@@ -37,6 +71,7 @@ class CommunityAdmin(ScorerModelAdmin):
         "deleted_at",
     )
     readonly_fields = ("scorer_link",)
+    actions = [recalculate_scores]
 
     def scorer_link(self, obj):
         # To add additional scorer types, just look at the URL on_delete

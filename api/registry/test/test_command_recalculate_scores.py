@@ -348,11 +348,11 @@ class TestRecalculatScores:
         )
 
         # We check for scores only in the included community
-        # and make sure the ones for exluded community have not been calculated
-        Score.objects.filter(passport__community=excluded_community).count() == 0
-        Score.objects.filter(passport__community=included_community).count() == len(
-            weighted_scorer_passports
-        )
+        # and make sure the ones for excluded community have not been calculated
+        assert Score.objects.filter(passport__community=excluded_community).count() == 0
+        assert Score.objects.filter(
+            passport__community=included_community
+        ).count() == len(weighted_scorer_passports)
 
     def test_rescoring_exclude_filter(
         self,
@@ -383,11 +383,11 @@ class TestRecalculatScores:
         )
 
         # We check for scores only in the included community
-        # and make sure the ones for exluded community have not been calculated
-        Score.objects.filter(passport__community=excluded_community).count() == 0
-        Score.objects.filter(passport__community=included_community).count() == len(
-            weighted_scorer_passports
-        )
+        # and make sure the ones for excluded community have not been calculated
+        assert Score.objects.filter(passport__community=excluded_community).count() == 0
+        assert Score.objects.filter(
+            passport__community=included_community
+        ).count() == len(weighted_scorer_passports)
 
     def test_rescoring_no_filter(
         self,
@@ -406,8 +406,43 @@ class TestRecalculatScores:
         communities = list(Community.objects.all())
         assert len(communities) == 2
 
+        call_command(
+            "recalculate_scores",
+            *[],
+            **{},
+        )
+
+        assert Score.objects.filter(
+            passport__community=scorer_community_with_binary_scorer
+        ).count() == len(binary_weighted_scorer_passports)
+        assert Score.objects.filter(
+            passport__community=scorer_community_with_weighted_scorer
+        ).count() == len(weighted_scorer_passports)
+
+    def test_rescoring_excludes_communities_marked_for_exclusion(
+        self,
+        weighted_scorer_passports,
+        binary_weighted_scorer_passports,
+        passport_holder_addresses,
+        scorer_community_with_weighted_scorer,
+        scorer_community_with_binary_scorer,
+        capsys,
+    ):
+        """Test the recalculate_scores command excludes communities marked for exclusion"""
+
+        # Make sure the pre-test condition is fulfilled we have 2 communities
+        # and each one has at least 1 passport
+        assert len(weighted_scorer_passports) > 0
+        assert len(binary_weighted_scorer_passports) > 0
+        communities = list(Community.objects.all())
+        assert len(communities) == 2
+
         included_community = scorer_community_with_weighted_scorer
         excluded_community = scorer_community_with_binary_scorer
+
+        scorer = excluded_community.get_scorer()
+        scorer.exclude_from_weight_updates = True
+        scorer.save()
 
         call_command(
             "recalculate_scores",
@@ -415,11 +450,40 @@ class TestRecalculatScores:
             **{},
         )
 
-        # We check for scores only in the included community
-        # and make sure the ones for exluded community have not been calculated
-        Score.objects.filter(passport__community=excluded_community).count() == len(
-            binary_weighted_scorer_passports
+        captured = capsys.readouterr()
+        print(captured.out)
+        assert "Updated scorers: 1" in captured.out
+        assert included_community.name in captured.out
+        assert excluded_community.name not in captured.out
+        assert "Recalculating scores" in captured.out
+
+    def test_only_weights_skips_rescore(
+        self,
+        weighted_scorer_passports,
+        binary_weighted_scorer_passports,
+        passport_holder_addresses,
+        scorer_community_with_weighted_scorer,
+        scorer_community_with_binary_scorer,
+        capsys,
+    ):
+        """Test the recalculate_scores command excludes communities marked for exclusion"""
+
+        # Make sure the pre-test condition is fulfilled we have 2 communities
+        # and each one has at least 1 passport
+        assert len(weighted_scorer_passports) > 0
+        assert len(binary_weighted_scorer_passports) > 0
+        communities = list(Community.objects.all())
+        assert len(communities) == 2
+
+        call_command(
+            "recalculate_scores",
+            *[],
+            **{
+                "only_weights": True,
+            },
         )
-        Score.objects.filter(passport__community=included_community).count() == len(
-            weighted_scorer_passports
-        )
+
+        captured = capsys.readouterr()
+        print(captured.out)
+        assert "Updated scorers: 2" in captured.out
+        assert "Recalculating scores" not in captured.out

@@ -6,12 +6,14 @@ import base64
 import json
 
 from asgiref.sync import async_to_sync
-from django.http import HttpRequest
-
 from aws_lambdas.utils import format_response, with_request_exception_handling
+from django.http import HttpRequest
 from registry.api.utils import ApiKey, check_rate_limit
-from registry.api.v1 import (DetailedScoreResponse, SubmitPassportPayload,
-                             ahandle_submit_passport)
+from registry.api.v1 import (
+    DetailedScoreResponse,
+    SubmitPassportPayload,
+    ahandle_submit_passport,
+)
 
 # Now this script or any imported module can use any part of Django it needs.
 # from myapp import models
