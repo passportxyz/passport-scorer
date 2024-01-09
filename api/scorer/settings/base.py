@@ -424,6 +424,8 @@ IPWARE_META_PRECEDENCE_ORDER = (
     "REMOTE_ADDR",
 )
 
+RESCORE_QUEUE_URL = env("RESCORE_QUEUE_URL", default="")
+
 INTERNAL_IPS = [
     # ...
     "127.0.0.1",
