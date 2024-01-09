@@ -16,8 +16,8 @@ def handler(event, _context):
     """
 
     for message in event["Records"]:
-        communityIds = message["body"].split(",")
-        communities = Community.objects.filter(id__in=communityIds)
+        community_ids = message["body"].split(",")
+        communities = Community.objects.filter(id__in=community_ids)
 
         recalculate_scores(
             communities,
@@ -25,4 +25,4 @@ def handler(event, _context):
             outstream=stdout,
         )
 
-        return format_response({"status": "success"})
+    return format_response({"status": "success"})

@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand
 from django.db.models import Q, QuerySet
 from registry.models import Passport, Score, Stamp
 from registry.utils import get_utc_time
-from scorer_weighted.models import BinaryWeightedScorer, Scorer, WeightedScorer
+from scorer_weighted.models import BinaryWeightedScorer, RescoreRequest, WeightedScorer
 
 
 class Command(BaseCommand):
@@ -99,87 +99,106 @@ def recalculate_scores(communities, batch_size, outstream):
     count = 0
     start = datetime.now()
 
-    for community in communities:
-        # Reset has_more and last_id for each community
-        has_more = True
-        last_id = 0
-        scorer = community.get_scorer()
-        outstream.write(
-            f"""
-Community:{community}
-scorer type: {scorer.type}, {type(scorer)}"""
-        )
+    rescore_request = RescoreRequest.objects.create(
+        num_communities_requested=len(communities)
+    )
+    rescore_request.save()
 
-        while has_more:
-            outstream.write(
-                f"has more: {has_more} / last id: {last_id} / count: {count}"
-            )
-            passport_query = Passport.objects.order_by("id").select_related("score")
-            if last_id:
-                passport_query = passport_query.filter(id__gt=last_id)
-            passport_query = passport_query.filter(community=community)
-            passports = list(passport_query[:batch_size].iterator())
-            passport_ids = [p.id for p in passports]
-            count += len(passports)
-            has_more = len(passports) > 0
-            if len(passports) > 0:
-                last_id = passport_ids[-1]
-                stamp_query = Stamp.objects.filter(passport_id__in=passport_ids)
-                stamps = {}
-                for s in stamp_query:
-                    if s.passport_id not in stamps:
-                        stamps[s.passport_id] = []
-                    stamps[s.passport_id].append(s)
-                calculated_scores = scorer.recompute_score(passport_ids, stamps)
-                scores_to_update = []
-                scores_to_create = []
-
-                for p, scoreData in zip(passports, calculated_scores):
-                    passport_scores = list(p.score.all())
-                    if passport_scores:
-                        score = passport_scores[0]
-                        scores_to_update.append(score)
-                    else:
-                        score = Score(
-                            passport=p,
-                        )
-                        scores_to_create.append(score)
-
-                    score.score = scoreData.score
-                    score.status = Score.Status.DONE
-                    score.last_score_timestamp = get_utc_time()
-                    score.evidence = (
-                        scoreData.evidence[0].as_dict() if scoreData.evidence else None
-                    )
-                    score.error = None
-                    score.stamp_scores = scoreData.stamp_scores
-
-                if scores_to_create:
-                    Score.objects.bulk_create(scores_to_create)
-
-                if scores_to_update:
-                    Score.objects.bulk_update(
-                        scores_to_update,
-                        [
-                            "score",
-                            "status",
-                            "last_score_timestamp",
-                            "evidence",
-                            "error",
-                            "stamp_scores",
-                        ],
-                    )
-
-            elapsed = datetime.now() - start
-            rate = "-"
-            if count > 0:
-                rate = elapsed / count
-
+    try:
+        for idx, community in enumerate(communities):
+            # Reset has_more and last_id for each community
+            has_more = True
+            last_id = 0
+            scorer = community.get_scorer()
             outstream.write(
                 f"""
+Community:{community}
+scorer type: {scorer.type}, {type(scorer)}"""
+            )
+
+            while has_more:
+                outstream.write(
+                    f"has more: {has_more} / last id: {last_id} / count: {count}"
+                )
+                passport_query = Passport.objects.order_by("id").select_related("score")
+                if last_id:
+                    passport_query = passport_query.filter(id__gt=last_id)
+                passport_query = passport_query.filter(community=community)
+                passports = list(passport_query[:batch_size].iterator())
+                passport_ids = [p.id for p in passports]
+                count += len(passports)
+                has_more = len(passports) > 0
+                if len(passports) > 0:
+                    last_id = passport_ids[-1]
+                    stamp_query = Stamp.objects.filter(passport_id__in=passport_ids)
+                    stamps = {}
+                    for s in stamp_query:
+                        if s.passport_id not in stamps:
+                            stamps[s.passport_id] = []
+                        stamps[s.passport_id].append(s)
+                    calculated_scores = scorer.recompute_score(passport_ids, stamps)
+                    scores_to_update = []
+                    scores_to_create = []
+
+                    for p, scoreData in zip(passports, calculated_scores):
+                        passport_scores = list(p.score.all())
+                        if passport_scores:
+                            score = passport_scores[0]
+                            scores_to_update.append(score)
+                        else:
+                            score = Score(
+                                passport=p,
+                            )
+                            scores_to_create.append(score)
+
+                        score.score = scoreData.score
+                        score.status = Score.Status.DONE
+                        score.last_score_timestamp = get_utc_time()
+                        score.evidence = (
+                            scoreData.evidence[0].as_dict()
+                            if scoreData.evidence
+                            else None
+                        )
+                        score.error = None
+                        score.stamp_scores = scoreData.stamp_scores
+
+                    if scores_to_create:
+                        Score.objects.bulk_create(scores_to_create)
+
+                    if scores_to_update:
+                        Score.objects.bulk_update(
+                            scores_to_update,
+                            [
+                                "score",
+                                "status",
+                                "last_score_timestamp",
+                                "evidence",
+                                "error",
+                                "stamp_scores",
+                            ],
+                        )
+
+                elapsed = datetime.now() - start
+                rate = "-"
+                if count > 0:
+                    rate = elapsed / count
+
+                outstream.write(
+                    f"""
 Community id: {community}
 Elapsed: {elapsed}
 Count: {count}
 Rate: {rate}
 """
-            )
+                )
+            rescore_request.num_communities_processed = idx + 1
+            rescore_request.save()
+
+    except Exception as e:
+        rescore_request.status = RescoreRequest.Status.FAILED
+        rescore_request.save()
+
+        raise e
+
+    rescore_request.status = RescoreRequest.Status.SUCCESS
+    rescore_request.save()
