@@ -831,4 +831,5 @@ const envConfig: ScorerEnvironmentConfig = {
   ]),
   debug: "off",
   passportPublicUrl: "https://staging.passport.gitcoin.co/",
+  rescoreQueueUrl: "",
 };
