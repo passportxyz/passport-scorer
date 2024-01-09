@@ -267,3 +267,18 @@ class SquelchedAccounts(models.Model):
         default=0, decimal_places=18, max_digits=64
     )
     sybil_signal = models.BooleanField(default=False)
+    round_number = models.IntegerField(
+        null=False, help_text="GG Round number when account was squelched", default=0
+    )
+
+
+class RoundMapping(models.Model):
+    """
+    Maps GG round_number to round EthAddress.
+    """
+
+    round_number = models.DecimalField(decimal_places=18, max_digits=64, db_index=True)
+    round_eth_address = EthAddressField(max_length=100, db_index=True)
+
+    class Meta:
+        unique_together = ("round_number", "round_eth_address")
