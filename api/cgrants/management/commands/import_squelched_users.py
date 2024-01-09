@@ -3,7 +3,7 @@ import json
 from urllib.parse import urlparse
 
 from cgrants.management.commands.utils import batch_iterator, stream_object_from_s3_uri
-from cgrants.models import SquelchedAccounts
+from cgrants.models import RoundMapping, SquelchedAccounts
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from tqdm import tqdm
@@ -34,7 +34,7 @@ class Command(BaseCommand):
             with tqdm(
                 total=total_size, unit="B", unit_scale=True, desc="Processing JSONL"
             ) as pbar:
-                self.stdout.write(f"reading lines ...")
+                self.stdout.write(f"reading squelched users lines ...")
                 chunk_size = 1000
 
                 for dataset in batch_iterator(stream.iter_lines(), chunk_size):
@@ -59,24 +59,6 @@ class Command(BaseCommand):
                         squelched_accounts,
                         ignore_conflicts=True,
                     )
-        else:
-            self.stdout.write(
-                self.style.ERROR(f"Empty file read from S3: {squelched_users_uri}")
-            )
-
-            object = stream_object_from_s3_uri(
-                squelched_users_uri, self.stdout, self.style
-            )
-
-            # Read the object (which is in CSV format)
-            lines = object["Body"].read().decode("utf-8").splitlines()
-
-            # Use csv reader to parse the CSV
-            csv_reader = csv.reader(lines)
-
-            # Process the CSV file line by line
-            for row in csv_reader:
-                print(row)
 
         if num_errors == 0:
             self.stdout.write(
@@ -93,9 +75,19 @@ class Command(BaseCommand):
 
     def import_round_data(self, round_data_uri):
         num_errors = 0
-        object = stream_object_from_s3_uri(round_data_uri, self.stdout, self.style)
-        if object:
-            print(object)
+        stream = stream_object_from_s3_uri(round_data_uri, self.stdout, self.style)
+        if stream:
+
+            for line in stream.read().decode("utf-8").splitlines():
+                round_data = line.split(",")
+                if round_data[0].startswith("GG"):
+                    # ['program', 'type', 'chain_name', 'chain_id', 'round_name', 'round_id', 'matching_pool', 'starting_time']
+                    round_number = int(round_data[0].split("GG")[1])
+                    round_eth_address = round_data[5]
+                    RoundMapping.objects.update_or_create(
+                        round_number=round_number,
+                        round_eth_address=round_eth_address,
+                    )
 
         else:
             self.stdout.write(self.style.ERROR(f"Empty file read from S3: {s3_uri}"))
@@ -103,13 +95,13 @@ class Command(BaseCommand):
         if num_errors == 0:
             self.stdout.write(
                 self.style.SUCCESS(
-                    "JSONL loading status: All records loaded succefully!"
+                    "CSV loading status: All records loaded successfully!"
                 )
             )
         else:
             self.stdout.write(
                 self.style.ERROR(
-                    f"JSONL loading status: {num_errors} records failed to parse"
+                    f"CSV loading status: {num_errors} records failed to parse"
                 )
             )
 
@@ -129,10 +121,10 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        squelched_users_uri = options["squelched-users-input"]
+        squelched_users_uri = options["squelched_users_input"]
         self.stdout.write(f'Squelched User Input file "{squelched_users_uri}"')
         self.import_squelched_users(squelched_users_uri)
 
-        round_data_uri = options["round-data-input"]
+        round_data_uri = options["round_data_input"]
         self.stdout.write(f'Round Data Input file "{squelched_users_uri}"')
         self.import_round_data(round_data_uri)

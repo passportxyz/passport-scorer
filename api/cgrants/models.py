@@ -277,7 +277,9 @@ class RoundMapping(models.Model):
     Maps GG round_number to round EthAddress.
     """
 
-    round_number = models.DecimalField(decimal_places=18, max_digits=64, db_index=True)
+    round_number = models.IntegerField(
+        null=False, help_text="GG Round number associated with round address", default=0
+    )
     round_eth_address = EthAddressField(max_length=100, db_index=True)
 
     class Meta:
