@@ -21,6 +21,7 @@ from .models import (
     Grant,
     GrantContributionIndex,
     ProtocolContributions,
+    RoundMapping,
     SquelchedAccounts,
     SquelchProfile,
 )
@@ -95,25 +96,31 @@ def _get_contributor_statistics_for_cgrants(address: str) -> dict:
 
 
 def _get_contributor_statistics_for_protocol(address: str) -> dict:
+    # Get the round numbers where the address is squelched
+    squelched_rounds = SquelchedAccounts.objects.filter(address=address).values_list(
+        "round_number", flat=True
+    )
+
+    # Get round_eth_address for squelched round numbers
+    squelched_round_ids = RoundMapping.objects.filter(
+        round_number__in=squelched_rounds
+    ).values_list("round_eth_address", flat=True)
+
+    # Get contributions excluding squelched rounds
     protocol_filter = ProtocolContributions.objects.filter(
         contributor=address, amount__gte=0.95
-    )
-    total_amount_usd = protocol_filter.aggregate(Sum("amount"))["amount__sum"]
-    num_projects = protocol_filter.aggregate(Count("project", distinct=True))[
-        "project__count"
-    ]
+    ).exclude(round__in=squelched_round_ids)
 
-    if SquelchedAccounts.objects.filter(address=address).exists():
-        return {
-            "num_grants_contribute_to": 0,
-            "total_contribution_amount": 0,
-        }
+    # Calculate total amount and number of projects
+    total_amount_usd = protocol_filter.aggregate(Sum("amount"))["amount__sum"] or 0
+    num_projects = (
+        protocol_filter.aggregate(Count("project", distinct=True))["project__count"]
+        or 0
+    )
 
     return {
-        "num_grants_contribute_to": num_projects if num_projects is not None else 0,
-        "total_contribution_amount": round(total_amount_usd, 3)
-        if total_amount_usd is not None
-        else 0,
+        "num_grants_contribute_to": num_projects,
+        "total_contribution_amount": round(total_amount_usd, 3),
     }
 
 

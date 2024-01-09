@@ -2,9 +2,11 @@
 
 import pytest
 from account.test.conftest import scorer_account, scorer_user
+from cgrants.api import _get_contributor_statistics_for_protocol
 from cgrants.models import (
     GrantContributionIndex,
     ProtocolContributions,
+    RoundMapping,
     SquelchedAccounts,
 )
 from cgrants.test.test_add_address_to_contribution_index import (
@@ -126,25 +128,6 @@ class TestCombinedContributionsApi:
             "total_contribution_amount": 10.0,
         }
 
-    def test_has_contributions_but_squelched_profile(
-        self, protocol_contributions, scorer_account
-    ):
-        SquelchedAccounts.objects.create(
-            address=scorer_account.address, score_when_squelched=0.0, sybil_signal=True
-        )
-
-        response = client.get(
-            reverse("cgrants:contributor_statistics"),
-            {"address": scorer_account.address},
-            **headers,
-        )
-
-        assert response.status_code == 200
-        assert response.json() == {
-            "num_grants_contribute_to": 0.0,
-            "total_contribution_amount": 0.0,
-        }
-
     def test_depegged_protocol_contribution(self, scorer_account):
         ProtocolContributions.objects.create(
             contributor=scorer_account.address,
@@ -164,4 +147,77 @@ class TestCombinedContributionsApi:
         assert response.json() == {
             "num_grants_contribute_to": 1.0,
             "total_contribution_amount": 1.0,
+        }
+
+    def test_squelched_profile_by_round(self, scorer_account):
+        ProtocolContributions.objects.create(
+            contributor=scorer_account.address,
+            project="proj",
+            round="0x",
+            amount=0.99897,
+            ext_id=scorer_account.address,
+        )
+
+        SquelchedAccounts.objects.create(
+            address=scorer_account.address,
+            score_when_squelched=0.0,
+            sybil_signal=True,
+            round_number=1,
+        )
+
+        RoundMapping.objects.create(
+            round_eth_address="0x",
+            round_number=1,
+        )
+
+        user_contributions = _get_contributor_statistics_for_protocol(
+            scorer_account.address
+        )
+
+        assert user_contributions == {
+            "num_grants_contribute_to": 0,
+            "total_contribution_amount": 0,
+        }
+
+    def test_squelched_profile_in_one_round_but_not_other(self, scorer_account):
+        ProtocolContributions.objects.create(
+            contributor=scorer_account.address,
+            project="proj",
+            round="0x",
+            amount=1,
+            ext_id="0x",
+        )
+
+        ProtocolContributions.objects.create(
+            contributor=scorer_account.address,
+            project="proj1",
+            round="0x1",
+            amount=1,
+            ext_id="0x1",
+        )
+
+        SquelchedAccounts.objects.create(
+            address=scorer_account.address,
+            score_when_squelched=0.0,
+            sybil_signal=True,
+            round_number=1,
+        )
+
+        RoundMapping.objects.create(
+            round_eth_address="0x",
+            round_number=1,
+        )
+
+        RoundMapping.objects.create(
+            round_eth_address="0x1",
+            round_number=2,
+        )
+
+        user_contributions = _get_contributor_statistics_for_protocol(
+            scorer_account.address
+        )
+
+        assert user_contributions == {
+            "num_grants_contribute_to": 1,
+            "total_contribution_amount": 1,
         }
