@@ -848,6 +848,14 @@ export const createSharedLambdaResources = ({
     }
   );
 
+  const queueLambdaEc2RoleAttachment = new aws.iam.RolePolicyAttachment(
+    "queueLambdaEc2RoleAttachment",
+    {
+      role: queueLambdaRole.name,
+      policyArn: lambdaEc2Policy.arn,
+    }
+  );
+
   const queueLambdaSecretsManagerRoleAttachment =
     new aws.iam.RolePolicyAttachment("queueLambdaSecretManagerRoleAttachment", {
       role: queueLambdaRole.name,
@@ -866,6 +874,7 @@ export const createSharedLambdaResources = ({
       queueLambdaLogRoleAttachment,
       queueLambdaSqsRoleAttachment,
       queueLambdaSecretsManagerRoleAttachment,
+      queueLambdaEc2RoleAttachment,
     ],
   };
 };
