@@ -9,11 +9,12 @@ from django.core.management.base import BaseCommand
 from tqdm import tqdm
 
 
-def get_squelch_data_from_json(json_data):
+def get_squelch_data_from_json(json_data, round_number):
     return SquelchedAccounts(
         address=json_data["voter"],
         score_when_squelched=json_data["score"],
         sybil_signal=json_data["sybil_signal"],
+        round_number=round_number,
     )
 
 
@@ -22,7 +23,7 @@ class Command(BaseCommand):
         "This command will import votes and contribution amounts for the Allo protocol."
     )
 
-    def import_squelched_users(self, squelched_users_uri):
+    def import_squelched_users(self, squelched_users_uri, round_number):
         num_errors = 0
         stream = stream_object_from_s3_uri(squelched_users_uri, self.stdout, self.style)
         if stream:
@@ -43,7 +44,7 @@ class Command(BaseCommand):
                         try:
                             json_data = json.loads(line)
                             squelched_accounts.append(
-                                get_squelch_data_from_json(json_data)
+                                get_squelch_data_from_json(json_data, round_number)
                             )
                         except json.JSONDecodeError as e:
                             self.stdout.write(
@@ -120,10 +121,19 @@ class Command(BaseCommand):
             Input file should include all rounds and labels in csv format""",
         )
 
+        parser.add_argument(
+            "--round-number",
+            required=True,
+            help="""Round number in which users were squelched""",
+        )
+
     def handle(self, *args, **options):
         squelched_users_uri = options["squelched_users_input"]
-        self.stdout.write(f'Squelched User Input file "{squelched_users_uri}"')
-        self.import_squelched_users(squelched_users_uri)
+        round_number = options["round_number"]
+        self.stdout.write(
+            f'Squelched User Input file "{squelched_users_uri}" and round number "{round_number}"'
+        )
+        self.import_squelched_users(squelched_users_uri, round_number)
 
         round_data_uri = options["round_data_input"]
         self.stdout.write(f'Round Data Input file "{squelched_users_uri}"')
