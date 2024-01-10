@@ -12,12 +12,6 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "CommunityStakingSilver": "0.020878",
     "Discord": "0.709878",
     "Ens": "2.220878",
-    "EthGasProvider": "2.420878",
-    "EthGTEOneTxnProvider": "1.290878",
-    "ethPossessionsGte#1": "3.140878",
-    "ethPossessionsGte#10": "1.290878",
-    "ethPossessionsGte#32": "1.290878",
-    "FirstEthTxnProvider": "1.180878",
     "GitcoinContributorStatistics#numGrantsContributeToGte#1": "2.930878",
     "GitcoinContributorStatistics#numGrantsContributeToGte#10": "3.660878",
     "GitcoinContributorStatistics#numGrantsContributeToGte#25": "2.840878",
@@ -68,6 +62,9 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "CyberProfilePaid": "1.230878",
     "CyberProfileOrgMember": "1.230878",
     "TrustaLabs": "2.020878",
+    "ETHAdvocate": "3.54",
+    "ETHPioneer": "3.54",
+    "ETHMaxi": "3.54",
 }
 
 
