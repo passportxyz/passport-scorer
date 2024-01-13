@@ -60,16 +60,25 @@ export default function Passport() {
 
   /** get passport info from decoder contract */
   async function getPassportInfo() {
+    console.log(address)
     const decoderContract: ethers.Contract = new ethers.Contract(decoderContractAddress, new ethers.Interface(abi.DecoderAbi['0x14a33']), provider)
-    const passportInfo: [] = await decoderContract.getPassport("0x85fF01cfF157199527528788ec4eA6336615C989") // test address '0x85fF01cfF157199527528788ec4eA6336615C989'
-    return passportInfo
+    try {
+      const passportInfo: [] = await decoderContract.getPassport("0x1D4098C948Dc41958Bf3A745deC77AE059C3aDF6") // test address '0x85fF01cfF157199527528788ec4eA6336615C989'
+      return passportInfo
+    } catch {
+      throw new Error("no passport information available")
+    }
   }
 
   /** get poassport score from decoder contract */
   async function getScore() {
     const decoderContract: ethers.Contract = new ethers.Contract(decoderContractAddress, new ethers.Interface(abi.DecoderAbi['0x14a33']), provider)
-    const score = await decoderContract.getScore("0x85fF01cfF157199527528788ec4eA6336615C989")
-    return score
+    try {
+      const score = await decoderContract.getScore("0x1D4098C948Dc41958Bf3A745deC77AE059C3aDF6")
+      return score
+    } catch {
+      throw new Error("no passport info available")
+    }
   }
 
   /** parse out stamps from passport info object*/
