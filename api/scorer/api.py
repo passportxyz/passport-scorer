@@ -1,16 +1,24 @@
+# Update the following description:
+# FROM: The V1 API docs are available at /v1/docs
+# TO: Useful links:
+# Developer Portal
+# Developer docs
+# Passport API V1 playground -- To be retired on April 4th, 2024
+# Fix formatting for the new historical endpoint's description.
 """
 The scorer API module
 """
 from typing import List, Optional
 
-from ceramic_cache.api import router as ceramic_cache_router
+from ceramic_cache.api.v1 import router as ceramic_cache_router_v1
+from ceramic_cache.api.v2 import router as ceramic_cache_router_v2
 from django_ratelimit.exceptions import Ratelimited
 from ninja import NinjaAPI
 from ninja.openapi.schema import OpenAPISchema
 from ninja.operation import Operation
 from ninja.types import DictStrAny
 from passport_admin.api import router as passport_admin_router
-from registry.api.v1 import analytics_router, feature_flag_router
+from registry.api.v1 import feature_flag_router
 from registry.api.v1 import router as registry_router_v1
 from registry.api.v2 import router as registry_router_v2
 
@@ -62,10 +70,27 @@ class ScorerApi(NinjaAPI):
 
 
 registry_api_v1 = ScorerApi(
-    urls_namespace="registry", title="Scorer API", version="1.0.0"
+    urls_namespace="registry",
+    title="Passport API Playground.",
+    version="1.0.0",
+    docs_url="/docs",
+    openapi_url="/v1/openapi.json",
+    description="""
+The V2 (beta) API docs are available at [/v2/docs](/v2/docs)
+""",
 )
-registry_api_v2 = NinjaAPI(
-    urls_namespace="registry_v2", title="Scorer API", version="2.0.0"
+registry_api_v2 = ScorerApi(
+    urls_namespace="registry_v2",
+    title="Passport API Playground.",
+    version="2.0.0 (beta)",
+    docs_url="/v2/docs",
+    openapi_url="/v2/openapi.json",
+    description="""
+Useful links:\n
+[Developer Portal](https://scorer.gitcoin.co/)\n
+[Developer docs](https://docs.passport.gitcoin.co/)\n
+[Passport API V1 playground](/docs) -- To be retired on April 4th, 2024
+""",
 )
 
 
@@ -78,20 +103,19 @@ def service_unavailable(request, _):
     )
 
 
-registry_api_v1.add_router(
-    "/registry/", registry_router_v1, tags=["Score your passport"]
-)
+registry_api_v1.add_router("/registry/", registry_router_v1, tags=["Passport API."])
+
+registry_api_v2.add_router("/registry/v2", registry_router_v2, tags=["Passport API."])
 
 feature_flag_api = NinjaAPI(urls_namespace="feature")
 feature_flag_api.add_router("", feature_flag_router)
 
-registry_api_v2.add_router("", registry_router_v2, tags=["Score your passport"])
 
-ceramic_cache_api = NinjaAPI(urls_namespace="ceramic-cache", docs_url=None)
-ceramic_cache_api.add_router("", ceramic_cache_router)
+ceramic_cache_api_v1 = NinjaAPI(urls_namespace="ceramic-cache", docs_url=None)
+ceramic_cache_api_v1.add_router("", ceramic_cache_router_v1)
+
+ceramic_cache_api_v2 = NinjaAPI(urls_namespace="ceramic-cache-v2", docs_url=None)
+ceramic_cache_api_v2.add_router("", ceramic_cache_router_v2)
 
 passport_admin_api = NinjaAPI(urls_namespace="passport-admin", docs_url=None)
 passport_admin_api.add_router("", passport_admin_router)
-
-analytics_api = NinjaAPI(urls_namespace="analytics", title="Data Analytics API")
-analytics_api.add_router("", analytics_router)

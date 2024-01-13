@@ -105,6 +105,10 @@ def _(scorer_community_with_gitcoin_default, submit_passport_response):
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "evidence": None,
         "error": None,
+        "stamp_scores": {
+            "Ens": 1000000.0,
+            "Google": 1234.0,
+        },
     }
 
 
@@ -164,6 +168,10 @@ def _(scorer_community_with_gitcoin_default, score_response):
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "evidence": None,
         "error": None,
+        "stamp_scores": {
+            "Ens": 1000000.0,
+            "Google": 1234.0,
+        },
     }
 
 
@@ -219,6 +227,10 @@ def _(scorer_community_with_gitcoin_default, scoring_failed_score_response):
         "last_score_timestamp": None,
         "evidence": None,
         "error": "something bad",
+        "stamp_scores": {
+            "Ens": 1000000.0,
+            "Google": 1234.0,
+        },
     }
 
 
@@ -330,4 +342,25 @@ def _(scorer_community_with_gitcoin_default, score_response):
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "evidence": None,
         "error": None,
+        "stamp_scores": {
+            "Ens": 1000000.0,
+            "Google": 1234.0,
+        },
     }
+
+
+def test_invalid_address(scorer_api_key, scorer_community_with_gitcoin_default):
+    payload = {
+        "community": scorer_community_with_gitcoin_default.id,
+        "address": scorer_community_with_gitcoin_default.account.address + "q",
+    }
+
+    client = Client()
+    submit_response = client.post(
+        "/registry/submit-passport",
+        json.dumps(payload),
+        content_type="application/json",
+        HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
+    )
+
+    assert submit_response.status_code == 400

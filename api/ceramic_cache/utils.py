@@ -1,9 +1,14 @@
 import base64
+import json
 from hashlib import sha256
+from pprint import pprint
 
 import api_logging as logging
+import base58
 import dag_cbor
+from multibase import decode
 from multiformats import CID
+from nacl.signing import VerifyKey
 
 log = logging.getLogger(__name__)
 
@@ -34,3 +39,48 @@ def validate_dag_jws_payload(payload: dict, payload_cid_str: str) -> bool:
 
     # Verify
     return payload_cid == expected_cid
+
+
+def pad_b64decoded_string(base64url_string):
+    return base64url_string + "=" * (4 - len(base64url_string) % 4)
+
+
+def pad_and_urlsafe_b64decode(base64url_string):
+    return base64.urlsafe_b64decode(pad_b64decoded_string(base64url_string))
+
+
+def base64url_to_json(base64url_string):
+    # Decode the Base64 URL-encoded string
+    decoded_bytes = pad_and_urlsafe_b64decode(base64url_string)
+
+    # Convert the decoded bytes to a JSON object
+    json_data = json.loads(decoded_bytes.decode("utf-8"))
+
+    return json_data
+
+
+def verify_jws(data):
+    """
+    https://github.com/decentralized-identity/did-jwt/blob/master/src/JWT.ts
+
+    This is a simplified implementation for validating the JWS signature in the payload.
+    It will only check for the signature part, and skip validating any claims (like signature expiration) om the payload
+    """
+    p = base64url_to_json(data["signatures"][0]["protected"])
+    kid = p["kid"]
+
+    kid_key = kid.split("#")[1]
+    decoded_kid = decode(kid_key)
+
+    decoded_bytes = decoded_kid[2:]
+
+    signature = base64.urlsafe_b64decode(
+        pad_b64decoded_string(data["signatures"][0]["signature"])
+    )
+
+    signing_input = (data["signatures"][0]["protected"] + "." + data["payload"]).encode(
+        "utf-8"
+    )
+
+    vk = VerifyKey(decoded_bytes)
+    vk.verify(signing_input, signature)

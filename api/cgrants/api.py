@@ -3,21 +3,26 @@
 This file re-iplements the API endpoints from the original cgrants API: https://github.com/gitcoinco/web/blob/master/app/grants/views_api_vc.py
 
 """
-import logging
 from enum import Enum
 
+import api_logging as logging
 from django.conf import settings
 from django.db.models import Count, Q, Sum
 from django.http import JsonResponse
 from ninja.security import APIKeyHeader
 from ninja_extra import NinjaExtraAPI
 from ninja_schema import Schema
+from ninja_schema.orm.utils.converter import Decimal
+from registry.api.v1 import is_valid_address
+from registry.exceptions import InvalidAddressException
 
 from .models import (
     Contribution,
     Grant,
     GrantContributionIndex,
     ProtocolContributions,
+    RoundMapping,
+    SquelchedAccounts,
     SquelchProfile,
 )
 
@@ -57,78 +62,65 @@ class IdentifierType(Enum):
     GITHUB_ID = "github_id"
 
 
-def _get_contributor_statistics_for_cgrants(
-    identifier: str, identifier_type: IdentifierType
-) -> dict:
-    if identifier_type == IdentifierType.HANDLE:
-        identifier_query = Q(profile__handle=identifier)
-    else:
-        identifier_query = Q(profile__github_id=identifier)
+def _get_contributor_statistics_for_cgrants(address: str) -> dict:
+    identifier_query = Q(contributor_address=address)
+
+    contributions = GrantContributionIndex.objects.filter(
+        identifier_query, contribution__success=True
+    )
+
+    if contributions.count() == 0:
+        return {
+            "num_grants_contribute_to": 0,
+            "total_contribution_amount": 0,
+        }
 
     # Get number of grants the user contributed to
 
     num_grants_contribute_to = (
-        GrantContributionIndex.objects.filter(identifier_query)
-        .order_by("grant_id")
-        .values("grant_id")
-        .distinct()
-        .count()
-    )
-
-    # Get number of rounds the user contributed to
-    num_rounds_contribute_to = (
-        GrantContributionIndex.objects.filter(identifier_query, round_num__isnull=False)
-        .order_by("round_num")
-        .values("round_num")
-        .distinct()
-        .count()
+        contributions.order_by("grant_id").values("grant_id").distinct().count()
     )
 
     # Get the total contribution amount
-    total_contribution_amount = GrantContributionIndex.objects.filter(
-        identifier_query
-    ).aggregate(total_contribution_amount=Sum("amount"))["total_contribution_amount"]
+    total_contribution_amount = contributions.aggregate(
+        total_contribution_amount=Sum("amount")
+    )["total_contribution_amount"]
 
     if total_contribution_amount is None:
         total_contribution_amount = 0
 
-    # GR14 contributor (and not squelched by FDD)
-    profile_squelch = SquelchProfile.objects.filter(
-        identifier_query, active=True
-    ).values_list("profile_id", flat=True)
-
-    num_gr14_contributions = (
-        GrantContributionIndex.objects.filter(identifier_query, round_num=14)
-        .exclude(profile_id__in=profile_squelch)
-        .count()
-    )
-
     return {
         "num_grants_contribute_to": num_grants_contribute_to,
-        "num_rounds_contribute_to": num_rounds_contribute_to,
         "total_contribution_amount": total_contribution_amount,
-        "num_gr14_contributions": num_gr14_contributions,
     }
 
 
 def _get_contributor_statistics_for_protocol(address: str) -> dict:
-    total_amount_usd = ProtocolContributions.objects.filter(
-        contributor=address
-    ).aggregate(Sum("amount"))["amount__sum"]
-    num_rounds = ProtocolContributions.objects.filter(contributor=address).aggregate(
-        Count("round", distinct=True)
-    )["round__count"]
-    num_projects = ProtocolContributions.objects.filter(contributor=address).aggregate(
-        Count("project", distinct=True)
-    )["project__count"]
+    # Get the round numbers where the address is squelched
+    squelched_rounds = SquelchedAccounts.objects.filter(address=address).values_list(
+        "round_number", flat=True
+    )
+
+    # Get round_eth_address for squelched round numbers
+    squelched_round_ids = RoundMapping.objects.filter(
+        round_number__in=squelched_rounds
+    ).values_list("round_eth_address", flat=True)
+
+    # Get contributions excluding squelched rounds
+    protocol_filter = ProtocolContributions.objects.filter(
+        contributor=address, amount__gte=0.95
+    ).exclude(round__in=squelched_round_ids)
+
+    # Calculate total amount and number of projects
+    total_amount_usd = protocol_filter.aggregate(Sum("amount"))["amount__sum"] or 0
+    num_projects = (
+        protocol_filter.aggregate(Count("project", distinct=True))["project__count"]
+        or 0
+    )
 
     return {
-        "num_grants_contribute_to": num_projects if num_projects is not None else 0,
-        "num_rounds_contribute_to": num_rounds if num_rounds is not None else 0,
-        "total_contribution_amount": total_amount_usd
-        if total_amount_usd is not None
-        else 0,
-        "num_gr14_contributions": 0,
+        "num_grants_contribute_to": num_projects,
+        "total_contribution_amount": round(total_amount_usd, 3),
     }
 
 
@@ -138,26 +130,38 @@ def _get_contributor_statistics_for_protocol(address: str) -> dict:
     auth=cg_api_key,
 )
 def contributor_statistics(
-    request, handle: str | None = None, github_id: str | None = None
+    request, address: str | None = None, github_id: str | None = None
 ):
-    if not handle and not github_id:
+    if not address:
         return JsonResponse(
             {
-                "error": "Bad request, 'handle' and 'github_id' parameter is missing or invalid. Either one is required."
+                "error": "Bad request, 'address' is missing or invalid. A valid address is required."
             },
             status=400,
         )
 
-    if handle:
-        response = _get_contributor_statistics_for_cgrants(
-            handle, IdentifierType.HANDLE
-        )
-    else:
-        response = _get_contributor_statistics_for_cgrants(
-            github_id, IdentifierType.GITHUB_ID
-        )
+    if not is_valid_address(address):
+        raise InvalidAddressException()
 
-    return JsonResponse(response)
+    address = address.lower()
+
+    cgrants_contributions = _get_contributor_statistics_for_cgrants(address)
+    protocol_contributions = _get_contributor_statistics_for_protocol(address)
+
+    combined_contributions = {
+        key: float(
+            round(
+                (
+                    protocol_contributions.get(key, 0)
+                    + cgrants_contributions.get(key, 0)
+                ),
+                2,
+            )
+        )
+        for key in set(protocol_contributions) | set(cgrants_contributions)
+    }
+
+    return JsonResponse(combined_contributions)
 
 
 @api.get(

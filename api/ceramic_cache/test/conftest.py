@@ -1,11 +1,15 @@
 import pytest
 from django.conf import settings
 from scorer.test.conftest import (
+    api_key,
     sample_address,
     sample_provider,
-    verifiable_credential,
     sample_token,
-    api_key,
+    scorer_account,
+    scorer_community_with_binary_scorer,
+    scorer_user,
+    ui_scorer,
+    verifiable_credential,
 )
 
 

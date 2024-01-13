@@ -1,5 +1,6 @@
 # TODO: remove pylint skip once circular dependency removed
 # pylint: disable=import-outside-toplevel
+import json
 from decimal import Decimal
 from typing import List, Optional, Union
 
@@ -37,10 +38,14 @@ class ScoreData:
     # do multiple evidence types like:
     # Optional[List[Union[ThresholdScoreEvidence, RequiredStampEvidence]]]
     def __init__(
-        self, score: Decimal, evidence: Optional[List[ThresholdScoreEvidence]]
+        self,
+        score: Decimal,
+        evidence: Optional[List[ThresholdScoreEvidence]],
+        points: dict,
     ):
         self.score = score
         self.evidence = evidence
+        self.stamp_scores = points
 
     def __repr__(self):
         return f"ScoreData(score={self.score}, evidence={self.evidence})"
@@ -72,6 +77,11 @@ class Scorer(models.Model):
         max_length=100,
     )
 
+    exclude_from_weight_updates = models.BooleanField(
+        default=False,
+        help_text="If true, this scorer will be excluded from automatic weight updates and associated rescores",
+    )
+
     def compute_score(self, passport_ids) -> List[ScoreData]:
         """Compute the score. This shall be overridden in child classes"""
         raise NotImplemented()
@@ -91,8 +101,24 @@ class WeightedScorer(Scorer):
         from .computation import calculate_weighted_score
 
         return [
-            ScoreData(score=s, evidence=None)
+            ScoreData(
+                score=s["sum_of_weights"], evidence=None, points=s["earned_points"]
+            )
             for s in calculate_weighted_score(self, passport_ids)
+        ]
+
+    def recompute_score(self, passport_ids, stamps) -> List[ScoreData]:
+        """
+        Compute the weighted score for the passports identified by `ids`
+        Note: the `ids` are not validated. The caller shall ensure that these are indeed proper IDs, from the correct community
+        """
+        from .computation import recalculate_weighted_score
+
+        return [
+            ScoreData(
+                score=s["sum_of_weights"], evidence=None, points=s["earned_points"]
+            )
+            for s in recalculate_weighted_score(self, passport_ids, stamps)
         ]
 
     async def acompute_score(self, passport_ids) -> List[ScoreData]:
@@ -103,7 +129,12 @@ class WeightedScorer(Scorer):
         from .computation import acalculate_weighted_score
 
         scores = await acalculate_weighted_score(self, passport_ids)
-        return [ScoreData(score=s, evidence=None) for s in scores]
+        return [
+            ScoreData(
+                score=s["sum_of_weights"], evidence=None, points=s["earned_points"]
+            )
+            for s in scores
+        ]
 
     def __str__(self):
         return f"WeightedScorer #{self.id}"
@@ -126,7 +157,8 @@ class BinaryWeightedScorer(Scorer):
 
         rawScores = calculate_weighted_score(self, passport_ids)
         binaryScores = [
-            Decimal(1) if s >= self.threshold else Decimal(0) for s in rawScores
+            Decimal(1) if s["sum_of_weights"] >= self.threshold else Decimal(0)
+            for s in rawScores
         ]
 
         return list(
@@ -136,10 +168,42 @@ class BinaryWeightedScorer(Scorer):
                     evidence=[
                         ThresholdScoreEvidence(
                             threshold=Decimal(str(self.threshold)),
-                            rawScore=Decimal(rawScore),
+                            rawScore=Decimal(rawScore["sum_of_weights"]),
                             success=bool(binaryScore),
                         )
                     ],
+                    points=rawScore["earned_points"],
+                ),
+                rawScores,
+                binaryScores,
+            )
+        )
+
+    def recompute_score(self, passport_ids, stamps) -> List[ScoreData]:
+        """
+        Compute the weighted score for the passports identified by `ids`
+        Note: the `ids` are not validated. The caller shall ensure that these are indeed proper IDs, from the correct community
+        """
+        from .computation import recalculate_weighted_score
+
+        rawScores = recalculate_weighted_score(self, passport_ids, stamps)
+        binaryScores = [
+            Decimal(1) if s["sum_of_weights"] >= self.threshold else Decimal(0)
+            for s in rawScores
+        ]
+
+        return list(
+            map(
+                lambda rawScore, binaryScore: ScoreData(
+                    score=binaryScore,
+                    evidence=[
+                        ThresholdScoreEvidence(
+                            threshold=Decimal(str(self.threshold)),
+                            rawScore=Decimal(rawScore["sum_of_weights"]),
+                            success=bool(binaryScore),
+                        )
+                    ],
+                    points=rawScore["earned_points"],
                 ),
                 rawScores,
                 binaryScores,
@@ -155,7 +219,8 @@ class BinaryWeightedScorer(Scorer):
 
         rawScores = await acalculate_weighted_score(self, passport_ids)
         binaryScores = [
-            Decimal(1) if s >= self.threshold else Decimal(0) for s in rawScores
+            Decimal(1) if s["sum_of_weights"] >= self.threshold else Decimal(0)
+            for s in rawScores
         ]
 
         return list(
@@ -165,10 +230,11 @@ class BinaryWeightedScorer(Scorer):
                     evidence=[
                         ThresholdScoreEvidence(
                             threshold=Decimal(str(self.threshold)),
-                            rawScore=Decimal(rawScore),
+                            rawScore=Decimal(rawScore["sum_of_weights"]),
                             success=bool(binaryScore),
                         )
                     ],
+                    points=rawScore["earned_points"],
                 ),
                 rawScores,
                 binaryScores,
@@ -177,3 +243,25 @@ class BinaryWeightedScorer(Scorer):
 
     def __str__(self):
         return f"BinaryWeightedScorer #{self.id}, threshold='{self.threshold}'"
+
+
+class RescoreRequest(models.Model):
+    class Status(models.TextChoices):
+        RUNNING = "RUNNING", "Running"
+        SUCCESS = "SUCCESS", "Success"
+        FAILED = "FAILED", "Failed"
+
+    status = models.CharField(
+        choices=Status.choices,
+        default=Status.RUNNING,
+        max_length=20,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    num_communities_requested = models.IntegerField(default=0)
+    num_communities_processed = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"RescoreRequest #{self.pk}, status='{self.status}', created_at='{self.created_at}'"

@@ -1,9 +1,10 @@
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from ninja import Schema
-from registry.models import Score
+from pydantic import Json
+from registry.models import Event, Score
 
 
 class SubmitPassportPayload(Schema):
@@ -65,6 +66,15 @@ class GenericCommunityResponse(Schema):
     external_scorer_id: str
 
 
+class ActionEnum(str, Enum):
+    fifo_deduplication = (
+        Event.Action.FIFO_DEDUPLICATION
+    )  # DEPRECATED: this deduplication method was deprecated
+    lifo_deduplication = Event.Action.LIFO_DEDUPLICATION
+    trustalab_score = Event.Action.TRUSTALAB_SCORE
+    score_update = Event.Action.SCORE_UPDATE
+
+
 class DetailedScoreResponse(Schema):
     address: str
     score: Optional[str]
@@ -72,6 +82,7 @@ class DetailedScoreResponse(Schema):
     last_score_timestamp: Optional[str]
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
+    stamp_scores: Optional[Dict]
 
     @staticmethod
     def resolve_last_score_timestamp(obj):
@@ -83,8 +94,34 @@ class DetailedScoreResponse(Schema):
     def resolve_address(obj):
         return obj.passport.address
 
+    @staticmethod
+    def resolve_stamp_scores(obj):
+        if obj.stamp_scores is None or obj.stamp_scores == "":
+            return {}
+        return obj.stamp_scores
+
+
+class HistoricalScoreData(Schema):
+    score: float
+    evidence: Optional[ThresholdScoreEvidenceResponse]
+
+
+class DetailedHistoricalScoreResponse(Schema):
+    address: str
+    action: Optional[ActionEnum]
+    error: Optional[str]
+    community_id: Optional[int]
+    created_at: Optional[str]
+    data: HistoricalScoreData
+
 
 class CursorPaginatedScoreResponse(Schema):
+    next: Optional[str]
+    prev: Optional[str]
+    items: List[DetailedScoreResponse]
+
+
+class CursorPaginatedHistoricalScoreResponse(Schema):
     next: Optional[str]
     prev: Optional[str]
     items: List[DetailedScoreResponse]
@@ -128,3 +165,24 @@ class StampDisplayResponse(Schema):
     description: str
     connectMessage: str
     groups: List[StampDisplayResponseGroup]
+
+
+class Stake(Schema):
+    id: int
+    event_type: str
+    round_id: int
+    staker: Optional[str] = None
+    address: Optional[str] = None
+    amount: str
+    staked: bool
+    block_number: int
+    tx_hash: str
+
+
+class GtcEventsResponse(Schema):
+    results: List[Stake]
+
+
+class GtcStakeEventsSchema(Schema):
+    address: str
+    round_id: int

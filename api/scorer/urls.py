@@ -20,8 +20,8 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
 from .api import (
-    analytics_api,
-    ceramic_cache_api,
+    ceramic_cache_api_v1,
+    ceramic_cache_api_v2,
     feature_flag_api,
     passport_admin_api,
     registry_api_v1,
@@ -30,11 +30,11 @@ from .api import (
 
 urlpatterns = [
     path("", registry_api_v1.urls),
-    path("registry/v2/", registry_api_v2.urls),
+    path("", registry_api_v2.urls),
     path("registry/feature/", feature_flag_api.urls),
-    path("ceramic-cache/", ceramic_cache_api.urls),
+    path("ceramic-cache/", ceramic_cache_api_v1.urls),
+    path("ceramic-cache/v2/", ceramic_cache_api_v2.urls),
     path("cgrants/", include("cgrants.urls")),
-    path("analytics/", analytics_api.urls),
     path("health/", health, {}, "health-check"),
     path(
         "admin/login/",
@@ -46,4 +46,5 @@ urlpatterns = [
     path("social/", include("social_django.urls", namespace="social")),
     path("passport-admin/", passport_admin_api.urls),
     # path("__debug__/", include("debug_toolbar.urls")),
+    path("trusta_labs/", include("trusta_labs.urls")),
 ]

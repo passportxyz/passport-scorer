@@ -30,6 +30,21 @@ jobs:
         ports:
           - 6379:6379
 
+      postgres:
+        image: postgres:12.3-alpine
+        env:
+          POSTGRES_USER: passport_scorer
+          POSTGRES_PASSWORD: passport_scorer_pwd
+          POSTGRES_DB: passport_scorer
+
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v3
         with:
@@ -54,13 +69,16 @@ jobs:
         working-directory: ./api
         env:
           CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
         run: python manage.py check
 
       - name: Run API unittests
         working-directory: ./api
+        run: pytest
         env:
           CERAMIC_CACHE_SCORER_ID: ""
-        run: pytest
+          SECRET_KEY: secret-test-value
+          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
 
   build-api:
     environment: Staging
@@ -100,6 +118,84 @@ jobs:
           IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile ./api/
+          docker push $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
+
+    outputs:
+      dockerTag: ${{ steps.vars.outputs.sha_short }}
+
+  build-submit-passport-lambda:
+    environment: Staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.commit }}
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Declare some variables
+        id: vars
+        shell: bash
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+          aws-region: us-west-2
+
+      - name: Login to Amazon ECR Private
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: submit-passport-lambdas
+          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/aws_lambdas/submit_passport/Dockerfile ./api/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+    outputs:
+      dockerTag: ${{ steps.vars.outputs.sha_short }}
+
+  build-indexer:
+    environment: Staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.commit }}
+      - name: Declare some variables
+        id: vars
+        shell: bash
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION_STAGING }}
+
+      - name: Login to Amazon ECR Public
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          registry-type: public
+
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REGISTRY_ALIAS: t1g3k9q8
+          ECR_REPOSITORY: passport-indexer
+          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f indexer/Dockerfile ./indexer/
           docker push $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
 
     outputs:
@@ -150,7 +246,14 @@ jobs:
 
   deploy-staging:
     environment: Staging
-    needs: [test, build-api, build-verifier]
+    needs:
+      [
+        test,
+        build-api,
+        build-verifier,
+        build-indexer,
+        build-submit-passport-lambda,
+      ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -161,7 +264,7 @@ jobs:
         uses: actions/setup-node@v2
         with:
           cache: "yarn"
-          cache-dependency-path: infra/staging/package-lock.json
+          cache-dependency-path: infra/package-lock.json
 
       ################################################################################################################
       # TODO: to be fixed: only doing the aws-actions/configure-aws-credentials and aws-actions/amazon-ecr-login
@@ -181,9 +284,10 @@ jobs:
       # Update the pulumi stack with new image
       - run: |
           npm install
+          cd staging
           pulumi stack select -c gitcoin/passport-scorer/staging
           pulumi config -s gitcoin/passport-scorer/staging set aws:region us-west-2 --non-interactive
-        working-directory: infra/staging
+        working-directory: infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -200,7 +304,10 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
           DOCKER_GTC_PASSPORT_SCORER_IMAGE: public.ecr.aws/t1g3k9q8/passport-scorer:${{ needs.build-api.outputs.dockerTag }}
           DOCKER_GTC_PASSPORT_VERIFIER_IMAGE: public.ecr.aws/t1g3k9q8/passport-verifier:${{ needs.build-verifier.outputs.dockerTag }}
+          DOCKER_GTC_PASSPORT_INDEXER_IMAGE: public.ecr.aws/t1g3k9q8/passport-indexer:${{ needs.build-indexer.outputs.dockerTag }}
+          DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE: ${{secrets.PRIVATE_ECR_URL}}:${{ needs.build-submit-passport-lambda.outputs.dockerTag }}
           ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
+          ROUTE_53_ZONE_FOR_PUBLIC_DATA: ${{ secrets.ROUTE_53_ZONE_FOR_PUBLIC_DATA }}
           DOMAIN: ${{ secrets.DOMAIN_STAGING }}
           SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN }}
           FLOWER_USER: ${{ secrets.FLOWER_USER }}
@@ -209,3 +316,14 @@ jobs:
           DB_USER: ${{ secrets.DB_USER_STAGING }}
           DB_NAME: ${{ secrets.DB_NAME_STAGING }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD_STAGING }}
+
+          # TODO: pull for secrets manager or use this instead of secrets manage value
+          TRUSTED_IAM_ISSUER: ${{ secrets.TRUSTED_IAM_ISSUER }}
+
+          REDASH_DB_NAME: ${{ secrets.REDASH_DB_NAME }}
+          REDASH_DB_PASSWORD: ${{ secrets.REDASH_DB_PASSWORD }}
+          REDASH_DB_USER: ${{ secrets.REDASH_DB_USER }}
+          REDASH_MAIL_PASSWORD: ${{ secrets.REDASH_MAIL_PASSWORD }}
+          REDASH_MAIL_USERNAME: ${{ secrets.REDASH_MAIL_USERNAME }}
+          REDASH_SECRET_KEY: ${{ secrets.REDASH_SECRET_KEY }}
+          SCORER_RDS_SECRET_ARN: ${{ secrets.SCORER_RDS_SECRET_ARN }}

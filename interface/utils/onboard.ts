@@ -2,16 +2,16 @@ import { init } from "@web3-onboard/react";
 import walletConnectModule, {
   WalletConnectOptions,
 } from "@web3-onboard/walletconnect";
-import ledgerModule from "@web3-onboard/ledger";
+
 import injectedModule from "@web3-onboard/injected-wallets";
 
 const alchemyApiKey =
   process.env.NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY || "";
 
 const walletConnectOptions: WalletConnectOptions = {
-  projectId:
-    (process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID as string) ||
-    "default-project-id",
+ projectId:
+   (process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID as string) ||
+   "default-project-id",
 };
 
 const onBoardExploreUrl =
@@ -20,9 +20,8 @@ const onBoardExploreUrl =
 
 const walletConnect = walletConnectModule(walletConnectOptions);
 const injected = injectedModule();
-const ledger = ledgerModule();
 
-const wallets = [injected, ledger, walletConnect];
+const wallets = [injected, walletConnect];
 
 const chains = [
   {

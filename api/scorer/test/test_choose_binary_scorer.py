@@ -75,7 +75,7 @@ def score_response(scorer_community, scorer_api_key):
                     json.dumps(
                         {
                             "community": scorer_community.id,
-                            "address": "0x0123",
+                            "address": "0x71Ad3e3057Ca74967239C66ca6D3A9C2A43a58fC",
                         }
                     ),
                     content_type="application/json",
@@ -85,10 +85,12 @@ def score_response(scorer_community, scorer_api_key):
                 response = submitResponse.json()
                 # read the score ...
                 assert response["status"] == "DONE"
-                assert response["address"] == "0x0123"
+                assert (
+                    response["address"] == "0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc"
+                )
                 assert Decimal(response["score"]) == Decimal("1.000000000")
                 return client.get(
-                    f"/registry/score/{scorer_community.id}/0x0123",
+                    f"/registry/score/{scorer_community.id}/0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc",
                     content_type="application/json",
                     HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
                 )
@@ -99,7 +101,7 @@ def _(scoreResponse):
     """the binary score should be returned."""
     scoreResponseData = scoreResponse.json()
     print("scoreResponseData", scoreResponseData)
-    assert scoreResponseData["address"] == "0x0123"
+    assert scoreResponseData["address"] == "0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc"
     assert scoreResponseData["status"] == "DONE"
     assert scoreResponseData["score"] == "1.000000000"
     assert scoreResponseData["evidence"]["type"] == "ThresholdScoreCheck"
@@ -143,7 +145,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
     """I submit a passport that yields a weighted score less than the threshold."""
     with patch(
         "scorer_weighted.computation.acalculate_weighted_score",
-        return_value=[Decimal("70")],
+        return_value=[{"sum_of_weights": Decimal("70"), "earned_points": {}}],
     ):
         with patch(
             "registry.atasks.aget_passport", return_value=mock_passport
@@ -155,7 +157,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                     json.dumps(
                         {
                             "community": scorer_community_with_binary_scorer.id,
-                            "address": "0x0123",
+                            "address": "0x71Ad3e3057Ca74967239C66ca6D3A9C2A43a58fC",
                         }
                     ),
                     content_type="application/json",
@@ -163,16 +165,19 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                 )
 
             # execute the task
-            score_passport_passport(scorer_community_with_binary_scorer.id, "0x0123")
+            score_passport_passport(
+                scorer_community_with_binary_scorer.id,
+                "0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc",
+            )
             # read the score ...
             response = submitResponse.json()
             # read the score ...
             assert response["status"] == "DONE"
-            assert response["address"] == "0x0123"
+            assert response["address"] == "0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc"
             assert Decimal(response["score"]) == Decimal("0E-9")
 
             return client.get(
-                f"/registry/score/{scorer_community_with_binary_scorer.id}/0x0123",
+                f"/registry/score/{scorer_community_with_binary_scorer.id}/0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc",
                 content_type="application/json",
                 HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
             )
@@ -202,7 +207,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
     with patch("registry.atasks.get_utc_time", return_value=mock_utc_timestamp):
         with patch(
             "scorer_weighted.computation.acalculate_weighted_score",
-            return_value=[Decimal("90")],
+            return_value=[{"sum_of_weights": Decimal("90"), "earned_points": {}}],
         ) as calculate_weighted_score:
             with patch("registry.atasks.aget_passport", return_value=mock_passport):
                 with patch("registry.atasks.validate_credential", side_effect=[[], []]):
@@ -212,7 +217,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                         json.dumps(
                             {
                                 "community": scorer_community_with_binary_scorer.id,
-                                "address": "0x0123",
+                                "address": "0x71Ad3e3057Ca74967239C66ca6D3A9C2A43a58fC",
                             }
                         ),
                         content_type="application/json",
@@ -222,7 +227,10 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                     # read the score ...
                     submit_response_data = submit_response.json()
 
-                    assert submit_response_data["address"] == "0x0123"
+                    assert (
+                        submit_response_data["address"]
+                        == "0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc"
+                    )
                     assert Decimal(submit_response_data["score"]) == Decimal(1)
                     assert submit_response_data["status"] == "DONE"
                     assert (
@@ -238,7 +246,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                     assert submit_response_data["error"] == None
 
                     return client.get(
-                        f"/registry/score/{scorer_community_with_binary_scorer.id}/0x0123",
+                        f"/registry/score/{scorer_community_with_binary_scorer.id}/0x71Ad3e3057Ca74967239C66ca6D3A9C2A43a58fC",
                         content_type="application/json",
                         HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
                     )
@@ -248,7 +256,9 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
 def _(scoreResponseFor1):
     """the score "1.000000000" is returned."""
     score_response_data = scoreResponseFor1.json()
-    assert score_response_data["address"] == "0x0123"
+    assert (
+        score_response_data["address"] == "0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc"
+    )
     assert Decimal(score_response_data["score"]) == Decimal(1)
     assert score_response_data["status"] == "DONE"
     assert score_response_data["last_score_timestamp"] == mock_utc_timestamp.isoformat()

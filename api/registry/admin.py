@@ -1,8 +1,10 @@
 from django.contrib import admin
-from registry.models import Event, HashScorerLink, Passport, Score, Stamp
+from registry.models import Event, GTCStakeEvent, HashScorerLink, Passport, Score, Stamp
+from scorer.scorer_admin import ScorerModelAdmin
 
 
-class PassportAdmin(admin.ModelAdmin):
+@admin.register(Passport)
+class PassportAdmin(ScorerModelAdmin):
     list_display = ["address", "community"]
     search_fields = ["address"]
 
@@ -12,7 +14,8 @@ class PassportAdmin(admin.ModelAdmin):
         return queryset
 
 
-class StampAdmin(admin.ModelAdmin):
+@admin.register(Stamp)
+class StampAdmin(ScorerModelAdmin):
     list_display = ["passport", "community", "provider", "hash"]
     search_fields = ["hash__exact"]
     search_help_text = "This will perform an exact case sensitive search by 'hash'"
@@ -28,7 +31,8 @@ class StampAdmin(admin.ModelAdmin):
         return queryset
 
 
-class ScoreAdmin(admin.ModelAdmin):
+@admin.register(Score)
+class ScoreAdmin(ScorerModelAdmin):
     list_display = [
         "passport",
         "community",
@@ -49,7 +53,8 @@ class ScoreAdmin(admin.ModelAdmin):
         return queryset
 
 
-class EventAdmin(admin.ModelAdmin):
+@admin.register(Event)
+class EventAdmin(ScorerModelAdmin):
     list_display = [
         "action",
         "created_at",
@@ -68,7 +73,8 @@ class EventAdmin(admin.ModelAdmin):
     ]
 
 
-class HashScorerLinkAdmin(admin.ModelAdmin):
+@admin.register(HashScorerLink)
+class HashScorerLinkAdmin(ScorerModelAdmin):
     list_display = ["hash", "community", "address", "expires_at"]
 
     search_fields = [
@@ -78,8 +84,18 @@ class HashScorerLinkAdmin(admin.ModelAdmin):
     ]
 
 
-admin.site.register(Passport, PassportAdmin)
-admin.site.register(Stamp, StampAdmin)
-admin.site.register(Score, ScoreAdmin)
-admin.site.register(Event, EventAdmin)
-admin.site.register(HashScorerLink, HashScorerLinkAdmin)
+@admin.register(GTCStakeEvent)
+class GTCStakeEventAdmin(ScorerModelAdmin):
+    list_display = ["id", "address", "staker", "round_id", "amount", "event_type"]
+
+    list_filter = [
+        "round_id",
+        "event_type",
+    ]
+
+    search_fields = [
+        "round_id",
+        "address",
+        "staker",
+        "event_type",
+    ]

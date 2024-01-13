@@ -3,11 +3,10 @@ from datetime import datetime
 from typing import Dict, List
 
 import api_logging as logging
-from account.deduplication.fifo import afifo
 from account.deduplication.lifo import alifo
 
 # --- Deduplication Modules
-from account.models import Community, Rules
+from account.models import AccountAPIKeyAnalytics, Community, Rules
 from ninja_extra.exceptions import APIException
 from reader.passport_reader import aget_passport, get_did
 from registry.exceptions import NoPassportException
@@ -19,14 +18,16 @@ log = logging.getLogger(__name__)
 Hash = str
 
 
-def asave_api_key_analytics(api_key_id, path):
+async def asave_api_key_analytics(api_key_id, path):
     try:
-        AccountAPIKeyAnalytics.objects.acreate(
+        await AccountAPIKeyAnalytics.objects.acreate(
             api_key_id=api_key_id,
             path=path,
         )
     except Exception as e:
         pass
+
+    return None
 
 
 async def aremove_stale_stamps_from_db(passport: Passport, passport_data: dict):
@@ -63,6 +64,7 @@ async def acalculate_score(passport: Passport, community_id: int, score: Score):
     score.last_score_timestamp = get_utc_time()
     score.evidence = scoreData.evidence[0].as_dict() if scoreData.evidence else None
     score.error = None
+    score.stamp_scores = scoreData.stamp_scores
     log.info("Calculated score: %s", score)
 
 
@@ -72,7 +74,6 @@ async def aprocess_deduplication(passport, community, passport_data, score: Scor
     """
     rule_map = {
         Rules.LIFO.value: alifo,
-        Rules.FIFO.value: afifo,
     }
 
     method = rule_map.get(community.rule)
@@ -97,19 +98,19 @@ async def aprocess_deduplication(passport, community, passport_data, score: Scor
     )
 
     # If the rule is FIFO, we need to re-score all affected passports
-    if community.rule == Rules.FIFO.value:
-        for passport in affected_passports:
-            log.debug(
-                "FIFO scoring selected, rescoring passport='%s'",
-                passport,
-            )
+    # if community.rule == Rules.FIFO.value:
+    #     for passport in affected_passports:
+    #         log.debug(
+    #             "FIFO scoring selected, rescoring passport='%s'",
+    #             passport,
+    #         )
 
-            affected_score, _ = await Score.objects.aupdate_or_create(
-                passport=passport,
-                defaults=dict(score=None, status=score.status),
-            )
-            await acalculate_score(passport, passport.community_id, affected_score)
-            await affected_score.asave()
+    #         affected_score, _ = await Score.objects.aupdate_or_create(
+    #             passport=passport,
+    #             defaults=dict(score=None, status=score.status),
+    #         )
+    #         await acalculate_score(passport, passport.community_id, affected_score)
+    #         await affected_score.asave()
 
     return deduplicated_passport
 

@@ -9,8 +9,6 @@ providers = [
     "TwitterFollowerGTE1000",
     "TwitterFollowerGT5000",
     "POAP",
-    "Facebook",
-    "FacebookProfilePicture",
     "Brightid",
     "Github",
     "FiveOrMoreGithubRepos",
