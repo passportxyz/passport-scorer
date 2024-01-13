@@ -54,7 +54,7 @@ class Command(BaseCommand):
             Input file must be in JSONL format (that is 1 JSON record per line).)""",
         )
 
-    def stream_jsonl_from_s3_uri(self, s3_uri):
+    def stream_object_from_s3_uri(self, s3_uri):
         # Parse the S3 URI to get the bucket name, folder, and file name
         parsed_uri = urlparse(s3_uri)
         bucket_name = parsed_uri.netloc
@@ -79,7 +79,7 @@ class Command(BaseCommand):
         num_errors = 0
         num_credentials = 0
         address_set = set()
-        (total_size, stream) = self.stream_jsonl_from_s3_uri(s3_uri)
+        (total_size, stream) = self.stream_object_from_s3_uri(s3_uri)
         if stream:
             self.stdout.write(self.style.SUCCESS("Got stream, processing JSONL"))
 

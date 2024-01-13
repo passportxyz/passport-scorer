@@ -1,0 +1,35 @@
+"""
+This module provides a handler to manage rescoring requests from an SQS queue in AWS Lambda.
+
+isort:skip_file
+"""
+
+from sys import stdout
+
+# needs to be imported before django models
+from aws_lambdas.utils import (
+    format_response,
+    with_request_exception_handling,
+)
+
+from account.models import Community
+from registry.management.commands.recalculate_scores import recalculate_scores
+
+
+@with_request_exception_handling
+def handler(event, _context):
+    """
+    Handler for rescore messages from an SQS trigger
+    """
+
+    for message in event["Records"]:
+        community_ids = message["body"].split(",")
+        communities = Community.objects.filter(id__in=community_ids)
+
+        recalculate_scores(
+            communities,
+            batch_size=1000,
+            outstream=stdout,
+        )
+
+    return format_response({"status": "success"})

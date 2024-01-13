@@ -19,7 +19,7 @@ def batch_iterator(iterable, batch_size):
         yield batch
 
 
-def stream_jsonl_from_s3_uri(s3_uri, stdout, style):
+def stream_object_from_s3_uri(s3_uri, stdout, style):
     # Parse the S3 URI to get the bucket name, folder, and file name
     parsed_uri = urlparse(s3_uri)
     bucket_name = parsed_uri.netloc

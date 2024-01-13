@@ -2,7 +2,7 @@ import itertools
 import json
 from urllib.parse import urlparse
 
-from cgrants.management.commands.utils import batch_iterator, stream_jsonl_from_s3_uri
+from cgrants.management.commands.utils import batch_iterator, stream_object_from_s3_uri
 from cgrants.models import ProtocolContributions
 from django import contrib
 from django.conf import settings
@@ -43,7 +43,7 @@ class Command(BaseCommand):
         self.stdout.write(f'Input file "{s3_uri}"')
         num_errors = 0
 
-        stream = stream_jsonl_from_s3_uri(s3_uri, self.stdout, self.style)
+        stream = stream_object_from_s3_uri(s3_uri, self.stdout, self.style)
         if stream:
             self.stdout.write(self.style.SUCCESS(f"Got stream, processing JSONL"))
 

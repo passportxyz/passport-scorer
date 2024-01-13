@@ -82,7 +82,7 @@ def scorer_api_key_no_permissions(scorer_account):
 
 @pytest.fixture
 def scorer_community_with_binary_scorer(mocker, scorer_account):
-    mock_settings = {"Facebook": 1, "Google": 1, "Ens": 1}
+    mock_settings = {"FirstEthTxnProvider": 1, "Google": 1, "Ens": 1}
     # Mock gitcoin scoring settings
     mocker.patch(
         "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
@@ -96,8 +96,8 @@ def scorer_community_with_binary_scorer(mocker, scorer_account):
     scorer = BinaryWeightedScorer.objects.create(type=Scorer.Type.WEIGHTED_BINARY)
 
     community = Community.objects.create(
-        name="My Community",
-        description="My Community description",
+        name="My Binary Weighted Community",
+        description="My Binary Weighted Community description",
         account=scorer_account,
         scorer=scorer,
     )
@@ -111,7 +111,7 @@ def ui_scorer(scorer_community_with_binary_scorer):
 
 @pytest.fixture
 def scorer_community_with_weighted_scorer(mocker, scorer_account):
-    mock_settings = {"Facebook": 1, "Google": 1, "Ens": 1}
+    mock_settings = {"FirstEthTxnProvider": 1, "Google": 1, "Ens": 1}
     # Mock gitcoin scoring settings
     mocker.patch(
         "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",

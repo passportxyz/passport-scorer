@@ -1,19 +1,13 @@
 import json
 from datetime import datetime
-from decimal import Decimal
-from typing import Dict, List
 
-from account.deduplication import Rules
 from account.models import Community
-from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from django.db.models import QuerySet
-from registry.atasks import acalculate_score
+from django.db.models import Q, QuerySet
 from registry.models import Passport, Score, Stamp
-from registry.tasks import score_registry_passport
 from registry.utils import get_utc_time
-from scorer_weighted.models import BinaryWeightedScorer, WeightedScorer
+from scorer_weighted.models import BinaryWeightedScorer, RescoreRequest, WeightedScorer
 
 
 class Command(BaseCommand):
@@ -39,6 +33,13 @@ class Command(BaseCommand):
             default=1000,
             help="""Batch size for recoring""",
         )
+        parser.add_argument(
+            "--only-weights",
+            type=bool,
+            default=False,
+            choices=[True, False],
+            help="""Only update weights, don't recalculate scores""",
+        )
 
     def handle(self, *args, **kwargs):
         self.stdout.write("Running ...")
@@ -56,26 +57,67 @@ class Command(BaseCommand):
         )
 
         batch_size = kwargs["batch_size"]
-        count = 0
-        start = datetime.now()
-        communities = Community.objects.filter(**filter).exclude(**exclude)
+
+        communities = (
+            Community.objects.filter(**filter)
+            .exclude(**exclude)
+            .exclude(scorer__weightedscorer__exclude_from_weight_updates=True)
+            .exclude(scorer__binaryweightedscorer__exclude_from_weight_updates=True)
+        )
+
+        self.stdout.write(f"Updating communities: {list(communities)}")
 
         # Update Score weights
         self.update_scorers(communities)
 
-        self.stdout.write(f"Recalculating scores for communities: {list(communities)}")
-        for community in communities:
+        if kwargs["only_weights"]:
+            return
+
+        self.stdout.write(f"Recalculating scores")
+
+        return recalculate_scores(communities, batch_size, self.stdout)
+
+    def update_scorers(self, communities: QuerySet[Community]):
+        weights = settings.GITCOIN_PASSPORT_WEIGHTS
+        threshold = settings.GITCOIN_PASSPORT_THRESHOLD
+
+        filter = {"scorer_ptr__community__in": communities}
+
+        binary_weighted_scorers = BinaryWeightedScorer.objects.filter(**filter)
+        weighted_scorers = WeightedScorer.objects.filter(**filter)
+
+        weighted_scorers.update(weights=weights)
+        binary_weighted_scorers.update(weights=weights, threshold=threshold)
+
+        print(
+            "Updated scorers:",
+            weighted_scorers.count() + binary_weighted_scorers.count(),
+        )
+
+
+def recalculate_scores(communities, batch_size, outstream):
+    count = 0
+    start = datetime.now()
+
+    rescore_request = RescoreRequest.objects.create(
+        num_communities_requested=len(communities)
+    )
+    rescore_request.save()
+
+    try:
+        for idx, community in enumerate(communities):
             # Reset has_more and last_id for each community
             has_more = True
             last_id = 0
             scorer = community.get_scorer()
-            self.stdout.write(
+            outstream.write(
                 f"""
 Community:{community}
 scorer type: {scorer.type}, {type(scorer)}"""
             )
+
             while has_more:
-                self.stdout.write(
+                outstream.write(
                     f"has more: {has_more} / last id: {last_id} / count: {count}"
                 )
                 passport_query = Passport.objects.order_by("id").select_related("score")
@@ -140,7 +182,8 @@ scorer type: {scorer.type}, {type(scorer)}"""
                 rate = "-"
                 if count > 0:
                     rate = elapsed / count
-                self.stdout.write(
+
+                outstream.write(
                     f"""
 Community id: {community}
 Elapsed: {elapsed}
@@ -148,20 +191,14 @@ Count: {count}
 Rate: {rate}
 """
                 )
+            rescore_request.num_communities_processed = idx + 1
+            rescore_request.save()
 
-    def update_scorers(self, communities: QuerySet[Community]):
-        weights = settings.GITCOIN_PASSPORT_WEIGHTS
-        threshold = settings.GITCOIN_PASSPORT_THRESHOLD
+    except Exception as e:
+        rescore_request.status = RescoreRequest.Status.FAILED
+        rescore_request.save()
 
-        filter = {"scorer_ptr__community__in": communities}
+        raise e
 
-        binary_weighted_scorers = BinaryWeightedScorer.objects.filter(**filter)
-        weighted_scorers = WeightedScorer.objects.filter(**filter)
-
-        weighted_scorers.update(weights=weights)
-        binary_weighted_scorers.update(weights=weights, threshold=threshold)
-
-        print(
-            "Updated scorers:",
-            weighted_scorers.count() + binary_weighted_scorers.count(),
-        )
+    rescore_request.status = RescoreRequest.Status.SUCCESS
+    rescore_request.save()

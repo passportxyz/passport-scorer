@@ -1,21 +1,21 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
-import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 
 import {
   ScorerEnvironmentConfig,
   ScorerService,
-  buildLambdaFn,
+  buildHttpLambdaFn,
   createIndexerService,
   createScoreExportBucketAndDomain,
   createScorerECSService,
   createTargetGroup,
   getEnvironment,
-  secrets,
   createSharedLambdaResources,
+  createDeadLetterQueue,
+  createRescoreQueue,
+  buildQueueLambdaFn,
 } from "../lib/scorer/service";
-import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -484,6 +484,43 @@ const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
   },
 });
 
+const deadLetterQueue = createDeadLetterQueue({});
+
+const rescoreQueue = createRescoreQueue({ deadLetterQueue });
+
+const serviceTaskRole = new aws.iam.Role("scorer-service-execution-role", {
+  assumeRolePolicy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Action: "sts:AssumeRole",
+        Effect: "Allow",
+        Sid: "",
+        Principal: {
+          Service: "ecs-tasks.amazonaws.com",
+        },
+      },
+    ],
+  }),
+  inlinePolicies: [
+    {
+      name: "allow_write_sqs",
+      policy: rescoreQueue.arn.apply((rescoreQueueArn) =>
+        JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Action: ["sqs:SendMessage"],
+              Resource: rescoreQueueArn,
+            },
+          ],
+        })
+      ),
+    },
+  ],
+});
+
 const envConfig: ScorerEnvironmentConfig = {
   allowedHosts: JSON.stringify([domain, "*"]),
   domain: domain,
@@ -496,6 +533,7 @@ const envConfig: ScorerEnvironmentConfig = {
   ]),
   debug: "off",
   passportPublicUrl: "https://staging.passport.gitcoin.co/",
+  rescoreQueueUrl: rescoreQueue.url,
 };
 const environment = getEnvironment(envConfig);
 
@@ -518,6 +556,7 @@ const baseScorerServiceConfig: ScorerService = {
   dockerImageScorer: dockerGtcPassportScorerImage,
   dockerImageVerifier: dockerGtcPassportVerifierImage,
   executionRole: dpoppEcsRole,
+  taskRole: serviceTaskRole,
   logGroup: serviceLogGroup,
   subnets: vpc.privateSubnetIds,
   securityGroup: privateSubnetSecurityGroup,
@@ -554,7 +593,14 @@ const scorerServiceRegistry = createScorerECSService(
   envConfig
 );
 
-const sharedLambdaResources = createSharedLambdaResources();
+const {
+  httpLambdaRole,
+  queueLambdaRole,
+  httpRoleAttachments,
+  queueRoleAttachments,
+} = createSharedLambdaResources({
+  rescoreQueue,
+});
 
 const lambdaSettings = {
   httpsListener,
@@ -576,10 +622,11 @@ const lambdaSettings = {
       value: SCORER_SERVER_SSM_ARN,
     },
   ],
-  ...sharedLambdaResources,
+  roleAttachments: httpRoleAttachments,
+  role: httpLambdaRole,
 };
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "submit-passport",
   memorySize: 1024,
@@ -588,7 +635,7 @@ buildLambdaFn({
   listenerPriority: 2001,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v1-st-bulk-POST",
   memorySize: 512,
@@ -598,7 +645,7 @@ buildLambdaFn({
   listenerPriority: 2002,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v1-st-bulk-PATCH",
   memorySize: 512,
@@ -608,7 +655,7 @@ buildLambdaFn({
   listenerPriority: 2003,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v1-st-bulk-DELETE",
   memorySize: 512,
@@ -618,7 +665,7 @@ buildLambdaFn({
   listenerPriority: 2004,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-auhenticate",
   memorySize: 512,
@@ -631,7 +678,7 @@ buildLambdaFn({
   listenerPriority: 2005,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v1-score-POST",
   memorySize: 512,
@@ -641,7 +688,7 @@ buildLambdaFn({
   listenerPriority: 2006,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v1-score-GET",
   memorySize: 512,
@@ -651,7 +698,7 @@ buildLambdaFn({
   listenerPriority: 2007,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-weights-GET",
   memorySize: 512,
@@ -661,7 +708,7 @@ buildLambdaFn({
   listenerPriority: 2015,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v1-st-GET",
   memorySize: 512,
@@ -671,7 +718,7 @@ buildLambdaFn({
   listenerPriority: 2010,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v2-st-bulk-POST",
   memorySize: 512,
@@ -681,7 +728,7 @@ buildLambdaFn({
   listenerPriority: 2011,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v2-st-bulk-PATCH",
   memorySize: 512,
@@ -691,7 +738,7 @@ buildLambdaFn({
   listenerPriority: 2012,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v2-st-bulk-DELETE",
   memorySize: 512,
@@ -701,7 +748,7 @@ buildLambdaFn({
   listenerPriority: 2013,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v2-st-GET",
   memorySize: 512,
@@ -709,6 +756,16 @@ buildLambdaFn({
   pathPatterns: ["/ceramic-cache/v2/stamp"],
   httpRequestMethods: ["GET"],
   listenerPriority: 2014,
+});
+
+buildQueueLambdaFn({
+  ...lambdaSettings,
+  name: "rescore",
+  memorySize: 1024,
+  dockerCmd: ["aws_lambdas.rescore.handler"],
+  roleAttachments: queueRoleAttachments,
+  role: queueLambdaRole,
+  queue: rescoreQueue,
 });
 
 //////////////////////////////////////////////////////////////

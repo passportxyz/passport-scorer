@@ -9,6 +9,7 @@ from .models import (
     GrantContributionIndex,
     Profile,
     ProtocolContributions,
+    SquelchedAccounts,
     SquelchProfile,
     Subscription,
 )
@@ -65,6 +66,12 @@ class SquelchProfileAdmin(ScorerModelAdmin):
     list_display = ("profile", "active")
     list_filter = ("active",)
     search_fields = ("profile__handle", "profile__github_id")
+
+
+@admin.register(SquelchedAccounts)
+class SquelchedAccountsAdmin(ScorerModelAdmin):
+    list_display = ("address", "score_when_squelched", "sybil_signal")
+    search_fields = ("address", "score_when_squelched", "sybil_signal")
 
 
 @admin.register(GrantContributionIndex)

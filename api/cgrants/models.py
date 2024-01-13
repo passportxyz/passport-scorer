@@ -259,8 +259,28 @@ class SquelchedAccounts(models.Model):
     This will store allo protocol contributors who have been flagged as sybil.
     """
 
+    class Meta:
+        verbose_name_plural = "Squelched Accounts - GG Rounds 18 +"
+
     address = EthAddressField(null=True, blank=True, max_length=100, db_index=True)
     score_when_squelched = models.DecimalField(
         default=0, decimal_places=18, max_digits=64
     )
     sybil_signal = models.BooleanField(default=False)
+    round_number = models.IntegerField(
+        null=False, help_text="GG Round number when account was squelched", default=0
+    )
+
+
+class RoundMapping(models.Model):
+    """
+    Maps GG round_number to round EthAddress.
+    """
+
+    round_number = models.IntegerField(
+        null=False, help_text="GG Round number associated with round address", default=0
+    )
+    round_eth_address = EthAddressField(max_length=100, db_index=True)
+
+    class Meta:
+        unique_together = ("round_number", "round_eth_address")

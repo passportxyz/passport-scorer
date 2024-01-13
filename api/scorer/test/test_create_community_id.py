@@ -72,4 +72,4 @@ def _():
     community = Community.objects.all()[0]
     scorer = community.scorer.binaryweightedscorer
     assert scorer.threshold == Decimal("20.00")
-    assert scorer.weights["Discord"] == "0.689"
+    assert scorer.weights["Discord"] == "0.709878"

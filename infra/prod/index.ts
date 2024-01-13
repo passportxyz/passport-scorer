@@ -5,7 +5,7 @@ import * as awsx from "@pulumi/awsx";
 import {
   ScorerEnvironmentConfig,
   ScorerService,
-  buildLambdaFn,
+  buildHttpLambdaFn,
   createIndexerService,
   createScoreExportBucketAndDomain,
   createScorerECSService,
@@ -13,6 +13,9 @@ import {
   getEnvironment,
   secrets,
   createSharedLambdaResources,
+  createDeadLetterQueue,
+  createRescoreQueue,
+  buildQueueLambdaFn,
 } from "../lib/scorer/service";
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 
@@ -574,39 +577,6 @@ const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
   },
 });
 
-const envConfig: ScorerEnvironmentConfig = {
-  allowedHosts: JSON.stringify([domain, "*"]),
-  domain: domain,
-  csrfTrustedOrigins: JSON.stringify([`https://${domain}`]),
-  rdsConnectionUrl: rdsConnectionUrl,
-  readReplicaConnectionUrl: readreplica0ConnectionUrl,
-  redisCacheOpsConnectionUrl: redisCacheOpsConnectionUrl,
-  uiDomains: JSON.stringify([
-    "scorer." + rootDomain,
-    "www.scorer." + rootDomain,
-  ]),
-  debug: "off",
-  passportPublicUrl: "https://passport.gitcoin.co/",
-};
-
-const environment = getEnvironment(envConfig);
-
-//////////////////////////////////////////////////////////////
-// Set up log groups for API service and worker
-//////////////////////////////////////////////////////////////
-const serviceLogGroup = new aws.cloudwatch.LogGroup("scorer-service", {
-  retentionInDays: 90,
-  tags: {
-    name: `cloudwatch-loggroup-scorer-service`,
-  },
-});
-const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
-  retentionInDays: 90,
-  tags: {
-    name: `cloudwatch-loggroup-scorer-worker`,
-  },
-});
-
 const pagerdutyTopic = new aws.sns.Topic("pagerduty", {
   name: "Pagerduty",
   tracingConfig: "PassThrough",
@@ -660,6 +630,77 @@ const pagerdutySubscription = new aws.sns.TopicSubscription(
   }
 );
 
+const deadLetterQueue = createDeadLetterQueue({ alertTopic: pagerdutyTopic });
+
+const rescoreQueue = createRescoreQueue({ deadLetterQueue });
+
+const serviceTaskRole = new aws.iam.Role("scorer-service-execution-role", {
+  assumeRolePolicy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Action: "sts:AssumeRole",
+        Effect: "Allow",
+        Sid: "",
+        Principal: {
+          Service: "ecs-tasks.amazonaws.com",
+        },
+      },
+    ],
+  }),
+  inlinePolicies: [
+    {
+      name: "allow_write_sqs",
+      policy: rescoreQueue.arn.apply((rescoreQueueArn) =>
+        JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Action: ["sqs:SendMessage"],
+              Resource: rescoreQueueArn,
+            },
+          ],
+        })
+      ),
+    },
+  ],
+});
+
+const envConfig: ScorerEnvironmentConfig = {
+  allowedHosts: JSON.stringify([domain, "*"]),
+  domain: domain,
+  csrfTrustedOrigins: JSON.stringify([`https://${domain}`]),
+  rdsConnectionUrl: rdsConnectionUrl,
+  readReplicaConnectionUrl: readreplica0ConnectionUrl,
+  redisCacheOpsConnectionUrl: redisCacheOpsConnectionUrl,
+  uiDomains: JSON.stringify([
+    "scorer." + rootDomain,
+    "www.scorer." + rootDomain,
+  ]),
+  debug: "off",
+  passportPublicUrl: "https://passport.gitcoin.co/",
+  rescoreQueueUrl: rescoreQueue.url,
+};
+
+const environment = getEnvironment(envConfig);
+
+//////////////////////////////////////////////////////////////
+// Set up log groups for API service and worker
+//////////////////////////////////////////////////////////////
+const serviceLogGroup = new aws.cloudwatch.LogGroup("scorer-service", {
+  retentionInDays: 90,
+  tags: {
+    name: `cloudwatch-loggroup-scorer-service`,
+  },
+});
+const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
+  retentionInDays: 90,
+  tags: {
+    name: `cloudwatch-loggroup-scorer-worker`,
+  },
+});
+
 //////////////////////////////////////////////////////////////
 // Set up the Scorer ECS service
 //////////////////////////////////////////////////////////////
@@ -669,6 +710,7 @@ const baseScorerServiceConfig: ScorerService = {
   dockerImageScorer: dockerGtcPassportScorerImage,
   dockerImageVerifier: dockerGtcPassportVerifierImage,
   executionRole: dpoppEcsRole,
+  taskRole: serviceTaskRole,
   logGroup: serviceLogGroup,
   subnets: vpc.privateSubnetIds,
   securityGroup: privateSubnetSecurityGroup,
@@ -1231,7 +1273,14 @@ createIndexerService({
   alertTopic: pagerdutyTopic,
 });
 
-const sharedLambdaResources = createSharedLambdaResources();
+const {
+  httpLambdaRole,
+  queueLambdaRole,
+  httpRoleAttachments,
+  queueRoleAttachments,
+} = createSharedLambdaResources({
+  rescoreQueue,
+});
 
 const lambdaSettings = {
   httpsListener,
@@ -1257,10 +1306,11 @@ const lambdaSettings = {
       value: SCORER_SERVER_SSM_ARN,
     },
   ],
-  ...sharedLambdaResources,
+  roleAttachments: httpRoleAttachments,
+  role: httpLambdaRole,
 };
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "submit-passport",
   memorySize: 1024,
@@ -1269,7 +1319,7 @@ buildLambdaFn({
   listenerPriority: 1001,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v1-st-bulk-POST",
   memorySize: 512,
@@ -1279,7 +1329,7 @@ buildLambdaFn({
   listenerPriority: 1002,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v1-st-bulk-PATCH",
   memorySize: 512,
@@ -1289,7 +1339,7 @@ buildLambdaFn({
   listenerPriority: 1003,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v1-st-bulk-DELETE",
   memorySize: 512,
@@ -1299,7 +1349,7 @@ buildLambdaFn({
   listenerPriority: 1004,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-auhenticate",
   memorySize: 512,
@@ -1312,7 +1362,7 @@ buildLambdaFn({
   listenerPriority: 1005,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v1-score-POST",
   memorySize: 512,
@@ -1322,7 +1372,7 @@ buildLambdaFn({
   listenerPriority: 1006,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v1-score-GET",
   memorySize: 512,
@@ -1332,7 +1382,7 @@ buildLambdaFn({
   listenerPriority: 1007,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-weights-GET",
   memorySize: 512,
@@ -1342,7 +1392,7 @@ buildLambdaFn({
   listenerPriority: 1015,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v1-st-GET",
   memorySize: 512,
@@ -1352,7 +1402,7 @@ buildLambdaFn({
   listenerPriority: 1010,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v2-st-bulk-POST",
   memorySize: 512,
@@ -1362,7 +1412,7 @@ buildLambdaFn({
   listenerPriority: 1011,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v2-st-bulk-PATCH",
   memorySize: 512,
@@ -1372,7 +1422,7 @@ buildLambdaFn({
   listenerPriority: 1012,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v2-st-bulk-DELETE",
   memorySize: 512,
@@ -1382,7 +1432,7 @@ buildLambdaFn({
   listenerPriority: 1013,
 });
 
-buildLambdaFn({
+buildHttpLambdaFn({
   ...lambdaSettings,
   name: "cc-v2-st-GET",
   memorySize: 512,
@@ -1390,4 +1440,14 @@ buildLambdaFn({
   pathPatterns: ["/ceramic-cache/v2/stamp"],
   httpRequestMethods: ["GET"],
   listenerPriority: 1014,
+});
+
+buildQueueLambdaFn({
+  ...lambdaSettings,
+  name: "rescore",
+  memorySize: 1024,
+  dockerCmd: ["aws_lambdas.rescore.handler"],
+  roleAttachments: queueRoleAttachments,
+  role: queueLambdaRole,
+  queue: rescoreQueue,
 });

@@ -18,6 +18,7 @@ export type ScorerService = {
   dockerImageVerifier: Input<string>;
   securityGroup: aws.ec2.SecurityGroup;
   executionRole: Role;
+  taskRole: Role;
   cluster: Cluster;
   logGroup: LogGroup;
   subnets: Input<Input<string>[]>;
@@ -42,6 +43,7 @@ export type ScorerEnvironmentConfig = {
   allowedHosts: Input<string>;
   csrfTrustedOrigins: Input<string>;
   redisCacheOpsConnectionUrl: Input<string>;
+  rescoreQueueUrl: Input<string>;
   debug?: Input<string>;
   readReplicaConnectionUrl?: Input<string>;
   passportPublicUrl?: Input<string>;
@@ -151,6 +153,10 @@ export function getEnvironment(config: ScorerEnvironmentConfig) {
     {
       name: "PASSPORT_PUBLIC_URL",
       value: config.passportPublicUrl || "https://passport.gitcoin.co/",
+    },
+    {
+      name: "RESCORE_QUEUE_URL",
+      value: config.rescoreQueueUrl,
     },
   ];
 }
@@ -279,6 +285,9 @@ export function createScorerECSService(
       },
       executionRole: {
         roleArn: config.executionRole.arn,
+      },
+      taskRole: {
+        roleArn: config.taskRole.arn,
       },
       containers,
     },
@@ -678,7 +687,11 @@ export function createIndexerService({
   );
 }
 
-export const createSharedLambdaResources = () => {
+export const createSharedLambdaResources = ({
+  rescoreQueue,
+}: {
+  rescoreQueue: aws.sqs.Queue;
+}) => {
   const lambdaLoggingPolicyDocument = aws.iam.getPolicyDocument({
     statements: [
       {
@@ -762,14 +775,14 @@ export const createSharedLambdaResources = () => {
     ],
   });
 
-  const lambdaRole = new aws.iam.Role("lambdaRole", {
+  const httpLambdaRole = new aws.iam.Role("lambdaRole", {
     assumeRolePolicy: assumeRole.then((assumeRole) => assumeRole.json),
   });
 
   const lambdaLogRoleAttachment = new aws.iam.RolePolicyAttachment(
     "lambdaLogRoleAttachment",
     {
-      role: lambdaRole.name,
+      role: httpLambdaRole.name,
       policyArn: lambdaLoggingPolicy.arn,
     }
   );
@@ -777,102 +790,133 @@ export const createSharedLambdaResources = () => {
   const lambdaEc2RoleAttachment = new aws.iam.RolePolicyAttachment(
     "lambdaEc2RoleAttachment",
     {
-      role: lambdaRole.name,
+      role: httpLambdaRole.name,
       policyArn: lambdaEc2Policy.arn,
     }
   );
 
-  const lambdaSecretsManagerRoleAttachement = new aws.iam.RolePolicyAttachment(
+  const lambdaSecretsManagerRoleAttachment = new aws.iam.RolePolicyAttachment(
     "lambdaSecretManagerRoleAttachment",
     {
-      role: lambdaRole.name,
+      role: httpLambdaRole.name,
       policyArn: lambdaSecretsManagerPolicy.arn,
     }
   );
 
+  const queueLambdaRole = new aws.iam.Role("queueLambdaRole", {
+    assumeRolePolicy: assumeRole.then((assumeRole) => assumeRole.json),
+  });
+
+  const readSqsPolicyDocument = rescoreQueue.arn.apply((rescoreQueueArn) =>
+    aws.iam.getPolicyDocument({
+      statements: [
+        {
+          effect: "Allow",
+          actions: [
+            "sqs:ReceiveMessage",
+            "sqs:DeleteMessage",
+            "sqs:GetQueueAttributes",
+            "sqs:ChangeMessageVisibility",
+          ],
+          resources: [rescoreQueueArn],
+        },
+      ],
+    })
+  );
+
+  const readSqsPolicy = new aws.iam.Policy("readSqsPolicy", {
+    path: "/",
+    description: "IAM policy for reading from SQS",
+    policy: readSqsPolicyDocument.apply(
+      (readSqsPolicyDocument) => readSqsPolicyDocument.json
+    ),
+  });
+
+  const queueLambdaSqsRoleAttachment = new aws.iam.RolePolicyAttachment(
+    "queueLambdaSqsRoleAttachment",
+    {
+      role: queueLambdaRole.name,
+      policyArn: readSqsPolicy.arn,
+    }
+  );
+
+  const queueLambdaLogRoleAttachment = new aws.iam.RolePolicyAttachment(
+    "queueLambdaLogRoleAttachment",
+    {
+      role: queueLambdaRole.name,
+      policyArn: lambdaLoggingPolicy.arn,
+    }
+  );
+
+  const queueLambdaEc2RoleAttachment = new aws.iam.RolePolicyAttachment(
+    "queueLambdaEc2RoleAttachment",
+    {
+      role: queueLambdaRole.name,
+      policyArn: lambdaEc2Policy.arn,
+    }
+  );
+
+  const queueLambdaSecretsManagerRoleAttachment =
+    new aws.iam.RolePolicyAttachment("queueLambdaSecretManagerRoleAttachment", {
+      role: queueLambdaRole.name,
+      policyArn: lambdaSecretsManagerPolicy.arn,
+    });
+
   return {
-    lambdaRole,
-    lambdaLogRoleAttachment,
-    lambdaEc2RoleAttachment,
-    lambdaSecretsManagerRoleAttachement,
+    httpLambdaRole,
+    httpRoleAttachments: [
+      lambdaLogRoleAttachment,
+      lambdaEc2RoleAttachment,
+      lambdaSecretsManagerRoleAttachment,
+    ],
+    queueLambdaRole,
+    queueRoleAttachments: [
+      queueLambdaLogRoleAttachment,
+      queueLambdaSqsRoleAttachment,
+      queueLambdaSecretsManagerRoleAttachment,
+      queueLambdaEc2RoleAttachment,
+    ],
   };
 };
 
-export function buildLambdaFn({
-  name,
-  httpsListener,
-  listenerPriority,
-  imageUri,
-  privateSubnetSecurityGroup,
-  vpcPrivateSubnetIds,
-  environment,
-  lambdaRole,
-  lambdaLogRoleAttachment,
-  lambdaEc2RoleAttachment,
-  pathPatterns,
-  memorySize,
-  dockerCmd,
-  httpRequestMethods,
-}: {
+type BuildLambdaFnBaseParams = {
   name: string;
-  httpsListener: Listener;
-  listenerPriority: number;
   imageUri: string;
   privateSubnetSecurityGroup: SecurityGroup;
   vpcPrivateSubnetIds: Output<string[]>;
   environment: { name: string; value: Input<string> }[];
-  lambdaRole: Role;
-  lambdaLogRoleAttachment: RolePolicyAttachment;
-  lambdaEc2RoleAttachment: RolePolicyAttachment;
-  pathPatterns: string[];
+  role: Role;
+  roleAttachments: RolePolicyAttachment[];
   memorySize: number;
   dockerCmd: string[];
-  httpRequestMethods?: string[];
-}) {
+};
+
+export function buildHttpLambdaFn(
+  args: BuildLambdaFnBaseParams & {
+    httpsListener: Listener;
+    listenerPriority: number;
+    pathPatterns: string[];
+    httpRequestMethods?: string[];
+  }
+) {
+  const lambdaFunction = buildLambdaFn(args);
+
+  const {
+    httpsListener,
+    listenerPriority,
+    pathPatterns,
+    httpRequestMethods,
+    name,
+  } = args;
+
   const lambdaTargetGroup = new aws.lb.TargetGroup(`l-${name}`, {
     name: `l-${name}`,
     targetType: "lambda",
   });
 
-  const submitPassportFunction = new aws.lambda.Function(
-    name,
-    {
-      name: name,
-      imageConfig: {
-        commands: dockerCmd,
-      },
-      vpcConfig: {
-        // vpcId: vpc.vpcId,
-        securityGroupIds: [privateSubnetSecurityGroup.id], // TODO: shall we create it's own security group ???
-        subnetIds: vpcPrivateSubnetIds,
-      },
-      packageType: "Image",
-      role: lambdaRole.arn,
-      imageUri,
-      timeout: 60,
-      memorySize,
-      environment: {
-        variables: environment.reduce(
-          (
-            acc: { [key: string]: Input<string> },
-            e: { name: string; value: Input<string> }
-          ) => {
-            acc[e.name] = e.value;
-            return acc;
-          },
-          {}
-        ),
-      },
-      tags: { name: name },
-    },
-    {
-      dependsOn: [lambdaLogRoleAttachment, lambdaEc2RoleAttachment],
-    }
-  );
-
   const withLb = new aws.lambda.Permission(`withLb-${name}`, {
     action: "lambda:InvokeFunction",
-    function: submitPassportFunction.name,
+    function: lambdaFunction.name,
     principal: "elasticloadbalancing.amazonaws.com",
     sourceArn: lambdaTargetGroup.arn,
   });
@@ -881,7 +925,7 @@ export function buildLambdaFn({
     `lambdaTargetGroupAttachment-${name}`,
     {
       targetGroupArn: lambdaTargetGroup.arn,
-      targetId: submitPassportFunction.arn,
+      targetId: lambdaFunction.arn,
     },
     {
       dependsOn: [withLb],
@@ -917,3 +961,150 @@ export function buildLambdaFn({
     conditions,
   });
 }
+
+export function buildQueueLambdaFn(
+  args: BuildLambdaFnBaseParams & {
+    queue: aws.sqs.Queue;
+  }
+) {
+  const lambdaFunction = buildLambdaFn(args);
+
+  const { queue, name } = args;
+
+  const queueLambdaTrigger = new aws.lambda.EventSourceMapping(
+    `queueLambdaTrigger-${name}`,
+    {
+      batchSize: 10,
+      eventSourceArn: queue.arn,
+      functionName: lambdaFunction.arn,
+    }
+  );
+}
+
+function buildLambdaFn({
+  name,
+  imageUri,
+  privateSubnetSecurityGroup,
+  vpcPrivateSubnetIds,
+  environment,
+  role,
+  roleAttachments,
+  memorySize,
+  dockerCmd,
+}: BuildLambdaFnBaseParams): aws.lambda.Function {
+  const lambdaFunction = new aws.lambda.Function(
+    name,
+    {
+      name: name,
+      imageConfig: {
+        commands: dockerCmd,
+      },
+      vpcConfig: {
+        // vpcId: vpc.vpcId,
+        securityGroupIds: [privateSubnetSecurityGroup.id], // TODO: shall we create it's own security group ???
+        subnetIds: vpcPrivateSubnetIds,
+      },
+      packageType: "Image",
+      role: role.arn,
+      imageUri,
+      timeout: 60,
+      memorySize,
+      environment: {
+        variables: environment.reduce(
+          (
+            acc: { [key: string]: Input<string> },
+            e: { name: string; value: Input<string> }
+          ) => {
+            acc[e.name] = e.value;
+            return acc;
+          },
+          {}
+        ),
+      },
+      tags: { name: name },
+    },
+    {
+      dependsOn: roleAttachments,
+    }
+  );
+
+  return lambdaFunction;
+}
+
+export const createDeadLetterQueue = ({
+  alertTopic,
+}: {
+  alertTopic?: Topic;
+}): aws.sqs.Queue => {
+  const deadLetterQueue = new aws.sqs.Queue("scorer-dead-letter-queue");
+
+  if (alertTopic) {
+    const newMessageDeadLetterQueueAlarm = new aws.cloudwatch.MetricAlarm(
+      "newMessageDeadLetterQueueAlarm",
+      {
+        alarmActions: [alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm: 1,
+        evaluationPeriods: 1,
+        metricQueries: [
+          {
+            id: "m1",
+            metric: {
+              dimensions: {
+                QueueName: deadLetterQueue.name,
+              },
+              metricName: "ApproximateNumberOfMessagesVisible",
+              namespace: "AWS/SQS",
+              period: 300,
+              stat: "Maximum",
+            },
+          },
+          {
+            id: "m10",
+            metric: {
+              dimensions: {
+                QueueName: deadLetterQueue.name,
+              },
+              metricName: "ApproximateNumberOfMessagesVisible",
+              namespace: "AWS/SQS",
+              period: 300,
+              stat: "Minimum",
+            },
+          },
+          {
+            expression: "m1 - m10",
+            id: "e1",
+            label: "NumNewMessagesDeadLetterQueue",
+            returnData: true,
+          },
+        ],
+        name: "NewMessageDeadLetterQueueAlarm",
+        treatMissingData: "notBreaching",
+      }
+    );
+  }
+
+  return deadLetterQueue;
+};
+
+export const createRescoreQueue = ({
+  deadLetterQueue,
+}: {
+  deadLetterQueue: aws.sqs.Queue;
+}): aws.sqs.Queue => {
+  const fourHoursInSeconds = 60 * 60 * 4;
+
+  return new aws.sqs.Queue("rescore-queue", {
+    delaySeconds: 0,
+    maxMessageSize: 2048,
+    messageRetentionSeconds: 86400,
+    receiveWaitTimeSeconds: 10,
+    visibilityTimeoutSeconds: fourHoursInSeconds,
+    redrivePolicy: deadLetterQueue.arn.apply((arn) =>
+      JSON.stringify({
+        deadLetterTargetArn: arn,
+        maxReceiveCount: 4,
+      })
+    ),
+  });
+};
