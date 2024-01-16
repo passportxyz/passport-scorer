@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Type
 
 import api_logging as logging
-import requests
 from account.models import Account, Nonce
 from asgiref.sync import async_to_sync
 from django.conf import settings
@@ -12,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
-from ninja import Router, Schema
+from ninja import Router
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
 from ninja_extra.security import HttpBearer
@@ -21,7 +20,6 @@ from ninja_jwt.authentication import InvalidToken
 # from ninja_jwt.schema import RefreshToken
 from ninja_jwt.settings import api_settings
 from ninja_jwt.tokens import RefreshToken, Token, TokenError
-from ninja_schema import Schema
 from registry.api.v1 import (
     DetailedScoreResponse,
     SubmitPassportPayload,
@@ -38,6 +36,17 @@ from ..exceptions import (
 )
 from ..models import CeramicCache
 from ..utils import validate_dag_jws_payload, verify_jws
+from .schema import (
+    AccessTokenResponse,
+    CacaoVerifySubmit,
+    CachedStampResponse,
+    CacheStampPayload,
+    ComporeDBStatusResponse,
+    ComposeDBStatusPayload,
+    DeleteStampPayload,
+    GetStampResponse,
+    GetStampsWithScoreResponse,
+)
 
 log = logging.getLogger(__name__)
 
@@ -105,32 +114,6 @@ class JWTDidAuth(JWTDidAuthentication, HttpBearer):
         return self.jwt_authenticate(request, token)
 
 
-class CacheStampPayload(Schema):
-    address: Optional[str]
-    provider: str
-    stamp: Any
-
-
-class DeleteStampPayload(Schema):
-    address: Optional[str]
-    provider: str
-
-
-class CachedStampResponse(Schema):
-    address: str
-    provider: str
-    stamp: Any
-
-
-class GetStampResponse(Schema):
-    success: bool
-    stamps: List[CachedStampResponse]
-
-
-class GetStampsWithScoreResponse(GetStampResponse):
-    score: DetailedScoreResponse
-
-
 @router.post(
     "stamps/bulk", response={201: GetStampsWithScoreResponse}, auth=JWTDidAuth()
 )
@@ -182,7 +165,10 @@ def handle_add_stamps(
         success=True,
         stamps=[
             CachedStampResponse(
-                address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                address=stamp.address,
+                provider=stamp.provider,
+                stamp=stamp.stamp,
+                id=stamp.pk,
             )
             for stamp in updated_passport_state
         ],
@@ -249,12 +235,73 @@ def handle_patch_stamps(
         success=True,
         stamps=[
             CachedStampResponse(
-                address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                address=stamp.address,
+                provider=stamp.provider,
+                stamp=stamp.stamp,
+                id=stamp.pk,
             )
             for stamp in updated_passport_state
         ],
         score=get_detailed_score_response_for_address(address),
     )
+
+
+@router.patch(
+    "stamps/bulk/meta/compose-db", response=ComporeDBStatusResponse, auth=JWTDidAuth()
+)
+def update_compose_db_status(request, payload: List[ComposeDBStatusPayload]):
+    try:
+        address = get_address_from_did(request.did)
+        return handle_update_compose_db_status(address, payload)
+    except Exception as e:
+        raise e
+
+
+def handle_update_compose_db_status(
+    address: str, payload: List[ComposeDBStatusPayload]
+):
+    if len(payload) > settings.MAX_BULK_CACHE_SIZE:
+        raise TooManyStampsException()
+
+    now = get_utc_time()
+
+    stamp_objects = CeramicCache.objects.filter(
+        address=address,
+        id__in=[stamp.id for stamp in payload],
+        deleted_at__isnull=True,
+        compose_db_save_status=CeramicCache.ComposeDBSaveStatus.PENDING,
+        type=CeramicCache.StampType.V1,
+    )
+
+    pending_status_updates = payload.copy()
+    for stamp_object in stamp_objects:
+        for idx, status_update in enumerate(pending_status_updates):
+            if str(stamp_object.pk) == str(status_update.id):
+                stamp_object.updated_at = now
+                stamp_object.compose_db_save_status = (
+                    status_update.compose_db_save_status
+                )
+
+                if status_update.compose_db_stream_id:
+                    stamp_object.compose_db_stream_id = (
+                        status_update.compose_db_stream_id
+                    )
+
+                pending_status_updates.pop(idx)
+                break
+
+    CeramicCache.objects.bulk_update(
+        stamp_objects,
+        [
+            "updated_at",
+            "compose_db_save_status",
+            "compose_db_stream_id",
+        ],
+    )
+
+    return {
+        "updated": [stamp_object.pk for stamp_object in stamp_objects],
+    }
 
 
 @router.delete("stamps/bulk", response=GetStampResponse, auth=JWTDidAuth())
@@ -292,7 +339,10 @@ def handle_delete_stamps(
         success=True,
         stamps=[
             CachedStampResponse(
-                address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                address=stamp.address,
+                provider=stamp.provider,
+                stamp=stamp.stamp,
+                id=stamp.pk,
             )
             for stamp in updated_passport_state
         ],
@@ -336,7 +386,10 @@ def handle_get_stamps(address):
         success=True,
         stamps=[
             CachedStampResponse(
-                address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                address=stamp.address,
+                provider=stamp.provider,
+                stamp=stamp.stamp,
+                id=stamp.pk,
             )
             for stamp in stamps
         ],
@@ -367,15 +420,6 @@ def calc_score(request, address: str) -> DetailedScoreResponse:
     return get_detailed_score_response_for_address(address)
 
 
-class CacaoVerifySubmit(Schema):
-    issuer: str
-    signatures: List[Dict]
-    payload: str
-    nonce: str
-    cid: List[int]
-    cacao: List[int]
-
-
 class FailedVerificationException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Unable to authorize request"
@@ -385,10 +429,6 @@ class DbCacheToken(RefreshToken):
     # Lifetime of the token is set to 7 days (because this is the setting of the CACAO session)
     # But it should ideally be read out of the cacao
     lifetime: timedelta = timedelta(days=7)
-
-
-class AccessTokenResponse(Schema):
-    access: str
 
 
 @router.post(

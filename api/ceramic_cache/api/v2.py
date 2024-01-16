@@ -15,7 +15,7 @@ from ..exceptions import (
     TooManyStampsException,
 )
 from ..models import CeramicCache
-from .v1 import (
+from .schema import (
     AccessTokenResponse,
     CacaoVerifySubmit,
     CachedStampResponse,
@@ -23,8 +23,8 @@ from .v1 import (
     DeleteStampPayload,
     GetStampResponse,
     GetStampsWithScoreResponse,
-    JWTDidAuth,
 )
+from .v1 import JWTDidAuth
 from .v1 import authenticate as authenticate_v1
 from .v1 import get_address_from_did, get_detailed_score_response_for_address
 from .v1 import get_score as get_score_v1
@@ -133,7 +133,10 @@ def handle_add_stamps(address: str, payload: List[CacheStampPayload]):
         success=True,
         stamps=[
             CachedStampResponse(
-                address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                address=stamp.address,
+                provider=stamp.provider,
+                stamp=stamp.stamp,
+                id=stamp.pk,
             )
             for stamp in updated_passport_state
         ],
@@ -195,7 +198,10 @@ def handle_patch_stamps(address: str, payload: List[CacheStampPayload]):
         success=True,
         stamps=[
             CachedStampResponse(
-                address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                address=stamp.address,
+                provider=stamp.provider,
+                stamp=stamp.stamp,
+                id=stamp.pk,
             )
             for stamp in updated_passport_state
         ],
@@ -235,7 +241,10 @@ def handle_delete_stamps(address: str, payload: List[DeleteStampPayload]):
         success=True,
         stamps=[
             CachedStampResponse(
-                address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                address=stamp.address,
+                provider=stamp.provider,
+                stamp=stamp.stamp,
+                id=stamp.pk,
             )
             for stamp in updated_passport_state
         ],
@@ -273,7 +282,10 @@ def handle_get_stamps(address: str):
         success=True,
         stamps=[
             CachedStampResponse(
-                address=stamp.address, provider=stamp.provider, stamp=stamp.stamp
+                address=stamp.address,
+                provider=stamp.provider,
+                stamp=stamp.stamp,
+                id=stamp.pk,
             )
             for stamp in stamps
         ],
