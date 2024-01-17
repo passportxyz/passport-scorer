@@ -6,136 +6,19 @@ import { Input, interpolate } from "@pulumi/pulumi";
 // Manage : 
 //  - log group
 //  - service sg 
-//  - service role
 //  - target group
 //  - task definition
 //  - service
 //  - listener rule
 //////////////////////////////////////////////////////////////
 
-// input : service name, cluster 
 
-type AwsTags = Record<string, string>;
-
-type SgConfig = {
-    fromPort: number,
-    toPort: number,
-    protocol: string,
-    cidrBlocks: Array<string>
-}
-
-type InlinePolicy= {
+function getScorerSecurityGroup(
     name: string,
-    policy: string
-}
-
-type roleConfig = {
-    managedPolicyArns: Array<string>,
-    inlinePolicies: Array<InlinePolicy>
-}
-
-// type PortMapping = {
-//     containerPort: number,
-//     hostPort: number,
-//     protocol: string
-// }
-// type Environment = {
-//     name: string,
-//     value: string
-// }
-// type Secret = {
-//     name: string,
-//     value: string
-// }
-// type ContainerSpecs = {
-//     name: string,
-//     image: string, 
-//     cpu: string, 
-//     memory: string,
-//     links: Array<string>,
-//     essential: boolean,
-//     portMappings: Array<PortMapping>,
-//     environment: Array<Environment>,
-//     logConfiguration: Object,
-//     secrets: Array<Secret>,
-//     mountPoints: Array<any>,
-//     volumesFrom: Array<any>
-// }
-
-type serviceLbConfig = {
-    containerName: string,
-    containerPort: number
-}
-
-export type serviceConfig = {
-    logsRetention: number,
-    networking: {
-        vpcId: Input<string>,
-        subnets: Input<Array<string>>,
-        securityGroup: Array<SgConfig>
-    }
-    role: roleConfig,
-    // Array<ContainerSpecs>, //any //  TODO: fix this
-    containers: any, 
-    resources: {
-        cpu: string,
-        memory: string
-    },
-    cluster: {
-        arn: Input<string>,
-        name: Input<string>
-    },
-    targetGroup: {
-        healthCheck: {
-            enabled: boolean,
-            healthyThreshold: number,
-            interval: number,
-            matcher: string,
-            path: string,
-            port: string,
-            protocol: string,
-            timeout: number,
-            unhealthyThreshold: number
-        },
-        port : number,
-        protocol: string,
-        targetType: string
-    },
-    service: {
-        desiredCount: number,
-        loadBalancers: Array<serviceLbConfig>
-    },
-    lbRule: {
-        name: string,
-        lbName: Input<string>,
-        listenerArn: Input<string>,
-        hostHeaders?: Array<string>
-    },
-    asg: {
-        maxCapacity?: number,
-        minCapacity?: number,
-    },
-    alertTopicArn: Input<string>
-}
-
-// output {
-//  service, task, sg, loggroup, role 
-// }
-
-export function manageEcsService(name: string, serviceConfig: serviceConfig, defaultTags: AwsTags){
-    //////////////////////////////////////////////////////////////
-    // Log group 
-    //////////////////////////////////////////////////////////////
-    const serviceLogGroup = new aws.cloudwatch.LogGroup(name , {
-        name: name,
-        retentionInDays: serviceConfig.logsRetention,
-        tags: {
-            ...defaultTags,
-            Name: name,
-            Scope: `LogGroup for ${name} service.`,
-        },
-    });
-
+    vpcId: Input<string>,
+    cidrBlock: Input<string>,
+    defaultTags: Record<string, string>
+) {
     //////////////////////////////////////////////////////////////
     // Security group 
     // do no group the security group definition & rules in the same resource =>
@@ -144,7 +27,7 @@ export function manageEcsService(name: string, serviceConfig: serviceConfig, def
     //////////////////////////////////////////////////////////////
     const securityGroup = new aws.ec2.SecurityGroup(name, {
         name: name,
-        vpcId: serviceConfig.networking.vpcId,
+        vpcId: vpcId,
         description: `Security Group for ${name} service.`,
         tags: {
             ...defaultTags,
@@ -152,18 +35,16 @@ export function manageEcsService(name: string, serviceConfig: serviceConfig, def
         }
     });
 
-    const sgIngressRule = serviceConfig.networking.securityGroup.forEach(sgRule => 
-        new aws.ec2.SecurityGroupRule(`${name}-${sgRule.fromPort}`, {
-            securityGroupId : securityGroup.id,
-            type: "ingress",
-            fromPort: sgRule.fromPort,
-            toPort: sgRule.toPort,
-            protocol: sgRule.protocol,
-            cidrBlocks: sgRule.cidrBlocks
-        }, {
-            dependsOn: [securityGroup]
-        })
-    );
+    const sgIngressRule = new aws.ec2.SecurityGroupRule(`${name}-80`, {
+        securityGroupId: securityGroup.id,
+        type: "ingress",
+        fromPort: 80,
+        toPort: 80,
+        protocol: "tcp",
+        cidrBlocks: [cidrBlock] // TODO: manage sg group ingress better in the future to not allow the entire vpc
+    }, {
+        dependsOn: [securityGroup]
+    });
 
     const sgEgressRule = new aws.ec2.SecurityGroupRule(`${name}-egress-all`, {
         securityGroupId: securityGroup.id,
@@ -175,87 +56,105 @@ export function manageEcsService(name: string, serviceConfig: serviceConfig, def
     }, {
         dependsOn: [securityGroup]
     });
+    return securityGroup;
+}
 
+export function manageEcsService(
+    name: string,
+    logsRetention: number,
+    networking: {
+        vpcId: Input<string>,
+        vpcCidr: Input<string>,
+        subnets: Input<string[]>
+    },
+    containers: Input<string>,
+    executionRoleArn: Input<string>,
+    resources: { cpu: number, memory: number },
+    cluster: aws.ecs.Cluster,
+    desiredCount: number,
+    alb: {
+        name: Input<string>,
+        ruleName: string,
+        listenerArn: Input<string>,
+        rulePriority: number,
+        hostHeaders?: Array<string>,
+        pathPattern?: Array<string>
+    },
+    asg: {
+        maxCapacity?: number,
+        minCapacity?: number,
+    },
+    alertTopicArn: Input<string>,
+    defaultTags: Record<string, string>
+) {
     //////////////////////////////////////////////////////////////
-    // AWS IAM Role
+    // Log group 
     //////////////////////////////////////////////////////////////
-    const serviceRole = new aws.iam.Role(`${name}`, {
-        name: name, 
-        assumeRolePolicy: JSON.stringify({
-            Version: "2012-10-17",
-            Statement: [
-                {
-                    Action: "sts:AssumeRole",
-                    Effect: "Allow",
-                    Sid: "AllowEcsAssume",
-                    Principal: {
-                        Service: "ecs-tasks.amazonaws.com",
-                    },
-                },
-            ],
-        }),
-        managedPolicyArns: serviceConfig.role.managedPolicyArns,
-        inlinePolicies: serviceConfig.role.inlinePolicies,
+    const serviceLogGroup = new aws.cloudwatch.LogGroup(name, {
+        name: name,
+        retentionInDays: logsRetention,
         tags: {
             ...defaultTags,
-            Name: name
-        }
+            Name: name,
+            Scope: `LogGroup for ${name} service.`,
+        },
     });
+
+    const securityGroup = getScorerSecurityGroup(name, networking.vpcId, networking.vpcCidr, defaultTags);
 
     //////////////////////////////////////////////////////////////
     // ECS Task Definition, Service , ALB Target Group 
     //////////////////////////////////////////////////////////////
-    const taskDef = new aws.ecs.TaskDefinition(name, { 
-        family: name,
-        containerDefinitions: serviceConfig.containers,
-        executionRoleArn: serviceRole.arn,
-        cpu: serviceConfig.resources.cpu,
-        memory: serviceConfig.resources.memory,
-        networkMode: "awsvpc",
-        requiresCompatibilities: ["FARGATE"],
-        tags:{
-            ...defaultTags,
-        }
-    });
-    
     const lbTargetGroup = new aws.lb.TargetGroup(name, {
         name: name,
-        vpcId: serviceConfig.networking.vpcId,
-        ...serviceConfig.targetGroup,
-        // healthCheck: {
-        //     enabled: true,
-        //     healthyThreshold: 3,
-        //     interval: 30,
-        //     matcher: "200",
-        //     path: "/health",
-        //     port: "traffic-port",
-        //     protocol: "HTTP",
-        //     timeout: 5,
-        //     unhealthyThreshold: 5
-        // },
-        // port: 80,
-        // protocol: "HTTP",
-        // targetType: "ip",
+        vpcId: networking.vpcId,
+        healthCheck: {
+            enabled: true,
+            healthyThreshold: 3,
+            interval: 30,
+            matcher: "200",
+            path: "/health",
+            port: "traffic-port",
+            protocol: "HTTP",
+            timeout: 5,
+            unhealthyThreshold: 5
+        },
+        port: 80,
+        protocol: "HTTP",
+        targetType: "ip",
         tags: {
             ...defaultTags,
             Name: name
         }
     });
 
-    const ecsService =  new aws.ecs.Service(name, {
-        cluster: serviceConfig.cluster.arn,
-        desiredCount: 2,
+    const taskDef = new aws.ecs.TaskDefinition(name, {
+        family: name,
+        containerDefinitions: containers,
+        executionRoleArn: executionRoleArn,
+        cpu: `${resources.cpu}`,
+        memory: `${resources.memory}`,
+        networkMode: "awsvpc",
+        requiresCompatibilities: ["FARGATE"],
+        tags: {
+            ...defaultTags,
+        }
+    });
+
+    const ecsService = new aws.ecs.Service(name, {
+        cluster: cluster.arn,
+        desiredCount: desiredCount,
         enableEcsManagedTags: true,
         enableExecuteCommand: false,
         launchType: "FARGATE",
         loadBalancers: [{
-            containerName: serviceConfig.service.loadBalancers[0].containerName,
-            containerPort: serviceConfig.service.loadBalancers[0].containerPort,
+            containerName: "scorer",
+            containerPort: 80,
             targetGroupArn: lbTargetGroup.arn
         }],
         name: name,
         networkConfiguration: {
-            subnets: serviceConfig.networking.subnets,
+            subnets: networking.subnets,
             securityGroups: [securityGroup.id]
         },
         propagateTags: "TASK_DEFINITION",
@@ -269,22 +168,27 @@ export function manageEcsService(name: string, serviceConfig: serviceConfig, def
     });
 
 
-    const lbRule = new aws.lb.ListenerRule(serviceConfig.lbRule.name, {
-        listenerArn: serviceConfig.lbRule.listenerArn,
-        priority: 5000,
+    const lbRule = new aws.lb.ListenerRule(alb.ruleName, {
+        listenerArn: alb.listenerArn,
+        priority: alb.rulePriority,
         actions: [{
             type: "forward",
             targetGroupArn: lbTargetGroup.arn
         }],
-        conditions: [{
-            hostHeader: {
-                values: serviceConfig.lbRule.hostHeaders ? serviceConfig.lbRule.hostHeaders : []
-            },
-            // pathPattern: {[]}
-        }],
+        conditions: [
+            {
+                hostHeader: {
+                    values: alb.hostHeaders ? alb.hostHeaders : []
+                }
+            }, {
+                pathPattern: {
+                    values: alb.pathPattern ? alb.pathPattern : []
+                }
+            }
+        ],
         tags: {
             ...defaultTags,
-            Name: serviceConfig.lbRule.name
+            Name: alb.name
         }
     });
 
@@ -296,96 +200,98 @@ export function manageEcsService(name: string, serviceConfig: serviceConfig, def
     const asgTarget = new aws.appautoscaling.Target(
         `autoscale-target-${name}`,
         {
-          tags: { name: name },
-          maxCapacity: serviceConfig.asg.maxCapacity ? serviceConfig.asg.maxCapacity : 20,
-          minCapacity: serviceConfig.asg.minCapacity ? serviceConfig.asg.minCapacity : 2,
-          resourceId: interpolate`service/${serviceConfig.cluster.name}/${ecsService.name}`,
-          scalableDimension: "ecs:service:DesiredCount",
-          serviceNamespace: "ecs",
+            tags: { name: name },
+            maxCapacity: asg.maxCapacity ? asg.maxCapacity : 20,
+            minCapacity: asg.minCapacity ? asg.minCapacity : 2,
+            resourceId: interpolate`service/${cluster.name}/${ecsService.name}`,
+            scalableDimension: "ecs:service:DesiredCount",
+            serviceNamespace: "ecs",
         }
     );
-    
+
     const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
         `autoscale-policy-${name}`,
         {
-          policyType: "TargetTrackingScaling",
-          resourceId: asgTarget.resourceId,
-          scalableDimension: asgTarget.scalableDimension,
-          serviceNamespace: asgTarget.serviceNamespace,
-          targetTrackingScalingPolicyConfiguration: {
-            predefinedMetricSpecification: {
-              predefinedMetricType: "ECSServiceAverageCPUUtilization",
+            policyType: "TargetTrackingScaling",
+            resourceId: asgTarget.resourceId,
+            scalableDimension: asgTarget.scalableDimension,
+            serviceNamespace: asgTarget.serviceNamespace,
+            targetTrackingScalingPolicyConfiguration: {
+                predefinedMetricSpecification: {
+                    predefinedMetricType: "ECSServiceAverageCPUUtilization",
+                },
+                targetValue: 50,
+                scaleInCooldown: 300,
+                scaleOutCooldown: 300,
             },
-            targetValue: 50,
-            scaleInCooldown: 300,
-            scaleOutCooldown: 300,
-          },
         }
     );
-    
-    if (serviceConfig.alertTopicArn) {
+
+    if (alertTopicArn) {
         const cpuAlarm = new aws.cloudwatch.MetricAlarm(`CPUUtilization-${name}`, {
-          tags: { name: `CPUUtilization-${name}` },
-          alarmActions: [serviceConfig.alertTopicArn],
-          comparisonOperator: "GreaterThanThreshold",
-          datapointsToAlarm: 1,
-          dimensions: {
-            ClusterName: serviceConfig.cluster.name,
-            ServiceName: name,
-          },
-          evaluationPeriods: 1,
-          metricName: "CPUUtilization",
-          name: `CPUUtilization-${name}`,
-          namespace: "AWS/ECS",
-          period: 300,
-          statistic: "Average",
-          threshold: 80,
-        });
-    
-        const memoryAlarm = new aws.cloudwatch.MetricAlarm(
-          `MemoryUtilization-${name}`,
-          {
-            tags: { name: `MemoryUtilization-${name}` },
-            alarmActions: [serviceConfig.alertTopicArn],
+            tags: { name: `CPUUtilization-${name}` },
+            alarmActions: [alertTopicArn],
             comparisonOperator: "GreaterThanThreshold",
             datapointsToAlarm: 1,
             dimensions: {
-              ClusterName: serviceConfig.cluster.name,
-              ServiceName: name,
+                ClusterName: cluster.name,
+                ServiceName: name,
             },
             evaluationPeriods: 1,
-            metricName: "MemoryUtilization",
-            name: `MemoryUtilization-${name}`,
+            metricName: "CPUUtilization",
+            name: `CPUUtilization-${name}`,
             namespace: "AWS/ECS",
-            period: 900,
+            period: 300,
             statistic: "Average",
             threshold: 80,
-          }
+        });
+
+        const memoryAlarm = new aws.cloudwatch.MetricAlarm(
+            `MemoryUtilization-${name}`,
+            {
+                tags: { name: `MemoryUtilization-${name}` },
+                alarmActions: [alertTopicArn],
+                comparisonOperator: "GreaterThanThreshold",
+                datapointsToAlarm: 1,
+                dimensions: {
+                    ClusterName: cluster.name,
+                    ServiceName: name,
+                },
+                evaluationPeriods: 1,
+                metricName: "MemoryUtilization",
+                name: `MemoryUtilization-${name}`,
+                namespace: "AWS/ECS",
+                period: 900,
+                statistic: "Average",
+                threshold: 80,
+            }
         );
-    
+
         const http5xxAlarm = new aws.cloudwatch.MetricAlarm(`HTTP-5xx-${name}`, {
-          tags: { name: `HTTP-5xx-${name}` },
-          alarmActions: [serviceConfig.alertTopicArn],
-          comparisonOperator: "GreaterThanThreshold",
-          datapointsToAlarm: 3,
-          dimensions: {
-            LoadBalancer: serviceConfig.lbRule.lbName,
-            TargetGroup: lbTargetGroup.name,
-          },
-          evaluationPeriods: 5,
-          metricName: "HTTPCode_Target_5XX_Count",
-          name: `HTTP-5xx-${name}`,
-          namespace: "AWS/ApplicationELB",
-          period: 60,
-          statistic: "Sum",
-          treatMissingData: "notBreaching",
+            tags: { name: `HTTP-5xx-${name}` },
+            alarmActions: [alertTopicArn],
+            comparisonOperator: "GreaterThanThreshold",
+            datapointsToAlarm: 3,
+            dimensions: {
+                LoadBalancer: alb.name,
+                TargetGroup: lbTargetGroup.name,
+            },
+            evaluationPeriods: 5,
+            metricName: "HTTPCode_Target_5XX_Count",
+            name: `HTTP-5xx-${name}`,
+            namespace: "AWS/ApplicationELB",
+            period: 60,
+            statistic: "Sum",
+            treatMissingData: "notBreaching",
         });
     }
 
     return {
-        role: serviceRole,
-        securityGroup: securityGroup,
-        task : taskDef,
+        task: taskDef,
         service: ecsService
     }
 }
+
+
+
+
