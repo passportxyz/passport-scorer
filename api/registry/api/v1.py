@@ -527,7 +527,9 @@ def get_passport_stamps(
     if not is_valid_address(address):
         raise InvalidAddressException()
 
-    query = CeramicCache.objects.order_by("-id").filter(address=address)
+    query = CeramicCache.objects.order_by("-id").filter(
+        address=address, deleted_at__isnull=True
+    )
 
     cursor = decode_cursor(token) if token else {}
     direction = cursor.get("d")

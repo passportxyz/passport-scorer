@@ -2,21 +2,29 @@
 
 from typing import Dict, List
 
+import api_logging as logging
 import requests
 from django.conf import settings
 from ninja import Router
-
-import api_logging as logging
 from registry.api.v1 import DetailedScoreResponse
 from registry.models import Score
 
-from ..exceptions import (InternalServerException,
-                          InvalidDeleteCacheRequestException,
-                          TooManyStampsException)
+from ..exceptions import (
+    InternalServerException,
+    InvalidDeleteCacheRequestException,
+    TooManyStampsException,
+)
 from ..models import CeramicCache
-from .v1 import (AccessTokenResponse, CacaoVerifySubmit, CachedStampResponse,
-                 CacheStampPayload, DeleteStampPayload, GetStampResponse,
-                 GetStampsWithScoreResponse, JWTDidAuth)
+from .v1 import (
+    AccessTokenResponse,
+    CacaoVerifySubmit,
+    CachedStampResponse,
+    CacheStampPayload,
+    DeleteStampPayload,
+    GetStampResponse,
+    GetStampsWithScoreResponse,
+    JWTDidAuth,
+)
 from .v1 import authenticate as authenticate_v1
 from .v1 import get_address_from_did, get_detailed_score_response_for_address
 from .v1 import get_score as get_score_v1
@@ -56,17 +64,17 @@ def migrate_stamp_to_v2(v1_stamp: CeramicCache) -> CeramicCache:
 
 def get_passport_state(address: str) -> list[CeramicCache]:
     v1_stamp_list = CeramicCache.objects.filter(
-        type=CeramicCache.StampType.V1, address=address
+        type=CeramicCache.StampType.V1, address=address, deleted_at__isnull=True
     )
 
     v2_stamps = {
         c.provider: c
         for c in CeramicCache.objects.filter(
-            type=CeramicCache.StampType.V2, address=address
+            type=CeramicCache.StampType.V2, address=address, deleted_at__isnull=True
         )
     }
 
-    # We want to make sure that all stamps in v2_stamps are also in v1_stamps, and that no
+    # We want to make sure that all stamps in v1_stamps are also in v2_stamps, and that no
     # v1_stamp is newer than it's equivalent in v2_stamps
     for v1_stamp in v1_stamp_list:
         if v1_stamp.provider not in v2_stamps:
@@ -96,24 +104,28 @@ def handle_add_stamps(address: str, payload: List[CacheStampPayload]):
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
         raise TooManyStampsException()
 
-    stamp_objects = []
     now = get_utc_time()
-    for p in payload:
-        stamp_object = CeramicCache(
+
+    existing_stamps = CeramicCache.objects.filter(
+        address=address,
+        provider__in=[p.provider for p in payload],
+        deleted_at__isnull=True,
+    )
+
+    existing_stamps.update(updated_at=now, deleted_at=now)
+
+    new_stamp_objects = [
+        CeramicCache(
             type=CeramicCache.StampType.V2,
             address=address,
             provider=p.provider,
             stamp=p.stamp,
             updated_at=now,
         )
-        stamp_objects.append(stamp_object)
+        for p in payload
+    ]
 
-    created = CeramicCache.objects.bulk_create(
-        stamp_objects,
-        update_conflicts=True,
-        update_fields=["stamp", "updated_at"],
-        unique_fields=["type", "address", "provider"],
-    )
+    CeramicCache.objects.bulk_create(new_stamp_objects)
 
     updated_passport_state = get_passport_state(address)
 
@@ -148,39 +160,34 @@ def handle_patch_stamps(address: str, payload: List[CacheStampPayload]):
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
         raise TooManyStampsException()
 
-    stamp_objects = []
-    providers_to_delete = []
-    updated = []
     now = get_utc_time()
 
-    for p in payload:
-        if p.stamp:
-            stamp_object = CeramicCache(
-                type=CeramicCache.StampType.V2,
-                address=address,
-                provider=p.provider,
-                stamp=p.stamp,
-                updated_at=now,
-            )
-            stamp_objects.append(stamp_object)
-        else:
-            providers_to_delete.append(p.provider)
-
-    if stamp_objects:
-        updated = CeramicCache.objects.bulk_create(
-            stamp_objects,
-            update_conflicts=True,
-            update_fields=["stamp", "updated_at"],
-            unique_fields=["type", "address", "provider"],
-        )
+    # Soft delete all, the ones with a stamp defined will be re-created
+    providers_to_delete = [p.provider for p in payload]
 
     if providers_to_delete:
         stamps = CeramicCache.objects.filter(
             address=address,
             provider__in=providers_to_delete,
+            deleted_at__isnull=True,
             # We do not specify type because we delete both V1 and V2 stamps
         )
-        stamps.delete()
+        stamps.update(updated_at=now, deleted_at=now)
+
+    new_stamp_objects = [
+        CeramicCache(
+            type=CeramicCache.StampType.V2,
+            address=address,
+            provider=p.provider,
+            stamp=p.stamp,
+            updated_at=now,
+        )
+        for p in payload
+        if p.stamp
+    ]
+
+    if new_stamp_objects:
+        CeramicCache.objects.bulk_create(new_stamp_objects)
 
     updated_passport_state = get_passport_state(address)
 
@@ -214,10 +221,13 @@ def handle_delete_stamps(address: str, payload: List[DeleteStampPayload]):
         # Otherwise the `get_passport_state` function will re-create the V2 stamp from it's V2 version
         address=address,
         provider__in=[p.provider for p in payload],
+        deleted_at__isnull=True,
     )
     if not stamps:
         raise InvalidDeleteCacheRequestException()
-    stamps.delete()
+
+    now = get_utc_time()
+    stamps.update(deleted_at=now, updated_at=now)
 
     updated_passport_state = get_passport_state(address)
 

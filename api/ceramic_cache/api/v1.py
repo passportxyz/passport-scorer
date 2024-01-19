@@ -150,27 +150,32 @@ def handle_add_stamps(
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
         raise TooManyStampsException()
 
-    stamp_objects = []
     now = get_utc_time()
-    for p in payload:
-        stamp_object = CeramicCache(
+
+    existing_stamps = CeramicCache.objects.filter(
+        address=address,
+        provider__in=[p.provider for p in payload],
+        type=CeramicCache.StampType.V1,
+        deleted_at__isnull=True,
+    )
+
+    existing_stamps.update(updated_at=now, deleted_at=now)
+
+    new_stamp_objects = [
+        CeramicCache(
             type=CeramicCache.StampType.V1,
             address=address,
             provider=p.provider,
             stamp=p.stamp,
             updated_at=now,
         )
-        stamp_objects.append(stamp_object)
+        for p in payload
+    ]
 
-    created = CeramicCache.objects.bulk_create(
-        stamp_objects,
-        update_conflicts=True,
-        update_fields=["stamp", "updated_at"],
-        unique_fields=["type", "address", "provider"],
-    )
+    CeramicCache.objects.bulk_create(new_stamp_objects)
 
     updated_passport_state = CeramicCache.objects.filter(
-        address=address, type=CeramicCache.StampType.V1
+        address=address, type=CeramicCache.StampType.V1, deleted_at__isnull=True
     )
 
     return GetStampsWithScoreResponse(
@@ -208,42 +213,36 @@ def handle_patch_stamps(
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
         raise TooManyStampsException()
 
-    stamp_objects = []
-    providers_to_delete = []
-    updated = []
     now = get_utc_time()
 
-    for p in payload:
-        if p.stamp:
-            stamp_object = CeramicCache(
-                type=CeramicCache.StampType.V1,
-                address=address,
-                provider=p.provider,
-                stamp=p.stamp,
-                updated_at=now,
-            )
-            stamp_objects.append(stamp_object)
-        else:
-            providers_to_delete.append(p.provider)
-
-    if stamp_objects:
-        updated = CeramicCache.objects.bulk_create(
-            stamp_objects,
-            update_conflicts=True,
-            update_fields=["stamp", "updated_at"],
-            unique_fields=["type", "address", "provider"],
-        )
+    # Soft delete all, the ones with a stamp defined will be re-created
+    providers_to_delete = [p.provider for p in payload]
 
     if providers_to_delete:
         stamps = CeramicCache.objects.filter(
-            # No need to filter by type on delete ... we delete everything V1 ans V2 alike
             address=address,
             provider__in=providers_to_delete,
+            deleted_at__isnull=True,
         )
-        stamps.delete()
+        stamps.update(updated_at=now, deleted_at=now)
+
+    new_stamp_objects = [
+        CeramicCache(
+            type=CeramicCache.StampType.V1,
+            address=address,
+            provider=p.provider,
+            stamp=p.stamp,
+            updated_at=now,
+        )
+        for p in payload
+        if p.stamp
+    ]
+
+    if new_stamp_objects:
+        CeramicCache.objects.bulk_create(new_stamp_objects)
 
     updated_passport_state = CeramicCache.objects.filter(
-        address=address, type=CeramicCache.StampType.V1
+        address=address, type=CeramicCache.StampType.V1, deleted_at__isnull=True
     )
 
     return GetStampsWithScoreResponse(
@@ -277,12 +276,17 @@ def handle_delete_stamps(
         # We do not filter by type. The thinking is: if a user wants to delete a V2 stamp, then he wants to delete both the V1 and V2 stamps ...
         address=address,
         provider__in=[p.provider for p in payload],
+        deleted_at__isnull=True,
     )
     if not stamps:
         raise InvalidDeleteCacheRequestException()
-    stamps.delete()
 
-    updated_passport_state = CeramicCache.objects.filter(address=address)
+    now = get_utc_time()
+    stamps.update(deleted_at=now, updated_at=now)
+
+    updated_passport_state = CeramicCache.objects.filter(
+        address=address, deleted_at__isnull=True
+    )
 
     return GetStampsWithScoreResponse(
         success=True,
@@ -315,7 +319,7 @@ def get_stamps(request, address):
 
 def handle_get_stamps(address):
     stamps = CeramicCache.objects.filter(
-        address=address, type=CeramicCache.StampType.V1
+        address=address, type=CeramicCache.StampType.V1, deleted_at__isnull=True
     )
 
     scorer_id = settings.CERAMIC_CACHE_SCORER_ID

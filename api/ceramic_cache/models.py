@@ -32,12 +32,18 @@ class CeramicCache(models.Model):
         help_text="This is the timestamp that this DB record was updated (it is not necessarily the stamp issuance timestamp)",
     )
 
+    deleted_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="This is the timestamp that this DB record was deleted",
+    )
+
     type = models.IntegerField(
         default=StampType.V1, choices=[(tag.value, tag.name) for tag in StampType]
     )
 
     class Meta:
-        unique_together = ["type", "address", "provider"]
+        unique_together = ["type", "address", "provider", "deleted_at"]
 
 
 class StampExports(models.Model):

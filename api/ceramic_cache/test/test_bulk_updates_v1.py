@@ -122,13 +122,14 @@ class TestBulkStampUpdates:
         assert cache_stamp_response.status_code == 200
         assert len(cache_stamp_response.json()["stamps"]) == 2
 
-        # Should have a stamp for the first provider, but not for the last provider
+        # Should have a stamp for the first provider, but not for last provider
         assert (
             CeramicCache.objects.filter(
                 type=self.stamp_version, provider=sample_providers[0]
             ).count()
             == 1
         )
+
         assert (
             CeramicCache.objects.filter(
                 type=self.stamp_version,
@@ -157,13 +158,25 @@ class TestBulkStampUpdates:
         assert cache_stamp_response.status_code == 200
         assert len(cache_stamp_response.json()["stamps"]) == len(sample_providers) - 1
 
-        # Should no longer have a stamp for the first provider, but now have one for the last provider
+        # Should now have a stamp for the last provider, but stamp for first provider should be marked as deleted
         assert (
             CeramicCache.objects.filter(
-                type=self.stamp_version, provider=sample_providers[0]
+                type=self.stamp_version,
+                provider=sample_providers[0],
+                deleted_at__isnull=True,
             ).count()
             == 0
         )
+
+        assert (
+            CeramicCache.objects.filter(
+                type=self.stamp_version,
+                provider=sample_providers[0],
+                deleted_at__isnull=False,
+            ).count()
+            == 1
+        )
+
         assert (
             CeramicCache.objects.filter(
                 type=self.stamp_version,

@@ -2,7 +2,6 @@
 from typing import Dict, List
 
 import api_logging as logging
-
 from asgiref.sync import async_to_sync
 from ceramic_cache.models import CeramicCache
 
@@ -21,7 +20,9 @@ def get_did(address, network="1"):
 
 
 async def aget_passport(address: str = "") -> Dict:
-    db_stamp_list = CeramicCache.objects.filter(address=address)
+    db_stamp_list = CeramicCache.objects.filter(
+        address=address, deleted_at__isnull=True
+    )
 
     return {
         "stamps": [
