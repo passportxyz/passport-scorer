@@ -26,11 +26,11 @@ mock_passport_data = {
             "credential": {
                 "type": ["VerifiableCredential"],
                 "credentialSubject": {
-                    "id": settings.TRUSTED_IAM_ISSUER,
+                    "id": settings.TRUSTED_IAM_ISSUERS[0],
                     "hash": "v0.0.0:1Vzw/OyM9CBUkVi/3mb+BiwFnHzsSRZhVH1gaQIyHvM=",
                     "provider": "Ens",
                 },
-                "issuer": settings.TRUSTED_IAM_ISSUER,
+                "issuer": settings.TRUSTED_IAM_ISSUERS[0],
                 "issuanceDate": "2023-02-06T23:22:58.848Z",
                 "expirationDate": "2099-02-06T23:22:58.848Z",
             },
@@ -40,11 +40,11 @@ mock_passport_data = {
             "credential": {
                 "type": ["VerifiableCredential"],
                 "credentialSubject": {
-                    "id": settings.TRUSTED_IAM_ISSUER,
+                    "id": settings.TRUSTED_IAM_ISSUERS[0],
                     "hash": "0x88888",
                     "provider": "Google",
                 },
-                "issuer": settings.TRUSTED_IAM_ISSUER,
+                "issuer": settings.TRUSTED_IAM_ISSUERS[0],
                 "issuanceDate": "2023-02-06T23:22:58.848Z",
                 "expirationDate": "2099-02-06T23:22:58.848Z",
             },
@@ -54,11 +54,11 @@ mock_passport_data = {
             "credential": {
                 "type": ["VerifiableCredential"],
                 "credentialSubject": {
-                    "id": settings.TRUSTED_IAM_ISSUER,
+                    "id": settings.TRUSTED_IAM_ISSUERS[0],
                     "hash": "0x45678",
                     "provider": "Gitcoin",
                 },
-                "issuer": settings.TRUSTED_IAM_ISSUER,
+                "issuer": settings.TRUSTED_IAM_ISSUERS[0],
                 "issuanceDate": "2023-02-06T23:22:58.848Z",
                 "expirationDate": "2099-02-06T23:22:58.848Z",
             },
@@ -267,11 +267,11 @@ class TestScorePassportTestCase(TransactionTestCase):
             "credential": {
                 "type": ["VerifiableCredential"],
                 "credentialSubject": {
-                    "id": settings.TRUSTED_IAM_ISSUER,
+                    "id": settings.TRUSTED_IAM_ISSUERS[0],
                     "hash": "0x1111",
                     "provider": "Gitcoin",
                 },
-                "issuer": settings.TRUSTED_IAM_ISSUER,
+                "issuer": settings.TRUSTED_IAM_ISSUERS[0],
                 "issuanceDate": "2023-02-06T23:22:58.848Z",
                 "expirationDate": "2099-02-06T23:22:58.848Z",
             },
@@ -302,11 +302,11 @@ class TestScorePassportTestCase(TransactionTestCase):
                     "credential": {
                         "type": ["VerifiableCredential"],
                         "credentialSubject": {
-                            "id": settings.TRUSTED_IAM_ISSUER,
+                            "id": settings.TRUSTED_IAM_ISSUERS[0],
                             "hash": "0x12121",
                             "provider": "Google",
                         },
-                        "issuer": settings.TRUSTED_IAM_ISSUER,
+                        "issuer": settings.TRUSTED_IAM_ISSUERS[0],
                         "issuanceDate": "2023-02-06T23:22:58.848Z",
                         "expirationDate": "2099-02-06T23:22:58.848Z",
                     },

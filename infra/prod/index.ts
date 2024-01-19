@@ -44,7 +44,7 @@ export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_
 export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
 
 export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
-const trustedIAMIssuer = `${process.env["TRUSTED_IAM_ISSUER"]}`;
+const trustedIAMIssuers = `${process.env["TRUSTED_IAM_ISSUERS"]}`;
 
 const redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
 const redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
@@ -1290,8 +1290,8 @@ const lambdaSettings = {
   environment: [
     ...environment,
     {
-      name: "TRUSTED_IAM_ISSUER",
-      value: trustedIAMIssuer,
+      name: "TRUSTED_IAM_ISSUERS",
+      value: trustedIAMIssuers,
     },
     {
       name: "FF_API_ANALYTICS",

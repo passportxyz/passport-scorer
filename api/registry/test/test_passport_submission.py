@@ -30,7 +30,7 @@ ens_credential = {
         "proofPurpose": "assertionMethod",
         "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     },
-    "issuer": settings.TRUSTED_IAM_ISSUER,
+    "issuer": settings.TRUSTED_IAM_ISSUERS[0],
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
@@ -61,7 +61,7 @@ ens_credential_corrupted = {
         "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC"
         + "CORRUPTING THE FIELD",
     },
-    "issuer": settings.TRUSTED_IAM_ISSUER,
+    "issuer": settings.TRUSTED_IAM_ISSUERS[0],
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
@@ -92,7 +92,7 @@ google_credential = {
         "proofPurpose": "assertionMethod",
         "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     },
-    "issuer": settings.TRUSTED_IAM_ISSUER,
+    "issuer": settings.TRUSTED_IAM_ISSUERS[0],
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
@@ -123,7 +123,7 @@ google_credential_2 = {
         "proofPurpose": "assertionMethod",
         "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     },
-    "issuer": settings.TRUSTED_IAM_ISSUER,
+    "issuer": settings.TRUSTED_IAM_ISSUERS[0],
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
@@ -154,7 +154,7 @@ google_credential_expired = {
         "proofPurpose": "assertionMethod",
         "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     },
-    "issuer": settings.TRUSTED_IAM_ISSUER,
+    "issuer": settings.TRUSTED_IAM_ISSUERS[0],
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "issuanceDate": (datetime.utcnow() - timedelta(days=30)).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
@@ -184,7 +184,7 @@ google_credential_soon_to_be_expired = {
         "proofPurpose": "assertionMethod",
         "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     },
-    "issuer": settings.TRUSTED_IAM_ISSUER,
+    "issuer": settings.TRUSTED_IAM_ISSUERS[0],
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "issuanceDate": (datetime.utcnow() - timedelta(days=27)).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
