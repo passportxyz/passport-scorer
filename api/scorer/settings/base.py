@@ -411,7 +411,7 @@ TRUSTED_IAM_ISSUER = env(
 )
 TRUSTED_IAM_ISSUERS = env.json(
     "TRUSTED_IAM_ISSUERS",
-    default='["did:key:GlMY_1zkc0i11O-wMBWbSiUfIkZiXzFLlAQ89pdfyBA"]',
+    default=["did:key:GlMY_1zkc0i11O-wMBWbSiUfIkZiXzFLlAQ89pdfyBA"],
 )
 
 
