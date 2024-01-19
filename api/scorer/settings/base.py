@@ -409,8 +409,9 @@ PASSPORT_PUBLIC_URL = env("PASSPORT_PUBLIC_URL", default="http://localhost:80")
 TRUSTED_IAM_ISSUER = env(
     "TRUSTED_IAM_ISSUER", default="did:key:GlMY_1zkc0i11O-wMBWbSiUfIkZiXzFLlAQ89pdfyBA"
 )
-TRUSTED_IAM_ISSUERS = env(
-    "TRUSTED_IAM_ISSUERS", default="did:key:GlMY_1zkc0i11O-wMBWbSiUfIkZiXzFLlAQ89pdfyBA"
+TRUSTED_IAM_ISSUERS = env.json(
+    "TRUSTED_IAM_ISSUERS",
+    default='["did:key:GlMY_1zkc0i11O-wMBWbSiUfIkZiXzFLlAQ89pdfyBA"]',
 )
 
 
