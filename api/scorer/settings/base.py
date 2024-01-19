@@ -405,9 +405,14 @@ CERAMIC_CACHE_CONVERT_STAMP_TO_V2_URL = env(
 
 PASSPORT_PUBLIC_URL = env("PASSPORT_PUBLIC_URL", default="http://localhost:80")
 
+# Deprecated in favour of TRUSTED_IAM_ISSUERS which will store a list of trusted issuers
 TRUSTED_IAM_ISSUER = env(
     "TRUSTED_IAM_ISSUER", default="did:key:GlMY_1zkc0i11O-wMBWbSiUfIkZiXzFLlAQ89pdfyBA"
 )
+TRUSTED_IAM_ISSUERS = env(
+    "TRUSTED_IAM_ISSUERS", default="did:key:GlMY_1zkc0i11O-wMBWbSiUfIkZiXzFLlAQ89pdfyBA"
+)
+
 
 CGRANTS_API_TOKEN = env("CGRANTS_API_TOKEN", default="abc")
 

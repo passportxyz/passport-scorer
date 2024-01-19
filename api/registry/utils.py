@@ -94,7 +94,7 @@ def verify_issuer(stamp: dict) -> bool:
     return (
         "credential" in stamp
         and "issuer" in stamp["credential"]
-        and stamp["credential"]["issuer"] == settings.TRUSTED_IAM_ISSUER
+        and stamp["credential"]["issuer"] in settings.TRUSTED_IAM_ISSUERS
     )
 
 
