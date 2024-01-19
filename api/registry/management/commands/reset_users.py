@@ -46,9 +46,12 @@ class Command(BaseCommand):
         )
 
         try:
+            now = get_utc_time()
             self.stdout.write("Resetting addresses - deleting ceramic cache entries")
-            ceramic_cache_entries = CeramicCache.objects.filter(address__in=addresses)
-            ceramic_cache_entries.delete()
+            ceramic_cache_entries = CeramicCache.objects.filter(
+                address__in=addresses, deleted_at__isnull=True
+            )
+            ceramic_cache_entries.update(deleted_at=now, updated_at=now)
 
             passports = Passport.objects.filter(address__in=addresses).order_by(
                 "community"

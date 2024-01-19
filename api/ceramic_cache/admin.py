@@ -9,7 +9,8 @@ from .models import CeramicCache
 
 @admin.register(CeramicCache)
 class CeramicCacheAdmin(ScorerModelAdmin):
-    list_display = ("id", "address", "provider", "stamp")
+    list_display = ("id", "address", "provider", "stamp", "deleted_at")
+    list_filter = ("deleted_at",)
     search_fields = ("address",)
     search_help_text = "This will perform a search by 'address'"
     show_full_result_count = False

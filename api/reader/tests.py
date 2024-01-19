@@ -83,6 +83,32 @@ sample_stamps = [
     },
 ]
 
+deleted_stamp = {
+    "type": ["VerifiableCredential"],
+    "proof": {
+        "jws": "eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..QzVfUCyr6EZAA4ZxpS0XEnO5jn7OjepFo9H2qlpQaq3E5aozKexjVElhGwAqBuvzhZ6n4v8KQQk7rY33b4KhAg",
+        "type": "Ed25519Signature2018",
+        "created": "2023-01-09T21:57:01.476Z",
+        "proofPurpose": "assertionMethod",
+        "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+    },
+    "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
+    "@context": ["https://www.w3.org/2018/credentials/v1"],
+    "issuanceDate": "2023-01-09T21:57:01.476Z",
+    "expirationDate": "2099-04-09T21:57:01.476Z",
+    "credentialSubject": {
+        "id": "did:pkh:eip155:1:0x434b56e01a8BdD9AB8aE5Ef1aCf86E3372A877c3",
+        "hash": "v0.0.0:SCGn9juQ2RYK1dvEAurvbAHHDfs+4/VOYdhqfAkGvBU=",
+        "@context": [
+            {
+                "hash": "https://schema.org/Text",
+                "provider": "https://schema.org/Text",
+            }
+        ],
+        "provider": "Ens",
+    },
+}
+
 
 class TestGetStamps:
     @pytest.mark.django_db
@@ -98,11 +124,30 @@ class TestGetStamps:
                 stamp=stamp,
             )
 
+        CeramicCache.objects.create(
+            address=address,
+            provider=deleted_stamp["credentialSubject"]["provider"],
+            stamp=deleted_stamp,
+            deleted_at="2021-01-01T00:00:00.000Z",
+        )
+
         passport = get_passport(address)
         stamps = passport["stamps"]
 
-        for (index, sample_stamp) in enumerate(sample_stamps):
+        for index, sample_stamp in enumerate(sample_stamps):
             assert (
                 stamps[index]["credential"]["issuanceDate"]
                 == sample_stamp["issuanceDate"]
             )
+
+        assert len(stamps) == len(sample_stamps)
+        assert (
+            len(
+                [
+                    s
+                    for s in stamps
+                    if s["provider"] == deleted_stamp["credentialSubject"]["provider"]
+                ]
+            )
+            == 0
+        )
