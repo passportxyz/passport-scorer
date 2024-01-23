@@ -50,10 +50,11 @@ class CeramicCache(models.Model):
     compose_db_save_status = models.CharField(
         max_length=10,
         choices=ComposeDBSaveStatus.choices,
-        default=ComposeDBSaveStatus.PENDING,
+        default="",
+        blank=True,
     )
 
-    compose_db_stream_id = models.CharField(max_length=100, default="")
+    compose_db_stream_id = models.CharField(max_length=100, default="", blank=True)
 
     class Meta:
         unique_together = ["type", "address", "provider", "deleted_at"]

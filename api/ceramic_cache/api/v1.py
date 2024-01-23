@@ -151,6 +151,7 @@ def handle_add_stamps(
             provider=p.provider,
             stamp=p.stamp,
             updated_at=now,
+            compose_db_save_status=CeramicCache.ComposeDBSaveStatus.PENDING,
         )
         for p in payload
     ]
@@ -219,6 +220,7 @@ def handle_patch_stamps(
             provider=p.provider,
             stamp=p.stamp,
             updated_at=now,
+            compose_db_save_status=CeramicCache.ComposeDBSaveStatus.PENDING,
         )
         for p in payload
         if p.stamp
