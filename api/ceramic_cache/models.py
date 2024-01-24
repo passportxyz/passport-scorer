@@ -11,6 +11,11 @@ class CeramicCache(models.Model):
         V1 = 1
         V2 = 2
 
+    class ComposeDBSaveStatus(models.TextChoices):
+        PENDING = "pending"
+        SAVED = "saved"
+        FAILED = "failed"
+
     address = EthAddressField(null=True, blank=False, max_length=100, db_index=True)
     provider = models.CharField(
         null=False, blank=False, default="", max_length=256, db_index=True
@@ -40,6 +45,20 @@ class CeramicCache(models.Model):
 
     type = models.IntegerField(
         default=StampType.V1, choices=[(tag.value, tag.name) for tag in StampType]
+    )
+
+    compose_db_save_status = models.CharField(
+        max_length=10,
+        choices=ComposeDBSaveStatus.choices,
+        default="",
+        blank=True,
+    )
+
+    compose_db_stream_id = models.CharField(
+        max_length=100,
+        default="",
+        blank=True,
+        help_text="Compose db stream ID for CREDENTIAL WRAPPER",
     )
 
     class Meta:
