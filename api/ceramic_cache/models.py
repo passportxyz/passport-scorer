@@ -54,7 +54,12 @@ class CeramicCache(models.Model):
         blank=True,
     )
 
-    compose_db_stream_id = models.CharField(max_length=100, default="", blank=True)
+    compose_db_stream_id = models.CharField(
+        max_length=100,
+        default="",
+        blank=True,
+        help_text="Compose db stream ID for CREDENTIAL WRAPPER",
+    )
 
     class Meta:
         unique_together = ["type", "address", "provider", "deleted_at"]
