@@ -62,9 +62,10 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "CyberProfilePaid": "1.230878",
     "CyberProfileOrgMember": "1.230878",
     "TrustaLabs": "2.020878",
-    "ETHAdvocate": "3.54",
-    "ETHPioneer": "3.54",
-    "ETHMaxi": "3.54",
+    "ETHEnthusiast": "2.655",
+    "ETHAdvocate": "2.655",
+    "ETHPioneer": "2.655",
+    "ETHMaxi": "2.655",
 }
 
 
