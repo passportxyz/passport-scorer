@@ -997,28 +997,33 @@ const redashInitScript = redashDbUrl.apply((url) =>
 
           echo "Install docker-compose ..."
           sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
 
-          echo "Setting environment variables..."
-          export POSTGRES_PASSWORD="${password}"
-          export REDASH_DATABASE_URL="${url}"
-          export REDASH_SECRET_KEY="${secretKey}"
-          export REDASH_MAIL_USERNAME="${redashMailUsername}"
-          export REDASH_MAIL_PASSWORD="${mailPassword}"
-          export REDASH_HOST="https://redash.api.scorer.gitcoin.co"
-          export REDASH_MAIL_DEFAULT_SENDER="passport+redash@gitcoin.co"
+           echo "Setting environment variables..."
+           export POSTGRES_PASSWORD="${password}"
+           export REDASH_DATABASE_URL="${url}"
+           export REDASH_SECRET_KEY="${secretKey}"
+           export REDASH_MAIL_USERNAME="${redashMailUsername}"
+           export REDASH_MAIL_PASSWORD="${mailPassword}"
+           export REDASH_HOST="https://redash.api.scorer.gitcoin.co"
+           export REDASH_MAIL_DEFAULT_SENDER="passport+redash@gitcoin.co"
 
-          echo "Cloning passport-redash repository..."
-          git clone https://github.com/gitcoinco/passport-redash.git
+          echo "Install docker-compose ..."
+          curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
 
           echo "Changing directory and setting permissions..."
           cd passport-redash
-          sudo chmod +x ./setup.sh
+
+          # Make sure to pull the latest changes
+          git pull
+
+          chmod +x ./setup.sh
           ./setup.sh
 
           cd data
 
-          sudo docker-compose up -d
+          docker-compose up -d
           `
       )
     )
