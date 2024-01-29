@@ -3,8 +3,9 @@
 ## generate the file `test_data/generated_accounts_100.json`
 
 - `cd ./test_data`
-- make sure you have the pipenv environment create: `pipenv install`
-- enter the pipenv: `pipenv shell`
+- make sure you have the virtualenv environment create: `python3 -m venv .venv`
+- enter the venv: `. .venv/bin/activate`
+- install dependencies: `poetry install --no-root`
 - create the `.env` file, and configure the mnemonic (see the `.env-example`)
   - tip: stick to the default values where these are specified in `.env-example`
 - adjust the `generate_test_accounts.py`

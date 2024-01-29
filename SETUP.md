@@ -67,7 +67,8 @@ We assume that you have a working python environment set up on your machine with
 the following:
 
 - A recent version of Python
-- `pipenv`
+- `virtualenv`
+- `poetry`
 
 ### Download this Repo
 
@@ -87,15 +88,15 @@ cp .env-sample .env
 
 2. Activate your local virtual environment:
 
-```
-pipenv shell
+```shell
+python3 -m venv .venv
+. .venv/bin/activate
 ```
 
 3. Install dependencies in your virtual environment:
 
-```
-pipenv install
-pipenv install --dev
+```shell
+poetry install --no-root
 ```
 
 
@@ -114,7 +115,7 @@ uvicorn scorer.asgi:application --reload --port 8002
 5. Run Redis locally in a new terminal:
 
 ```shell
-pipenv shell
+. .venv/bin/activate
 docker run -d -p 6379:6379 redis
 ```
 
@@ -131,7 +132,7 @@ celery -A scorer worker -l DEBUG  -Q score_passport_passport,score_registry_pass
 You will need to run database migrations in the `api/` directory by running:
 
 ```shell
-pipenv shell
+. .venv/bin/activate
 python manage.py migrate
 ```
 
