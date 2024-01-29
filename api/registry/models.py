@@ -125,8 +125,7 @@ class Event(models.Model):
         null=True,
         default=None,
         help_text="""
-This field is only used for the SCORE_UPDATE action, and will identify the scorer (alias `community`)
-for which a score has been updated.
+This field is only used for the SCORE_UPDATE and Deduplication events.
 The reason to have this field (and not use the `data` JSON field) is to be able to easily have an index for the community_id for faster lookups.
 """,
     )

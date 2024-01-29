@@ -1,12 +1,12 @@
-import datetime
-from hashlib import sha256
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from urllib.parse import urlparse
 
 import boto3
+from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from registry.models import HashScorerLink
+from registry.models import Event
 from tqdm import tqdm
 
 
@@ -31,7 +31,9 @@ class Command(BaseCommand):
         s3_uri = options["s3_uri"]
 
         self.stdout.write(f"Exporting Squelched Addresses for community {community_id}")
-        current_time = datetime.datetime.now()
+        now = datetime.now()
+        now = now.replace(tzinfo=timezone.utc)
+        three_months_ago = now - timedelta(days=90)
         batch_size = 1000
 
         # Prepare S3 details
@@ -49,17 +51,35 @@ class Command(BaseCommand):
             addresses = []
             while True:
                 # Fetch a batch of records
-                records = HashScorerLink.objects.filter(
+                records = Event.objects.filter(
                     community_id=community_id,
-                    expires_at__gt=current_time,
                     id__gt=last_id,
+                    action=Event.Action.LIFO_DEDUPLICATION,
+                    # limit to the last 3 months assuming any record that may exist would be expired anyways
+                    created_at__gt=three_months_ago,
                 ).order_by("id")[:batch_size]
 
                 if not records:
                     break
 
                 for record in records:
-                    addresses.append(record.address)
+                    flagged_provider = record.data.get("provider")
+                    flagged_address = record.address
+                    if flagged_provider and flagged_address:
+                        duplicate_stamps = CeramicCache.objects.filter(
+                            address=flagged_address, provider=flagged_provider
+                        )
+                        for stamp_object in duplicate_stamps:
+                            if (
+                                stamp_object
+                                and stamp_object.deleted_at == None
+                                and datetime.fromisoformat(
+                                    stamp_object.stamp.get("expirationDate")
+                                )
+                                > now
+                            ):
+                                addresses.append(flagged_address)
+                                break
                     last_id = record.id
                     unique_addresses = list(set(addresses))
                     progress_bar.update(1)
