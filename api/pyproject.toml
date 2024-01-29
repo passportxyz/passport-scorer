@@ -1,9 +1,13 @@
-[[source]]
-url = "https://pypi.python.org/simple"
-verify_ssl = true
-name = "pypi"
+[tool.poetry]
+name = "api"
+version = "0.1.0"
+description = "API for Gitcoin Scorer"
+authors = ["Your Name <you@example.com>"]
+license = "AGPLv3"
+readme = "README.md"
 
-[packages]
+[tool.poetry.dependencies]
+python = "^3.9"
 django = "*"
 markdown = "*"
 django-extensions = "*"
@@ -42,7 +46,8 @@ pyarrow = "*"
 pynacl = "*"
 faker = "*"
 
-[dev-packages]
+
+[tool.poetry.group.dev.dependencies]
 black = "*"
 pre-commit = "*"
 pylint = "*"
@@ -53,5 +58,6 @@ pytest-bdd = "*"
 pytest-mock = "*"
 django-stubs = "*"
 
-[requires]
-python_version = "3.11"
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

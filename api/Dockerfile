@@ -10,15 +10,13 @@ RUN apt update && \
 #########################################################
 FROM base AS builder
 
-RUN pip install --user pipenv
+RUN pip install --user poetry virtualenv
 
-# Tell pipenv to create venv in the current directory
-ENV PIPENV_VENV_IN_PROJECT=1
-
-ADD Pipfile.lock /usr/src/
+ADD pyproject.toml poetry.lock /usr/src/
 
 WORKDIR /usr/src
 
+RUN python3 -m venv .venv
 
 # NOTE: If you install binary packages required for a python module, you need
 # to install them again in the runtime. For example, if you need to install pycurl
@@ -28,7 +26,7 @@ WORKDIR /usr/src
 # RUN apt install -y libcurl3-gnutls libcurl4-gnutls-dev
 # RUN /root/.local/bin/pipenv lock
 
-RUN /root/.local/bin/pipenv sync
+RUN . .venv/bin/activate && /root/.local/bin/poetry install --no-root
 RUN /usr/src/.venv/bin/python -c "import django; print(django.__version__)"
 
 
