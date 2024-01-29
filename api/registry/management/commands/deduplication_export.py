@@ -48,7 +48,6 @@ class Command(BaseCommand):
             unit="records", unit_scale=True, desc="Exporting records"
         ) as progress_bar:
             last_id = 0
-            addresses = []
             while True:
                 # Fetch a batch of records
                 records = Event.objects.filter(
@@ -82,6 +81,8 @@ class Command(BaseCommand):
                         not stamp.address in unique_addresses
                         and (stamp.address, stamp.provider)
                         in flagged_address_provider_pairs
+                        and datetime.fromisoformat(stamp.stamp.get("expirationDate"))
+                        > now
                     ):
                         unique_addresses.append(stamp.address)
                         write_csv_row(temp_csv, [stamp.address])
