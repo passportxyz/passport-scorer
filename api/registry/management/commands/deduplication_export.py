@@ -56,13 +56,13 @@ class Command(BaseCommand):
                 ).order_by("id")[:batch_size]
 
                 if not records:
-                    unique_addresses = list(set(addresses))
                     break
 
                 for record in records:
                     addresses.append(record.address)
-                    progress_bar.update(1)
                     last_id = record.id
+                    unique_addresses = list(set(addresses))
+                    progress_bar.update(1)
 
         for address in unique_addresses:
             write_csv_row(temp_csv, [address])
