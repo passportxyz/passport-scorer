@@ -62,30 +62,32 @@ class Command(BaseCommand):
                 if not records:
                     break
 
-                for record in records:
-                    flagged_provider = record.data.get("provider")
-                    flagged_address = record.address
-                    if flagged_provider and flagged_address:
-                        duplicate_stamps = CeramicCache.objects.filter(
-                            address=flagged_address, provider=flagged_provider
-                        )
-                        for stamp_object in duplicate_stamps:
-                            if (
-                                stamp_object
-                                and stamp_object.deleted_at == None
-                                and datetime.fromisoformat(
-                                    stamp_object.stamp.get("expirationDate")
-                                )
-                                > now
-                            ):
-                                addresses.append(flagged_address)
-                                break
-                    last_id = record.id
-                    unique_addresses = list(set(addresses))
-                    progress_bar.update(1)
+                flagged_addresses = set(record.address for record in records)
+                flagged_providers = set(
+                    record.data.get("provider") for record in records
+                )
+                flagged_address_provider_pairs = set(
+                    (record.address, record.data.get("provider")) for record in records
+                )
 
-        for address in unique_addresses:
-            write_csv_row(temp_csv, [address])
+                # bulk retrieve all stamps for the flagged addresses and providers
+                flagged_stamps = CeramicCache.objects.filter(
+                    address__in=flagged_addresses,
+                    provider__in=flagged_providers,
+                    deleted_at=None,
+                )
+
+                for stamp in flagged_stamps:
+                    if (
+                        not stamp.address in unique_addresses
+                        and (stamp.address, stamp.provider)
+                        in flagged_address_provider_pairs
+                    ):
+                        unique_addresses.append(stamp.address)
+                        write_csv_row(temp_csv, [stamp.address])
+
+                last_id = records[len(records) - 1].id
+                progress_bar.update(1)
 
         temp_csv.seek(0)
         self.stdout.write(f"Writing file to s3: {s3_key}")
