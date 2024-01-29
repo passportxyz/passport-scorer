@@ -123,6 +123,7 @@ async def arun_lifo_dedup(
                             ],
                             "community_id": community.pk,
                         },
+                        community=community,
                     )
                     for stamp in clashing_stamps
                 ]
