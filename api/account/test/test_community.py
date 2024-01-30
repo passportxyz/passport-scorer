@@ -462,7 +462,7 @@ class CommunityTestCase(TestCase):
         )
 
         with pytest.raises(IntegrityError) as exc_info:
-            # Create the same community (same provider) again
+            # Create the same community again
             # We expect an exception to be thrown
             Community.objects.create(
                 account=self.account,
