@@ -132,20 +132,26 @@ class TestGetStamps:
         )
 
         passport = get_passport(address)
-        stamps = passport["stamps"]
 
-        for index, sample_stamp in enumerate(sample_stamps):
-            assert (
-                stamps[index]["credential"]["issuanceDate"]
-                == sample_stamp["issuanceDate"]
-            )
+        # We need to make sure the arrays of stamps are sorted so that we are 100% sure
+        # that we compare the same providers
+        sorted_stamps = sorted(
+            passport["stamps"],
+            key=lambda x: x["credential"]["credentialSubject"]["provider"],
+        )
+        sorted_sample_stamps = sorted(
+            sample_stamps, key=lambda x: x["credentialSubject"]["provider"]
+        )
 
-        assert len(stamps) == len(sample_stamps)
+        for stamp, sample_stamp in zip(sorted_stamps, sorted_sample_stamps):
+            assert stamp["credential"]["issuanceDate"] == sample_stamp["issuanceDate"]
+
+        assert len(sorted_stamps) == len(sorted_sample_stamps)
         assert (
             len(
                 [
                     s
-                    for s in stamps
+                    for s in sorted_stamps
                     if s["provider"] == deleted_stamp["credentialSubject"]["provider"]
                 ]
             )

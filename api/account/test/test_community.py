@@ -2,9 +2,11 @@ import json
 from datetime import datetime, timezone
 from typing import cast
 
+import pytest
 from account.models import Account, Community
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import UserManager
+from django.db.utils import IntegrityError
 from django.test import Client, TestCase
 from ninja_jwt.schema import RefreshToken
 
@@ -448,3 +450,22 @@ class CommunityTestCase(TestCase):
         self.assertEqual(
             response_data, {"detail": "A community with this name already exists"}
         )
+
+    def test_no_duplicate_communitie(self):
+        """Make sure that it is not possible to have duplicate stamps in the DB"""
+
+        # Create the first community
+        Community.objects.create(
+            account=self.account,
+            name="Test",
+            description="some description",
+        )
+
+        with pytest.raises(IntegrityError) as exc_info:
+            # Create the same community (same provider) again
+            # We expect an exception to be thrown
+            Community.objects.create(
+                account=self.account,
+                name="Test",
+                description="some description",
+            )
