@@ -163,7 +163,20 @@ def get_default_community_scorer():
 class Community(models.Model):
     class Meta:
         verbose_name_plural = "Communities"
-        unique_together = [["account", "name", "deleted_at"]]
+        constraints = [
+            # UniqueConstraint for non-deleted records
+            models.UniqueConstraint(
+                fields=["account", "name"],
+                name="unique_non_deleted_name_per_account",
+                condition=Q(deleted_at__isnull=True),
+            ),
+            # UniqueConstraint for deleted records
+            models.UniqueConstraint(
+                fields=["account", "name", "deleted_at"],
+                name="unique_deleted_name_per_account",
+                condition=Q(deleted_at__isnull=False),
+            ),
+        ]
 
     name = models.CharField(max_length=100, blank=False, null=False)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
