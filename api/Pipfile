@@ -42,6 +42,7 @@ pyarrow = "*"
 pynacl = "*"
 faker = "*"
 python-jose = "*"
+uvarint = "*"
 
 [dev-packages]
 black = "*"

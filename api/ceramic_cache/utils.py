@@ -1,11 +1,13 @@
 import base64
 import json
 from hashlib import sha256
-from pprint import pprint
 
 import api_logging as logging
-import base58
 import dag_cbor
+import uvarint
+from ecdsa import NIST256p, VerifyingKey
+from jose import jwk, jws
+from multibase import decode
 from multiformats import CID
 from nacl.signing import VerifyKey
 
@@ -85,61 +87,62 @@ def verify_jws_old(data):
     vk.verify(signing_input, signature)
 
 
-def verify_jws(data):
+def verify_jws_new(data):
+    """
+    https://github.com/decentralized-identity/did-jwt/blob/master/src/JWT.ts
+
+    This is a simplified implementation for validating the JWS signature in the payload.
+    It will only check for the signature part, and skip validating any claims (like signature expiration) om the payload
+    """
     p = base64url_to_json(data["signatures"][0]["protected"])
-
-    print("X" * 40)
-    from pprint import pprint
-
     kid = p["kid"]
 
-    kid_key = kid.split("#")[1]
-    print("XXXXXXXXX")
-    print("kid_key", kid_key)
+    did_key = kid.split("#")[1]
 
-    pprint(p)
+    decoded_key = decode(did_key)
+    code = uvarint.decode(decoded_key)
 
-    from Crypto.PublicKey import ECC
-    from jose import jwk, jws
+    compressed_key = decoded_key[code.bytes_read :]
+
+    # Decode the compressed public key
+    public_key = VerifyingKey.from_string(compressed_key, curve=NIST256p)
+
+    x_coordinate = public_key.pubkey.point.x()
+    y_coordinate = public_key.pubkey.point.y()
+
+    # Convert x and y coordinates to base64url encoding
+    x_base64url = (
+        base64.urlsafe_b64encode(x_coordinate.to_bytes(32, byteorder="big"))
+        .decode("utf-8")
+        .rstrip("=")
+    )
+    y_base64url = (
+        base64.urlsafe_b64encode(y_coordinate.to_bytes(32, byteorder="big"))
+        .decode("utf-8")
+        .rstrip("=")
+    )
+
+    # Create the JWK
+    jwk1 = {
+        "alg": "ES256",
+        "kty": "EC",
+        "crv": "P-256",  # Adjust the curve as per your key type
+        "x": x_base64url,
+        "y": y_base64url,
+    }
+
+    jwkObj = jwk.construct(jwk1)
 
     signature = data["signatures"][0]["signature"]
-    print("protected:", data["signatures"][0]["protected"])
-    print("signature:", type(signature), signature)
-    print("------")
     signing_input = (
         data["signatures"][0]["protected"] + "." + data["payload"] + "." + signature
     )
-    print("signing_input:", signing_input)
-    print("kid          :", kid)
-    print("alg          :", p["alg"])
-    print("------")
 
-    from multibase import decode
+    result = jws.verify(signing_input, jwkObj, algorithms=["ES256"])
 
-    decoded_key = decode(kid_key)
-    print(" decoded_key:", len(decoded_key), decoded_key)
 
-    test_key = jwk.construct(
-        {
-            "kty": "EC",
-            "use": "sig",
-            "crv": "P-256",
-            "kid": "test",
-            "x": "iPNJybBQE5C6EBDEH8Ru-E6NNkBT_ELXD3ACOitKiww",
-            "y": "Qv0E2zjnjJHBbRlLW3hKoEXYQr1FjYX1f2OJKiG7LvE",
-            "alg": "ES256",
-        }
-    )
-
-    # test_key = jwk.construct(decoded_key, "ES256")
-
-    print("     kid_key:", kid_key)
-    print("     byte[0]:", decoded_key[0])
-    print("     byte[1]:", decoded_key[1])
-
-    decoded_bytes = decoded_key[2:]
-
-    eccKey = ECC.EccKey(decoded_bytes)
-    print("eccKey: ", eccKey)
-
-    jws.verify(signing_input, decoded_bytes, algorithms=[p["alg"]])
+def verify_jws(data):
+    try:
+        verify_jws_old(data)
+    except:
+        verify_jws_new(data)
