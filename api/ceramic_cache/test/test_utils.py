@@ -5,7 +5,7 @@ from ceramic_cache.test.test_utils_data import (
     verify_jws_data_good,
     verify_jws_data_good_2,
 )
-from ceramic_cache.utils import validate_dag_jws_payload, verify_jws
+from ceramic_cache.utils import validate_dag_jws_payload, verify_jws, verify_jws_old
 from nacl.exceptions import BadSignatureError
 
 
@@ -42,16 +42,35 @@ def test_verify_jws_empty_payload():
         data["signatures"][0]["signature"] = verify_jws_data_good_2["signatures"][0][
             "signature"
         ]
-        verify_jws(data)
+        verify_jws_old(data)
 
     with pytest.raises(BadSignatureError):
         data = copy.deepcopy(verify_jws_data_good)
         data["signatures"][0]["protected"] = verify_jws_data_good_2["signatures"][0][
             "protected"
         ]
-        verify_jws(data)
+        verify_jws_old(data)
 
     with pytest.raises(BadSignatureError):
+        data = copy.deepcopy(verify_jws_data_good)
+        data["payload"] = verify_jws_data_good_2["payload"]
+        verify_jws_old(data)
+
+    with pytest.raises(Exception):
+        data = copy.deepcopy(verify_jws_data_good)
+        data["signatures"][0]["signature"] = verify_jws_data_good_2["signatures"][0][
+            "signature"
+        ]
+        verify_jws(data)
+
+    with pytest.raises(Exception):
+        data = copy.deepcopy(verify_jws_data_good)
+        data["signatures"][0]["protected"] = verify_jws_data_good_2["signatures"][0][
+            "protected"
+        ]
+        verify_jws(data)
+
+    with pytest.raises(Exception):
         data = copy.deepcopy(verify_jws_data_good)
         data["payload"] = verify_jws_data_good_2["payload"]
         verify_jws(data)

@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-django = "*"
+django = "==4.2.6"
 markdown = "*"
 django-extensions = "*"
 didkit = "*"
@@ -41,6 +41,8 @@ requests-toolbelt = "*"
 pyarrow = "*"
 pynacl = "*"
 faker = "*"
+python-jose = "*"
+uvarint = "*"
 
 [dev-packages]
 black = "*"
