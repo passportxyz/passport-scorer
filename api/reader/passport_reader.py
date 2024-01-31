@@ -24,9 +24,29 @@ async def aget_passport(address: str = "") -> Dict:
         address=address, deleted_at__isnull=True
     )
 
+    stamps_by_provider = dict()
+
+    async for stamp in db_stamp_list:
+        if stamp.provider not in stamps_by_provider:
+            stamps_by_provider[stamp.provider] = []
+
+        stamps_by_provider[stamp.provider].append(stamp)
+
+    latest_stamps = []
+
+    for provider in stamps_by_provider:
+        latest_date = None
+        latest_stamp = None
+        for stamp in stamps_by_provider[provider]:
+            if latest_date is None or stamp.updated_at > latest_date:
+                latest_date = stamp.updated_at
+                latest_stamp = stamp
+
+        latest_stamps.append(latest_stamp)
+
     return {
         "stamps": [
-            {"provider": s.provider, "credential": s.stamp} async for s in db_stamp_list
+            {"provider": s.provider, "credential": s.stamp} for s in latest_stamps
         ]
     }
 
