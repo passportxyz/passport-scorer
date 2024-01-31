@@ -69,6 +69,18 @@ class CeramicCache(models.Model):
         unique_together = ["type", "address", "provider", "deleted_at"]
 
         constraints = [
+            # # UniqueConstraint for non-deleted records
+            # UniqueConstraint(
+            #     fields=["type", "address", "provider"],
+            #     name="unique_non_deleted_provider_per_address",
+            #     condition=Q(deleted_at__isnull=True),
+            # ),
+            # # UniqueConstraint for deleted records
+            # UniqueConstraint(
+            #     fields=["type", "address", "provider", "deleted_at"],
+            #     name="unique_deleted_provider_per_address",
+            #     condition=Q(deleted_at__isnull=False),
+            # ),
             # UniqueConstraint for non-deleted records
             UniqueConstraint(
                 fields=["type", "address", "provider_clone"],
