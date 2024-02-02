@@ -25,6 +25,7 @@ def lambda_to_django_request(api_key):
     """
     request = HttpRequest()
     request.META["X-Api-Key"] = api_key
+    request.path = "/registry/submit-passport"
 
     return request
 
