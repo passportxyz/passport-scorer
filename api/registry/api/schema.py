@@ -101,6 +101,10 @@ class DetailedScoreResponse(Schema):
         return obj.stamp_scores
 
 
+class ETHModelScoreResponse(Schema):
+    score: int
+
+
 class HistoricalScoreData(Schema):
     score: float
     evidence: Optional[ThresholdScoreEvidenceResponse]
