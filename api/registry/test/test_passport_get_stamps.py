@@ -51,6 +51,7 @@ def paginated_stamps(scorer_community, passport_holder_addresses):
         cacheStamp = CeramicCache.objects.create(
             address=address,
             provider=provider,
+            provider_clone=provider,
             stamp={
                 "type": ["VerifiableCredential"],
                 "proof": {
@@ -111,6 +112,7 @@ class TestPassportGetStamps:
         CeramicCache.objects.create(
             address=passport_holder_addresses[1]["address"],
             provider=last_stamp.provider,
+            provider_clone=last_stamp.provider,
             stamp=last_stamp.stamp,
         )
 
