@@ -19,13 +19,13 @@ from registry.api.v1 import (
 # from myapp import models
 
 
-def lambda_to_django_request(api_key):
+def lambda_to_django_request(api_key, event):
     """
     Convert a Lambda event into a Django HttpRequest object.
     """
     request = HttpRequest()
     request.META["X-Api-Key"] = api_key
-    request.path = "/registry/submit-passport"
+    request.path = event["path"]
 
     return request
 
@@ -52,7 +52,7 @@ def handler(_event, _context):
     api_key = sensitive_data.get("x-api-key", "")
     # Authenticate
     api_key_instance = ApiKey()
-    request = lambda_to_django_request(api_key)
+    request = lambda_to_django_request(api_key, event)
     user_account = api_key_instance.authenticate(request, api_key)
 
     # rate limit
