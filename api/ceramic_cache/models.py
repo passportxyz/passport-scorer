@@ -21,6 +21,9 @@ class CeramicCache(models.Model):
     provider = models.CharField(
         null=False, blank=False, default="", max_length=256, db_index=True
     )
+    provider_clone = models.CharField(
+        null=True, blank=True, default=None, max_length=256, db_index=True
+    )
     stamp = models.JSONField(default=dict)
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -64,6 +67,22 @@ class CeramicCache(models.Model):
 
     class Meta:
         unique_together = ["type", "address", "provider", "deleted_at"]
+
+    class Meta:
+        constraints = [
+            # UniqueConstraint for non-deleted records
+            UniqueConstraint(
+                fields=["type", "address", "provider_clone"],
+                name="unique_non_deleted_provider_clone_per_address",
+                condition=Q(deleted_at__isnull=True),
+            ),
+            # UniqueConstraint for deleted records
+            UniqueConstraint(
+                fields=["type", "address", "provider_clone", "deleted_at"],
+                name="unique_deleted_provider_clone_per_address",
+                condition=Q(deleted_at__isnull=False),
+            ),
+        ]
 
 
 class StampExports(models.Model):
