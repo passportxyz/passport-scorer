@@ -68,7 +68,6 @@ class CeramicCache(models.Model):
     class Meta:
         unique_together = ["type", "address", "provider", "deleted_at"]
 
-    class Meta:
         constraints = [
             # UniqueConstraint for non-deleted records
             UniqueConstraint(
