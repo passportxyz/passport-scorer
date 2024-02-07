@@ -164,6 +164,45 @@ const postgresql = new aws.rds.Instance(
   { protect: true }
 );
 
+const analyticsDbParameterGroup = new aws.rds.ParameterGroup(
+  "analytics-parameter-group",
+  {
+    family: "postgres13", // The family should match the DB engine version
+    parameters: [
+      // A list of DB parameters you want to set
+      {
+        name: "max_standby_archive_delay",
+        value: "900",
+      },
+      {
+        name: "max_standby_streaming_delay",
+        value: "900",
+      },
+    ],
+  }
+);
+
+const readreplica1 = new aws.rds.Instance(
+  "scorer-db-read-analytics",
+  {
+    allocatedStorage: 130,
+    maxAllocatedStorage: 500,
+    engine: "postgres",
+    instanceClass: "db.t3.micro",
+    skipFinalSnapshot: true,
+    vpcSecurityGroupIds: [db_secgrp.id],
+    deletionProtection: true,
+    // backupRetentionPeriod: 5,  - this is not supported for read replicas running PostgreSQL versions lower than 14
+    replicateSourceDb: postgresql.id,
+    performanceInsightsEnabled: true,
+    tags: {
+      name: "scorer-db-read-analytics",
+    },
+    parameterGroupName: analyticsDbParameterGroup.name,
+  },
+  { protect: false }
+);
+
 //////////////////////////////////////////////////////////////
 // Setup RDS PROXY
 //////////////////////////////////////////////////////////////
@@ -255,6 +294,7 @@ const scorerDefaultProxyTarget = new aws.rds.ProxyTarget(
 
 export const scorerDbProxyEndpoint = scorerDbProxy.endpoint;
 export const rdsEndpoint = postgresql.endpoint;
+export const rdsAnalyticsEndpoint = postgresql.endpoint;
 export const rdsArn = postgresql.arn;
 export const rdsConnectionUrl = pulumi.secret(
   pulumi.interpolate`psql://${dbUsername}:${dbPassword}@${scorerDbProxyEndpoint}/${dbName}`
