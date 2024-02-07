@@ -224,7 +224,6 @@ class TestBulkStampUpdates:
                 type=self.stamp_version,
                 address=sample_address,
                 provider=sample_providers[i],
-                provider_clone=sample_providers[i],
                 stamp=sample_stamps[i],
             )
             bulk_payload.append(
@@ -256,7 +255,6 @@ class TestBulkStampUpdates:
                 type=self.stamp_version,
                 address=sample_address,
                 provider=sample_providers[i],
-                provider_clone=sample_providers[i],
                 stamp=sample_stamps[i],
             )
             bulk_payload.append(

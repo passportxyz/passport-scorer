@@ -121,7 +121,6 @@ class TestGetStamps:
             CeramicCache.objects.create(
                 address=address,
                 provider=stamp["credentialSubject"]["provider"],
-                provider_clone=stamp["credentialSubject"]["provider"],
                 stamp=stamp,
             )
 
