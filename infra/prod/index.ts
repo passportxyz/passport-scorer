@@ -1010,10 +1010,10 @@ const redashInitScript = redashDbUrl.apply((url) =>
 
           echo "Try to pull from git repo or clone the repo if it was not cloned before ..."
           git pull /passport-redash || git clone https://github.com/gitcoinco/passport-redash.git /passport-redash
-          
+
           echo "Changing directory and setting permissions..."
           cd /passport-redash
-          
+
           chmod +x ./setup.sh
           ./setup.sh
 
@@ -1360,10 +1360,7 @@ buildHttpLambdaFn({
   name: "cc-auhenticate",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
-  pathPatterns: [
-    "/ceramic-cache/authenticate",
-    "/ceramic-cache/v2/authenticate",
-  ],
+  pathPatterns: ["/ceramic-cache/authenticate"],
   httpRequestMethods: ["POST"],
   listenerPriority: 1005,
 });
@@ -1373,7 +1370,7 @@ buildHttpLambdaFn({
   name: "cc-v1-score-POST",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
-  pathPatterns: ["/ceramic-cache/score/*", "/ceramic-cache/v2/score/*"],
+  pathPatterns: ["/ceramic-cache/score/*"],
   httpRequestMethods: ["POST"],
   listenerPriority: 1006,
 });
@@ -1383,7 +1380,7 @@ buildHttpLambdaFn({
   name: "cc-v1-score-GET",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
-  pathPatterns: ["/ceramic-cache/score/*", "/ceramic-cache/v2/score/*"],
+  pathPatterns: ["/ceramic-cache/score/*"],
   httpRequestMethods: ["GET"],
   listenerPriority: 1007,
 });
@@ -1393,7 +1390,7 @@ buildHttpLambdaFn({
   name: "cc-weights-GET",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
-  pathPatterns: ["/ceramic-cache/weights", "/ceramic-cache/v2/weights"],
+  pathPatterns: ["/ceramic-cache/weights"],
   httpRequestMethods: ["GET"],
   listenerPriority: 1015,
 });
@@ -1406,46 +1403,6 @@ buildHttpLambdaFn({
   pathPatterns: ["/ceramic-cache/stamp"],
   httpRequestMethods: ["GET"],
   listenerPriority: 1010,
-});
-
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "cc-v2-st-bulk-POST",
-  memorySize: 512,
-  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_POST.handler"],
-  pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
-  httpRequestMethods: ["POST"],
-  listenerPriority: 1011,
-});
-
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "cc-v2-st-bulk-PATCH",
-  memorySize: 512,
-  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_PATCH.handler"],
-  pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
-  httpRequestMethods: ["PATCH"],
-  listenerPriority: 1012,
-});
-
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "cc-v2-st-bulk-DELETE",
-  memorySize: 512,
-  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamps.bulk_DELETE.handler"],
-  pathPatterns: ["/ceramic-cache/v2/stamps/bulk"],
-  httpRequestMethods: ["DELETE"],
-  listenerPriority: 1013,
-});
-
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "cc-v2-st-GET",
-  memorySize: 512,
-  dockerCmd: ["aws_lambdas.scorer_api_passport.v2.stamp_GET.handler"],
-  pathPatterns: ["/ceramic-cache/v2/stamp"],
-  httpRequestMethods: ["GET"],
-  listenerPriority: 1014,
 });
 
 buildQueueLambdaFn({
