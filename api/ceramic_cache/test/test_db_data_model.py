@@ -39,7 +39,7 @@ class TestGetStamps:
         # Create the first stamp
         CeramicCache.objects.create(
             address=address,
-            provider_clone=stamp["credentialSubject"]["provider"],
+            provider=stamp["credentialSubject"]["provider"],
             stamp=stamp,
         )
 
@@ -48,6 +48,6 @@ class TestGetStamps:
             # We expect an exception to be thrown
             CeramicCache.objects.create(
                 address=address,
-                provider_clone=stamp["credentialSubject"]["provider"],
+                provider=stamp["credentialSubject"]["provider"],
                 stamp=stamp,
             )
