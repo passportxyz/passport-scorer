@@ -874,9 +874,24 @@ apt-get install -y docker-ce docker-ce-cli containerd.io awscli
 mkdir /var/log/gitcoin
 echo $(date) "Finished installation of docker" >> /var/log/gitcoin/init.log
 
+echo $(date) "Installing postgresql client" >> /var/log/gitcoin/init.log
+# Install postgresql client, instructions from here: https://www.postgresql.org/download/linux/ubuntu/
+# Create the file repository configuration:
+sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+
+# Import the repository signing key:
+wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+
+# Update the package lists:
+apt-get update
+
+# Install the latest version of PostgreSQL.
+# If you want a specific version, use 'postgresql-12' or similar instead of 'postgresql':
+apt-get -y install postgresql-client-13
+
 `;
 
-const web = new aws.ec2.Instance("Web", {
+const web = new aws.ec2.Instance("troubleshooting-instance", {
   ami: ubuntu.then((ubuntu) => ubuntu.id),
   associatePublicIpAddress: true,
   instanceType: "t3.medium",
@@ -887,6 +902,7 @@ const web = new aws.ec2.Instance("Web", {
   },
   tags: {
     name: "Passport Scorer - troubleshooting instance",
+    Name: "Passport Scorer - troubleshooting instance",
   },
   userData: ec2InitScript,
 });
@@ -995,10 +1011,6 @@ const redashInitScript = redashDbUrl.apply((url) =>
         (mailPassword) =>
           `#!/bin/bash
 
-          echo "Install docker-compose ..."
-          curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          chmod +x /usr/local/bin/docker-compose
-
           echo "Setting environment variables..."
           export POSTGRES_PASSWORD="${dbPassword}"
           export REDASH_DATABASE_URL="${url}"
@@ -1018,8 +1030,11 @@ const redashInitScript = redashDbUrl.apply((url) =>
           ./setup.sh
 
           cd data
-          sudo docker-compose up -d
+          echo "Check docker compose version ..."
+          docker-compose -v
 
+          echo "Start docker-compose ..."
+          docker-compose up -d
           `
       )
     )
@@ -1036,6 +1051,7 @@ const redashinstance = new aws.ec2.Instance("redashinstance", {
   },
   tags: {
     name: "Redash Analytics",
+    Name: "Redash Analytics",
   },
   userData: redashInitScript,
   vpcSecurityGroupIds: [redashSecurityGroup.id],
