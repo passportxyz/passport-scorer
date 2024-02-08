@@ -156,7 +156,7 @@ const postgresql = new aws.rds.Instance(
     maxAllocatedStorage: 500,
     engine: "postgres",
     // engineVersion: "5.7",
-    instanceClass: "db.t3.2xlarge",
+    instanceClass: "db.r5b.4xlarge",
     dbName: dbName,
     password: dbPassword,
     username: dbUsername,
@@ -199,11 +199,11 @@ const analyticsDbParameterGroup = new aws.rds.ParameterGroup('analytics-paramete
   parameters: [ // A list of DB parameters you want to set
       {
           name: 'max_standby_archive_delay',
-          value: '900',
+          value: '900000',  // Millis
       },
       {
           name: 'max_standby_streaming_delay',
-          value: '900',
+          value: '900000', // Millis
       },
   ],
 });
