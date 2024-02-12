@@ -13,8 +13,108 @@ from registry.api.schema import SubmitPassportPayload
 from registry.atasks import asave_api_key_analytics
 from registry.exceptions import InvalidScorerIdException, Unauthorized
 from registry.tasks import save_api_key_analytics
+import functools
 
 log = logging.getLogger(__name__)
+
+
+def atrack_apikey_usage(track_response=True, payload_param_name=None):
+
+    def decorator_track_apikey_usage(func):
+
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+
+            request = args[0]
+
+            response = None
+            error = None
+
+            payload = kwargs.get(payload_param_name) if payload_param_name else None
+            try:
+                response = await func(*args, **kwargs)
+
+            except Exception as e:
+                error = e
+                save_api_key_analytics(
+                    request.api_key.id,
+                    request.path,
+                    request.path.split("/"),
+                    dict(request.GET),
+                    dict(request.headers),
+                    payload.json() if payload else None,
+                    response=None,
+                    response_skipped=not track_response,
+                    error=str(e),
+                )
+                raise e
+
+            save_api_key_analytics(
+                request.api_key.id,
+                request.path,
+                request.path.split("/"),
+                dict(request.GET),
+                dict(request.headers),
+                payload.json() if payload else None,
+                response=response.json() if track_response and response else None,
+                response_skipped=not track_response,
+                error=str(error) if error else None,
+            )
+
+            return response
+
+        return wrapper
+
+    return decorator_track_apikey_usage
+
+
+def track_apikey_usage(track_response=True, payload_param_name=None):
+
+    def decorator_track_apikey_usage(func):
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+
+            request = args[0]
+
+            response = None
+            error = None
+            payload = kwargs.get(payload_param_name) if payload_param_name else None
+            try:
+                response = func(*args, **kwargs)
+
+            except Exception as e:
+                error = e
+                save_api_key_analytics(
+                    request.api_key.id,
+                    request.path,
+                    request.path.split("/"),
+                    dict(request.GET),
+                    dict(request.headers),
+                    payload.json() if payload else None,
+                    response=None,
+                    response_skipped=not track_response,
+                    error=str(e),
+                )
+                raise e
+
+            save_api_key_analytics(
+                request.api_key.id,
+                request.path,
+                request.path.split("/"),
+                dict(request.GET),
+                dict(request.headers),
+                payload.json() if payload else None,
+                response=response.json() if track_response and response else None,
+                response_skipped=not track_response,
+                error=str(error) if error else None,
+            )
+
+            return response
+
+        return wrapper
+
+    return decorator_track_apikey_usage
 
 
 class ApiKey(APIKeyHeader):
@@ -43,9 +143,6 @@ class ApiKey(APIKeyHeader):
             api_key = AccountAPIKey.objects.get_from_key(key)
             request.api_key = api_key
             user_account = api_key.account
-
-            if settings.FF_API_ANALYTICS == "on":
-                save_api_key_analytics(api_key.id, request.path)
 
             if user_account:
                 request.user = user_account.user

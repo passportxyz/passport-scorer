@@ -8,7 +8,7 @@ import json
 from asgiref.sync import async_to_sync
 from aws_lambdas.utils import format_response, with_request_exception_handling
 from django.http import HttpRequest
-from registry.api.utils import ApiKey, check_rate_limit
+from registry.api.utils import ApiKey, check_rate_limit, save_api_key_analytics
 from registry.api.v1 import (
     DetailedScoreResponse,
     SubmitPassportPayload,
@@ -55,21 +55,43 @@ def handler(_event, _context):
     request = lambda_to_django_request(api_key, event)
     user_account = api_key_instance.authenticate(request, api_key)
 
-    # rate limit
-    check_rate_limit(request)
-
     if event["isBase64Encoded"]:
         body = json.loads(base64.b64decode(event["body"]).decode("utf-8"))
     else:
         body = json.loads(event["body"])
 
-    if user_account:
-        score = async_to_sync(ahandle_submit_passport)(
-            SubmitPassportPayload(**body), user_account
-        )
-        # TODO: preferably we would have a 1:1 mapping of the fields for DetailedScoreResponse
-        # or if not, then specify a resolver for stamp_scores
-        ret = DetailedScoreResponse.from_orm(score)
-        ret.stamp_scores = score.stamp_scores
+    # rate limit
+    check_rate_limit(request)
 
-        return format_response(ret)
+    try:
+        if user_account:
+            score = async_to_sync(ahandle_submit_passport)(
+                SubmitPassportPayload(**body), user_account
+            )
+
+            save_api_key_analytics(
+                api_key_id=request.api_key.id,
+                path=event["path"],
+                path_segments=event["path"].split("/"),
+                query_params=event["path"].split("/"),
+                headers=event["headers"],
+                payload=body,
+                response=score.dict(),
+                response_skipped=False,
+                error="",
+            )
+
+            return format_response(score)
+
+    except Exception as e:
+        save_api_key_analytics(
+            api_key_id=request.api_key.id,
+            path=event["path"],
+            path_segments=event["path"].split("/"),
+            query_params=event["path"].split("/"),
+            headers=event["headers"],
+            payload=body,
+            response={},
+            response_skipped=False,
+            error=str(e),
+        )
