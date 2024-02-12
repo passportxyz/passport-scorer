@@ -257,7 +257,15 @@ jobs:
 
   deploy-production:
     environment: Production
-    needs: [wait-for-pre-release-approval]
+    needs:
+      [
+        test,
+        build-api,
+        build-verifier,
+        build-indexer,
+        build-submit-passport-lambda,
+        wait-for-pre-release-approval,
+      ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
