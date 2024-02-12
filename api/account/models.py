@@ -149,31 +149,39 @@ class AccountAPIKeyAnalytics(models.Model):
     api_key = models.ForeignKey(
         AccountAPIKey, on_delete=models.CASCADE, related_name="analytics"
     )
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        null=True,
+        blank=True,
+        db_index=True,
+    )
     path = models.CharField(max_length=1000, blank=False, null=False, default="/")
     base_path = models.CharField(
         max_length=200,
         blank=True,
         null=True,
+        db_index=True,
     )
 
     path_segments = models.JSONField(
         help_text="Contains the parameters that are passed in the path segments",
         default=list,
         null=True,
+        db_index=True,
     )
 
     query_params = models.JSONField(
         help_text="Contains the parameters that are passed in the query (get) parameters",
         null=True,
+        db_index=True,
     )
     payload = models.JSONField(
         help_text="Contains the payload sent as part of the HTTP request body",
         null=True,
+        db_index=True,
     )
     headers = models.JSONField(
-        help_text="Contains the HTTP headers from the request",
-        null=True,
+        help_text="Contains the HTTP headers from the request", null=True
     )
     response = models.JSONField(
         help_text="Contains the response, unless response_skipped is set to True",
@@ -182,8 +190,9 @@ class AccountAPIKeyAnalytics(models.Model):
     response_skipped = models.BooleanField(
         help_text="Indicates that the response response is not filled in this record. This will typically happen for large responses (when reading pages of data)",
         null=True,
+        db_index=True,
     )
-    error = models.TextField(help_text="Error that occured", null=True)
+    error = models.TextField(help_text="Error that occured", null=True, db_index=True)
 
 
 def get_default_community_scorer():
