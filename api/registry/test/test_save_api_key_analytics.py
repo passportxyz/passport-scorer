@@ -14,9 +14,19 @@ class TestSaveApiKeyAnalytics:
             account=scorer_account, name="Another token for user 1"
         )
 
-        save_api_key_analytics(model.pk, path)
+        save_api_key_analytics(
+            model.pk,
+            path,
+            ["a", "b", "c"],
+            {"param1": "value1"},
+            {"header": "field1"},
+            {"data": "hello"},
+            {"response": "reponse content"},
+            response_skipped=False,
+            error="big problem",
+        )
 
-        obj = AccountAPIKeyAnalytics.objects.get(path=path, api_key=model)
+        obj = AccountAPIKeyAnalytics.objects.get(path=path, api_key_id=model.pk)
 
         created_at_day = datetime.fromisoformat(obj.created_at.isoformat())
 

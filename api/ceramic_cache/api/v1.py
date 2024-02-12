@@ -508,4 +508,4 @@ def get_detailed_score_response_for_address(address: str) -> DetailedScoreRespon
 
     score = async_to_sync(ahandle_submit_passport)(submit_passport_payload, account)
 
-    return DetailedScoreResponse.from_orm(score)
+    return score

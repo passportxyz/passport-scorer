@@ -72,6 +72,7 @@ jobs:
           CERAMIC_CACHE_SCORER_ID: ""
           SECRET_KEY: secret-test-value
           DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          FF_API_ANALYTICS: on
 
   build-api:
     environment: Production
@@ -237,8 +238,8 @@ jobs:
     outputs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
 
-  deploy-production:
-    environment: Production
+  wait-for-pre-release-approval:
+    name: Pre-Release Approval Pending (run your migrations at this stage)
     needs:
       [
         test,
@@ -247,6 +248,16 @@ jobs:
         build-indexer,
         build-submit-passport-lambda,
       ]
+    runs-on: ubuntu-latest
+    environment: production-pre-release
+    steps:
+      - name: Run you migrations and then release to production
+        run: |
+          echo "Run you migrations and then release to production for: " ${{ needs.ref.outputs.refspec }}
+
+  deploy-production:
+    environment: Production
+    needs: [wait-for-pre-release-approval]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

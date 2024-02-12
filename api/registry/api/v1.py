@@ -40,6 +40,8 @@ from registry.api.utils import (
     community_requires_signature,
     get_scorer_id,
     with_read_db,
+    track_apikey_usage,
+    atrack_apikey_usage,
 )
 from registry.atasks import ascore_passport
 from registry.exceptions import (
@@ -101,6 +103,7 @@ feature_flag_router = Router()
     summary="Retrieve a signing message",
     description="""Use this API to get a message to sign and a nonce to use when submitting your passport for scoring.""",
 )
+@track_apikey_usage(track_response=False)
 def signing_message(request) -> SigningMessageResponse:
     check_rate_limit(request)
     nonce = Nonce.create_nonce().nonce
@@ -156,6 +159,7 @@ If the status is **DONE** the final score is provided in this response.\n
 If the status is **PROCESSING**, this means that your passport is being pulled from storage and the scoring algorithm is run in the background. You need to check for the status of the operation by calling the `/score/{int:scorer_id}/{str:address}` API. The operation will have finished when the status returned is **DONE**
 """,
 )
+@atrack_apikey_usage(track_response=True, payload_param_name="payload")
 async def a_submit_passport(
     request, payload: SubmitPassportPayload
 ) -> DetailedScoreResponse:
@@ -220,7 +224,7 @@ async def ahandle_submit_passport(
     await ascore_passport(user_community, db_passport, payload.address, score)
     await score.asave()
 
-    return score
+    return DetailedScoreResponse.from_orm(score)
 
 
 def is_valid_address(address: str) -> bool:
@@ -280,9 +284,11 @@ def handle_submit_passport(
         score=score.score,
         status=score.status,
         evidence=score.evidence,
-        last_score_timestamp=score.last_score_timestamp.isoformat()
-        if score.last_score_timestamp
-        else None,
+        last_score_timestamp=(
+            score.last_score_timestamp.isoformat()
+            if score.last_score_timestamp
+            else None
+        ),
     )
 
 
@@ -325,6 +331,7 @@ async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community
     summary=common.history_endpoint["summary"],
     description=common.history_endpoint["description"],
 )
+@track_apikey_usage(track_response=False)
 def get_score_history(
     request,
     scorer_id: int,
@@ -353,6 +360,7 @@ This endpoint will return a `DetailedScoreResponse`. This endpoint will also ret
 {SCORE_TIMESTAMP_FIELD_DESCRIPTION}
 """,
 )
+@track_apikey_usage(track_response=False)
 def get_score(request, address: str, scorer_id: int | str) -> DetailedScoreResponse:
     check_rate_limit(request)
     account = request.auth
@@ -434,6 +442,7 @@ But this generally makes no sense.
 """,
 )
 @paginate(pass_parameter="pagination_info")
+@track_apikey_usage(track_response=False)
 def get_scores(
     request,
     scorer_id: int,
@@ -508,6 +517,7 @@ This endpoint will return a `CursorPaginatedStampCredentialResponse`.\n
     # This prevents returning {metadata: None} in the response
     exclude_unset=True,
 )
+@track_apikey_usage(track_response=False)
 def get_passport_stamps(
     request,
     address: str,
@@ -719,6 +729,7 @@ def fetch_stamp_metadata_for_provider(provider: str):
         500: ErrorMessageResponse,
     },
 )
+@track_apikey_usage(track_response=False)
 def stamp_display(request) -> List[StampDisplayResponse]:
     check_rate_limit(request)
     return fetch_all_stamp_metadata()

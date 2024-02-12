@@ -2,22 +2,41 @@ import api_logging as logging
 from account.models import AccountAPIKeyAnalytics
 from asgiref.sync import async_to_sync
 from celery import shared_task
-from registry.models import Passport, Score, Stamp
-
+from registry.models import Passport, Score
+from django.conf import settings
 from .atasks import ascore_passport
 
 log = logging.getLogger(__name__)
 
 
 @shared_task
-def save_api_key_analytics(api_key_id, path):
+def save_api_key_analytics(
+    api_key_id,
+    path,
+    path_segments,
+    query_params,
+    headers,
+    payload,
+    response,
+    response_skipped,
+    error,
+):
     try:
-        AccountAPIKeyAnalytics.objects.create(
-            api_key_id=api_key_id,
-            path=path,
-        )
+        if settings.FF_API_ANALYTICS == "on":
+            AccountAPIKeyAnalytics.objects.create(
+                api_key_id=api_key_id,
+                path=path,
+                path_segments=path_segments,
+                query_params=query_params,
+                payload=payload,
+                headers=headers,
+                response=response,
+                response_skipped=response_skipped,
+                error=error,
+            )
+
     except Exception as e:
-        pass
+        log.error("Failed to save analytics. Error: '%s'", e, exc_info=True)
 
 
 @shared_task
