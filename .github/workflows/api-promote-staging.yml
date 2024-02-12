@@ -245,8 +245,8 @@ jobs:
     outputs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
 
-  deploy-staging:
-    environment: Staging
+  wait-for-pre-release-approval:
+    name: Pre-Release Approval Pending (run your migrations at this stage)
     needs:
       [
         test,
@@ -255,6 +255,16 @@ jobs:
         build-indexer,
         build-submit-passport-lambda,
       ]
+    runs-on: ubuntu-latest
+    environment: staging-pre-release
+    steps:
+      - name: Run you migrations and then release to production
+        run: |
+          echo "Run you migrations and then release to production for: " ${{ needs.ref.outputs.refspec }}
+
+  deploy-staging:
+    environment: Staging
+    needs: [wait-for-pre-release-approval]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
