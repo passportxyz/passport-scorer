@@ -3,12 +3,12 @@ import json
 from copy import deepcopy
 
 import pytest
-
+from account.models import AccountAPIKeyAnalytics
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
+from aws_lambdas.scorer_api_passport.utils import strip_event
 from registry.test.test_passport_submission import mock_passport
 
 from ..submit_passport import handler
-from aws_lambdas.scorer_api_passport.utils import strip_event
 
 # Sample mock event
 sample_event = {
@@ -234,6 +234,221 @@ def test_strip_event_handle_missing_api_key(
 
     assert len(sensitive_data) == 0
     assert event == initial_event
+
+
+def test_successful_authentication_and_analytics_logging(
+    scorer_api_key,
+    scorer_community_with_binary_scorer,
+    passport_holder_addresses,
+    mocker,
+):
+    """
+    Tests that proper analytics entry is registered in the DB
+    """
+
+    with mocker.patch(
+        "registry.atasks.aget_passport",
+        return_value=mock_passport,
+    ):
+        with mocker.patch(
+            "registry.atasks.validate_credential", side_effect=[[], [], []]
+        ):
+            address = passport_holder_addresses[0]["address"].lower()
+            event = {
+                "requestContext": {
+                    "elb": {
+                        "targetGroupArn": "arn:aws:elasticloadbalancing:us-west-2:515520736917:targetgroup/testTargetGroup-e050da0/c8f86571a77b9bc5"
+                    }
+                },
+                "httpMethod": "POST",
+                "path": "/registry/submit-passport",
+                "queryStringParameters": {"a": "b"},
+                "headers": {
+                    "content-length": "73",
+                    "content-type": "application/json",
+                    "host": "api.staging.scorer.gitcoin.co",
+                    "user-agent": "k6/0.46.0 (https://k6.io/)",
+                    "x-amzn-trace-id": "Root=1-650373d8-19455f7f1bfd3c6f0fc3f323",
+                    "x-api-key": scorer_api_key,
+                    "x-forwarded-for": "164.90.200.92",
+                    "x-forwarded-port": "443",
+                    "x-forwarded-proto": "https",
+                },
+                "body": json.dumps(
+                    {
+                        "address": address,
+                        "community": scorer_community_with_binary_scorer.id,
+                    }
+                ),
+                "isBase64Encoded": False,
+            }
+
+            response = handler(event, MockContext())
+
+            assert response is not None
+            assert response["statusCode"] == 200
+
+            # Check for the proper analytics entry
+            analytics_entry = AccountAPIKeyAnalytics.objects.order_by("-created_at")[0]
+            assert analytics_entry.path == event["path"]
+            assert analytics_entry.path_segments == ["registry", "submit-passport"]
+            assert analytics_entry.payload == {
+                "address": address,
+                "community": scorer_community_with_binary_scorer.id,
+            }
+            assert analytics_entry.query_params == {"a": "b"}
+            assert analytics_entry.headers == {  # header without api key
+                "content-length": "73",
+                "content-type": "application/json",
+                "host": "api.staging.scorer.gitcoin.co",
+                "user-agent": "k6/0.46.0 (https://k6.io/)",
+                "x-amzn-trace-id": "Root=1-650373d8-19455f7f1bfd3c6f0fc3f323",
+                "x-forwarded-for": "164.90.200.92",
+                "x-forwarded-port": "443",
+                "x-forwarded-proto": "https",
+                "x-api-key": "***",
+            }
+
+            assert analytics_entry.error is None
+
+
+def test_failed_authentication_and_analytics_logging(
+    scorer_api_key,
+    scorer_community_with_binary_scorer,
+    passport_holder_addresses,
+    mocker,
+):
+    """
+    Tests that proper analytics entry is registered in the DB
+    """
+
+    with mocker.patch(
+        "registry.atasks.aget_passport",
+        return_value=mock_passport,
+    ):
+        with mocker.patch(
+            "registry.atasks.validate_credential", side_effect=[[], [], []]
+        ):
+            address = passport_holder_addresses[0]["address"].lower()
+            event = {
+                "requestContext": {
+                    "elb": {
+                        "targetGroupArn": "arn:aws:elasticloadbalancing:us-west-2:515520736917:targetgroup/testTargetGroup-e050da0/c8f86571a77b9bc5"
+                    }
+                },
+                "httpMethod": "POST",
+                "path": "/registry/submit-passport",
+                "queryStringParameters": {"a": "b"},
+                "headers": {
+                    "content-length": "73",
+                    "content-type": "application/json",
+                    "host": "api.staging.scorer.gitcoin.co",
+                    "user-agent": "k6/0.46.0 (https://k6.io/)",
+                    "x-amzn-trace-id": "Root=1-650373d8-19455f7f1bfd3c6f0fc3f323",
+                    "x-api-key": scorer_api_key + "-BAD",
+                    "x-forwarded-for": "164.90.200.92",
+                    "x-forwarded-port": "443",
+                    "x-forwarded-proto": "https",
+                },
+                "body": json.dumps(
+                    {
+                        "address": address,
+                        "community": scorer_community_with_binary_scorer.id,
+                    }
+                ),
+                "isBase64Encoded": False,
+            }
+
+            response = handler(event, MockContext())
+
+            assert response is not None
+            assert response["statusCode"] == 403
+
+            # Check for the proper analytics entry
+            analytics_entry_count = AccountAPIKeyAnalytics.objects.order_by(
+                "-created_at"
+            ).count()
+
+            # because of the bad API key with expect no logs
+            assert analytics_entry_count == 0
+
+
+def test_bad_scorer_id_and_analytics_logging(
+    scorer_api_key,
+    scorer_community_with_binary_scorer,
+    passport_holder_addresses,
+    mocker,
+):
+    """
+    Tests that proper analytics entry is registered in the DB
+    """
+
+    with mocker.patch(
+        "registry.atasks.aget_passport",
+        return_value=mock_passport,
+    ):
+        with mocker.patch(
+            "registry.atasks.validate_credential", side_effect=[[], [], []]
+        ):
+            address = passport_holder_addresses[0]["address"].lower()
+            event = {
+                "requestContext": {
+                    "elb": {
+                        "targetGroupArn": "arn:aws:elasticloadbalancing:us-west-2:515520736917:targetgroup/testTargetGroup-e050da0/c8f86571a77b9bc5"
+                    }
+                },
+                "httpMethod": "POST",
+                "path": "/registry/submit-passport",
+                "queryStringParameters": {"a": "b"},
+                "headers": {
+                    "content-length": "73",
+                    "content-type": "application/json",
+                    "host": "api.staging.scorer.gitcoin.co",
+                    "user-agent": "k6/0.46.0 (https://k6.io/)",
+                    "x-amzn-trace-id": "Root=1-650373d8-19455f7f1bfd3c6f0fc3f323",
+                    "x-api-key": scorer_api_key,
+                    "x-forwarded-for": "164.90.200.92",
+                    "x-forwarded-port": "443",
+                    "x-forwarded-proto": "https",
+                },
+                "body": json.dumps(
+                    {
+                        "address": address,
+                        "community": 123123,
+                    }
+                ),
+                "isBase64Encoded": False,
+            }
+
+            response = handler(event, MockContext())
+
+            assert response is not None
+            assert (
+                response["statusCode"] == 500
+            )  # TODO: this is not the code we expect ...
+
+            # Check for the proper analytics entry
+            analytics_entry = AccountAPIKeyAnalytics.objects.order_by("-created_at")[0]
+            assert analytics_entry.path == event["path"]
+            assert analytics_entry.path_segments == ["registry", "submit-passport"]
+            assert analytics_entry.payload == {
+                "address": address,
+                "community": 123123,
+            }
+            assert analytics_entry.query_params == {"a": "b"}
+            assert analytics_entry.headers == {  # header without api key
+                "content-length": "73",
+                "content-type": "application/json",
+                "host": "api.staging.scorer.gitcoin.co",
+                "user-agent": "k6/0.46.0 (https://k6.io/)",
+                "x-amzn-trace-id": "Root=1-650373d8-19455f7f1bfd3c6f0fc3f323",
+                "x-forwarded-for": "164.90.200.92",
+                "x-forwarded-port": "443",
+                "x-forwarded-proto": "https",
+                "x-api-key": "***",
+            }
+
+            assert analytics_entry.error == "No Community matches the given query."
 
 
 # Conflicting with other rate limiting tests
