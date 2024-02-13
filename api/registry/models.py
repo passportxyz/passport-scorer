@@ -45,6 +45,9 @@ class Stamp(models.Model):
 
 
 class Score(models.Model):
+    class Meta:
+        permissions = [("rescore_individual_score", "Can rescore individual scores")]
+
     class Status:
         PROCESSING = "PROCESSING"
         BULK_PROCESSING = "BULK_PROCESSING"
