@@ -45,7 +45,9 @@ class CeramicCache(models.Model):
     )
 
     type = models.IntegerField(
-        default=StampType.V1, choices=[(tag.value, tag.name) for tag in StampType]
+        default=StampType.V1,
+        choices=[(tag.value, tag.name) for tag in StampType],
+        help_text="TO BE DELETED - this is not used",
     )
 
     compose_db_save_status = models.CharField(
@@ -53,6 +55,7 @@ class CeramicCache(models.Model):
         choices=ComposeDBSaveStatus.choices,
         default="",
         blank=True,
+        db_index=True,
     )
 
     compose_db_stream_id = models.CharField(
@@ -60,6 +63,7 @@ class CeramicCache(models.Model):
         default="",
         blank=True,
         help_text="Compose db stream ID for CREDENTIAL WRAPPER",
+        db_index=True,
     )
 
     class Meta:
