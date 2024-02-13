@@ -424,9 +424,8 @@ def test_bad_scorer_id_and_analytics_logging(
 
             assert response is not None
             assert (
-                response["statusCode"] == 500
-            )  # TODO: this is not the code we expect ...
-
+                response["statusCode"] == 400
+            )  
             # Check for the proper analytics entry
             analytics_entry = AccountAPIKeyAnalytics.objects.order_by("-created_at")[0]
             assert analytics_entry.path == event["path"]
@@ -448,7 +447,7 @@ def test_bad_scorer_id_and_analytics_logging(
                 "x-api-key": "***",
             }
 
-            assert analytics_entry.error == "No Community matches the given query."
+            assert analytics_entry.error == "No scorer matches the given criteria."
 
 
 # Conflicting with other rate limiting tests

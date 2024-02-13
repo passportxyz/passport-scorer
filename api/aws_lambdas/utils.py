@@ -12,6 +12,7 @@ from typing import Any, Dict, Tuple
 from aws_lambdas.exceptions import InvalidRequest
 from django.http import HttpRequest
 from structlog.contextvars import bind_contextvars
+from registry.exceptions import NotFoundApiException
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
@@ -205,6 +206,7 @@ def with_api_request_exception_handling(func):
                 Unauthorized: (403, "Unauthorized"),
                 InvalidToken: (403, "Invalid token"),
                 InvalidRequest: (400, "Bad request"),
+                NotFoundApiException: (400, "Bad request"),
                 Ratelimited: (
                     429,
                     "You have been rate limited. Please try again later.",

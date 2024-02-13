@@ -315,13 +315,16 @@ async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community
                 with_read_db(Community), id=scorer_id, account=account
             )
             return ret
-        except Exception:
+        except Exception as exc:
             log.error(
                 "Error when getting score by internal or external ID (aget_scorer_by_id): scorer_id/external_scorer_id=%s, account='%s'",
                 scorer_id,
                 account,
+                exc_info=True
             )
-            raise
+            raise NotFoundApiException(
+                f"No scorer matches the given criteria."
+            ) from exc
 
 
 @router.get(
