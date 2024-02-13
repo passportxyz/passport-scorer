@@ -115,6 +115,16 @@ def parse_body(event):
     return body
 
 
+def format_response(ret: Any):
+    return {
+        "statusCode": 200,
+        "statusDescription": "200 OK",
+        "isBase64Encoded": False,
+        "headers": RESPONSE_HEADERS,
+        "body": ret.json() if hasattr(ret, "json") else json.dumps(ret),
+    }
+
+
 def with_request_exception_handling(func):
     @wraps(func)
     def wrapper(event, context, *args):
@@ -153,9 +163,14 @@ def with_request_exception_handling(func):
 
 
 def with_api_request_exception_handling(func):
+    """
+    This wrapper is meant to be used for API handler of the public API like submit-passport
+    """
+
     @wraps(func)
     def wrapper(_event, context):
         response = None
+        error_msg = None
         try:
             # First let's bind the ocntext vars for the logger, strip the event from
             # sensitive data and log the event
@@ -179,8 +194,11 @@ def with_api_request_exception_handling(func):
             # Parse the body and call the function
             body = parse_body(event)
 
-            response = func(event, context, request, user_account, body)
+            response = format_response(
+                func(event, context, request, user_account, body)
+            )
         except Exception as e:
+            error_msg = str(e)
             error_descriptions: Dict[Any, Tuple[int, str]] = {
                 Unauthorized: (403, "Unauthorized"),
                 InvalidToken: (403, "Invalid token"),
@@ -192,7 +210,7 @@ def with_api_request_exception_handling(func):
             }
 
             status, message = error_descriptions.get(
-                type(e), (400, "An error has occurred")
+                type(e), (500, "An error has occurred")
             )
 
             logger.exception(f"Error occurred with Passport API: {e}")
@@ -216,7 +234,7 @@ def with_api_request_exception_handling(func):
                 payload=body,
                 response=response.get("body"),
                 response_skipped=False,
-                error=str(e),
+                error=error_msg,
             )
         except Exception as e:
             logger.exception(f"Failed to store analytics: {e}")
@@ -224,13 +242,3 @@ def with_api_request_exception_handling(func):
         return response
 
     return wrapper
-
-
-def format_response(ret: Any):
-    return {
-        "statusCode": 200,
-        "statusDescription": "200 OK",
-        "isBase64Encoded": False,
-        "headers": RESPONSE_HEADERS,
-        "body": ret.json() if hasattr(ret, "json") else json.dumps(ret),
-    }

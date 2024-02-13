@@ -29,4 +29,4 @@ def handler(event, _context, request, user_account, body):
         SubmitPassportPayload(**body), user_account
     )
 
-    return format_response(score)
+    return score

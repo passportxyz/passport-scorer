@@ -1,7 +1,7 @@
 import json
+import json
 
 import pytest
-from account.models import Community
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
 
 from ..rescore import handler
