@@ -24,14 +24,3 @@ def get_token_from_event(event) -> str:
     logger.info("headers %s" % json.dumps(event.get("headers", {})))
 
     return event.get("headers", {}).get("authorization", "").split(" ")[-1]
-
-
-def parse_body(event):
-    if event["isBase64Encoded"]:
-        body = json.loads(base64.b64decode(event["body"]).decode("utf-8"))
-    elif "body" in event and event["body"]:
-        body = json.loads(event["body"])
-    else:
-        body = {}
-
-    return body

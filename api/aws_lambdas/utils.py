@@ -3,10 +3,13 @@ This module provides utils to manage Passport API requests in AWS Lambda.
 """
 
 import json
+
+import base64
 import os
 from functools import wraps
 from traceback import print_exc
 from typing import Any, Dict, Tuple
+from django.http import HttpRequest
 
 from aws_lambdas.exceptions import InvalidRequest
 from structlog.contextvars import bind_contextvars
@@ -67,6 +70,7 @@ import api_logging as logging
 logger = logging.getLogger(__name__)
 
 from registry.exceptions import Unauthorized
+from registry.api.utils import ApiKey, check_rate_limit, save_api_key_analytics
 
 RESPONSE_HEADERS = {
     "Content-Type": "application/json",
@@ -76,15 +80,60 @@ RESPONSE_HEADERS = {
 }
 
 
+def lambda_to_django_request(api_key, event):
+    """
+    Convert a Lambda event into a Django HttpRequest object.
+    """
+    request = HttpRequest()
+    request.META["X-Api-Key"] = api_key
+    request.path = event["path"]
+
+    return request
+
+
+def strip_event(event) -> tuple:
+    """
+    Strips the event of all sensitive fields.
+    This will return a tuple like: (sensitive_data_dict, event_without_sensitive_data)
+    """
+    sensitive_data = {}
+    headers = event.get("headers", {})
+    if "x-api-key" in headers:
+        sensitive_data["x-api-key"] = headers["x-api-key"]
+        headers["x-api-key"] = "***"
+    return sensitive_data, event
+
+
+def parse_body(event):
+    if event["isBase64Encoded"]:
+        body = json.loads(base64.b64decode(event["body"]).decode("utf-8"))
+    elif "body" in event and event["body"]:
+        body = json.loads(event["body"])
+    else:
+        body = {}
+
+    return body
+
+
+def format_response(ret: Any):
+    return {
+        "statusCode": 200,
+        "statusDescription": "200 OK",
+        "isBase64Encoded": False,
+        "headers": RESPONSE_HEADERS,
+        "body": ret.json() if hasattr(ret, "json") else json.dumps(ret),
+    }
+
+
 def with_request_exception_handling(func):
     @wraps(func)
-    def wrapper(event, context):
+    def wrapper(event, context, *args):
         try:
             bind_contextvars(request_id=context.aws_request_id)
 
             logger.info("Received event: %s", event)
 
-            return func(event, context)
+            return func(event, context, *args)
         except Exception as e:
             error_descriptions: Dict[Any, Tuple[int, str]] = {
                 Unauthorized: (403, "Unauthorized"),
@@ -113,11 +162,83 @@ def with_request_exception_handling(func):
     return wrapper
 
 
-def format_response(ret: Any):
-    return {
-        "statusCode": 200,
-        "statusDescription": "200 OK",
-        "isBase64Encoded": False,
-        "headers": RESPONSE_HEADERS,
-        "body": ret.json() if hasattr(ret, "json") else json.dumps(ret),
-    }
+def with_api_request_exception_handling(func):
+    """
+    This wrapper is meant to be used for API handler of the public API like submit-passport
+    """
+
+    @wraps(func)
+    def wrapper(_event, context):
+        response = None
+        error_msg = None
+        try:
+            # First let's bind the ocntext vars for the logger, strip the event from
+            # sensitive data and log the event
+            bind_contextvars(request_id=context.aws_request_id)
+            sensitive_data, event = strip_event(_event)
+            logger.info("Received event: %s", event)
+
+            # Authenticate the API request
+            api_key = sensitive_data.get("x-api-key", "")
+            api_key_instance = ApiKey()
+            request = lambda_to_django_request(api_key, event)
+
+            # Authenticate the api key
+            user_account = api_key_instance.authenticate(request, api_key)
+            if not user_account:
+                raise Unauthorized("user_account was not retreived")
+
+            # Check rate limit for the api key
+            check_rate_limit(request)
+
+            # Parse the body and call the function
+            body = parse_body(event)
+
+            response = format_response(
+                func(event, context, request, user_account, body)
+            )
+        except Exception as e:
+            error_msg = str(e)
+            error_descriptions: Dict[Any, Tuple[int, str]] = {
+                Unauthorized: (403, "Unauthorized"),
+                InvalidToken: (403, "Invalid token"),
+                InvalidRequest: (400, "Bad request"),
+                Ratelimited: (
+                    429,
+                    "You have been rate limited. Please try again later.",
+                ),
+            }
+
+            status, message = error_descriptions.get(
+                type(e), (500, "An error has occurred")
+            )
+
+            logger.exception(f"Error occurred with Passport API: {e}")
+
+            response = {
+                "statusCode": status,
+                "statusDescription": str(e),
+                "isBase64Encoded": False,
+                "headers": RESPONSE_HEADERS,
+                "body": '{"error": "' + message + '"}',
+            }
+
+        # Log analytics for the API call
+        try:
+            save_api_key_analytics(
+                api_key_id=request.api_key.id,
+                path=event["path"],
+                path_segments=event["path"].split("/"),
+                query_params=event["path"].split("/"),
+                headers=event["headers"],
+                payload=body,
+                response=response.get("body"),
+                response_skipped=False,
+                error=error_msg,
+            )
+        except Exception as e:
+            logger.exception(f"Failed to store analytics: {e}")
+
+        return response
+
+    return wrapper

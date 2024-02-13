@@ -7,7 +7,8 @@ import pytest
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
 from registry.test.test_passport_submission import mock_passport
 
-from ..submit_passport import handler, strip_event
+from ..submit_passport import handler
+from aws_lambdas.scorer_api_passport.utils import strip_event
 
 # Sample mock event
 sample_event = {
