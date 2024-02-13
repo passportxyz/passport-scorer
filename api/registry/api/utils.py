@@ -1,3 +1,5 @@
+import functools
+
 import api_logging as logging
 from account.models import Account, AccountAPIKey
 from django.conf import settings
@@ -13,15 +15,12 @@ from registry.api.schema import SubmitPassportPayload
 from registry.atasks import asave_api_key_analytics
 from registry.exceptions import InvalidScorerIdException, Unauthorized
 from registry.tasks import save_api_key_analytics
-import functools
 
 log = logging.getLogger(__name__)
 
 
 def atrack_apikey_usage(track_response=True, payload_param_name=None):
-
     def decorator_track_apikey_usage(func):
-
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
 
@@ -36,30 +35,26 @@ def atrack_apikey_usage(track_response=True, payload_param_name=None):
 
             except Exception as e:
                 error = e
-                save_api_key_analytics(
+
+            try:
+                await asave_api_key_analytics(
                     request.api_key.id,
                     request.path,
-                    request.path.split("/"),
+                    request.path.split("/")[
+                        1:
+                    ],  # skip the first element, as it will be the empty string
                     dict(request.GET),
                     dict(request.headers),
                     payload.json() if payload else None,
-                    response=None,
+                    response=response.json() if track_response and response else None,
                     response_skipped=not track_response,
-                    error=str(e),
+                    error=str(error) if error else None,
                 )
-                raise e
+            except Exception as e:
+                log.exception("failed to store analytics")
 
-            save_api_key_analytics(
-                request.api_key.id,
-                request.path,
-                request.path.split("/"),
-                dict(request.GET),
-                dict(request.headers),
-                payload.json() if payload else None,
-                response=response.json() if track_response and response else None,
-                response_skipped=not track_response,
-                error=str(error) if error else None,
-            )
+            if error:
+                raise error
 
             return response
 
@@ -69,9 +64,7 @@ def atrack_apikey_usage(track_response=True, payload_param_name=None):
 
 
 def track_apikey_usage(track_response=True, payload_param_name=None):
-
     def decorator_track_apikey_usage(func):
-
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
 
@@ -80,35 +73,32 @@ def track_apikey_usage(track_response=True, payload_param_name=None):
             response = None
             error = None
             payload = kwargs.get(payload_param_name) if payload_param_name else None
+
             try:
                 response = func(*args, **kwargs)
-
             except Exception as e:
                 error = e
+
+            try:
                 save_api_key_analytics(
                     request.api_key.id,
                     request.path,
-                    request.path.split("/"),
+                    request.path.split("/")[
+                        1:
+                    ],  # skip the first element, as it will be the empty string
                     dict(request.GET),
                     dict(request.headers),
                     payload.json() if payload else None,
-                    response=None,
+                    response=response.json() if track_response and response else None,
                     response_skipped=not track_response,
-                    error=str(e),
+                    error=str(error) if error else None,
                 )
-                raise e
 
-            save_api_key_analytics(
-                request.api_key.id,
-                request.path,
-                request.path.split("/"),
-                dict(request.GET),
-                dict(request.headers),
-                payload.json() if payload else None,
-                response=response.json() if track_response and response else None,
-                response_skipped=not track_response,
-                error=str(error) if error else None,
-            )
+            except Exception as e:
+                log.exception("failed to store analytics")
+
+            if error:
+                raise error
 
             return response
 
@@ -185,9 +175,6 @@ async def aapi_key(request):
 
     if not api_key.is_valid(key):
         raise Unauthorized()
-
-    if settings.FF_API_ANALYTICS == "on":
-        asave_api_key_analytics(api_key.id, request.path)
 
     user_account = await Account.objects.aget(pk=api_key.account_id)
     if user_account:
