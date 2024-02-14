@@ -19,7 +19,14 @@ log = logging.getLogger(__name__)
 Hash = str
 
 
-sensitive_headers_data = {"X-Api-Key", "Cookie", "Authorization"}
+sensitive_headers_data = {
+    "X-Api-Key",
+    "Cookie",
+    "Authorization",
+    "x-api-key",
+    "cookie",
+    "authorization",
+}
 
 
 async def asave_api_key_analytics(
