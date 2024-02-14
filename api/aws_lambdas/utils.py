@@ -9,11 +9,6 @@ from functools import wraps
 from traceback import print_exc
 from typing import Any, Dict, Tuple
 
-from aws_lambdas.exceptions import InvalidRequest
-from django.http import HttpRequest
-from structlog.contextvars import bind_contextvars
-from registry.exceptions import NotFoundApiException
-
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
 
@@ -60,8 +55,6 @@ if "SCORER_SERVER_SSM_ARN" in os.environ:
 # pylint: disable=wrong-import-position
 
 import django
-from django_ratelimit.exceptions import Ratelimited
-from ninja_jwt.exceptions import InvalidToken
 
 django.setup()
 
@@ -69,8 +62,13 @@ import api_logging as logging
 
 logger = logging.getLogger(__name__)
 
+from aws_lambdas.exceptions import InvalidRequest
+from django.http import HttpRequest
+from django_ratelimit.exceptions import Ratelimited
+from ninja_jwt.exceptions import InvalidToken
 from registry.api.utils import ApiKey, check_rate_limit, save_api_key_analytics
-from registry.exceptions import Unauthorized
+from registry.exceptions import NotFoundApiException, Unauthorized
+from structlog.contextvars import bind_contextvars
 
 RESPONSE_HEADERS = {
     "Content-Type": "application/json",
