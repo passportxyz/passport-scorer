@@ -19,6 +19,9 @@ log = logging.getLogger(__name__)
 Hash = str
 
 
+sensitive_headers_data = {"X-Api-Key", "Cookie", "Authorization"}
+
+
 async def asave_api_key_analytics(
     api_key_id,
     path,
@@ -32,13 +35,18 @@ async def asave_api_key_analytics(
 ):
     try:
         if settings.FF_API_ANALYTICS == "on":
+            cleaned_headers = dict(headers)
+            for sensitive_field in sensitive_headers_data:
+                if sensitive_field in cleaned_headers:
+                    cleaned_headers[sensitive_field] = "***"
+
             await AccountAPIKeyAnalytics.objects.acreate(
                 api_key_id=api_key_id,
                 path=path,
                 path_segments=path_segments,
                 query_params=query_params,
                 payload=payload,
-                headers=headers,
+                headers=cleaned_headers,
                 response=response,
                 response_skipped=response_skipped,
                 error=error,
