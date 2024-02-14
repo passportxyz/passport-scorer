@@ -7,6 +7,7 @@ from account.deduplication.lifo import alifo
 
 # --- Deduplication Modules
 from account.models import AccountAPIKeyAnalytics, Community, Rules
+from django.conf import settings
 from ninja_extra.exceptions import APIException
 from reader.passport_reader import aget_passport, get_did
 from registry.exceptions import NoPassportException
@@ -18,16 +19,33 @@ log = logging.getLogger(__name__)
 Hash = str
 
 
-async def asave_api_key_analytics(api_key_id, path):
+async def asave_api_key_analytics(
+    api_key_id,
+    path,
+    path_segments,
+    query_params,
+    headers,
+    payload,
+    response,
+    response_skipped,
+    error,
+):
     try:
-        await AccountAPIKeyAnalytics.objects.acreate(
-            api_key_id=api_key_id,
-            path=path,
-        )
-    except Exception as e:
-        pass
+        if settings.FF_API_ANALYTICS == "on":
+            await AccountAPIKeyAnalytics.objects.acreate(
+                api_key_id=api_key_id,
+                path=path,
+                path_segments=path_segments,
+                query_params=query_params,
+                payload=payload,
+                headers=headers,
+                response=response,
+                response_skipped=response_skipped,
+                error=error,
+            )
 
-    return None
+    except Exception as e:
+        log.error("Failed to save analytics. Error: '%s'", e, exc_info=True)
 
 
 async def aremove_stale_stamps_from_db(passport: Passport, passport_data: dict):

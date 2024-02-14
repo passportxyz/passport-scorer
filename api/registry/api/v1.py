@@ -36,12 +36,12 @@ from registry.api.schema import (
 from registry.api.utils import (
     ApiKey,
     aapi_key,
+    atrack_apikey_usage,
     check_rate_limit,
     community_requires_signature,
     get_scorer_id,
-    with_read_db,
     track_apikey_usage,
-    atrack_apikey_usage,
+    with_read_db,
 )
 from registry.atasks import ascore_passport
 from registry.exceptions import (
@@ -315,13 +315,16 @@ async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community
                 with_read_db(Community), id=scorer_id, account=account
             )
             return ret
-        except Exception:
+        except Exception as exc:
             log.error(
                 "Error when getting score by internal or external ID (aget_scorer_by_id): scorer_id/external_scorer_id=%s, account='%s'",
                 scorer_id,
                 account,
+                exc_info=True,
             )
-            raise
+            raise NotFoundApiException(
+                f"No scorer matches the given criteria."
+            ) from exc
 
 
 @router.get(

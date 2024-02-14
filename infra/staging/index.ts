@@ -622,6 +622,10 @@ const lambdaSettings = {
       name: "SCORER_SERVER_SSM_ARN",
       value: SCORER_SERVER_SSM_ARN,
     },
+    {
+      name: "FF_API_ANALYTICS",
+      value: "on",
+    },
   ],
   roleAttachments: httpRoleAttachments,
   role: httpLambdaRole,

@@ -18,7 +18,12 @@ from registry.api.schema import (
     StampDisplayResponse,
     SubmitPassportPayload,
 )
-from registry.api.utils import ApiKey, check_rate_limit, with_read_db
+from registry.api.utils import (
+    ApiKey,
+    check_rate_limit,
+    track_apikey_usage,
+    with_read_db,
+)
 from registry.exceptions import (
     InvalidAddressException,
     InvalidLimitException,
@@ -92,6 +97,7 @@ This endpoint will return a `CursorPaginatedScoreResponse`.\n
 Note: results will be sorted ascending by `["last_score_timestamp", "id"]`
 """,
 )
+@track_apikey_usage(track_response=False)
 def get_scores(
     request,
     scorer_id: int,

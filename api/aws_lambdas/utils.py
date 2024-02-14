@@ -2,17 +2,17 @@
 This module provides utils to manage Passport API requests in AWS Lambda.
 """
 
-import json
-
 import base64
+import json
 import os
 from functools import wraps
 from traceback import print_exc
 from typing import Any, Dict, Tuple
-from django.http import HttpRequest
 
 from aws_lambdas.exceptions import InvalidRequest
+from django.http import HttpRequest
 from structlog.contextvars import bind_contextvars
+from registry.exceptions import NotFoundApiException
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
@@ -69,8 +69,8 @@ import api_logging as logging
 
 logger = logging.getLogger(__name__)
 
-from registry.exceptions import Unauthorized
 from registry.api.utils import ApiKey, check_rate_limit, save_api_key_analytics
+from registry.exceptions import Unauthorized
 
 RESPONSE_HEADERS = {
     "Content-Type": "application/json",
@@ -171,6 +171,8 @@ def with_api_request_exception_handling(func):
     def wrapper(_event, context):
         response = None
         error_msg = None
+        api_key_id = None
+        body = None
         try:
             # First let's bind the ocntext vars for the logger, strip the event from
             # sensitive data and log the event
@@ -185,6 +187,7 @@ def with_api_request_exception_handling(func):
 
             # Authenticate the api key
             user_account = api_key_instance.authenticate(request, api_key)
+            api_key_id = request.api_key.id  # we need this in save_api_key_analytics
             if not user_account:
                 raise Unauthorized("user_account was not retreived")
 
@@ -203,6 +206,7 @@ def with_api_request_exception_handling(func):
                 Unauthorized: (403, "Unauthorized"),
                 InvalidToken: (403, "Invalid token"),
                 InvalidRequest: (400, "Bad request"),
+                NotFoundApiException: (400, "Bad request"),
                 Ratelimited: (
                     429,
                     "You have been rate limited. Please try again later.",
@@ -225,17 +229,20 @@ def with_api_request_exception_handling(func):
 
         # Log analytics for the API call
         try:
-            save_api_key_analytics(
-                api_key_id=request.api_key.id,
-                path=event["path"],
-                path_segments=event["path"].split("/"),
-                query_params=event["path"].split("/"),
-                headers=event["headers"],
-                payload=body,
-                response=response.get("body"),
-                response_skipped=False,
-                error=error_msg,
-            )
+            if api_key_id:
+                save_api_key_analytics(
+                    api_key_id=api_key_id,
+                    path=event["path"],
+                    path_segments=event["path"].split("/")[
+                        1:
+                    ],  # skip the first element, as it will be the empty string
+                    query_params=event["queryStringParameters"],
+                    headers=event["headers"],
+                    payload=body,
+                    response=response.get("body"),
+                    response_skipped=False,
+                    error=error_msg,
+                )
         except Exception as e:
             logger.exception(f"Failed to store analytics: {e}")
 
