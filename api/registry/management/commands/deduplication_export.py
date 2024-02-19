@@ -4,9 +4,10 @@ from urllib.parse import urlparse
 
 import boto3
 from ceramic_cache.models import CeramicCache
+from dateutil.parser import parse as dateutil_parse
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from registry.models import Event
+from registry.models import Event, HashScorerLink
 from tqdm import tqdm
 
 
@@ -30,7 +31,9 @@ class Command(BaseCommand):
         output_file = options["output_file"]
         s3_uri = options["s3_uri"]
 
-        self.stdout.write(f"Exporting Squelched Addresses for community {community_id}")
+        self.stdout.write(
+            f"Exporting Addresses involved in deduplication for community {community_id}"
+        )
         now = datetime.now()
         now = now.replace(tzinfo=timezone.utc)
         three_months_ago = now - timedelta(days=90)
@@ -45,7 +48,7 @@ class Command(BaseCommand):
         temp_csv = BytesIO()
         unique_addresses = []
         with tqdm(
-            unit="records", unit_scale=True, desc="Exporting records"
+            unit="records", unit_scale=True, desc="Processing deduplication records"
         ) as progress_bar:
             last_id = 0
             while True:
@@ -61,12 +64,41 @@ class Command(BaseCommand):
                 if not records:
                     break
 
-                flagged_addresses = set(record.address for record in records)
                 flagged_providers = set(
                     record.data.get("provider") for record in records
                 )
-                flagged_address_provider_pairs = set(
-                    (record.address, record.data.get("provider")) for record in records
+
+                relevant_hash_scorer_links = HashScorerLink.objects.filter(
+                    community_id=community_id,
+                    hash__in=[
+                        record.data.get("hash")
+                        for record in records
+                        if record.data.get("hash")
+                    ],
+                )
+
+                original_holder_for_hash = {
+                    link.hash: link.address for link in relevant_hash_scorer_links
+                }
+
+                flagged_address_provider_pairs = []
+                for record in records:
+                    flagged_address_provider_pairs.append(
+                        (record.address, record.data.get("provider"))
+                    )
+                    original_holder_address = original_holder_for_hash.get(
+                        record.data.get("hash")
+                    )
+                    flagged_address_provider_pairs.append(
+                        (original_holder_address, record.data.get("provider"))
+                    )
+
+                flagged_address_provider_pairs = set(flagged_address_provider_pairs)
+
+                flagged_addresses = set(
+                    address
+                    for address, _provider in flagged_address_provider_pairs
+                    if address
                 )
 
                 # bulk retrieve all stamps for the flagged addresses and providers
@@ -78,17 +110,17 @@ class Command(BaseCommand):
 
                 for stamp in flagged_stamps:
                     if (
-                        not stamp.address in unique_addresses
+                        stamp.address not in unique_addresses
                         and (stamp.address, stamp.provider)
                         in flagged_address_provider_pairs
-                        and datetime.fromisoformat(stamp.stamp.get("expirationDate"))
-                        > now
+                        and dateutil_parse(stamp.stamp.get("expirationDate")) > now
                     ):
                         unique_addresses.append(stamp.address)
                         write_csv_row(temp_csv, [stamp.address])
 
-                last_id = records[len(records) - 1].id
-                progress_bar.update(1)
+                num_records = len(records)
+                last_id = records[num_records - 1].id
+                progress_bar.update(num_records)
 
         temp_csv.seek(0)
         self.stdout.write(f"Writing file to s3: {s3_key}")
