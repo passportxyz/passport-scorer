@@ -193,20 +193,23 @@ const readreplica0 = new aws.rds.Instance(
   { protect: true }
 );
 
-const analyticsDbParameterGroup = new aws.rds.ParameterGroup('analytics-parameter-group', {
-
-  family: 'postgres13', // The family should match the DB engine version
-  parameters: [ // A list of DB parameters you want to set
+const analyticsDbParameterGroup = new aws.rds.ParameterGroup(
+  "analytics-parameter-group",
+  {
+    family: "postgres13", // The family should match the DB engine version
+    parameters: [
+      // A list of DB parameters you want to set
       {
-          name: 'max_standby_archive_delay',
-          value: '900000',  // Millis
+        name: "max_standby_archive_delay",
+        value: "900000", // Millis
       },
       {
-          name: 'max_standby_streaming_delay',
-          value: '900000', // Millis
+        name: "max_standby_streaming_delay",
+        value: "900000", // Millis
       },
-  ],
-});
+    ],
+  }
+);
 
 const readreplica1 = new aws.rds.Instance(
   "scorer-db-read-analytics",
@@ -1043,7 +1046,7 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
 );
 
 const redashInitScript = redashDbUrl.apply((url) =>
-  redashDbPassword.apply((password) =>
+  redashDbPassword.apply((dbPassword) =>
     redashSecretKey.apply((secretKey) =>
       redashMailPassword.apply(
         (mailPassword) =>
@@ -1055,8 +1058,8 @@ const redashInitScript = redashDbUrl.apply((url) =>
           export REDASH_SECRET_KEY="${secretKey}"
           export REDASH_MAIL_USERNAME="${redashMailUsername}"
           export REDASH_MAIL_PASSWORD="${mailPassword}"
-          export REDASH_HOST="https://redash.api.staging.scorer.gitcoin.co"
-          export REDASH_MAIL_DEFAULT_SENDER="passport+redash_staging@gitcoin.co"
+          export REDASH_HOST="https://redash.api.scorer.gitcoin.co"
+          export REDASH_MAIL_DEFAULT_SENDER="passport+redash@gitcoin.co"
 
           echo "Try to pull from git repo or clone the repo if it was not cloned before ..."
           git pull /passport-redash || git clone https://github.com/gitcoinco/passport-redash.git /passport-redash
