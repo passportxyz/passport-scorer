@@ -1,7 +1,7 @@
 import { LogGroup } from "@pulumi/aws/cloudwatch/logGroup";
 import { Role } from "@pulumi/aws/iam/role";
 import * as awsx from "@pulumi/awsx";
-import { Input, Output, interpolate } from "@pulumi/pulumi";
+import { Input, Output, interpolate, jsonStringify } from "@pulumi/pulumi";
 import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 import * as aws from "@pulumi/aws";
 
@@ -390,11 +390,12 @@ export function createScorerECSService(
 }
 
 export async function createScoreExportBucketAndDomain(
+  bucketName: string,
   domain: string,
   route53Zone: string
 ) {
   const scoreBucket = new aws.s3.Bucket(domain, {
-    bucket: domain,
+    bucket: bucketName,
     website: {
       indexDocument: "registry_score.jsonl",
     },
@@ -407,7 +408,7 @@ export async function createScoreExportBucketAndDomain(
     ignorePublicAcls: false,
     blockPublicPolicy: false,
     restrictPublicBuckets: false,
-  });
+  }, {dependsOn: [scoreBucket] });
 
   const serviceAccount = await aws.elb.getServiceAccount({});
 
@@ -424,7 +425,7 @@ export async function createScoreExportBucketAndDomain(
         {
           Effect: "Allow",
           Principal: {
-            AWS: serviceAccount.arn,
+            AWS: serviceAccount.arn, 
           },
           Action: ["s3:PutObject", "s3:PutObjectAcl"],
           Resource: `${arn}/*`,
@@ -432,11 +433,11 @@ export async function createScoreExportBucketAndDomain(
       ],
     })
   );
-
+  
   new aws.s3.BucketPolicy("bucketPolicy", {
     bucket: scoreBucket.bucket.apply((bucket: any) => bucket),
     policy: bucketPolicy,
-  });
+  }, {dependsOn: [scoreBucket]});
 
   const eastRegion = new aws.Provider("east", {
     profile: aws.config.profile,
@@ -559,14 +560,13 @@ export const dockerGtcStakingIndexerImage = `${process.env["DOCKER_GTC_PASSPORT_
 
 type IndexerServiceParams = {
   rdsConnectionConfig: {
-    dbUsername: string;
-    dbPassword: Output<string>;
-    dbName: string;
-    dbHost: Output<string>;
+    dbHost: Output<any>;
     dbPort: string;
-  };
+};
+  rdsSecretArn: Output<any>;
   cluster: Cluster;
-  vpc: awsx.ec2.Vpc;
+  vpc: Output<any>;
+  privateSubnetIds: Output<any>;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   workerRole: Role;
   alertTopic: aws.sns.Topic;
@@ -574,8 +574,10 @@ type IndexerServiceParams = {
 
 export function createIndexerService({
   rdsConnectionConfig,
+  rdsSecretArn,
   cluster,
   vpc,
+  privateSubnetIds,
   privateSubnetSecurityGroup,
   workerRole,
   alertTopic,
@@ -584,22 +586,26 @@ export function createIndexerService({
     retentionInDays: 90,
   });
 
-  const indexerSecrets = [
+  const indexerSecrets  = rdsSecretArn.apply((rdsSecret) => [
     {
       name: "RPC_URL",
       valueFrom: `${SCORER_SERVER_SSM_ARN}:RPC_URL::`,
     },
-  ];
-
-  const indexerEnvironment: { name: string; value: Input<string> }[] = [
     {
       name: "DB_USER",
-      value: rdsConnectionConfig.dbUsername,
+      valueFrom: `${rdsSecret}:username::`,
     },
     {
       name: "DB_PASSWORD",
-      value: rdsConnectionConfig.dbPassword,
+      valueFrom: `${rdsSecret}:password::`, 
     },
+    {
+      name: "DB_NAME",
+      valueFrom: `${rdsSecret}:dbname::`, 
+    },
+  ]);
+
+  const indexerEnvironment: { name: string; value: Input<string> }[] = [
     {
       name: "DB_HOST",
       value: rdsConnectionConfig.dbHost,
@@ -607,11 +613,7 @@ export function createIndexerService({
     {
       name: "DB_PORT",
       value: rdsConnectionConfig.dbPort,
-    },
-    {
-      name: "DB_NAME",
-      value: rdsConnectionConfig.dbName,
-    },
+    }
   ];
 
   new awsx.ecs.FargateService("scorer-staking-indexer", {
@@ -619,7 +621,7 @@ export function createIndexerService({
     cluster: cluster.arn,
     desiredCount: 1,
     networkConfiguration: {
-      subnets: vpc.privateSubnetIds,
+      subnets: privateSubnetIds,
       securityGroups: [privateSubnetSecurityGroup.id],
     },
     taskDefinitionArgs: {
@@ -883,7 +885,7 @@ type BuildLambdaFnBaseParams = {
   name: string;
   imageUri: string;
   privateSubnetSecurityGroup: SecurityGroup;
-  vpcPrivateSubnetIds: Output<string[]>;
+  vpcPrivateSubnetIds: Output<any>;
   environment: { name: string; value: Input<string> }[];
   role: Role;
   roleAttachments: RolePolicyAttachment[];
