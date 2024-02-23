@@ -1,10 +1,7 @@
-import json
-from datetime import datetime
 from typing import List, Optional
 from urllib.parse import urljoin
 
 import api_logging as logging
-import boto3
 import django_filters
 import requests
 from account.api import UnauthorizedException, create_community_for_account
@@ -14,13 +11,9 @@ from account.models import Account, Community, Nonce, Rules
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.core.cache import cache
-from eth_utils import is_checksum_address, is_checksum_formatted_address, is_hex_address
-from gql import Client, gql
-from gql.transport.requests import RequestsHTTPTransport
 from ninja import Router
 from ninja.pagination import paginate
 from ninja_extra.exceptions import APIException
-from pydantic import BaseModel
 from registry.api import common
 from registry.api.schema import (
     CursorPaginatedHistoricalScoreResponse,
@@ -28,7 +21,6 @@ from registry.api.schema import (
     CursorPaginatedStampCredentialResponse,
     DetailedScoreResponse,
     ErrorMessageResponse,
-    ETHModelScoreResponse,
     GenericCommunityPayload,
     GenericCommunityResponse,
     GtcEventsResponse,
@@ -43,6 +35,7 @@ from registry.api.utils import (
     check_rate_limit,
     community_requires_signature,
     get_scorer_id,
+    is_valid_address,
     track_apikey_usage,
     with_read_db,
 )
@@ -228,14 +221,6 @@ async def ahandle_submit_passport(
     await score.asave()
 
     return DetailedScoreResponse.from_orm(score)
-
-
-def is_valid_address(address: str) -> bool:
-    return (
-        is_checksum_address(address)
-        if is_checksum_formatted_address(address)
-        else is_hex_address(address)
-    )
 
 
 def handle_submit_passport(
@@ -766,37 +751,3 @@ def get_gtc_stake(request, address: str, round_id: int) -> GtcEventsResponse:
         return {"results": [obj for obj in filtered_queryset.values()]}
     except Exception as e:
         raise StakingRequestError()
-
-
-@router.get(
-    "/score/eth-activity/{str:address}",
-    auth=ApiKey(),
-    response={
-        200: ETHModelScoreResponse,
-        401: ErrorMessageResponse,
-        400: ErrorMessageResponse,
-        404: ErrorMessageResponse,
-    },
-    summary="Retrieve an ETH activity score for an ethereum address",
-    description="The endpoint provides a numeric integer score between 0 and 100 for any Ethereum address to assess the likelihood of human versus Sybil operation, available to integrators with a valid API key.",
-)
-def get_eth_activity_score(request, address: str) -> any:
-    print(address, "address")
-    lambda_client = boto3.client(
-        "lambda",
-        aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
-        aws_secret_access_key=settings.S3_DATA_AWS_SECRET_ACCESS_KEY,
-        region_name="us-west-2",
-    )
-
-    response = lambda_client.invoke(
-        FunctionName="eth-stamp-api",
-        InvocationType="RequestResponse",
-        # TODO: correct payload so request doesn't fail.
-        Payload=json.dumps({"address": address, "isBase64Encoded": False}),
-    )
-
-    # TODO: parse correct response
-    formatted_response = json.loads(response["Payload"].read().decode("utf-8"))
-
-    return {"score": 1}

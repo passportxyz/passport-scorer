@@ -42,6 +42,10 @@ def load_secrets():
     # Load secrets and store them in env variables
     secrets = json.loads(get_secret_value_response["SecretString"])
     os.environ["SECRET_KEY"] = secrets["SECRET_KEY"]
+    os.environ["S3_DATA_AWS_SECRET_KEY_ID"] = secrets["S3_DATA_AWS_SECRET_KEY_ID"]
+    os.environ["S3_DATA_AWS_SECRET_ACCESS_KEY"] = secrets[
+        "S3_DATA_AWS_SECRET_ACCESS_KEY"
+    ]
 
 
 if "SCORER_SERVER_SSM_ARN" in os.environ:
@@ -67,7 +71,11 @@ from django.http import HttpRequest
 from django_ratelimit.exceptions import Ratelimited
 from ninja_jwt.exceptions import InvalidToken
 from registry.api.utils import ApiKey, check_rate_limit, save_api_key_analytics
-from registry.exceptions import NotFoundApiException, Unauthorized
+from registry.exceptions import (
+    InvalidAddressException,
+    NotFoundApiException,
+    Unauthorized,
+)
 from structlog.contextvars import bind_contextvars
 
 RESPONSE_HEADERS = {
@@ -204,6 +212,7 @@ def with_api_request_exception_handling(func):
                 Unauthorized: (403, "Unauthorized"),
                 InvalidToken: (403, "Invalid token"),
                 InvalidRequest: (400, "Bad request"),
+                InvalidAddressException: (400, "Invalid address"),
                 NotFoundApiException: (400, "Bad request"),
                 Ratelimited: (
                     429,
@@ -247,3 +256,12 @@ def with_api_request_exception_handling(func):
         return response
 
     return wrapper
+
+
+def get_address_param(event):
+    if (
+        "queryStringParameters" not in event
+        or "address" not in event["queryStringParameters"]
+    ):
+        raise InvalidRequest("Missing address parameter")
+    return event["queryStringParameters"]["address"]

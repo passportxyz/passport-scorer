@@ -1,5 +1,4 @@
 import json
-import json
 
 import pytest
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext

@@ -1520,6 +1520,16 @@ buildHttpLambdaFn({
   listenerPriority: 1010,
 });
 
+buildHttpLambdaFn({
+  ...lambdaSettings,
+  name: "passport-analysis-GET",
+  memorySize: 256,
+  dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],
+  pathPatterns: ["/passport/analysis/*"],
+  httpRequestMethods: ["GET"],
+  listenerPriority: 1012,
+});
+
 buildQueueLambdaFn({
   ...lambdaSettings,
   name: "rescore",
