@@ -5,6 +5,7 @@ use rust_decimal::prelude::*;
 use tokio_postgres::{Error, NoTls};
 
 use crate::{get_env, CONTRACT_START_BLOCK};
+use tokio_postgres::config::SslMode;
 
 #[derive(Debug, Clone)]
 pub struct PostgresClient {
@@ -20,7 +21,8 @@ impl PostgresClient {
             .password(get_env("DB_PASSWORD"))
             .dbname(&get_env("DB_NAME"))
             .host(&get_env("DB_HOST"))
-            .port(get_env("DB_PORT").parse::<u16>().unwrap());
+            .port(get_env("DB_PORT").parse::<u16>().unwrap())
+            .ssl_mode(SslMode::Prefer);
 
         let mgr_config = ManagerConfig {
             recycling_method: RecyclingMethod::Fast,
