@@ -1314,6 +1314,64 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
   envConfig
 );
 
+export const frequentScorerDataDumpTaskDefinitionForScorer_335 = createScheduledTask(
+  "frequent-allo-scorer-data-dump",
+  {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: [
+      "python",
+      "manage.py",
+      "scorer_dump_data",
+      "--config",
+      "'" +
+        JSON.stringify([
+          {
+            name: "registry.Score",
+            filter: { community_id: 335 },
+            select_related: ["passport"],
+          },
+        ]) +
+        "'",
+      `--s3-uri=s3://${publicDataDomain}/passport_scores/335/`,
+      // "--summary-extra-args",
+      // JSON.stringify({ ACL: "public-read" }),
+    ].join(" "),
+    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+    alertTopic: pagerdutyTopic,
+  },
+  envConfig
+);
+
+export const frequentScorerDataDumpTaskDefinitionForScorer_6608 = createScheduledTask(
+  "frequent-allo-scorer-data-dump",
+  {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: [
+      "python",
+      "manage.py",
+      "scorer_dump_data",
+      "--config",
+      "'" +
+        JSON.stringify([
+          {
+            name: "registry.Score",
+            filter: { community_id: 6608 },
+            select_related: ["passport"],
+          },
+        ]) +
+        "'",
+      `--s3-uri=s3://${publicDataDomain}/passport_scores/6608/`,
+      // "--summary-extra-args",
+      // JSON.stringify({ ACL: "public-read" }),
+    ].join(" "),
+    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+    alertTopic: pagerdutyTopic,
+  },
+  envConfig
+);
+
 const exportVals = createScoreExportBucketAndDomain(
   publicDataDomain,
   route53ZoneForPublicData
