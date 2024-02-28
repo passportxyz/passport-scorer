@@ -1,8 +1,18 @@
-# name: Deploy API to Review
+name: Deploy API to Review
 
-# # on:
-# #   push:
-# #     branches: [main]
+on:
+  workflow_dispatch:
+jobs:
+  print_message:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print Work in Progress 
+        run: echo "Work in Progress new infra on Review"
+
+
+# on:
+#   push:
+#     branches: [main]
 
 # jobs:
 #   test:
