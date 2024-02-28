@@ -2,6 +2,8 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 
+// TODO: @Larisa : double memory for the scorer-api-default
+// 
 import {
   ScorerEnvironmentConfig,
   ScorerService,
@@ -26,22 +28,22 @@ import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 //////////////////////////////////////////////////////////////
 
 export const stack = pulumi.getStack();
+
 const route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
 const route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
-export const domain = `api.review.scorer.${process.env["DOMAIN"]}`;
-// export const domain = stack== "production"? `api.scorer.${process.env["DOMAIN"]}` : `api.${stack}.scorer.${process.env["DOMAIN"]}`;
+
+const domain = stack== "production"? `api.scorer.${process.env["DOMAIN"]}` : `api.${stack}.scorer.${process.env["DOMAIN"]}`;
 const rootDomain = process.env["DOMAIN"];
 
-// export const publicDataDomain = stack== "production"? `public.scorer.${process.env["DOMAIN"]}`: `public.${stack}.scorer.${process.env["DOMAIN"]}`;
-export const publicDataDomain = `public.review.scorer.gitcoin.co`
-export const publicServiceUrl = `https://${domain}`;
+const publicDataDomain = stack== "production"? `public.scorer.${process.env["DOMAIN"]}`: `public.${stack}.scorer.${process.env["DOMAIN"]}`;
+const publicServiceUrl = `https://${domain}`;
 
 const SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
-export const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
-export const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
+const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
+const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
 
-export const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
+const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
 const trustedIAMIssuers = `${process.env["TRUSTED_IAM_ISSUERS"]}`;
 
 
@@ -56,30 +58,30 @@ const redashMailPassword = pulumi.secret(
 
 const pagerDutyIntegrationEndpoint = `${process.env["PAGERDUTY_INTEGRATION_ENDPOINT"]}`;
 
+const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/review`); // new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
+const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
 
-export const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/review`); // new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
-
-export const RDS_SECRET_ARN = coreInfraStack.getOutput("coreRdsSecretsManagerArn");
-
-export const vpcID = coreInfraStack.getOutput("vpcId");
-export const vpcPrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds")
-export const vpcPublicSubnetIds = coreInfraStack.getOutput("publicSubnetIds")
-export const vpcPrivateSubnetId1 = vpcPrivateSubnetIds.apply(
+const vpcID = coreInfraStack.getOutput("vpcId");
+const vpcPrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds")
+const vpcPublicSubnetIds = coreInfraStack.getOutput("publicSubnetIds")
+// const vpcPrivateSubnetId1 = vpcPrivateSubnetIds.apply(
+//   (values) => values[0]
+// );
+const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply(
   (values) => values[0]
 );
-export const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply(
-  (values) => values[0]
-);
-export const vpcPrivateSubnetId2 = vpcPrivateSubnetIds.apply(
-  (values) => values[1]
-);
-export const vpcPublicSubnetId2 = vpcPublicSubnetIds.apply(
+// const vpcPrivateSubnetId2 = vpcPrivateSubnetIds.apply(
+//   (values) => values[1]
+// );
+const vpcPublicSubnetId2 = vpcPublicSubnetIds.apply(
   (values) => values[1]
 );
 
-export const vpcPublicSubnet1 = vpcPublicSubnetIds.apply((subnets) => {
-  return subnets[0];
-});
+// const vpcPublicSubnet1 = vpcPublicSubnetIds.apply((subnets) => {
+//   return subnets[0];
+// });
+
+const redisCacheOpsConnectionUrl= coreInfraStack.getOutput("redisConnectionUrl");
 
 // This matches the default security group that awsx previously created when creating the Cluster.
 // https://github.com/pulumi/pulumi-awsx/blob/45136c540f29eb3dc6efa5b4f51cfe05ee75c7d8/awsx-classic/ecs/cluster.ts#L110
@@ -116,84 +118,54 @@ const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
   }
 );
 
-//////////////////////////////////////////////////////////////
-// Set up RDS instance
-//////////////////////////////////////////////////////////////
-let dbSubnetGroup = new aws.rds.SubnetGroup(`scorer-db-subnet`, {
-  subnetIds: vpcPrivateSubnetIds,
-});
-
-const db_secgrp = new aws.ec2.SecurityGroup(`scorer-db-secgrp`, {
-  description: "Security Group for DB",
-  vpcId: vpcID,
-  ingress: [
-    {
-      protocol: "tcp",
-      fromPort: 5432,
-      toPort: 5432,
-      cidrBlocks: ["0.0.0.0/0"],
-    },
-  ],
-  egress: [
-    {
-      protocol: "-1",
-      fromPort: 0,
-      toPort: 0,
-      cidrBlocks: ["0.0.0.0/0"],
-    },
-  ],
-});
-
-export const scorerDbProxyEndpoint =  coreInfraStack.getOutput("coreRdsProxyEndpoint"); // scorerDbProxy.endpoint;
-export const rdsConnectionUrl = coreInfraStack.getOutput("staticRdsConnectionUrl");
-export const readreplica0ConnectionUrl = coreInfraStack.getOutput("staticRdsReadConnectionUrl");
-export const readreplica1ConnectionUrl =  coreInfraStack.getOutput("staticRdsReadAnalyticsConnectionUrl");
+const scorerDbProxyEndpoint =  coreInfraStack.getOutput("rdsProxyConnectionUrl"); 
+const readreplica0ConnectionUrl = coreInfraStack.getOutput("readreplica0ConnectionUrl"); 
 
 //////////////////////////////////////////////////////////////
 // Set up Redis
 //////////////////////////////////////////////////////////////
 
-const redisSubnetGroup = new aws.elasticache.SubnetGroup(
-  "scorer-redis-subnet",
-  {
-    subnetIds: vpcPrivateSubnetIds,
-  }
-);
+// const redisSubnetGroup = new aws.elasticache.SubnetGroup(
+//   "scorer-redis-subnet",
+//   {
+//     subnetIds: vpcPrivateSubnetIds,
+//   }
+// );
 
-const secgrp_redis = new aws.ec2.SecurityGroup("scorer-redis-secgrp", {
-  description: "scorer-redis-secgrp",
-  vpcId: vpcID,
-  ingress: [
-    {
-      protocol: "tcp",
-      fromPort: 6379,
-      toPort: 6379,
-      cidrBlocks: ["0.0.0.0/0"],
-    },
-  ],
-  egress: [
-    {
-      protocol: "-1",
-      fromPort: 0,
-      toPort: 0,
-      cidrBlocks: ["0.0.0.0/0"],
-    },
-  ],
-});
+// const secgrp_redis = new aws.ec2.SecurityGroup("scorer-redis-secgrp", {
+//   description: "scorer-redis-secgrp",
+//   vpcId: vpcID,
+//   ingress: [
+//     {
+//       protocol: "tcp",
+//       fromPort: 6379,
+//       toPort: 6379,
+//       cidrBlocks: ["0.0.0.0/0"],
+//     },
+//   ],
+//   egress: [
+//     {
+//       protocol: "-1",
+//       fromPort: 0,
+//       toPort: 0,
+//       cidrBlocks: ["0.0.0.0/0"],
+//     },
+//   ],
+// });
 
-const redis = new aws.elasticache.Cluster("scorer-redis", {
-  engine: "redis",
-  engineVersion: "4.0.10",
-  nodeType: "cache.m5.large",
-  numCacheNodes: 1,
-  port: 6379,
-  subnetGroupName: redisSubnetGroup.name,
-  securityGroupIds: [secgrp_redis.id],
-});
+// const redis = new aws.elasticache.Cluster("scorer-redis", {
+//   engine: "redis",
+//   engineVersion: "4.0.10",
+//   nodeType: "cache.m5.large",
+//   numCacheNodes: 1,
+//   port: 6379,
+//   subnetGroupName: redisSubnetGroup.name,
+//   securityGroupIds: [secgrp_redis.id],
+// });
 
-export const redisPrimaryNode = redis.cacheNodes[0];
+// export const redisPrimaryNode = redis.cacheNodes[0];
 // export const redisConnectionUrl = pulumi.interpolate`rediscache://${redisPrimaryNode.address}:${redisPrimaryNode.port}/0?client_class=django_redis.client.DefaultClient`
-export const redisCacheOpsConnectionUrl = pulumi.interpolate`redis://${redisPrimaryNode.address}:${redisPrimaryNode.port}/0`;
+// export const redisCacheOpsConnectionUrl = pulumi.interpolate`redis://${redisPrimaryNode.address}:${redisPrimaryNode.port}/0`;
 
 //////////////////////////////////////////////////////////////
 // Set up ALB and ECS cluster
@@ -366,7 +338,7 @@ const httpsListener = new aws.alb.Listener("scorer-https-listener", {
 // Create a DNS record for the load balancer
 const www = new aws.route53.Record("scorer", {
   zoneId: route53Zone,
-  name: domain , // @Larisa - > make sure this works for production 
+  name: domain , //TODO: @Larisa - > make sure this works for production 
   type: "A",
   aliases: [
     {
@@ -521,12 +493,12 @@ const serviceTaskRole = new aws.iam.Role("scorer-service-execution-role", {
     },
   ],
 });
-// @LARISA: HERE
+
 const envConfig: ScorerEnvironmentConfig = {
   allowedHosts: JSON.stringify([domain, "*"]),
   domain: domain,
   csrfTrustedOrigins: JSON.stringify([`https://${domain}`]),
-  rdsConnectionUrl: rdsConnectionUrl,
+  rdsConnectionUrl: scorerDbProxyEndpoint,
   readReplicaConnectionUrl: readreplica0ConnectionUrl,
   redisCacheOpsConnectionUrl: redisCacheOpsConnectionUrl,
   uiDomains: JSON.stringify([
@@ -764,7 +736,7 @@ const web = new aws.ec2.Instance("troubleshooting-instance", {
 
 export const ec2PublicIp = web.publicIp;
 export const dockrRunCmd = pulumi.secret(
-  pulumi.interpolate`docker run -it -e CERAMIC_CACHE_SCORER_ID=1  -e 'DATABASE_URL=${rdsConnectionUrl}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
+  pulumi.interpolate`docker run -it -e CERAMIC_CACHE_SCORER_ID=1  -e 'DATABASE_URL=${scorerDbProxyEndpoint}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
 
 ///////////////////////
@@ -791,6 +763,10 @@ const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp-fe96c4b`, {
     },
   ],
   name: "redashDbSecgrp-fe96c4b",
+});
+
+let dbSubnetGroup = new aws.rds.SubnetGroup(`scorer-db-subnet`, {
+  subnetIds: vpcPrivateSubnetIds,
 });
 
 // Create an RDS instance
@@ -860,7 +836,6 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
 );
 
 const redashInitScript = redashDbUrl.apply((url) =>
-  //TODO: @Larisa is this a bug why does the redash require the Postress db password ? 
   redashDbPassword.apply((password) =>
     redashSecretKey.apply((secretKey) =>
       redashMailPassword.apply(
@@ -1134,16 +1109,6 @@ const exportVals = createScoreExportBucketAndDomain(
   publicDataDomain,
   route53ZoneForPublicData
 );
-// TODO: @Larisa  the database name , user & pw can be read from the SecretsManager
-// export const rdsSecretObj = aws.secretsmanager.getSecret({
-//   arn: 
-// });
-// const rdsSecretCredentials = aws.secretsmanager.getSecretVersion({
-//   secretId: exampleSecret.id,
-//   versionStage: "AWSCURRENT"
-// }, { async: true }).then( data => {
-//   return JSON.parse(data.secretString!);
-// });
 
 const rdsConnectionConfig = {
   dbHost: scorerDbProxyEndpoint,
@@ -1187,7 +1152,7 @@ const lambdaSettings = {
     },
     {
       name: "CERAMIC_CACHE_SCORER_ID",
-      value: "335",
+      value: "1", //  TODO: @Larisa, this changes for each  env
     },
     {
       name: "SCORER_SERVER_SSM_ARN",
