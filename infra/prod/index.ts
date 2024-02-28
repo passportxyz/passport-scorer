@@ -156,7 +156,7 @@ const postgresql = new aws.rds.Instance(
     maxAllocatedStorage: 500,
     engine: "postgres",
     // engineVersion: "5.7",
-    instanceClass: "db.r5b.4xlarge",
+    instanceClass: "db.r5b.2xlarge",
     dbName: dbName,
     password: dbPassword,
     username: dbUsername,
