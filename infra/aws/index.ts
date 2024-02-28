@@ -64,22 +64,14 @@ const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
 const vpcID = coreInfraStack.getOutput("vpcId");
 const vpcPrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds")
 const vpcPublicSubnetIds = coreInfraStack.getOutput("publicSubnetIds")
-// const vpcPrivateSubnetId1 = vpcPrivateSubnetIds.apply(
-//   (values) => values[0]
-// );
+
 const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply(
   (values) => values[0]
 );
-// const vpcPrivateSubnetId2 = vpcPrivateSubnetIds.apply(
-//   (values) => values[1]
-// );
+
 const vpcPublicSubnetId2 = vpcPublicSubnetIds.apply(
   (values) => values[1]
 );
-
-// const vpcPublicSubnet1 = vpcPublicSubnetIds.apply((subnets) => {
-//   return subnets[0];
-// });
 
 const redisCacheOpsConnectionUrl= coreInfraStack.getOutput("redisConnectionUrl");
 
@@ -120,52 +112,6 @@ const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
 
 const scorerDbProxyEndpoint =  coreInfraStack.getOutput("rdsProxyConnectionUrl"); 
 const readreplica0ConnectionUrl = coreInfraStack.getOutput("readreplica0ConnectionUrl"); 
-
-//////////////////////////////////////////////////////////////
-// Set up Redis
-//////////////////////////////////////////////////////////////
-
-// const redisSubnetGroup = new aws.elasticache.SubnetGroup(
-//   "scorer-redis-subnet",
-//   {
-//     subnetIds: vpcPrivateSubnetIds,
-//   }
-// );
-
-// const secgrp_redis = new aws.ec2.SecurityGroup("scorer-redis-secgrp", {
-//   description: "scorer-redis-secgrp",
-//   vpcId: vpcID,
-//   ingress: [
-//     {
-//       protocol: "tcp",
-//       fromPort: 6379,
-//       toPort: 6379,
-//       cidrBlocks: ["0.0.0.0/0"],
-//     },
-//   ],
-//   egress: [
-//     {
-//       protocol: "-1",
-//       fromPort: 0,
-//       toPort: 0,
-//       cidrBlocks: ["0.0.0.0/0"],
-//     },
-//   ],
-// });
-
-// const redis = new aws.elasticache.Cluster("scorer-redis", {
-//   engine: "redis",
-//   engineVersion: "4.0.10",
-//   nodeType: "cache.m5.large",
-//   numCacheNodes: 1,
-//   port: 6379,
-//   subnetGroupName: redisSubnetGroup.name,
-//   securityGroupIds: [secgrp_redis.id],
-// });
-
-// export const redisPrimaryNode = redis.cacheNodes[0];
-// export const redisConnectionUrl = pulumi.interpolate`rediscache://${redisPrimaryNode.address}:${redisPrimaryNode.port}/0?client_class=django_redis.client.DefaultClient`
-// export const redisCacheOpsConnectionUrl = pulumi.interpolate`redis://${redisPrimaryNode.address}:${redisPrimaryNode.port}/0`;
 
 //////////////////////////////////////////////////////////////
 // Set up ALB and ECS cluster
