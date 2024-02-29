@@ -18,7 +18,7 @@ import {
   createDeadLetterQueue,
   createRescoreQueue,
   buildQueueLambdaFn,
-} from "../lib/scorer/service";
+} from "../lib/scorer/new_service";
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
