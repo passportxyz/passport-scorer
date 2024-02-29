@@ -247,6 +247,7 @@ jobs:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
 
           DOCKER_GTC_PASSPORT_SCORER_IMAGE:  ${{secrets.ECR_BASE_URL_REVIEW}}/passport-scorer:${{ needs.build-api.outputs.dockerTag }}
           DOCKER_GTC_PASSPORT_VERIFIER_IMAGE:  ${{secrets.ECR_BASE_URL_REVIEW}}/passport-verifier:${{ needs.build-verifier.outputs.dockerTag }}
