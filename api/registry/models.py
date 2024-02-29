@@ -1,6 +1,7 @@
 import json
 
 from account.models import Community, EthAddressField
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
@@ -191,3 +192,38 @@ class GTCStakeEvent(models.Model):
                 name="gtc_staking_index_by_staker",
             ),
         ]
+
+
+class SlashBatch(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    percent = models.SmallIntegerField(
+        default=1,
+        null=False,
+        blank=False,
+        validators=[MinValueValidator(1), MaxValueValidator(100)],
+    )
+    processed = models.BooleanField(default=False)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"SlashBatch #{self.pk}, created_at={self.created_at}, percent={self.percent}, processed={self.processed}"
+
+
+class Slash(models.Model):
+    class OffenderChoices(models.TextChoices):
+        STAKER = False, "Staker"
+        STAKEE = True, "Stakee"
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    batch = models.ForeignKey(
+        SlashBatch, related_name="slashes", on_delete=models.CASCADE
+    )
+    staker = EthAddressField(null=False, blank=False, max_length=42, db_index=True)
+    stakee = EthAddressField(null=False, blank=False, max_length=42, db_index=True)
+    # Two-choice field stored as boolean to save space
+    offender = models.BooleanField(
+        choices=OffenderChoices.choices, null=False, blank=False, db_index=True
+    )
+
+    def __str__(self):
+        return f"Slash #{self.pk}, created_at={self.created_at}, batch_id={self.batch.pk}, staker={self.staker}, stakee={self.stakee}, offender={self.offender}"
