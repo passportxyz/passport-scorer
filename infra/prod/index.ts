@@ -156,7 +156,7 @@ const postgresql = new aws.rds.Instance(
     maxAllocatedStorage: 500,
     engine: "postgres",
     // engineVersion: "5.7",
-    instanceClass: "db.r5b.4xlarge",
+    instanceClass: "db.r5b.2xlarge",
     dbName: dbName,
     password: dbPassword,
     username: dbUsername,
@@ -1305,6 +1305,64 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
         ]) +
         "'",
       `--s3-uri=s3://${publicDataDomain}/passport_scores/`,
+      // "--summary-extra-args",
+      // JSON.stringify({ ACL: "public-read" }),
+    ].join(" "),
+    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+    alertTopic: pagerdutyTopic,
+  },
+  envConfig
+);
+
+export const frequentScorerDataDumpTaskDefinitionForScorer_335 = createScheduledTask(
+  "frequent-allo-scorer-data-dump",
+  {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: [
+      "python",
+      "manage.py",
+      "scorer_dump_data",
+      "--config",
+      "'" +
+        JSON.stringify([
+          {
+            name: "registry.Score",
+            filter: { community_id: 335 },
+            select_related: ["passport"],
+          },
+        ]) +
+        "'",
+      `--s3-uri=s3://${publicDataDomain}/passport_scores/335/`,
+      // "--summary-extra-args",
+      // JSON.stringify({ ACL: "public-read" }),
+    ].join(" "),
+    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+    alertTopic: pagerdutyTopic,
+  },
+  envConfig
+);
+
+export const frequentScorerDataDumpTaskDefinitionForScorer_6608 = createScheduledTask(
+  "frequent-allo-scorer-data-dump",
+  {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: [
+      "python",
+      "manage.py",
+      "scorer_dump_data",
+      "--config",
+      "'" +
+        JSON.stringify([
+          {
+            name: "registry.Score",
+            filter: { community_id: 6608 },
+            select_related: ["passport"],
+          },
+        ]) +
+        "'",
+      `--s3-uri=s3://${publicDataDomain}/passport_scores/6608/`,
       // "--summary-extra-args",
       // JSON.stringify({ ACL: "public-read" }),
     ].join(" "),

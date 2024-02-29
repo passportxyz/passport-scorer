@@ -174,7 +174,7 @@ def export_data(model_config, file, database, batch_size=None):
             queryset = model.objects.using(database).order_by("id")
             if select_related:
                 queryset = queryset.select_related(*select_related)
-            if "query_filter" in model_config:
+            if "filter" in model_config:
                 queryset = queryset.filter(**model_config["filter"])
 
             serializer.serialize(

@@ -1,11 +1,8 @@
 name: Deploy API to Review
 
-# on:
-#   push:
-#     branches: [main]
-
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   test:
