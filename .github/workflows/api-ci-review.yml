@@ -1,198 +1,267 @@
 name: Deploy API to Review
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
+
 jobs:
-  print_message:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      postgres:
+        image: postgres:12.3-alpine
+        env:
+          POSTGRES_USER: passport_scorer
+          POSTGRES_PASSWORD: passport_scorer_pwd
+          POSTGRES_DB: passport_scorer
+
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install pipenv
+        run: pip3 install pipenv
+
+      - name: Generate requirements.txt
+        working-directory: ./api
+        run: pipenv requirements --dev > requirements.txt
+
+      - name: Install API dependencies
+        working-directory: ./api
+        run: pip3 install -r requirements.txt
+
+      - name: Django Check
+        working-directory: ./api
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
+        run: python manage.py check
+
+      - name: Run API unittests
+        working-directory: ./api
+        run: pytest
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
+          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          FF_API_ANALYTICS: on
+
+  build-api:
     runs-on: ubuntu-latest
     steps:
-      - name: Print Work in Progress 
-        run: echo "Work in Progress new infra on Review"
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
+      - name: Declare some variables
+        id: vars
+        shell: bash
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
-# on:
-#   push:
-#     branches: [main]
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
-# jobs:
-#   test:
-#     runs-on: ubuntu-latest
-#     services:
-#       redis:
-#         image: redis
-#         # Set health checks to wait until redis has started
-#         options: >-
-#           --health-cmd "redis-cli ping"
-#           --health-interval 10s
-#           --health-timeout 5s
-#           --health-retries 5
-#         ports:
-#           - 6379:6379
+      - name: Login to Amazon ECR Private
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-#       postgres:
-#         image: postgres:12.3-alpine
-#         env:
-#           POSTGRES_USER: passport_scorer
-#           POSTGRES_PASSWORD: passport_scorer_pwd
-#           POSTGRES_DB: passport_scorer
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: passport-scorer
+          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile ./api/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-#         ports:
-#           - 5432:5432
-#         options: >-
-#           --health-cmd pg_isready
-#           --health-interval 10s
-#           --health-timeout 5s
-#           --health-retries 5
+    outputs:
+      dockerTag: ${{ steps.vars.outputs.sha_short }}
 
-#     steps:
-#       - uses: actions/checkout@v3
-#       - uses: actions/setup-python@v4
-#         with:
-#           python-version: "3.11"
+  build-submit-passport-lambda:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.commit }}
 
-#       - name: Install pipenv
-#         run: pip3 install pipenv
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
-#       - name: Generate requirements.txt
-#         working-directory: ./api
-#         run: pipenv requirements --dev > requirements.txt
+      - name: Declare some variables
+        id: vars
+        shell: bash
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
-#       - name: Install API dependencies
-#         working-directory: ./api
-#         run: pip3 install -r requirements.txt
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
-#       - name: Django Check
-#         working-directory: ./api
-#         env:
-#           CERAMIC_CACHE_SCORER_ID: ""
-#           SECRET_KEY: secret-test-value
-#         run: python manage.py check
+      - name: Login to Amazon ECR Private
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-#       - name: Run API unittests
-#         working-directory: ./api
-#         run: pytest
-#         env:
-#           CERAMIC_CACHE_SCORER_ID: ""
-#           SECRET_KEY: secret-test-value
-#           DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
-#           FF_API_ANALYTICS: on
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: submit-passport-lambdas
+          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/aws_lambdas/submit_passport/Dockerfile ./api/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-#   build-api:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v3
-#       - uses: actions/setup-python@v4
-#         with:
-#           python-version: "3.11"
+    outputs:
+      dockerTag: ${{ steps.vars.outputs.sha_short }}
 
-#       - name: Declare some variables
-#         id: vars
-#         shell: bash
-#         run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+  build-indexer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.commit }}
+      - name: Declare some variables
+        id: vars
+        shell: bash
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
-#       - name: Configure AWS credentials
-#         uses: aws-actions/configure-aws-credentials@v1
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
-#       - name: Login to Amazon ECR Public
-#         id: login-ecr
-#         uses: aws-actions/amazon-ecr-login@v1
-#         with:
-#           registry-type: public
+      - name: Login to Amazon ECR Private
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-#       - name: Build, tag, and push image to Amazon ECR
-#         env:
-#           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-#           ECR_REGISTRY_ALIAS: i8r3d4s6
-#           ECR_REPOSITORY: passport-scorer
-#           IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
-#         run: |
-#           docker build -t $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile ./api/
-#           docker push $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: passport-indexer
+          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f indexer/Dockerfile ./indexer/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-#     outputs:
-#       dockerTag: ${{ steps.vars.outputs.sha_short }}
+    outputs:
+      dockerTag: ${{ steps.vars.outputs.sha_short }}
 
-#   build-verifier:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v3
-#       - uses: actions/setup-python@v4
-#         with:
-#           python-version: "3.11"
+  build-verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
-#       - name: Declare some variables
-#         id: vars
-#         shell: bash
-#         run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+      - name: Declare some variables
+        id: vars
+        shell: bash
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
-#       - name: Configure AWS credentials
-#         uses: aws-actions/configure-aws-credentials@v1
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
-#       - name: Login to Amazon ECR Public
-#         id: login-ecr
-#         uses: aws-actions/amazon-ecr-login@v1
-#         with:
-#           registry-type: public
+      - name: Login to Amazon ECR Public
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-#       - name: Build, tag, and push image to Amazon ECR
-#         env:
-#           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-#           ECR_REGISTRY_ALIAS: i8r3d4s6
-#           ECR_REPOSITORY: passport-verifier
-#           IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
-#         run: |
-#           docker build -t $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG -f verifier/Dockerfile ./verifier/
-#           docker push $ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: passport-verifier
+          IMAGE_TAG: ${{ steps.vars.outputs.sha_short }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f verifier/Dockerfile ./verifier/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-#     outputs:
-#       dockerTag: ${{ steps.vars.outputs.sha_short }}
+    outputs:
+      dockerTag: ${{ steps.vars.outputs.sha_short }}
 
-#   deploy-review:
-#     needs: [test, build-api, build-verifier]
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v3
-#       - name: Use Node.js
-#         uses: actions/setup-node@v2
-#         with:
-#           cache: "yarn"
-#           cache-dependency-path: infra/package-lock.json
+  deploy-review:
+    needs: [test, build-api, build-verifier, build-indexer, build-submit-passport-lambda]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v2
+        with:
+          cache: "yarn"
+          cache-dependency-path: infra/package-lock.json
 
-#       # Update the pulumi stack with new image
-#       - run: |
-#           npm install
-#           cd review
-#           pulumi stack select -c gitcoin/passport-scorer/review
-#           pulumi config -s gitcoin/passport-scorer/review set aws:region us-east-1 --non-interactive
-#         working-directory: infra
-#         env:
-#           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+      # Update the pulumi stack with new image
+      - run: |
+          npm install
+          cd review
+          pulumi stack select -c gitcoin/passport-scorer/review
+          pulumi config -s gitcoin/passport-scorer/review set aws:region us-east-1 --non-interactive
+        working-directory: infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-#       - uses: pulumi/actions@v3
-#         id: pulumi
-#         with:
-#           command: up
-#           stack-name: gitcoin/passport-scorer/review
-#           upsert: false
-#           work-dir: infra/review
-#         env:
-#           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-#           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           DOCKER_GTC_PASSPORT_SCORER_IMAGE: public.ecr.aws/i8r3d4s6/passport-scorer:${{ needs.build-api.outputs.dockerTag }}
-#           DOCKER_GTC_PASSPORT_VERIFIER_IMAGE: public.ecr.aws/i8r3d4s6/passport-verifier:${{ needs.build-verifier.outputs.dockerTag }}
-#           ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID }}
-#           DOMAIN: ${{ secrets.DOMAIN }}
-#           SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN }}
+      - uses: pulumi/actions@v3
+        id: pulumi
+        with:
+          command: up
+          stack-name: gitcoin/passport-scorer/review
+          upsert: false
+          work-dir: infra/aws
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
 
-#           DB_USER: ${{ secrets.DB_USER }}
-#           DB_NAME: ${{ secrets.DB_NAME }}
-#           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DOCKER_GTC_PASSPORT_SCORER_IMAGE:  ${{secrets.ECR_BASE_URL_REVIEW}}/passport-scorer:${{ needs.build-api.outputs.dockerTag }}
+          DOCKER_GTC_PASSPORT_VERIFIER_IMAGE:  ${{secrets.ECR_BASE_URL_REVIEW}}/passport-verifier:${{ needs.build-verifier.outputs.dockerTag }}
+          DOCKER_GTC_PASSPORT_INDEXER_IMAGE: ${{secrets.ECR_BASE_URL_REVIEW}}/passport-indexer:${{ needs.build-indexer.outputs.dockerTag }}
+          DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE: ${{secrets.ECR_BASE_URL_REVIEW}}/submit-passport-lambdas::${{ needs.build-submit-passport-lambda.outputs.dockerTag }}
+          
+          TRUSTED_IAM_ISSUERS: ${{ secrets.TRUSTED_IAM_ISSUERS }}
+
+          REDASH_DB_USER: ${{ secrets.REDASH_DB_USER_REVIEW }}
+          REDASH_DB_PASSWORD: ${{ secrets.REDASH_DB_PASSWORD_REVIEW }}
+          REDASH_DB_NAME: ${{ secrets.REDASH_DB_NAME_REVIEW }}
+          REDASH_SECRET_KEY: ${{ secrets.REDASH_SECRET_KEY_REVIEW }}
+          REDASH_MAIL_USERNAME: ${{ secrets.REDASH_MAIL_USERNAME_REVIEW }}
+          REDASH_MAIL_PASSWORD: ${{ secrets.REDASH_MAIL_PASSWORD_REVIEW }}
+          
+
+          ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID_REVIEW }}
+          ROUTE_53_ZONE_FOR_PUBLIC_DATA:  ${{ secrets.ROUTE_53_ZONE_FOR_PUBLIC_DATA_REVIEW }}
+          DOMAIN: ${{ secrets.DOMAIN_REVIEW }}
+          SCORER_SERVER_SSM_ARN: ${{ secrets.SCORER_SERVER_SSM_ARN_REVIEW }}
