@@ -1053,7 +1053,7 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
 );
 
 export const frequentScorerDataDumpTaskDefinitionForScorer_335 = createScheduledTask(
-  "frequent-allo-scorer-data-dump",
+  "frequent-allo-scorer-data-dump-335",
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
@@ -1082,7 +1082,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 = createScheduled
 );
 
 export const frequentScorerDataDumpTaskDefinitionForScorer_6608 = createScheduledTask(
-  "frequent-allo-scorer-data-dump",
+  "frequent-allo-scorer-data-dump-6608",
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
