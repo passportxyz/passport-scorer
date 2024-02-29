@@ -70,7 +70,10 @@ class PassportAnalysisTestCase(TestCase):
         self.assertEqual(analysis_response.status_code, 200)
         self.assertEqual(
             analysis_response.json(),
-            {"score": 50},
+            {
+                "address": "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+                "details": {"models": {"ethereum_activity": {"score": 50}}},
+            },
         )
 
     def test_bad_auth(self):

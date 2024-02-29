@@ -1,3 +1,5 @@
+# pylint: disable=no-value-for-parameter
+# pyright: reportGeneralTypeIssues=false
 import json
 
 import pytest
@@ -36,7 +38,8 @@ def test_successful_analysis(
 
     body = json.loads(response["body"])
 
-    assert body["score"] == 50
+    assert body["address"] == address
+    assert body["details"]["models"]["ethereum_activity"]["score"] == 50
 
 
 def test_bad_auth(

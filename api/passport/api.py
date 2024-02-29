@@ -12,7 +12,15 @@ from registry.exceptions import InvalidAddressException
 
 log = logging.getLogger(__name__)
 
-api = NinjaExtraAPI(urls_namespace="passport")
+api = NinjaExtraAPI(
+    urls_namespace="passport",
+    title="Passport Analysis API",
+    description="""
+The Passport Analysis API provides a simple interface to retrieve Passport analytics.\n
+This API requires an API key generated in the Scorer UI to be passed in the X-API-Key header.\n
+Other endpoints documented at [/docs](/docs)
+""",
+)
 
 
 lambda_client = None
@@ -30,8 +38,21 @@ def get_lambda_client():
     return lambda_client
 
 
-class PassportAnalysisResponse(Schema):
+class EthereumActivityModel(Schema):
     score: int
+
+
+class PassportAnalysisDetailsModels(Schema):
+    ethereum_activity: EthereumActivityModel
+
+
+class PassportAnalysisDetails(Schema):
+    models: PassportAnalysisDetailsModels
+
+
+class PassportAnalysisResponse(Schema):
+    address: str
+    details: PassportAnalysisDetails
 
 
 class ErrorMessageResponse(Schema):
@@ -53,6 +74,7 @@ class PassportAnalysisError(APIException):
     },
     summary="Retrieve Passport analysis for an Ethereum address",
     description="Retrieve Passport analysis for an Ethereum address, currently consisting of the ETH activity model humanity score (0-100, higher is more likely human).",
+    tags=["Passport Analysis"],
 )
 def get_analysis(request, address: str) -> PassportAnalysisResponse:
     return handle_get_analysis(address)
@@ -62,7 +84,7 @@ def handle_get_analysis(address: str) -> PassportAnalysisResponse:
     if not is_valid_address(address):
         raise InvalidAddressException()
 
-    address = to_checksum_address(address)
+    checksum_address = to_checksum_address(address)
 
     try:
         lambda_client = get_lambda_client()
@@ -71,7 +93,7 @@ def handle_get_analysis(address: str) -> PassportAnalysisResponse:
             InvocationType="RequestResponse",
             Payload=json.dumps(
                 {
-                    "body": json.dumps({"address": address}),
+                    "body": json.dumps({"address": checksum_address}),
                     "isBase64Encoded": False,
                 }
             ),
@@ -85,7 +107,14 @@ def handle_get_analysis(address: str) -> PassportAnalysisResponse:
 
         score = response_body.get("data", {}).get("human_probability", 0)
 
-        return PassportAnalysisResponse(score=score)
+        return PassportAnalysisResponse(
+            address=address,
+            details=PassportAnalysisDetails(
+                models=PassportAnalysisDetailsModels(
+                    ethereum_activity=EthereumActivityModel(score=score)
+                )
+            ),
+        )
 
     except Exception as e:
         log.error("Error retrieving Passport analysis", exc_info=True)
