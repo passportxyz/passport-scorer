@@ -781,21 +781,23 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
   }
 );
 
+export const REDASH_HOST = stack == "production" ? 'https://redash.api.scorer.gitcoin.co' :  `https://redash.api.${stack}.scorer.gitcoin.co` 
+export const REDASH_MAIL_DEFAULT_SENDER = stack == "production" ? 'passport+redash@gitcoin.co' :  `passport+redash_${stack}@gitcoin.co` 
 const redashInitScript = redashDbUrl.apply((url) =>
-  redashDbPassword.apply((password) =>
+  redashDbPassword.apply((dbPassword) =>
     redashSecretKey.apply((secretKey) =>
       redashMailPassword.apply(
         (mailPassword) =>
           `#!/bin/bash
 
           echo "Setting environment variables..."
-          export POSTGRES_PASSWORD="${password}"
+          export POSTGRES_PASSWORD="${dbPassword}"
           export REDASH_DATABASE_URL="${url}"
           export REDASH_SECRET_KEY="${secretKey}"
           export REDASH_MAIL_USERNAME="${redashMailUsername}"
           export REDASH_MAIL_PASSWORD="${mailPassword}"
-          export REDASH_HOST="https://redash.api.staging.scorer.gitcoin.co"
-          export REDASH_MAIL_DEFAULT_SENDER="passport+redash_staging@gitcoin.co"
+          export REDASH_HOST="${REDASH_HOST}"
+          export REDASH_MAIL_DEFAULT_SENDER="${REDASH_MAIL_DEFAULT_SENDER}"
 
           echo "Try to pull from git repo or clone the repo if it was not cloned before ..."
           git pull /passport-redash || git clone https://github.com/gitcoinco/passport-redash.git /passport-redash
@@ -1049,6 +1051,65 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
   },
   envConfig
 );
+
+export const frequentScorerDataDumpTaskDefinitionForScorer_335 = createScheduledTask(
+  "frequent-allo-scorer-data-dump",
+  {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: [
+      "python",
+      "manage.py",
+      "scorer_dump_data",
+      "--config",
+      "'" +
+        JSON.stringify([
+          {
+            name: "registry.Score",
+            filter: { community_id: 335 },
+            select_related: ["passport"],
+          },
+        ]) +
+        "'",
+      `--s3-uri=s3://${publicDataDomain}/passport_scores/335/`,
+      // "--summary-extra-args",
+      // JSON.stringify({ ACL: "public-read" }),
+    ].join(" "),
+    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+    alertTopic: pagerdutyTopic,
+  },
+  envConfig
+);
+
+export const frequentScorerDataDumpTaskDefinitionForScorer_6608 = createScheduledTask(
+  "frequent-allo-scorer-data-dump",
+  {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: [
+      "python",
+      "manage.py",
+      "scorer_dump_data",
+      "--config",
+      "'" +
+        JSON.stringify([
+          {
+            name: "registry.Score",
+            filter: { community_id: 6608 },
+            select_related: ["passport"],
+          },
+        ]) +
+        "'",
+      `--s3-uri=s3://${publicDataDomain}/passport_scores/6608/`,
+      // "--summary-extra-args",
+      // JSON.stringify({ ACL: "public-read" }),
+    ].join(" "),
+    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+    alertTopic: pagerdutyTopic,
+  },
+  envConfig
+);
+
 
 const exportVals = createScoreExportBucketAndDomain(
   stack == "production" ? publicDataDomain : `${stack}-${publicDataDomain}`,
