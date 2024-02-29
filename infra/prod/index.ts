@@ -153,7 +153,7 @@ const postgresql = new aws.rds.Instance(
   `scorer-db`,
   {
     allocatedStorage: 20,
-    maxAllocatedStorage: 500,
+    maxAllocatedStorage: 750,
     engine: "postgres",
     // engineVersion: "5.7",
     instanceClass: "db.r5b.2xlarge",
@@ -1315,7 +1315,7 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
 );
 
 export const frequentScorerDataDumpTaskDefinitionForScorer_335 = createScheduledTask(
-  "frequent-allo-scorer-data-dump",
+  "frequent-allo-scorer-data-dump-335",
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
@@ -1344,7 +1344,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 = createScheduled
 );
 
 export const frequentScorerDataDumpTaskDefinitionForScorer_6608 = createScheduledTask(
-  "frequent-allo-scorer-data-dump",
+  "frequent-allo-scorer-data-dump-6608",
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
