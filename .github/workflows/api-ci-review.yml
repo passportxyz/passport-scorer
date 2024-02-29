@@ -216,7 +216,7 @@ jobs:
       dockerTag: ${{ steps.vars.outputs.sha_short }}
 
   deploy-review:
-    needs: [test, build-api, build-verifier]
+    needs: [test, build-api, build-verifier, build-indexer, build-submit-passport-lambda]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
