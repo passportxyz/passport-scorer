@@ -8,6 +8,11 @@ from django.utils.module_loading import import_string
 from django_ratelimit.core import is_ratelimited
 from django_ratelimit.decorators import ALL
 from django_ratelimit.exceptions import Ratelimited
+from eth_utils.address import (
+    is_checksum_address,
+    is_checksum_formatted_address,
+    is_hex_address,
+)
 from ninja.compatibility.request import get_headers
 from ninja.security import APIKeyHeader
 from ninja.security.base import SecuritySchema
@@ -23,7 +28,6 @@ def atrack_apikey_usage(track_response=True, payload_param_name=None):
     def decorator_track_apikey_usage(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-
             request = args[0]
 
             response = None
@@ -67,7 +71,6 @@ def track_apikey_usage(track_response=True, payload_param_name=None):
     def decorator_track_apikey_usage(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-
             request = args[0]
 
             response = None
@@ -238,3 +241,11 @@ def get_scorer_id(payload: SubmitPassportPayload) -> str:
 
 def with_read_db(model):
     return model.objects.using(settings.REGISTRY_API_READ_DB)
+
+
+def is_valid_address(address: str) -> bool:
+    return (
+        is_checksum_address(address)
+        if is_checksum_formatted_address(address)
+        else is_hex_address(address)
+    )

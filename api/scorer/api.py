@@ -75,7 +75,8 @@ registry_api_v1 = ScorerApi(
     docs_url="/docs",
     openapi_url="/v1/openapi.json",
     description="""
-The V2 (beta) API docs are available at [/v2/docs](/v2/docs)
+The V2 (beta) API docs are available at [/v2/docs](/v2/docs)\n
+The Passport Analysis endpoint is documented at [/passport/docs](/passport/docs)
 """,
 )
 registry_api_v2 = ScorerApi(
@@ -89,6 +90,7 @@ Useful links:\n
 [Developer Portal](https://scorer.gitcoin.co/)\n
 [Developer docs](https://docs.passport.gitcoin.co/)\n
 [Passport API V1 playground](/docs) -- To be retired on April 4th, 2024
+[Passport Analysis API playground](/passport/docs)
 """,
 )
 

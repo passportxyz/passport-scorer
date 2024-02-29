@@ -2,8 +2,7 @@ import base64
 import json
 from datetime import datetime, timezone
 from functools import wraps
-from typing import Tuple
-from urllib.parse import unquote, urlencode
+from urllib.parse import urlencode
 
 import api_logging as logging
 import didkit

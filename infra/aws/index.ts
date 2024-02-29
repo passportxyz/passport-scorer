@@ -3,7 +3,7 @@ import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 
 // TODO: @Larisa : double memory for the scorer-api-default
-// 
+//
 import {
   ScorerEnvironmentConfig,
   ScorerService,
@@ -32,10 +32,16 @@ export const stack = pulumi.getStack();
 const route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
 const route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
 
-const domain = stack== "production"? `api.scorer.${process.env["DOMAIN"]}` : `api.${stack}.scorer.${process.env["DOMAIN"]}`;
+const domain =
+  stack == "production"
+    ? `api.scorer.${process.env["DOMAIN"]}`
+    : `api.${stack}.scorer.${process.env["DOMAIN"]}`;
 const rootDomain = process.env["DOMAIN"];
 
-const publicDataDomain = stack== "production"? `public.scorer.${process.env["DOMAIN"]}`: `public.${stack}.scorer.${process.env["DOMAIN"]}`;
+const publicDataDomain =
+  stack == "production"
+    ? `public.scorer.${process.env["DOMAIN"]}`
+    : `public.${stack}.scorer.${process.env["DOMAIN"]}`;
 const publicServiceUrl = `https://${domain}`;
 
 const SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
@@ -45,7 +51,6 @@ const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIF
 
 const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
 const trustedIAMIssuers = `${process.env["TRUSTED_IAM_ISSUERS"]}`;
-
 
 const redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
 const redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
@@ -62,18 +67,15 @@ const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/review`); /
 const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
 
 const vpcID = coreInfraStack.getOutput("vpcId");
-const vpcPrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds")
-const vpcPublicSubnetIds = coreInfraStack.getOutput("publicSubnetIds")
+const vpcPrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds");
+const vpcPublicSubnetIds = coreInfraStack.getOutput("publicSubnetIds");
 
-const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply(
-  (values) => values[0]
-);
+const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply((values) => values[0]);
 
-const vpcPublicSubnetId2 = vpcPublicSubnetIds.apply(
-  (values) => values[1]
-);
+const vpcPublicSubnetId2 = vpcPublicSubnetIds.apply((values) => values[1]);
 
-const redisCacheOpsConnectionUrl= coreInfraStack.getOutput("redisConnectionUrl");
+const redisCacheOpsConnectionUrl =
+  coreInfraStack.getOutput("redisConnectionUrl");
 
 // This matches the default security group that awsx previously created when creating the Cluster.
 // https://github.com/pulumi/pulumi-awsx/blob/45136c540f29eb3dc6efa5b4f51cfe05ee75c7d8/awsx-classic/ecs/cluster.ts#L110
@@ -110,8 +112,10 @@ const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
   }
 );
 
-const scorerDbProxyEndpoint =  coreInfraStack.getOutput("rdsProxyConnectionUrl"); 
-const readreplica0ConnectionUrl = coreInfraStack.getOutput("readreplica0ConnectionUrl"); 
+const scorerDbProxyEndpoint = coreInfraStack.getOutput("rdsProxyConnectionUrl");
+const readreplica0ConnectionUrl = coreInfraStack.getOutput(
+  "readreplica0ConnectionUrl"
+);
 
 //////////////////////////////////////////////////////////////
 // Set up ALB and ECS cluster
@@ -141,7 +145,7 @@ const certificateValidationDomain = new aws.route53.Record(
     zoneId: route53Zone,
     type: certificate.domainValidationOptions[0].resourceRecordType,
     records: [certificate.domainValidationOptions[0].resourceRecordValue],
-    ttl: 600
+    ttl: 600,
   }
 );
 
@@ -265,26 +269,30 @@ const targetGroupRegistrySubmitPassport = createTargetGroup(
 //////////////////////////////////////////////////////////////
 // Create the HTTPS listener, and set the default target group
 //////////////////////////////////////////////////////////////
-const httpsListener = new aws.alb.Listener("scorer-https-listener", {
-  loadBalancerArn: alb.arn,
-  protocol: "HTTPS",
-  port: 443,
-  certificateArn: certificateValidation.certificateArn,
-  defaultActions: [
-    {
-      type: "forward",
-      targetGroupArn: targetGroupDefault.arn,
+const httpsListener = new aws.alb.Listener(
+  "scorer-https-listener",
+  {
+    loadBalancerArn: alb.arn,
+    protocol: "HTTPS",
+    port: 443,
+    certificateArn: certificateValidation.certificateArn,
+    defaultActions: [
+      {
+        type: "forward",
+        targetGroupArn: targetGroupDefault.arn,
+      },
+    ],
+    tags: {
+      name: "scorer-https-listener",
     },
-  ],
-  tags: {
-    name: "scorer-https-listener",
   },
-}, {dependsOn: [certificateValidation, certificate]});
+  { dependsOn: [certificateValidation, certificate] }
+);
 
 // Create a DNS record for the load balancer
 const www = new aws.route53.Record("scorer", {
   zoneId: route53Zone,
-  name: domain , //TODO: @Larisa - > make sure this works for production 
+  name: domain, //TODO: @Larisa - > make sure this works for production
   type: "A",
   aliases: [
     {
@@ -524,60 +532,63 @@ const scorerServiceRegistry = createScorerECSService(
 //////////////////////////////////////////////////////////////
 // Set up the worker role
 //////////////////////////////////////////////////////////////
-const workerRole = RDS_SECRET_ARN.apply( (rdsSecrets) => new aws.iam.Role("scorer-bkgrnd-worker-role", {
-  assumeRolePolicy: JSON.stringify({
-    Version: "2012-10-17",
-    Statement: [
-      {
-        Action: "sts:AssumeRole",
-        Effect: "Allow",
-        Sid: "",
-        Principal: {
-          Service: "ecs-tasks.amazonaws.com",
-        },
-      },
-    ],
-  }),
-  inlinePolicies: [
-    {
-      name: "allow_exec",
-      policy: JSON.stringify({
+const workerRole = RDS_SECRET_ARN.apply(
+  (rdsSecrets) =>
+    new aws.iam.Role("scorer-bkgrnd-worker-role", {
+      assumeRolePolicy: JSON.stringify({
         Version: "2012-10-17",
         Statement: [
           {
+            Action: "sts:AssumeRole",
             Effect: "Allow",
-            Action: [
-              "ssmmessages:CreateControlChannel",
-              "ssmmessages:CreateDataChannel",
-              "ssmmessages:OpenControlChannel",
-              "ssmmessages:OpenDataChannel",
+            Sid: "",
+            Principal: {
+              Service: "ecs-tasks.amazonaws.com",
+            },
+          },
+        ],
+      }),
+      inlinePolicies: [
+        {
+          name: "allow_exec",
+          policy: JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                Effect: "Allow",
+                Action: [
+                  "ssmmessages:CreateControlChannel",
+                  "ssmmessages:CreateDataChannel",
+                  "ssmmessages:OpenControlChannel",
+                  "ssmmessages:OpenDataChannel",
+                ],
+                Resource: "*",
+              },
             ],
-            Resource: "*",
-          },
-        ],
-      }),
-    },
-    {
-      name: "allow_iam_secrets_access",
-      policy: JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Action: ["secretsmanager:GetSecretValue"],
-            Effect: "Allow",
-            Resource: [SCORER_SERVER_SSM_ARN, rdsSecrets]
-          },
-        ],
-      }),
-    },
-  ],
-  managedPolicyArns: [
-    "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
-  ],
-  tags: {
-    dpopp: "",
-  },
-}));
+          }),
+        },
+        {
+          name: "allow_iam_secrets_access",
+          policy: JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                Action: ["secretsmanager:GetSecretValue"],
+                Effect: "Allow",
+                Resource: [SCORER_SERVER_SSM_ARN, rdsSecrets],
+              },
+            ],
+          }),
+        },
+      ],
+      managedPolicyArns: [
+        "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+      ],
+      tags: {
+        dpopp: "",
+      },
+    })
+);
 
 const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
   description: "gitcoin-ecs-task",
@@ -781,8 +792,14 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
   }
 );
 
-export const REDASH_HOST = stack == "production" ? 'https://redash.api.scorer.gitcoin.co' :  `https://redash.api.${stack}.scorer.gitcoin.co` 
-export const REDASH_MAIL_DEFAULT_SENDER = stack == "production" ? 'passport+redash@gitcoin.co' :  `passport+redash_${stack}@gitcoin.co` 
+export const REDASH_HOST =
+  stack == "production"
+    ? "https://redash.api.scorer.gitcoin.co"
+    : `https://redash.api.${stack}.scorer.gitcoin.co`;
+export const REDASH_MAIL_DEFAULT_SENDER =
+  stack == "production"
+    ? "passport+redash@gitcoin.co"
+    : `passport+redash_${stack}@gitcoin.co`;
 const redashInitScript = redashDbUrl.apply((url) =>
   redashDbPassword.apply((dbPassword) =>
     redashSecretKey.apply((secretKey) =>
@@ -1052,64 +1069,65 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
   envConfig
 );
 
-export const frequentScorerDataDumpTaskDefinitionForScorer_335 = createScheduledTask(
-  "frequent-allo-scorer-data-dump-335",
-  {
-    ...baseScorerServiceConfig,
-    securityGroup: secgrp,
-    command: [
-      "python",
-      "manage.py",
-      "scorer_dump_data",
-      "--config",
-      "'" +
-        JSON.stringify([
-          {
-            name: "registry.Score",
-            filter: { community_id: 335 },
-            select_related: ["passport"],
-          },
-        ]) +
-        "'",
-      `--s3-uri=s3://${publicDataDomain}/passport_scores/335/`,
-      // "--summary-extra-args",
-      // JSON.stringify({ ACL: "public-read" }),
-    ].join(" "),
-    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-    alertTopic: pagerdutyTopic,
-  },
-  envConfig
-);
+export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
+  createScheduledTask(
+    "frequent-allo-scorer-data-dump-335",
+    {
+      ...baseScorerServiceConfig,
+      securityGroup: secgrp,
+      command: [
+        "python",
+        "manage.py",
+        "scorer_dump_data",
+        "--config",
+        "'" +
+          JSON.stringify([
+            {
+              name: "registry.Score",
+              filter: { community_id: 335 },
+              select_related: ["passport"],
+            },
+          ]) +
+          "'",
+        `--s3-uri=s3://${publicDataDomain}/passport_scores/335/`,
+        // "--summary-extra-args",
+        // JSON.stringify({ ACL: "public-read" }),
+      ].join(" "),
+      scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+      alertTopic: pagerdutyTopic,
+    },
+    envConfig
+  );
 
-export const frequentScorerDataDumpTaskDefinitionForScorer_6608 = createScheduledTask(
-  "frequent-allo-scorer-data-dump-6608",
-  {
-    ...baseScorerServiceConfig,
-    securityGroup: secgrp,
-    command: [
-      "python",
-      "manage.py",
-      "scorer_dump_data",
-      "--config",
-      "'" +
-        JSON.stringify([
-          {
-            name: "registry.Score",
-            filter: { community_id: 6608 },
-            select_related: ["passport"],
-          },
-        ]) +
-        "'",
-      `--s3-uri=s3://${publicDataDomain}/passport_scores/6608/`,
-      // "--summary-extra-args",
-      // JSON.stringify({ ACL: "public-read" }),
-    ].join(" "),
-    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-    alertTopic: pagerdutyTopic,
-  },
-  envConfig
-);
-
+export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
+  createScheduledTask(
+    "frequent-allo-scorer-data-dump-6608",
+    {
+      ...baseScorerServiceConfig,
+      securityGroup: secgrp,
+      command: [
+        "python",
+        "manage.py",
+        "scorer_dump_data",
+        "--config",
+        "'" +
+          JSON.stringify([
+            {
+              name: "registry.Score",
+              filter: { community_id: 6608 },
+              select_related: ["passport"],
+            },
+          ]) +
+          "'",
+        `--s3-uri=s3://${publicDataDomain}/passport_scores/6608/`,
+        // "--summary-extra-args",
+        // JSON.stringify({ ACL: "public-read" }),
+      ].join(" "),
+      scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+      alertTopic: pagerdutyTopic,
+    },
+    envConfig
+  );
 
 const exportVals = createScoreExportBucketAndDomain(
   stack == "production" ? publicDataDomain : `${stack}-${publicDataDomain}`,
@@ -1122,16 +1140,18 @@ const rdsConnectionConfig = {
   dbPort: String(5432),
 };
 
-workerRole.apply ((serviceRole) => createIndexerService({
-  rdsConnectionConfig,
-  rdsSecretArn: RDS_SECRET_ARN,
-  cluster,
-  vpc: vpcID,
-  privateSubnetIds: vpcPrivateSubnetIds,
-  privateSubnetSecurityGroup,
-  workerRole: serviceRole,
-  alertTopic: pagerdutyTopic,
-}));
+workerRole.apply((serviceRole) =>
+  createIndexerService({
+    rdsConnectionConfig,
+    rdsSecretArn: RDS_SECRET_ARN,
+    cluster,
+    vpc: vpcID,
+    privateSubnetIds: vpcPrivateSubnetIds,
+    privateSubnetSecurityGroup,
+    workerRole: serviceRole,
+    alertTopic: pagerdutyTopic,
+  })
+);
 
 const {
   httpLambdaRole,
@@ -1257,6 +1277,16 @@ buildHttpLambdaFn({
   pathPatterns: ["/ceramic-cache/stamp"],
   httpRequestMethods: ["GET"],
   listenerPriority: 1010,
+});
+
+buildHttpLambdaFn({
+  ...lambdaSettings,
+  name: "passport-analysis-GET",
+  memorySize: 256,
+  dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],
+  pathPatterns: ["/passport/analysis/*"],
+  httpRequestMethods: ["GET"],
+  listenerPriority: 1012,
 });
 
 buildQueueLambdaFn({

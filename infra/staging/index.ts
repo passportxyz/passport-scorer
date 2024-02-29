@@ -164,7 +164,6 @@ const postgresql = new aws.rds.Instance(
   { protect: true }
 );
 
-
 //////////////////////////////////////////////////////////////
 // Setup RDS PROXY
 //////////////////////////////////////////////////////////////
@@ -718,6 +717,16 @@ buildHttpLambdaFn({
   pathPatterns: ["/ceramic-cache/stamp"],
   httpRequestMethods: ["GET"],
   listenerPriority: 2010,
+});
+
+buildHttpLambdaFn({
+  ...lambdaSettings,
+  name: "passport-analysis-GET",
+  memorySize: 256,
+  dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],
+  pathPatterns: ["/passport/analysis/*"],
+  httpRequestMethods: ["GET"],
+  listenerPriority: 2012,
 });
 
 buildQueueLambdaFn({

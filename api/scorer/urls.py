@@ -13,6 +13,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 # from rest_framework.schemas import get_schema_view
 from account.api import health
 from django.contrib import admin
@@ -46,4 +47,5 @@ urlpatterns = [
     path("passport-admin/", passport_admin_api.urls),
     # path("__debug__/", include("debug_toolbar.urls")),
     path("trusta_labs/", include("trusta_labs.urls")),
+    path("passport/", include("passport.urls")),
 ]
