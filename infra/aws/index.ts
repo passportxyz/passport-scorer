@@ -112,7 +112,8 @@ const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
   }
 );
 
-const scorerDbProxyEndpoint = coreInfraStack.getOutput("rdsProxyConnectionUrl");
+const scorerDbProxyEndpoint = coreInfraStack.getOutput("rdsProxyEndpoint");
+const scorerDbProxyEndpointConn = coreInfraStack.getOutput("rdsProxyConnectionUrl");
 const readreplica0ConnectionUrl = coreInfraStack.getOutput(
   "readreplica0ConnectionUrl"
 );
@@ -452,7 +453,7 @@ const envConfig: ScorerEnvironmentConfig = {
   allowedHosts: JSON.stringify([domain, "*"]),
   domain: domain,
   csrfTrustedOrigins: JSON.stringify([`https://${domain}`]),
-  rdsConnectionUrl: scorerDbProxyEndpoint,
+  rdsConnectionUrl: scorerDbProxyEndpointConn,
   readReplicaConnectionUrl: readreplica0ConnectionUrl,
   redisCacheOpsConnectionUrl: redisCacheOpsConnectionUrl,
   uiDomains: JSON.stringify([
@@ -693,7 +694,7 @@ const web = new aws.ec2.Instance("troubleshooting-instance", {
 
 export const ec2PublicIp = web.publicIp;
 export const dockrRunCmd = pulumi.secret(
-  pulumi.interpolate`docker run -it -e CERAMIC_CACHE_SCORER_ID=1  -e 'DATABASE_URL=${scorerDbProxyEndpoint}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
+  pulumi.interpolate`docker run -it -e CERAMIC_CACHE_SCORER_ID=1  -e 'DATABASE_URL=${scorerDbProxyEndpointConn}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
 
 ///////////////////////
