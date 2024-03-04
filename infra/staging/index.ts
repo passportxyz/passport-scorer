@@ -1181,7 +1181,7 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
 //       JSON.stringify([
 //         {
 //           name: "registry.Score",
-//           filter: { community_id: 14 },
+//           filter: { passport__community_id: 14 },
 //           select_related: ["passport"],
 //         },
 //       ]),

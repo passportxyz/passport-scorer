@@ -1055,7 +1055,7 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
         JSON.stringify([
           {
             name: "registry.Score",
-            filter: { community_id: 335 },
+            filter: { passport__community_id: 335 },
             select_related: ["passport"],
           },
         ]) +
@@ -1085,7 +1085,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
           JSON.stringify([
             {
               name: "registry.Score",
-              filter: { community_id: 335 },
+              filter: { passport__community_id: 335 },
               select_related: ["passport"],
             },
           ]) +
@@ -1115,7 +1115,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
           JSON.stringify([
             {
               name: "registry.Score",
-              filter: { community_id: 6608 },
+              filter: { passport__community_id: 6608 },
               select_related: ["passport"],
             },
           ]) +
