@@ -112,7 +112,7 @@ const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
   }
 );
 
-const scorerDbProxyEndpoint = coreInfraStack.getOutput("rdsProxyConnectionUrl");
+const scorerDbProxyEndpoint = coreInfraStack.getOutput("rdsProxyEndpoint");
 const readreplica0ConnectionUrl = coreInfraStack.getOutput(
   "readreplica0ConnectionUrl"
 );
