@@ -313,10 +313,10 @@ jobs:
       - uses: pulumi/actions@v3
         id: pulumi
         with:
-          command: up
+          command: preview
           stack-name: gitcoin/passport-scorer/staging
           upsert: false
-          work-dir: infra/staging
+          work-dir: infra/aws
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}

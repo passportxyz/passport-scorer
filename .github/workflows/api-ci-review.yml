@@ -1,8 +1,8 @@
 name: Deploy API to Review
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch: # This triggers the workflow manually
+
 
 jobs:
   test:
@@ -226,9 +226,9 @@ jobs:
       # Update the pulumi stack with new image
       - run: |
           npm install
-          cd review
+          cd aws
           pulumi stack select -c gitcoin/passport-scorer/review
-          pulumi config -s gitcoin/passport-scorer/review set aws:region us-east-1 --non-interactive
+          pulumi config -s gitcoin/passport-scorer/review set aws:region us-west-2 --non-interactive
         working-directory: infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
