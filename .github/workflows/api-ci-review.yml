@@ -236,7 +236,7 @@ jobs:
       - uses: pulumi/actions@v3
         id: pulumi
         with:
-          command: up
+          command: preview
           stack-name: gitcoin/passport-scorer/review
           upsert: false
           work-dir: infra/aws
