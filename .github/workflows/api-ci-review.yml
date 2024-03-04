@@ -1,11 +1,11 @@
 name: Deploy API to Review
 
-on:
-  push:
-    branches: [main]
-
 # on:
-#   workflow_dispatch: # This triggers the workflow manually
+#   push:
+#     branches: [main]
+
+on:
+  workflow_dispatch: # This triggers the workflow manually
 
 
 jobs:
