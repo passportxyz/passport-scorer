@@ -1,7 +1,11 @@
 name: Deploy API to Review
 
 on:
-  workflow_dispatch: # This triggers the workflow manually
+  push:
+    branches: [main]
+
+# on:
+#   workflow_dispatch: # This triggers the workflow manually
 
 
 jobs:
@@ -236,7 +240,7 @@ jobs:
       - uses: pulumi/actions@v3
         id: pulumi
         with:
-          command: preview
+          command: up
           stack-name: gitcoin/passport-scorer/review
           upsert: false
           work-dir: infra/aws
