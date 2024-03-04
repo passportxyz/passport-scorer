@@ -2,8 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 
-// TODO: @Larisa : double memory for the scorer-api-default
-//
+
 import {
   ScorerEnvironmentConfig,
   ScorerService,
@@ -28,7 +27,7 @@ import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 //////////////////////////////////////////////////////////////
 
 export const stack = pulumi.getStack();
-
+export const region = aws.getRegion();
 const route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
 const route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
 
@@ -63,7 +62,7 @@ const redashMailPassword = pulumi.secret(
 
 const pagerDutyIntegrationEndpoint = `${process.env["PAGERDUTY_INTEGRATION_ENDPOINT"]}`;
 
-const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/review`); // new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
+const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
 const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
 
 const vpcID = coreInfraStack.getOutput("vpcId");
@@ -76,6 +75,15 @@ const vpcPublicSubnetId2 = vpcPublicSubnetIds.apply((values) => values[1]);
 
 const redisCacheOpsConnectionUrl =
   coreInfraStack.getOutput("redisConnectionUrl");
+
+
+const CERAMIC_CACHE_SCORER_ID_CONFG = Object({
+  review: 1,
+  staging: 14,
+  production: 335
+})
+
+const CERAMIC_CACHE_SCORER_ID = CERAMIC_CACHE_SCORER_ID_CONFG[stack]
 
 // This matches the default security group that awsx previously created when creating the Cluster.
 // https://github.com/pulumi/pulumi-awsx/blob/45136c540f29eb3dc6efa5b4f51cfe05ee75c7d8/awsx-classic/ecs/cluster.ts#L110
@@ -126,38 +134,7 @@ const cluster = new aws.ecs.Cluster("scorer", {
   settings: [{ name: "containerInsights", value: "enabled" }],
 });
 
-// export const clusterInstance = cluster;
 export const clusterId = cluster.id;
-
-// Generate an SSL certificate
-const certificate = new aws.acm.Certificate("cert", {
-  domainName: `*.${domain}`,
-  subjectAlternativeNames: [domain],
-  tags: {
-    Environment: "review",
-  },
-  validationMethod: "DNS",
-});
-
-const certificateValidationDomain = new aws.route53.Record(
-  `${domain}-validation`,
-  {
-    name: certificate.domainValidationOptions[0].resourceRecordName,
-    zoneId: route53Zone,
-    type: certificate.domainValidationOptions[0].resourceRecordType,
-    records: [certificate.domainValidationOptions[0].resourceRecordValue],
-    ttl: 600,
-  }
-);
-
-const certificateValidation = new aws.acm.CertificateValidation(
-  "certificateValidation",
-  {
-    certificateArn: certificate.arn,
-    validationRecordFqdns: [certificateValidationDomain.fqdn],
-  },
-  { customTimeouts: { create: "30s", update: "30s" } }
-);
 
 // Create bucket for access logs
 const accessLogsBucket = new aws.s3.Bucket(`gitcoin-scorer-access-logs`, {
@@ -270,13 +247,14 @@ const targetGroupRegistrySubmitPassport = createTargetGroup(
 //////////////////////////////////////////////////////////////
 // Create the HTTPS listener, and set the default target group
 //////////////////////////////////////////////////////////////
-const httpsListener = new aws.alb.Listener(
+const HTTPS_ALB_CERT_ARN = coreInfraStack.getOutput("API_CERTIFICATE_ARN")
+const httpsListener = HTTPS_ALB_CERT_ARN.apply((certificate) => new aws.alb.Listener(
   "scorer-https-listener",
   {
     loadBalancerArn: alb.arn,
     protocol: "HTTPS",
     port: 443,
-    certificateArn: certificateValidation.certificateArn,
+    certificateArn: certificate, 
     defaultActions: [
       {
         type: "forward",
@@ -287,13 +265,12 @@ const httpsListener = new aws.alb.Listener(
       name: "scorer-https-listener",
     },
   },
-  { dependsOn: [certificateValidation, certificate] }
-);
+));
 
 // Create a DNS record for the load balancer
 const www = new aws.route53.Record("scorer", {
   zoneId: route53Zone,
-  name: domain, //TODO: @Larisa - > make sure this works for production
+  name: domain,
   type: "A",
   aliases: [
     {
@@ -360,13 +337,13 @@ const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
 });
 
 const pagerdutyTopic = new aws.sns.Topic("pagerduty", {
-  name: "Pagerduty",
+  name: "ScorerPagerduty",
   tracingConfig: "PassThrough",
 });
 
-// const PAGERDUTY_INTEGRATION_ENDPOINT = pulumi.secret(
-//   pagerDutyIntegrationEndpoint
-// );
+const PAGERDUTY_INTEGRATION_ENDPOINT = pulumi.secret(
+  pagerDutyIntegrationEndpoint
+);
 
 const identity = aws.getCallerIdentity();
 
@@ -403,14 +380,14 @@ const pagerdutyTopicPolicy = new aws.sns.TopicPolicy("pagerdutyTopicPolicy", {
   ),
 });
 
-// const pagerdutySubscription = new aws.sns.TopicSubscription(
-//   "pagerdutySubscription",
-//   {
-//     endpoint: PAGERDUTY_INTEGRATION_ENDPOINT,
-//     protocol: "https",
-//     topic: pagerdutyTopic.arn,
-//   }
-// );
+const pagerdutySubscription = stack == "production" ?  new aws.sns.TopicSubscription(
+  "pagerdutySubscription",
+  {
+    endpoint: PAGERDUTY_INTEGRATION_ENDPOINT,
+    protocol: "https",
+    topic: pagerdutyTopic.arn,
+  }
+): null;
 
 const deadLetterQueue = createDeadLetterQueue({ alertTopic: pagerdutyTopic });
 
@@ -509,7 +486,7 @@ const scorerServiceDefault = createScorerECSService(
   {
     ...baseScorerServiceConfig,
     targetGroup: targetGroupDefault,
-    memory: 1024,
+    memory: stack == "production" ? 2048 : 1024,
     cpu: 512,
     desiredCount: 2,
   },
@@ -694,14 +671,14 @@ const web = new aws.ec2.Instance("troubleshooting-instance", {
 
 export const ec2PublicIp = web.publicIp;
 export const dockrRunCmd = pulumi.secret(
-  pulumi.interpolate`docker run -it -e CERAMIC_CACHE_SCORER_ID=1  -e 'DATABASE_URL=${scorerDbProxyEndpointConn}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
+  pulumi.interpolate`docker run -it -e CERAMIC_CACHE_SCORER_ID=${CERAMIC_CACHE_SCORER_ID}  -e 'DATABASE_URL=${scorerDbProxyEndpointConn}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
 
 ///////////////////////
 // Redash instance
 ///////////////////////
 
-const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp-fe96c4b`, {
+const redashDbSecgrp = new aws.ec2.SecurityGroup(`redash-db`, {
   description: "Security Group for DB",
   vpcId: vpcID,
   ingress: [
@@ -709,7 +686,7 @@ const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp-fe96c4b`, {
       protocol: "tcp",
       fromPort: 5432,
       toPort: 5432,
-      cidrBlocks: ["0.0.0.0/0"],
+      cidrBlocks: ["10.0.0.0/16"],
     },
   ],
   egress: [
@@ -720,12 +697,10 @@ const redashDbSecgrp = new aws.ec2.SecurityGroup(`redashDbSecgrp-fe96c4b`, {
       cidrBlocks: ["0.0.0.0/0"],
     },
   ],
-  name: "redashDbSecgrp-fe96c4b",
+  name: "redash-db"
 });
-
-let dbSubnetGroup = new aws.rds.SubnetGroup(`scorer-db-subnet`, {
-  subnetIds: vpcPrivateSubnetIds,
-});
+// This is hardocded until redash db will be moved to core infra
+let dbSubnetGroupId = `core-rds`;
 
 // Create an RDS instance
 const redashDb = new aws.rds.Instance(
@@ -741,7 +716,7 @@ const redashDb = new aws.rds.Instance(
     password: redashDbPassword,
     username: redashDbUsername,
     skipFinalSnapshot: true,
-    dbSubnetGroupName: dbSubnetGroup.id,
+    dbSubnetGroupName: dbSubnetGroupId,
     vpcSecurityGroupIds: [redashDbSecgrp.id],
     backupRetentionPeriod: 5,
     performanceInsightsEnabled: true,
@@ -854,35 +829,6 @@ const redashinstance = new aws.ec2.Instance("redashinstance", {
   vpcSecurityGroupIds: [redashSecurityGroup.id],
 });
 
-// Generate an SSL certificate
-const redashCertificate = new aws.acm.Certificate("redash", {
-  domainName: "redash." + domain,
-  tags: {
-    Environment: "staging",
-  },
-  validationMethod: "DNS",
-});
-
-const redashCertificateValidationDomain = new aws.route53.Record(
-  `redash.${domain}-validation`,
-  {
-    name: redashCertificate.domainValidationOptions[0].resourceRecordName,
-    zoneId: route53Zone,
-    type: redashCertificate.domainValidationOptions[0].resourceRecordType,
-    records: [redashCertificate.domainValidationOptions[0].resourceRecordValue],
-    ttl: 600,
-  }
-);
-
-const redashCertificateValidation = new aws.acm.CertificateValidation(
-  "redashCertificateValidation",
-  {
-    certificateArn: redashCertificate.arn,
-    validationRecordFqdns: [redashCertificateValidationDomain.fqdn],
-  },
-  { customTimeouts: { create: "30s", update: "30s" } }
-);
-
 const redashAlbSecGrp = new aws.ec2.SecurityGroup(`redash-service-alb`, {
   description: "redash-service-alb",
   vpcId: vpcID,
@@ -937,11 +883,11 @@ const redashTarget = new aws.alb.TargetGroup("redash-target", {
 });
 
 // Listen to traffic on port 443 & route it through the target group
-const redashHttpsListener = new aws.alb.Listener("redash-https-listener", {
+const redashHttpsListener = HTTPS_ALB_CERT_ARN.apply((certificate) => new aws.alb.Listener("redash-https-listener", {
   loadBalancerArn: redashAlb.arn,
   port: 443,
   protocol: "HTTPS",
-  certificateArn: redashCertificate.arn,
+  certificateArn:  certificate,
   defaultActions: [
     {
       type: "forward",
@@ -951,7 +897,7 @@ const redashHttpsListener = new aws.alb.Listener("redash-https-listener", {
   tags: {
     name: "redash-https-listener",
   },
-});
+}));
 
 const redashRecord = new aws.route53.Record("redash", {
   zoneId: route53Zone,
@@ -1131,7 +1077,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
   );
 
 const exportVals = createScoreExportBucketAndDomain(
-  stack == "production" ? publicDataDomain : `${stack}-${publicDataDomain}`,
+  publicDataDomain,
   publicDataDomain,
   route53ZoneForPublicData
 );
@@ -1180,7 +1126,7 @@ const lambdaSettings = {
     },
     {
       name: "CERAMIC_CACHE_SCORER_ID",
-      value: "1", //  TODO: @Larisa, this changes for each  env
+      value: CERAMIC_CACHE_SCORER_ID
     },
     {
       name: "SCORER_SERVER_SSM_ARN",
@@ -1193,7 +1139,7 @@ const lambdaSettings = {
 
 buildHttpLambdaFn({
   ...lambdaSettings,
-  name: "submit-passport",
+  name: "submit-passport-0",
   memorySize: 1024,
   dockerCmd: ["aws_lambdas.submit_passport.submit_passport.handler"],
   pathPatterns: ["/registry/submit-passport", "/registry/v2/submit-passport"],
@@ -1202,7 +1148,7 @@ buildHttpLambdaFn({
 
 buildHttpLambdaFn({
   ...lambdaSettings,
-  name: "cc-v1-st-bulk-POST",
+  name: "cc-v1-st-bulk-POST-0",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
   pathPatterns: ["/ceramic-cache/stamps/bulk"],
@@ -1212,7 +1158,7 @@ buildHttpLambdaFn({
 
 buildHttpLambdaFn({
   ...lambdaSettings,
-  name: "cc-v1-st-bulk-PATCH",
+  name: "cc-v1-st-bulk-PATCH-0",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_PATCH.handler"],
   pathPatterns: ["/ceramic-cache/stamps/bulk"],
@@ -1222,7 +1168,7 @@ buildHttpLambdaFn({
 
 buildHttpLambdaFn({
   ...lambdaSettings,
-  name: "cc-v1-st-bulk-DELETE",
+  name: "cc-v1-st-bulk-DELETE-0",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_DELETE.handler"],
   pathPatterns: ["/ceramic-cache/stamps/bulk"],
@@ -1232,7 +1178,7 @@ buildHttpLambdaFn({
 
 buildHttpLambdaFn({
   ...lambdaSettings,
-  name: "cc-auhenticate",
+  name: "cc-auhenticate-0",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
   pathPatterns: ["/ceramic-cache/authenticate"],
@@ -1242,7 +1188,7 @@ buildHttpLambdaFn({
 
 buildHttpLambdaFn({
   ...lambdaSettings,
-  name: "cc-v1-score-POST",
+  name: "cc-v1-score-POST-0",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
   pathPatterns: ["/ceramic-cache/score/*"],
@@ -1252,7 +1198,7 @@ buildHttpLambdaFn({
 
 buildHttpLambdaFn({
   ...lambdaSettings,
-  name: "cc-v1-score-GET",
+  name: "cc-v1-score-GET-0",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
   pathPatterns: ["/ceramic-cache/score/*"],
@@ -1262,7 +1208,7 @@ buildHttpLambdaFn({
 
 buildHttpLambdaFn({
   ...lambdaSettings,
-  name: "cc-weights-GET",
+  name: "cc-weights-GET-0",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
   pathPatterns: ["/ceramic-cache/weights"],
@@ -1272,7 +1218,7 @@ buildHttpLambdaFn({
 
 buildHttpLambdaFn({
   ...lambdaSettings,
-  name: "cc-v1-st-GET",
+  name: "cc-v1-st-GET-0",
   memorySize: 512,
   dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamp_GET.handler"],
   pathPatterns: ["/ceramic-cache/stamp"],
@@ -1282,7 +1228,7 @@ buildHttpLambdaFn({
 
 buildHttpLambdaFn({
   ...lambdaSettings,
-  name: "passport-analysis-GET",
+  name: "passport-analysis-GET-0",
   memorySize: 256,
   dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],
   pathPatterns: ["/passport/analysis/*"],
@@ -1292,7 +1238,7 @@ buildHttpLambdaFn({
 
 buildQueueLambdaFn({
   ...lambdaSettings,
-  name: "rescore",
+  name: "rescore-0",
   memorySize: 1024,
   dockerCmd: ["aws_lambdas.rescore.handler"],
   roleAttachments: queueRoleAttachments,

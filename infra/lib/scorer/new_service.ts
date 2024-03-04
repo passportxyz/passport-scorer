@@ -895,7 +895,7 @@ type BuildLambdaFnBaseParams = {
 
 export function buildHttpLambdaFn(
   args: BuildLambdaFnBaseParams & {
-    httpsListener: Listener;
+    httpsListener: Output<Listener>;
     listenerPriority: number;
     pathPatterns: string[];
     httpRequestMethods?: string[];
