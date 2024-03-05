@@ -64,6 +64,7 @@ const pagerDutyIntegrationEndpoint = `${process.env["PAGERDUTY_INTEGRATION_ENDPO
 
 const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
 const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
+// coreInfraStack.getOutput("MIGRATION_HARDCODED_RDS_SECRET"); //coreInfraStack.getOutput("test_rdsSecretArn");// coreInfraStack.getOutput("rdsSecretArn"); // test_rdsSecretArn
 
 const vpcID = coreInfraStack.getOutput("vpcId");
 const vpcPrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds");
@@ -121,10 +122,11 @@ const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
 );
 
 const scorerDbProxyEndpoint = coreInfraStack.getOutput("rdsProxyEndpoint");
+// coreInfraStack.getOutput("MIGRATION_HARDCODED_DB_ENDPOINT");  // coreInfraStack.getOutput("test_rdsProxyEndpoint"); // coreInfraStack.getOutput("rdsProxyEndpoint"); // test_rdsProxyEndpoint
 const scorerDbProxyEndpointConn = coreInfraStack.getOutput("rdsProxyConnectionUrl");
-const readreplica0ConnectionUrl = coreInfraStack.getOutput(
-  "readreplica0ConnectionUrl"
-);
+// coreInfraStack.getOutput("MIGRATION_HARDCODED_DB_CONN_URL"); // coreInfraStack.getOutput("test_rdsProxyConnectionUrl"); // coreInfraStack.getOutput("rdsProxyConnectionUrl"); // test_rdsProxyConnectionUrl
+const readreplica0ConnectionUrl = coreInfraStack.getOutput("readreplica0ConnectionUrl");
+// coreInfraStack.getOutput("MIGRATION_HARDCODED_DB_CONN_URL_READ"); // coreInfraStack.getOutput("readreplica0ConnectionUrl"); // test_readreplica0ConnectionUrl
 
 //////////////////////////////////////////////////////////////
 // Set up ALB and ECS cluster
@@ -139,7 +141,7 @@ export const clusterId = cluster.id;
 // Create bucket for access logs
 const accessLogsBucket = new aws.s3.Bucket(`gitcoin-scorer-access-logs`, {
   acl: "private",
-  forceDestroy: true,
+  forceDestroy: stack == "production" ? false: true,
 });
 
 const serviceAccount = aws.elb.getServiceAccount({});
@@ -706,7 +708,7 @@ let dbSubnetGroupId = `core-rds`;
 const redashDb = new aws.rds.Instance(
   "redash-db-0",
   {
-    identifier: "redash-db-0",
+    identifier: "redash-db",
     allocatedStorage: 20,
     maxAllocatedStorage: 20,
     engine: "postgres",
