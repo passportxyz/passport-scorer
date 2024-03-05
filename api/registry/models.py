@@ -191,3 +191,29 @@ class GTCStakeEvent(models.Model):
                 name="gtc_staking_index_by_staker",
             ),
         ]
+
+
+class Chain(models.TextChoices):
+    ETHEREUM = 0, "Ethereum Mainnet"
+    OPTIMISM = 1, "Optimism Mainnet"
+
+
+class Stake(models.Model):
+    chain = models.SmallIntegerField(
+        choices=Chain.choices, default=Chain.ETHEREUM, db_index=True
+    )
+    unlock_time = models.DateTimeField(null=False, blank=False)
+    last_updated_in_block = models.DecimalField(
+        decimal_places=0, null=False, blank=False, max_digits=78, db_index=True
+    )
+
+    # For self-stake, staker and stakee are the same
+    staker = EthAddressField(null=False, blank=False, max_length=42, db_index=True)
+    stakee = EthAddressField(null=False, blank=False, max_length=42, db_index=True)
+
+    current_amount = models.DecimalField(
+        decimal_places=0, null=False, blank=False, max_digits=78
+    )
+
+    class Meta:
+        unique_together = ["staker", "stakee", "chain"]
