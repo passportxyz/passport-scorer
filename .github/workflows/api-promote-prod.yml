@@ -293,9 +293,9 @@ jobs:
       # Update the pulumi stack with new image
       - run: |
           npm install
-          cd prod
-          pulumi stack select -c gitcoin/prod/scorer-production
-          pulumi config -s gitcoin/prod/scorer-production set aws:region us-west-2 --non-interactive
+          cd aws
+          pulumi stack select -c gitcoin/passport-scorer/production
+          pulumi config -s gitcoin/passport-scorer/production set aws:region us-west-2 --non-interactive
         working-directory: infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
@@ -303,10 +303,10 @@ jobs:
       - uses: pulumi/actions@v3
         id: pulumi
         with:
-          command: up
-          stack-name: gitcoin/prod/scorer-production
+          command: preview
+          stack-name: gitcoin/passport-scorer/production
           upsert: false
-          work-dir: infra/prod
+          work-dir: infra/aws
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
