@@ -39,31 +39,31 @@ impl<'a> LegacyStakingIndexer<'a> {
     }
 
     pub async fn listen_with_timeout_reset(&self) -> Result<()> {
-        let start_block = self.postgres_client.get_latest_block_legacy().await?;
+        loop {
+            let start_block = self.postgres_client.get_latest_block_legacy().await?;
 
-        match try_join!(
-            self.throw_when_no_events_logged(&start_block),
-            self.listen_for_stake_events(&start_block),
-        ) {
-            Ok(_) => {
-                eprintln!("Warning - legacy indexer timeout join ended without error");
-            }
-            Err(err) => {
-                if err
-                    .to_string()
-                    .contains("No events logged in the last 15 minutes")
-                {
-                    eprintln!("Warning - resetting legacy indexer due to no events logged in the last 15 minutes");
-                } else {
-                    eprintln!(
-                        "Warning - legacy indexer timeout join ended with error, {}",
-                        err
-                    );
+            match try_join!(
+                self.throw_when_no_events_logged(&start_block),
+                self.listen_for_stake_events(&start_block),
+            ) {
+                Ok(_) => {
+                    eprintln!("Warning - legacy indexer timeout join ended without error");
+                }
+                Err(err) => {
+                    if err
+                        .to_string()
+                        .contains("No events logged in the last 15 minutes")
+                    {
+                        eprintln!("Warning - resetting legacy indexer due to no events logged in the last 15 minutes");
+                    } else {
+                        eprintln!(
+                            "Warning - legacy indexer timeout join ended with error, {}",
+                            err
+                        );
+                    }
                 }
             }
         }
-
-        Ok(())
     }
 
     async fn throw_when_no_events_logged(&self, starting_event_block: &i32) -> Result<()> {

@@ -9,7 +9,7 @@ use std::str::FromStr;
 use tokio_postgres::{Error, NoTls};
 
 use crate::{
-    utils::{get_env, Chain, StakeAmountOperation},
+    utils::{get_code_for_stake_event_type, get_env, Chain, StakeAmountOperation, StakeEventType},
     CONTRACT_START_BLOCK_MAP, LEGACY_CONTRACT_START_BLOCK,
 };
 
@@ -97,12 +97,14 @@ impl PostgresClient {
 
     pub async fn add_or_extend_stake(
         &self,
+        event_type: &StakeEventType,
         chain: &Chain,
         staker: &H160,
         stakee: &H160,
         increase_amount: &u128,
         unlock_time: &u64,
         block_number: &u64,
+        tx_hash: &str,
     ) -> Result<(), Error> {
         let chain = *chain as i16;
         let staker = format!("{:#x}", staker);
@@ -112,6 +114,8 @@ impl PostgresClient {
         let block_number = Decimal::from_u64(*block_number).unwrap();
 
         let client = self.pool.get().await.unwrap();
+
+        // Log current stake state
         client.execute(
             concat!(
                 "INSERT INTO registry_stake as stake (chain, staker, stakee, unlock_time, last_updated_in_block, current_amount)",
@@ -124,19 +128,33 @@ impl PostgresClient {
             &[&chain, &staker, &stakee, &unlock_time, &block_number, &increase_amount]
         ).await?;
 
-        println!("Added or extended stake in block {} on chain {}!", block_number, chain);
+        // Log raw event
+        client.execute(
+            concat!(
+                "INSERT INTO registry_stakeevent (event_type, chain, staker, stakee, amount, unlock_time, block_number, tx_hash)",
+                " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+            ),
+            &[&get_code_for_stake_event_type(event_type), &chain, &staker, &stakee, &increase_amount, &unlock_time, &block_number, &tx_hash]
+        ).await?;
+
+        println!(
+            "Added or extended stake in block {} on chain {}!",
+            block_number, chain
+        );
 
         Ok(())
     }
 
     pub async fn update_stake_amount(
         &self,
+        event_type: &StakeEventType,
         chain: &Chain,
         staker: &H160,
         stakee: &H160,
         change_amount: &u128,
         operation: StakeAmountOperation,
         block_number: &u64,
+        tx_hash: &str,
     ) -> Result<(), Error> {
         let chain = *chain as i16;
         let staker = format!("{:#x}", staker);
@@ -149,17 +167,35 @@ impl PostgresClient {
         let block_number = Decimal::from_u64(*block_number).unwrap();
 
         let client = self.pool.get().await.unwrap();
-        client.execute(
-            concat!(
-                "UPDATE registry_stake",
-                " SET current_amount = current_amount + $1",
-                " WHERE chain = $2 AND staker = $3 AND stakee = $4",
-                " AND last_updated_in_block <= $5"
-            ),
-            &[&amount, &chain, &staker, &stakee, &block_number]
-        ).await?;
 
-        println!("Modified stake amount in block {} on chain {}!", block_number, chain);
+        // Log current stake state
+        client
+            .execute(
+                concat!(
+                    "UPDATE registry_stake",
+                    " SET current_amount = current_amount + $1",
+                    " WHERE chain = $2 AND staker = $3 AND stakee = $4",
+                    " AND last_updated_in_block <= $5"
+                ),
+                &[&amount, &chain, &staker, &stakee, &block_number],
+            )
+            .await?;
+
+        // Log raw event
+        client
+            .execute(
+                concat!(
+                    "INSERT INTO registry_stakeevent (event_type, chain, staker, stakee, amount, block_number, tx_hash)",
+                    " VALUES ($1, $2, $3, $4, $5, $6, $7)"
+                ),
+                &[&get_code_for_stake_event_type(event_type), &chain, &staker, &stakee, &amount, &block_number, &tx_hash],
+            )
+            .await?;
+
+        println!(
+            "Modified stake amount in block {} on chain {}!",
+            block_number, chain
+        );
 
         Ok(())
     }

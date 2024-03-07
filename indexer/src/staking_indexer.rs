@@ -1,6 +1,6 @@
 use crate::{
     postgres::PostgresClient,
-    utils::{create_rpc_connection, Chain, StakeAmountOperation},
+    utils::{create_rpc_connection, Chain, StakeAmountOperation, StakeEventType},
     CONTRACT_ADDRESS,
 };
 use ethers::{
@@ -33,38 +33,38 @@ impl<'a> StakingIndexer<'a> {
     }
 
     pub async fn listen_with_timeout_reset(&self) -> Result<()> {
-        let start_block = self.postgres_client.get_latest_block(&self.chain).await?;
-        println!(
-            "Debug - Starting indexer for chain {} at block {}",
-            self.chain as u8, start_block
-        );
+        loop {
+            let start_block = self.postgres_client.get_latest_block(&self.chain).await?;
+            println!(
+                "Debug - Starting indexer for chain {} at block {}",
+                self.chain as u8, start_block
+            );
 
-        match try_join!(
-            self.throw_when_no_events_logged(&start_block),
-            self.listen_for_stake_events(&start_block),
-        ) {
-            Ok(_) => {
-                eprintln!(
-                    "Warning - indexer timeout join ended without error for chain {}",
-                    self.chain as u8
-                );
-            }
-            Err(err) => {
-                if err
-                    .to_string()
-                    .contains("No events logged in the last 15 minutes")
-                {
-                    eprintln!("Warning - resetting indexer due to no events logged in the last 15 minutes for chain {}", self.chain as u8);
-                } else {
+            match try_join!(
+                self.throw_when_no_events_logged(&start_block),
+                self.listen_for_stake_events(&start_block),
+            ) {
+                Ok(_) => {
                     eprintln!(
-                        "Warning - indexer timeout join ended with error for chain {}, {:?}",
-                        self.chain as u8, err
+                        "Warning - indexer timeout join ended without error for chain {}",
+                        self.chain as u8
                     );
+                }
+                Err(err) => {
+                    if err
+                        .to_string()
+                        .contains("No events logged in the last 15 minutes")
+                    {
+                        eprintln!("Warning - resetting indexer due to no events logged in the last 15 minutes for chain {}", self.chain as u8);
+                    } else {
+                        eprintln!(
+                            "Warning - indexer timeout join ended with error for chain {}, {:?}",
+                            self.chain as u8, err
+                        );
+                    }
                 }
             }
         }
-
-        Ok(())
     }
 
     async fn throw_when_no_events_logged(&self, starting_event_block: &u64) -> Result<()> {
@@ -129,7 +129,7 @@ impl<'a> StakingIndexer<'a> {
                         let block_number = meta.block_number.as_u64();
                         let tx_hash = format!("{:?}", meta.transaction_hash);
 
-                        self.process_staking_event(&event, block_number, tx_hash)
+                        self.process_staking_event(&event, block_number, &tx_hash)
                             .await?;
                     }
                 }
@@ -174,7 +174,7 @@ impl<'a> StakingIndexer<'a> {
             let block_number = meta.block_number.as_u64();
             let tx_hash = format!("{:?}", meta.transaction_hash);
 
-            self.process_staking_event(&event, block_number, tx_hash)
+            self.process_staking_event(&event, block_number, &tx_hash)
                 .await?;
         }
 
@@ -185,34 +185,34 @@ impl<'a> StakingIndexer<'a> {
         &self,
         event: &IdentityStakingEvents,
         block_number: u64,
-        tx_hash: String,
+        tx_hash: &String,
     ) -> Result<()> {
         match event {
             IdentityStakingEvents::SelfStakeFilter(event) => {
-                self.process_self_stake_event(&event, block_number).await
+                self.process_self_stake_event(&event, block_number, tx_hash).await
             }
             IdentityStakingEvents::CommunityStakeFilter(event) => {
-                self.process_community_stake_event(&event, block_number)
+                self.process_community_stake_event(&event, block_number, tx_hash)
                     .await
             }
             IdentityStakingEvents::SelfStakeWithdrawnFilter(event) => {
-                self.process_self_stake_withdrawn_event(&event, block_number)
+                self.process_self_stake_withdrawn_event(&event, block_number, tx_hash)
                     .await
             }
             IdentityStakingEvents::CommunityStakeWithdrawnFilter(event) => {
-                self.process_community_stake_withdrawn_event(&event, block_number)
+                self.process_community_stake_withdrawn_event(&event, block_number, tx_hash)
                     .await
             }
             IdentityStakingEvents::SlashFilter(event) => {
-                self.process_slash_event(&event, block_number).await
+                self.process_slash_event(&event, block_number, tx_hash).await
             }
             IdentityStakingEvents::ReleaseFilter(event) => {
-                self.process_release_event(&event, block_number).await
+                self.process_release_event(&event, block_number, tx_hash).await
             }
             _ => {
                 eprintln!(
                     "Debug - Unhandled event in tx {} for chain {}",
-                    tx_hash, self.chain as u8
+                    *tx_hash, self.chain as u8
                 );
                 Ok(())
             }
@@ -223,16 +223,19 @@ impl<'a> StakingIndexer<'a> {
         &self,
         event: &SelfStakeFilter,
         block_number: u64,
+        tx_hash: &String,
     ) -> Result<()> {
         if let Err(err) = self
             .postgres_client
             .add_or_extend_stake(
+                &StakeEventType::SelfStake,
                 &self.chain,
                 &event.staker,
                 &event.staker,
                 &event.amount,
                 &event.unlock_time,
                 &block_number,
+                tx_hash,
             )
             .await
         {
@@ -248,16 +251,19 @@ impl<'a> StakingIndexer<'a> {
         &self,
         event: &CommunityStakeFilter,
         block_number: u64,
+        tx_hash: &String,
     ) -> Result<()> {
         if let Err(err) = self
             .postgres_client
             .add_or_extend_stake(
+                &StakeEventType::CommunityStake,
                 &self.chain,
                 &event.staker,
                 &event.stakee,
                 &event.amount,
                 &event.unlock_time,
                 &block_number,
+                tx_hash,
             )
             .await
         {
@@ -273,16 +279,19 @@ impl<'a> StakingIndexer<'a> {
         &self,
         event: &SelfStakeWithdrawnFilter,
         block_number: u64,
+        tx_hash: &String,
     ) -> Result<()> {
         if let Err(err) = self
             .postgres_client
             .update_stake_amount(
+                &StakeEventType::SelfStakeWithdraw,
                 &self.chain,
                 &event.staker,
                 &event.staker,
                 &event.amount,
                 StakeAmountOperation::Subtract,
                 &block_number,
+                tx_hash,
             )
             .await
         {
@@ -298,16 +307,19 @@ impl<'a> StakingIndexer<'a> {
         &self,
         event: &CommunityStakeWithdrawnFilter,
         block_number: u64,
+        tx_hash: &String,
     ) -> Result<()> {
         if let Err(err) = self
             .postgres_client
             .update_stake_amount(
+                &StakeEventType::CommunityStakeWithdraw,
                 &self.chain,
                 &event.staker,
                 &event.stakee,
                 &event.amount,
                 StakeAmountOperation::Subtract,
                 &block_number,
+                tx_hash,
             )
             .await
         {
@@ -319,16 +331,19 @@ impl<'a> StakingIndexer<'a> {
         Ok(())
     }
 
-    async fn process_slash_event(&self, event: &SlashFilter, block_number: u64) -> Result<()> {
+    async fn process_slash_event(&self, event: &SlashFilter, block_number: u64, tx_hash: &String) -> Result<()> {
         if let Err(err) = self
             .postgres_client
             .update_stake_amount(
+                &StakeEventType::Slash,
                 &self.chain,
                 &event.staker,
                 &event.stakee,
                 &event.amount,
                 StakeAmountOperation::Subtract,
                 &block_number,
+                tx_hash,
+
             )
             .await
         {
@@ -340,16 +355,18 @@ impl<'a> StakingIndexer<'a> {
         Ok(())
     }
 
-    async fn process_release_event(&self, event: &ReleaseFilter, block_number: u64) -> Result<()> {
+    async fn process_release_event(&self, event: &ReleaseFilter, block_number: u64, tx_hash: &String) -> Result<()> {
         if let Err(err) = self
             .postgres_client
             .update_stake_amount(
+                &StakeEventType::Release,
                 &self.chain,
                 &event.staker,
                 &event.stakee,
                 &event.amount,
                 StakeAmountOperation::Add,
                 &block_number,
+                tx_hash,
             )
             .await
         {

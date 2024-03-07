@@ -163,13 +163,14 @@ class HashScorerLink(models.Model):
         null=False,
         db_index=True,
     )
-    address = EthAddressField(null=False, blank=False, max_length=42, db_index=True)
+    address = EthAddressField(null=False, blank=False, db_index=True)
     expires_at = models.DateTimeField(null=False, blank=False, db_index=True)
 
     class Meta:
         unique_together = ["hash", "community"]
 
 
+# For the legacy GTC staking events
 class GTCStakeEvent(models.Model):
     event_type = models.CharField(max_length=15)
     round_id = models.IntegerField(db_index=True)
@@ -193,12 +194,12 @@ class GTCStakeEvent(models.Model):
         ]
 
 
-class Chain(models.TextChoices):
-    ETHEREUM = 0, "Ethereum Mainnet"
-    OPTIMISM = 1, "Optimism Mainnet"
-
-
+# Stores the current state of each stake
 class Stake(models.Model):
+    class Chain(models.TextChoices):
+        ETHEREUM = 0, "Ethereum Mainnet"
+        OPTIMISM = 1, "Optimism Mainnet"
+
     chain = models.SmallIntegerField(
         choices=Chain.choices, default=Chain.ETHEREUM, db_index=True
     )
@@ -208,8 +209,8 @@ class Stake(models.Model):
     )
 
     # For self-stake, staker and stakee are the same
-    staker = EthAddressField(null=False, blank=False, max_length=42, db_index=True)
-    stakee = EthAddressField(null=False, blank=False, max_length=42, db_index=True)
+    staker = EthAddressField(null=False, blank=False, db_index=True)
+    stakee = EthAddressField(null=False, blank=False, db_index=True)
 
     current_amount = models.DecimalField(
         decimal_places=0, null=False, blank=False, max_digits=78
@@ -217,3 +218,42 @@ class Stake(models.Model):
 
     class Meta:
         unique_together = ["staker", "stakee", "chain"]
+
+
+# Stores raw staking events, for analysis and debugging
+class StakeEvent(models.Model):
+    class StakeEventType(models.TextChoices):
+        SELF_STAKE = "SST"
+        COMMUNITY_STAKE = "CST"
+        SELF_STAKE_WITHDRAW = "SSW"
+        COMMUNITY_STAKE_WITHDRAW = "CSW"
+        SLASH = "SLA"
+        RELEASE = "REL"
+
+    event_type = models.CharField(
+        max_length=3,
+        choices=StakeEventType.choices,
+        blank=False,
+        db_index=True,
+    )
+
+    chain = models.SmallIntegerField(
+        choices=Stake.Chain.choices, null=False, blank=False, db_index=True
+    )
+
+    # For self-stake, staker and stakee are the same
+    staker = EthAddressField(null=False, blank=False, db_index=True)
+    stakee = EthAddressField(null=False, blank=False, db_index=True)
+
+    amount = models.DecimalField(
+        decimal_places=0, null=False, blank=False, max_digits=78
+    )
+
+    block_number = models.DecimalField(
+        decimal_places=0, null=False, blank=False, max_digits=78
+    )
+
+    tx_hash = models.CharField(max_length=66, null=False, blank=False)
+
+    # Only applies to SelfStake and CommunityStake events
+    unlock_time = models.DateTimeField(null=True, blank=True)

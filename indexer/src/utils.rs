@@ -52,3 +52,23 @@ pub enum StakeAmountOperation {
     Add,
     Subtract,
 }
+
+pub enum StakeEventType {
+    SelfStake,
+    CommunityStake,
+    SelfStakeWithdraw,
+    CommunityStakeWithdraw,
+    Slash,
+    Release
+}
+
+pub fn get_code_for_stake_event_type(event_type: &StakeEventType) -> &'static str {
+    match event_type {
+        StakeEventType::SelfStake => "SST",
+        StakeEventType::CommunityStake => "CST",
+        StakeEventType::SelfStakeWithdraw => "SSW",
+        StakeEventType::CommunityStakeWithdraw => "CSW",
+        StakeEventType::Slash => "SLA",
+        StakeEventType::Release => "REL",
+    }
+}
