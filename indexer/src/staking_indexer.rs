@@ -1,7 +1,6 @@
 use crate::{
     postgres::PostgresClient,
     utils::{create_rpc_connection, Chain, StakeAmountOperation, StakeEventType},
-    CONTRACT_ADDRESS,
 };
 use ethers::{
     contract::abigen,
@@ -21,14 +20,21 @@ pub struct StakingIndexer<'a> {
     postgres_client: PostgresClient,
     rpc_url: &'a String,
     chain: Chain,
+    contract_address: &'a Address,
 }
 
 impl<'a> StakingIndexer<'a> {
-    pub fn new(postgres_client: PostgresClient, rpc_url: &'a String, chain: Chain) -> Self {
+    pub fn new(
+        postgres_client: PostgresClient,
+        rpc_url: &'a String,
+        chain: Chain,
+        contract_address: &'a Address,
+    ) -> Self {
         Self {
             postgres_client,
             rpc_url,
             chain,
+            contract_address,
         }
     }
 
@@ -107,9 +113,7 @@ impl<'a> StakingIndexer<'a> {
 
         let client = Arc::new(create_rpc_connection(&self.rpc_url).await);
 
-        let id_staking_address = CONTRACT_ADDRESS.parse::<Address>().unwrap();
-
-        let id_staking_contract = IdentityStaking::new(id_staking_address, client.clone());
+        let id_staking_contract = IdentityStaking::new(*self.contract_address, client.clone());
 
         let mut last_queried_block: u64 = *query_start_block;
 
@@ -189,7 +193,8 @@ impl<'a> StakingIndexer<'a> {
     ) -> Result<()> {
         match event {
             IdentityStakingEvents::SelfStakeFilter(event) => {
-                self.process_self_stake_event(&event, block_number, tx_hash).await
+                self.process_self_stake_event(&event, block_number, tx_hash)
+                    .await
             }
             IdentityStakingEvents::CommunityStakeFilter(event) => {
                 self.process_community_stake_event(&event, block_number, tx_hash)
@@ -204,10 +209,12 @@ impl<'a> StakingIndexer<'a> {
                     .await
             }
             IdentityStakingEvents::SlashFilter(event) => {
-                self.process_slash_event(&event, block_number, tx_hash).await
+                self.process_slash_event(&event, block_number, tx_hash)
+                    .await
             }
             IdentityStakingEvents::ReleaseFilter(event) => {
-                self.process_release_event(&event, block_number, tx_hash).await
+                self.process_release_event(&event, block_number, tx_hash)
+                    .await
             }
             _ => {
                 eprintln!(
@@ -331,7 +338,12 @@ impl<'a> StakingIndexer<'a> {
         Ok(())
     }
 
-    async fn process_slash_event(&self, event: &SlashFilter, block_number: u64, tx_hash: &String) -> Result<()> {
+    async fn process_slash_event(
+        &self,
+        event: &SlashFilter,
+        block_number: u64,
+        tx_hash: &String,
+    ) -> Result<()> {
         if let Err(err) = self
             .postgres_client
             .update_stake_amount(
@@ -343,7 +355,6 @@ impl<'a> StakingIndexer<'a> {
                 StakeAmountOperation::Subtract,
                 &block_number,
                 tx_hash,
-
             )
             .await
         {
@@ -355,7 +366,12 @@ impl<'a> StakingIndexer<'a> {
         Ok(())
     }
 
-    async fn process_release_event(&self, event: &ReleaseFilter, block_number: u64, tx_hash: &String) -> Result<()> {
+    async fn process_release_event(
+        &self,
+        event: &ReleaseFilter,
+        block_number: u64,
+        tx_hash: &String,
+    ) -> Result<()> {
         if let Err(err) = self
             .postgres_client
             .update_stake_amount(

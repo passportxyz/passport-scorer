@@ -5,30 +5,23 @@ use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use ethers::types::H160;
 use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
+use std::collections::HashMap;
 use std::str::FromStr;
 use tokio_postgres::{Error, NoTls};
 
 use crate::{
     utils::{get_code_for_stake_event_type, get_env, Chain, StakeAmountOperation, StakeEventType},
-    CONTRACT_START_BLOCK_MAP, LEGACY_CONTRACT_START_BLOCK,
+    LEGACY_CONTRACT_START_BLOCK,
 };
-
-fn get_contract_start_block(chain: &Chain) -> Result<u64, &'static str> {
-    for (c, start_block) in CONTRACT_START_BLOCK_MAP {
-        if c == chain {
-            return Ok(*start_block);
-        }
-    }
-    Err("Chain not found")
-}
 
 #[derive(Debug, Clone)]
 pub struct PostgresClient {
     pool: Pool,
+    start_block_map: HashMap<Chain, u64>,
 }
 
 impl PostgresClient {
-    pub async fn new() -> Result<Self, Error> {
+    pub async fn new(start_block_map: HashMap<Chain, u64>) -> Result<Self, Error> {
         let mut pg_config = tokio_postgres::Config::new();
 
         pg_config
@@ -45,7 +38,10 @@ impl PostgresClient {
 
         let pool = Pool::builder(mgr).max_size(16).build().unwrap();
 
-        Ok(Self { pool })
+        Ok(Self {
+            pool,
+            start_block_map,
+        })
     }
 
     // This function is for legacy staking contract events
@@ -215,7 +211,7 @@ impl PostgresClient {
             Ok(latest_block.to_u64().unwrap())
         } else {
             // return contract start block
-            Ok(get_contract_start_block(chain).unwrap())
+            Ok(*self.start_block_map.get(chain).unwrap())
         }
     }
 
