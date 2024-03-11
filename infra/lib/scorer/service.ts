@@ -586,12 +586,32 @@ export function createIndexerService({
 
   const indexerSecrets = [
     {
-      name: "ETHEREUM_RPC_URL",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:ETHEREUM_RPC_URL::`,
+      name: "INDEXER_ETHEREUM_RPC_URL",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ETHEREUM_RPC_URL::`,
     },
     {
-      name: "OPTIMISM_RPC_URL",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:OPTIMISM_RPC_URL::`,
+      name: "INDEXER_OPTIMISM_RPC_URL",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_RPC_URL::`,
+    },
+    {
+      name: "INDEXER_ETHEREUM_ENABLED",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ETHEREUM_ENABLED::`,
+    },
+    {
+      name: "INDEXER_OPTIMISM_ENABLED",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_ENABLED::`,
+    },
+    {
+      name: "INDEXER_ETHEREUM_START_BLOCK",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ETHEREUM_START_BLOCK::`,
+    },
+    {
+      name: "INDEXER_OPTIMISM_START_BLOCK",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_START_BLOCK::`,
+    },
+    {
+      name: "INDEXER_LEGACY_ENABLED",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_LEGACY_ENABLED::`,
     },
   ];
 
