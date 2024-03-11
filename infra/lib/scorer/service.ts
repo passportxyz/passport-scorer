@@ -586,8 +586,12 @@ export function createIndexerService({
 
   const indexerSecrets = [
     {
-      name: "RPC_URL",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:RPC_URL::`,
+      name: "ETHEREUM_RPC_URL",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:ETHEREUM_RPC_URL::`,
+    },
+    {
+      name: "OPTIMISM_RPC_URL",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:OPTIMISM_RPC_URL::`,
     },
   ];
 
