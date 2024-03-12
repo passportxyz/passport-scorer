@@ -2,7 +2,6 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 
-
 import {
   ScorerEnvironmentConfig,
   ScorerService,
@@ -19,6 +18,7 @@ import {
   buildQueueLambdaFn,
 } from "../lib/scorer/new_service";
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
+import { createStakingApp } from "../lib/staking/app";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -76,14 +76,13 @@ const vpcPublicSubnetId2 = vpcPublicSubnetIds.apply((values) => values[1]);
 const redisCacheOpsConnectionUrl =
   coreInfraStack.getOutput("redisConnectionUrl");
 
-
 const CERAMIC_CACHE_SCORER_ID_CONFG = Object({
   review: 1,
   staging: 14,
-  production: 335
-})
+  production: 335,
+});
 
-const CERAMIC_CACHE_SCORER_ID = CERAMIC_CACHE_SCORER_ID_CONFG[stack]
+const CERAMIC_CACHE_SCORER_ID = CERAMIC_CACHE_SCORER_ID_CONFG[stack];
 
 // This matches the default security group that awsx previously created when creating the Cluster.
 // https://github.com/pulumi/pulumi-awsx/blob/45136c540f29eb3dc6efa5b4f51cfe05ee75c7d8/awsx-classic/ecs/cluster.ts#L110
@@ -121,8 +120,12 @@ const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
 );
 
 const scorerDbProxyEndpoint = coreInfraStack.getOutput("rdsProxyEndpoint");
-const scorerDbProxyEndpointConn = coreInfraStack.getOutput("rdsProxyConnectionUrl");
-const readreplica0ConnectionUrl = coreInfraStack.getOutput("readreplica0ConnectionUrl");
+const scorerDbProxyEndpointConn = coreInfraStack.getOutput(
+  "rdsProxyConnectionUrl"
+);
+const readreplica0ConnectionUrl = coreInfraStack.getOutput(
+  "readreplica0ConnectionUrl"
+);
 
 //////////////////////////////////////////////////////////////
 // Set up ALB and ECS cluster
@@ -137,7 +140,7 @@ export const clusterId = cluster.id;
 // Create bucket for access logs
 const accessLogsBucket = new aws.s3.Bucket(`gitcoin-scorer-access-logs`, {
   acl: "private",
-  forceDestroy: stack == "production" ? false: true,
+  forceDestroy: stack == "production" ? false : true,
 });
 
 const serviceAccount = aws.elb.getServiceAccount({});
@@ -245,25 +248,25 @@ const targetGroupRegistrySubmitPassport = createTargetGroup(
 //////////////////////////////////////////////////////////////
 // Create the HTTPS listener, and set the default target group
 //////////////////////////////////////////////////////////////
-const HTTPS_ALB_CERT_ARN = coreInfraStack.getOutput("API_CERTIFICATE_ARN")
-const httpsListener = HTTPS_ALB_CERT_ARN.apply((certificate) => new aws.alb.Listener(
-  "scorer-https-listener",
-  {
-    loadBalancerArn: alb.arn,
-    protocol: "HTTPS",
-    port: 443,
-    certificateArn: certificate, 
-    defaultActions: [
-      {
-        type: "forward",
-        targetGroupArn: targetGroupDefault.arn,
+const HTTPS_ALB_CERT_ARN = coreInfraStack.getOutput("API_CERTIFICATE_ARN");
+const httpsListener = HTTPS_ALB_CERT_ARN.apply(
+  (certificate) =>
+    new aws.alb.Listener("scorer-https-listener", {
+      loadBalancerArn: alb.arn,
+      protocol: "HTTPS",
+      port: 443,
+      certificateArn: certificate,
+      defaultActions: [
+        {
+          type: "forward",
+          targetGroupArn: targetGroupDefault.arn,
+        },
+      ],
+      tags: {
+        name: "scorer-https-listener",
       },
-    ],
-    tags: {
-      name: "scorer-https-listener",
-    },
-  },
-));
+    })
+);
 
 // Create a DNS record for the load balancer
 const www = new aws.route53.Record("scorer", {
@@ -378,14 +381,14 @@ const pagerdutyTopicPolicy = new aws.sns.TopicPolicy("pagerdutyTopicPolicy", {
   ),
 });
 
-const pagerdutySubscription = stack == "production" ?  new aws.sns.TopicSubscription(
-  "pagerdutySubscription",
-  {
-    endpoint: PAGERDUTY_INTEGRATION_ENDPOINT,
-    protocol: "https",
-    topic: pagerdutyTopic.arn,
-  }
-): null;
+const pagerdutySubscription =
+  stack == "production"
+    ? new aws.sns.TopicSubscription("pagerdutySubscription", {
+        endpoint: PAGERDUTY_INTEGRATION_ENDPOINT,
+        protocol: "https",
+        topic: pagerdutyTopic.arn,
+      })
+    : null;
 
 const deadLetterQueue = createDeadLetterQueue({ alertTopic: pagerdutyTopic });
 
@@ -695,7 +698,7 @@ const redashDbSecgrp = new aws.ec2.SecurityGroup(`redash-db`, {
       cidrBlocks: ["0.0.0.0/0"],
     },
   ],
-  name: "redash-db"
+  name: "redash-db",
 });
 // This is hardocded until redash db will be moved to core infra
 let dbSubnetGroupId = `core-rds`;
@@ -881,21 +884,24 @@ const redashTarget = new aws.alb.TargetGroup("redash-target", {
 });
 
 // Listen to traffic on port 443 & route it through the target group
-const redashHttpsListener = HTTPS_ALB_CERT_ARN.apply((certificate) => new aws.alb.Listener("redash-https-listener", {
-  loadBalancerArn: redashAlb.arn,
-  port: 443,
-  protocol: "HTTPS",
-  certificateArn:  certificate,
-  defaultActions: [
-    {
-      type: "forward",
-      targetGroupArn: redashTarget.arn,
-    },
-  ],
-  tags: {
-    name: "redash-https-listener",
-  },
-}));
+const redashHttpsListener = HTTPS_ALB_CERT_ARN.apply(
+  (certificate) =>
+    new aws.alb.Listener("redash-https-listener", {
+      loadBalancerArn: redashAlb.arn,
+      port: 443,
+      protocol: "HTTPS",
+      certificateArn: certificate,
+      defaultActions: [
+        {
+          type: "forward",
+          targetGroupArn: redashTarget.arn,
+        },
+      ],
+      tags: {
+        name: "redash-https-listener",
+      },
+    })
+);
 
 const redashRecord = new aws.route53.Record("redash", {
   zoneId: route53Zone,
@@ -1124,7 +1130,7 @@ const lambdaSettings = {
     },
     {
       name: "CERAMIC_CACHE_SCORER_ID",
-      value: CERAMIC_CACHE_SCORER_ID
+      value: CERAMIC_CACHE_SCORER_ID,
     },
     {
       name: "SCORER_SERVER_SSM_ARN",
@@ -1243,3 +1249,5 @@ buildQueueLambdaFn({
   role: queueLambdaRole,
   queue: rescoreQueue,
 });
+
+const stakingApp = createStakingApp();
