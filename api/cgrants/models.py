@@ -4,6 +4,7 @@ We only define fields in this model that we are directly interested in,
 and we store the JSON dump of the recoords containing all the fields
 from the original record in the `data` attribute
 """
+
 from account.models import EthAddressField
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -267,8 +268,11 @@ class SquelchedAccounts(models.Model):
         default=0, decimal_places=18, max_digits=64
     )
     sybil_signal = models.BooleanField(default=False)
-    round_number = models.IntegerField(
-        null=False, help_text="GG Round number when account was squelched", default=0
+    round_number = models.CharField(
+        null=False,
+        max_length=100,
+        help_text="GG Round number associated with round address",
+        default="",
     )
 
 
@@ -277,8 +281,11 @@ class RoundMapping(models.Model):
     Maps GG round_number to round EthAddress.
     """
 
-    round_number = models.IntegerField(
-        null=False, help_text="GG Round number associated with round address", default=0
+    round_number = models.CharField(
+        null=False,
+        max_length=100,
+        help_text="GG Round number associated with round address",
+        default="",
     )
     round_eth_address = EthAddressField(max_length=100, db_index=True)
 
