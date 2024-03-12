@@ -9,6 +9,7 @@ from .models import (
     GrantContributionIndex,
     Profile,
     ProtocolContributions,
+    RoundMapping,
     SquelchedAccounts,
     SquelchProfile,
     Subscription,
@@ -70,8 +71,14 @@ class SquelchProfileAdmin(ScorerModelAdmin):
 
 @admin.register(SquelchedAccounts)
 class SquelchedAccountsAdmin(ScorerModelAdmin):
-    list_display = ("address", "score_when_squelched", "sybil_signal")
-    search_fields = ("address", "score_when_squelched", "sybil_signal")
+    list_display = ("address", "score_when_squelched", "round_number", "sybil_signal")
+    search_fields = ("address", "score_when_squelched", "round_number", "sybil_signal")
+
+
+@admin.register(RoundMapping)
+class RoundMappingAdmin(ScorerModelAdmin):
+    list_display = ("round_number", "round_eth_address")
+    search_fields = ("round_number", "round_eth_address")
 
 
 @admin.register(GrantContributionIndex)

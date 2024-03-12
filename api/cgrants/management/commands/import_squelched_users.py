@@ -81,14 +81,12 @@ class Command(BaseCommand):
 
             for line in stream.read().decode("utf-8").splitlines():
                 round_data = line.split(",")
-                if round_data[0].startswith("GG"):
-                    # ['program', 'type', 'chain_name', 'chain_id', 'round_name', 'round_id', 'matching_pool', 'starting_time']
-                    round_number = int(round_data[0].split("GG")[1])
-                    round_eth_address = round_data[5]
-                    RoundMapping.objects.update_or_create(
-                        round_number=round_number,
-                        round_eth_address=round_eth_address,
-                    )
+                round_number = round_data[0]
+                round_eth_address = round_data[5]
+                RoundMapping.objects.update_or_create(
+                    round_number=round_number,
+                    round_eth_address=round_eth_address,
+                )
 
         else:
             self.stdout.write(self.style.ERROR(f"Empty file read from S3: {s3_uri}"))
@@ -130,11 +128,22 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         squelched_users_uri = options["squelched_users_input"]
         round_number = options["round_number"]
-        self.stdout.write(
-            f'Squelched User Input file "{squelched_users_uri}" and round number "{round_number}"'
-        )
-        self.import_squelched_users(squelched_users_uri, round_number)
-
         round_data_uri = options["round_data_input"]
         self.stdout.write(f'Round Data Input file "{squelched_users_uri}"')
         self.import_round_data(round_data_uri)
+
+        # Verify that round_number os valid.
+        # We check that this exists in RoundMapping
+
+        if not RoundMapping.objects.filter(round_number=round_number).exists():
+            self.stdout.write(
+                self.style.ERROR(
+                    f"Round number '{round_number}' could not be retreived"
+                )
+            )
+            raise f"Round number '{round_number}' could not be retreived"
+        else:
+            self.stdout.write(
+                f'Squelched User Input file "{squelched_users_uri}" and round number "{round_number}"'
+            )
+            self.import_squelched_users(squelched_users_uri, round_number)
