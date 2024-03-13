@@ -167,7 +167,7 @@ class StampDisplayResponse(Schema):
     groups: List[StampDisplayResponseGroup]
 
 
-class Stake(Schema):
+class LegacyStakeSchema(Schema):
     id: int
     event_type: str
     round_id: int
@@ -180,7 +180,15 @@ class Stake(Schema):
 
 
 class GtcEventsResponse(Schema):
-    results: List[Stake]
+    results: List[LegacyStakeSchema]
+
+
+class StakeSchema(Schema):
+    chain: str
+    staker: str
+    stakee: str
+    amount: str
+    unlock_time: str
 
 
 class GtcStakeEventsSchema(Schema):
