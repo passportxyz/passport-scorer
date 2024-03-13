@@ -402,13 +402,17 @@ export async function createScoreExportBucketAndDomain(
     tags: { name: `s3-domain` },
   });
 
-  new aws.s3.BucketPublicAccessBlock("myBucketPublicAccessBlock", {
-    bucket: scoreBucket.bucket.apply((bucket) => bucket),
-    blockPublicAcls: false,
-    ignorePublicAcls: false,
-    blockPublicPolicy: false,
-    restrictPublicBuckets: false,
-  }, {dependsOn: [scoreBucket] });
+  new aws.s3.BucketPublicAccessBlock(
+    "myBucketPublicAccessBlock",
+    {
+      bucket: scoreBucket.bucket.apply((bucket) => bucket),
+      blockPublicAcls: false,
+      ignorePublicAcls: false,
+      blockPublicPolicy: false,
+      restrictPublicBuckets: false,
+    },
+    { dependsOn: [scoreBucket] }
+  );
 
   const serviceAccount = await aws.elb.getServiceAccount({});
 
@@ -425,7 +429,7 @@ export async function createScoreExportBucketAndDomain(
         {
           Effect: "Allow",
           Principal: {
-            AWS: serviceAccount.arn, 
+            AWS: serviceAccount.arn,
           },
           Action: ["s3:PutObject", "s3:PutObjectAcl"],
           Resource: `${arn}/*`,
@@ -433,11 +437,15 @@ export async function createScoreExportBucketAndDomain(
       ],
     })
   );
-  
-  new aws.s3.BucketPolicy("bucketPolicy", {
-    bucket: scoreBucket.bucket.apply((bucket: any) => bucket),
-    policy: bucketPolicy,
-  }, {dependsOn: [scoreBucket]});
+
+  new aws.s3.BucketPolicy(
+    "bucketPolicy",
+    {
+      bucket: scoreBucket.bucket.apply((bucket: any) => bucket),
+      policy: bucketPolicy,
+    },
+    { dependsOn: [scoreBucket] }
+  );
 
   const eastRegion = new aws.Provider("east", {
     profile: aws.config.profile,
@@ -562,7 +570,7 @@ type IndexerServiceParams = {
   rdsConnectionConfig: {
     dbHost: Output<any>;
     dbPort: string;
-};
+  };
   rdsSecretArn: Output<any>;
   cluster: Cluster;
   vpc: Output<any>;
@@ -586,22 +594,46 @@ export function createIndexerService({
     retentionInDays: 90,
   });
 
-  const indexerSecrets  = rdsSecretArn.apply((rdsSecret) => [
-    {
-      name: "RPC_URL",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:RPC_URL::`,
-    },
+  const indexerSecrets = rdsSecretArn.apply((rdsSecret) => [
     {
       name: "DB_USER",
       valueFrom: `${rdsSecret}:username::`,
     },
     {
       name: "DB_PASSWORD",
-      valueFrom: `${rdsSecret}:password::`, 
+      valueFrom: `${rdsSecret}:password::`,
     },
     {
       name: "DB_NAME",
-      valueFrom: `${rdsSecret}:dbname::`, 
+      valueFrom: `${rdsSecret}:dbname::`,
+    },
+    {
+      name: "INDEXER_ETHEREUM_RPC_URL",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ETHEREUM_RPC_URL::`,
+    },
+    {
+      name: "INDEXER_OPTIMISM_RPC_URL",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_RPC_URL::`,
+    },
+    {
+      name: "INDEXER_ETHEREUM_ENABLED",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ETHEREUM_ENABLED::`,
+    },
+    {
+      name: "INDEXER_OPTIMISM_ENABLED",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_ENABLED::`,
+    },
+    {
+      name: "INDEXER_ETHEREUM_START_BLOCK",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ETHEREUM_START_BLOCK::`,
+    },
+    {
+      name: "INDEXER_OPTIMISM_START_BLOCK",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_START_BLOCK::`,
+    },
+    {
+      name: "INDEXER_LEGACY_ENABLED",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_LEGACY_ENABLED::`,
     },
   ]);
 
@@ -613,7 +645,7 @@ export function createIndexerService({
     {
       name: "DB_PORT",
       value: rdsConnectionConfig.dbPort,
-    }
+    },
   ];
 
   new awsx.ecs.FargateService("scorer-staking-indexer", {
