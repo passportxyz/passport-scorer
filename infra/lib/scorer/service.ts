@@ -613,6 +613,10 @@ export function createIndexerService({
       name: "INDEXER_LEGACY_ENABLED",
       valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_LEGACY_ENABLED::`,
     },
+    {
+      name: "STAKING_CONTRACT_ADDRESS",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_CONTRACT_ADDRESS::`,
+    },
   ];
 
   const indexerEnvironment: { name: string; value: Input<string> }[] = [
