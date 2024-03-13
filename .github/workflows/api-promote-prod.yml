@@ -303,7 +303,7 @@ jobs:
       - uses: pulumi/actions@v3
         id: pulumi
         with:
-          command: preview
+          command: up
           stack-name: gitcoin/passport-scorer/production
           upsert: false
           work-dir: infra/aws
