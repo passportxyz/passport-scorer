@@ -1,13 +1,25 @@
 import * as aws from "@pulumi/aws";
 import { Input } from "@pulumi/pulumi";
+import * as std from "@pulumi/std";
 
-export function createStakingApp(domainName: Input<string>, prefix: Input<string>, environmentVariables: Input<{
-  [key: string]: Input<string>
-}>): aws.amplify.App {
-  const amplifyApp = new aws.amplify.App("example", {
-    name: "example",
-    repository: "https://github.com/gitcoinco/id-staking-v2-app", // TODO: add env var for this
-    oauthToken: process.env["GITHUB_ACCESS_TOKEN_FOR_AMPLIFY"],
+export function createAmplifyStakingApp(
+  githubUrl: string,
+  githubAccessToken: string,
+  domainName: string,
+  prefix: string,
+  branchName: string,
+  environmentVariables: Input<{
+    [key: string]: Input<string>;
+  }>,
+  enableBasicAuth: boolean,
+  username?: string,
+  password?: string
+): aws.amplify.App {
+  const name = `${prefix}.${domainName}`;
+  const amplifyApp = new aws.amplify.App(name, {
+    name: name,
+    repository: githubUrl,
+    oauthToken: githubAccessToken,
     platform: "WEB_COMPUTE",
     buildSpec: `version: 1
 applications:
@@ -39,27 +51,30 @@ applications:
     environmentVariables: {
       AMPLIFY_DIFF_DEPLOY: "false",
       AMPLIFY_MONOREPO_APP_ROOT: "app",
-      ...environmentVariables
+      ...environmentVariables,
     },
+    enableBasicAuth: enableBasicAuth,
+    basicAuthCredentials: std
+      .base64encode({
+        input: `${username}:${password}`,
+      })
+      .then((invoke) => invoke.result),
   });
 
-  const main = new aws.amplify.Branch("main", {
+  const branch = new aws.amplify.Branch(`${name}-${branchName}`, {
     appId: amplifyApp.id,
-    branchName: "main",
+    branchName: branchName,
   });
-  const exampleDomainAssociation = new aws.amplify.DomainAssociation(
-    "example",
-    {
-      appId: amplifyApp.id,
-      domainName: domainName,
-      subDomains: [
-        {
-          branchName: main.branchName,
-          prefix: prefix,
-        },
-      ],
-    }
-  );
+  const exampleDomainAssociation = new aws.amplify.DomainAssociation(name, {
+    appId: amplifyApp.id,
+    domainName: domainName,
+    subDomains: [
+      {
+        branchName: branch.branchName,
+        prefix: prefix,
+      },
+    ],
+  });
 
   return amplifyApp;
 }

@@ -18,7 +18,7 @@ import {
   buildQueueLambdaFn,
 } from "../lib/scorer/new_service";
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
-import { createStakingApp } from "../lib/staking/app";
+import { createAmplifyStakingApp } from "../lib/staking/app";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -83,19 +83,27 @@ const CERAMIC_CACHE_SCORER_ID_CONFG = Object({
 
 const stakingEnvVars = Object({
   review: {
-    NEXT_PUBLIC_CERAMIC_CACHE_ENDPOINT: 'https://api.review.scorer.gitcoin.co/ceramic-cache',
-    NEXT_PUBLIC_SCORER_ENDPOINT: 'https://api.review.scorer.gitcoin.co'
+    NEXT_PUBLIC_CERAMIC_CACHE_ENDPOINT:
+      "https://api.review.scorer.gitcoin.co/ceramic-cache",
+    NEXT_PUBLIC_SCORER_ENDPOINT: "https://api.review.scorer.gitcoin.co",
   },
   staging: {
-    NEXT_PUBLIC_CERAMIC_CACHE_ENDPOINT: 'https://api.staging.scorer.gitcoin.co/ceramic-cache',
-    NEXT_PUBLIC_SCORER_ENDPOINT: 'https://api.staging.scorer.gitcoin.co'
+    NEXT_PUBLIC_CERAMIC_CACHE_ENDPOINT:
+      "https://api.staging.scorer.gitcoin.co/ceramic-cache",
+    NEXT_PUBLIC_SCORER_ENDPOINT: "https://api.staging.scorer.gitcoin.co",
   },
   production: {
-    NEXT_PUBLIC_CERAMIC_CACHE_ENDPOINT: 'https://api.scorer.gitcoin.co/ceramic-cache',
-    NEXT_PUBLIC_SCORER_ENDPOINT: 'https://api.scorer.gitcoin.co'
+    NEXT_PUBLIC_CERAMIC_CACHE_ENDPOINT:
+      "https://api.scorer.gitcoin.co/ceramic-cache",
+    NEXT_PUBLIC_SCORER_ENDPOINT: "https://api.scorer.gitcoin.co",
   },
 });
 
+const stakingBranches = Object({
+  review: "main",
+  staging: "app-staging",
+  production: "app-production",
+});
 
 const CERAMIC_CACHE_SCORER_ID = CERAMIC_CACHE_SCORER_ID_CONFG[stack];
 
@@ -399,10 +407,10 @@ const pagerdutyTopicPolicy = new aws.sns.TopicPolicy("pagerdutyTopicPolicy", {
 const pagerdutySubscription =
   stack == "production"
     ? new aws.sns.TopicSubscription("pagerdutySubscription", {
-      endpoint: PAGERDUTY_INTEGRATION_ENDPOINT,
-      protocol: "https",
-      topic: pagerdutyTopic.arn,
-    })
+        endpoint: PAGERDUTY_INTEGRATION_ENDPOINT,
+        protocol: "https",
+        topic: pagerdutyTopic.arn,
+      })
     : null;
 
 const deadLetterQueue = createDeadLetterQueue({ alertTopic: pagerdutyTopic });
@@ -962,17 +970,17 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
       "scorer_dump_data",
       "--config",
       "'" +
-      JSON.stringify([
-        { name: "ceramic_cache.CeramicCache", "extra-args": {} },
-        { name: "registry.Event", "extra-args": {} },
-        { name: "registry.HashScorerLink", "extra-args": {} },
-        {
-          name: "registry.Stamp",
-          select_related: ["passport"],
-          "extra-args": {},
-        },
-      ]) +
-      "'",
+        JSON.stringify([
+          { name: "ceramic_cache.CeramicCache", "extra-args": {} },
+          { name: "registry.Event", "extra-args": {} },
+          { name: "registry.HashScorerLink", "extra-args": {} },
+          {
+            name: "registry.Stamp",
+            select_related: ["passport"],
+            "extra-args": {},
+          },
+        ]) +
+        "'",
       "--s3-uri=s3://passport-scorer/daily_data_dumps/",
       "--batch-size=20000",
     ].join(" "),
@@ -1017,14 +1025,14 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
       "scorer_dump_data",
       "--config",
       "'" +
-      JSON.stringify([
-        {
-          name: "registry.Score",
-          filter: { passport__community_id: 335 },
-          select_related: ["passport"],
-        },
-      ]) +
-      "'",
+        JSON.stringify([
+          {
+            name: "registry.Score",
+            filter: { passport__community_id: 335 },
+            select_related: ["passport"],
+          },
+        ]) +
+        "'",
       `--s3-uri=s3://${publicDataDomain}/passport_scores/`,
       // "--summary-extra-args",
       // JSON.stringify({ ACL: "public-read" }),
@@ -1047,14 +1055,14 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
         "scorer_dump_data",
         "--config",
         "'" +
-        JSON.stringify([
-          {
-            name: "registry.Score",
-            filter: { passport__community_id: 335 },
-            select_related: ["passport"],
-          },
-        ]) +
-        "'",
+          JSON.stringify([
+            {
+              name: "registry.Score",
+              filter: { passport__community_id: 335 },
+              select_related: ["passport"],
+            },
+          ]) +
+          "'",
         `--s3-uri=s3://${publicDataDomain}/passport_scores/335/`,
         // "--summary-extra-args",
         // JSON.stringify({ ACL: "public-read" }),
@@ -1077,14 +1085,14 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
         "scorer_dump_data",
         "--config",
         "'" +
-        JSON.stringify([
-          {
-            name: "registry.Score",
-            filter: { passport__community_id: 6608 },
-            select_related: ["passport"],
-          },
-        ]) +
-        "'",
+          JSON.stringify([
+            {
+              name: "registry.Score",
+              filter: { passport__community_id: 6608 },
+              select_related: ["passport"],
+            },
+          ]) +
+          "'",
         `--s3-uri=s3://${publicDataDomain}/passport_scores/6608/`,
         // "--summary-extra-args",
         // JSON.stringify({ ACL: "public-read" }),
@@ -1265,4 +1273,16 @@ buildQueueLambdaFn({
   queue: rescoreQueue,
 });
 
-const stakingApp = createStakingApp("review.passport.xyz", "stake", stakingEnvVars[stack]);
+coreInfraStack.getOutput("newPassportDomain").apply((domainName) => {
+  const stakingApp = createAmplifyStakingApp(
+    `${process.env["STAKING_APP_GITHUB_URL"]}`,
+    `${process.env["STAKING_APP_GITHUB_ACCESS_TOKEN_FOR_AMPLIFY"]}`,
+    domainName,
+    "stake",
+    stakingBranches[stack],
+    stakingEnvVars[stack],
+    (process.env["STAKING_APP_ENABLE_AUTH"] || "false").toLowerCase() == "true",
+    process.env["STAKING_APP_BASIC_AUTH_USERNAME"],
+    process.env["STAKING_APP_BASIC_AUTH_PASSWORD"]
+  );
+});
