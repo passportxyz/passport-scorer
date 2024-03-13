@@ -1,26 +1,30 @@
 import * as aws from "@pulumi/aws";
+import { Input } from "@pulumi/pulumi";
 
-export function createStakingApp() {
-  const example = new aws.amplify.App("example", {
+export function createStakingApp(domainName: Input<string>, prefix: Input<string>, environmentVariables: Input<{
+  [key: string]: Input<string>
+}>): aws.amplify.App {
+  const amplifyApp = new aws.amplify.App("example", {
     name: "example",
     repository: "https://github.com/gitcoinco/id-staking-v2-app", // TODO: add env var for this
     oauthToken: process.env["GITHUB_ACCESS_TOKEN_FOR_AMPLIFY"],
+    platform: "WEB_COMPUTE",
     buildSpec: `version: 1
 applications:
   - frontend:
       phases:
-      preBuild:
+        preBuild:
           commands:
-          - yarn install
-      build:
+            - yarn install
+        build:
           commands:
-          - yarn run build
+            - yarn run build
       artifacts:
-      baseDirectory: .next
-      files:
+        baseDirectory: .next
+        files:
           - '**/*'
       cache:
-      paths:
+        paths:
           - .next/cache/**/*
           - node_modules/**/*
     appRoot: app
@@ -35,32 +39,27 @@ applications:
     environmentVariables: {
       AMPLIFY_DIFF_DEPLOY: "false",
       AMPLIFY_MONOREPO_APP_ROOT: "app",
+      ...environmentVariables
     },
   });
 
   const main = new aws.amplify.Branch("main", {
-    appId: example.id,
+    appId: amplifyApp.id,
     branchName: "main",
   });
   const exampleDomainAssociation = new aws.amplify.DomainAssociation(
     "example",
     {
-      appId: example.id,
-      domainName: "review.passport.xyz",
+      appId: amplifyApp.id,
+      domainName: domainName,
       subDomains: [
         {
           branchName: main.branchName,
-          prefix: "",
-        },
-        {
-          branchName: main.branchName,
-          prefix: "www",
+          prefix: prefix,
         },
       ],
     }
   );
 
-  return {
-    app: example,
-  };
+  return amplifyApp;
 }
