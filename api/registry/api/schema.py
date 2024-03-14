@@ -189,6 +189,7 @@ class StakeSchema(Schema):
     stakee: str
     amount: str
     unlock_time: str
+    lock_duration: str
 
 
 class GtcStakeEventsSchema(Schema):

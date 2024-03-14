@@ -99,6 +99,7 @@ impl PostgresClient {
         stakee: &H160,
         increase_amount: &u128,
         unlock_time: &u64,
+        lock_duration: &u64,
         block_number: &u64,
         tx_hash: &str,
     ) -> Result<(), Error> {
@@ -107,6 +108,7 @@ impl PostgresClient {
         let stakee = format!("{:#x}", stakee);
         let increase_amount = Decimal::from_u128(*increase_amount).unwrap();
         let unlock_time = self.unix_time_to_datetime(unlock_time);
+        let lock_duration = Decimal::from_u64(*lock_duration).unwrap();
         let block_number = Decimal::from_u64(*block_number).unwrap();
 
         let client = self.pool.get().await.unwrap();
@@ -114,14 +116,15 @@ impl PostgresClient {
         // Log current stake state
         client.execute(
             concat!(
-                "INSERT INTO registry_stake as stake (chain, staker, stakee, unlock_time, last_updated_in_block, current_amount)",
-                " VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (chain, staker, stakee) DO UPDATE",
+                "INSERT INTO registry_stake as stake (chain, staker, stakee, unlock_time, lock_duration, last_updated_in_block, current_amount)",
+                " VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (chain, staker, stakee) DO UPDATE",
                 " SET unlock_time = EXCLUDED.unlock_time,",
                 "     last_updated_in_block = EXCLUDED.last_updated_in_block,",
+                "     lock_duration = EXCLUDED.lock_duration,",
                 "     current_amount = stake.current_amount + EXCLUDED.current_amount",
                 " WHERE EXCLUDED.last_updated_in_block >= stake.last_updated_in_block"
             ),
-            &[&chain, &staker, &stakee, &unlock_time, &block_number, &increase_amount]
+            &[&chain, &staker, &stakee, &unlock_time, &lock_duration, &block_number, &increase_amount]
         ).await?;
 
         // Log raw event

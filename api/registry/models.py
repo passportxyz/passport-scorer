@@ -204,14 +204,22 @@ class Stake(models.Model):
         choices=Chain.choices, default=Chain.ETHEREUM, db_index=True
     )
     unlock_time = models.DateTimeField(null=False, blank=False)
+
+    # u256
     last_updated_in_block = models.DecimalField(
         decimal_places=0, null=False, blank=False, max_digits=78, db_index=True
+    )
+
+    # u64
+    lock_duration = models.DecimalField(
+        decimal_places=0, null=False, blank=False, max_digits=20
     )
 
     # For self-stake, staker and stakee are the same
     staker = EthAddressField(null=False, blank=False, db_index=True)
     stakee = EthAddressField(null=False, blank=False, db_index=True)
 
+    # u256
     current_amount = models.DecimalField(
         decimal_places=0, null=False, blank=False, max_digits=78
     )

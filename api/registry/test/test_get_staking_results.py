@@ -64,6 +64,9 @@ class TestGetLegacyStakingResults:
         assert response.status_code == 404
 
 
+twelve_weeks = 7257600
+
+
 @pytest.fixture
 def mock_stakes():
     Stake.objects.create(
@@ -73,6 +76,7 @@ def mock_stakes():
         current_amount=Decimal("100000000000000000000"),
         last_updated_in_block=Decimal("10000000"),
         unlock_time=datetime.now() + timedelta(days=90),
+        lock_duration=twelve_weeks,
     )
     Stake.objects.create(
         chain=Stake.Chain.ETHEREUM,
@@ -81,6 +85,7 @@ def mock_stakes():
         current_amount=Decimal("200000000000000000000"),
         last_updated_in_block=Decimal("10000001"),
         unlock_time=datetime.now() + timedelta(days=91),
+        lock_duration=twelve_weeks,
     )
     Stake.objects.create(
         chain=Stake.Chain.ETHEREUM,
@@ -89,6 +94,7 @@ def mock_stakes():
         current_amount=Decimal("350000000000000000000"),
         last_updated_in_block=Decimal("10000002"),
         unlock_time=datetime.now() + timedelta(days=92),
+        lock_duration=twelve_weeks,
     )
     Stake.objects.create(
         chain=Stake.Chain.OPTIMISM,
@@ -97,6 +103,7 @@ def mock_stakes():
         current_amount=Decimal("475000000000000000000"),
         last_updated_in_block=Decimal("10000002"),
         unlock_time=datetime.now() + timedelta(days=92),
+        lock_duration=twelve_weeks,
     )
 
 

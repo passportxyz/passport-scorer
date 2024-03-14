@@ -783,6 +783,7 @@ def get_gtc_stake(request, address: str) -> List[StakeSchema]:
                 stakee=stake.stakee,
                 amount=stake.current_amount,
                 unlock_time=stake.unlock_time.isoformat(),
+                lock_duration=stake.lock_duration,
             )
             for stake in with_read_db(Stake).filter(
                 Q(staker=address) | Q(stakee=address)
