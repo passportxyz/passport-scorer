@@ -217,6 +217,7 @@ export function createScheduledTask(
 
   new aws.cloudwatch.MetricAlarm("UnsuccessfulRuns-" + name, {
     alarmActions: [alertTopic.arn],
+    okActions: [alertTopic.arn],
     comparisonOperator: "GreaterThanOrEqualToThreshold",
     datapointsToAlarm: 1,
     evaluationPeriods: 1,
