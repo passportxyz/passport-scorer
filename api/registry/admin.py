@@ -2,7 +2,16 @@ from asgiref.sync import async_to_sync
 from django.contrib import admin, messages
 from registry.api.schema import SubmitPassportPayload
 from registry.api.v1 import ahandle_submit_passport
-from registry.models import Event, GTCStakeEvent, HashScorerLink, Passport, Score, Stamp
+from registry.models import (
+    Event,
+    GTCStakeEvent,
+    HashScorerLink,
+    Passport,
+    Score,
+    Stake,
+    StakeEvent,
+    Stamp,
+)
 from scorer.scorer_admin import ScorerModelAdmin
 
 
@@ -141,3 +150,53 @@ class GTCStakeEventAdmin(ScorerModelAdmin):
         "staker",
         "event_type",
     ]
+
+
+@admin.register(Stake)
+class StakeAdmin(ScorerModelAdmin):
+    list_display = [
+        "id",
+        "chain",
+        "staker",
+        "stakee",
+        "unlock_time",
+        "lock_duration",
+        "current_amount",
+    ]
+
+    list_filter = [
+        "chain",
+    ]
+
+    search_fields = [
+        "staker",
+        "stakee",
+    ]
+    search_help_text = "Search by: " + ", ".join(search_fields)
+
+
+@admin.register(StakeEvent)
+class StakeEventAdmin(ScorerModelAdmin):
+    list_display = [
+        "id",
+        "event_type",
+        "staker",
+        "stakee",
+        "amount",
+        "block_number",
+        "tx_hash",
+        "unlock_time",
+    ]
+
+    list_filter = [
+        "chain",
+        "event_type",
+    ]
+
+    search_fields = [
+        "staker",
+        "stakee",
+        "block_number",
+        "tx_hash",
+    ]
+    search_help_text = "Search by: " + ", ".join(search_fields)
