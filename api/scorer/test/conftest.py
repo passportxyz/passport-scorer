@@ -255,14 +255,14 @@ def sample_token(sample_address):
 
 @pytest.fixture
 def gtc_staking_response():
-    user_address = "0x00Ac00000e4AbE2d293586A1f4F9C73e5512121e"
+    user_address = "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955"
     # Make sure this one is filtered out because it's below the minimum amount
     # 1 self stake of 2
     GTCStakeEvent.objects.create(
         id=16,
         event_type="SelfStake",
         round_id=1,
-        staker=user_address,
+        staker="0x976EA74026E726554dB657fA54763abd0C3a0aa9",
         address=None,
         amount=2,
         staked=True,

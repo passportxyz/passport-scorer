@@ -4,11 +4,10 @@ from registry.models import GTCStakeEvent
 
 pytestmark = pytest.mark.django_db
 
-user_address = "0x00Ac00000e4AbE2d293586A1f4F9C73e5512121e"
+user_address = "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955"
 
 
-class TestGetStakingResults:
-    @pytest.fixture
+class TestGetLegacyStakingResults:
     def test_successful_get_staking_results(self, scorer_api_key, gtc_staking_response):
         stakes = list(GTCStakeEvent.objects.all())
 
@@ -24,7 +23,6 @@ class TestGetStakingResults:
         # an extra stake event was added that is below the filtered amount, hence the minus 1
         assert len(stakes) - 1 == len(response_data)
 
-    @pytest.fixture
     def test_item_in_filter_condition_is_not_present(
         self, scorer_api_key, gtc_staking_response
     ):
@@ -41,7 +39,6 @@ class TestGetStakingResults:
             # ID 16 belongs to the item that does not meet the filter criteria
             assert item["id"] != 16
 
-    @pytest.fixture
     def test_missing_address_error_response(self, scorer_api_key, gtc_staking_response):
         client = Client()
         response = client.get(
@@ -51,7 +48,6 @@ class TestGetStakingResults:
 
         assert response.status_code == 404
 
-    @pytest.fixture
     def test_missing_round_id_error_response(
         self, scorer_api_key, gtc_staking_response
     ):

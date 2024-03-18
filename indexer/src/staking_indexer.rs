@@ -3,7 +3,7 @@ use crate::{
     utils::{create_rpc_connection, Chain, StakeAmountOperation, StakeEventType},
 };
 use ethers::{
-    contract::abigen,
+    contract::{abigen, LogMeta},
     core::types::Address,
     providers::{Middleware, StreamExt},
 };
@@ -130,11 +130,7 @@ impl<'a> StakingIndexer<'a> {
             match previous_events_query {
                 Ok(previous_events) => {
                     for (event, meta) in previous_events.iter() {
-                        let block_number = meta.block_number.as_u64();
-                        let tx_hash = format!("{:?}", meta.transaction_hash);
-
-                        self.process_staking_event(&event, block_number, &tx_hash)
-                            .await?;
+                        self.process_staking_event(&event, &meta, &client).await?;
                     }
                 }
                 Err(err) => {
@@ -175,11 +171,7 @@ impl<'a> StakingIndexer<'a> {
                 Ok(event_with_meta) => event_with_meta,
             };
 
-            let block_number = meta.block_number.as_u64();
-            let tx_hash = format!("{:?}", meta.transaction_hash);
-
-            self.process_staking_event(&event, block_number, &tx_hash)
-                .await?;
+            self.process_staking_event(&event, &meta, &client).await?;
         }
 
         Ok(())
@@ -188,42 +180,61 @@ impl<'a> StakingIndexer<'a> {
     async fn process_staking_event(
         &self,
         event: &IdentityStakingEvents,
-        block_number: u64,
-        tx_hash: &String,
+        meta: &LogMeta,
+        client: &Arc<ethers::providers::Provider<ethers::providers::Ws>>,
     ) -> Result<()> {
+        let block_number = meta.block_number.as_u64();
+        let tx_hash = format!("{:?}", meta.transaction_hash);
+
         match event {
             IdentityStakingEvents::SelfStakeFilter(event) => {
-                self.process_self_stake_event(&event, block_number, tx_hash)
+                self.process_self_stake_event(&event, block_number, &tx_hash, &client)
                     .await
             }
             IdentityStakingEvents::CommunityStakeFilter(event) => {
-                self.process_community_stake_event(&event, block_number, tx_hash)
+                self.process_community_stake_event(&event, block_number, &tx_hash, &client)
                     .await
             }
             IdentityStakingEvents::SelfStakeWithdrawnFilter(event) => {
-                self.process_self_stake_withdrawn_event(&event, block_number, tx_hash)
+                self.process_self_stake_withdrawn_event(&event, block_number, &tx_hash)
                     .await
             }
             IdentityStakingEvents::CommunityStakeWithdrawnFilter(event) => {
-                self.process_community_stake_withdrawn_event(&event, block_number, tx_hash)
+                self.process_community_stake_withdrawn_event(&event, block_number, &tx_hash)
                     .await
             }
             IdentityStakingEvents::SlashFilter(event) => {
-                self.process_slash_event(&event, block_number, tx_hash)
+                self.process_slash_event(&event, block_number, &tx_hash)
                     .await
             }
             IdentityStakingEvents::ReleaseFilter(event) => {
-                self.process_release_event(&event, block_number, tx_hash)
+                self.process_release_event(&event, block_number, &tx_hash)
                     .await
             }
             _ => {
                 eprintln!(
                     "Debug - Unhandled event in tx {} for chain {}",
-                    *tx_hash, self.chain as u8
+                    tx_hash, self.chain as u8
                 );
                 Ok(())
             }
         }
+    }
+
+    // Could cache this somehow to avoid checking timestamp multiple times
+    // if there are multiple stake events in the same block
+    async fn get_timestamp_for_block_number(
+        &self,
+        block_number: u64,
+        client: &Arc<ethers::providers::Provider<ethers::providers::Ws>>,
+    ) -> Result<u64> {
+        if let Ok(Some(block)) = client.get_block(block_number).await {
+            return Ok(block.timestamp.as_u64())
+        }
+        Err(eyre::eyre!(
+            "Failed to fetch block timestamp for block {}",
+            block_number
+        ))
     }
 
     async fn process_self_stake_event(
@@ -231,7 +242,10 @@ impl<'a> StakingIndexer<'a> {
         event: &SelfStakeFilter,
         block_number: u64,
         tx_hash: &String,
+        client: &Arc<ethers::providers::Provider<ethers::providers::Ws>>,
     ) -> Result<()> {
+        let timestamp = self.get_timestamp_for_block_number(block_number, client).await?;
+
         if let Err(err) = self
             .postgres_client
             .add_or_extend_stake(
@@ -241,6 +255,7 @@ impl<'a> StakingIndexer<'a> {
                 &event.staker,
                 &event.amount,
                 &event.unlock_time,
+                &timestamp,
                 &block_number,
                 tx_hash,
             )
@@ -259,7 +274,10 @@ impl<'a> StakingIndexer<'a> {
         event: &CommunityStakeFilter,
         block_number: u64,
         tx_hash: &String,
+        client: &Arc<ethers::providers::Provider<ethers::providers::Ws>>,
     ) -> Result<()> {
+        let timestamp = self.get_timestamp_for_block_number(block_number, client).await?;
+
         if let Err(err) = self
             .postgres_client
             .add_or_extend_stake(
@@ -269,6 +287,7 @@ impl<'a> StakingIndexer<'a> {
                 &event.stakee,
                 &event.amount,
                 &event.unlock_time,
+                &timestamp,
                 &block_number,
                 tx_hash,
             )

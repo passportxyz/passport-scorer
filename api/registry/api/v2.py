@@ -15,6 +15,7 @@ from registry.api.schema import (
     DetailedScoreResponse,
     ErrorMessageResponse,
     SigningMessageResponse,
+    StakeSchema,
     StampDisplayResponse,
     SubmitPassportPayload,
 )
@@ -270,15 +271,33 @@ def stamp_display(request) -> List[StampDisplayResponse]:
 
 @router.get(
     "gtc-stake/{str:address}/{int:round_id}",
-    summary="Retrieve GTC stake amounts for the GTC Staking stamp",
+    summary="Retrieve GTC stake amounts from legacy staking contract",
     description="Get self and community GTC staking amounts based on address and round ID",
     auth=ApiKey(),
     response=v1.GtcEventsResponse,
 )
-def get_gtc_stake(request, address: str, round_id: str):
+def get_gtc_stake_legacy(request, address: str, round_id: str):
     if not v1.is_valid_address(address):
         raise InvalidAddressException()
-    return v1.get_gtc_stake(request, address, round_id)
+    return v1.get_gtc_stake_legacy(request, address, round_id)
+
+
+@router.get(
+    "/gtc-stake/{str:address}",
+    # auth=ApiKey(),
+    auth=None,
+    response={
+        200: List[StakeSchema],
+        400: ErrorMessageResponse,
+    },
+    summary="Retrieve GTC stake amounts for the GTC Staking stamp",
+    description="Get self and community GTC stakes for an address",
+)
+def get_gtc_stake(request, address: str) -> List[StakeSchema]:
+    """
+    Get GTC relevant stakes for an address
+    """
+    return v1.get_gtc_stake(request, address)
 
 
 @router.get(

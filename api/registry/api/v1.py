@@ -731,12 +731,12 @@ def stamp_display(request) -> List[StampDisplayResponse]:
     # auth=ApiKey(),
     auth=None,
     response=GtcEventsResponse,
-    summary="Retrieve GTC stake amounts for the GTC Staking stamp",
+    summary="Retrieve GTC stake amounts from legacy staking contract",
     description="Get self and community GTC staking amounts based on address and round ID",
 )
-def get_gtc_stake(request, address: str, round_id: int) -> GtcEventsResponse:
+def get_gtc_stake_legacy(request, address: str, round_id: str) -> GtcEventsResponse:
     """
-    Get GTC stake amount by address and round ID
+    Get GTC stake amount by address and round ID (from legacy contract)
     """
     address = address.lower()
 

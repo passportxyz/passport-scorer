@@ -22,12 +22,15 @@ from ninja_jwt.settings import api_settings
 from ninja_jwt.tokens import RefreshToken, Token, TokenError
 from registry.api.v1 import (
     DetailedScoreResponse,
+    ErrorMessageResponse,
     SubmitPassportPayload,
     ahandle_submit_passport,
     handle_get_score,
     handle_submit_passport,
 )
 from registry.models import Score
+from stake.api import handle_get_gtc_stake
+from stake.schema import StakeSchema
 
 from ..exceptions import (
     InternalServerException,
@@ -509,3 +512,16 @@ def get_detailed_score_response_for_address(address: str) -> DetailedScoreRespon
     score = async_to_sync(ahandle_submit_passport)(submit_passport_payload, account)
 
     return score
+
+
+@router.get(
+    "/stake/gtc",
+    response={
+        200: List[StakeSchema],
+        400: ErrorMessageResponse,
+    },
+    auth=JWTDidAuth(),
+)
+def get_score(request) -> List[StakeSchema]:
+    address = get_address_from_did(request.did)
+    return handle_get_gtc_stake(address)

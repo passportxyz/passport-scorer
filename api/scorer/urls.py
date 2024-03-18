@@ -47,5 +47,6 @@ urlpatterns = [
     path("passport-admin/", passport_admin_api.urls),
     # path("__debug__/", include("debug_toolbar.urls")),
     path("trusta_labs/", include("trusta_labs.urls")),
+    path("stake/", include("stake.urls")),
     path("passport/", include("passport.urls")),
 ]
