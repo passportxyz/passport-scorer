@@ -11,7 +11,6 @@ from account.models import Account, Community, Nonce, Rules
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import Q
 from ninja import Router
 from ninja.pagination import paginate
 from ninja_extra.exceptions import APIException
@@ -26,7 +25,6 @@ from registry.api.schema import (
     GenericCommunityResponse,
     GtcEventsResponse,
     SigningMessageResponse,
-    StakeSchema,
     StampDisplayResponse,
     SubmitPassportPayload,
 )
@@ -57,7 +55,7 @@ from registry.exceptions import (
     api_get_object_or_404,
 )
 from registry.filters import GTCStakeEventsFilter
-from registry.models import Event, GTCStakeEvent, Passport, Score, Stake, Stamp
+from registry.models import Event, GTCStakeEvent, Passport, Score, Stamp
 from registry.tasks import score_passport_passport, score_registry_passport
 from registry.utils import (
     decode_cursor,
@@ -752,43 +750,4 @@ def get_gtc_stake_legacy(request, address: str, round_id: str) -> GtcEventsRespo
         filtered_queryset = GTCStakeEventsFilter(data=params, queryset=queryset).qs
         return {"results": [obj for obj in filtered_queryset.values()]}
     except Exception as e:
-        raise StakingRequestError()
-
-
-@router.get(
-    "/gtc-stake/{str:address}",
-    # auth=ApiKey(),
-    auth=None,
-    response={
-        200: List[StakeSchema],
-        400: ErrorMessageResponse,
-    },
-    summary="Retrieve GTC stake amounts for the GTC Staking stamp",
-    description="Get self and community GTC stakes for an address",
-)
-def get_gtc_stake(request, address: str) -> List[StakeSchema]:
-    """
-    Get GTC relevant stakes for an address
-    """
-    if not is_valid_address(address):
-        raise InvalidAddressException()
-
-    address = address.lower()
-
-    try:
-        return [
-            StakeSchema(
-                chain=Stake.Chain.names[stake.chain],
-                staker=stake.staker,
-                stakee=stake.stakee,
-                amount=stake.current_amount,
-                unlock_time=stake.unlock_time.isoformat(),
-                lock_duration=stake.lock_duration,
-            )
-            for stake in with_read_db(Stake).filter(
-                Q(staker=address) | Q(stakee=address)
-            )
-        ]
-    except Exception as e:
-        log.exception("Error getting GTC stakes")
         raise StakingRequestError()

@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     "registry",
     "scorer_apu",
     "scorer_weighted",
+    "stake",
     "ceramic_cache",
     "corsheaders",
     "account",
@@ -241,9 +242,11 @@ if LOGGING_STRATEGY in ("structlog_json", "structlog_flatline"):
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
-                "formatter": "json_formatter"
-                if LOGGING_STRATEGY == "structlog_json"
-                else "plain_console",
+                "formatter": (
+                    "json_formatter"
+                    if LOGGING_STRATEGY == "structlog_json"
+                    else "plain_console"
+                ),
             },
             # "json_file": {
             #     "class": "logging.handlers.WatchedFileHandler",

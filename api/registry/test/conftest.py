@@ -2,6 +2,7 @@
 from scorer.test.conftest import (
     gtc_staking_response,
     passport_holder_addresses,
+    sample_address,
     scorer_account,
     scorer_api_key,
     scorer_api_key_no_permissions,
