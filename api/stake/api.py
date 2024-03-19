@@ -42,7 +42,7 @@ def handle_get_gtc_stake(address: str) -> List[StakeSchema]:
     try:
         return [
             StakeSchema(
-                chain=Stake.Chain.names[stake.chain],
+                chain=stake.chain,
                 staker=stake.staker,
                 stakee=stake.stakee,
                 amount=stake.current_amount,

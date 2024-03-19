@@ -5,7 +5,7 @@ ErrorMessageResponse = ErrorMessageResponse
 
 
 class StakeSchema(Schema):
-    chain: str
+    chain: int
     staker: str
     stakee: str
     amount: str

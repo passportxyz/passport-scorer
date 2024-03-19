@@ -4,12 +4,8 @@ from django.db import models
 
 # Stores the current summary for each (chain, staker, stakee) combo
 class Stake(models.Model):
-    class Chain(models.IntegerChoices):
-        ETHEREUM = 0, "Ethereum"
-        OPTIMISM = 1, "Optimism"
-
-    chain = models.SmallIntegerField(
-        choices=Chain.choices, default=Chain.ETHEREUM, db_index=True
+    chain = models.IntegerField(
+        null=False, blank=False, db_index=True, help_text="Decimal chain ID"
     )
     lock_time = models.DateTimeField(null=False, blank=False)
     unlock_time = models.DateTimeField(null=False, blank=False)
@@ -56,8 +52,8 @@ class StakeEvent(models.Model):
         db_index=True,
     )
 
-    chain = models.SmallIntegerField(
-        choices=Stake.Chain.choices, null=False, blank=False, db_index=True
+    chain = models.IntegerField(
+        null=False, blank=False, db_index=True, help_text="Decimal chain ID"
     )
 
     # For self-stake, staker and stakee are the same
