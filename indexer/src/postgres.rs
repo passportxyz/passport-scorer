@@ -5,23 +5,21 @@ use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use ethers::types::H160;
 use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
-use std::collections::HashMap;
 use std::str::FromStr;
 use tokio_postgres::{Error, NoTls};
 
 use crate::{
-    utils::{get_code_for_stake_event_type, get_env, Chain, StakeAmountOperation, StakeEventType},
+    utils::{get_code_for_stake_event_type, get_env, StakeAmountOperation, StakeEventType},
     LEGACY_CONTRACT_START_BLOCK,
 };
 
 #[derive(Debug, Clone)]
 pub struct PostgresClient {
     pool: Pool,
-    start_block_map: HashMap<Chain, u64>,
 }
 
 impl PostgresClient {
-    pub async fn new(start_block_map: HashMap<Chain, u64>) -> Result<Self, Error> {
+    pub async fn new() -> Result<Self, Error> {
         let mut pg_config = tokio_postgres::Config::new();
 
         pg_config
@@ -40,7 +38,6 @@ impl PostgresClient {
 
         Ok(Self {
             pool,
-            start_block_map,
         })
     }
 
@@ -94,7 +91,7 @@ impl PostgresClient {
     pub async fn add_or_extend_stake(
         &self,
         event_type: &StakeEventType,
-        chain: &Chain,
+        chain_id: u32,
         staker: &H160,
         stakee: &H160,
         increase_amount: &u128,
@@ -103,7 +100,7 @@ impl PostgresClient {
         block_number: &u64,
         tx_hash: &str,
     ) -> Result<(), Error> {
-        let chain = *chain as i16;
+        let chain_id: i32 = chain_id as i32;
         let staker = format!("{:#x}", staker);
         let stakee = format!("{:#x}", stakee);
         let increase_amount = Decimal::from_u128(*increase_amount).unwrap();
@@ -124,7 +121,7 @@ impl PostgresClient {
                 "     current_amount = stake.current_amount + EXCLUDED.current_amount",
                 " WHERE EXCLUDED.last_updated_in_block >= stake.last_updated_in_block"
             ),
-            &[&chain, &staker, &stakee, &unlock_time, &lock_time, &block_number, &increase_amount]
+            &[&chain_id, &staker, &stakee, &unlock_time, &lock_time, &block_number, &increase_amount]
         ).await?;
 
         // Log raw event
@@ -133,12 +130,12 @@ impl PostgresClient {
                 "INSERT INTO stake_stakeevent (event_type, chain, staker, stakee, amount, unlock_time, block_number, tx_hash)",
                 " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
             ),
-            &[&get_code_for_stake_event_type(event_type), &chain, &staker, &stakee, &increase_amount, &unlock_time, &block_number, &tx_hash]
+            &[&get_code_for_stake_event_type(event_type), &chain_id, &staker, &stakee, &increase_amount, &unlock_time, &block_number, &tx_hash]
         ).await?;
 
         println!(
             "Added or extended stake in block {} on chain {}!",
-            block_number, chain
+            block_number, chain_id
         );
 
         Ok(())
@@ -147,7 +144,7 @@ impl PostgresClient {
     pub async fn update_stake_amount(
         &self,
         event_type: &StakeEventType,
-        chain: &Chain,
+        chain_id: u32,
         staker: &H160,
         stakee: &H160,
         change_amount: &u128,
@@ -155,7 +152,7 @@ impl PostgresClient {
         block_number: &u64,
         tx_hash: &str,
     ) -> Result<(), Error> {
-        let chain = *chain as i16;
+        let chain_id: i32 = chain_id as i32;
         let staker = format!("{:#x}", staker);
         let stakee = format!("{:#x}", stakee);
         let change_amount = Decimal::from_u128(*change_amount).unwrap();
@@ -176,7 +173,7 @@ impl PostgresClient {
                     " WHERE chain = $2 AND staker = $3 AND stakee = $4",
                     " AND last_updated_in_block <= $5"
                 ),
-                &[&amount, &chain, &staker, &stakee, &block_number],
+                &[&amount, &chain_id, &staker, &stakee, &block_number],
             )
             .await?;
 
@@ -187,24 +184,25 @@ impl PostgresClient {
                     "INSERT INTO stake_stakeevent (event_type, chain, staker, stakee, amount, block_number, tx_hash)",
                     " VALUES ($1, $2, $3, $4, $5, $6, $7)"
                 ),
-                &[&get_code_for_stake_event_type(event_type), &chain, &staker, &stakee, &amount, &block_number, &tx_hash],
+                &[&get_code_for_stake_event_type(event_type), &chain_id, &staker, &stakee, &amount, &block_number, &tx_hash],
             )
             .await?;
 
         println!(
             "Modified stake amount in block {} on chain {}!",
-            block_number, chain
+            block_number, chain_id
         );
 
         Ok(())
     }
 
-    pub async fn get_latest_block(&self, chain: &Chain) -> Result<u64, Error> {
+    pub async fn get_latest_block(&self, chain_id: u32, fallback_start_block: u64) -> Result<u64, Error> {
+        let chain_id: i32 = chain_id as i32;
         let client = self.pool.get().await.unwrap();
         let latest_block_rows = client
             .query(
                 "SELECT last_updated_in_block FROM stake_stake WHERE chain = $1 ORDER BY last_updated_in_block DESC LIMIT 1;",
-                &[&(*chain as i16)],
+                &[&chain_id],
             )
             .await?;
 
@@ -214,7 +212,7 @@ impl PostgresClient {
             Ok(latest_block.to_u64().unwrap())
         } else {
             // return contract start block
-            Ok(*self.start_block_map.get(chain).unwrap())
+            Ok(fallback_start_block)
         }
     }
 

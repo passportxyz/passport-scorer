@@ -1,6 +1,6 @@
 use crate::{
     postgres::PostgresClient,
-    utils::{create_rpc_connection, Chain, StakeAmountOperation, StakeEventType},
+    utils::{create_rpc_connection, StakeAmountOperation, StakeEventType},
 };
 use ethers::{
     contract::{abigen, LogMeta},
@@ -19,31 +19,40 @@ abigen!(IdentityStaking, "./src/IdentityStaking.json",);
 pub struct StakingIndexer<'a> {
     postgres_client: PostgresClient,
     rpc_url: &'a String,
-    chain: Chain,
+    chain_id: u32,
+    start_block: u64,
     contract_address: &'a Address,
 }
 
+async fn get_chain_id(rpc_url: &String) -> Result<u32> {
+    let client = create_rpc_connection(rpc_url).await;
+    let chain_id = client.get_chainid().await?;
+    Ok(chain_id.as_u32())
+}
+
 impl<'a> StakingIndexer<'a> {
-    pub fn new(
+    pub async fn new(
         postgres_client: PostgresClient,
         rpc_url: &'a String,
-        chain: Chain,
+        start_block: u64,
         contract_address: &'a Address,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        let chain_id = get_chain_id(rpc_url).await.unwrap();
+        Ok(Self {
             postgres_client,
             rpc_url,
-            chain,
+            chain_id,
+            start_block,
             contract_address,
-        }
+        })
     }
 
     pub async fn listen_with_timeout_reset(&self) -> Result<()> {
         loop {
-            let start_block = self.postgres_client.get_latest_block(&self.chain).await?;
+            let start_block = self.postgres_client.get_latest_block(self.chain_id, self.start_block).await?;
             println!(
                 "Debug - Starting indexer for chain {} at block {}",
-                self.chain as u8, start_block
+                self.chain_id, start_block
             );
 
             match try_join!(
@@ -53,7 +62,7 @@ impl<'a> StakingIndexer<'a> {
                 Ok(_) => {
                     eprintln!(
                         "Warning - indexer timeout join ended without error for chain {}",
-                        self.chain as u8
+                        self.chain_id
                     );
                 }
                 Err(err) => {
@@ -61,11 +70,11 @@ impl<'a> StakingIndexer<'a> {
                         .to_string()
                         .contains("No events logged in the last 15 minutes")
                     {
-                        eprintln!("Warning - resetting indexer due to no events logged in the last 15 minutes for chain {}", self.chain as u8);
+                        eprintln!("Warning - resetting indexer due to no events logged in the last 15 minutes for chain {}", self.chain_id);
                     } else {
                         eprintln!(
                             "Warning - indexer timeout join ended with error for chain {}, {:?}",
-                            self.chain as u8, err
+                            self.chain_id, err
                         );
                     }
                 }
@@ -74,21 +83,21 @@ impl<'a> StakingIndexer<'a> {
     }
 
     async fn throw_when_no_events_logged(&self, starting_event_block: &u64) -> Result<()> {
-        let mut start_block = *starting_event_block;
+        let mut timer_begin_block = *starting_event_block;
         loop {
             // sleep for 15 minutes
             tokio::time::sleep(tokio::time::Duration::from_secs(900)).await;
 
-            let latest_logged_block = self.postgres_client.get_latest_block(&self.chain).await?;
+            let latest_logged_block = self.postgres_client.get_latest_block(self.chain_id, self.start_block).await?;
 
-            if latest_logged_block == start_block {
+            if latest_logged_block == timer_begin_block {
                 return Err(eyre::eyre!(
                     "No events logged in the last 15 minutes for chain {}",
-                    self.chain as u8
+                    self.chain_id
                 ));
             }
 
-            start_block = latest_logged_block;
+            timer_begin_block = latest_logged_block;
         }
     }
 
@@ -107,7 +116,7 @@ impl<'a> StakingIndexer<'a> {
         } else {
             eprintln!(
                 "Warning - Failed to fetch current block number for chain {}",
-                self.chain as u8
+                self.chain_id
             );
         }
 
@@ -145,7 +154,7 @@ impl<'a> StakingIndexer<'a> {
 
         eprintln!(
             "Debug - Finished querying past events for chain {}",
-            self.chain as u8
+            self.chain_id
         );
 
         let future_events = id_staking_contract
@@ -156,7 +165,7 @@ impl<'a> StakingIndexer<'a> {
 
         eprintln!(
             "Debug - Listening for future events for chain {}",
-            self.chain as u8
+            self.chain_id
         );
 
         while let Some(event_with_meta) = stream.next().await {
@@ -164,7 +173,7 @@ impl<'a> StakingIndexer<'a> {
                 Err(err) => {
                     eprintln!(
                         "Error - Failed to fetch IdentityStaking events for chain {}: {:?}",
-                        self.chain as u8, err
+                        self.chain_id, err
                     );
                     break;
                 }
@@ -214,7 +223,7 @@ impl<'a> StakingIndexer<'a> {
             _ => {
                 eprintln!(
                     "Debug - Unhandled event in tx {} for chain {}",
-                    tx_hash, self.chain as u8
+                    tx_hash, self.chain_id
                 );
                 Ok(())
             }
@@ -250,7 +259,7 @@ impl<'a> StakingIndexer<'a> {
             .postgres_client
             .add_or_extend_stake(
                 &StakeEventType::SelfStake,
-                &self.chain,
+                self.chain_id,
                 &event.staker,
                 &event.staker,
                 &event.amount,
@@ -263,7 +272,7 @@ impl<'a> StakingIndexer<'a> {
         {
             eprintln!(
                 "Error - Failed to process self stake event for chain {}: {:?}",
-                self.chain as u8, err
+                self.chain_id, err
             );
         }
         Ok(())
@@ -282,7 +291,7 @@ impl<'a> StakingIndexer<'a> {
             .postgres_client
             .add_or_extend_stake(
                 &StakeEventType::CommunityStake,
-                &self.chain,
+                self.chain_id,
                 &event.staker,
                 &event.stakee,
                 &event.amount,
@@ -295,7 +304,7 @@ impl<'a> StakingIndexer<'a> {
         {
             eprintln!(
                 "Error - Failed to process community stake event for chain {}: {:?}",
-                self.chain as u8, err
+                self.chain_id, err
             );
         }
         Ok(())
@@ -311,7 +320,7 @@ impl<'a> StakingIndexer<'a> {
             .postgres_client
             .update_stake_amount(
                 &StakeEventType::SelfStakeWithdraw,
-                &self.chain,
+                self.chain_id,
                 &event.staker,
                 &event.staker,
                 &event.amount,
@@ -323,7 +332,7 @@ impl<'a> StakingIndexer<'a> {
         {
             eprintln!(
                 "Error - Failed to process self stake event for chain {}: {:?}",
-                self.chain as u8, err
+                self.chain_id, err
             );
         }
         Ok(())
@@ -339,7 +348,7 @@ impl<'a> StakingIndexer<'a> {
             .postgres_client
             .update_stake_amount(
                 &StakeEventType::CommunityStakeWithdraw,
-                &self.chain,
+                self.chain_id,
                 &event.staker,
                 &event.stakee,
                 &event.amount,
@@ -351,7 +360,7 @@ impl<'a> StakingIndexer<'a> {
         {
             eprintln!(
                 "Error - Failed to process community stake event for chain {}: {:?}",
-                self.chain as u8, err
+                self.chain_id, err
             );
         }
         Ok(())
@@ -367,7 +376,7 @@ impl<'a> StakingIndexer<'a> {
             .postgres_client
             .update_stake_amount(
                 &StakeEventType::Slash,
-                &self.chain,
+                self.chain_id,
                 &event.staker,
                 &event.stakee,
                 &event.amount,
@@ -379,7 +388,7 @@ impl<'a> StakingIndexer<'a> {
         {
             eprintln!(
                 "Error - Failed to process slash event for chain {}: {:?}",
-                self.chain as u8, err
+                self.chain_id, err
             );
         }
         Ok(())
@@ -395,7 +404,7 @@ impl<'a> StakingIndexer<'a> {
             .postgres_client
             .update_stake_amount(
                 &StakeEventType::Release,
-                &self.chain,
+                self.chain_id,
                 &event.staker,
                 &event.stakee,
                 &event.amount,
@@ -407,7 +416,7 @@ impl<'a> StakingIndexer<'a> {
         {
             eprintln!(
                 "Error - Failed to process release event for chain {}: {:?}",
-                self.chain as u8, err
+                self.chain_id, err
             );
         }
         Ok(())

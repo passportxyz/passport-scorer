@@ -40,13 +40,6 @@ async fn connect_with_reconnects(rpc_url: &String) -> Option<Provider<Ws>> {
     }
 }
 
-#[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Debug, Eq, Hash)]
-pub enum Chain {
-    Ethereum = 0,
-    Optimism = 1,
-}
-
 #[derive(Copy, Clone)]
 pub enum StakeAmountOperation {
     Add,

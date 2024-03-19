@@ -3,7 +3,6 @@ mod postgres;
 mod staking_indexer;
 mod utils;
 
-use std::collections::HashMap;
 use dotenv::dotenv;
 use ethers::core::types::Address;
 use eyre::Result;
@@ -11,20 +10,17 @@ use futures::try_join;
 use legacy_staking_indexer::LegacyStakingIndexer;
 use postgres::PostgresClient;
 use staking_indexer::StakingIndexer;
-use utils::{get_env, Chain};
+use utils::get_env;
 
 pub const LEGACY_CONTRACT_START_BLOCK: i32 = 16403024;
 pub const LEGACY_CONTRACT_ADDRESS: &str = "0x0E3efD5BE54CC0f4C64e0D186b0af4b7F2A0e95F";
-
-pub const CONTRACT_START_BLOCK_MAP: &[(Chain, u64)] =
-    &[(Chain::Ethereum, 16403024), (Chain::Optimism, 0)];
 
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
 
     loop {
-        let postgres_client = initialize_postgres_client().await?;
+        let postgres_client = PostgresClient::new().await?;
         let contract_address = get_env("STAKING_CONTRACT_ADDRESS")
             .parse::<Address>()
             .unwrap();
@@ -46,21 +42,6 @@ async fn main() -> Result<()> {
     }
 }
 
-async fn initialize_postgres_client() -> Result<PostgresClient> {
-    let mut start_block_map = HashMap::new();
-    start_block_map.insert(
-        Chain::Ethereum,
-        get_env("INDEXER_ETHEREUM_START_BLOCK").parse::<u64>().unwrap(),
-    );
-    start_block_map.insert(
-        Chain::Optimism,
-        get_env("INDEXER_OPTIMISM_START_BLOCK").parse::<u64>().unwrap(),
-    );
-
-    let postgres_client = PostgresClient::new(start_block_map).await?;
-    Ok(postgres_client)
-}
-
 async fn run_legacy_indexer(postgres_client: PostgresClient) -> Result<()> {
     if get_env("INDEXER_LEGACY_ENABLED") != "true" {
         return Ok(());
@@ -71,24 +52,46 @@ async fn run_legacy_indexer(postgres_client: PostgresClient) -> Result<()> {
     legacy_staking_indexer.listen_with_timeout_reset().await
 }
 
-async fn run_ethereum_indexer(postgres_client: PostgresClient, contract_address: &Address) -> Result<()> {
+async fn run_ethereum_indexer(
+    postgres_client: PostgresClient,
+    contract_address: &Address,
+) -> Result<()> {
     if get_env("INDEXER_ETHEREUM_ENABLED") != "true" {
         return Ok(());
     }
 
     let ethereum_rpc_url = get_env("INDEXER_ETHEREUM_RPC_URL");
-    let ethereum_staking_indexer =
-        StakingIndexer::new(postgres_client, &ethereum_rpc_url, Chain::Ethereum, contract_address);
+    let ethereum_start_block = get_env("INDEXER_ETHEREUM_START_BLOCK")
+        .parse::<u64>()
+        .unwrap();
+    let ethereum_staking_indexer = StakingIndexer::new(
+        postgres_client,
+        &ethereum_rpc_url,
+        ethereum_start_block,
+        contract_address,
+    )
+    .await?;
     ethereum_staking_indexer.listen_with_timeout_reset().await
 }
 
-async fn run_optimism_indexer(postgres_client: PostgresClient, contract_address: &Address) -> Result<()> {
+async fn run_optimism_indexer(
+    postgres_client: PostgresClient,
+    contract_address: &Address,
+) -> Result<()> {
     if get_env("INDEXER_OPTIMISM_ENABLED") != "true" {
         return Ok(());
     }
 
     let optimism_rpc_url = get_env("INDEXER_OPTIMISM_RPC_URL");
-    let optimism_staking_indexer =
-        StakingIndexer::new(postgres_client, &optimism_rpc_url, Chain::Optimism, contract_address);
+    let optimism_start_block = get_env("INDEXER_OPTIMISM_START_BLOCK")
+        .parse::<u64>()
+        .unwrap();
+    let optimism_staking_indexer = StakingIndexer::new(
+        postgres_client,
+        &optimism_rpc_url,
+        optimism_start_block,
+        contract_address,
+    )
+    .await?;
     optimism_staking_indexer.listen_with_timeout_reset().await
 }
