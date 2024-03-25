@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -7,6 +8,7 @@ from typing import Optional, Type
 
 import api_logging as logging
 from django.conf import settings
+from django.core.validators import RegexValidator
 from django.db import models
 from rest_framework_api_key.models import AbstractAPIKey
 from scorer_weighted.models import BinaryWeightedScorer, Scorer, WeightedScorer
@@ -19,10 +21,52 @@ Q = models.Q
 tz = timezone.utc
 
 
+HEXA_RE = re.compile("^0x[A-Fa-f0-9]+$")
+HEXA_VALID = RegexValidator(HEXA_RE, "Enter a valid hex string ", "invalid")
+
+
+class HexStringField(models.CharField):
+    def __init__(self, *args, **kwargs):
+        if "validators" not in kwargs:
+            kwargs["validators"] = []
+
+        kwargs["validators"] += [HEXA_VALID]
+        super(HexStringField, self).__init__(*args, **kwargs)
+
+    def get_prep_value(self, value):
+        return str(value).lower()
+
+
 class EthAddressField(models.CharField):
     def __init__(self, *args, **kwargs):
         if "max_length" not in kwargs:
             kwargs["max_length"] = 42
+        super().__init__(*args, **kwargs)
+
+    def get_prep_value(self, value):
+        return str(value).lower()
+
+
+class EthSignature(HexStringField):
+    """
+    Stores an ETH signature in hex format at like: '0x...'
+    The value will always be converted to lowercase
+    """
+
+    def __init__(self, *args, **kwargs):
+        if "max_length" not in kwargs:
+            kwargs["max_length"] = 132
+        super().__init__(*args, **kwargs)
+
+
+class NonceField(models.CharField):
+    """
+    Field to store a Nonce
+    """
+
+    def __init__(self, *args, **kwargs):
+        if "max_length" not in kwargs:
+            kwargs["max_length"] = 60
         super().__init__(*args, **kwargs)
 
     def get_prep_value(self, value):

@@ -11,8 +11,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 import os
-
-import django_structlog
+from datetime import timedelta
 
 from .env import BASE_DIR, env
 
@@ -89,6 +88,8 @@ INSTALLED_APPS = [
     "cgrants",
     "django_filters",
     "trusta_labs",
+    "tos",
+    "django_ace",
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -356,8 +357,6 @@ else:
 
 STATIC_ROOT = BASE_DIR / "static"
 
-
-from datetime import timedelta
 
 NINJA_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
