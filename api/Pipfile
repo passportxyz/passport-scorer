@@ -43,6 +43,7 @@ pynacl = "*"
 faker = "*"
 python-jose = "*"
 uvarint = "*"
+django-ace = "*"
 
 [dev-packages]
 black = "*"

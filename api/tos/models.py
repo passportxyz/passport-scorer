@@ -77,14 +77,12 @@ class TosAcceptanceProof(models.Model):
     @classmethod
     def has_accepted(cls, address: str, tos_type: str) -> bool:
         try:
-            print("filter: ", address, tos_type)
             ret = TosAcceptanceProof.objects.filter(
                 address=address.lower(), tos__type=tos_type, tos__active=True
             ).exists()
-            print("filter: ", ret)
             return ret
-        except Exception as e:
-            print("Error: ", e)
+        except Exception:
+            raise
 
     class Meta:
         unique_together = ["tos", "address"]
