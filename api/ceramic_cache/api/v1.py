@@ -1,9 +1,11 @@
 """Ceramic Cache API"""
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Type
 
 import api_logging as logging
+import tos.api
+import tos.schema
 from account.models import Account, Nonce
 from asgiref.sync import async_to_sync
 from django.conf import settings
@@ -26,7 +28,6 @@ from registry.api.v1 import (
     SubmitPassportPayload,
     ahandle_submit_passport,
     handle_get_score,
-    handle_submit_passport,
 )
 from registry.models import Score
 from stake.api import handle_get_gtc_stake
@@ -188,7 +189,7 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
         address = get_address_from_did(request.did)
         return handle_patch_stamps(address, payload)
 
-    except Exception as e:
+    except Exception:
         log.error(
             "Failed patch_stamps request: '%s'",
             [p.dict() for p in payload],
@@ -522,6 +523,45 @@ def get_detailed_score_response_for_address(address: str) -> DetailedScoreRespon
     },
     auth=JWTDidAuth(),
 )
-def get_score(request) -> List[StakeSchema]:
+def get_staked_gtc(request) -> List[StakeSchema]:
     address = get_address_from_did(request.did)
     return handle_get_gtc_stake(address)
+
+
+@router.get(
+    "/tos/accepted/{str:tos_type}/{str:address}",
+    auth=JWTDidAuth(),
+    response={
+        200: tos.schema.TosAccepted,
+        400: ErrorMessageResponse,
+    },
+    summary="Check that tos was accepted",
+)
+def tos_check_accepted(request, tos_type: str, address: str) -> tos.schema.TosAccepted:
+    return tos.api.check_tos_accepted(tos_type, address)
+
+
+@router.get(
+    "/tos/message-to-sign/{str:tos_type}/{str:address}",
+    auth=JWTDidAuth(),
+    response={
+        200: tos.schema.TosToSign,
+        400: ErrorMessageResponse,
+    },
+    summary="Get the tos message to sign",
+)
+def get_tos_to_sign(request, tos_type: str, address: str) -> tos.schema.TosToSign:
+    return tos.api.get_tos_to_sign(tos_type, address)
+
+
+@router.post(
+    "/tos/signed-message/{str:tos_type}/{str:address}",
+    auth=JWTDidAuth(),
+    response={
+        200: None,
+        400: ErrorMessageResponse,
+    },
+    summary="Accept the tos",
+)
+def accept_tos(request, payload: tos.schema.TosSigned) -> None:
+    tos.api.accept_tos(payload)
