@@ -51,8 +51,8 @@ impl<'a> StakingIndexer<'a> {
         loop {
             let start_block = self.postgres_client.get_latest_block(self.chain_id, self.start_block).await?;
             println!(
-                "Debug - Starting indexer for chain {} at block {}",
-                self.chain_id, start_block
+                "Debug - Starting indexer for chain {} at block {} at {}",
+                self.chain_id, start_block, chrono::Utc::now()
             );
 
             match try_join!(
