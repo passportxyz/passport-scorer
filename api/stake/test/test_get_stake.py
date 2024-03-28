@@ -81,7 +81,7 @@ class TestGetStakingResults:
     ):
         client = Client()
         response = client.get(
-            f"/ceramic-cache/stake/gtc",  # noqa: F541
+            "/ceramic-cache/stake/gtc",
             HTTP_AUTHORIZATION="Bearer " + sample_token,
         )
 
@@ -98,7 +98,7 @@ class TestGetStakingResults:
     def test_ceramic_cache_endpoint_failed_auth(self, mock_stakes):
         client = Client()
         response = client.get(
-            f"/ceramic-cache/stake/gtc",  # noqa: F541
+            "/ceramic-cache/stake/gtc",
             HTTP_AUTHORIZATION="Bearer 69420",
         )
 
