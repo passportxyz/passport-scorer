@@ -24,6 +24,10 @@ tz = timezone.utc
 
 HEXA_RE = re.compile("^0x[A-Fa-f0-9]+$")
 HEXA_VALID = RegexValidator(HEXA_RE, "Enter a valid hex string ", "invalid")
+RGB_HEXA_RE = re.compile("^#[A-Fa-f0-9]{6}$")
+RGB_HEXA_VALID = RegexValidator(
+    RGB_HEXA_RE, "Enter a valid RGBA color as hex string ", "invalid"
+)
 RGBA_HEXA_RE = re.compile("^#[A-Fa-f0-9]{8}$")
 RGBA_HEXA_VALID = RegexValidator(
     RGBA_HEXA_RE, "Enter a valid RGBA color as hex string ", "invalid"
@@ -66,14 +70,32 @@ class HexStringField(models.CharField):
 class RGBAHexColorField(models.CharField):
     def __init__(self, *args, **kwargs):
         if "validators" not in kwargs:
-            kwargs["validators"] = [RGBA_HEXA_VALID]
+            kwargs["validators"] = [RGB_HEXA_VALID]
 
         if "max_length" not in kwargs:
-            kwargs["max_length"] = 9
+            kwargs["max_length"] = 7
 
         super(RGBAHexColorField, self).__init__(*args, **kwargs)
 
     def get_prep_value(self, value):
+        if value is None:
+            return None
+        return str(value).lower()
+
+
+class RGBHexColorField(models.CharField):
+    def __init__(self, *args, **kwargs):
+        if "validators" not in kwargs:
+            kwargs["validators"] = [RGB_HEXA_VALID]
+
+        if "max_length" not in kwargs:
+            kwargs["max_length"] = 7
+
+        super(RGBHexColorField, self).__init__(*args, **kwargs)
+
+    def get_prep_value(self, value):
+        if value is None:
+            return None
         return str(value).lower()
 
 
@@ -374,18 +396,18 @@ class Customization(models.Model):
     use_custom_dashboard_panel = models.BooleanField(default=False)
 
     # CustomizationTheme
-    customization_background_1 = RGBAHexColorField(
-        help_text="Background color 1. RGBA hex value expected, for example `#aaff6655`",
+    customization_background_1 = RGBHexColorField(
+        help_text="Background color 1. RGB hex value expected, for example `#aaff66`",
         null=True,
         blank=True,
     )
-    customization_background_2 = RGBAHexColorField(
-        help_text="Background color 2. RGBA hex value expected, for example `#aaff6655`",
+    customization_background_2 = RGBHexColorField(
+        help_text="Background color 2. RGB hex value expected, for example `#aaff66`",
         null=True,
         blank=True,
     )
-    customization_foreground_1 = RGBAHexColorField(
-        help_text="Foreground color. RGBA hex value expected, for example `#aaff6655`",
+    customization_foreground_1 = RGBHexColorField(
+        help_text="Foreground color. RGB hex value expected, for example `#aaff66`",
         null=True,
         blank=True,
     )

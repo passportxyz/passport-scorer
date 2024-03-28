@@ -192,11 +192,19 @@ class CustomizationForm(forms.ModelForm):
         }
         fields = "__all__"
 
+    def clean_scorer(self):
+        community = self.cleaned_data.get("scorer")
+        if community.scorer.type != Scorer.Type.WEIGHTED_BINARY:
+            raise forms.ValidationError(
+                "A Binary weighted scorer is required in a custom dashboard!"
+            )
+        return community
+
 
 @admin.register(Customization)
 class CustomizationAdmin(ScorerModelAdmin):
     form = CustomizationForm
-
+    raw_id_fields = ["scorer"]
     fieldsets = [
         (
             None,
@@ -236,4 +244,15 @@ class CustomizationAdmin(ScorerModelAdmin):
         ),
     ]
 
-    list_display = ["id", "path"]
+    list_display = ["display", "id", "path", "use_custom_dashboard_panel", "scorer"]
+
+    @admin.display(ordering="id")
+    def display(self, obj):
+        return f"{obj.id} - {obj.path}"
+
+    def save_model(self, request, obj, form, change):
+        # Perform your validation logic
+        if "validate_something" in request.POST:
+            # Perform some validation...
+            pass
+        super().save_model(request, obj, form, change)
