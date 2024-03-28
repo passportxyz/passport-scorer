@@ -1,4 +1,5 @@
 from ninja import Schema
+from typing import List
 from registry.api.schema import ErrorMessageResponse
 
 ErrorMessageResponse = ErrorMessageResponse
@@ -11,3 +12,6 @@ class StakeSchema(Schema):
     amount: str
     unlock_time: str
     lock_time: str
+
+class GetSchemaResponse(Schema):
+    items: List[StakeSchema]
