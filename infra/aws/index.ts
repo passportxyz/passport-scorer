@@ -1141,6 +1141,7 @@ buildHttpLambdaFn({
   memorySize: 1024,
   dockerCmd: ["aws_lambdas.submit_passport.submit_passport.handler"],
   pathPatterns: ["/registry/submit-passport", "/registry/v2/submit-passport"],
+  httpRequestMethods: ["POST"],
   listenerPriority: 1001,
 });
 
