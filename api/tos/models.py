@@ -68,6 +68,8 @@ class Tos(models.Model):
             ),
         ]
 
+        permissions = (("activate_tos", "Can activate TOS instances"),)
+
 
 class TosAcceptanceProof(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
