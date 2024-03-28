@@ -31,7 +31,7 @@ from registry.api.v1 import (
 )
 from registry.models import Score
 from stake.api import handle_get_gtc_stake
-from stake.schema import StakeSchema
+from stake.schema import StakeSchema, GetSchemaResponse
 
 from ..exceptions import (
     InternalServerException,
@@ -518,14 +518,17 @@ def get_detailed_score_response_for_address(address: str) -> DetailedScoreRespon
 @router.get(
     "/stake/gtc",
     response={
-        200: List[StakeSchema],
+        200: GetSchemaResponse,
         400: ErrorMessageResponse,
     },
     auth=JWTDidAuth(),
 )
-def get_staked_gtc(request) -> List[StakeSchema]:
+def get_staked_gtc(request) -> GetSchemaResponse:
     address = get_address_from_did(request.did)
-    return handle_get_gtc_stake(address)
+    get_stake_response =  handle_get_gtc_stake(address)
+    response = GetSchemaResponse(items=get_stake_response)
+    return response
+
 
 
 @router.get(

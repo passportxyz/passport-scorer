@@ -59,8 +59,7 @@ class TestGetStakingResults:
             f"/stake/gtc/{sample_address.lower()}",
             HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
-
-        response_data = response.json()
+        response_data = response.json()['items']
         print(response_data)
         assert response.status_code == 200
 
@@ -82,11 +81,11 @@ class TestGetStakingResults:
     ):
         client = Client()
         response = client.get(
-            f"/ceramic-cache/stake/gtc",
+            f"/ceramic-cache/stake/gtc",  # noqa: F541
             HTTP_AUTHORIZATION="Bearer " + sample_token,
         )
 
-        response_data = response.json()
+        response_data = response.json()['items']
         assert response.status_code == 200
 
         # an extra stake event was added that is below the filtered amount, hence the minus 1
@@ -99,7 +98,7 @@ class TestGetStakingResults:
     def test_ceramic_cache_endpoint_failed_auth(self, mock_stakes):
         client = Client()
         response = client.get(
-            f"/ceramic-cache/stake/gtc",
+            f"/ceramic-cache/stake/gtc",  # noqa: F541
             HTTP_AUTHORIZATION="Bearer 69420",
         )
 

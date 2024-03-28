@@ -34,7 +34,6 @@ def get_gtc_stake(request, address: str) -> GetSchemaResponse:
         raise InvalidAddressException()
 
     get_stake_response =  handle_get_gtc_stake(address)
-    # log.debug("get_stake_response =", get_stake_response)
     response = GetSchemaResponse(items=get_stake_response)
     return response
 
