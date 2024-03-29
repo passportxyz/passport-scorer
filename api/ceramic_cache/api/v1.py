@@ -1,7 +1,7 @@
 """Ceramic Cache API"""
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Type
+from typing import Any, Dict, List, Type, Optional
 
 import api_logging as logging
 import tos.api
@@ -45,6 +45,7 @@ from .schema import (
     CacaoVerifySubmit,
     CachedStampResponse,
     CacheStampPayload,
+    CalcScorePayload,
     ComporeDBStatusResponse,
     ComposeDBStatusPayload,
     DeleteStampPayload,
@@ -407,12 +408,16 @@ def handle_get_stamps(address):
     response=DetailedScoreResponse,
     auth=JWTDidAuth(),
 )
-def get_score(request, address: str) -> DetailedScoreResponse:
-    return handle_get_ui_score(address)
+def get_score(
+    request, address: str, alternate_scorer_id: Optional[int] = None
+) -> DetailedScoreResponse:
+    return handle_get_ui_score(address, alternate_scorer_id)
 
 
-def handle_get_ui_score(address: str) -> DetailedScoreResponse:
-    scorer_id = settings.CERAMIC_CACHE_SCORER_ID
+def handle_get_ui_score(
+    address: str, alternate_scorer_id: Optional[int]
+) -> DetailedScoreResponse:
+    scorer_id = alternate_scorer_id or settings.CERAMIC_CACHE_SCORER_ID
     account = get_object_or_404(Account, community__id=scorer_id)
     return handle_get_score(address, scorer_id, account)
 
@@ -422,8 +427,10 @@ def handle_get_ui_score(address: str) -> DetailedScoreResponse:
     response=DetailedScoreResponse,
     auth=JWTDidAuth(),
 )
-def calc_score(request, address: str) -> DetailedScoreResponse:
-    return get_detailed_score_response_for_address(address)
+def calc_score(
+    request, address: str, payload: CalcScorePayload
+) -> DetailedScoreResponse:
+    return get_detailed_score_response_for_address(address, payload.alternate_scorer_id)
 
 
 class FailedVerificationException(APIException):
@@ -498,8 +505,10 @@ def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
         raise APIException(detail=f"Failed authenticate request: {str(esc)}") from esc
 
 
-def get_detailed_score_response_for_address(address: str) -> DetailedScoreResponse:
-    scorer_id = settings.CERAMIC_CACHE_SCORER_ID
+def get_detailed_score_response_for_address(
+    address: str, alternate_scorer_id: Optional[int] = None
+) -> DetailedScoreResponse:
+    scorer_id = alternate_scorer_id or settings.CERAMIC_CACHE_SCORER_ID
     if not scorer_id:
         raise InternalServerException("Scorer ID not set")
 
