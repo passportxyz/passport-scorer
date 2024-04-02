@@ -399,6 +399,12 @@ class Customization(models.Model):
         blank=True,
         unique=False,
     )
+    scorer_panel_text = models.TextField(
+        help_text="This is the text for the scorer panel",
+        null=True,
+        blank=True,
+        unique=False,
+    )
     scorer = models.ForeignKey(Community, on_delete=models.PROTECT)
     use_custom_dashboard_panel = models.BooleanField(default=False)
 
