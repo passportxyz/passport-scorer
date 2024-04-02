@@ -392,6 +392,13 @@ class Customization(models.Model):
         unique=True,
         validators=[],
     )
+    scorer_panel_title = models.CharField(
+        help_text="This is the title for the scorer panel",
+        max_length=100,
+        null=True,
+        blank=True,
+        unique=False,
+    )
     scorer = models.ForeignKey(Community, on_delete=models.PROTECT)
     use_custom_dashboard_panel = models.BooleanField(default=False)
 
