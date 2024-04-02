@@ -212,6 +212,7 @@ class CustomizationAdmin(ScorerModelAdmin):
                 "fields": [
                     "path",
                     "scorer_panel_title",
+                    "scorer_panel_text",
                     "scorer",
                     "use_custom_dashboard_panel",
                 ],

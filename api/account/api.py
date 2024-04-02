@@ -607,7 +607,10 @@ def get_account_customization(request, dashboard_path: str):
                     "customizationForeground1": customization.customization_foreground_1,
                 }
             },
-            scorerPanel={"title": customization.scorer_panel_title},
+            scorerPanel={
+                "title": customization.scorer_panel_title,
+                "text": customization.scorer_panel_text,
+            },
             dashboardPanel={
                 "logo": {
                     "image": customization.logo_image,
