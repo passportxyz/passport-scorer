@@ -87,8 +87,7 @@ class Command(BaseCommand):
                     table_name = model._meta.db_table
                     output_file = f"{table_name}.parquet"
                     export_data_for_model(
-                        self.database,
-                        model,
+                        model.objects.all(),
                         self.sort_field,
                         self.batch_size,
                         writer_context_manager,
