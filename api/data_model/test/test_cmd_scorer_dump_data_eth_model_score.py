@@ -6,10 +6,45 @@ from django.core.management import call_command
 from data_model.models import Cache
 from django.core.serializers.json import DjangoJSONEncoder
 
+from django.db import connections
+
+
+@pytest.fixture
+def create_cache_table():
+    connection = connections["data_model"]
+    # setup: aka this code will run before the test
+    # connection.disable_constraint_checking
+
+    db_engine = connections["data_model"].settings_dict["ENGINE"]
+    # This test is expected to only fork on postgres because on SQLite the unmanaged model cannot be created successfully
+    assert (
+        db_engine == "django.db.backends.postgresql"
+    ), "This test is currently only supposed to work on postgres. Models cannot be created on SQLite atm."
+
+    # Disable foreign key constraint checks
+    # TODO: this is unfortunatly not work for SQLite, it does not have the desired effect ...
+    # with connection.cursor() as cursor:
+    #     cursor.execute('PRAGMA foreign_keys=OFF')
+
+    with connection.constraint_checks_disabled():
+        with connection.schema_editor() as schema_editor:
+            schema_editor.create_model(Cache)
+
+    yield
+    # teardown: aka this will run after the test
+    with connection.constraint_checks_disabled():
+        with connection.schema_editor() as schema_editor:
+            schema_editor.delete_model(Cache)
+
+    # Re-enable foreign key constraint checks
+    # TODO: this is unfortunatly not work for SQLite
+    # with connection.cursor() as cursor:
+    #     cursor.execute('PRAGMA foreign_keys=ON')
+
 
 class TestGetStamps:
     @pytest.mark.django_db(databases=["default", "data_model"])
-    def test_dump_data_eth_model_score(self, mocker):
+    def test_dump_data_eth_model_score(self, mocker, create_cache_table):
         """Test the 'scorer_dump_data_eth_model_score' command"""
 
         ###############################################################
@@ -49,7 +84,7 @@ class TestGetStamps:
             **{
                 "batch_size": 2,  # set a small batch size, we want make sure it can handle pagination
                 "s3_uri": "s3://public.scorer.gitcoin.co/passport_scores/",
-                "database": "data_model",  # needs to be set to the data model DB
+                "filename": "eth_model_score.jsonl",
             },
         )
 
