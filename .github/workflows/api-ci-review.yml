@@ -69,6 +69,7 @@ jobs:
           CERAMIC_CACHE_SCORER_ID: ""
           SECRET_KEY: secret-test-value
           DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          DATA_MODEL_DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
           FF_API_ANALYTICS: on
 
   build-api:
@@ -254,7 +255,7 @@ jobs:
           DOCKER_GTC_PASSPORT_VERIFIER_IMAGE:  ${{secrets.ECR_BASE_URL_REVIEW}}/passport-verifier:${{ needs.build-verifier.outputs.dockerTag }}
           DOCKER_GTC_PASSPORT_INDEXER_IMAGE: ${{secrets.ECR_BASE_URL_REVIEW}}/passport-indexer:${{ needs.build-indexer.outputs.dockerTag }}
           DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE: ${{secrets.ECR_BASE_URL_REVIEW}}/submit-passport-lambdas:${{ needs.build-submit-passport-lambda.outputs.dockerTag }}
-          
+
           TRUSTED_IAM_ISSUERS: ${{ secrets.TRUSTED_IAM_ISSUERS }}
 
           REDASH_DB_USER: ${{ secrets.REDASH_DB_USER_REVIEW }}
@@ -263,7 +264,7 @@ jobs:
           REDASH_SECRET_KEY: ${{ secrets.REDASH_SECRET_KEY_REVIEW }}
           REDASH_MAIL_USERNAME: ${{ secrets.REDASH_MAIL_USERNAME_REVIEW }}
           REDASH_MAIL_PASSWORD: ${{ secrets.REDASH_MAIL_PASSWORD_REVIEW }}
-          
+
 
           ROUTE_53_ZONE: ${{ secrets.ROUTE53_ZONE_ID_REVIEW }}
           ROUTE_53_ZONE_FOR_PUBLIC_DATA:  ${{ secrets.ROUTE_53_ZONE_FOR_PUBLIC_DATA_REVIEW }}

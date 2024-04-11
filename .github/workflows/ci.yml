@@ -68,6 +68,7 @@ jobs:
           CERAMIC_CACHE_SCORER_ID: ""
           SECRET_KEY: secret-test-value
           DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          DATA_MODEL_DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
           FF_API_ANALYTICS: on
 
   ui-test:
