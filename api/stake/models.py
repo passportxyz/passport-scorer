@@ -24,7 +24,7 @@ class Stake(models.Model):
     stakee = EthAddressField(null=False, blank=False, db_index=True)
 
     current_amount = models.DecimalField(
-        decimal_places=0,
+        decimal_places=18,
         null=False,
         blank=False,
         max_digits=78,

@@ -103,7 +103,8 @@ impl PostgresClient {
         let chain_id: i32 = chain_id as i32;
         let staker = format!("{:#x}", staker);
         let stakee = format!("{:#x}", stakee);
-        let increase_amount = Decimal::from_u128(*increase_amount).unwrap();
+        let mut increase_amount = Decimal::from_u128(*increase_amount).unwrap();
+        let _ = increase_amount.set_scale(18).unwrap();
         let unlock_time = self.unix_time_to_datetime(unlock_time);
         let lock_time = self.unix_time_to_datetime(block_timestamp);
         let block_number = Decimal::from_u64(*block_number).unwrap();
