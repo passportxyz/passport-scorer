@@ -102,6 +102,14 @@ export const secrets = [
     name: "STAKING_SUBGRAPH_API_KEY",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_SUBGRAPH_API_KEY::`,
   },
+  // This contains the connection string for the database used in the 'Passport-Data-Science'
+  // which is managed by the data team.
+  // These are read-only credentials as the model & the db is not managed by the scorer project
+  // This is only used for exporting data from that DB
+  {
+    name: "DATA_MODEL_DATABASE_URL",
+    valueFrom: `${SCORER_SERVER_SSM_ARN}:DATA_MODEL_DATABASE_URL::`,
+  },
 ];
 
 export function getEnvironment(config: ScorerEnvironmentConfig) {

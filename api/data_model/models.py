@@ -15,5 +15,5 @@ class Cache(models.Model):
     updated_at = models.DateTimeField()
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = "cache"

@@ -49,6 +49,21 @@ def get_data(last_id, queryset, sort_field, batch_size):
 
     data = q[:batch_size].values()
 
+    return list(data)
+
+
+def get_data_json_as_str(last_id, queryset, sort_field, batch_size):
+    """
+    Same as `get_data` but serializes json fields (dict) to str
+    """
+    q = queryset.order_by(sort_field)
+
+    if last_id:
+        # Get only records after the last id / sort_field value
+        q = q.filter(**{f"{sort_field}__gt": last_id})
+
+    data = q[:batch_size].values()
+
     # In case of JSONField, the value will be a dict, which is not possible to serialize to Parquet
     # This is why we serialize that to JSON
     data = [
@@ -59,8 +74,14 @@ def get_data(last_id, queryset, sort_field, batch_size):
     return data
 
 
-def export_data_for_model(queryset, sort_field, batch_size, writer_context_manager):
-    data = get_data(None, queryset, sort_field, batch_size)
+def export_data_for_model(
+    queryset, sort_field, batch_size, writer_context_manager, jsonfields_as_str=True
+):
+    data = (
+        get_data_json_as_str(None, queryset, sort_field, batch_size)
+        if jsonfields_as_str
+        else get_data(None, queryset, sort_field, batch_size)
+    )
     model = queryset.model
     # Define the output Parquet file
     table_name = model._meta.db_table
@@ -80,7 +101,11 @@ def export_data_for_model(queryset, sort_field, batch_size, writer_context_manag
 
                 while has_more:
                     last_id = data[-1][sort_field]
-                    data = get_data(last_id, queryset, sort_field, batch_size)
+                    data = (
+                        get_data_json_as_str(last_id, queryset, sort_field, batch_size)
+                        if jsonfields_as_str
+                        else get_data(last_id, queryset, sort_field, batch_size)
+                    )
 
                     if data:
                         progress_bar.update(len(data))
