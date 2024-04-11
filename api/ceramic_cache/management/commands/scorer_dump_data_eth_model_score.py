@@ -28,17 +28,21 @@ def eth_stamp_writer_context_manager(queryset):
                     self.file = file
 
                 def write_batch(self, data):
-                    print("================================")
-                    print(data)
                     for d in data:
                         try:
                             key = json.loads(d["key"])
+                            value = json.loads(d["value"])
                             address = key[1].lower()
-                            print("address: ", address)
                             self.file.write(
                                 json.dumps(
                                     {
                                         "address": address,
+                                        "data": {
+                                            "score": str(
+                                                value["data"]["human_probability"]
+                                            )
+                                        },
+                                        "updated_at": d["updated_at"],
                                     },
                                     cls=DjangoJSONEncoder,
                                 )
