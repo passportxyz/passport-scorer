@@ -27,6 +27,7 @@ services:
       - ./api:/app
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
+
     command: celery -A scorer worker -Q score_passport_passport,score_registry_passport -l DEBUG
 
   interface:
@@ -62,3 +63,19 @@ services:
 
     ports:
       - 5432:5432
+
+  postgres-data:
+    image: postgres:12.3-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: passport_data
+      POSTGRES_PASSWORD: passport_data_pwd
+      POSTGRES_DB: passport_data
+      PGDATA: /db_data
+
+    volumes:
+      - ./postgres_db_passport_data:/db_data
+
+    ports:
+      - 5433:5432
