@@ -7,7 +7,6 @@ import boto3
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from django.conf import settings
 
 from tqdm import tqdm
 
@@ -124,11 +123,7 @@ def upload_to_s3(
     s3_bucket_name,
     extra_args,
 ):
-    s3 = boto3.client(
-        "s3",
-        aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
-        aws_secret_access_key=settings.S3_DATA_AWS_SECRET_ACCESS_KEY,
-    )
+    s3 = boto3.client("s3")
 
     s3_key = f"{s3_folder}/{output_file}"
 
