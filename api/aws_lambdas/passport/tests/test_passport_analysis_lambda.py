@@ -6,7 +6,7 @@ import pytest
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
 from passport.test.test_analysis import MockLambdaClient
 
-from ..analysis_GET import handler
+from ..analysis_GET import _handler
 
 pytestmark = pytest.mark.django_db
 
@@ -31,7 +31,7 @@ def test_successful_analysis(
         "passport.api.get_lambda_client",
         MockLambdaClient,
     )
-    response = handler(event, MockContext())
+    response = _handler(event, MockContext())
 
     assert response is not None
     assert response["statusCode"] == 200
@@ -59,7 +59,7 @@ def test_bad_auth(
         "passport.api.get_lambda_client",
         MockLambdaClient,
     )
-    response = handler(event, MockContext())
+    response = _handler(event, MockContext())
 
     assert response is not None
     assert response["statusCode"] == 403
@@ -86,7 +86,7 @@ def test_bad_address(
         "passport.api.get_lambda_client",
         MockLambdaClient,
     )
-    response = handler(event, MockContext())
+    response = _handler(event, MockContext())
 
     assert response is not None
     print(response)

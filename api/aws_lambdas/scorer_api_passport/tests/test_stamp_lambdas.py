@@ -48,7 +48,7 @@ def test_score_get(
     }
     context = MockContext()
 
-    response = score_GET.handler(event, context)
+    response = score_GET._handler(event, context)
 
     body = json.loads(response["body"])
 
@@ -71,7 +71,7 @@ def test_score_post(
 
     assert Score.objects.count() == 0
 
-    response = score_POST.handler(event, context)
+    response = score_POST._handler(event, context)
 
     body = json.loads(response["body"])
 
@@ -98,7 +98,7 @@ def test_stamp_get(
 
     context = MockContext()
 
-    response = stamp_GET.handler(event, context)
+    response = stamp_GET._handler(event, context)
 
     body = json.loads(response["body"])
 
@@ -113,7 +113,7 @@ def test_weights_get():
 
     context = MockContext()
 
-    response = weights_GET.handler(event, context)
+    response = weights_GET._handler(event, context)
 
     body = json.loads(response["body"])
 

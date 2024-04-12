@@ -8,6 +8,8 @@ import os
 from functools import wraps
 from traceback import print_exc
 from typing import Any, Dict, Tuple
+import boto3
+from botocore.exceptions import ClientError
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
@@ -19,9 +21,6 @@ os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
 # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
 # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
 ###########################################################
-
-import boto3
-from botocore.exceptions import ClientError
 
 
 def load_secrets():
@@ -58,25 +57,25 @@ if "SCORER_SERVER_SSM_ARN" in os.environ:
 
 # pylint: disable=wrong-import-position
 
-import django
+import django  # noqa: E402
 
 django.setup()
 
-import api_logging as logging
+import api_logging as logging  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
-from aws_lambdas.exceptions import InvalidRequest
-from django.http import HttpRequest
-from django_ratelimit.exceptions import Ratelimited
-from ninja_jwt.exceptions import InvalidToken
-from registry.api.utils import ApiKey, check_rate_limit, save_api_key_analytics
-from registry.exceptions import (
+from aws_lambdas.exceptions import InvalidRequest  # noqa: E402
+from django.http import HttpRequest  # noqa: E402
+from django_ratelimit.exceptions import Ratelimited  # noqa: E402
+from ninja_jwt.exceptions import InvalidToken  # noqa: E402
+from registry.api.utils import ApiKey, check_rate_limit, save_api_key_analytics  # noqa: E402
+from registry.exceptions import (  # noqa: E402
     InvalidAddressException,
     NotFoundApiException,
     Unauthorized,
 )
-from structlog.contextvars import bind_contextvars
+from structlog.contextvars import bind_contextvars  # noqa: E402
 
 RESPONSE_HEADERS = {
     "Content-Type": "application/json",
