@@ -8,7 +8,6 @@ import os
 from functools import wraps
 from traceback import print_exc
 from typing import Any, Dict, Tuple
-from django.db import close_old_connections
 import boto3
 from botocore.exceptions import ClientError
 
@@ -129,22 +128,6 @@ def format_response(ret: Any):
         "headers": RESPONSE_HEADERS,
         "body": ret.json() if hasattr(ret, "json") else json.dumps(ret),
     }
-
-
-def with_old_db_connection_close(func):
-    """
-    This wrapper is intended to be used for the lambda handler. It is expected to close unusable connections to the db and hence cause new connections to be opened.
-    This has been implemented in order to ensure we always have usable connections in the handler.
-    This was inspired by Django's own implementation where the old connections are close on the 'request_started' and 'request_finished' signals
-    as can be seen here: https://github.com/django/django/blob/50a702f3fd87e271945aa5e88ae8a39d7a2149fd/django/db/__init__.py#L54-L62
-    """
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        close_old_connections()
-        return func(*args, **kwargs)
-
-    return wrapper
 
 
 def with_request_exception_handling(func):

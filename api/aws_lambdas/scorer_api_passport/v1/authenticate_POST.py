@@ -6,16 +6,20 @@ from aws_lambdas.scorer_api_passport.utils import (
     format_response,
     parse_body,
     with_request_exception_handling,
-    with_old_db_connection_close,
 )
 from ceramic_cache.api.v1 import CacaoVerifySubmit, handle_authenticate
+from django.db import close_old_connections
 
 
-@with_old_db_connection_close
 @with_request_exception_handling
-def handler(event, context):
+def _handler(event, context):
     body = parse_body(event)
 
     payload = CacaoVerifySubmit(**body)
 
     return format_response(handle_authenticate(payload))
+
+
+def handler(*args, **kwargs):
+    close_old_connections()
+    return _handler(*args, **kwargs)

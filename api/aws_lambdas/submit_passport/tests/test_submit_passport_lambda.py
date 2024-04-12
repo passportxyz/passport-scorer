@@ -8,7 +8,7 @@ from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
 from aws_lambdas.scorer_api_passport.utils import strip_event
 from registry.test.test_passport_submission import mock_passport
 
-from ..submit_passport import handler
+from ..submit_passport import _handler
 
 # Sample mock event
 sample_event = {
@@ -101,7 +101,7 @@ def test_successful_authentication(
                 scorer_api_key, address, scorer_community_with_binary_scorer.id
             )
 
-            response = handler(event, MockContext())
+            response = _handler(event, MockContext())
 
             assert response is not None
             body = json.loads(response["body"])
@@ -146,7 +146,7 @@ def test_successful_authentication_and_base64_encoded_body(
                 scorer_api_key, address, scorer_community_with_binary_scorer.id
             )
 
-            response = handler(event, MockContext())
+            response = _handler(event, MockContext())
 
             assert response is not None
             body = json.loads(response["body"])
@@ -176,7 +176,7 @@ def test_unsucessfull_auth(scorer_account, scorer_community_with_binary_scorer):
         "bad_key", scorer_account.address, scorer_community_with_binary_scorer.id
     )
 
-    response = handler(event, MockContext())
+    response = _handler(event, MockContext())
 
     assert response is not None
     assert response["statusCode"] == 403
@@ -283,7 +283,7 @@ def test_successful_authentication_and_analytics_logging(
                 "isBase64Encoded": False,
             }
 
-            response = handler(event, MockContext())
+            response = _handler(event, MockContext())
 
             assert response is not None
             assert response["statusCode"] == 200
@@ -359,7 +359,7 @@ def test_failed_authentication_and_analytics_logging(
                 "isBase64Encoded": False,
             }
 
-            response = handler(event, MockContext())
+            response = _handler(event, MockContext())
 
             assert response is not None
             assert response["statusCode"] == 403
@@ -420,12 +420,10 @@ def test_bad_scorer_id_and_analytics_logging(
                 "isBase64Encoded": False,
             }
 
-            response = handler(event, MockContext())
+            response = _handler(event, MockContext())
 
             assert response is not None
-            assert (
-                response["statusCode"] == 400
-            )  
+            assert response["statusCode"] == 400
             # Check for the proper analytics entry
             analytics_entry = AccountAPIKeyAnalytics.objects.order_by("-created_at")[0]
             assert analytics_entry.path == event["path"]
