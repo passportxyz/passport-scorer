@@ -62,7 +62,9 @@ const redashMailPassword = pulumi.secret(
 const pagerDutyIntegrationEndpoint = `${process.env["PAGERDUTY_INTEGRATION_ENDPOINT"]}`;
 
 const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
-const dataScienceInfraStack = new pulumi.StackReference(`gitcoin/passport-data/${stack}`);
+const dataScienceInfraStack = new pulumi.StackReference(
+  `gitcoin/passport-data/${stack}`
+);
 const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
 
 const vpcID = coreInfraStack.getOutput("vpcId");
@@ -394,7 +396,7 @@ const deadLetterQueue = createDeadLetterQueue({ alertTopic: pagerdutyTopic });
 
 const rescoreQueue = createRescoreQueue({ deadLetterQueue });
 
-const serviceTaskRole = new aws.iam.Role("scorer-service-execution-role", {
+const serviceTaskRole = new aws.iam.Role("scorer-service-task-role", {
   assumeRolePolicy: JSON.stringify({
     Version: "2012-10-17",
     Statement: [
@@ -415,10 +417,17 @@ const serviceTaskRole = new aws.iam.Role("scorer-service-execution-role", {
         JSON.stringify({
           Version: "2012-10-17",
           Statement: [
+            // SQS permissions
             {
               Effect: "Allow",
               Action: ["sqs:SendMessage"],
               Resource: rescoreQueueArn,
+            },
+            // S3 permissions
+            {
+              Effect: "Allow",
+              Action: ["s3:PutObject"],
+              Resource: "*",
             },
           ],
         })
@@ -1092,7 +1101,6 @@ export const frequentEthModelScoreDataDumpTaskDefinitionForScorer =
         "scorer_dump_data_eth_model_score",
         `--s3-uri=s3://${publicDataDomain}/eth_model_scores/`,
         "--filename=eth_model_scores.jsonl",
-        "--database=data_model",
         // "--s3-extra-args",
         // JSON.stringify({ ACL: "public-read" }),
       ].join(" "),
