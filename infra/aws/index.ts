@@ -412,7 +412,7 @@ const serviceTaskRole = new aws.iam.Role("scorer-service-task-role", {
   }),
   inlinePolicies: [
     {
-      name: "allow_write_sqs",
+      name: "ecs_task_role",
       policy: rescoreQueue.arn.apply((rescoreQueueArn) =>
         JSON.stringify({
           Version: "2012-10-17",
