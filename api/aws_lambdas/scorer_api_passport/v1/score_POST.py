@@ -7,10 +7,12 @@ from aws_lambdas.scorer_api_passport.utils import (
     format_response,
     with_request_exception_handling,
     parse_body,
+    with_old_db_connection_close,
 )
 from ceramic_cache.api.v1 import get_detailed_score_response_for_address
 
 
+@with_old_db_connection_close
 @with_request_exception_handling
 def handler(event, context):
     address = authenticate_and_get_address(event)

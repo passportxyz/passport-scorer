@@ -8,6 +8,9 @@ import os
 from functools import wraps
 from traceback import print_exc
 from typing import Any, Dict, Tuple
+from django.db import close_old_connections
+import boto3
+from botocore.exceptions import ClientError
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
@@ -19,9 +22,6 @@ os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
 # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
 # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
 ###########################################################
-
-import boto3
-from botocore.exceptions import ClientError
 
 
 def load_secrets():
@@ -58,25 +58,25 @@ if "SCORER_SERVER_SSM_ARN" in os.environ:
 
 # pylint: disable=wrong-import-position
 
-import django
+import django  # noqa: E402
 
 django.setup()
 
-import api_logging as logging
+import api_logging as logging  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
-from aws_lambdas.exceptions import InvalidRequest
-from django.http import HttpRequest
-from django_ratelimit.exceptions import Ratelimited
-from ninja_jwt.exceptions import InvalidToken
-from registry.api.utils import ApiKey, check_rate_limit, save_api_key_analytics
-from registry.exceptions import (
+from aws_lambdas.exceptions import InvalidRequest  # noqa: E402
+from django.http import HttpRequest  # noqa: E402
+from django_ratelimit.exceptions import Ratelimited  # noqa: E402
+from ninja_jwt.exceptions import InvalidToken  # noqa: E402
+from registry.api.utils import ApiKey, check_rate_limit, save_api_key_analytics  # noqa: E402
+from registry.exceptions import (  # noqa: E402
     InvalidAddressException,
     NotFoundApiException,
     Unauthorized,
 )
-from structlog.contextvars import bind_contextvars
+from structlog.contextvars import bind_contextvars  # noqa: E402
 
 RESPONSE_HEADERS = {
     "Content-Type": "application/json",
@@ -129,6 +129,22 @@ def format_response(ret: Any):
         "headers": RESPONSE_HEADERS,
         "body": ret.json() if hasattr(ret, "json") else json.dumps(ret),
     }
+
+
+def with_old_db_connection_close(func):
+    """
+    This wrapper is intended to be used for the lambda handler. It is expected to close unusable connections to the db and hence cause new connections to be opened.
+    This has been implemented in order to ensure we always have usable connections in the handler.
+    This was inspired by Django's own implementation where the old connections are close on the 'request_started' and 'request_finished' signals
+    as can be seen here: https://github.com/django/django/blob/50a702f3fd87e271945aa5e88ae8a39d7a2149fd/django/db/__init__.py#L54-L62
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        close_old_connections()
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def with_request_exception_handling(func):

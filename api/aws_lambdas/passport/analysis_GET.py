@@ -2,10 +2,14 @@
 This module provides a handler to manage API requests in AWS Lambda.
 """
 
-from aws_lambdas.utils import format_response, with_api_request_exception_handling
+from aws_lambdas.utils import (
+    with_api_request_exception_handling,
+    with_old_db_connection_close,
+)
 from passport.api import handle_get_analysis
 
 
+@with_old_db_connection_close
 @with_api_request_exception_handling
 def handler(event, _context, _request, _user_account, _body):
     """
