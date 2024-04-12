@@ -6,7 +6,7 @@ import {
   ScorerService,
   ScorerEnvironmentConfig,
   getEnvironment,
-} from "./service";
+} from "./new_service";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 

@@ -90,6 +90,7 @@ INSTALLED_APPS = [
     "trusta_labs",
     "tos",
     "django_ace",
+    "data_model",
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -141,12 +142,16 @@ CSRF_TRUSTED_ORIGINS = env.json("CSRF_TRUSTED_ORIGINS", default=[])
 
 DATABASES = {
     "default": env.db(default="sqlite:///db.sqlite3"),
+    "data_model": env.db(
+        "DATA_MODEL_DATABASE_URL", default="sqlite:///db_data_model.sqlite3"
+    ),
     "read_replica_0": {
         **env.db_url("READ_REPLICA_0_URL", default="sqlite:///db.sqlite3"),
         "TEST": {"MIRROR": "default"},
     },
 }
 
+DATABASE_ROUTERS = ["scorer.db_router.ScorerRouter"]
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
