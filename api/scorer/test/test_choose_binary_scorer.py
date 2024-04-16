@@ -29,11 +29,11 @@ def test_as_a_developer_i_want_to_choose_the_gitcoin_binary_community_score():
     "that I select the Gitcoin Binary Community Score as an option",
     target_fixture="scorersPutResponse",
 )
-def scorers_put_response(access_token, scorer_community):
-    scorer = scorer_community.scorer
+def scorers_put_response(access_token, scorer_community_with_binary_scorer):
+    scorer = scorer_community_with_binary_scorer.scorer
     client = Client()
     return client.put(
-        f"/account/communities/{scorer_community.id}/scorers",
+        f"/account/communities/{scorer_community_with_binary_scorer.id}/scorers",
         json.dumps({"scorer_type": scorer.Type.WEIGHTED_BINARY}),
         HTTP_AUTHORIZATION=f"Bearer {access_token}",
     )
@@ -48,8 +48,8 @@ def _(scorersPutResponse):
 
 
 @then("it automatically becomes the new rule in the respective community")
-def _(scorer_community):
-    scorer = Community.objects.get(id=scorer_community.id).scorer
+def _(scorer_community_with_binary_scorer):
+    scorer = Community.objects.get(id=scorer_community_with_binary_scorer.id).scorer
     scorer.binaryweightedscorer.threshold = 1
     scorer.binaryweightedscorer.save()
     assert scorer.type == "WEIGHTED_BINARY"
@@ -58,23 +58,17 @@ def _(scorer_community):
 
 
 @when("I choose to score a passport", target_fixture="scoreResponse")
-def score_response(scorer_community, scorer_api_key):
+def score_response(scorer_community_with_binary_scorer, scorer_api_key):
     """I choose to score a passport."""
-    with patch(
-        "registry.tasks.score_passport_passport.delay"
-    ) as mock_score_passport_task:
-        with patch(
-            "registry.atasks.aget_passport", return_value=mock_passport
-        ) as get_passport:
-            with patch(
-                "registry.atasks.validate_credential", side_effect=[[], []]
-            ) as validate_credential:
+    with patch("registry.tasks.score_passport_passport.delay"):
+        with patch("registry.atasks.aget_passport", return_value=mock_passport):
+            with patch("registry.atasks.validate_credential", side_effect=[[], []]):
                 client = Client()
                 submitResponse = client.post(
                     "/registry/submit-passport",
                     json.dumps(
                         {
-                            "community": scorer_community.id,
+                            "community": scorer_community_with_binary_scorer.id,
                             "address": "0x71Ad3e3057Ca74967239C66ca6D3A9C2A43a58fC",
                         }
                     ),
@@ -90,7 +84,7 @@ def score_response(scorer_community, scorer_api_key):
                 )
                 assert Decimal(response["score"]) == Decimal("1.000000000")
                 return client.get(
-                    f"/registry/score/{scorer_community.id}/0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc",
+                    f"/registry/score/{scorer_community_with_binary_scorer.id}/0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc",
                     content_type="application/json",
                     HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
                 )
@@ -147,9 +141,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
         "scorer_weighted.computation.acalculate_weighted_score",
         return_value=[{"sum_of_weights": Decimal("70"), "earned_points": {}}],
     ):
-        with patch(
-            "registry.atasks.aget_passport", return_value=mock_passport
-        ) as aget_passport:
+        with patch("registry.atasks.aget_passport", return_value=mock_passport):
             with patch("registry.atasks.validate_credential", side_effect=[[], []]):
                 client = Client()
                 submitResponse = client.post(
@@ -208,7 +200,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
         with patch(
             "scorer_weighted.computation.acalculate_weighted_score",
             return_value=[{"sum_of_weights": Decimal("90"), "earned_points": {}}],
-        ) as calculate_weighted_score:
+        ):
             with patch("registry.atasks.aget_passport", return_value=mock_passport):
                 with patch("registry.atasks.validate_credential", side_effect=[[], []]):
                     client = Client()
@@ -243,7 +235,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                         "threshold": "75.00000",
                         "type": "ThresholdScoreCheck",
                     }
-                    assert submit_response_data["error"] == None
+                    assert submit_response_data["error"] is None
 
                     return client.get(
                         f"/registry/score/{scorer_community_with_binary_scorer.id}/0x71Ad3e3057Ca74967239C66ca6D3A9C2A43a58fC",
@@ -268,4 +260,4 @@ def _(scoreResponseFor1):
         "threshold": "75.00000",
         "type": "ThresholdScoreCheck",
     }
-    assert score_response_data["error"] == None
+    assert score_response_data["error"] is None

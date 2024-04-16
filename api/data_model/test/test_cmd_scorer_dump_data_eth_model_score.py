@@ -19,7 +19,7 @@ def create_cache_table():
     # This test is expected to only fork on postgres because on SQLite the unmanaged model cannot be created successfully
     assert (
         db_engine == "django.db.backends.postgresql"
-    ), "This test is currently only supposed to work on postgres. Models cannot be created on SQLite atm."
+    ), f"This test is currently only supposed to work on postgres. Models cannot be created on SQLite atm. Current engine: {db_engine}"
 
     # Disable foreign key constraint checks
     # TODO: this is unfortunatly not work for SQLite, it does not have the desired effect ...
