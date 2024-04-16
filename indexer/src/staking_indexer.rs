@@ -133,8 +133,9 @@ impl<'a> StakingIndexer<'a> {
         let mut last_queried_block: u64 = *query_start_block;
 
         // You can make eth_getLogs requests with up to a 2K block range and no limit on the response size
+        // Reducing to 1k because of occasional timeout issues
         while last_queried_block < current_block - 1 {
-            let query_end_block = min(last_queried_block + 2000, current_block - 1);
+            let query_end_block = min(last_queried_block + 1000, current_block - 1);
             let previous_events_query = id_staking_contract
                 .events()
                 .from_block(last_queried_block + 1)
