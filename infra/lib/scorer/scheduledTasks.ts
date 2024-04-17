@@ -14,6 +14,7 @@ export type ScheduledTaskConfig = Pick<
   ScorerService,
   | "dockerImageScorer"
   | "executionRole"
+  | "taskRole"
   | "cluster"
   | "subnets"
   | "securityGroup"
@@ -34,6 +35,7 @@ export function createScheduledTask(
   const {
     alertTopic,
     executionRole,
+    taskRole,
     subnets,
     dockerImageScorer,
     cluster,
@@ -59,6 +61,9 @@ export function createScheduledTask(
   const task = new awsx.ecs.FargateTaskDefinition(name, {
     executionRole: {
       roleArn: executionRole.arn,
+    },
+    taskRole: {
+      roleArn: taskRole.arn,
     },
     ephemeralStorage: ephemeralStorageSizeInGiB
       ? {
@@ -216,8 +221,12 @@ export function createScheduledTask(
   const SIX_HOURS_IN_SECONDS = 6 * 60 * 60;
 
   new aws.cloudwatch.MetricAlarm("UnsuccessfulRuns-" + name, {
-    alarmActions: [alertTopic.arn],
-    okActions: [alertTopic.arn],
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Temporarily disable the alarm actions until the metric is changed
+    // At the moment even if the task is completed successfully the alarm enters the alarm state for 1 minute.
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // alarmActions: [alertTopic.arn],
+    // okActions: [alertTopic.arn],
     comparisonOperator: "GreaterThanOrEqualToThreshold",
     datapointsToAlarm: 1,
     evaluationPeriods: 1,
