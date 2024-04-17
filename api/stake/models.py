@@ -28,7 +28,7 @@ class Stake(models.Model):
         null=False,
         blank=False,
         max_digits=78,
-        help_text="Summary stake amount (uint256)",
+        help_text="Summary stake amount",
     )
 
     class Meta:
@@ -61,7 +61,7 @@ class StakeEvent(models.Model):
     stakee = EthAddressField(null=False, blank=False, db_index=True)
 
     amount = models.DecimalField(
-        decimal_places=0, null=False, blank=False, max_digits=78
+        decimal_places=18, null=False, blank=False, max_digits=78
     )
 
     block_number = models.DecimalField(
