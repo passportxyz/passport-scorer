@@ -397,6 +397,7 @@ const deadLetterQueue = createDeadLetterQueue({ alertTopic: pagerdutyTopic });
 const rescoreQueue = createRescoreQueue({ deadLetterQueue });
 
 const serviceTaskRole = new aws.iam.Role("scorer-service-task-role", {
+  name: "scorer-service-task-role",
   assumeRolePolicy: JSON.stringify({
     Version: "2012-10-17",
     Statement: [
