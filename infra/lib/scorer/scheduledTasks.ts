@@ -14,6 +14,7 @@ export type ScheduledTaskConfig = Pick<
   ScorerService,
   | "dockerImageScorer"
   | "executionRole"
+  | "taskRole"
   | "cluster"
   | "subnets"
   | "securityGroup"
@@ -34,6 +35,7 @@ export function createScheduledTask(
   const {
     alertTopic,
     executionRole,
+    taskRole,
     subnets,
     dockerImageScorer,
     cluster,
@@ -59,6 +61,9 @@ export function createScheduledTask(
   const task = new awsx.ecs.FargateTaskDefinition(name, {
     executionRole: {
       roleArn: executionRole.arn,
+    },
+    taskRole: {
+      roleArn: taskRole.arn,
     },
     ephemeralStorage: ephemeralStorageSizeInGiB
       ? {
