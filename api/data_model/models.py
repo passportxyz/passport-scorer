@@ -10,7 +10,7 @@ from django.db import models
 
 
 class Cache(models.Model):
-    key = models.CharField(primary_key=True, max_length=128)
+    key = models.JSONField(primary_key=True)
     value = models.JSONField()
     updated_at = models.DateTimeField()
 
