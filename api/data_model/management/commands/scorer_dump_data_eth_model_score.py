@@ -29,7 +29,7 @@ def get_writer(output_file):
                     def write_batch(self, data):
                         for d in data:
                             try:
-                                key = json.loads(d["key"])
+                                key = d["key"]
                                 value = d["value"]
                                 address = key[1].lower()
                                 self.file.write(
@@ -104,7 +104,9 @@ class Command(BaseCommand):
 
         try:
             export_data_for_model(
-                Cache.objects.all(),
+                Cache.objects.filter(
+                    key__0="predict"
+                ),  # This will only filter the scores for eth_stamp_model (v1)
                 "key",
                 batch_size,
                 get_writer(filename),
