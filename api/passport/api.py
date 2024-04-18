@@ -89,7 +89,7 @@ def handle_get_analysis(address: str) -> PassportAnalysisResponse:
     try:
         lambda_client = get_lambda_client()
         response = lambda_client.invoke(
-            FunctionName="eth-stamp-api",
+            FunctionName="eth-stamp-v2-api",
             InvocationType="RequestResponse",
             Payload=json.dumps(
                 {
@@ -116,6 +116,6 @@ def handle_get_analysis(address: str) -> PassportAnalysisResponse:
             ),
         )
 
-    except Exception as e:
+    except Exception:
         log.error("Error retrieving Passport analysis", exc_info=True)
         raise PassportAnalysisError()
