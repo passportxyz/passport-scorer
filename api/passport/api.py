@@ -81,12 +81,12 @@ def get_analysis(request, address: str) -> PassportAnalysisResponse:
 
 
 def handle_get_analysis(address: str) -> PassportAnalysisResponse:
-    log.info("handle_get_analysis address={address}")
+    log.info("handle_get_analysis address={%s}", address)
     if not is_valid_address(address):
         raise InvalidAddressException()
 
     checksum_address = to_checksum_address(address)
-    log.info("handle_get_analysis checksum_address={checksum_address}")
+    log.info("handle_get_analysis checksum_address={%s}", checksum_address)
 
     try:
         lambda_client = get_lambda_client()
@@ -100,23 +100,23 @@ def handle_get_analysis(address: str) -> PassportAnalysisResponse:
                 }
             ),
         )
-        log.info("handle_get_analysis response={response}")
-        log.info("handle_get_analysis type response={type(response)}")
+        log.info("handle_get_analysis response={%s}", response)
+        log.info("handle_get_analysis type response={%s}", type(response))
 
         read_response = response["Payload"].read()
-        log.info("handle_get_analysis type read_response={read_response}")
+        log.info("handle_get_analysis type read_response={%s}", read_response)
 
         decoded_response = read_response.decode("utf-8")
-        log.info("handle_get_analysis type decoded_response={decoded_response}")
+        log.info("handle_get_analysis type decoded_response={%s}", decoded_response)
 
         parsed_response = json.loads(decoded_response)
-        log.info("handle_get_analysis type parsed_response={parsed_response}")
+        log.info("handle_get_analysis type parsed_response={%s}", parsed_response)
 
         response_body = json.loads(parsed_response["body"])
-        log.info("handle_get_analysis type response_body={response_body}")
+        log.info("handle_get_analysis type response_body={%s}", response_body)
 
         score = response_body.get("data", {}).get("human_probability", 0)
-        log.info("handle_get_analysis type score={score}")
+        log.info("handle_get_analysis type score={%s}", score)
 
         return PassportAnalysisResponse(
             address=address,
