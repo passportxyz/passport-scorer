@@ -55,7 +55,7 @@ class TestGetStamps:
             address = f"0x{i}"
             timestamp = datetime(2024, 4, 9, i, 0, 0, tzinfo=timezone.utc)
             Cache.objects.create(
-                key=json.dumps(["predict", address]),
+                key=["predict", address],
                 value={
                     "data": {"human_probability": i},
                     "meta": {"version": "v1", "Training_date": "2023/12/27"},
@@ -74,9 +74,19 @@ class TestGetStamps:
                     )
                 )
             )
+            # Also add data to cache for other models (differet value in first element in key)
+            # The export command should filter correctly
+            Cache.objects.create(
+                key=["predict_nft", address],
+                value={
+                    "data": {"human_probability": i},
+                    "meta": {"version": "v1", "Training_date": "2023/12/27"},
+                },
+                updated_at=timestamp,
+            )
 
         s3_upload_mock = mocker.patch(
-            "ceramic_cache.management.commands.scorer_dump_data_eth_model_score.upload_to_s3"
+            "data_model.management.commands.scorer_dump_data_eth_model_score.upload_to_s3"
         )
         call_command(
             "scorer_dump_data_eth_model_score",
