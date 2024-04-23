@@ -936,7 +936,7 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask(
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
-    command: "python manage.py dump_stamp_data",
+    command: "python manage.py dump_stamp_data --database read_replica_0 --batch-size 1000",
     scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
     alertTopic: pagerdutyTopic,
   },
@@ -955,6 +955,8 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
       "python",
       "manage.py",
       "scorer_dump_data",
+      "--batch-size 1000",
+      "--database read_replica_0",
       "--config",
       "'" +
         JSON.stringify([
@@ -989,6 +991,8 @@ export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
       "python",
       "manage.py",
       "scorer_dump_data_parquet",
+      "--batch-size 1000",
+      "--database read_replica_0",
       "--apps=registry,ceramic_cache,account,scorer_weighted,trusta_labs",
       "--s3-uri=s3://passport-scorer/daily_data_dumps/",
       "--batch-size=20000",
@@ -1010,6 +1014,8 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
       "python",
       "manage.py",
       "scorer_dump_data",
+      "--batch-size 1000",
+      "--database read_replica_0",
       "--config",
       "'" +
         JSON.stringify([
@@ -1040,6 +1046,8 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
         "python",
         "manage.py",
         "scorer_dump_data",
+        "--batch-size 1000",
+        "--database read_replica_0",
         "--config",
         "'" +
           JSON.stringify([
@@ -1070,6 +1078,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
         "python",
         "manage.py",
         "scorer_dump_data",
+        "--database read_replica_0",
         "--config",
         "'" +
           JSON.stringify([
