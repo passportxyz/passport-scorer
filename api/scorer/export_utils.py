@@ -1,7 +1,7 @@
 import json
 from contextlib import contextmanager
 from logging import getLogger
-
+from google.cloud import storage
 
 import boto3
 import pyarrow as pa
@@ -170,3 +170,27 @@ def writer_context_manager(model):
             yield WriterWrappe(writer)
     finally:
         pass
+
+
+def upload_to_gcp(bucket_name, source_file_name, destination_blob_name):
+    """Uploads a file to the bucket."""
+    # Provide the path to the service account key
+    storage_client = storage.Client.from_service_account_json(
+        "path/to/your/service-account-key.json"
+    )
+    bucket = storage_client.bucket(bucket_name)
+
+    # Note: Folders in GCP are created by adding a prefix to the file name
+    blob = bucket.blob(destination_blob_name)
+
+    # Upload the file
+    blob.upload_from_filename(source_file_name)
+
+    print(f"File {source_file_name} uploaded to {destination_blob_name}.")
+
+    ## Example usage:
+    # bucket_name = "your-bucket-name"
+    # source_file_name = "local/path/to/your/file"
+    # destination_blob_name = "new-folder/filename"  # 'new-folder/' is the folder
+
+    # upload_to_gcp(bucket_name, source_file_name, destination_blob_name)
