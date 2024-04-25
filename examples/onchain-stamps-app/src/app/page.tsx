@@ -5,7 +5,16 @@ import { ChakraProvider, Flex, Heading, Button } from '@chakra-ui/react'
 import { TabLayout } from './tab-contents'
 import { GITCOIN_PASSPORT_WEIGHTS } from './stamp-weights';
 
-const decoderContractAddress = "0xa652BE6A92c7efbBfEEf6b67eEF10A146AAA8ADc";
+const supportedNetworks: Record<string, string> = {
+  "84531": "BaseGoerli",
+  "10": "OP Mainnet"
+};
+
+const decoderContractAddress: Record<string, string>  = {
+  "84531": "0xa652BE6A92c7efbBfEEf6b67eEF10A146AAA8ADc",
+  "10": "0x5558D441779Eca04A329BcD6b47830D2C6607769"
+};
+
 const abi = require('./abis.ts')
 
 declare global {
@@ -61,7 +70,7 @@ export default function Passport() {
   /** get passport info from decoder contract */
   async function getPassportInfo() {
     console.log(address)
-    const decoderContract: ethers.Contract = new ethers.Contract(decoderContractAddress, new ethers.Interface(abi.DecoderAbi['0x14a33']), provider)
+    const decoderContract: ethers.Contract = new ethers.Contract(decoderContractAddress[network], new ethers.Interface(abi.DecoderAbi), provider)
     try {
       const passportInfo: [] = await decoderContract.getPassport(address) // test address '0x85fF01cfF157199527528788ec4eA6336615C989'
       return passportInfo
@@ -72,7 +81,7 @@ export default function Passport() {
 
   /** get poassport score from decoder contract */
   async function getScore() {
-    const decoderContract: ethers.Contract = new ethers.Contract(decoderContractAddress, new ethers.Interface(abi.DecoderAbi['0x14a33']), provider)
+    const decoderContract: ethers.Contract = new ethers.Contract(decoderContractAddress[network], new ethers.Interface(abi.DecoderAbi), provider)
     try {
       const score = await decoderContract.getScore(address)
       return score
@@ -122,8 +131,8 @@ export default function Passport() {
         </Flex>
         <div>
           {connected && <p>✅ Wallet connected</p>}
-          {connected && network == "84531" && <p>✅ network: BaseGoerli</p>}
-          {connected && network != "84531" && <p>🔴 Please switch to BaseGoerli network</p>}
+          {connected && supportedNetworks[network] && <p>✅ network: {supportedNetworks[network]}</p>}
+          {connected && !supportedNetworks[network] && <p>🔴 Please switch to one of the supported networks: BaseGoerli or OP Mainnet</p>}
         </div>
         <br />
         <br />
