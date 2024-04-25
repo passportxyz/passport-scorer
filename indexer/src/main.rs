@@ -21,14 +21,17 @@ async fn main() -> Result<()> {
 
     loop {
         let postgres_client = PostgresClient::new().await?;
-        let contract_address = get_env("STAKING_CONTRACT_ADDRESS")
+        let contract_address_eth_mainnet = get_env("STAKING_CONTRACT_ADDRESS_ETH_MAINNET")
+            .parse::<Address>()
+            .unwrap();
+        let contract_address_op_mainnet = get_env("STAKING_CONTRACT_ADDRESS_OP_MAINNET")
             .parse::<Address>()
             .unwrap();
 
         match try_join!(
             run_legacy_indexer(postgres_client.clone()),
-            run_ethereum_indexer(postgres_client.clone(), &contract_address),
-            run_optimism_indexer(postgres_client.clone(), &contract_address)
+            run_ethereum_indexer(postgres_client.clone(), &contract_address_eth_mainnet),
+            run_optimism_indexer(postgres_client.clone(), &contract_address_op_mainnet)
         ) {
             Ok(_) => {
                 eprintln!("Warning - top-level join ended without error");
