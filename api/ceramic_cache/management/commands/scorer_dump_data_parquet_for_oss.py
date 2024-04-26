@@ -115,7 +115,6 @@ class Command(BaseCommand):
 
         self.stdout.write("EXPORT - START export data for Score")
         try:
-            settings.CERAMIC_CACHE_SCORER_ID = 2
             output_file = f"{Score._meta.db_table}.parquet"
             export_data_for_model(
                 # We only want to export for the default scorer
