@@ -644,8 +644,12 @@ export function createIndexerService({
       valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_LEGACY_ENABLED::`,
     },
     {
-      name: "STAKING_CONTRACT_ADDRESS",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_CONTRACT_ADDRESS::`,
+      name: "STAKING_CONTRACT_ADDRESS_ETH_MAINNET",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_CONTRACT_ADDRESS_ETH_MAINNET::`,
+    },
+    {
+      name: "STAKING_CONTRACT_ADDRESS_OP_MAINNET",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_CONTRACT_ADDRESS_OP_MAINNET::`,
     },
   ]);
 
