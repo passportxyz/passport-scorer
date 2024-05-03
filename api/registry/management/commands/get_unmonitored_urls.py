@@ -31,9 +31,7 @@ class Command(BaseCommand):
             "--out",
             type=str,
             help="Output file, json list of unmonitored URLs",
-            # TODO
-            # required=True,
-            required=False,
+            required=True,
         )
         parser.add_argument(
             "--base-url",
@@ -61,6 +59,8 @@ class Command(BaseCommand):
         monitored_urls = self.get_uptime_robot_urls()
         self.stdout.write(f"Uptime Robot URLs: {len(monitored_urls)}")
 
+        self.stdout.write(f"Uptime robot URLs: {json.dumps(monitored_urls, indent=2)}")
+
         unmonitored_urls = []
         for django_url in django_urls:
             url_regex = self.convert_django_url_to_regex(django_url)
@@ -83,9 +83,12 @@ class Command(BaseCommand):
                 # remove matching monitored url so it doesn't get matched again
                 monitored_urls.pop(matching_monitored_url_index)
 
-        # output the difference
         self.stdout.write(f"Unmonitored URLs: {len(unmonitored_urls)}")
-        self.stdout.write(f"Unmonitored URLs: {unmonitored_urls}")
+
+        with open(kwargs["out"], "w") as out_file:
+            json.dump(unmonitored_urls, out_file)
+
+        self.stdout.write("Done")
 
     def convert_django_url_to_regex(self, url: str):
         # Have to do sub and then replace because re.sub interprets
