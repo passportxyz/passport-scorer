@@ -1,6 +1,8 @@
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from http.client import HTTPSConnection
+from django.urls import get_resolver, URLPattern
+from itertools import chain
 
 import json
 import re
@@ -13,20 +15,18 @@ IGNORED_PATH_ROOTS = [
 
 # Will ignore exact path matches
 IGNORED_URLS = [
-    "/",
+    "",
 ]
+
+
+def flatten_list(l):
+    return list(chain.from_iterable(l))
 
 
 class Command(BaseCommand):
     help = "Removes stamp data and sets score to 0 for users in the provided list"
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "--urls",
-            type=str,
-            help="""Local path to a file containing json output of `show_urls` command""",
-            required=True,
-        )
         parser.add_argument(
             "--out",
             type=str,
@@ -40,6 +40,14 @@ class Command(BaseCommand):
             required=True,
         )
 
+    def show_urls(self, url_resolver):
+        if isinstance(url_resolver, URLPattern):
+            return [url_resolver]
+        else:
+            return flatten_list(
+                [self.show_urls(resolver) for resolver in url_resolver.url_patterns]
+            )
+
     def handle(self, *args, **kwargs):
         self.stdout.write("Running ...")
         self.stdout.write(f"args     : {args}")
@@ -49,21 +57,32 @@ class Command(BaseCommand):
             self.stdout.write("UPTIME_ROBOT_READONLY_API_KEY is not set")
             return
 
-        all_django_url_paths = self.get_all_urls(kwargs["urls"])
-        filtered_django_url_paths = self.filter_urls(all_django_url_paths)
-        django_urls = [kwargs["base_url"] + url for url in filtered_django_url_paths]
+        if not kwargs["base_url"].endswith("/"):
+            kwargs["base_url"] += "/"
 
-        self.stdout.write(f"Total URLs: {len(all_django_url_paths)}")
-        self.stdout.write(f"URLs to check: {len(django_urls)}")
+        resolver = get_resolver()
+        all_django_url_patterns = self.show_urls(resolver)
+        django_url_patterns = self.filter_url_patterns(all_django_url_patterns)
 
-        monitored_urls = self.get_uptime_robot_urls()
+        self.stdout.write(
+            f"URLs: {json.dumps([[i, p] for i, p in enumerate([p.pattern._route for p in django_url_patterns])], indent=2)}"
+        )
+
+        import pdb
+
+        pdb.set_trace()
+
+        self.stdout.write(f"Total URLs: {len(all_django_url_patterns)}")
+        self.stdout.write(f"URLs to check: {len(django_url_patterns)}")
+
+        monitored_urls = self.get_uptime_robot_urls(kwargs["base_url"])
         self.stdout.write(f"Uptime Robot URLs: {len(monitored_urls)}")
 
         self.stdout.write(f"Uptime robot URLs: {json.dumps(monitored_urls, indent=2)}")
 
         unmonitored_urls = []
-        for django_url in django_urls:
-            url_regex = self.convert_django_url_to_regex(django_url)
+        for url_pattern in django_url_patterns:
+            url_regex = url_pattern.pattern.regex
 
             # Weird one-liner but it works. Basically the inner () is a generator
             # and if anything matches the regex, it will result in a generator that
@@ -97,7 +116,7 @@ class Command(BaseCommand):
         url_regex = re.sub("<str:.*?>", "<str>", url_regex).replace("<str>", "[^/]+")
         return url_regex + "$"
 
-    def get_uptime_robot_urls(self):
+    def get_uptime_robot_urls(self, base_url):
         limit = 50
         offset = 0
 
@@ -113,7 +132,7 @@ class Command(BaseCommand):
 
             offset += limit
 
-        return urls
+        return [url.replace(base_url, "") for url in urls if url.startswith(base_url)]
 
     def uptime_robot_monitors_request(self, limit, offset):
         conn = HTTPSConnection("api.uptimerobot.com")
@@ -138,15 +157,25 @@ class Command(BaseCommand):
 
         return [entry["url"] for entry in urls_json]
 
-    def filter_urls(self, urls):
-        filtered_urls = [
-            url
-            for url in urls
-            if not any(url.startswith("/" + root + "/") for root in IGNORED_PATH_ROOTS)
+    def filter_url_patterns(self, url_patterns):
+        filtered_url_patterns = [
+            url_pattern
+            for url_pattern in url_patterns
+            if hasattr(url_pattern.pattern, "_route")
         ]
-        filtered_urls = [
-            url
-            for url in filtered_urls
-            if not any(url == ignored for ignored in IGNORED_URLS)
+        filtered_url_patterns = [
+            url_pattern
+            for url_pattern in filtered_url_patterns
+            if not any(
+                url_pattern.pattern._route.startswith(root + "/")
+                for root in IGNORED_PATH_ROOTS
+            )
         ]
-        return filtered_urls
+        filtered_url_patterns = [
+            url_pattern
+            for url_pattern in filtered_url_patterns
+            if not any(
+                url_pattern.pattern._route == ignored for ignored in IGNORED_URLS
+            )
+        ]
+        return filtered_url_patterns
