@@ -130,6 +130,7 @@ import("./bridge.js").then(({ Eip1193Bridge }) => {
                                         resolve({
                                           address: wallet.address,
                                           accessToken: accessToken,
+                                          payloadForVerifier
                                         });
                                       });
                                   } catch (error) {
@@ -158,7 +159,7 @@ import("./bridge.js").then(({ Eip1193Bridge }) => {
                 console.log("results:", results);
                 const userTokens = results.reduce((acc, result) => {
                   if (result.status === "fulfilled") {
-                    acc[result.value.address] = result.value.accessToken;
+                    acc[result.value.address] = [result.value.accessToken, result.value.payloadForVerifier];
                   }
                   return acc;
                 }, {});

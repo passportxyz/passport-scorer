@@ -1,5 +1,11 @@
 # Generate test data
 
+## Provision resources on staging that match prod
+
+- Get env variables
+- Set provisioning flag `export PROVISION_STAGING_FOR_LOADTEST=true`
+- Run `pulumi up` for passport, scorer, and passport-infra
+
 ## generate the file `test_data/generated_accounts_100.json`
 
 - `cd ./test_data`
@@ -70,3 +76,16 @@ Run the local server like `node test_data/iam_signer_server.js`, then run the
 tests with:
 
 `k6 run --vus 1000 --duration 15m --out csv=k6_metrics.csv test_scripts/iam_script.js`
+
+# WIP - Program to run and analyse the results
+
+- `cd ./full-stack-test`
+- modify vus, filenames, and duration in `main.rs`
+- run `cargo run`
+- TODO run python analysis and output graphs and results(maybe send via telegram bot)
+
+# Jupyter notebook
+
+- Update path to load test output
+- Run the notebook
+- 👀
