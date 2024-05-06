@@ -75,6 +75,19 @@ jobs:
           DATA_MODEL_DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
           FF_API_ANALYTICS: on
 
+      - name: URL Monitoring Check
+        working-directory: ./api
+        shell: bash
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
+          UPTIME_ROBOT_READONLY_API_KEY: ${{ secrets.UPTIME_ROBOT_READONLY_API_KEY }}
+          IGNORE_UNMONITORED_URLS: ${{ secrets.IGNORE_UNMONITORED_URLS }}
+        run:
+          python manage.py show_urls -f json > urls.json &&
+          python manage.py get_unmonitored_urls --urls urls.json --base-url https://api.scorer.gitcoin.co --out unmanaged.json &&
+          [ -f unmanaged.json ] && [ `cat unmanaged.json | wc -m` -eq 2 ]
+
   build-api:
     environment: Production
     runs-on: ubuntu-latest
