@@ -72,30 +72,6 @@ jobs:
           SECRET_KEY: secret-test-value
         run: python manage.py check
 
-      - name: Django Show URLs
-        working-directory: ./api
-        env:
-          CERAMIC_CACHE_SCORER_ID: ""
-          SECRET_KEY: secret-test-value
-        run: python manage.py show_urls -f json > urls.json
-
-      - name: Django Get Unmonitored URLs
-        working-directory: ./api
-        env:
-          CERAMIC_CACHE_SCORER_ID: ""
-          SECRET_KEY: secret-test-value
-        run: python manage.py get_unmonitored_urls --urls urls.json
-
-      - name: Run API unittests
-        working-directory: ./api
-        run: pytest
-        env:
-          CERAMIC_CACHE_SCORER_ID: ""
-          SECRET_KEY: secret-test-value
-          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
-          DATA_MODEL_DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
-          FF_API_ANALYTICS: on
-
       - name: URL Monitoring Check
         working-directory: ./api
         shell: bash
@@ -108,6 +84,16 @@ jobs:
           python manage.py show_urls -f json > urls.json &&
           python manage.py get_unmonitored_urls --urls urls.json --base-url https://api.scorer.gitcoin.co --out unmanaged.json --allow-paused True &&
           [ -f unmanaged.json ] && [ `cat unmanaged.json | wc -m` -eq 2 ]
+
+      - name: Run API unittests
+        working-directory: ./api
+        run: pytest
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
+          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          DATA_MODEL_DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          FF_API_ANALYTICS: on
 
   build-api:
     environment: Staging
