@@ -936,7 +936,8 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask(
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
-    command: "python manage.py dump_stamp_data --database=read_replica_0 --batch-size=1000",
+    command:
+      "python manage.py dump_stamp_data --database=read_replica_0 --batch-size=1000",
     scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
     alertTopic: pagerdutyTopic,
   },
@@ -1177,6 +1178,8 @@ const lambdaSettings = {
   ],
   roleAttachments: httpRoleAttachments,
   role: httpLambdaRole,
+  alertTopic: pagerdutyTopic,
+  alb: alb,
 };
 
 buildHttpLambdaFn({

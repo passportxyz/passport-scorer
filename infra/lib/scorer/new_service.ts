@@ -301,16 +301,20 @@ export function createScorerECSService(
     },
   });
 
+  function getAutoScaleMinCapacity() {
+    return config.autoScaleMinCapacity ? config.autoScaleMinCapacity : 2;
+  }
+
+  function getAutoScaleMaxCapacity() {
+    return config.autoScaleMaxCapacity ? config.autoScaleMaxCapacity : 20;
+  }
+
   const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
     `autoscale-target-${name}`,
     {
       tags: { name: name },
-      maxCapacity: config.autoScaleMaxCapacity
-        ? config.autoScaleMaxCapacity
-        : 20,
-      minCapacity: config.autoScaleMinCapacity
-        ? config.autoScaleMinCapacity
-        : 2,
+      maxCapacity: getAutoScaleMaxCapacity(),
+      minCapacity: getAutoScaleMinCapacity(),
       resourceId: interpolate`service/${config.cluster.name}/${service.service.name}`,
       scalableDimension: "ecs:service:DesiredCount",
       serviceNamespace: "ecs",
@@ -336,29 +340,37 @@ export function createScorerECSService(
   );
 
   if (config.alertTopic) {
-    const cpuAlarm = new aws.cloudwatch.MetricAlarm(`CPUUtilization-${name}`, {
-      tags: { name: `CPUUtilization-${name}` },
-      alarmActions: [config.alertTopic.arn],
-      comparisonOperator: "GreaterThanThreshold",
-      datapointsToAlarm: 1,
-      dimensions: {
-        ClusterName: config.cluster.name,
-        ServiceName: service.service.name,
-      },
-      evaluationPeriods: 1,
-      metricName: "CPUUtilization",
-      name: `CPUUtilization-${name}`,
-      namespace: "AWS/ECS",
-      period: 300,
-      statistic: "Average",
-      threshold: 80,
-    });
+    // We want an alarm when the number of running tasks reaches 75% of the configured maximum
+    const tunningTaskCountAlarm = new aws.cloudwatch.MetricAlarm(
+      `RunningTaskCount-${name}`,
+      {
+        tags: { name: `RunningTaskCount-${name}` },
+        alarmActions: [config.alertTopic.arn],
+        okActions: [config.alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm: 1,
+        dimensions: {
+          ClusterName: config.cluster.name,
+          ServiceName: service.service.name,
+        },
+        evaluationPeriods: 1,
+        metricName: "RunningTaskCount",
+        name: `RunningTaskCount-${name}`,
+        namespace: "AWS/ECS",
+        period: 300,
+        statistic: "Sum",
+        threshold: getAutoScaleMaxCapacity() * 0.75,
+      }
+    );
 
+    // High memory consumption might indicate an issue with the provisioned memory size, and
+    // we should probably increase the size of allocated memory
     const memoryAlarm = new aws.cloudwatch.MetricAlarm(
       `MemoryUtilization-${name}`,
       {
         tags: { name: `MemoryUtilization-${name}` },
         alarmActions: [config.alertTopic.arn],
+        okActions: [config.alertTopic.arn],
         comparisonOperator: "GreaterThanThreshold",
         datapointsToAlarm: 1,
         dimensions: {
@@ -375,9 +387,11 @@ export function createScorerECSService(
       }
     );
 
+    // We want an alarm to monitor for 5xx errors
     const http5xxAlarm = new aws.cloudwatch.MetricAlarm(`HTTP-5xx-${name}`, {
       tags: { name: `HTTP-5xx-${name}` },
       alarmActions: [config.alertTopic.arn],
+      okActions: [config.alertTopic.arn],
       comparisonOperator: "GreaterThanThreshold",
       datapointsToAlarm: 3,
       dimensions: {
@@ -392,6 +406,31 @@ export function createScorerECSService(
       statistic: "Sum",
       treatMissingData: "notBreaching",
     });
+
+    // We want an alarm to monitor for the average response time
+    const targetResponseTimeAlarm = new aws.cloudwatch.MetricAlarm(
+      `TargetResponseTime-${name}`,
+      {
+        tags: { name: `TargetResponseTime-${name}` },
+        alarmActions: [config.alertTopic.arn],
+        okActions: [config.alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm: 3,
+        dimensions: {
+          LoadBalancer: config.alb.name,
+          TargetGroup: config.targetGroup.name,
+        },
+        evaluationPeriods: 5,
+        metricName: "TargetResponseTime",
+        name: `TargetResponseTime-${name}`,
+        namespace: "AWS/ApplicationELB",
+        period: 60,
+        statistic: "Average",
+        treatMissingData: "notBreaching",
+        threshold: 2,
+        unit: "Seconds",
+      }
+    );
   }
 
   return service;
@@ -939,6 +978,8 @@ type BuildLambdaFnBaseParams = {
   roleAttachments: RolePolicyAttachment[];
   memorySize: number;
   dockerCmd: string[];
+  alertTopic?: Topic;
+  alb: aws.lb.LoadBalancer;
 };
 
 export function buildHttpLambdaFn(
@@ -957,6 +998,8 @@ export function buildHttpLambdaFn(
     pathPatterns,
     httpRequestMethods,
     name,
+    alertTopic,
+    alb,
   } = args;
 
   const lambdaTargetGroup = new aws.lb.TargetGroup(`l-${name}`, {
@@ -1010,6 +1053,54 @@ export function buildHttpLambdaFn(
     ],
     conditions,
   });
+
+  if (alertTopic) {
+    // We want an alarm to monitor for 5xx errors
+    const http5xxAlarm = new aws.cloudwatch.MetricAlarm(`HTTP-5xx-${name}`, {
+      tags: { name: `HTTP-5xx-${name}` },
+      alarmActions: [alertTopic.arn],
+      okActions: [alertTopic.arn],
+      comparisonOperator: "GreaterThanThreshold",
+      datapointsToAlarm: 3,
+      dimensions: {
+        LoadBalancer: alb.name,
+        TargetGroup: lambdaTargetGroup.name,
+      },
+      evaluationPeriods: 5,
+      metricName: "HTTPCode_Target_5XX_Count",
+      name: `HTTP-5xx-${name}`,
+      namespace: "AWS/ApplicationELB",
+      period: 60,
+      statistic: "Sum",
+      treatMissingData: "notBreaching",
+      threshold: 20,
+    });
+
+    // We want an alarm to monitor for the average response time
+    const targetResponseTimeAlarm = new aws.cloudwatch.MetricAlarm(
+      `TargetResponseTime-${name}`,
+      {
+        tags: { name: `TargetResponseTime-${name}` },
+        alarmActions: [alertTopic.arn],
+        okActions: [alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm: 3,
+        dimensions: {
+          LoadBalancer: alb.name,
+          TargetGroup: lambdaTargetGroup.name,
+        },
+        evaluationPeriods: 5,
+        metricName: "TargetResponseTime",
+        name: `TargetResponseTime-${name}`,
+        namespace: "AWS/ApplicationELB",
+        period: 60,
+        statistic: "Average",
+        treatMissingData: "notBreaching",
+        threshold: 2,
+        unit: "Seconds",
+      }
+    );
+  }
 }
 
 export function buildQueueLambdaFn(
