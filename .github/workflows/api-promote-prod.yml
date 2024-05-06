@@ -65,16 +65,6 @@ jobs:
         working-directory: ./api
         run: pip3 install -r requirements.txt
 
-      - name: Run API unittests
-        working-directory: ./api
-        run: pytest
-        env:
-          CERAMIC_CACHE_SCORER_ID: ""
-          SECRET_KEY: secret-test-value
-          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
-          DATA_MODEL_DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
-          FF_API_ANALYTICS: on
-
       - name: URL Monitoring Check
         working-directory: ./api
         shell: bash
@@ -87,6 +77,16 @@ jobs:
           python manage.py show_urls -f json > urls.json &&
           python manage.py get_unmonitored_urls --urls urls.json --base-url https://api.scorer.gitcoin.co --out unmanaged.json &&
           [ -f unmanaged.json ] && [ `cat unmanaged.json | wc -m` -eq 2 ]
+
+      - name: Run API unittests
+        working-directory: ./api
+        run: pytest
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
+          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          DATA_MODEL_DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          FF_API_ANALYTICS: on
 
   build-api:
     environment: Production
