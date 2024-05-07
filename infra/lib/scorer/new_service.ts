@@ -49,7 +49,15 @@ export type ScorerEnvironmentConfig = {
   passportPublicUrl?: Input<string>;
 };
 
-export const secrets = [
+export type Secret = { name: string; valueFrom: Input<string> };
+
+export type SecretsConfig = {
+  aws_access_key_id: Input<string>;
+  aws_secret_access_key: Input<string>;
+  aws_endpoint_url: Input<string>;
+};
+
+export const secrets: Secret[] = [
   {
     name: "SECRET_KEY",
     valueFrom: `${SCORER_SERVER_SSM_ARN}:SECRET_KEY::`,
@@ -111,6 +119,23 @@ export const secrets = [
     valueFrom: `${SCORER_SERVER_SSM_ARN}:DATA_MODEL_DATABASE_URL::`,
   },
 ];
+
+export function getSecrets(config: SecretsConfig): Secret[] {
+  const ret: Secret[] = [];
+  ret.push({
+    name: "AWS_ACCESS_KEY_ID",
+    valueFrom: config.aws_access_key_id,
+  });
+  ret.push({
+    name: "AWS_SECRET_ACCESS_KEY",
+    valueFrom: config.aws_secret_access_key,
+  });
+  ret.push({
+    name: "AWS_ENDPOINT_URL",
+    valueFrom: config.aws_endpoint_url,
+  });
+  return ret;
+}
 
 export function getEnvironment(config: ScorerEnvironmentConfig) {
   return [

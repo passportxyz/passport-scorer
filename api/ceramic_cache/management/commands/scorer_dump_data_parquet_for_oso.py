@@ -18,7 +18,7 @@ def get_pa_schema():
     schema = pa.schema(
         [
             ("passport_address", pa.string()),
-            ("last_score_timestamp", pa.timestamp("ms")),
+            ("last_score_timestamp", pa.timestamp("us")),  # us stands for microsecond
             ("evidence_rawScore", pa.string()),
             ("evidence_threshold", pa.string()),
             (
@@ -38,14 +38,14 @@ def get_pa_schema():
 
 
 @contextmanager
-def writer_context_manager(model):
+def writer_context_manager(model, filename=None):
     table_name = model._meta.db_table
-    output_file = f"{table_name}.parquet"
+    output_file = f"{table_name}.parquet" if not filename else filename
     schema = get_pa_schema()
     try:
         with pq.ParquetWriter(output_file, schema) as writer:
 
-            class WriterWrappe:
+            class WriterWrapper:
                 def __init__(self, writer):
                     self.writer = writer
 
@@ -68,7 +68,7 @@ def writer_context_manager(model):
                     batch = pa.RecordBatch.from_pylist(transformed_data, schema=schema)
                     self.writer.write_batch(batch)
 
-            yield WriterWrappe(writer)
+            yield WriterWrapper(writer)
     finally:
         pass
 
@@ -95,11 +95,13 @@ class Command(BaseCommand):
         parser.add_argument(
             "--s3-uri", type=str, help="The S3 URI target location for the files"
         )
+        parser.add_argument("--filename", type=str, help="The filename to create")
 
     def handle(self, *args, **options):
         self.batch_size = options["batch_size"]
         self.database = options["database"]
         self.s3_uri = options["s3_uri"]
+        self.filename = options["filename"]
 
         # Get the bucket name and folder from the S3 uri
         parsed_uri = urlparse(self.s3_uri)
@@ -113,7 +115,6 @@ class Command(BaseCommand):
 
         self.stdout.write("EXPORT - START export data for Score")
         try:
-            output_file = f"{Score._meta.db_table}.parquet"
             export_data_for_model(
                 # We only want to export for the default scorer
                 Score.objects.filter(
@@ -128,13 +129,14 @@ class Command(BaseCommand):
                 self.batch_size,
                 writer_context_manager,
                 jsonfields_as_str=False,
+                extra_writer_args={"filename": self.filename},
             )
 
             self.stdout.write(
-                self.style.SUCCESS(f"EXPORT - Data exported to '{output_file}'")
+                self.style.SUCCESS(f"EXPORT - Data exported to '{self.filename}'")
             )
 
-            upload_to_s3(output_file, s3_folder, s3_bucket_name, {})
+            upload_to_s3(self.filename, s3_folder, s3_bucket_name, {})
 
             self.stdout.write(
                 self.style.SUCCESS(

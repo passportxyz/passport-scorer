@@ -999,6 +999,33 @@ export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
   envConfig
 );
 
+/*
+ * Exporting score data for OSO
+ */
+export const dailyScoreExportForOSO = createScheduledTask(
+  "daily-score-export-for-oso",
+  {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: [
+      "python",
+      "manage.py",
+      "scorer_dump_data_parquet_for_oso",
+      "--s3-uri=s3://oso-dataset-transfer-bucket/passport/",
+      "--filename=scores.parquet",
+      "--database=read_replica_0",
+    ].join(" "),
+    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
+    alertTopic: pagerdutyTopic,
+  },
+  envConfig,
+  {
+    aws_access_key_id: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ACCESS_KEY_ID::`,
+    aws_secret_access_key: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_SECRET_ACCESS_KEY::`,
+    aws_endpoint_url: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ENDPOINT_URL::`,
+  }
+);
+
 // The follosing scorer dumps the Allo scorer scores to a public S3 bucket
 // for the Allo team to easily pull the data
 export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(

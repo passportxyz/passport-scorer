@@ -6,7 +6,10 @@ import {
   ScorerService,
   ScorerEnvironmentConfig,
   getEnvironment,
+  SecretsConfig,
+  getSecrets,
 } from "./new_service";
+import { getSecret } from "@pulumi/aws/kms/getSecret";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -30,7 +33,8 @@ export type ScheduledTaskConfig = Pick<
 export function createScheduledTask(
   name: string,
   config: ScheduledTaskConfig,
-  envConfig: ScorerEnvironmentConfig
+  envConfig: ScorerEnvironmentConfig,
+  secretsConfig?: SecretsConfig
 ) {
   const {
     alertTopic,
@@ -81,7 +85,7 @@ export function createScheduledTask(
         image: dockerImageScorer,
         cpu: cpu ? cpu : 256,
         memory: memory ? memory : 2048,
-        secrets,
+        secrets: secretsConfig ? getSecrets(secretsConfig).concat(secrets) : secrets,
         environment: getEnvironment(envConfig),
         command: commandWithTest,
       },
