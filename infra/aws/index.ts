@@ -936,7 +936,8 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask(
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
-    command: "python manage.py dump_stamp_data --database=read_replica_0 --batch-size=1000",
+    command:
+      "python manage.py dump_stamp_data --database=read_replica_0 --batch-size=1000",
     scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
     alertTopic: pagerdutyTopic,
   },
@@ -1098,34 +1099,11 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
   );
 
 /*
- * Dump data for the eth-model V1
- */
-export const frequentEthModelScoreDataDumpTaskDefinitionForScorer =
-  createScheduledTask(
-    "frequent-eth-model-score-dump",
-    {
-      ...baseScorerServiceConfig,
-      securityGroup: secgrp,
-      command: [
-        "python",
-        "manage.py",
-        "scorer_dump_data_model_score",
-        `--s3-uri=s3://${publicDataDomain}/eth_model_scores/`,
-        "--filename=eth_model_scores.jsonl",
-        "--data-model=predict",
-      ].join(" "),
-      scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-      alertTopic: pagerdutyTopic,
-    },
-    envConfig
-  );
-
-/*
  * Dump data for the eth-model V2
  */
 export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
   createScheduledTask(
-    "frequent-eth-model-score-dump",
+    "frequent-eth-model-v2-score-dump",
     {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
