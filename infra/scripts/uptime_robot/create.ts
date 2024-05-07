@@ -1,54 +1,56 @@
 import "dotenv/config";
 
-import axios from "axios";
-import {
-  BasicMonitorOptions,
-  createUptimeRobotMonitorCommand,
-  api_key,
-} from "./command";
+import { BasicMonitorOptions, api_key, generateProgram } from "./command";
 
-const createSimpleGETMonitor = async (
-  baseUrl: string,
-  path: string,
-  options: BasicMonitorOptions
-) => {
-  const { timeout, interval } = options;
+const commands = [];
 
-  const url = `${baseUrl}/${path}`;
+commands.push({
+  name: "simple_get",
+  description: "Create a new monitor for a public GET endpoint",
+  generateCreateModelRequestBody: (
+    url: string,
+    path: string,
+    options: BasicMonitorOptions
+  ) => {
+    const { timeout, interval } = options;
 
-  let data: any;
-  try {
-    const response = await axios.post(
-      "https://api.uptimerobot.com/v2/newMonitor",
-      {
-        api_key,
-        format: "json",
-        type: "1",
-        friendly_name: "Scorer GET /" + path,
-        interval,
-        timeout,
-        url,
-      },
-      {
-        headers: {
-          "content-type": "application/x-www-form-urlencoded",
-          "cache-control": "no-cache",
-        },
-      }
-    );
+    return {
+      api_key,
+      format: "json",
+      type: "1",
+      friendly_name: "Scorer GET /" + path,
+      interval,
+      timeout,
+      url,
+    };
+  },
+});
 
-    data = response.data;
-  } catch (exception) {
-    data = { exception };
-  }
-
-  return {
-    data,
-    url,
-  };
+type ApiKeyMonitorOptions = BasicMonitorOptions & {
+  postBody: string;
+  scorerApiKey: string;
 };
 
-createUptimeRobotMonitorCommand<BasicMonitorOptions>({
-  description: "Create a new monitor for a public GET endpoint",
-  handleCreateMonitor: createSimpleGETMonitor,
+commands.push({
+  name: "api_key_auth",
+  description: "Create a new monitor for an endpoint with API key auth",
+  generateCreateModelRequestBody: (
+    url: string,
+    path: string,
+    options: ApiKeyMonitorOptions
+  ) => {
+    const { timeout, interval, postBody, scorerApiKey } = options;
+
+    return {
+      api_key,
+      format: "json",
+      type: "1",
+      friendly_name: "Scorer GET /" + path,
+      interval,
+      timeout,
+      url,
+    };
+  },
 });
+
+generateProgram(commands);
