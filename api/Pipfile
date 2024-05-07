@@ -45,7 +45,6 @@ python-jose = "*"
 uvarint = "*"
 django-ace = "*"
 async-timeout = "*"
-google-cloud-storage = "*"
 
 [dev-packages]
 black = "*"

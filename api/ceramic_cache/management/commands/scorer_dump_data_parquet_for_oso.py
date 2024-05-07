@@ -1,5 +1,8 @@
+import os.path
 import traceback
 from contextlib import contextmanager
+from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -8,9 +11,7 @@ from django.core.management.base import BaseCommand
 from django.db import DEFAULT_DB_ALIAS
 from django.db.models.functions import Lower
 from registry.models import Score
-from scorer.export_utils import (
-    export_data_for_model,
-)
+from scorer.export_utils import export_data_for_model, upload_to_s3
 
 
 def get_pa_schema():
@@ -91,27 +92,24 @@ class Command(BaseCommand):
             help="Nominates a specific database to dump fixtures from. "
             'Defaults to the "default" database.',
         )
-        # parser.add_argument(
-        #     "--apps",
-        #     type=str,
-        #     help="""Comma separated list of app names for which to export data. We'll export all models for each app listed.""",
-        # )
-        # parser.add_argument(
-        #     "--s3-extra-args",
-        #     type=str,
-        #     help="""JSON object, that contains extra args for the files uploaded to S3.
-        #     This will be passed in as the `ExtraArgs` parameter to boto3's upload_file method.""",
-        # )
-        # parser.add_argument(
-        #     "--sort-field",
-        #     type=str,
-        #     help="""The field used to sort and batch the export. This is typically the id, but can be any unique field.""",
-        #     default="id",
-        # )
+        parser.add_argument(
+            "--s3-uri", type=str, help="The S3 URI target location for the files"
+        )
 
     def handle(self, *args, **options):
         self.batch_size = options["batch_size"]
         self.database = options["database"]
+        self.s3_uri = options["s3_uri"]
+
+        # Get the bucket name and folder from the S3 uri
+        parsed_uri = urlparse(self.s3_uri)
+        s3_bucket_name = parsed_uri.netloc
+        s3_folder = parsed_uri.path.strip("/")
+
+        # Append a sub-folder to th epath that consists of the current date <YYYY-MM-DD>
+        now = datetime.now(timezone.utc)
+        daily_folder_name = now.isoformat().split("T")[0]
+        s3_folder = os.path.join(s3_folder, daily_folder_name)
 
         self.stdout.write("EXPORT - START export data for Score")
         try:
@@ -136,12 +134,11 @@ class Command(BaseCommand):
                 self.style.SUCCESS(f"EXPORT - Data exported to '{output_file}'")
             )
 
-            # TODO: to be implemented
-            # upload_to_gcp(output_file, s3_folder, s3_bucket_name, extra_args)
+            upload_to_s3(output_file, s3_folder, s3_bucket_name, {})
 
             self.stdout.write(
                 self.style.SUCCESS(
-                    "EXPORT - Data uploaded to 'TODO:: add destination here'"
+                    f"EXPORT - Data uploaded to folder '{s3_folder}' in bucket '{s3_bucket_name}'"
                 )
             )
 
