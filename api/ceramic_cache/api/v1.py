@@ -31,7 +31,7 @@ from registry.api.v1 import (
 )
 from registry.models import Score
 from stake.api import handle_get_gtc_stake
-from stake.schema import StakeSchema, GetSchemaResponse
+from stake.schema import GetSchemaResponse
 
 from ..exceptions import (
     InternalServerException,
@@ -534,10 +534,9 @@ def get_detailed_score_response_for_address(
 )
 def get_staked_gtc(request) -> GetSchemaResponse:
     address = get_address_from_did(request.did)
-    get_stake_response =  handle_get_gtc_stake(address)
+    get_stake_response = handle_get_gtc_stake(address)
     response = GetSchemaResponse(items=get_stake_response)
     return response
-
 
 
 @router.get(
@@ -575,5 +574,7 @@ def get_tos_to_sign(request, tos_type: str, address: str) -> tos.schema.TosToSig
     },
     summary="Accept the tos",
 )
-def accept_tos(request, payload: tos.schema.TosSigned) -> None:
+def accept_tos(
+    request, tos_type: str, address: str, payload: tos.schema.TosSigned
+) -> None:
     tos.api.accept_tos(payload)

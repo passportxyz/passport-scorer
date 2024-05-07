@@ -2,7 +2,6 @@ import json
 from contextlib import contextmanager
 from logging import getLogger
 
-
 import boto3
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -74,7 +73,12 @@ def get_data_json_as_str(last_id, queryset, sort_field, batch_size):
 
 
 def export_data_for_model(
-    queryset, sort_field, batch_size, writer_context_manager, jsonfields_as_str=True
+    queryset,
+    sort_field,
+    batch_size,
+    writer_context_manager,
+    jsonfields_as_str=True,
+    extra_writer_args={},
 ):
     data = (
         get_data_json_as_str(None, queryset, sort_field, batch_size)
@@ -93,7 +97,7 @@ def export_data_for_model(
     ) as progress_bar:
         if data is not None:
             progress_bar.update(len(data))
-            with writer_context_manager(model) as writer:
+            with writer_context_manager(model, **extra_writer_args) as writer:
                 writer.write_batch(data)
 
                 has_more = len(data) > 0
