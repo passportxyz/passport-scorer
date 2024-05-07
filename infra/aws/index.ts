@@ -1097,6 +1097,9 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
     envConfig
   );
 
+/*
+ * Dump data for the eth-model V1
+ */
 export const frequentEthModelScoreDataDumpTaskDefinitionForScorer =
   createScheduledTask(
     "frequent-eth-model-score-dump",
@@ -1106,11 +1109,33 @@ export const frequentEthModelScoreDataDumpTaskDefinitionForScorer =
       command: [
         "python",
         "manage.py",
-        "scorer_dump_data_eth_model_score",
+        "scorer_dump_data_model_score",
         `--s3-uri=s3://${publicDataDomain}/eth_model_scores/`,
         "--filename=eth_model_scores.jsonl",
-        // "--s3-extra-args",
-        // JSON.stringify({ ACL: "public-read" }),
+        "--data-model=predict",
+      ].join(" "),
+      scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+      alertTopic: pagerdutyTopic,
+    },
+    envConfig
+  );
+
+/*
+ * Dump data for the eth-model V2
+ */
+export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
+  createScheduledTask(
+    "frequent-eth-model-score-dump",
+    {
+      ...baseScorerServiceConfig,
+      securityGroup: secgrp,
+      command: [
+        "python",
+        "manage.py",
+        "scorer_dump_data_model_score",
+        `--s3-uri=s3://${publicDataDomain}/eth_model_scores_v2/`,
+        "--filename=eth_model_scores.jsonl",
+        "--data-model=predict_eth_v2",
       ].join(" "),
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,

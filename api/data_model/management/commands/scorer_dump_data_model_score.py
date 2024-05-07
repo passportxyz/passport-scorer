@@ -75,6 +75,18 @@ class Command(BaseCommand):
         parser.add_argument(
             "--s3-uri", type=str, help="The S3 URI target location for the files"
         )
+        parser.add_argument(
+            "--data-model",
+            type=str,
+            help="""The name of the prediction data model for which to export data.
+
+For example:
+    - predict - for eth model v1
+    - predict_eth_v2 - for eth model v1
+    - predict_zksync - for zksync model
+    - predict_zksync_v2 - for zksync model v2
+""",
+        )
 
         parser.add_argument("--filename", type=str, help="The output filename")
 
@@ -89,6 +101,7 @@ class Command(BaseCommand):
         batch_size = options["batch_size"]
         s3_uri = options["s3_uri"]
         filename = options["filename"]
+        data_model_name = options["data_model"]
 
         extra_args = (
             json.loads(options["s3_extra_args"]) if options["s3_extra_args"] else None
@@ -105,7 +118,7 @@ class Command(BaseCommand):
         try:
             export_data_for_model(
                 Cache.objects.filter(
-                    key__0="predict"
+                    key__0=data_model_name
                 ),  # This will only filter the scores for eth_stamp_model (v1)
                 "key",
                 batch_size,
