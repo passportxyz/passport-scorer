@@ -45,7 +45,7 @@ def create_cache_table():
 class TestGetStamps:
     @pytest.mark.django_db(databases=["default", "data_model"])
     def test_dump_data_eth_model_score(self, mocker, create_cache_table):
-        """Test the 'scorer_dump_data_eth_model_score' command"""
+        """Test the 'scorer_dump_data_model_score' command"""
 
         ###############################################################
         # Create data in the DB
@@ -86,15 +86,16 @@ class TestGetStamps:
             )
 
         s3_upload_mock = mocker.patch(
-            "data_model.management.commands.scorer_dump_data_eth_model_score.upload_to_s3"
+            "data_model.management.commands.scorer_dump_data_model_score.upload_to_s3"
         )
         call_command(
-            "scorer_dump_data_eth_model_score",
+            "scorer_dump_data_model_score",
             *[],
             **{
                 "batch_size": 2,  # set a small batch size, we want make sure it can handle pagination
                 "s3_uri": "s3://public.scorer.gitcoin.co/passport_scores/",
                 "filename": "eth_model_score.jsonl",
+                "data_model": "predict",
             },
         )
 
