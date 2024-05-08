@@ -1,6 +1,7 @@
 import * as awsx from "@pulumi/awsx";
 import { all } from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
+import { local } from "@pulumi/command";
 import {
   secrets,
   ScorerService,
@@ -30,7 +31,7 @@ export type ScheduledTaskConfig = Pick<
     ephemeralStorageSizeInGiB?: number;
   };
 
-export function createScheduledTask(
+export function _createScheduledTask(
   name: string,
   config: ScheduledTaskConfig,
   envConfig: ScorerEnvironmentConfig,
@@ -269,4 +270,47 @@ export function createScheduledTask(
   });
 
   return task.taskDefinition.id;
+}
+
+export function createScheduledTask(
+  name: string,
+  uptimeRobotSecondsInterval: number,
+  config: ScheduledTaskConfig,
+  envConfig: ScorerEnvironmentConfig
+) {
+  // Manage Uptime Robot endpoint
+  const uptimeRobotScript = new local.Command(`uptimeRobot-${name}`, {
+    create: `sh ../scripts/create_monitor.sh cron-${name} ${uptimeRobotSecondsInterval} 0`, // executed once on create
+  });
+
+  // uptimeRobotScript.stderr.apply( (_err) => {
+  //   // console.log(" _err = ", _err);
+  //   // if (_err) {
+  //   //   throw Error(`Error creating UptimeRobot endpoint. Error: ${_err}`);
+  //   // }
+  // });
+
+  let taskId;
+  uptimeRobotScript.stdout.apply((_out) => {
+    const parsedOutput = JSON.parse(_out);
+    if (
+      Object.keys(parsedOutput) &&
+      parsedOutput.stat === "ok" &&
+      parsedOutput.monitor &&
+      Object.keys(parsedOutput.monitor) &&
+      parsedOutput.monitor.url
+    ) {
+      const heartBeatUrl = parsedOutput.monitor.url;
+      if (heartBeatUrl) {
+        taskId = _createScheduledTask(name, config, {
+          ...envConfig,
+          heartBeatMonitorUrl: heartBeatUrl,
+        });
+      }
+    } else {
+      throw Error(`Error retriving the heartbeat endpoint. Output: ${_out}`);
+    }
+  });
+
+  return taskId;
 }

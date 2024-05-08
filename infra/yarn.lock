@@ -218,6 +218,13 @@
     "@types/aws-lambda" "^8.10.23"
     mime "^2.0.0"
 
+"@pulumi/command@^0.10.0":
+  version "0.10.0"
+  resolved "https://registry.yarnpkg.com/@pulumi/command/-/command-0.10.0.tgz#f2237637f181890308a707de34455cb4a0205438"
+  integrity sha512-fye7KpMepeqXX7H7JE5bs5hvtloifOgR3etuBdrvW1acfpeaPZOhUvLIWqSztAW+RkulchdGeIVZ6K6sQuOfJw==
+  dependencies:
+    "@pulumi/pulumi" "^3.0.0"
+
 "@pulumi/docker@^3.6.1":
   version "3.6.1"
   resolved "https://registry.npmjs.org/@pulumi/docker/-/docker-3.6.1.tgz"

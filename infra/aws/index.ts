@@ -19,7 +19,7 @@ import {
   LoadBalancerAlarmThresholds,
   createLoadBalancerAlarms,
 } from "../lib/scorer/loadBalancer";
-import { createScheduledTask } from "../lib/scorer/scheduledTasks";
+import { _createScheduledTask, createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -1000,7 +1000,7 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
   targetGroupArn: redashTarget.arn,
 });
 
-export const weeklyDataDumpTaskDefinition = createScheduledTask(
+export const weeklyDataDumpTaskDefinition = _createScheduledTask(
   "weekly-data-dump",
   {
     ...baseScorerServiceConfig,
@@ -1015,6 +1015,7 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask(
 
 export const dailyDataDumpTaskDefinition = createScheduledTask(
   "daily-data-dump",
+  86400, // 1 day
   {
     ...baseScorerServiceConfig,
     cpu: 1024,
@@ -1050,6 +1051,7 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
 
 export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
   "daily-data-dump-parquet",
+  86400, // 1 day
   {
     ...baseScorerServiceConfig,
     cpu: 1024,
@@ -1076,6 +1078,7 @@ export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
  */
 export const dailyScoreExportForOSO = createScheduledTask(
   "daily-score-export-for-oso",
+  86400, // 1 day
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
@@ -1091,17 +1094,18 @@ export const dailyScoreExportForOSO = createScheduledTask(
     alertTopic: pagerdutyTopic,
   },
   envConfig,
-  {
-    aws_access_key_id: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ACCESS_KEY_ID::`,
-    aws_secret_access_key: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_SECRET_ACCESS_KEY::`,
-    aws_endpoint_url: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ENDPOINT_URL::`,
-  }
+  // {
+  //   aws_access_key_id: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ACCESS_KEY_ID::`,
+  //   aws_secret_access_key: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_SECRET_ACCESS_KEY::`,
+  //   aws_endpoint_url: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ENDPOINT_URL::`,
+  // }
 );
 
 // The follosing scorer dumps the Allo scorer scores to a public S3 bucket
 // for the Allo team to easily pull the data
 export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
   "frequent-allo-scorer-data-dump",
+  1800, // 30 minutes
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
@@ -1134,6 +1138,7 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
 export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
   createScheduledTask(
     "frequent-allo-scorer-data-dump-335",
+    1800, // 30 minutes
     {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
@@ -1166,6 +1171,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
 export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
   createScheduledTask(
     "frequent-allo-scorer-data-dump-6608",
+    1800, // 30 minutes
     {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
@@ -1200,6 +1206,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
 export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
   createScheduledTask(
     "frequent-eth-model-v2-score-dump",
+    1800, // 30 minutes
     {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
