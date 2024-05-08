@@ -1094,11 +1094,11 @@ export const dailyScoreExportForOSO = createScheduledTask(
     alertTopic: pagerdutyTopic,
   },
   envConfig,
-  // {
-  //   aws_access_key_id: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ACCESS_KEY_ID::`,
-  //   aws_secret_access_key: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_SECRET_ACCESS_KEY::`,
-  //   aws_endpoint_url: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ENDPOINT_URL::`,
-  // }
+  {
+    aws_access_key_id: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ACCESS_KEY_ID::`,
+    aws_secret_access_key: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_SECRET_ACCESS_KEY::`,
+    aws_endpoint_url: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ENDPOINT_URL::`,
+  }
 );
 
 // The follosing scorer dumps the Allo scorer scores to a public S3 bucket
