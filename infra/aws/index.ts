@@ -26,6 +26,9 @@ import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 //////////////////////////////////////////////////////////////
 // Loading environment variables
 //////////////////////////////////////////////////////////////
+const PROVISION_STAGING_FOR_LOADTEST =
+  `${process.env["PROVISION_STAGING_FOR_LOADTEST"]}`.toLowerCase() === "true";
+
 type StackType = "review" | "staging" | "production";
 export const stack: StackType = pulumi.getStack() as StackType;
 export const region = aws.getRegion();
@@ -139,6 +142,15 @@ const ecsTaskConfigurations: Record<
     },
   },
 };
+
+if (PROVISION_STAGING_FOR_LOADTEST) {
+  // If we are provisioning for staging we want to have the same sizing as for production
+  // So we copy over the production values to the staging values in ecsTaskConfigurations
+  ecsTaskConfigurations["scorer-api-default"]["staging"] =
+    ecsTaskConfigurations["scorer-api-default"]["production"];
+  ecsTaskConfigurations["scorer-api-reg"]["staging"] =
+    ecsTaskConfigurations["scorer-api-reg"]["production"];
+}
 
 // This matches the default security group that awsx previously created when creating the Cluster.
 // https://github.com/pulumi/pulumi-awsx/blob/45136c540f29eb3dc6efa5b4f51cfe05ee75c7d8/awsx-classic/ecs/cluster.ts#L110
