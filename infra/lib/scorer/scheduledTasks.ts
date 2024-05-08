@@ -86,7 +86,9 @@ export function _createScheduledTask(
         image: dockerImageScorer,
         cpu: cpu ? cpu : 256,
         memory: memory ? memory : 2048,
-        secrets: secretsConfig ? getSecrets(secretsConfig).concat(secrets) : secrets,
+        secrets: secretsConfig
+          ? getSecrets(secretsConfig).concat(secrets)
+          : secrets,
         environment: getEnvironment(envConfig),
         command: commandWithTest,
       },
@@ -269,6 +271,41 @@ export function _createScheduledTask(
     treatMissingData: "notBreaching",
   });
 
+  // Manage Heartbeat error  Alerts
+  if (envConfig.heartBeatMonitorUrl) {
+    const heartBeatMetric = new aws.cloudwatch.LogMetricFilter(
+      `${name}-heartBeat-error-metric`,
+      {
+        logGroupName: logGroup.name,
+        metricTransformation: {
+          defaultValue: "0",
+          name: `heartBeat-${name}`,
+          namespace: "/scheduled-tasks/runs/heartbeat",
+          unit: "Count",
+          value: "1",
+        },
+        name: "heartBeat-${name}",
+        pattern: '"Error HeartBeat Process"',
+      }
+    );
+
+    const heartBeatErrorAlarm = new aws.cloudwatch.MetricAlarm(`${name}-heartBeat-error-alarm`, {
+        alarmActions: [alertTopic.arn],
+        okActions: [alertTopic.arn],
+        comparisonOperator: "GreaterThanOrEqualToThreshold",
+        datapointsToAlarm: 1,
+        evaluationPeriods: 1,
+        insufficientDataActions: [],
+        metricName: `heartBeat-${name}`,
+        name:`heartBeat-${name}`,
+        namespace: "/scheduled-tasks/runs/heartbeat",
+        period: 1800, // 30min
+        statistic: "Sum",
+        threshold: 1,
+        treatMissingData: "notBreaching",
+      });
+  }
+
   return task.taskDefinition.id;
 }
 
@@ -276,9 +313,12 @@ export function createScheduledTask(
   name: string,
   uptimeRobotSecondsInterval: number,
   config: ScheduledTaskConfig,
-  envConfig: ScorerEnvironmentConfig
+  envConfig: ScorerEnvironmentConfig,
+  secretsConfig?: SecretsConfig
 ) {
   // Manage Uptime Robot endpoint
+  // The script only does a create, it doesn't update or delete old endpoints
+  // The monitors need to be deleted manually at the moment
   const uptimeRobotScript = new local.Command(`uptimeRobot-${name}`, {
     create: `sh ../scripts/create_monitor.sh cron-${name} ${uptimeRobotSecondsInterval} 0`, // executed once on create
   });
@@ -302,10 +342,15 @@ export function createScheduledTask(
     ) {
       const heartBeatUrl = parsedOutput.monitor.url;
       if (heartBeatUrl) {
-        taskId = _createScheduledTask(name, config, {
-          ...envConfig,
-          heartBeatMonitorUrl: heartBeatUrl,
-        });
+        taskId = _createScheduledTask(
+          name,
+          config,
+          {
+            ...envConfig,
+            heartBeatMonitorUrl: heartBeatUrl,
+          },
+          secretsConfig
+        );
       }
     } else {
       throw Error(`Error retriving the heartbeat endpoint. Output: ${_out}`);
