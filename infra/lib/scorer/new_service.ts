@@ -47,6 +47,7 @@ export type ScorerEnvironmentConfig = {
   debug?: Input<string>;
   readReplicaConnectionUrl?: Input<string>;
   passportPublicUrl?: Input<string>;
+  heartBeatMonitorUrl?: Input<string>;
 };
 
 export const secrets = [
@@ -165,6 +166,10 @@ export function getEnvironment(config: ScorerEnvironmentConfig) {
     {
       name: "RESCORE_QUEUE_URL",
       value: config.rescoreQueueUrl,
+    },
+    {
+      name: "UPTIME_ROBOT_HEARTBEAT_URL",
+      value: config.heartBeatMonitorUrl || "",
     },
   ];
 }

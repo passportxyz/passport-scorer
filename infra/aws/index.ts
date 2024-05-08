@@ -1,6 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import * as awsx from "@pulumi/awsx";
 
 import {
   ScorerEnvironmentConfig,
@@ -17,7 +16,7 @@ import {
   createRescoreQueue,
   buildQueueLambdaFn,
 } from "../lib/scorer/new_service";
-import { createScheduledTask } from "../lib/scorer/scheduledTasks";
+import { _createScheduledTask, createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -931,7 +930,7 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
   targetGroupArn: redashTarget.arn,
 });
 
-export const weeklyDataDumpTaskDefinition = createScheduledTask(
+export const weeklyDataDumpTaskDefinition = _createScheduledTask(
   "weekly-data-dump",
   {
     ...baseScorerServiceConfig,
@@ -945,6 +944,7 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask(
 
 export const dailyDataDumpTaskDefinition = createScheduledTask(
   "daily-data-dump",
+  86400, // 1 day
   {
     ...baseScorerServiceConfig,
     cpu: 1024,
@@ -980,6 +980,7 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
 
 export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
   "daily-data-dump-parquet",
+  86400, // 1 day
   {
     ...baseScorerServiceConfig,
     cpu: 1024,
@@ -1005,6 +1006,7 @@ export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
 // for the Allo team to easily pull the data
 export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
   "frequent-allo-scorer-data-dump",
+  1800, // 30 minutes
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
@@ -1037,6 +1039,7 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
 export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
   createScheduledTask(
     "frequent-allo-scorer-data-dump-335",
+    1800, // 30 minutes
     {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
@@ -1069,6 +1072,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
 export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
   createScheduledTask(
     "frequent-allo-scorer-data-dump-6608",
+    1800, // 30 minutes
     {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
@@ -1100,6 +1104,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
 export const frequentEthModelScoreDataDumpTaskDefinitionForScorer =
   createScheduledTask(
     "frequent-eth-model-score-dump",
+    1800, // 30 minutes
     {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
