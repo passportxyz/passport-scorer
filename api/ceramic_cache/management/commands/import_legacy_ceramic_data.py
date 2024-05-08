@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 import boto3
 from ceramic_cache.models import CeramicCacheLegacy
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from base_cron_cmds import BaseCronJobCmd
 from tqdm import tqdm
 
 
@@ -43,7 +43,7 @@ def get_ceramic_cache_legacy(json_data):
         raise NotVerifiableCredential
 
 
-class Command(BaseCommand):
+class Command(BaseCronJobCmd):
     help = "This command will import ceramic cache legacy data into the DB."
 
     def add_arguments(self, parser):
@@ -73,7 +73,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Error reading file from S3: {e}"))
             return None
 
-    def handle(self, *args, **options):
+    def handle_cron_job(self, *args, **options):
         s3_uri = options["in"]
         self.stdout.write(f'Input file "{s3_uri}"')
         num_errors = 0

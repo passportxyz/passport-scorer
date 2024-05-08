@@ -9,6 +9,7 @@ from django.core.management.base import BaseCommand
 from django.core.paginator import Paginator
 from django.utils import timezone
 from tqdm import tqdm
+from base_cron_cmds import BaseCronJobCmd
 
 s3 = boto3.client(
     "s3",
@@ -17,10 +18,10 @@ s3 = boto3.client(
 )
 
 
-class Command(BaseCommand):
+class Command(BaseCronJobCmd):
     help = "Weekly data dump of new Stamp data since the last dump."
 
-    def handle(self, *args, **options):
+    def handle_cron_job(self, *args, **options):
         print("Starting dump_stamp_data.py")
 
         latest_export = StampExports.objects.order_by("-last_export_ts").first()

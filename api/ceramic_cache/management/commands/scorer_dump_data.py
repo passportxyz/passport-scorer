@@ -12,6 +12,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.serializers.python import Serializer as PythonSerializer
 from django.db import DEFAULT_DB_ALIAS
 from tqdm import tqdm
+from base_cron_cmds import BaseCronJobCmd
 
 
 class ProgressBar:
@@ -201,7 +202,7 @@ def export_data(model_config, file, database, batch_size=None):
                 has_more_records = serializer.last_id != 0
 
 
-class Command(BaseCommand):
+class Command(BaseCronJobCmd):
     help = """Dump data to JSONL files on S3 directly.
 
     Example configs:
@@ -252,7 +253,7 @@ class Command(BaseCommand):
             help="Extra args to add to the summary file upload. This can be used to set S3 permissions, see: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html. Defaults to {}.",
         )
 
-    def handle(self, *args, **options):
+    def handle_cron_job(self, *args, **options):
         self.stdout.write("Dumping DB data")
         self.stdout.write("Args: " + str(args))
         self.stdout.write("Options: " + str(options))
