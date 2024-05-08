@@ -1,6 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import * as awsx from "@pulumi/awsx";
 
 import {
   ScorerEnvironmentConfig,
@@ -11,12 +10,15 @@ import {
   createScorerECSService,
   createTargetGroup,
   getEnvironment,
-  secrets,
   createSharedLambdaResources,
   createDeadLetterQueue,
   createRescoreQueue,
   buildQueueLambdaFn,
 } from "../lib/scorer/new_service";
+import {
+  LoadBalancerAlarmThresholds,
+  createLoadBalancerAlarms,
+} from "../lib/scorer/loadBalancer";
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
@@ -62,9 +64,6 @@ const redashMailPassword = pulumi.secret(
 const pagerDutyIntegrationEndpoint = `${process.env["PAGERDUTY_INTEGRATION_ENDPOINT"]}`;
 
 const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
-const dataScienceInfraStack = new pulumi.StackReference(
-  `gitcoin/passport-data/${stack}`
-);
 const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
 
 const vpcID = coreInfraStack.getOutput("vpcId");
@@ -83,6 +82,14 @@ const CERAMIC_CACHE_SCORER_ID_CONFG = Object({
   staging: 14,
   production: 335,
 });
+
+const loadBalancerAlarmThresholds: LoadBalancerAlarmThresholds = {
+  targetResponseTime: 2, // seconds
+  percentHTTPCodeTarget4XX: 0.01, // percentage value for target error codes
+  percentHTTPCodeTarget5XX: 0.01, // percentage value for target error codes
+  percentHTTPCodeELB4XX: 0.01, // percentage value for ELB error codes
+  percentHTTPCodeELB5XX: 0.01, // percentage value for ELB error codes
+};
 
 const CERAMIC_CACHE_SCORER_ID = CERAMIC_CACHE_SCORER_ID_CONFG[stack];
 
@@ -501,7 +508,8 @@ const scorerServiceDefault = createScorerECSService(
     cpu: 512,
     desiredCount: 2,
   },
-  envConfig
+  envConfig,
+  loadBalancerAlarmThresholds
 );
 
 const scorerServiceRegistry = createScorerECSService(
@@ -515,7 +523,8 @@ const scorerServiceRegistry = createScorerECSService(
     cpu: 2048,
     desiredCount: 2,
   },
-  envConfig
+  envConfig,
+  loadBalancerAlarmThresholds
 );
 
 //////////////////////////////////////////////////////////////
@@ -1182,105 +1191,144 @@ const lambdaSettings = {
   alb: alb,
 };
 
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "submit-passport-0",
-  memorySize: 1024,
-  dockerCmd: ["aws_lambdas.submit_passport.submit_passport.handler"],
-  pathPatterns: ["/registry/submit-passport", "/registry/v2/submit-passport"],
-  httpRequestMethods: ["POST"],
-  listenerPriority: 1001,
-});
+createLoadBalancerAlarms(
+  "scorer-service",
+  alb.name,
+  loadBalancerAlarmThresholds,
+  pagerdutyTopic
+);
 
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "cc-v1-st-bulk-POST-0",
-  memorySize: 512,
-  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
-  pathPatterns: ["/ceramic-cache/stamps/bulk"],
-  httpRequestMethods: ["POST"],
-  listenerPriority: 1002,
-});
+buildHttpLambdaFn(
+  {
+    ...lambdaSettings,
+    name: "submit-passport-0",
+    memorySize: 1024,
+    dockerCmd: ["aws_lambdas.submit_passport.submit_passport.handler"],
+    pathPatterns: ["/registry/submit-passport", "/registry/v2/submit-passport"],
+    httpRequestMethods: ["POST"],
+    listenerPriority: 1001,
+  },
+  loadBalancerAlarmThresholds
+);
 
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "cc-v1-st-bulk-PATCH-0",
-  memorySize: 512,
-  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_PATCH.handler"],
-  pathPatterns: ["/ceramic-cache/stamps/bulk"],
-  httpRequestMethods: ["PATCH"],
-  listenerPriority: 1003,
-});
+buildHttpLambdaFn(
+  {
+    ...lambdaSettings,
+    name: "cc-v1-st-bulk-POST-0",
+    memorySize: 512,
+    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
+    pathPatterns: ["/ceramic-cache/stamps/bulk"],
+    httpRequestMethods: ["POST"],
+    listenerPriority: 1002,
+  },
+  loadBalancerAlarmThresholds
+);
 
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "cc-v1-st-bulk-DELETE-0",
-  memorySize: 512,
-  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_DELETE.handler"],
-  pathPatterns: ["/ceramic-cache/stamps/bulk"],
-  httpRequestMethods: ["DELETE"],
-  listenerPriority: 1004,
-});
+buildHttpLambdaFn(
+  {
+    ...lambdaSettings,
+    name: "cc-v1-st-bulk-PATCH-0",
+    memorySize: 512,
+    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_PATCH.handler"],
+    pathPatterns: ["/ceramic-cache/stamps/bulk"],
+    httpRequestMethods: ["PATCH"],
+    listenerPriority: 1003,
+  },
+  loadBalancerAlarmThresholds
+);
 
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "cc-auhenticate-0",
-  memorySize: 512,
-  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
-  pathPatterns: ["/ceramic-cache/authenticate"],
-  httpRequestMethods: ["POST"],
-  listenerPriority: 1005,
-});
+buildHttpLambdaFn(
+  {
+    ...lambdaSettings,
+    name: "cc-v1-st-bulk-DELETE-0",
+    memorySize: 512,
+    dockerCmd: [
+      "aws_lambdas.scorer_api_passport.v1.stamps.bulk_DELETE.handler",
+    ],
+    pathPatterns: ["/ceramic-cache/stamps/bulk"],
+    httpRequestMethods: ["DELETE"],
+    listenerPriority: 1004,
+  },
+  loadBalancerAlarmThresholds
+);
 
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "cc-v1-score-POST-0",
-  memorySize: 512,
-  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
-  pathPatterns: ["/ceramic-cache/score/*"],
-  httpRequestMethods: ["POST"],
-  listenerPriority: 1006,
-});
+buildHttpLambdaFn(
+  {
+    ...lambdaSettings,
+    name: "cc-auhenticate-0",
+    memorySize: 512,
+    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
+    pathPatterns: ["/ceramic-cache/authenticate"],
+    httpRequestMethods: ["POST"],
+    listenerPriority: 1005,
+  },
+  loadBalancerAlarmThresholds
+);
 
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "cc-v1-score-GET-0",
-  memorySize: 512,
-  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
-  pathPatterns: ["/ceramic-cache/score/*"],
-  httpRequestMethods: ["GET"],
-  listenerPriority: 1007,
-});
+buildHttpLambdaFn(
+  {
+    ...lambdaSettings,
+    name: "cc-v1-score-POST-0",
+    memorySize: 512,
+    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
+    pathPatterns: ["/ceramic-cache/score/*"],
+    httpRequestMethods: ["POST"],
+    listenerPriority: 1006,
+  },
+  loadBalancerAlarmThresholds
+);
 
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "cc-weights-GET-0",
-  memorySize: 512,
-  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
-  pathPatterns: ["/ceramic-cache/weights"],
-  httpRequestMethods: ["GET"],
-  listenerPriority: 1015,
-});
+buildHttpLambdaFn(
+  {
+    ...lambdaSettings,
+    name: "cc-v1-score-GET-0",
+    memorySize: 512,
+    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
+    pathPatterns: ["/ceramic-cache/score/*"],
+    httpRequestMethods: ["GET"],
+    listenerPriority: 1007,
+  },
+  loadBalancerAlarmThresholds
+);
 
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "cc-v1-st-GET-0",
-  memorySize: 512,
-  dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamp_GET.handler"],
-  pathPatterns: ["/ceramic-cache/stamp"],
-  httpRequestMethods: ["GET"],
-  listenerPriority: 1010,
-});
+buildHttpLambdaFn(
+  {
+    ...lambdaSettings,
+    name: "cc-weights-GET-0",
+    memorySize: 512,
+    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
+    pathPatterns: ["/ceramic-cache/weights"],
+    httpRequestMethods: ["GET"],
+    listenerPriority: 1015,
+  },
+  loadBalancerAlarmThresholds
+);
 
-buildHttpLambdaFn({
-  ...lambdaSettings,
-  name: "passport-analysis-GET-0",
-  memorySize: 256,
-  dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],
-  pathPatterns: ["/passport/analysis/*"],
-  httpRequestMethods: ["GET"],
-  listenerPriority: 1012,
-});
+buildHttpLambdaFn(
+  {
+    ...lambdaSettings,
+    name: "cc-v1-st-GET-0",
+    memorySize: 512,
+    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamp_GET.handler"],
+    pathPatterns: ["/ceramic-cache/stamp"],
+    httpRequestMethods: ["GET"],
+    listenerPriority: 1010,
+  },
+  loadBalancerAlarmThresholds
+);
+
+buildHttpLambdaFn(
+  {
+    ...lambdaSettings,
+    name: "passport-analysis-GET-0",
+    memorySize: 256,
+    dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],
+    pathPatterns: ["/passport/analysis/*"],
+    httpRequestMethods: ["GET"],
+    listenerPriority: 1012,
+  },
+  loadBalancerAlarmThresholds
+);
 
 buildQueueLambdaFn({
   ...lambdaSettings,

@@ -1,7 +1,7 @@
 import { LogGroup } from "@pulumi/aws/cloudwatch/logGroup";
 import { Role } from "@pulumi/aws/iam/role";
 import * as awsx from "@pulumi/awsx";
-import { Input, Output, interpolate, jsonStringify } from "@pulumi/pulumi";
+import { Input, Output, interpolate } from "@pulumi/pulumi";
 import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 import * as aws from "@pulumi/aws";
 
@@ -10,6 +10,7 @@ import { Topic } from "@pulumi/aws/sns";
 import { Listener } from "@pulumi/aws/alb";
 import { SecurityGroup } from "@pulumi/aws/ec2";
 import { RolePolicyAttachment } from "@pulumi/aws/iam";
+import { LoadBalancerAlarmThresholds } from "./loadBalancer";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -186,7 +187,8 @@ export function createTargetGroup(
 export function createScorerECSService(
   name: string,
   config: ScorerService,
-  envConfig: ScorerEnvironmentConfig
+  envConfig: ScorerEnvironmentConfig,
+  loadBalancerAlarmThresholds: LoadBalancerAlarmThresholds
 ): awsx.ecs.FargateService {
   //////////////////////////////////////////////////////////////
   // Create target group and load balancer rules
@@ -341,7 +343,7 @@ export function createScorerECSService(
 
   if (config.alertTopic) {
     // We want an alarm when the number of running tasks reaches 75% of the configured maximum
-    const tunningTaskCountAlarm = new aws.cloudwatch.MetricAlarm(
+    const runningTaskCountAlarm = new aws.cloudwatch.MetricAlarm(
       `RunningTaskCount-${name}`,
       {
         tags: { name: `RunningTaskCount-${name}` },
@@ -387,25 +389,115 @@ export function createScorerECSService(
       }
     );
 
-    // We want an alarm to monitor for 5xx errors
-    const http5xxAlarm = new aws.cloudwatch.MetricAlarm(`HTTP-5xx-${name}`, {
-      tags: { name: `HTTP-5xx-${name}` },
-      alarmActions: [config.alertTopic.arn],
-      okActions: [config.alertTopic.arn],
-      comparisonOperator: "GreaterThanThreshold",
-      datapointsToAlarm: 3,
-      dimensions: {
-        LoadBalancer: config.alb.name,
-        TargetGroup: config.targetGroup.name,
-      },
-      evaluationPeriods: 5,
-      metricName: "HTTPCode_Target_5XX_Count",
-      name: `HTTP-5xx-${name}`,
-      namespace: "AWS/ApplicationELB",
-      period: 60,
-      statistic: "Sum",
-      treatMissingData: "notBreaching",
-    });
+    // We want alarm to monitor:
+    // - 5xx errors in individual targets
+    // - 4xx errors in individual targets
+    // - 5xx errors in elb
+    // - 4xx errors in elb
+    // - target response time
+
+    const metricNamespace = "AWS/ApplicationELB";
+    /*
+     * Alarm for monitoring target 5XX errors
+     */
+    const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
+      `HTTP-Target-5XX-${name}`,
+      {
+        tags: { name: `HTTP-Target-5XX-${name}` },
+        name: `HTTP-Target-5XX-${name}`,
+        alarmActions: [config.alertTopic.arn],
+        okActions: [config.alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm: 3,
+        evaluationPeriods: 5,
+        metricQueries: [
+          {
+            id: "m1",
+            metric: {
+              metricName: "RequestCountPerTarget",
+              dimensions: {
+                LoadBalancer: config.alb.name,
+                TargetGroup: config.targetGroup.name,
+              },
+              namespace: metricNamespace,
+              period: 60,
+              stat: "Sum",
+            },
+          },
+          {
+            id: "m2",
+            metric: {
+              metricName: "HTTPCode_Target_5XX_Count",
+              dimensions: {
+                LoadBalancer: config.alb.name,
+                TargetGroup: config.targetGroup.name,
+              },
+              namespace: metricNamespace,
+              period: 60,
+              stat: "Sum",
+            },
+          },
+          {
+            expression: "m2 / m1",
+            id: "e1",
+            label: "Percent of target 5XX errors",
+            returnData: true,
+          },
+        ],
+        threshold: loadBalancerAlarmThresholds.percentHTTPCodeTarget5XX,
+      }
+    );
+
+    /*
+     * Alarm for monitoring target 4XX errors
+     */
+    const http4xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
+      `HTTP-Target-4XX-${name}`,
+      {
+        tags: { name: `HTTP-Target-4XX-${name}` },
+        name: `HTTP-Target-4XX-${name}`,
+        alarmActions: [config.alertTopic.arn],
+        okActions: [config.alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm: 3,
+        evaluationPeriods: 5,
+        metricQueries: [
+          {
+            id: "m1",
+            metric: {
+              metricName: "RequestCountPerTarget",
+              dimensions: {
+                LoadBalancer: config.alb.name,
+                TargetGroup: config.targetGroup.name,
+              },
+              namespace: metricNamespace,
+              period: 60,
+              stat: "Sum",
+            },
+          },
+          {
+            id: "m2",
+            metric: {
+              metricName: "HTTPCode_Target_4XX_Count",
+              dimensions: {
+                LoadBalancer: config.alb.name,
+                TargetGroup: config.targetGroup.name,
+              },
+              namespace: metricNamespace,
+              period: 60,
+              stat: "Sum",
+            },
+          },
+          {
+            expression: "m2 / m1",
+            id: "e1",
+            label: "Percent of target 4XX errors",
+            returnData: true,
+          },
+        ],
+        threshold: loadBalancerAlarmThresholds.percentHTTPCodeTarget4XX,
+      }
+    );
 
     // We want an alarm to monitor for the average response time
     const targetResponseTimeAlarm = new aws.cloudwatch.MetricAlarm(
@@ -427,7 +519,7 @@ export function createScorerECSService(
         period: 60,
         statistic: "Average",
         treatMissingData: "notBreaching",
-        threshold: 2,
+        threshold: loadBalancerAlarmThresholds.targetResponseTime,
         unit: "Seconds",
       }
     );
@@ -988,7 +1080,8 @@ export function buildHttpLambdaFn(
     listenerPriority: number;
     pathPatterns: string[];
     httpRequestMethods?: string[];
-  }
+  },
+  loadBalancerAlarmThresholds: LoadBalancerAlarmThresholds
 ) {
   const lambdaFunction = buildLambdaFn(args);
 
@@ -1055,98 +1148,115 @@ export function buildHttpLambdaFn(
   });
 
   if (alertTopic) {
-    // We want an alarm to monitor for 5xx errors in the individual targets
-    const metricNamespace = "AWS/ApplicationELB";
-    const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(`HTTP-Target-5XX-${name}`, {
-      tags: { name: `HTTP-Target-5XX-${name}` },
-      name: `HTTP-Target-5XX-${name}`,
-      alarmActions: [alertTopic.arn],
-      okActions: [alertTopic.arn],
-      comparisonOperator: "GreaterThanThreshold",
-      datapointsToAlarm: 3,
-      evaluationPeriods: 5,
-      metricQueries: [
-        {
-          id: "m1",
-          metric: {
-            metricName: "RequestCountPerTarget",
-            dimensions: {
-              LoadBalancer: alb.name,
-              TargetGroup: lambdaTargetGroup.name,
-            },
-            namespace: metricNamespace,
-            period: 60,
-            stat: "Sum",
-          },
-        },
-        {
-          id: "m2",
-          metric: {
-            metricName: "HTTPCode_Target_5XX_Count",
-            dimensions: {
-              LoadBalancer: alb.name,
-              TargetGroup: lambdaTargetGroup.name,
-            },
-            namespace: metricNamespace,
-            period: 60,
-            stat: "Sum",
-          },
-        },
-        {
-          expression: "m2 / m1",
-          id: "e1",
-          label: "Percent of target 5XX errors",
-          returnData: true,
-        },
-      ],
-      threshold: 0.01,
-    });
+    // We want alarm to monitor:
+    // - 5xx errors in individual targets
+    // - 4xx errors in individual targets
+    // - 5xx errors in elb
+    // - 4xx errors in elb
+    // - target response time
 
-    // We want an alarm to monitor for 5xx errors in the individual targets
-    const http4xxTargetAlarm = new aws.cloudwatch.MetricAlarm(`HTTP-Target-4XX-${name}`, {
-      tags: { name: `HTTP-Target-4XX-${name}` },
-      name: `HTTP-Target-4XX-${name}`,
-      alarmActions: [alertTopic.arn],
-      okActions: [alertTopic.arn],
-      comparisonOperator: "GreaterThanThreshold",
-      datapointsToAlarm: 3,
-      evaluationPeriods: 5,
-      metricQueries: [
-        {
-          id: "m1",
-          metric: {
-            metricName: "RequestCountPerTarget",
-            dimensions: {
-              LoadBalancer: alb.name,
-              TargetGroup: lambdaTargetGroup.name,
+    const metricNamespace = "AWS/ApplicationELB";
+    /*
+     * Alarm for monitoring target 5XX errors
+     */
+    const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
+      `HTTP-Target-5XX-${name}`,
+      {
+        tags: { name: `HTTP-Target-5XX-${name}` },
+        name: `HTTP-Target-5XX-${name}`,
+        alarmActions: [alertTopic.arn],
+        okActions: [alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm: 3,
+        evaluationPeriods: 5,
+        metricQueries: [
+          {
+            id: "m1",
+            metric: {
+              metricName: "RequestCountPerTarget",
+              dimensions: {
+                LoadBalancer: alb.name,
+                TargetGroup: lambdaTargetGroup.name,
+              },
+              namespace: metricNamespace,
+              period: 60,
+              stat: "Sum",
             },
-            namespace: metricNamespace,
-            period: 60,
-            stat: "Sum",
           },
-        },
-        {
-          id: "m2",
-          metric: {
-            metricName: "HTTPCode_Target_4XX_Count",
-            dimensions: {
-              LoadBalancer: alb.name,
-              TargetGroup: lambdaTargetGroup.name,
+          {
+            id: "m2",
+            metric: {
+              metricName: "HTTPCode_Target_5XX_Count",
+              dimensions: {
+                LoadBalancer: alb.name,
+                TargetGroup: lambdaTargetGroup.name,
+              },
+              namespace: metricNamespace,
+              period: 60,
+              stat: "Sum",
             },
-            namespace: metricNamespace,
-            period: 60,
-            stat: "Sum",
           },
-        },
-        {
-          expression: "m2 / m1",
-          id: "e1",
-          label: "Percent of target 4XX errors",
-          returnData: true,
-        },
-      ],
-      threshold: 0.01,
-    });
+          {
+            expression: "m2 / m1",
+            id: "e1",
+            label: "Percent of target 5XX errors",
+            returnData: true,
+          },
+        ],
+        threshold: loadBalancerAlarmThresholds.percentHTTPCodeTarget5XX,
+      }
+    );
+
+    /*
+     * Alarm for monitoring target 4XX errors
+     */
+    const http4xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
+      `HTTP-Target-4XX-${name}`,
+      {
+        tags: { name: `HTTP-Target-4XX-${name}` },
+        name: `HTTP-Target-4XX-${name}`,
+        alarmActions: [alertTopic.arn],
+        okActions: [alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm: 3,
+        evaluationPeriods: 5,
+        metricQueries: [
+          {
+            id: "m1",
+            metric: {
+              metricName: "RequestCountPerTarget",
+              dimensions: {
+                LoadBalancer: alb.name,
+                TargetGroup: lambdaTargetGroup.name,
+              },
+              namespace: metricNamespace,
+              period: 60,
+              stat: "Sum",
+            },
+          },
+          {
+            id: "m2",
+            metric: {
+              metricName: "HTTPCode_Target_4XX_Count",
+              dimensions: {
+                LoadBalancer: alb.name,
+                TargetGroup: lambdaTargetGroup.name,
+              },
+              namespace: metricNamespace,
+              period: 60,
+              stat: "Sum",
+            },
+          },
+          {
+            expression: "m2 / m1",
+            id: "e1",
+            label: "Percent of target 4XX errors",
+            returnData: true,
+          },
+        ],
+        threshold: loadBalancerAlarmThresholds.percentHTTPCodeTarget4XX,
+      }
+    );
 
     // We want an alarm to monitor for the average response time
     const targetResponseTimeAlarm = new aws.cloudwatch.MetricAlarm(
@@ -1164,11 +1274,11 @@ export function buildHttpLambdaFn(
         evaluationPeriods: 5,
         metricName: "TargetResponseTime",
         name: `TargetResponseTime-${name}`,
-        namespace: "AWS/ApplicationELB",
+        namespace: metricNamespace,
         period: 60,
         statistic: "Average",
         treatMissingData: "notBreaching",
-        threshold: 2,
+        threshold: loadBalancerAlarmThresholds.targetResponseTime,
         unit: "Seconds",
       }
     );
