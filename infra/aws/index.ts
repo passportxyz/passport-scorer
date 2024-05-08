@@ -26,8 +26,8 @@ import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 //////////////////////////////////////////////////////////////
 // Loading environment variables
 //////////////////////////////////////////////////////////////
-
-export const stack = pulumi.getStack();
+type StackType = "review" | "staging" | "production";
+export const stack: StackType = pulumi.getStack() as StackType;
 export const region = aws.getRegion();
 const route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
 const route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
@@ -92,6 +92,53 @@ const loadBalancerAlarmThresholds: LoadBalancerAlarmThresholds = {
 };
 
 const CERAMIC_CACHE_SCORER_ID = CERAMIC_CACHE_SCORER_ID_CONFG[stack];
+
+type EcsTaskConfigurationType = {
+  memory: number;
+  cpu: number;
+  desiredCount: number;
+};
+
+type EcsServiceNameType = "scorer-api-default" | "scorer-api-reg";
+const ecsTaskConfigurations: Record<
+  EcsServiceNameType,
+  Record<StackType, EcsTaskConfigurationType>
+> = {
+  "scorer-api-default": {
+    review: {
+      memory: 1024,
+      cpu: 512,
+      desiredCount: 1,
+    },
+    staging: {
+      memory: 1024,
+      cpu: 512,
+      desiredCount: 1,
+    },
+    production: {
+      memory: 2048,
+      cpu: 512,
+      desiredCount: 2,
+    },
+  },
+  "scorer-api-reg": {
+    review: {
+      memory: 1024,
+      cpu: 512,
+      desiredCount: 1,
+    },
+    staging: {
+      memory: 1024,
+      cpu: 512,
+      desiredCount: 1,
+    },
+    production: {
+      memory: 4096,
+      cpu: 2048,
+      desiredCount: 2,
+    },
+  },
+};
 
 // This matches the default security group that awsx previously created when creating the Cluster.
 // https://github.com/pulumi/pulumi-awsx/blob/45136c540f29eb3dc6efa5b4f51cfe05ee75c7d8/awsx-classic/ecs/cluster.ts#L110
@@ -504,9 +551,10 @@ const scorerServiceDefault = createScorerECSService(
   {
     ...baseScorerServiceConfig,
     targetGroup: targetGroupDefault,
-    memory: stack == "production" ? 2048 : 1024,
-    cpu: 512,
-    desiredCount: 2,
+    memory: ecsTaskConfigurations["scorer-api-default"][stack].memory,
+    cpu: ecsTaskConfigurations["scorer-api-default"][stack].cpu,
+    desiredCount:
+      ecsTaskConfigurations["scorer-api-default"][stack].desiredCount,
   },
   envConfig,
   loadBalancerAlarmThresholds
@@ -519,9 +567,9 @@ const scorerServiceRegistry = createScorerECSService(
     listenerRulePriority: 3000,
     httpListenerRulePaths: ["/registry/*"],
     targetGroup: targetGroupRegistry,
-    memory: 4096,
-    cpu: 2048,
-    desiredCount: 2,
+    memory: ecsTaskConfigurations["scorer-api-reg"][stack].memory,
+    cpu: ecsTaskConfigurations["scorer-api-reg"][stack].cpu,
+    desiredCount: ecsTaskConfigurations["scorer-api-reg"][stack].desiredCount,
   },
   envConfig,
   loadBalancerAlarmThresholds
