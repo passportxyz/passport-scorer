@@ -1,0 +1,1 @@
+npx tsx scripts/uptime_robot/create_monitor.ts --help

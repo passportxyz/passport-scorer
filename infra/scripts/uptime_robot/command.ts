@@ -1,33 +1,74 @@
-// Generic command utility, not to be run directly
-// Use createUptimeRobotMonitorCommand to create a new command
+// Generic command utility
+// Call generateProgram with a list of sub-command definitions
 
 import "dotenv/config";
 import axios from "axios";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 
-export const api_key = process.env.UPTIME_ROBOT_API_KEY;
+const api_key = process.env.UPTIME_ROBOT_API_KEY!;
+
+const checkEnv = () => {
+  if (!api_key) {
+    console.log("UPTIME_ROBOT_API_KEY must be set in ENV");
+    process.exit(1);
+  }
+};
+
+export const HTTP_METHOD = {
+  GET: "2",
+  POST: "3",
+  PUT: "4",
+  PATCH: "5",
+  DELETE: "6",
+  OPTIONS: "7",
+};
+
+const POST_TYPE = {
+  KEY_VALUE_PAIRS: "1",
+  RAW_DATA: "2",
+};
 
 const bigLine = "=".repeat(40);
 const line = "-".repeat(40);
 
+// This type is not exhaustive and should be updated as needed
+type CreateModelRequestBody = {
+  api_key: string;
+  format: string;
+  type: string;
+  interval: string;
+  timeout: string;
+  url: string;
+  status: string;
+  http_method?: string;
+  custom_http_headers?: Record<string, string>;
+  post_value?: string;
+  post_type?: string;
+  friendly_name?: string;
+};
+
+// This function should return a partial CreateModelRequestBody
+// which overrides any defaults specified in the CreateMonitor
+// function (see below) and adds any additional fields required
 type GenerateCreateModelRequestBody<T> = (
-  url: string,
-  path: string,
   options: T
-) => any;
+) => Partial<CreateModelRequestBody>;
 
 type CommandParams<T> = {
   name: string;
   description: string;
   generateCreateModelRequestBody: GenerateCreateModelRequestBody<T>;
+  summary?: string; // Optional shorter description listed in top-level help
+  additionalOptions?: Option[];
 };
 
-export type BasicMonitorOptions = {
+export type BaseMonitorOptions = {
   timeout: string;
   interval: string;
+  paused: boolean;
 };
 
-async function createMonitors<T>(
+async function createMonitors<T extends BaseMonitorOptions>(
   baseUrl: string,
   paths: string[],
   options: T,
@@ -56,14 +97,34 @@ async function createMonitors<T>(
   return { successfulUrls, failed };
 }
 
-async function createMonitor<T>(
+async function createMonitor<T extends BaseMonitorOptions>(
   baseUrl: string,
   path: string,
   options: T,
   generateCreateModelRequestBody: GenerateCreateModelRequestBody<T>
 ) {
+  const { interval, timeout, paused } = options;
+
   const url = `${baseUrl}/${path}`;
-  const body = generateCreateModelRequestBody(url, path, options);
+
+  const body: CreateModelRequestBody = {
+    api_key,
+    interval,
+    timeout,
+    url,
+    format: "json",
+    type: "1", // HTTP(s)
+    status: paused ? "0" : "1",
+    ...generateCreateModelRequestBody(options),
+  };
+
+  const http_method = body.http_method || HTTP_METHOD.GET;
+
+  body.friendly_name = body.friendly_name || `Scorer ${http_method} /${path}`;
+
+  if (http_method !== HTTP_METHOD.GET && !body.post_type) {
+    body.post_type = POST_TYPE.RAW_DATA;
+  }
 
   let data: any;
   try {
@@ -105,36 +166,56 @@ async function summarize(
     console.log("Data:", data);
   });
   console.log(bigLine);
+  console.log("Done");
 }
 
-export async function generateProgram<T>(commands: CommandParams<T>[]) {
+export async function generateProgram<T extends BaseMonitorOptions>(
+  commands: CommandParams<T>[]
+) {
   const program = new Command();
   program.description("Utilities for creating Uptime Robot monitors");
 
-  commands.map(({ name, description, generateCreateModelRequestBody }) => {
-    program
-      .command(name)
-      .description(description)
-      .argument("base-url", "Base URL for the monitor(s)")
-      .argument("<paths...>", "URL path(s) to monitor")
-      .option("-i, --interval <interval>", "Interval in seconds", "60")
-      .option("-t, --timeout <timeout>", "Timeout in seconds", "30")
-      .action(async (rawBaseUrl: string, rawPaths: string[], options) => {
-        const baseUrl = rawBaseUrl.replace(/\/$/, "");
-        const paths = rawPaths.map((path) => path.replace(/^\//, ""));
+  commands.map(
+    ({
+      name,
+      description,
+      summary,
+      generateCreateModelRequestBody,
+      additionalOptions,
+    }) => {
+      const command = program
+        .command(name)
+        .description(description)
+        .argument("base-url", "Base URL for the monitor(s)")
+        .argument("<paths...>", "URL path(s) to monitor (space delimited)")
+        .option("-i, --interval <interval>", "Interval in seconds", "60")
+        .option("-t, --timeout <timeout>", "Timeout in seconds", "30")
+        .option("-p, --paused", "Create the monitor in paused state");
 
-        console.log(`Creating monitors for ${paths.length} URLs`);
+      additionalOptions?.forEach((option) => command.addOption(option));
 
-        const { successfulUrls, failed } = await createMonitors(
-          baseUrl,
-          paths,
-          options,
-          generateCreateModelRequestBody
-        );
+      summary && command.summary(summary);
 
-        summarize(successfulUrls, failed);
-      });
-  });
+      command.action(
+        async (rawBaseUrl: string, rawPaths: string[], options) => {
+          checkEnv();
+          const baseUrl = rawBaseUrl.replace(/\/$/, "");
+          const paths = rawPaths.map((path) => path.replace(/^\//, ""));
+
+          console.log(`Creating monitors for ${paths.length} URLs`);
+
+          const { successfulUrls, failed } = await createMonitors(
+            baseUrl,
+            paths,
+            options,
+            generateCreateModelRequestBody
+          );
+
+          summarize(successfulUrls, failed);
+        }
+      );
+    }
+  );
 
   program.parse();
 }
