@@ -314,7 +314,7 @@ export function createScheduledTask(
 
     // Cronjob error
     const cronJobErrorMetricNamespace = "/scheduled-tasks/runs/errors";
-    const cronJobErrorMetricName = `CronJobError-${name}`;
+    const cronJobErrorMetricName = `CronJobErrorMsg-${name}`;
 
     const cronJobErrorFilter = new aws.cloudwatch.LogMetricFilter(
       cronJobErrorMetricName,
@@ -333,7 +333,7 @@ export function createScheduledTask(
     );
 
     const cronJobErrorAlarm = new aws.cloudwatch.MetricAlarm(
-      `CronJobErrorAlarm-${name}`,
+      `CronJobErrorMsgAlarm-${name}`,
       {
         alarmActions: [alertTopic.arn],
         okActions: [alertTopic.arn],
@@ -342,7 +342,7 @@ export function createScheduledTask(
         evaluationPeriods: 1,
         insufficientDataActions: [],
         metricName: cronJobErrorMetricName,
-        name: `CronJobErrorAlarm-${name}`,
+        name: `CronJobErrorMsgAlarm-${name}`,
         namespace: cronJobErrorMetricNamespace,
         period: alarmPeriondSeconds,
         statistic: "Sum",
