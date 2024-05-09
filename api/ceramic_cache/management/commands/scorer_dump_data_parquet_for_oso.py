@@ -7,12 +7,11 @@ from urllib.parse import urlparse
 import pyarrow as pa
 import pyarrow.parquet as pq
 from django.conf import settings
-from django.core.management.base import BaseCommand
 from django.db import DEFAULT_DB_ALIAS
 from django.db.models.functions import Lower
 from registry.models import Score
 from scorer.export_utils import export_data_for_model, upload_to_s3
-from base_cron_cmds import BaseCronJobCmd
+from .base_cron_cmds import BaseCronJobCmd
 
 
 def get_pa_schema():

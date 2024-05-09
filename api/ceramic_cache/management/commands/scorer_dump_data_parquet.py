@@ -3,14 +3,13 @@ import traceback
 from urllib.parse import urlparse
 
 from django.apps import apps
-from django.core.management.base import BaseCommand
 from django.db import DEFAULT_DB_ALIAS
 from scorer.export_utils import (
     export_data_for_model,
     writer_context_manager,
     upload_to_s3,
 )
-from base_cron_cmds import BaseCronJobCmd
+from .base_cron_cmds import BaseCronJobCmd
 
 
 class Command(BaseCronJobCmd):

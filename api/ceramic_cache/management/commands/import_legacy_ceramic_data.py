@@ -1,12 +1,11 @@
 import itertools
 import json
-from pprint import pprint
 from urllib.parse import urlparse
 
 import boto3
 from ceramic_cache.models import CeramicCacheLegacy
 from django.conf import settings
-from base_cron_cmds import BaseCronJobCmd
+from .base_cron_cmds import BaseCronJobCmd
 from tqdm import tqdm
 
 

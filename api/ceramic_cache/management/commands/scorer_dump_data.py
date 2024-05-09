@@ -7,12 +7,11 @@ from urllib.parse import urlparse
 import boto3
 from django.apps import apps
 from django.conf import settings
-from django.core.management.base import BaseCommand
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.serializers.python import Serializer as PythonSerializer
 from django.db import DEFAULT_DB_ALIAS
 from tqdm import tqdm
-from base_cron_cmds import BaseCronJobCmd
+from .base_cron_cmds import BaseCronJobCmd
 
 
 class ProgressBar:
@@ -313,9 +312,9 @@ class Command(BaseCronJobCmd):
                             model_config, file, batch_size=batch_size, database=database
                         )
 
-                    model_summary[
-                        "start_s3_upload"
-                    ] = datetime.datetime.now().isoformat()
+                    model_summary["start_s3_upload"] = (
+                        datetime.datetime.now().isoformat()
+                    )
                     self.stdout.write(
                         f"Uploading to s3, bucket='{s3_bucket_name}', key='{s3_key}'"
                     )
@@ -356,4 +355,4 @@ class Command(BaseCronJobCmd):
             self.stderr.write(self.style.ERROR(f"ERROR: {e}"))
             self.stderr.write(traceback.format_exc())
         finally:
-            self.stdout.write(self.style.SUCCESS(f"Finished dump all data"))
+            self.stdout.write(self.style.SUCCESS("Finished dump all data"))
