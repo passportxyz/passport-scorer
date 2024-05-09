@@ -7,11 +7,11 @@ from urllib.parse import urlparse
 import boto3
 from django.apps import apps
 from django.conf import settings
-from django.core.management.base import BaseCommand
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.serializers.python import Serializer as PythonSerializer
 from django.db import DEFAULT_DB_ALIAS
 from tqdm import tqdm
+from .base_cron_cmds import BaseCronJobCmd
 
 
 class ProgressBar:
@@ -201,7 +201,7 @@ def export_data(model_config, file, database, batch_size=None):
                 has_more_records = serializer.last_id != 0
 
 
-class Command(BaseCommand):
+class Command(BaseCronJobCmd):
     help = """Dump data to JSONL files on S3 directly.
 
     Example configs:
@@ -252,7 +252,7 @@ class Command(BaseCommand):
             help="Extra args to add to the summary file upload. This can be used to set S3 permissions, see: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html. Defaults to {}.",
         )
 
-    def handle(self, *args, **options):
+    def handle_cron_job(self, *args, **options):
         self.stdout.write("Dumping DB data")
         self.stdout.write("Args: " + str(args))
         self.stdout.write("Options: " + str(options))
@@ -312,9 +312,9 @@ class Command(BaseCommand):
                             model_config, file, batch_size=batch_size, database=database
                         )
 
-                    model_summary[
-                        "start_s3_upload"
-                    ] = datetime.datetime.now().isoformat()
+                    model_summary["start_s3_upload"] = (
+                        datetime.datetime.now().isoformat()
+                    )
                     self.stdout.write(
                         f"Uploading to s3, bucket='{s3_bucket_name}', key='{s3_key}'"
                     )
@@ -355,4 +355,4 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f"ERROR: {e}"))
             self.stderr.write(traceback.format_exc())
         finally:
-            self.stdout.write(self.style.SUCCESS(f"Finished dump all data"))
+            self.stdout.write(self.style.SUCCESS("Finished dump all data"))

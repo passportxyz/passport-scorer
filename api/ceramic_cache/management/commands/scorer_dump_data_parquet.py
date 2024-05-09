@@ -3,16 +3,16 @@ import traceback
 from urllib.parse import urlparse
 
 from django.apps import apps
-from django.core.management.base import BaseCommand
 from django.db import DEFAULT_DB_ALIAS
 from scorer.export_utils import (
     export_data_for_model,
     writer_context_manager,
     upload_to_s3,
 )
+from .base_cron_cmds import BaseCronJobCmd
 
 
-class Command(BaseCommand):
+class Command(BaseCronJobCmd):
     help = "Export data from a django model to a parquet file"
 
     def add_arguments(self, parser):
@@ -52,7 +52,7 @@ class Command(BaseCommand):
             default="id",
         )
 
-    def handle(self, *args, **options):
+    def handle_cron_job(self, *args, **options):
         self.batch_size = options["batch_size"]
         self.s3_uri = options["s3_uri"]
         self.database = options["database"]

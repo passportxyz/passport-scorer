@@ -1012,7 +1012,9 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask(
     scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  envConfig
+  envConfig,
+  86400, // 24h max period
+  false
 );
 
 export const dailyDataDumpTaskDefinition = createScheduledTask(
@@ -1047,7 +1049,9 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
     scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  envConfig
+  envConfig,
+  86400, // 24h max period
+  false
 );
 
 export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
@@ -1070,7 +1074,9 @@ export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
     scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  envConfig
+  envConfig,
+  86400, // 24h max period
+  false
 );
 
 /*
@@ -1093,6 +1099,8 @@ export const dailyScoreExportForOSO = createScheduledTask(
     alertTopic: pagerdutyTopic,
   },
   envConfig,
+  86400, // 24h max period
+  false,
   {
     aws_access_key_id: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ACCESS_KEY_ID::`,
     aws_secret_access_key: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_SECRET_ACCESS_KEY::`,
@@ -1130,7 +1138,9 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
     scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
     alertTopic: pagerdutyTopic,
   },
-  envConfig
+  envConfig,
+  3600, // 1h in seconds
+  true
 );
 
 export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
@@ -1162,7 +1172,9 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,
     },
-    envConfig
+    envConfig,
+    3600, // 1h in seconds
+    true
   );
 
 export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
@@ -1193,7 +1205,9 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,
     },
-    envConfig
+    envConfig,
+    3600, // 1h in seconds
+    true
   );
 
 /*
@@ -1216,7 +1230,9 @@ export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,
     },
-    envConfig
+    envConfig,
+    3600, // 1h in seconds
+    true
   );
 
 const exportVals = createScoreExportBucketAndDomain(
