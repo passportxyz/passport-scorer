@@ -3,18 +3,20 @@ import { Input } from "@pulumi/pulumi";
 
 import { Topic } from "@pulumi/aws/sns";
 
-export type LoadBalancerAlarmThresholds = {
+export type AlarmConfigurations = {
   targetResponseTime: number;
-  percentHTTPCodeTarget4XX: number;
-  percentHTTPCodeTarget5XX: number;
-  percentHTTPCodeELB4XX: number;
-  percentHTTPCodeELB5XX: number;
+  percentHTTPCodeTarget4XX: number; // percentage value for target error codes
+  percentHTTPCodeTarget5XX: number; // percentage value for target error codes
+  percentHTTPCodeELB4XX: number; // percentage value for ELB error codes
+  percentHTTPCodeELB5XX: number; // percentage value for ELB error codes
+  indexerErrorThreshold: number; // threshold for indexer logged errors
+  indexerErrorPeriod: number; // period for reporting indexer logged errors
 };
 
 export function createLoadBalancerAlarms(
   name: string,
   albName: Input<string>,
-  loadBalancerAlarmThresholds: LoadBalancerAlarmThresholds,
+  loadBalancerAlarmThresholds: AlarmConfigurations,
   alertTopic?: Topic
 ) {
   if (alertTopic) {
