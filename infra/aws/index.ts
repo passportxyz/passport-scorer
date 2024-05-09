@@ -19,7 +19,7 @@ import {
   LoadBalancerAlarmThresholds,
   createLoadBalancerAlarms,
 } from "../lib/scorer/loadBalancer";
-import { _createScheduledTask, createScheduledTask } from "../lib/scorer/scheduledTasks";
+import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -1000,7 +1000,7 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
   targetGroupArn: redashTarget.arn,
 });
 
-export const weeklyDataDumpTaskDefinition = _createScheduledTask(
+export const weeklyDataDumpTaskDefinition = createScheduledTask(
   "weekly-data-dump",
   {
     ...baseScorerServiceConfig,
@@ -1010,12 +1010,13 @@ export const weeklyDataDumpTaskDefinition = _createScheduledTask(
     scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  envConfig
+  envConfig,
+  86400, // 24h max period
+  false
 );
 
 export const dailyDataDumpTaskDefinition = createScheduledTask(
   "daily-data-dump",
-  86400, // 1 day
   {
     ...baseScorerServiceConfig,
     cpu: 1024,
@@ -1046,12 +1047,13 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
     scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  envConfig
+  envConfig,
+  86400, // 24h max period
+  false
 );
 
 export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
   "daily-data-dump-parquet",
-  86400, // 1 day
   {
     ...baseScorerServiceConfig,
     cpu: 1024,
@@ -1070,7 +1072,9 @@ export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
     scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  envConfig
+  envConfig,
+  86400, // 24h max period
+  false
 );
 
 /*
@@ -1078,7 +1082,6 @@ export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
  */
 export const dailyScoreExportForOSO = createScheduledTask(
   "daily-score-export-for-oso",
-  86400, // 1 day
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
@@ -1094,6 +1097,8 @@ export const dailyScoreExportForOSO = createScheduledTask(
     alertTopic: pagerdutyTopic,
   },
   envConfig,
+  86400, // 24h max period
+  false,
   {
     aws_access_key_id: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ACCESS_KEY_ID::`,
     aws_secret_access_key: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_SECRET_ACCESS_KEY::`,
@@ -1105,7 +1110,6 @@ export const dailyScoreExportForOSO = createScheduledTask(
 // for the Allo team to easily pull the data
 export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
   "frequent-allo-scorer-data-dump",
-  1800, // 30 minutes
   {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
@@ -1132,13 +1136,14 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
     scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
     alertTopic: pagerdutyTopic,
   },
-  envConfig
+  envConfig,
+  3600, // 1h in seconds
+  true
 );
 
 export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
   createScheduledTask(
     "frequent-allo-scorer-data-dump-335",
-    1800, // 30 minutes
     {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
@@ -1165,13 +1170,14 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,
     },
-    envConfig
+    envConfig,
+    3600, // 1h in seconds
+    true
   );
 
 export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
   createScheduledTask(
     "frequent-allo-scorer-data-dump-6608",
-    1800, // 30 minutes
     {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
@@ -1197,7 +1203,9 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,
     },
-    envConfig
+    envConfig,
+    3600, // 1h in seconds
+    true
   );
 
 /*
@@ -1206,7 +1214,6 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
 export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
   createScheduledTask(
     "frequent-eth-model-v2-score-dump",
-    1800, // 30 minutes
     {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
@@ -1221,7 +1228,9 @@ export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,
     },
-    envConfig
+    envConfig,
+    3600, // 1h in seconds
+    true
   );
 
 const exportVals = createScoreExportBucketAndDomain(

@@ -1,7 +1,6 @@
 import * as awsx from "@pulumi/awsx";
 import { all } from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import { local } from "@pulumi/command";
 import {
   secrets,
   ScorerService,
@@ -10,7 +9,6 @@ import {
   SecretsConfig,
   getSecrets,
 } from "./new_service";
-import { getSecret } from "@pulumi/aws/kms/getSecret";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -31,10 +29,12 @@ export type ScheduledTaskConfig = Pick<
     ephemeralStorageSizeInGiB?: number;
   };
 
-export function _createScheduledTask(
+export function createScheduledTask(
   name: string,
   config: ScheduledTaskConfig,
   envConfig: ScorerEnvironmentConfig,
+  alarmPeriondSeconds?: number,
+  enableInvocationAlerts?: boolean,
   secretsConfig?: SecretsConfig
 ) {
   const {
@@ -209,153 +209,148 @@ export function _createScheduledTask(
     },
   });
 
-  const metricNamespace = "/scheduled-tasks/runs/success";
-  const metricName = `SuccessfulRun-${name}`;
-
-  new aws.cloudwatch.LogMetricFilter(metricName, {
-    logGroupName: logGroup.name,
-    metricTransformation: {
-      defaultValue: "0",
-      name: metricName,
-      namespace: metricNamespace,
-      unit: "Count",
-      value: "1",
-    },
-    name: metricName,
-    pattern: `"${commandSuccessMessage}"`,
-  });
-
-  const SIX_HOURS_IN_SECONDS = 6 * 60 * 60;
-
-  new aws.cloudwatch.MetricAlarm("UnsuccessfulRuns-" + name, {
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Temporarily disable the alarm actions until the metric is changed
-    // At the moment even if the task is completed successfully the alarm enters the alarm state for 1 minute.
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // alarmActions: [alertTopic.arn],
-    // okActions: [alertTopic.arn],
-    comparisonOperator: "GreaterThanOrEqualToThreshold",
-    datapointsToAlarm: 1,
-    evaluationPeriods: 1,
-    metricQueries: [
-      {
-        id: "m1",
-        metric: {
-          metricName,
-          namespace: metricNamespace,
-          period: SIX_HOURS_IN_SECONDS,
-          stat: "Sum",
-        },
-      },
-      {
-        id: "m2",
-        metric: {
+  if (alarmPeriondSeconds) {
+    if (enableInvocationAlerts) {
+      // No invocation in the given period
+      const missingInvocationsAlarm = new aws.cloudwatch.MetricAlarm(
+        "MissingInvocations-" + name,
+        {
+          alarmActions: [alertTopic.arn],
+          okActions: [alertTopic.arn],
+          comparisonOperator: "LessThanThreshold",
+          datapointsToAlarm: 1,
+          evaluationPeriods: 1,
+          metricName: "Invocations",
+          name: "MissingInvocations-" + name,
+          namespace: "AWS/Events",
           dimensions: {
             RuleName: scheduledEventRule.name,
           },
-          metricName: "Invocations",
-          namespace: "AWS/Events",
-          period: SIX_HOURS_IN_SECONDS,
-          stat: "Sum",
-        },
-      },
+          period: alarmPeriondSeconds,
+          statistic: "Sum",
+          threshold: 1,
+          treatMissingData: "notBreaching",
+        }
+      );
+    }
+    // Verify failed invocations
+    const failedInvocationsAlarm = new aws.cloudwatch.MetricAlarm(
+      `FailedInvocations-${name}`,
       {
-        expression: "m2 - m1",
-        id: "e1",
-        label: "UnsuccessfulRuns",
-        returnData: true,
-      },
-    ],
-    threshold: 1,
-    name: "UnsuccessfulRuns-" + name,
-    treatMissingData: "notBreaching",
-  });
+        alarmActions: [alertTopic.arn],
+        okActions: [alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm: 1,
+        evaluationPeriods: 1,
+        metricName: "FailedInvocations",
+        name: `FailedInvocations-${name}`,
+        namespace: "AWS/Events",
+        dimensions: {
+          RuleName: scheduledEventRule.name,
+        },
+        period: alarmPeriondSeconds,
+        statistic: "Sum",
+        threshold: 0,
+        treatMissingData: "notBreaching",
+      }
+    );
 
-  // Manage Heartbeat error  Alerts
-  if (envConfig.heartBeatMonitorUrl) {
-    const heartBeatMetric = new aws.cloudwatch.LogMetricFilter(
-      `${name}-heartBeat-error-metric`,
+    // Missing succes Message
+    const successfulRunMetricNamespace = "/scheduled-tasks/runs/success";
+    const successfulRunMetricName = `SuccessfulRun-${name}`;
+
+    new aws.cloudwatch.LogMetricFilter(successfulRunMetricName, {
+      logGroupName: logGroup.name,
+      metricTransformation: {
+        defaultValue: "0",
+        name: successfulRunMetricName,
+        namespace: successfulRunMetricNamespace,
+        unit: "Count",
+        value: "1",
+      },
+      name: successfulRunMetricName,
+      pattern: `"${commandSuccessMessage}"`,
+    });
+
+    new aws.cloudwatch.MetricAlarm(`UnsuccessfulRuns-${name}`, {
+      alarmActions: [alertTopic.arn],
+      okActions: [alertTopic.arn],
+      comparisonOperator: "GreaterThanThreshold",
+      datapointsToAlarm: 1,
+      evaluationPeriods: 1,
+      metricQueries: [
+        {
+          id: "m1",
+          metric: {
+            metricName: successfulRunMetricName,
+            namespace: successfulRunMetricNamespace,
+            period: alarmPeriondSeconds,
+            stat: "Sum",
+          },
+        },
+        {
+          id: "m2",
+          metric: {
+            dimensions: {
+              RuleName: scheduledEventRule.name,
+            },
+            metricName: "Invocations",
+            namespace: "AWS/Events",
+            period: alarmPeriondSeconds,
+            stat: "Sum",
+          },
+        },
+        {
+          expression: "m2 - m1",
+          id: "e1",
+          label: "UnsuccessfulRuns",
+          returnData: true,
+        },
+      ],
+      threshold: 1,
+      name: `UnsuccessfulRuns-${name}`,
+      treatMissingData: "notBreaching",
+    });
+
+    // Cronjob error
+    const cronJobErrorMetricNamespace = "/scheduled-tasks/runs/errors";
+    const cronJobErrorMetricName = `CronJobError-${name}`;
+
+    const cronJobErrorFilter = new aws.cloudwatch.LogMetricFilter(
+      cronJobErrorMetricName,
       {
         logGroupName: logGroup.name,
         metricTransformation: {
           defaultValue: "0",
-          name: `heartBeat-${name}`,
-          namespace: "/scheduled-tasks/runs/heartbeat",
+          name: cronJobErrorMetricName,
+          namespace: cronJobErrorMetricNamespace,
           unit: "Count",
           value: "1",
         },
-        name: "heartBeat-${name}",
-        pattern: '"Error HeartBeat Process"',
+        name: cronJobErrorMetricName,
+        pattern: '"CRONJOB ERROR:"',
       }
     );
 
-    const heartBeatErrorAlarm = new aws.cloudwatch.MetricAlarm(`${name}-heartBeat-error-alarm`, {
+    const cronJobErrorAlarm = new aws.cloudwatch.MetricAlarm(
+      `CronJobErrorAlarm-${name}`,
+      {
         alarmActions: [alertTopic.arn],
         okActions: [alertTopic.arn],
         comparisonOperator: "GreaterThanOrEqualToThreshold",
         datapointsToAlarm: 1,
         evaluationPeriods: 1,
         insufficientDataActions: [],
-        metricName: `heartBeat-${name}`,
-        name:`heartBeat-${name}`,
-        namespace: "/scheduled-tasks/runs/heartbeat",
-        period: 1800, // 30min
+        metricName: cronJobErrorMetricName,
+        name: `CronJobErrorAlarm-${name}`,
+        namespace: cronJobErrorMetricNamespace,
+        period: alarmPeriondSeconds,
         statistic: "Sum",
         threshold: 1,
         treatMissingData: "notBreaching",
-      });
+      }
+    );
   }
 
   return task.taskDefinition.id;
-}
-
-export function createScheduledTask(
-  name: string,
-  uptimeRobotSecondsInterval: number,
-  config: ScheduledTaskConfig,
-  envConfig: ScorerEnvironmentConfig,
-  secretsConfig?: SecretsConfig
-) {
-  // Manage Uptime Robot endpoint
-  // The script only does a create, it doesn't update or delete old endpoints
-  // The monitors need to be deleted manually at the moment
-  const uptimeRobotScript = new local.Command(`uptimeRobot-${name}`, {
-    create: `sh ../scripts/create_monitor.sh cron-${name} ${uptimeRobotSecondsInterval} 0`, // executed once on create
-  });
-
-  // uptimeRobotScript.stderr.apply( (_err) => {
-  //   // console.log(" _err = ", _err);
-  //   // if (_err) {
-  //   //   throw Error(`Error creating UptimeRobot endpoint. Error: ${_err}`);
-  //   // }
-  // });
-
-  let taskId;
-  uptimeRobotScript.stdout.apply((_out) => {
-    const parsedOutput = JSON.parse(_out);
-    if (
-      Object.keys(parsedOutput) &&
-      parsedOutput.stat === "ok" &&
-      parsedOutput.monitor &&
-      Object.keys(parsedOutput.monitor) &&
-      parsedOutput.monitor.url
-    ) {
-      const heartBeatUrl = parsedOutput.monitor.url;
-      if (heartBeatUrl) {
-        taskId = _createScheduledTask(
-          name,
-          config,
-          {
-            ...envConfig,
-            heartBeatMonitorUrl: heartBeatUrl,
-          },
-          secretsConfig
-        );
-      }
-    } else {
-      throw Error(`Error retriving the heartbeat endpoint. Output: ${_out}`);
-    }
-  });
-
-  return taskId;
 }
