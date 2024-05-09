@@ -16,7 +16,7 @@ import {
   buildQueueLambdaFn,
 } from "../lib/scorer/new_service";
 import {
-  LoadBalancerAlarmThresholds,
+  AlarmConfigurations,
   createLoadBalancerAlarms,
 } from "../lib/scorer/loadBalancer";
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
@@ -86,12 +86,14 @@ const CERAMIC_CACHE_SCORER_ID_CONFG = Object({
   production: 335,
 });
 
-const loadBalancerAlarmThresholds: LoadBalancerAlarmThresholds = {
+const alarmConfigurations: AlarmConfigurations = {
   targetResponseTime: 2, // seconds
   percentHTTPCodeTarget4XX: 0.01, // percentage value for target error codes
   percentHTTPCodeTarget5XX: 0.01, // percentage value for target error codes
   percentHTTPCodeELB4XX: 0.01, // percentage value for ELB error codes
   percentHTTPCodeELB5XX: 0.01, // percentage value for ELB error codes
+  indexerErrorThreshold: 2, // threshold for indexer logged errors
+  indexerErrorPeriod: 1800, // period for indexer logged errors, set to 30 min for now
 };
 
 const CERAMIC_CACHE_SCORER_ID = CERAMIC_CACHE_SCORER_ID_CONFG[stack];
@@ -569,7 +571,7 @@ const scorerServiceDefault = createScorerECSService(
       ecsTaskConfigurations["scorer-api-default"][stack].desiredCount,
   },
   envConfig,
-  loadBalancerAlarmThresholds
+  alarmConfigurations
 );
 
 const scorerServiceRegistry = createScorerECSService(
@@ -584,7 +586,7 @@ const scorerServiceRegistry = createScorerECSService(
     desiredCount: ecsTaskConfigurations["scorer-api-reg"][stack].desiredCount,
   },
   envConfig,
-  loadBalancerAlarmThresholds
+  alarmConfigurations
 );
 
 //////////////////////////////////////////////////////////////
@@ -1229,16 +1231,19 @@ const rdsConnectionConfig = {
 };
 
 workerRole.apply((serviceRole) =>
-  createIndexerService({
-    rdsConnectionConfig,
-    rdsSecretArn: RDS_SECRET_ARN,
-    cluster,
-    vpc: vpcID,
-    privateSubnetIds: vpcPrivateSubnetIds,
-    privateSubnetSecurityGroup,
-    workerRole: serviceRole,
-    alertTopic: pagerdutyTopic,
-  })
+  createIndexerService(
+    {
+      rdsConnectionConfig,
+      rdsSecretArn: RDS_SECRET_ARN,
+      cluster,
+      vpc: vpcID,
+      privateSubnetIds: vpcPrivateSubnetIds,
+      privateSubnetSecurityGroup,
+      workerRole: serviceRole,
+      alertTopic: pagerdutyTopic,
+    },
+    alarmConfigurations
+  )
 );
 
 const {
@@ -1283,7 +1288,7 @@ const lambdaSettings = {
 createLoadBalancerAlarms(
   "scorer-service",
   alb.name,
-  loadBalancerAlarmThresholds,
+  alarmConfigurations,
   pagerdutyTopic
 );
 
@@ -1297,7 +1302,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["POST"],
     listenerPriority: 1001,
   },
-  loadBalancerAlarmThresholds
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1310,7 +1315,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["POST"],
     listenerPriority: 1002,
   },
-  loadBalancerAlarmThresholds
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1323,7 +1328,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["PATCH"],
     listenerPriority: 1003,
   },
-  loadBalancerAlarmThresholds
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1338,7 +1343,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["DELETE"],
     listenerPriority: 1004,
   },
-  loadBalancerAlarmThresholds
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1351,7 +1356,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["POST"],
     listenerPriority: 1005,
   },
-  loadBalancerAlarmThresholds
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1364,7 +1369,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["POST"],
     listenerPriority: 1006,
   },
-  loadBalancerAlarmThresholds
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1377,7 +1382,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["GET"],
     listenerPriority: 1007,
   },
-  loadBalancerAlarmThresholds
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1390,7 +1395,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["GET"],
     listenerPriority: 1015,
   },
-  loadBalancerAlarmThresholds
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1403,7 +1408,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["GET"],
     listenerPriority: 1010,
   },
-  loadBalancerAlarmThresholds
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1416,7 +1421,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["GET"],
     listenerPriority: 1012,
   },
-  loadBalancerAlarmThresholds
+  alarmConfigurations
 );
 
 buildQueueLambdaFn({

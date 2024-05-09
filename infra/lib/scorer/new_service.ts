@@ -10,7 +10,7 @@ import { Topic } from "@pulumi/aws/sns";
 import { Listener } from "@pulumi/aws/alb";
 import { SecurityGroup } from "@pulumi/aws/ec2";
 import { RolePolicyAttachment } from "@pulumi/aws/iam";
-import { LoadBalancerAlarmThresholds } from "./loadBalancer";
+import { AlarmConfigurations } from "./loadBalancer";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -213,7 +213,7 @@ export function createScorerECSService(
   name: string,
   config: ScorerService,
   envConfig: ScorerEnvironmentConfig,
-  loadBalancerAlarmThresholds: LoadBalancerAlarmThresholds
+  loadBalancerAlarmThresholds: AlarmConfigurations
 ): awsx.ecs.FargateService {
   //////////////////////////////////////////////////////////////
   // Create target group and load balancer rules
@@ -744,16 +744,19 @@ type IndexerServiceParams = {
   alertTopic: aws.sns.Topic;
 };
 
-export function createIndexerService({
-  rdsConnectionConfig,
-  rdsSecretArn,
-  cluster,
-  vpc,
-  privateSubnetIds,
-  privateSubnetSecurityGroup,
-  workerRole,
-  alertTopic,
-}: IndexerServiceParams) {
+export function createIndexerService(
+  {
+    rdsConnectionConfig,
+    rdsSecretArn,
+    cluster,
+    vpc,
+    privateSubnetIds,
+    privateSubnetSecurityGroup,
+    workerRole,
+    alertTopic,
+  }: IndexerServiceParams,
+  alarmThresholds: AlarmConfigurations
+) {
   const indexerLogGroup = new aws.cloudwatch.LogGroup("scorer-indexer", {
     retentionInDays: 90,
   });
@@ -884,9 +887,9 @@ export function createIndexerService({
       name: "Indexer Errors",
       namespace: "/scorer/indexer",
       okActions: [],
-      period: 3600,
+      period: alarmThresholds.indexerErrorPeriod,
       statistic: "Sum",
-      threshold: 1,
+      threshold: alarmThresholds.indexerErrorThreshold,
       treatMissingData: "notBreaching",
       tags: { name: "indexerErrorsAlarm" },
     }
@@ -1106,7 +1109,7 @@ export function buildHttpLambdaFn(
     pathPatterns: string[];
     httpRequestMethods?: string[];
   },
-  loadBalancerAlarmThresholds: LoadBalancerAlarmThresholds
+  loadBalancerAlarmThresholds: AlarmConfigurations
 ) {
   const lambdaFunction = buildLambdaFn(args);
 
