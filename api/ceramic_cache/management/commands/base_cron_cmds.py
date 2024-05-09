@@ -14,7 +14,7 @@ class BaseCronJobCmd(BaseCommand):
             self.handle_cron_job(*args, **options)
         except Exception as e:
             # Handle any exceptions that occur during the command execution
-            self.stderr.write(f"An error occurred: {e}")
+            self.stderr.write(f"CRONJOB ERROR: An error occurred: {e}")
         finally:
             end_time = datetime.datetime.now()
             self.log_time("[TIMING] End job", end_time)
