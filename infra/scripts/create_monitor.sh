@@ -1,7 +1,7 @@
 
 #!/bin/bash
 
-API_KEY="u480904-3f4b283b8db86d6a84a65cf3"  # this is for `engineering@gitcoin.co`
+API_KEY=""  # this is for `engineering@gitcoin.co`
 URL="https://api.uptimerobot.com/v2/newMonitor"
 HEARTBEAT_TYPE=5
 FRIENDLY_NAME="$1"  # First argument is the friendly name
