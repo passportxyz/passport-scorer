@@ -446,8 +446,8 @@ export function createScorerECSService(
             metric: {
               metricName: "RequestCountPerTarget",
               dimensions: {
-                LoadBalancer: config.alb.name,
-                TargetGroup: config.targetGroup.name,
+                LoadBalancer: config.alb.arnSuffix,
+                TargetGroup: config.targetGroup.arnSuffix,
               },
               namespace: metricNamespace,
               period: 60,
@@ -459,8 +459,8 @@ export function createScorerECSService(
             metric: {
               metricName: "HTTPCode_Target_5XX_Count",
               dimensions: {
-                LoadBalancer: config.alb.name,
-                TargetGroup: config.targetGroup.name,
+                LoadBalancer: config.alb.arnSuffix,
+                TargetGroup: config.targetGroup.arnSuffix,
               },
               namespace: metricNamespace,
               period: 60,
@@ -497,8 +497,8 @@ export function createScorerECSService(
             metric: {
               metricName: "RequestCountPerTarget",
               dimensions: {
-                LoadBalancer: config.alb.name,
-                TargetGroup: config.targetGroup.name,
+                LoadBalancer: config.alb.arnSuffix,
+                TargetGroup: config.targetGroup.arnSuffix,
               },
               namespace: metricNamespace,
               period: 60,
@@ -510,8 +510,8 @@ export function createScorerECSService(
             metric: {
               metricName: "HTTPCode_Target_4XX_Count",
               dimensions: {
-                LoadBalancer: config.alb.name,
-                TargetGroup: config.targetGroup.name,
+                LoadBalancer: config.alb.arnSuffix,
+                TargetGroup: config.targetGroup.arnSuffix,
               },
               namespace: metricNamespace,
               period: 60,
@@ -539,8 +539,8 @@ export function createScorerECSService(
         comparisonOperator: "GreaterThanThreshold",
         datapointsToAlarm: 3,
         dimensions: {
-          LoadBalancer: config.alb.name,
-          TargetGroup: config.targetGroup.name,
+          LoadBalancer: config.alb.arnSuffix,
+          TargetGroup: config.targetGroup.arnSuffix,
         },
         evaluationPeriods: 5,
         metricName: "TargetResponseTime",
@@ -1208,8 +1208,8 @@ export function buildHttpLambdaFn(
             metric: {
               metricName: "RequestCountPerTarget",
               dimensions: {
-                LoadBalancer: alb.name,
-                TargetGroup: lambdaTargetGroup.name,
+                LoadBalancer: alb.arnSuffix,
+                TargetGroup: lambdaTargetGroup.arnSuffix,
               },
               namespace: metricNamespace,
               period: 60,
@@ -1221,8 +1221,8 @@ export function buildHttpLambdaFn(
             metric: {
               metricName: "HTTPCode_Target_5XX_Count",
               dimensions: {
-                LoadBalancer: alb.name,
-                TargetGroup: lambdaTargetGroup.name,
+                LoadBalancer: alb.arnSuffix,
+                TargetGroup: lambdaTargetGroup.arnSuffix,
               },
               namespace: metricNamespace,
               period: 60,
@@ -1259,8 +1259,8 @@ export function buildHttpLambdaFn(
             metric: {
               metricName: "RequestCountPerTarget",
               dimensions: {
-                LoadBalancer: alb.name,
-                TargetGroup: lambdaTargetGroup.name,
+                LoadBalancer: alb.arnSuffix,
+                TargetGroup: lambdaTargetGroup.arnSuffix,
               },
               namespace: metricNamespace,
               period: 60,
@@ -1272,8 +1272,8 @@ export function buildHttpLambdaFn(
             metric: {
               metricName: "HTTPCode_Target_4XX_Count",
               dimensions: {
-                LoadBalancer: alb.name,
-                TargetGroup: lambdaTargetGroup.name,
+                LoadBalancer: alb.arnSuffix,
+                TargetGroup: lambdaTargetGroup.arnSuffix,
               },
               namespace: metricNamespace,
               period: 60,
@@ -1301,8 +1301,8 @@ export function buildHttpLambdaFn(
         comparisonOperator: "GreaterThanThreshold",
         datapointsToAlarm: 3,
         dimensions: {
-          LoadBalancer: alb.name,
-          TargetGroup: lambdaTargetGroup.name,
+          LoadBalancer: alb.arnSuffix,
+          TargetGroup: lambdaTargetGroup.arnSuffix,
         },
         evaluationPeriods: 5,
         metricName: "TargetResponseTime",
