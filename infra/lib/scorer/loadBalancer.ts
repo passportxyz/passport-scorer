@@ -3,14 +3,20 @@ import { Input } from "@pulumi/pulumi";
 
 import { Topic } from "@pulumi/aws/sns";
 
-export type AlarmConfigurations = {
+export type TargetGroupAlarmsConfiguration = {
   targetResponseTime: number;
-  percentHTTPCodeTarget4XX: number; // percentage value for target error codes
-  percentHTTPCodeTarget5XX: number; // percentage value for target error codes
-  percentHTTPCodeELB4XX: number; // percentage value for ELB error codes
-  percentHTTPCodeELB5XX: number; // percentage value for ELB error codes
+  percentHTTPCodeTarget4XX: number; // 0..1 value for target error codes
+  percentHTTPCodeTarget5XX: number; // 0..1 value for target error codes
+};
+
+export type AlarmConfigurations = {
+  percentHTTPCodeELB4XX: number; // 0..1 value for ELB error codes
+  percentHTTPCodeELB5XX: number; // 0..1 value for ELB error codes
   indexerErrorThreshold: number; // threshold for indexer logged errors
   indexerErrorPeriod: number; // period for reporting indexer logged errors
+
+  default: TargetGroupAlarmsConfiguration;
+  "passport-analysis-GET-0": TargetGroupAlarmsConfiguration;
 };
 
 export function createLoadBalancerAlarms(

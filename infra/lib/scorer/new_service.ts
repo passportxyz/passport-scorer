@@ -10,7 +10,7 @@ import { Topic } from "@pulumi/aws/sns";
 import { Listener } from "@pulumi/aws/alb";
 import { SecurityGroup } from "@pulumi/aws/ec2";
 import { RolePolicyAttachment } from "@pulumi/aws/iam";
-import { AlarmConfigurations } from "./loadBalancer";
+import { AlarmConfigurations, TargetGroupAlarmsConfiguration } from "./loadBalancer";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -430,6 +430,7 @@ export function createScorerECSService(
     /*
      * Alarm for monitoring target 5XX errors
      */
+    const alarmConfig = (loadBalancerAlarmThresholds as any as Record<string, TargetGroupAlarmsConfiguration>)[name] || loadBalancerAlarmThresholds.default;
     const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-Target-5XX-${name}`,
       {
@@ -444,7 +445,7 @@ export function createScorerECSService(
           {
             id: "m1",
             metric: {
-              metricName: "RequestCountPerTarget",
+              metricName: "RequestCount",
               dimensions: {
                 LoadBalancer: config.alb.arnSuffix,
                 TargetGroup: config.targetGroup.arnSuffix,
@@ -474,7 +475,7 @@ export function createScorerECSService(
             returnData: true,
           },
         ],
-        threshold: loadBalancerAlarmThresholds.percentHTTPCodeTarget5XX,
+        threshold: alarmConfig.percentHTTPCodeTarget5XX,
       }
     );
 
@@ -495,7 +496,7 @@ export function createScorerECSService(
           {
             id: "m1",
             metric: {
-              metricName: "RequestCountPerTarget",
+              metricName: "RequestCount",
               dimensions: {
                 LoadBalancer: config.alb.arnSuffix,
                 TargetGroup: config.targetGroup.arnSuffix,
@@ -525,9 +526,10 @@ export function createScorerECSService(
             returnData: true,
           },
         ],
-        threshold: loadBalancerAlarmThresholds.percentHTTPCodeTarget4XX,
+        threshold: alarmConfig.percentHTTPCodeTarget4XX,
       }
     );
+
 
     // We want an alarm to monitor for the average response time
     const targetResponseTimeAlarm = new aws.cloudwatch.MetricAlarm(
@@ -549,7 +551,7 @@ export function createScorerECSService(
         period: 60,
         statistic: "Average",
         treatMissingData: "notBreaching",
-        threshold: loadBalancerAlarmThresholds.targetResponseTime,
+        threshold: alarmConfig.targetResponseTime,
         unit: "Seconds",
       }
     );
@@ -1192,6 +1194,7 @@ export function buildHttpLambdaFn(
     /*
      * Alarm for monitoring target 5XX errors
      */
+    const alarmConfig = (loadBalancerAlarmThresholds as any as Record<string, TargetGroupAlarmsConfiguration>)[name] || loadBalancerAlarmThresholds.default;
     const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-Target-5XX-${name}`,
       {
@@ -1206,7 +1209,7 @@ export function buildHttpLambdaFn(
           {
             id: "m1",
             metric: {
-              metricName: "RequestCountPerTarget",
+              metricName: "RequestCount",
               dimensions: {
                 LoadBalancer: alb.arnSuffix,
                 TargetGroup: lambdaTargetGroup.arnSuffix,
@@ -1236,7 +1239,7 @@ export function buildHttpLambdaFn(
             returnData: true,
           },
         ],
-        threshold: loadBalancerAlarmThresholds.percentHTTPCodeTarget5XX,
+        threshold: alarmConfig.percentHTTPCodeTarget5XX,
       }
     );
 
@@ -1257,7 +1260,7 @@ export function buildHttpLambdaFn(
           {
             id: "m1",
             metric: {
-              metricName: "RequestCountPerTarget",
+              metricName: "RequestCount",
               dimensions: {
                 LoadBalancer: alb.arnSuffix,
                 TargetGroup: lambdaTargetGroup.arnSuffix,
@@ -1287,7 +1290,7 @@ export function buildHttpLambdaFn(
             returnData: true,
           },
         ],
-        threshold: loadBalancerAlarmThresholds.percentHTTPCodeTarget4XX,
+        threshold: alarmConfig.percentHTTPCodeTarget4XX,
       }
     );
 
@@ -1311,7 +1314,7 @@ export function buildHttpLambdaFn(
         period: 60,
         statistic: "Average",
         treatMissingData: "notBreaching",
-        threshold: loadBalancerAlarmThresholds.targetResponseTime,
+        threshold: alarmConfig.targetResponseTime,
         unit: "Seconds",
       }
     );
