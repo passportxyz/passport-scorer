@@ -23,6 +23,9 @@ export const HTTP_METHOD = {
   OPTIONS: "7",
 };
 
+const httpMethodToName = (methodId: string) =>
+  Object.entries(HTTP_METHOD).find(([_, id]) => id === methodId)?.[0];
+
 const POST_TYPE = {
   KEY_VALUE_PAIRS: "1",
   RAW_DATA: "2",
@@ -119,8 +122,10 @@ async function createMonitor<T extends BaseMonitorOptions>(
   };
 
   const http_method = body.http_method || HTTP_METHOD.GET;
+  const httpMethodName = httpMethodToName(http_method);
 
-  body.friendly_name = body.friendly_name || `Scorer ${http_method} /${path}`;
+  body.friendly_name =
+    body.friendly_name || `[auto] Scorer ${httpMethodName} /${path}`;
 
   if (http_method !== HTTP_METHOD.GET && !body.post_type) {
     body.post_type = POST_TYPE.RAW_DATA;
@@ -169,9 +174,7 @@ async function summarize(
   console.log("Done");
 }
 
-export async function generateProgram<T extends BaseMonitorOptions>(
-  commands: CommandParams<T>[]
-) {
+export async function generateProgram(commands: CommandParams<any>[]) {
   const program = new Command();
   program.description("Utilities for creating Uptime Robot monitors");
 
