@@ -1303,7 +1303,7 @@ const lambdaSettings = {
 
 createLoadBalancerAlarms(
   "scorer-service",
-  alb.name,
+  alb.arnSuffix,
   alarmConfigurations,
   pagerdutyTopic
 );
