@@ -15,7 +15,7 @@ export type AlarmConfigurations = {
 
 export function createLoadBalancerAlarms(
   name: string,
-  albName: Input<string>,
+  albArnSuffix: Input<string>,
   loadBalancerAlarmThresholds: AlarmConfigurations,
   alertTopic?: Topic
 ) {
@@ -40,7 +40,7 @@ export function createLoadBalancerAlarms(
             metric: {
               metricName: "RequestCount",
               dimensions: {
-                LoadBalancer: albName,
+                LoadBalancer: albArnSuffix,
               },
               namespace: metricNamespace,
               period: 60,
@@ -52,7 +52,7 @@ export function createLoadBalancerAlarms(
             metric: {
               metricName: "HTTPCode_ELB_5XX_Count",
               dimensions: {
-                LoadBalancer: albName,
+                LoadBalancer: albArnSuffix,
               },
               namespace: metricNamespace,
               period: 60,
@@ -89,7 +89,7 @@ export function createLoadBalancerAlarms(
             metric: {
               metricName: "RequestCount",
               dimensions: {
-                LoadBalancer: albName,
+                LoadBalancer: albArnSuffix,
               },
               namespace: metricNamespace,
               period: 60,
@@ -101,7 +101,7 @@ export function createLoadBalancerAlarms(
             metric: {
               metricName: "HTTPCode_ELB_4XX_Count",
               dimensions: {
-                LoadBalancer: albName,
+                LoadBalancer: albArnSuffix,
               },
               namespace: metricNamespace,
               period: 60,
