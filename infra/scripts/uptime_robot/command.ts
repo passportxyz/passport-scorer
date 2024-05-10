@@ -45,6 +45,7 @@ type CreateModelRequestBody = {
   status: string;
   http_method?: string;
   custom_http_headers?: Record<string, string>;
+  custom_http_statuses?: string;
   post_value?: string;
   post_type?: string;
   friendly_name?: string;
@@ -69,6 +70,7 @@ export type BaseMonitorOptions = {
   timeout: string;
   interval: string;
   paused: boolean;
+  accept404: boolean;
 };
 
 async function createMonitors<T extends BaseMonitorOptions>(
@@ -118,6 +120,7 @@ async function createMonitor<T extends BaseMonitorOptions>(
     format: "json",
     type: "1", // HTTP(s)
     status: paused ? "0" : "1",
+    custom_http_statuses: options.accept404 ? "404:1_2xx:1" : undefined,
     ...generateCreateModelRequestBody(options),
   };
 
@@ -193,7 +196,8 @@ export async function generateProgram(commands: CommandParams<any>[]) {
         .argument("<paths...>", "URL path(s) to monitor (space delimited)")
         .option("-i, --interval <interval>", "Interval in seconds", "60")
         .option("-t, --timeout <timeout>", "Timeout in seconds", "30")
-        .option("-p, --paused", "Create the monitor in paused state");
+        .option("-p, --paused", "Create the monitor in paused state")
+        .option("--accept-404", "Accept 404 status code as success");
 
       additionalOptions?.forEach((option) => command.addOption(option));
 
