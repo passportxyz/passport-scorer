@@ -390,7 +390,7 @@ export function createScorerECSService(
         name: `RunningTaskCount-${name}`,
         namespace: "ECS/ContainerInsights",
         period: 300,
-        statistic: "Sum",
+        statistic: "Average",
         threshold: getAutoScaleMaxCapacity() * 0.75,
       }
     );
