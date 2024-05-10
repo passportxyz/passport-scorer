@@ -412,7 +412,7 @@ export function createScorerECSService(
         evaluationPeriods: 1,
         metricName: "MemoryUtilization",
         name: `MemoryUtilization-${name}`,
-        namespace: "ECS",
+        namespace: "AWS/ECS",
         period: 900,
         statistic: "Average",
         threshold: 80,
