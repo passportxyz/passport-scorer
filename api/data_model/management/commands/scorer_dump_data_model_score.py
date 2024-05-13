@@ -118,9 +118,9 @@ For example:
         try:
             export_data_for_model(
                 Cache.objects.filter(
-                    key__0=data_model_name
+                    key_0=data_model_name
                 ),  # This will only filter the scores for eth_stamp_model (v1)
-                "key",
+                "id",
                 batch_size,
                 get_writer(filename),
                 jsonfields_as_str=False,
