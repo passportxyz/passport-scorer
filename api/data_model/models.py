@@ -10,9 +10,12 @@ from django.db import models
 
 
 class Cache(models.Model):
-    key = models.JSONField(primary_key=True)
+    key = models.JSONField()
     value = models.JSONField()
     updated_at = models.DateTimeField()
+    id = models.BigAutoField(primary_key=True)
+    key_0 = models.CharField(max_length=100, blank=True, null=True)
+    key_1 = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
         managed = False
