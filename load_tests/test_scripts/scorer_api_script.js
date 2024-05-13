@@ -62,14 +62,14 @@ export default function() {
 
   const address = addresses[addressIdx];
   const vcs = userVcs[addressIdx];
-  const token = userTokens[address][0];
-  const verifierPayload = userTokens[address][1];
+  const token = userTokens[address];
 
-  const scoringOptions = {
+  const requestOptions = {
     headers: {
-      "X-API-Key": apiKey,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
+    timeout: '90s',
   };
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -93,29 +93,74 @@ export default function() {
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Although this is not the response we are expect, it seems useful to still make the request
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  const authRequest = http.post(
-    "https://api.staging.scorer.gitcoin.co/ceramic-cache/authenticate",
-    JSON.stringify(verifierPayload),
-    scoringOptions
+  // const authRequest = http.post(
+  //   "https://api.staging.scorer.gitcoin.co/ceramic-cache/authenticate",
+  //   JSON.stringify(verifierPayload),
+  //   scoringOptions
+  // );
+
+  // check(authRequest, {
+  //   "Auth status 400": (r) => r.status === 400,
+  // });
+
+  // if (authRequest.status !== 400) {
+  //   console.log(
+  //     "Auth Request failed: ",
+  //     JSON.stringify(authRequest, undefined, 2)
+  //   );
+  // }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Fetch score weights
+  ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  const weightRequest = http.get(
+    "https://api.staging.scorer.gitcoin.co/ceramic-cache/weights",
+    options
   );
 
-  check(authRequest, {
-    "Auth status 400": (r) => r.status === 400,
+  check(weightRequest, {
+    "Weight fetch request is status 200": (r) => r.status === 200,
   });
 
-  if (authRequest.status !== 400) {
-    console.log(
-      "Auth Request failed: ",
-      JSON.stringify(authRequest, undefined, 2)
-    );
+  if (weightRequest.status !== 200) {
+    console.log("Weight request failed: ", JSON.stringify(weightRequest, undefined, 2));
   }
 
-  const options = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  };
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Fetch stamps
+  ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  const stampRequest = http.get(
+    "https://api.staging.scorer.gitcoin.co/ceramic-cache/stamp?address=" + address,
+    options
+  );
+
+  check(stampRequest, {
+    "stampRequest fetch request is status 200": (r) => r.status === 200,
+  });
+
+  if (stampRequest.status !== 200) {
+    console.log("stampRequest failed: ", JSON.stringify(stampRequest, undefined, 2));
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Fetch banners
+  ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  const bannerRequest = http.get(
+    "https://api.staging.scorer.gitcoin.co/passport-admin/banners",
+    requestOptions
+  );
+
+  check(bannerRequest, {
+    "Banner fetch request is status 200": (r) => r.status === 200,
+  });
+
+  if (bannerRequest.status !== 200) {
+    console.log("Banner request failed: ", JSON.stringify(bannerRequest, undefined, 2));
+  }
 
   // We simulate 4 batches of changes to a users passport
   for (let i = 0; i < 4; i++) {
@@ -151,7 +196,7 @@ export default function() {
     const res = http.patch(
       "https://api.staging.scorer.gitcoin.co/ceramic-cache/stamps/bulk",
       JSON.stringify(body),
-      options
+      requestOptions
     );
 
     check(res, {
@@ -168,7 +213,7 @@ export default function() {
 
     const scoreRes = http.get(
       "https://api.staging.scorer.gitcoin.co/ceramic-cache/score/" + address,
-      options
+      requestOptions
     );
 
     check(scoreRes, {
@@ -177,59 +222,6 @@ export default function() {
 
     if (scoreRes.status !== 200) {
       console.log("Fetching score failed: ", JSON.stringify(scoreRes, undefined, 2));
-    }
-
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Fetch score weights
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    const weightRequest = http.get(
-      "https://api.staging.scorer.gitcoin.co/ceramic-cache/weights",
-      options
-    );
-
-    check(weightRequest, {
-      "Weight fetch request is status 200": (r) => r.status === 200,
-    });
-
-    if (weightRequest.status !== 200) {
-      console.log("Weight request failed: ", JSON.stringify(weightRequest, undefined, 2));
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Fetch banners
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    const bannerRequest = http.get(
-      "https://api.staging.scorer.gitcoin.co/passport-admin/banners",
-      options
-    );
-
-    check(bannerRequest, {
-      "Banner fetch request is status 200": (r) => r.status === 200,
-    });
-
-    if (bannerRequest.status !== 200) {
-      console.log("Banner request failed: ", JSON.stringify(bannerRequest, undefined, 2));
-    }
-
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Fetch stamps
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    const stampRequest = http.get(
-      "https://api.staging.scorer.gitcoin.co/ceramic-cache/stamp?address=" + address,
-      options
-    );
-
-    check(stampRequest, {
-      "stampRequest fetch request is status 200": (r) => r.status === 200,
-    });
-
-    if (stampRequest.status !== 200) {
-      console.log("stampRequest failed: ", JSON.stringify(stampRequest, undefined, 2));
     }
   }
 }

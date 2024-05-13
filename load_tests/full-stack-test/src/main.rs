@@ -61,19 +61,24 @@ async fn run_iam_script(
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let duration = "45m";
+    let vus = 1000;
+
     // Example parameters for the scorer API script
     let scorer_api_script_path = "../test_scripts/scorer_api_script.js";
     let api_key = "iE7QwgX9.rx9XIXdkPwZUYAHditFMgFVKvDp428OH";
     let scorer_id = "24";
-    let scorer_vus = 500;
-    let scorer_duration = "15m";
-    let scorer_output = "scorer_load_test_1500_15min.csv";
+    let scorer_output = format!(
+        "scorer_load_test_{}vus_{}_increased_timeout.csv",
+        vus, duration
+    );
 
     // Parameters for the IAM test script
     let iam_script_path = "../test_scripts/iam_script.js";
-    let iam_vus = 500;
-    let iam_duration = "15m";
-    let iam_output = "iam_load_test_1500_15min.csv";
+    let iam_output = format!(
+        "iam_load_test_{}vus_{}_increased_timeout.csv",
+        vus, duration
+    );
 
     let start = SystemTime::now();
 
@@ -83,11 +88,11 @@ async fn main() -> Result<()> {
             scorer_api_script_path,
             api_key,
             scorer_id,
-            scorer_vus,
-            scorer_duration,
-            scorer_output
+            vus,
+            duration,
+            &scorer_output
         ),
-        run_iam_script(iam_script_path, iam_vus, iam_duration, iam_output)
+        run_iam_script(iam_script_path, vus, duration, &iam_output)
     );
 
     let end = SystemTime::now();

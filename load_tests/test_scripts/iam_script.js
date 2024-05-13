@@ -21,11 +21,9 @@ const requestOptions = {
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: '90s',
 };
 
-const trackedRequestOptions = Object.assign({}, options, {
-  tags: { tracked: "true" },
-});
 
 const iamUrl = "https://iam.staging.passport.gitcoin.co/api/v0.0.0/";
 const signerUrl = "http://localhost:8123/";
@@ -98,12 +96,12 @@ const providerBitMap = () => {
     "BitMap request status is 200": (r) => r.status === 200,
   });
 
-  if (bitMapResponse.status !== 200) {
-    console.log(
-      "Bitmap request failed: ",
-      JSON.stringify(bitMapResponse, undefined, 2)
-    );
-  }
+  // if (bitMapResponse.status !== 200) {
+  //   console.log(
+  //     "Bitmap request failed: ",
+  //     JSON.stringify(bitMapResponse, undefined, 2)
+  //   );
+  // }
 };
 
 export function setup() {
@@ -123,18 +121,15 @@ export function setup() {
   return { userAccounts: userAccounts };
 }
 
-export function teardown(data) {}
+export function teardown(data) { }
 
 // create k6 setup and teardown
-export default async function (data) {
+export default async function(data) {
   const { userAccounts } = data;
   const accountIndex = (exec.vu.idInTest - 1) % userAccounts.length;
   const { address, privateKey } = userAccounts[accountIndex];
 
-  // Run the check request every other time
-  if (exec.vu.idInTest % 2 === 0) {
-    checkRequest(address);
-  }
+  checkRequest(address);
 
   providerBitMap();
 
@@ -157,13 +152,13 @@ export default async function (data) {
       "Challenge request is status 200": (r) => r.status === 200,
     });
 
-    if (challengeResponse.status !== 200) {
-      console.log(
-        "Fetching challenge failed: ",
-        JSON.stringify(challengeResponse, undefined, 2)
-      );
-      return;
-    }
+    // if (challengeResponse.status !== 200) {
+    //   console.log(
+    //     "Fetching challenge failed: ",
+    //     JSON.stringify(challengeResponse, undefined, 2)
+    //   );
+    //   return;
+    // }
 
     const challenge = JSON.parse(challengeResponse.body).credential;
 
@@ -210,14 +205,14 @@ export default async function (data) {
       "Verify request is status 200": (r) => r.status === 200,
     });
 
-    if (verifyResponse.status === 200) {
-      credentials = JSON.parse(verifyResponse.body).map((r) => r.credential);
-    } else {
-      console.log(
-        "Verifying stamps failed: ",
-        JSON.stringify(verifyResponse, undefined, 2)
-      );
-    }
+    // if (verifyResponse.status === 200) {
+    //   credentials = JSON.parse(verifyResponse.body).map((r) => r.credential);
+    // } else {
+    //   console.log(
+    //     "Verifying stamps failed: ",
+    //     JSON.stringify(verifyResponse, undefined, 2)
+    //   );
+    // }
   }
 
   // This doesn't work b/c these addresses haven't been scored.
