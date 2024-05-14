@@ -156,11 +156,13 @@ def with_request_exception_handling(func):
 
             response =  {
                 "statusCode": status,
+                "statusCategory": "4XX" if (status >= 400 and status < 500) else "5XX",
                 "statusDescription": str(e),
                 "isBase64Encoded": False,
                 "headers": RESPONSE_HEADERS,
                 "body": '{"error": "' + message + '"}',
             }
+
             logger.exception("Error occurred with Passport API. Response: %s", json.dumps(response))
             return response
 
