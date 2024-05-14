@@ -29,9 +29,8 @@ def get_writer(output_file):
                     def write_batch(self, data):
                         for d in data:
                             try:
-                                key = d["key"]
                                 value = d["value"]
-                                address = key[1].lower()
+                                address = d["key_1"].lower()
                                 self.file.write(
                                     json.dumps(
                                         {
@@ -118,9 +117,9 @@ For example:
         try:
             export_data_for_model(
                 Cache.objects.filter(
-                    key__0=data_model_name
+                    key_0=data_model_name
                 ),  # This will only filter the scores for eth_stamp_model (v1)
-                "key",
+                "id",
                 batch_size,
                 get_writer(filename),
                 jsonfields_as_str=False,
