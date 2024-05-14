@@ -6,10 +6,11 @@ const mnemonicPhrase =
   process.env.MNEMONIC ||
   "chief loud snack trend chief net field husband vote message decide replace";
 const alchemyApiKey = process.env.ALCHEMY_API_KEY;
+const numAccounts = Number.parseInt(process.env.NUM_ACCOUNTS) || 100;
 
 // Generate multiple wallets from the HDNode instance
 const wallets = [];
-for (let i = 0; i < 1000; i++) {
+for (let i = 0; i < numAccounts; i++) {
   const path = "m/44'/60'/0'/0/" + i;
   const wallet = ethers.Wallet.fromMnemonic(mnemonicPhrase, path);
   wallets.push(wallet);
