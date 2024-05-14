@@ -110,7 +110,7 @@ def strip_event(event) -> tuple:
 
 
 def parse_body(event):
-    if event["isBase64Encoded"] and "body" in event and event["body"]: 
+    if event["isBase64Encoded"] and "body" in event and event["body"]:
         body = json.loads(base64.b64decode(event["body"]).decode("utf-8"))
     elif "body" in event and event["body"]:
         body = json.loads(event["body"])
@@ -154,15 +154,17 @@ def with_request_exception_handling(func):
                 type(e), (400, "An error has occurred")
             )
 
-            logger.exception(f"Error occurred with Passport API: {e}")
-
-            return {
+            response =  {
                 "statusCode": status,
+                "statusCategory": "4XX" if (status >= 400 and status < 500) else "5XX",
                 "statusDescription": str(e),
                 "isBase64Encoded": False,
                 "headers": RESPONSE_HEADERS,
                 "body": '{"error": "' + message + '"}',
             }
+
+            logger.exception("Error occurred with Passport API. Response: %s", json.dumps(response))
+            return response
 
     return wrapper
 
@@ -223,15 +225,15 @@ def with_api_request_exception_handling(func):
                 type(e), (500, "An error has occurred")
             )
 
-            logger.exception(f"Error occurred with Passport API: {e}")
-
             response = {
                 "statusCode": status,
+                "statusCategory": "4XX" if (status >= 400 and status < 500) else "5XX",
                 "statusDescription": str(e),
                 "isBase64Encoded": False,
                 "headers": RESPONSE_HEADERS,
                 "body": '{"error": "' + message + '"}',
             }
+            logger.exception("Error occurred with Passport API. Response: %s", json.dumps(response))
 
         # Log analytics for the API call
         try:

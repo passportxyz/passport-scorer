@@ -87,18 +87,18 @@ const CERAMIC_CACHE_SCORER_ID_CONFG = Object({
 });
 
 const alarmConfigurations: AlarmConfigurations = {
-  percentHTTPCodeELB4XX: 0.1, // 0..1 value for ELB error codes
+  percentHTTPCodeELB4XX: 0.5, // 0..1 value for ELB error codes
   percentHTTPCodeELB5XX: 0.01, // 0..1 value for ELB error codes
   indexerErrorThreshold: 2, // threshold for indexer logged errors
   indexerErrorPeriod: 1800, // period for indexer logged errors, set to 30 min for now
 
   default: {
-    percentHTTPCodeTarget4XX: 0.1, // 0..1 value for target error codes
+    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
     percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
     targetResponseTime: 2, // seconds
   },
   "passport-analysis-GET-0": {
-    percentHTTPCodeTarget4XX: 0.1, // 0..1 value for target error codes
+    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
     percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
     targetResponseTime: 20, // 20 seconds - this is a slower request
   },

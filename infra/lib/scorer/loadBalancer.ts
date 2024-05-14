@@ -98,7 +98,7 @@ export function createLoadBalancerAlarms(
                 LoadBalancer: albArnSuffix,
               },
               namespace: metricNamespace,
-              period: 60,
+              period: 900, // 15 minutes
               stat: "Sum",
             },
           },
@@ -110,7 +110,7 @@ export function createLoadBalancerAlarms(
                 LoadBalancer: albArnSuffix,
               },
               namespace: metricNamespace,
-              period: 60,
+              period: 900, // 15 minutes
               stat: "Sum",
             },
           },
