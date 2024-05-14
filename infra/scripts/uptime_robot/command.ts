@@ -124,13 +124,13 @@ async function createMonitor<T extends BaseMonitorOptions>(
     ...generateCreateModelRequestBody(options),
   };
 
-  const http_method = body.http_method || HTTP_METHOD.GET;
-  const httpMethodName = httpMethodToName(http_method);
+  body.http_method = body.http_method || HTTP_METHOD.GET;
+  const httpMethodName = httpMethodToName(body.http_method);
 
   body.friendly_name =
     body.friendly_name || `[auto] Scorer ${httpMethodName} /${path}`;
 
-  if (http_method !== HTTP_METHOD.GET && !body.post_type) {
+  if (body.http_method !== HTTP_METHOD.GET && !body.post_type) {
     body.post_type = POST_TYPE.RAW_DATA;
   }
 

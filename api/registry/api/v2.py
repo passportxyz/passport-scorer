@@ -4,8 +4,8 @@ from typing import List, Optional
 import api_logging as logging
 
 # --- Deduplication Modules
-from account.models import Account, Community
-from django.db.models import Max, Q
+from account.models import Community
+from django.db.models import Q
 from ninja import Router
 from registry.api import common, v1
 from registry.api.schema import (
@@ -15,7 +15,6 @@ from registry.api.schema import (
     DetailedScoreResponse,
     ErrorMessageResponse,
     SigningMessageResponse,
-    StakeSchema,
     StampDisplayResponse,
     SubmitPassportPayload,
 )
@@ -280,24 +279,6 @@ def get_gtc_stake_legacy(request, address: str, round_id: str):
     if not v1.is_valid_address(address):
         raise InvalidAddressException()
     return v1.get_gtc_stake_legacy(request, address, round_id)
-
-
-@router.get(
-    "/gtc-stake/{str:address}",
-    # auth=ApiKey(),
-    auth=None,
-    response={
-        200: List[StakeSchema],
-        400: ErrorMessageResponse,
-    },
-    summary="Retrieve GTC stake amounts for the GTC Staking stamp",
-    description="Get self and community GTC stakes for an address",
-)
-def get_gtc_stake(request, address: str) -> List[StakeSchema]:
-    """
-    Get GTC relevant stakes for an address
-    """
-    return v1.get_gtc_stake(request, address)
 
 
 @router.get(
