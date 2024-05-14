@@ -1,6 +1,10 @@
 # https://pipenv.pypa.io/en/latest/basics/#pipenv-and-docker-containers
 FROM --platform=linux/amd64 python
 
+# Set arguments with default values
+ARG TEST_DURATION="5s"
+ARG VIRTUAL_USERS="1"
+
 ADD . /load_tests
 
 # k6 installation guide: https://grafana.com/docs/k6/latest/set-up/install-k6/
@@ -19,4 +23,4 @@ RUN pipenv install
 
 WORKDIR /load_tests
 
-CMD ["./run_load_test.sh", "1", "5s"]
+CMD ["./run_scorer_load_test.sh", "${VIRTUAL_USERS}", "${TEST_DURATION}"]

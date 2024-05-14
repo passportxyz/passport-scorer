@@ -21,9 +21,8 @@ const requestOptions = {
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: '90s',
+  timeout: "90s",
 };
-
 
 const iamUrl = "https://iam.staging.passport.gitcoin.co/api/v0.0.0/";
 const signerUrl = "http://localhost:8123/";
@@ -53,21 +52,21 @@ const checkRequest = (address) => {
           "ZkSyncEra",
           "Lens",
           "GnosisSafe",
-          "ETHScore#50",
-          "ETHScore#75",
-          "ETHScore#90",
-          "ETHGasSpent#0.25",
-          "ETHnumTransactions#100",
-          "ETHDaysActive#50",
-          "SelfStakingBronze",
-          "SelfStakingSilver",
-          "SelfStakingGold",
-          "BeginnerCommunityStaker",
-          "ExperiencedCommunityStaker",
-          "TrustedCitizen",
-          "GuildAdmin",
-          "GuildPassportMember",
-          "TrustaLabs",
+          // "ETHScore#50",
+          // "ETHScore#75",
+          // "ETHScore#90",
+          // "ETHGasSpent#0.25",
+          // "ETHnumTransactions#100",
+          // "ETHDaysActive#50",
+          // "SelfStakingBronze",
+          // "SelfStakingSilver",
+          // "SelfStakingGold",
+          // "BeginnerCommunityStaker",
+          // "ExperiencedCommunityStaker",
+          // "TrustedCitizen",
+          // "GuildAdmin",
+          // "GuildPassportMember",
+          // "TrustaLabs",
         ],
       },
     }),
@@ -121,10 +120,10 @@ export function setup() {
   return { userAccounts: userAccounts };
 }
 
-export function teardown(data) { }
+export function teardown(data) {}
 
 // create k6 setup and teardown
-export default async function(data) {
+export default async function (data) {
   const { userAccounts } = data;
   const accountIndex = (exec.vu.idInTest - 1) % userAccounts.length;
   const { address, privateKey } = userAccounts[accountIndex];
