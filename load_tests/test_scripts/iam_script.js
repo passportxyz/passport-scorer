@@ -96,12 +96,12 @@ const providerBitMap = () => {
     "BitMap request status is 200": (r) => r.status === 200,
   });
 
-  // if (bitMapResponse.status !== 200) {
-  //   console.log(
-  //     "Bitmap request failed: ",
-  //     JSON.stringify(bitMapResponse, undefined, 2)
-  //   );
-  // }
+  if (bitMapResponse.status !== 200) {
+    console.log(
+      "Bitmap request failed: ",
+      JSON.stringify(bitMapResponse, undefined, 2)
+    );
+  }
 };
 
 export function setup() {
@@ -152,13 +152,13 @@ export default async function(data) {
       "Challenge request is status 200": (r) => r.status === 200,
     });
 
-    // if (challengeResponse.status !== 200) {
-    //   console.log(
-    //     "Fetching challenge failed: ",
-    //     JSON.stringify(challengeResponse, undefined, 2)
-    //   );
-    //   return;
-    // }
+    if (challengeResponse.status !== 200) {
+      console.log(
+        "Fetching challenge failed: ",
+        JSON.stringify(challengeResponse, undefined, 2)
+      );
+      return;
+    }
 
     const challenge = JSON.parse(challengeResponse.body).credential;
 
@@ -205,14 +205,14 @@ export default async function(data) {
       "Verify request is status 200": (r) => r.status === 200,
     });
 
-    // if (verifyResponse.status === 200) {
-    //   credentials = JSON.parse(verifyResponse.body).map((r) => r.credential);
-    // } else {
-    //   console.log(
-    //     "Verifying stamps failed: ",
-    //     JSON.stringify(verifyResponse, undefined, 2)
-    //   );
-    // }
+    if (verifyResponse.status === 200) {
+      credentials = JSON.parse(verifyResponse.body).map((r) => r.credential);
+    } else {
+      console.log(
+        "Verifying stamps failed: ",
+        JSON.stringify(verifyResponse, undefined, 2)
+      );
+    }
   }
 
   // This doesn't work b/c these addresses haven't been scored.
