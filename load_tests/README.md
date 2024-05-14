@@ -79,6 +79,8 @@ tests with:
 
 # WIP - Program to run and analyse the results
 
+This was deleted from the repo but can be on this branch if you would like to use it. 2409-load-testing-cargo-runner
+
 - `cd ./full-stack-test`
 - modify vus, filenames, and duration in `main.rs`
 - run `cargo run`
