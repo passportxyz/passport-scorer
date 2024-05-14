@@ -29,9 +29,8 @@ def get_writer(output_file):
                     def write_batch(self, data):
                         for d in data:
                             try:
-                                key = d["key"]
                                 value = d["value"]
-                                address = key[1].lower()
+                                address = d["key_1"].lower()
                                 self.file.write(
                                     json.dumps(
                                         {

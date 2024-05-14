@@ -10,7 +10,7 @@ from django.db import models
 
 
 class Cache(models.Model):
-    key = models.JSONField()
+    key = models.JSONField(blank=True, null=True)
     value = models.JSONField()
     updated_at = models.DateTimeField()
     id = models.BigAutoField(primary_key=True)
@@ -20,3 +20,4 @@ class Cache(models.Model):
     class Meta:
         managed = False
         db_table = "cache"
+        unique_together = (("key_0", "key_1"),)

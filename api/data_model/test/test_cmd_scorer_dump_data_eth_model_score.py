@@ -55,7 +55,8 @@ class TestGetStamps:
             address = f"0x{i}"
             timestamp = datetime(2024, 4, 9, i, 0, 0, tzinfo=timezone.utc)
             Cache.objects.create(
-                key=["predict", address],
+                key_0="predict",
+                key_1=address,
                 value={
                     "data": {"human_probability": i},
                     "meta": {"version": "v1", "Training_date": "2023/12/27"},
@@ -77,7 +78,8 @@ class TestGetStamps:
             # Also add data to cache for other models (differet value in first element in key)
             # The export command should filter correctly
             Cache.objects.create(
-                key=["predict_nft", address],
+                key_0="predict_nft",
+                key_1=address,
                 value={
                     "data": {"human_probability": i},
                     "meta": {"version": "v1", "Training_date": "2023/12/27"},
