@@ -17,6 +17,92 @@ export const options = {
   },
 };
 
+const requestOptions = {
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: "90s",
+};
+
+const iamUrl = "https://iam.staging.passport.gitcoin.co/api/v0.0.0/";
+const signerUrl = "http://localhost:8123/";
+const numAccounts = 1000;
+
+const checkRequest = (address) => {
+  const checkResponse = http.post(
+    iamUrl + "check",
+    JSON.stringify({
+      payload: {
+        address,
+        version: "0.0.0",
+        type: "bulk",
+        types: [
+          "Ens",
+          "NFTScore#50",
+          "NFTScore#75",
+          "NFTScore#90",
+          "NFT",
+          "GitcoinContributorStatistics#totalContributionAmountGte#10",
+          "GitcoinContributorStatistics#totalContributionAmountGte#100",
+          "GitcoinContributorStatistics#totalContributionAmountGte#1000",
+          "SnapshotProposalsProvider",
+          "zkSyncScore#5",
+          "zkSyncScore#20",
+          "zkSyncScore#50",
+          "ZkSyncEra",
+          "Lens",
+          "GnosisSafe",
+          // "ETHScore#50",
+          // "ETHScore#75",
+          // "ETHScore#90",
+          // "ETHGasSpent#0.25",
+          // "ETHnumTransactions#100",
+          // "ETHDaysActive#50",
+          // "SelfStakingBronze",
+          // "SelfStakingSilver",
+          // "SelfStakingGold",
+          // "BeginnerCommunityStaker",
+          // "ExperiencedCommunityStaker",
+          // "TrustedCitizen",
+          // "GuildAdmin",
+          // "GuildPassportMember",
+          // "TrustaLabs",
+        ],
+      },
+    }),
+    requestOptions
+  );
+
+  check(checkResponse, {
+    "Check request status is 200": (r) => r.status === 200,
+  });
+
+  if (checkResponse.status !== 200) {
+    console.log(`Check request failed for address: ${address}`);
+    console.log(
+      "Chekc request failed: ",
+      JSON.stringify(checkResponse, undefined, 2)
+    );
+  }
+};
+
+const providerBitMap = () => {
+  const bitMapResponse = http.get(
+    "https://iam.staging.passport.gitcoin.co/static//providerBitMapInfo.json"
+  );
+
+  check(bitMapResponse, {
+    "BitMap request status is 200": (r) => r.status === 200,
+  });
+
+  if (bitMapResponse.status !== 200) {
+    console.log(
+      "Bitmap request failed: ",
+      JSON.stringify(bitMapResponse, undefined, 2)
+    );
+  }
+};
+
 export function setup() {
   const userAccounts = [];
 
@@ -31,15 +117,10 @@ export function setup() {
     const { address, privateKey } = JSON.parse(getAddressResponse.body);
     userAccounts.push({ address, privateKey });
   }
-
   return { userAccounts: userAccounts };
 }
 
 export function teardown(data) {}
-
-const iamUrl = "https://iam.staging.passport.gitcoin.co/api/v0.0.0/";
-const signerUrl = "http://localhost:8123/";
-const numAccounts = 1000;
 
 // create k6 setup and teardown
 export default async function (data) {
@@ -47,15 +128,9 @@ export default async function (data) {
   const accountIndex = (exec.vu.idInTest - 1) % userAccounts.length;
   const { address, privateKey } = userAccounts[accountIndex];
 
-  const options = {
-    headers: {
-      "Content-Type": "application/json",
-    },
-  };
+  checkRequest(address);
 
-  const trackedRequestOptions = Object.assign({}, options, {
-    tags: { tracked: "true" },
-  });
+  providerBitMap();
 
   // We simulate 4 batches of claiming stamps
   let credentials;
@@ -69,11 +144,11 @@ export default async function (data) {
           signatureType: "Ed25519",
         },
       }),
-      trackedRequestOptions
+      requestOptions
     );
 
     check(challengeResponse, {
-      "is status 200": (r) => r.status === 200,
+      "Challenge request is status 200": (r) => r.status === 200,
     });
 
     if (challengeResponse.status !== 200) {
@@ -99,7 +174,7 @@ export default async function (data) {
           message: challenge.credentialSubject.challenge,
           privateKey,
         }),
-        options
+        requestOptions
       );
     }
     const { signature } = JSON.parse(signatureResponse.body);
@@ -122,11 +197,11 @@ export default async function (data) {
         payload,
         challenge,
       }),
-      trackedRequestOptions
+      requestOptions
     );
 
     check(verifyResponse, {
-      "is status 200": (r) => r.status === 200,
+      "Verify request is status 200": (r) => r.status === 200,
     });
 
     if (verifyResponse.status === 200) {

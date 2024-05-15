@@ -3,3 +3,6 @@ test_data/generated_accounts_*.json
 test_data/vcs
 k6_metrics*.csv
 .ipynb_checkpoints
+iam_load_test_1500_15min.csv
+scorer_load_test*.csv
+iam_load_test*.csv
