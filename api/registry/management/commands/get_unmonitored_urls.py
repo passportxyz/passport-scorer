@@ -22,8 +22,7 @@ IGNORED_URLS = [
 # which the URL should be added to the hardcoded IGNORED_URLS above to be
 # ignored in the future
 if settings.IGNORE_UNMONITORED_URLS:
-    urls = [url.strip() for url in settings.IGNORE_UNMONITORED_URLS.split(",")]
-    IGNORED_URLS.extend(urls)
+    IGNORED_URLS.extend(settings.IGNORE_UNMONITORED_URLS)
 
 
 class Command(BaseCommand):

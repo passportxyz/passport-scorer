@@ -38,7 +38,7 @@ SECURE_PROXY_SSL_HEADER = env.json("SECURE_PROXY_SSL_HEADER", default=None)
 
 UPTIME_ROBOT_READONLY_API_KEY = env("UPTIME_ROBOT_READONLY_API_KEY", default="")
 # comma separated list of urls to ignore
-IGNORE_UNMONITORED_URLS = env("IGNORE_UNMONITORED_URLS", default="")
+IGNORE_UNMONITORED_URLS = env.json("IGNORE_UNMONITORED_URLS", default=[])
 
 STAKING_SUBGRAPH_API_KEY = env("STAKING_SUBGRAPH_API_KEY", default="api-key")
 
