@@ -5,6 +5,8 @@
 
 cd ./test_data
 pipenv run python generate_test_accounts.py
+mkdir vcs
+pipenv run python generate_test_vcs.py
 cd ..
 
 # generate the file `test_data/vcs/*`

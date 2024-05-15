@@ -1,13 +1,10 @@
 import json
-
-from dotenv import dotenv_values
+import os
 from web3 import Web3
 
-env_config = dotenv_values(".env")
 
-
-mnemonic = env_config.get("MNEMONIC")
-num_accounts = int(env_config.get("NUM_ACCOUNTS", 100))
+mnemonic = os.environ["MNEMONIC"]
+num_accounts = int(os.environ["NUM_ACCOUNTS"])
 
 
 w3 = Web3()

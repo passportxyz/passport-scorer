@@ -22,14 +22,11 @@ export const options = {
       },
     },
   },
-
-  // vus: 1,
-  // duration: "15s",
 };
 
-const scorerId = __ENV.SCORER_ID;
-const apiKey = __ENV.SCORER_API_KEY;
-const numAccounts = 1000;
+// const scorerId = __ENV.SCORER_ID;
+// const apiKey = __ENV.SCORER_API_KEY;
+const numAccounts = Number.parseInt(__ENV.NUM_ACCOUNTS);
 
 export function setup() { }
 

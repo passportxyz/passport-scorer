@@ -91,3 +91,10 @@ This was deleted from the repo but can be on this branch if you would like to us
 - Update path to load test output
 - Run the notebook
 - 👀
+
+
+# Docker image
+
+- build the docker image like:  `docker build . -t load_tests`
+- run the docker image like: `docker run -e SCORER_ID=<id> -e SCORER_API_KEY=<api_key> -e NUM_ACCOUNTS=10 -e MNEMONIC='<mnemonic>>' -e JWK='<jwk>' load_tests`
+- you can use the env vars from the `.env-example` file

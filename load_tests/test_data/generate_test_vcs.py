@@ -1,25 +1,18 @@
 import asyncio
 import base64
-import hashlib
 import json
-import sys
-from copy import copy, deepcopy
-from pprint import pprint
-from random import choice, randint
+from random import choice
 from secrets import token_bytes
 
 import didkit
 from config import providers
-from dotenv import dotenv_values
 from web3 import Web3
+import os
 
 w3 = Web3()
 
-
-env_config = dotenv_values(".env")
-
-JWK = env_config["JWK"]
-num_accounts = int(env_config.get("NUM_ACCOUNTS", 100))
+JWK = os.environ["JWK"]
+num_accounts = int(os.environ["NUM_ACCOUNTS"])
 
 accounts_file = f"generated_accounts_{num_accounts}.json"
 
