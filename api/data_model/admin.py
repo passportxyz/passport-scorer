@@ -7,7 +7,8 @@ from data_model.models import Cache
 @admin.register(Cache)
 class CacheAdmin(ScorerModelAdmin):
     list_display = [
-        "key",
+        "key_0",
+        "key_1",
         "value",
         "updated_at",
     ]
@@ -15,7 +16,8 @@ class CacheAdmin(ScorerModelAdmin):
     list_filter = []
 
     search_fields = [
-        "key",
+        "key_0",
+        "key_1",
         "value",
     ]
     search_help_text = "Search by: " + ", ".join(search_fields)

@@ -10,7 +10,6 @@ from django.db import models
 
 
 class Cache(models.Model):
-    key = models.JSONField(blank=True, null=True)
     value = models.JSONField()
     updated_at = models.DateTimeField()
     id = models.BigAutoField(primary_key=True)
