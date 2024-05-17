@@ -153,7 +153,7 @@ def with_request_exception_handling(func):
             status, message = error_descriptions.get(
                 type(e), (400, "An error has occurred")
             )
-
+            bind_contextvars(statusCode=status, statusCategory="4XX" if (status >= 400 and status < 500) else "5XX")
             response =  {
                 "statusCode": status,
                 "statusCategory": "4XX" if (status >= 400 and status < 500) else "5XX",
@@ -225,6 +225,7 @@ def with_api_request_exception_handling(func):
                 type(e), (500, "An error has occurred")
             )
 
+            bind_contextvars(statusCode=status, statusCategory="4XX" if (status >= 400 and status < 500) else "5XX")
             response = {
                 "statusCode": status,
                 "statusCategory": "4XX" if (status >= 400 and status < 500) else "5XX",

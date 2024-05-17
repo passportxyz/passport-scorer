@@ -33,7 +33,7 @@ def test_patch(
         side_effect=lambda _, passport_data: passport_data,
     )
 
-    response = bulk_PATCH.handler(event, context)
+    response = bulk_PATCH._handler(event, context)
 
     body = json.loads(response["body"])
 
@@ -66,7 +66,7 @@ def test_delete(
         side_effect=lambda _, passport_data: passport_data,
     )
 
-    response = bulk_DELETE.handler(event, context)
+    response = bulk_DELETE._handler(event, context)
 
     body = json.loads(response["body"])
 
@@ -99,7 +99,7 @@ def test_post(
         side_effect=lambda _, passport_data: passport_data,
     )
 
-    response = bulk_POST.handler(event, context)
+    response = bulk_POST._handler(event, context)
 
     body = json.loads(response["body"])
 
