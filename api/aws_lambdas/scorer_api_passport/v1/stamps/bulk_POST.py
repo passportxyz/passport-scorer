@@ -9,13 +9,19 @@ from aws_lambdas.scorer_api_passport.utils import (
     with_request_exception_handling,
 )
 from ceramic_cache.api.v1 import CacheStampPayload, handle_add_stamps
+from django.db import close_old_connections
 
 
 @with_request_exception_handling
-def handler(event, context):
+def _handler(event, context):
     address = authenticate_and_get_address(event)
     body = parse_body(event)
 
     payload = [CacheStampPayload(**p) for p in body]
 
     return format_response(handle_add_stamps(address, payload))
+
+
+def handler(*args, **kwargs):
+    close_old_connections()
+    return _handler(*args, **kwargs)

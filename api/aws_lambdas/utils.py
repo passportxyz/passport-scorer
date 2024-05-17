@@ -10,6 +10,16 @@ from traceback import print_exc
 from typing import Any, Dict, Tuple
 import boto3
 from botocore.exceptions import ClientError
+from django.db import (
+    InterfaceError,
+    DataError,
+    OperationalError,
+    IntegrityError,
+    InternalError,
+    ProgrammingError,
+    NotSupportedError,
+)
+
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
@@ -148,13 +158,23 @@ def with_request_exception_handling(func):
                     429,
                     "You have been rate limited. Please try again later.",
                 ),
+                InterfaceError: (500, "DB Error: InterfaceError"),
+                DataError: (500, "DB Error: DataError"),
+                OperationalError: (500, "DB Error: OperationalError"),
+                IntegrityError: (500, "DB Error: IntegrityError"),
+                InternalError: (500, "DB Error: InternalError"),
+                ProgrammingError: (500, "DB Error: ProgrammingError"),
+                NotSupportedError: (500, "DB Error: NotSupportedError"),
             }
 
             status, message = error_descriptions.get(
                 type(e), (400, "An error has occurred")
             )
-
-            response =  {
+            bind_contextvars(
+                statusCode=status,
+                statusCategory="4XX" if (status >= 400 and status < 500) else "5XX",
+            )
+            response = {
                 "statusCode": status,
                 "statusCategory": "4XX" if (status >= 400 and status < 500) else "5XX",
                 "statusDescription": str(e),
@@ -163,7 +183,9 @@ def with_request_exception_handling(func):
                 "body": '{"error": "' + message + '"}',
             }
 
-            logger.exception("Error occurred with Passport API. Response: %s", json.dumps(response))
+            logger.exception(
+                "Error occurred with Passport API. Response: %s", json.dumps(response)
+            )
             return response
 
     return wrapper
@@ -172,6 +194,7 @@ def with_request_exception_handling(func):
 def with_api_request_exception_handling(func):
     """
     This wrapper is meant to be used for API handler of the public API like submit-passport
+    and analytics request
     """
 
     @wraps(func)
@@ -219,12 +242,23 @@ def with_api_request_exception_handling(func):
                     429,
                     "You have been rate limited. Please try again later.",
                 ),
+                InterfaceError: (500, "DB Error: InterfaceError"),
+                DataError: (500, "DB Error: DataError"),
+                OperationalError: (500, "DB Error: OperationalError"),
+                IntegrityError: (500, "DB Error: IntegrityError"),
+                InternalError: (500, "DB Error: InternalError"),
+                ProgrammingError: (500, "DB Error: ProgrammingError"),
+                NotSupportedError: (500, "DB Error: NotSupportedError"),
             }
 
             status, message = error_descriptions.get(
                 type(e), (500, "An error has occurred")
             )
 
+            bind_contextvars(
+                statusCode=status,
+                statusCategory="4XX" if (status >= 400 and status < 500) else "5XX",
+            )
             response = {
                 "statusCode": status,
                 "statusCategory": "4XX" if (status >= 400 and status < 500) else "5XX",
@@ -233,7 +267,9 @@ def with_api_request_exception_handling(func):
                 "headers": RESPONSE_HEADERS,
                 "body": '{"error": "' + message + '"}',
             }
-            logger.exception("Error occurred with Passport API. Response: %s", json.dumps(response))
+            logger.exception(
+                "Error occurred with Passport API. Response: %s", json.dumps(response)
+            )
 
         # Log analytics for the API call
         try:
