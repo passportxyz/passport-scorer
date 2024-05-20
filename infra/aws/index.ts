@@ -102,6 +102,11 @@ const alarmConfigurations: AlarmConfigurations = {
     percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
     targetResponseTime: 20, // 20 seconds - this is a slower request
   },
+  "cc-v1-score-POST-0": {
+    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
+    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
+    targetResponseTime: 5, // 5 seconds - this is a slower request
+  },
 };
 
 const CERAMIC_CACHE_SCORER_ID = CERAMIC_CACHE_SCORER_ID_CONFG[stack];
