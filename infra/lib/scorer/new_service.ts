@@ -10,7 +10,10 @@ import { Topic } from "@pulumi/aws/sns";
 import { Listener } from "@pulumi/aws/alb";
 import { SecurityGroup } from "@pulumi/aws/ec2";
 import { RolePolicyAttachment } from "@pulumi/aws/iam";
-import { AlarmConfigurations, TargetGroupAlarmsConfiguration } from "./loadBalancer";
+import {
+  AlarmConfigurations,
+  TargetGroupAlarmsConfiguration,
+} from "./loadBalancer";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -430,7 +433,13 @@ export function createScorerECSService(
     /*
      * Alarm for monitoring target 5XX errors
      */
-    const alarmConfig = (loadBalancerAlarmThresholds as any as Record<string, TargetGroupAlarmsConfiguration>)[name] || loadBalancerAlarmThresholds.default;
+    const alarmConfig =
+      (
+        loadBalancerAlarmThresholds as any as Record<
+          string,
+          TargetGroupAlarmsConfiguration
+        >
+      )[name] || loadBalancerAlarmThresholds.default;
     const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-Target-5XX-${name}`,
       {
@@ -502,7 +511,7 @@ export function createScorerECSService(
                 TargetGroup: config.targetGroup.arnSuffix,
               },
               namespace: metricNamespace,
-              period: 60,
+              period: 5 * 60, // We want to monitor the 4xx errors on the 5 minute time frame
               stat: "Sum",
             },
           },
@@ -515,7 +524,7 @@ export function createScorerECSService(
                 TargetGroup: config.targetGroup.arnSuffix,
               },
               namespace: metricNamespace,
-              period: 60,
+              period: 5 * 60, // We want to monitor the 4xx errors on the 5 minute time frame
               stat: "Sum",
             },
           },
@@ -529,7 +538,6 @@ export function createScorerECSService(
         threshold: alarmConfig.percentHTTPCodeTarget4XX,
       }
     );
-
 
     // We want an alarm to monitor for the average response time
     const targetResponseTimeAlarm = new aws.cloudwatch.MetricAlarm(
@@ -1194,7 +1202,13 @@ export function buildHttpLambdaFn(
     /*
      * Alarm for monitoring target 5XX errors
      */
-    const alarmConfig = (loadBalancerAlarmThresholds as any as Record<string, TargetGroupAlarmsConfiguration>)[name] || loadBalancerAlarmThresholds.default;
+    const alarmConfig =
+      (
+        loadBalancerAlarmThresholds as any as Record<
+          string,
+          TargetGroupAlarmsConfiguration
+        >
+      )[name] || loadBalancerAlarmThresholds.default;
     const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-Target-5XX-${name}`,
       {
