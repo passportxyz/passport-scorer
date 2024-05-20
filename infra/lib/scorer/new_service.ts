@@ -499,8 +499,13 @@ export function createScorerECSService(
         alarmActions: [config.alertTopic.arn],
         okActions: [config.alertTopic.arn],
         comparisonOperator: "GreaterThanThreshold",
-        datapointsToAlarm: 3,
-        evaluationPeriods: 5,
+        /*
+         * We want to monitor the 4xx errors for 10 periods of 1 minute
+         * and trigger the alarm if 8 / 10 of those periods the threshold was crossed
+         */
+        datapointsToAlarm: 8,
+        evaluationPeriods: 10,
+        period: 60,
         metricQueries: [
           {
             id: "m1",
@@ -511,7 +516,7 @@ export function createScorerECSService(
                 TargetGroup: config.targetGroup.arnSuffix,
               },
               namespace: metricNamespace,
-              period: 5 * 60, // We want to monitor the 4xx errors on the 5 minute time frame
+              period: 60,
               stat: "Sum",
             },
           },
@@ -524,7 +529,7 @@ export function createScorerECSService(
                 TargetGroup: config.targetGroup.arnSuffix,
               },
               namespace: metricNamespace,
-              period: 5 * 60, // We want to monitor the 4xx errors on the 5 minute time frame
+              period: 60,
               stat: "Sum",
             },
           },
