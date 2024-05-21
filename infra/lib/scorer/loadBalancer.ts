@@ -17,6 +17,7 @@ export type AlarmConfigurations = {
 
   default: TargetGroupAlarmsConfiguration;
   "passport-analysis-GET-0": TargetGroupAlarmsConfiguration;
+  "cc-v1-score-POST-0": TargetGroupAlarmsConfiguration;
 };
 
 export function createLoadBalancerAlarms(
