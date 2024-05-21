@@ -192,14 +192,6 @@ class CustomizationForm(forms.ModelForm):
         }
         fields = "__all__"
 
-    def clean_scorer(self):
-        community = self.cleaned_data.get("scorer")
-        if community.scorer.type != Scorer.Type.WEIGHTED_BINARY:
-            raise forms.ValidationError(
-                "A Binary weighted scorer is required in a custom dashboard!"
-            )
-        return community
-
 
 @admin.register(Customization)
 class CustomizationAdmin(ScorerModelAdmin):
