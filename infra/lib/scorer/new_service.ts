@@ -505,7 +505,6 @@ export function createScorerECSService(
          */
         datapointsToAlarm: 8,
         evaluationPeriods: 10,
-        period: 60,
         metricQueries: [
           {
             id: "m1",
