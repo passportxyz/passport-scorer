@@ -802,6 +802,10 @@ export function createIndexerService(
       valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_RPC_URL::`,
     },
     {
+      name: "INDEXER_ARBITRUM_RPC_URL",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ARBITRUM_RPC_URL::`,
+    },
+    {
       name: "INDEXER_ETHEREUM_ENABLED",
       valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ETHEREUM_ENABLED::`,
     },
@@ -810,12 +814,20 @@ export function createIndexerService(
       valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_ENABLED::`,
     },
     {
+      name: "INDEXER_ARBITRUM_ENABLED",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ARBITRUM_ENABLED::`,
+    },
+    {
       name: "INDEXER_ETHEREUM_START_BLOCK",
       valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ETHEREUM_START_BLOCK::`,
     },
     {
       name: "INDEXER_OPTIMISM_START_BLOCK",
       valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_START_BLOCK::`,
+    },
+    {
+      name: "INDEXER_ARBITRUM_START_BLOCK",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ARBITRUM_START_BLOCK::`,
     },
     {
       name: "INDEXER_LEGACY_ENABLED",
@@ -828,6 +840,10 @@ export function createIndexerService(
     {
       name: "STAKING_CONTRACT_ADDRESS_OP_MAINNET",
       valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_CONTRACT_ADDRESS_OP_MAINNET::`,
+    },
+    {
+      name: "STAKING_CONTRACT_ADDRESS_ARBITRUM_MAINNET",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_CONTRACT_ADDRESS_ARBITRUM_MAINNET::`,
     },
   ]);
 
