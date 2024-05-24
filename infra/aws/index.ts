@@ -1462,3 +1462,79 @@ buildQueueLambdaFn({
   role: queueLambdaRole,
   queue: rescoreQueue,
 });
+
+/**
+ *
+ *  BReak out in own lib ...
+ *
+ */
+const loadTestingContainerDefinition = JSON.stringify([
+  {
+    name: "load-testing",
+    image: "public.ecr.aws/t1g3k9q8/passport-scorer-load-test:latest",
+    cpu: 8192,
+    memory: 16384,
+    links: [],
+    essential: true,
+    portMappings: [
+      {
+        containerPort: 80,
+        hostPort: 80,
+        protocol: "tcp",
+      },
+    ],
+    environment: [
+      {
+        name: "MNEMONIC",
+        value:
+          "chief loud snack trend chief net field husband vote message decide replace",
+      },
+      {
+        name: "ALCHEMY_API_KEY",
+        value: "TODO",
+      },
+      {
+        name: "JWK",
+        value:
+          '{"kty":"OKP","crv":"Ed25519","x":"6P4_n-b6QHP_biJkA_1GwgRNnAPXkezoL2BvNHijfus","d":"l8CinZ9dVK-IAmvjXU70Q_XmZaHh3bD1O27wrxr9KCQ"}',
+      },
+      {
+        name: "NUM_ACCOUNTS",
+        value: "100",
+      },
+      {
+        name: "SCORER_API_KEY",
+        value: "TODO",
+      },
+      {
+        name: "SCORER_ID",
+        value: "2",
+      },
+    ],
+    logConfiguration: {
+      logDriver: "awslogs",
+      options: {
+        "awslogs-group": "load-testing", // "${serviceLogGroup.name}`,
+        "awslogs-region": "us-west-2", // `${regionId}`,
+        "awslogs-create-group": "true",
+        "awslogs-stream-prefix": "iam",
+      },
+    },
+    secrets: [],
+    mountPoints: [],
+    volumesFrom: [],
+  },
+]);
+
+const taskDefinition = new aws.ecs.TaskDefinition("load-testing", {
+  family: "load-testing",
+  containerDefinitions: loadTestingContainerDefinition,
+  executionRoleArn: "arn:aws:iam::515520736917:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+  cpu: "8192",
+  memory: "16384",
+  networkMode: "awsvpc",
+  requiresCompatibilities: ["FARGATE"],
+  tags: {
+    Name: "load-testing",
+  },
+});
