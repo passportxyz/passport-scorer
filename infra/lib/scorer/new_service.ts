@@ -845,6 +845,23 @@ export function createIndexerService(
       name: "STAKING_CONTRACT_ADDRESS_ARBITRUM_MAINNET",
       valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_CONTRACT_ADDRESS_ARBITRUM_MAINNET::`,
     },
+    // OP Sepolia 
+    {
+      name: "INDEXER_OPTIMISM_SEPOLIA_RPC_URL",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_SEPOLIA_RPC_URL::`,
+    },
+    {
+      name: "INDEXER_OPTIMISM_SEPOLIA_ENABLED",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_SEPOLIA_ENABLED::`,
+    },
+    {
+      name: "INDEXER_OPTIMISM_SEPOLIA_START_BLOCK",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_SEPOLIA_START_BLOCK::`,
+    },
+    {
+      name: "STAKING_CONTRACT_ADDRESS_OP_SEPOLIA",
+      valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_CONTRACT_ADDRESS_OP_SEPOLIA::`,
+    },
   ]);
 
   const indexerEnvironment: { name: string; value: Input<string> }[] = [
