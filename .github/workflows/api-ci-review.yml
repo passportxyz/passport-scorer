@@ -1,6 +1,7 @@
 name: Deploy API to Review
 
 on:
+  workflow_dispatch: # This triggers the workflow manually
   push:
     branches: [main]
 
