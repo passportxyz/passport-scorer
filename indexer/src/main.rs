@@ -28,10 +28,15 @@ async fn main() -> Result<()> {
             .parse::<Address>()
             .unwrap();
 
+        let contract_address_op_mainnet = get_env("STAKING_CONTRACT_ADDRESS_ARBITRUM_MAINNET")
+            .parse::<Address>()
+            .unwrap();
+
         match try_join!(
             run_legacy_indexer(postgres_client.clone()),
             run_ethereum_indexer(postgres_client.clone(), &contract_address_eth_mainnet),
-            run_optimism_indexer(postgres_client.clone(), &contract_address_op_mainnet)
+            run_optimism_indexer(postgres_client.clone(), &contract_address_op_mainnet),
+            run_arbitrum_indexer(postgres_client.clone(), &contract_address_arbitrum_mainnet)
         ) {
             Ok(_) => {
                 eprintln!("Warning - top-level join ended without error");
@@ -97,4 +102,26 @@ async fn run_optimism_indexer(
     )
     .await?;
     optimism_staking_indexer.listen_with_timeout_reset().await
+}
+
+async fn run_arbitrum_indexer(
+    postgres_client: PostgresClient,
+    contract_address: &Address,
+) -> Result<()> {
+    if get_env("INDEXER_ARBITRUM_ENABLED") != "true" {
+        return Ok(());
+    }
+
+    let arbitrum_rpc_url = get_env("INDEXER_ARBITRUM_RPC_URL");
+    let arbitrum_start_block = get_env("INDEXER_ARBITRUM_START_BLOCK")
+        .parse::<u64>()
+        .unwrap();
+    let arbitrum_staking_indexer = StakingIndexer::new(
+        postgres_client,
+        &arbitrum_rpc_url,
+        arbitrum_start_block,
+        contract_address,
+    )
+    .await?;
+    arbitrum_staking_indexer.listen_with_timeout_reset().await
 }
