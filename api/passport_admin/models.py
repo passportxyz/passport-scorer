@@ -19,7 +19,7 @@ class PassportBanner(models.Model):
     content = models.TextField()
     link = models.URLField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
-    application = models.CharField(choices=APPLICATION_CHOICES, default="passport")
+    application = models.CharField(max_length=50, choices=APPLICATION_CHOICES, default="passport")
 
 
 class DismissedBanners(models.Model):
