@@ -12,6 +12,8 @@ class StakeSchema(Schema):
     amount: str
     unlock_time: str
     lock_time: str
+    last_updated_in_block: str
+
 
 class GetSchemaResponse(Schema):
     items: List[StakeSchema]
