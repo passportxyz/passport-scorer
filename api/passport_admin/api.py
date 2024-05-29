@@ -18,6 +18,7 @@ class Banner(Schema):
     content: str
     link: Optional[str] = None
     banner_id: int
+    application: str = "passport"
 
 
 @router.get(
@@ -25,14 +26,15 @@ class Banner(Schema):
     response=List[Banner],
     auth=JWTDidAuth(),
 )
-def get_banners(request):
+def get_banners(request, application: Optional[str] = "passport"):
     """
     Get all banners
+    By default, it will return all banners for the Passport application.
     """
     try:
         address = get_address(request.auth.did)
         banners = (
-            PassportBanner.objects.filter(is_active=True)
+            PassportBanner.objects.filter(is_active=True, application=application)
             .exclude(
                 pk__in=Subquery(
                     DismissedBanners.objects.filter(address=address).values("banner_id")
@@ -41,7 +43,15 @@ def get_banners(request):
             .all()
         )
 
-        return [Banner(content=b.content, link=b.link, banner_id=b.pk) for b in banners]
+        return [
+            Banner(
+                content=b.content,
+                link=b.link,
+                banner_id=b.pk,
+                application=b.application,
+            )
+            for b in banners
+        ]
     except:
         return {
             "status": "failed",

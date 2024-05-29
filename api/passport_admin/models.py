@@ -5,6 +5,11 @@ Includes models for PassportBanner and DismissedBanners.
 
 from django.db import models
 
+APPLICATION_CHOICES = [
+    ("passport", "Passport"),
+    ("id_staking_v2", "ID Staking V2"),
+]
+
 
 class PassportBanner(models.Model):
     """
@@ -14,6 +19,9 @@ class PassportBanner(models.Model):
     content = models.TextField()
     link = models.URLField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
+    application = models.CharField(
+        max_length=50, choices=APPLICATION_CHOICES, default="passport", db_index=True
+    )
 
 
 class DismissedBanners(models.Model):
