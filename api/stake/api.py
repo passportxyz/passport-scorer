@@ -33,7 +33,7 @@ def get_gtc_stake(request, address: str) -> GetSchemaResponse:
     if not is_valid_address(address):
         raise InvalidAddressException()
 
-    get_stake_response =  handle_get_gtc_stake(address)
+    get_stake_response = handle_get_gtc_stake(address)
     response = GetSchemaResponse(items=get_stake_response)
     return response
 
@@ -50,11 +50,12 @@ def handle_get_gtc_stake(address: str) -> List[StakeSchema]:
                 amount=stake.current_amount,
                 lock_time=stake.lock_time.isoformat(),
                 unlock_time=stake.unlock_time.isoformat(),
+                last_updated_in_block=stake.last_updated_in_block,
             )
             for stake in with_read_db(Stake).filter(
                 Q(staker=address) | Q(stakee=address)
             )
         ]
-    except Exception as e:
+    except Exception:
         log.exception("Error getting GTC stakes")
         raise StakingRequestError()
