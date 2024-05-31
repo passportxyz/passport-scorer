@@ -15,13 +15,55 @@ class TestPassPortAdmin:
             == "0xc79abb54e4824cdb65c71f2eeb2d7f2db5da1fb8"
         )
 
-    def test_get_banners(self, sample_token):
+    def test_get_banners_default(self, sample_token):
+        banner = PassportBanner.objects.create(content="test", link="test")
         response = client.get(
             "/passport-admin/banners",
             HTTP_AUTHORIZATION=f"Bearer {sample_token}",
             content_type="application/json",
         )
-        assert response.json() == []
+        assert response.json() == [
+            {
+                "application": "passport",
+                "banner_id": banner.id,
+                "content": "test",
+                "link": "test",
+            }
+        ]
+
+    def test_get_banners_filtered(self, sample_token):
+        banner_passport = PassportBanner.objects.create(content="test", link="test")
+        banner_staking = PassportBanner.objects.create(
+            content="test_staking", link="test_staking_link", application="staking"
+        )
+        # Test getting passport banners
+        response = client.get(
+            "/passport-admin/banners?application=passport",
+            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
+            content_type="application/json",
+        )
+        assert response.json() == [
+            {
+                "application": "passport",
+                "banner_id": banner_passport.id,
+                "content": "test",
+                "link": "test",
+            }
+        ]
+        # Test getting staking banners
+        response = client.get(
+            "/passport-admin/banners?application=staking",
+            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
+            content_type="application/json",
+        )
+        assert response.json() == [
+            {
+                "application": "staking",
+                "banner_id": banner_staking.id,
+                "content": "test_staking",
+                "link": "test_staking_link",
+            }
+        ]
 
     def test_dismiss_banner(self, sample_token, sample_address):
         banner = PassportBanner.objects.create(content="test", link="test")
