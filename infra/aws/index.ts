@@ -209,6 +209,9 @@ const scorerDbProxyEndpointConn = coreInfraStack.getOutput(
 const readreplica0ConnectionUrl = coreInfraStack.getOutput(
   "readreplica0ConnectionUrl"
 );
+const readreplicaAnalyticsConnectionUrl = coreInfraStack.getOutput(
+  "readreplicaAnalyticsConnectionUrl"
+);
 
 //////////////////////////////////////////////////////////////
 // Set up ALB and ECS cluster
@@ -1025,7 +1028,10 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask(
     scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  envConfig,
+  {
+    ...envConfig,
+    readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
+  },
   86400, // 24h max period
   false
 );
@@ -1062,7 +1068,10 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
     scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  envConfig,
+  {
+    ...envConfig,
+    readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
+  },
   86400, // 24h max period
   false
 );
@@ -1087,7 +1096,10 @@ export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
     scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  envConfig,
+  {
+    ...envConfig,
+    readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
+  },
   86400, // 24h max period
   false
 );
@@ -1111,7 +1123,10 @@ export const dailyScoreExportForOSO = createScheduledTask(
     scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  envConfig,
+  {
+    ...envConfig,
+    readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
+  },
   86400, // 24h max period
   false,
   {
@@ -1151,7 +1166,10 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
     scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
     alertTopic: pagerdutyTopic,
   },
-  envConfig,
+  {
+    ...envConfig,
+    readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
+  },
   3600, // 1h in seconds
   true
 );
@@ -1185,7 +1203,10 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,
     },
-    envConfig,
+    {
+      ...envConfig,
+      readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
+    },
     3600, // 1h in seconds
     true
   );
@@ -1200,7 +1221,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
         "python",
         "manage.py",
         "scorer_dump_data",
-        "--database read_replica_0",
+        "--database=read_replica_0",
         "--config",
         "'" +
           JSON.stringify([
@@ -1218,7 +1239,10 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,
     },
-    envConfig,
+    {
+      ...envConfig,
+      readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
+    },
     3600, // 1h in seconds
     true
   );
