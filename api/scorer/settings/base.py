@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_extensions",
     "rest_framework_api_key",
+    "import_export",
     "registry",
     "scorer_apu",
     "scorer_weighted",
@@ -448,3 +449,5 @@ INTERNAL_IPS = [
     "127.0.0.1",
     # ...
 ]
+
+IMPORT_EXPORT_SKIP_ADMIN_CONFIRM = True

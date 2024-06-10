@@ -45,6 +45,7 @@ python-jose = "*"
 uvarint = "*"
 django-ace = "*"
 async-timeout = "*"
+django-import-export = "*"
 
 [dev-packages]
 black = "*"

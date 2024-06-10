@@ -2,8 +2,19 @@ from asgiref.sync import async_to_sync
 from django.contrib import admin, messages
 from registry.api.schema import SubmitPassportPayload
 from registry.api.v1 import ahandle_submit_passport
-from registry.models import Event, GTCStakeEvent, HashScorerLink, Passport, Score, Stamp
+from registry.models import (
+    Event,
+    GTCStakeEvent,
+    HashScorerLink,
+    Passport,
+    Score,
+    Stamp,
+    AddressListMember,
+    AddressList,
+)
 from scorer.scorer_admin import ScorerModelAdmin
+from import_export.admin import ImportMixin, ImportForm
+from django import forms
 
 
 @admin.action(
@@ -24,7 +35,7 @@ def recalculate_user_score(modeladmin, request, queryset):
             )
             async_to_sync(ahandle_submit_passport)(sp, c.account)
             rescored_ids.append(score.id)
-        except Exception as e:
+        except Exception:
             print(f"Error for {scorer_id} and {address}")
             failed_rescoring.append(score.id)
 
@@ -141,3 +152,42 @@ class GTCStakeEventAdmin(ScorerModelAdmin):
         "staker",
         "event_type",
     ]
+
+
+class AddressListMemberInline(admin.TabularInline):
+    model = AddressListMember
+    extra = 0
+
+
+class AddressListImportForm(ImportForm):
+    list = forms.ModelChoiceField(queryset=AddressList.objects.all(), required=True)
+
+
+@admin.register(AddressListMember)
+class AddressListMemberAdmin(ImportMixin, admin.ModelAdmin):
+    import_form_class = AddressListImportForm
+
+    def get_import_data_kwargs(self, **kwargs):
+        """
+        Prepare kwargs for import_data.
+        """
+        print(kwargs, "gidk - KWARGS!!!!!!")
+        form = kwargs.get("form", None)
+        if form and hasattr(form, "cleaned_data"):
+            print(form.cleaned_data, "gidk - FORM.CLEANED_DATA!!!!!!")
+            kwargs.update({"list_id": form.cleaned_data.get("list", None)})
+        return kwargs
+
+    def after_init_instance(self, instance, new, row, **kwargs):
+        print(kwargs, "KWARGS!!!!!!")
+        if "list_id" in kwargs:
+            instance.list_id = kwargs["list_id"]
+
+
+@admin.register(AddressList)
+class AddressListAdmin(ScorerModelAdmin):
+    list_display = ["name", "address_count"]
+    inlines = [AddressListMemberInline]
+
+    def address_count(self, obj):
+        return obj.addresses.count()
