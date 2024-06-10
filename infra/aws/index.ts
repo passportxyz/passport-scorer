@@ -1065,7 +1065,7 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
       "--s3-uri=s3://passport-scorer/daily_data_dumps/",
       "--batch-size=20000",
     ].join(" "),
-    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
+    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:45 UTC
     alertTopic: pagerdutyTopic,
   },
   {
@@ -1076,32 +1076,49 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
   false
 );
 
-export const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
-  "daily-data-dump-parquet",
-  {
-    ...baseScorerServiceConfig,
-    cpu: 1024,
-    memory: 2048,
-    securityGroup: secgrp,
-    ephemeralStorageSizeInGiB: 100,
-    command: [
-      "python",
-      "manage.py",
-      "scorer_dump_data_parquet",
-      "--database=read_replica_0",
-      "--apps=registry,ceramic_cache,account,scorer_weighted,trusta_labs",
-      "--s3-uri=s3://passport-scorer/daily_data_dumps/",
-      "--batch-size=20000",
-    ].join(" "),
-    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
-    alertTopic: pagerdutyTopic,
-  },
-  {
-    ...envConfig,
-    readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
-  },
-  86400, // 24h max period
-  false
+// Apps: registry,ceramic_cache,account,scorer_weighted,trusta_labs
+// Split the data dump by app to avoid having 1 bad app causing the whole dump to fail
+
+const dailyDataDumpApps: string[] = [
+  "registry",
+  "ceramic_cache",
+  "account",
+  "scorer_weighted",
+  "trusta_labs",
+];
+
+export const dailyDataDumpTaskDefinitionParquetList = dailyDataDumpApps.map(
+  (app: string) => {
+    const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
+      `daily-data-dump-parquet-${app}`,
+      {
+        ...baseScorerServiceConfig,
+        cpu: 1024,
+        memory: 2048,
+        securityGroup: secgrp,
+        ephemeralStorageSizeInGiB: 100,
+        command: [
+          "python",
+          "manage.py",
+          "scorer_dump_data_parquet",
+          "--database=read_replica_0",
+          `--apps=${app}`,
+          "--s3-uri=s3://passport-scorer/daily_data_dumps/",
+          "--batch-size=20000",
+        ].join(" "),
+        scheduleExpression: "cron(45 0 ? * * *)", // Run the task daily at 00:30 UTC
+        alertTopic: pagerdutyTopic,
+      },
+      {
+        ...envConfig,
+        readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
+      },
+      86400, // 24h max period
+      false
+    );
+
+    return dailyDataDumpTaskDefinitionParquet;
+  }
 );
 
 /*
