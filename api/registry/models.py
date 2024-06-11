@@ -190,21 +190,3 @@ class GTCStakeEvent(models.Model):
                 name="gtc_staking_index_by_staker",
             ),
         ]
-
-
-class AddressList(models.Model):
-    name = models.CharField(max_length=100, db_index=True, unique=True)
-
-
-class AddressListMember(models.Model):
-    address = EthAddressField(null=False, blank=False, max_length=100, db_index=True)
-    list = models.ForeignKey(
-        AddressList,
-        related_name="addresses",
-        on_delete=models.CASCADE,
-        null=False,
-        db_index=True,
-    )
-
-    class Meta:
-        unique_together = ["address", "list"]

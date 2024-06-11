@@ -9,8 +9,20 @@ from django_ace import AceWidget
 from rest_framework_api_key.admin import APIKeyAdmin
 from scorer.scorer_admin import ScorerModelAdmin
 from scorer_weighted.models import Scorer
+from django.urls import path
+from django.shortcuts import render, redirect
+import csv
+import codecs
 
-from .models import Account, AccountAPIKey, Community, Customization
+from .models import (
+    Account,
+    AccountAPIKey,
+    AllowList,
+    Community,
+    Customization,
+    AddressList,
+    AddressListMember,
+)
 
 
 @admin.register(Account)
@@ -193,10 +205,16 @@ class CustomizationForm(forms.ModelForm):
         fields = "__all__"
 
 
+class AllowListInline(admin.TabularInline):
+    model = AllowList
+    extra = 0
+
+
 @admin.register(Customization)
 class CustomizationAdmin(ScorerModelAdmin):
     form = CustomizationForm
     raw_id_fields = ["scorer"]
+    inlines = [AllowListInline]
     fieldsets = [
         (
             None,
@@ -254,3 +272,55 @@ class CustomizationAdmin(ScorerModelAdmin):
             # Perform some validation...
             pass
         super().save_model(request, obj, form, change)
+
+
+class AddressListMemberInline(admin.TabularInline):
+    model = AddressListMember
+    extra = 0
+
+
+class AddressListCsvImportForm(forms.Form):
+    list = forms.ModelChoiceField(queryset=AddressList.objects.all(), required=True)
+    csv_file = forms.FileField()
+
+
+@admin.register(AddressList)
+class AddressListAdmin(ScorerModelAdmin):
+    list_display = ["name", "address_count"]
+    inlines = [AddressListMemberInline]
+    change_list_template = "account/addresslist_changelist.html"
+
+    def address_count(self, obj):
+        return obj.addresses.count()
+
+    def get_urls(self):
+        return [
+            path("import-csv/", self.import_csv),
+        ] + super().get_urls()
+
+    def import_csv(self, request):
+        if request.method == "POST":
+            csv_file = request.FILES["csv_file"]
+            reader = csv.reader(codecs.iterdecode(csv_file, "utf-8"))
+            list_id = request.POST.get("list")
+            address_list = AddressList.objects.get(id=list_id)
+            duplicate_count = 0
+            success_count = 0
+            for row in reader:
+                address = row[0].strip()
+                try:
+                    AddressListMember.objects.create(address=address, list=address_list)
+                    success_count += 1
+                except Exception:
+                    duplicate_count += 1
+                    continue
+
+            self.message_user(
+                request,
+                "Imported %d addresses, skipped %d duplicates"
+                % (success_count, duplicate_count),
+            )
+            return redirect("..")
+        form = AddressListCsvImportForm()
+        payload = {"form": form}
+        return render(request, "account/address_list_csv_import_form.html", payload)

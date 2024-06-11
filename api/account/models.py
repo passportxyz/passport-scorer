@@ -379,6 +379,27 @@ class Community(models.Model):
             return await BinaryWeightedScorer.objects.aget(scorer_ptr_id=scorer.id)
 
 
+class AddressList(models.Model):
+    name = models.CharField(max_length=100, db_index=True, unique=True)
+
+    def __str__(self):
+        return f"AllowList - {self.name}"
+
+
+class AddressListMember(models.Model):
+    address = EthAddressField(null=False, blank=False, max_length=100, db_index=True)
+    list = models.ForeignKey(
+        AddressList,
+        related_name="addresses",
+        on_delete=models.CASCADE,
+        null=False,
+        db_index=True,
+    )
+
+    class Meta:
+        unique_together = ["address", "list"]
+
+
 class Customization(models.Model):
     class CustomizationLogoBackgroundType(models.TextChoices):
         DOTS = "DOTS"
@@ -405,7 +426,7 @@ class Customization(models.Model):
         blank=True,
         unique=False,
     )
-    scorer = models.ForeignKey(Community, on_delete=models.PROTECT)
+    scorer = models.OneToOneField(Community, on_delete=models.PROTECT)
     use_custom_dashboard_panel = models.BooleanField(default=False)
 
     # CustomizationTheme
@@ -452,3 +473,15 @@ class Customization(models.Model):
         blank=True,
         null=True,
     )
+
+
+class AllowList(models.Model):
+    address_list = models.ForeignKey(
+        AddressList, on_delete=models.PROTECT, related_name="allow_lists"
+    )
+
+    customization = models.ForeignKey(
+        Customization, on_delete=models.CASCADE, related_name="allow_lists"
+    )
+
+    weight = models.FloatField(default=0.0)

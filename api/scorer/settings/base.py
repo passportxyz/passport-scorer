@@ -78,7 +78,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_extensions",
     "rest_framework_api_key",
-    "import_export",
     "registry",
     "scorer_apu",
     "scorer_weighted",
