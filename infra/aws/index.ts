@@ -1076,7 +1076,7 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
   false
 );
 
-// Apps: registry,ceramic_cache,account,scorer_weighted,trusta_labs
+// Apps: registry,ceramic_cache,account,scorer_weighted,trusta_labs,stake
 // Split the data dump by app to avoid having 1 bad app causing the whole dump to fail
 
 const dailyDataDumpApps: string[] = [
@@ -1085,6 +1085,7 @@ const dailyDataDumpApps: string[] = [
   "account",
   "scorer_weighted",
   "trusta_labs",
+  "stake",
 ];
 
 export const dailyDataDumpTaskDefinitionParquetList = dailyDataDumpApps.map(
