@@ -1,5 +1,6 @@
 from asgiref.sync import async_to_sync
 from django.contrib import admin, messages
+from import_export.forms import ModelResource
 from registry.api.schema import SubmitPassportPayload
 from registry.api.v1 import ahandle_submit_passport
 from registry.models import (
@@ -15,6 +16,10 @@ from registry.models import (
 from scorer.scorer_admin import ScorerModelAdmin
 from import_export.admin import ImportMixin, ImportForm
 from django import forms
+from django.urls import path
+from django.shortcuts import render, redirect
+import csv
+import codecs
 
 
 @admin.action(
@@ -163,9 +168,30 @@ class AddressListImportForm(ImportForm):
     list = forms.ModelChoiceField(queryset=AddressList.objects.all(), required=True)
 
 
+class AddressListMemberResource(ModelResource):
+    def __init__(self, **kwargs):
+        super().__init__()
+        print(kwargs, "ALMR init - KWARGS!!!!!!")
+        self.list_id = kwargs.get("list_id")
+
+    class Meta:
+        model = AddressListMember
+
+
+class AddressListCsvImportForm(forms.Form):
+    csv_file = forms.FileField()
+    list = forms.ModelChoiceField(queryset=AddressList.objects.all(), required=True)
+
+
 @admin.register(AddressListMember)
 class AddressListMemberAdmin(ImportMixin, admin.ModelAdmin):
     import_form_class = AddressListImportForm
+
+    def get_import_resource_kwargs(self, request, *args, **kwargs):
+        kwargs = super().get_resource_kwargs(request, *args, **kwargs)
+        print(kwargs, "girk - KWARGS!!!!!!")
+        # kwargs.update({"user": request.user})
+        return kwargs
 
     def get_import_data_kwargs(self, **kwargs):
         """
@@ -188,6 +214,27 @@ class AddressListMemberAdmin(ImportMixin, admin.ModelAdmin):
 class AddressListAdmin(ScorerModelAdmin):
     list_display = ["name", "address_count"]
     inlines = [AddressListMemberInline]
+    change_list_template = "registry/addresslist_changelist.html"
 
     def address_count(self, obj):
         return obj.addresses.count()
+
+    def get_urls(self):
+        return [
+            path("import-csv/", self.import_csv),
+        ] + super().get_urls()
+
+    def import_csv(self, request):
+        if request.method == "POST":
+            csv_file = request.FILES["csv_file"]
+            reader = csv.reader(codecs.iterdecode(csv_file, "utf-8"))
+            list_id = request.POST.get("list")
+            address_list = AddressList.objects.get(id=list_id)
+            for row in reader:
+                address = row[0].strip()
+                AddressListMember.objects.create(address=address, list=address_list)
+            self.message_user(request, "Your csv file has been imported")
+            return redirect("..")
+        form = AddressListCsvImportForm()
+        payload = {"form": form}
+        return render(request, "registry/address_list_csv_import_form.html", payload)
