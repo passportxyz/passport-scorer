@@ -590,17 +590,14 @@ def get_account_customization(request, dashboard_path: str):
         customization = Customization.objects.get(path=dashboard_path)
         scorer = customization.scorer.scorer
 
-        weights = get_default_weights
+        weights = get_default_weights()
 
         if scorer and getattr(scorer, "weightedscorer", None):
             weights = scorer.weightedscorer.weights
         elif scorer and getattr(scorer, "binaryweightedscorer", None):
             weights = scorer.binaryweightedscorer.weights
 
-        for allow_list in customization.allow_lists.all():
-            weights[f"AllowList#{allow_list.address_list.name}"] = str(
-                allow_list.weight
-            )
+        weights.update(customization.get_customization_dynamic_weights())
 
         return dict(
             key=customization.path,

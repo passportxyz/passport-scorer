@@ -1,8 +1,7 @@
 # TODO: remove pylint skip once circular dependency removed
 # pylint: disable=import-outside-toplevel
-import json
 from decimal import Decimal
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import api_logging as logging
 from django.conf import settings
@@ -10,7 +9,6 @@ from django.db import models
 
 log = logging.getLogger(__name__)
 
-from ninja_schema import Schema
 
 THRESHOLD_DECIMAL_PLACES = 5
 
@@ -84,7 +82,7 @@ class Scorer(models.Model):
 
     def compute_score(self, passport_ids) -> List[ScoreData]:
         """Compute the score. This shall be overridden in child classes"""
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def __str__(self):
         return f"Scorer #{self.id}, type='{self.type}'"
@@ -121,14 +119,14 @@ class WeightedScorer(Scorer):
             for s in recalculate_weighted_score(self, passport_ids, stamps)
         ]
 
-    async def acompute_score(self, passport_ids) -> List[ScoreData]:
+    async def acompute_score(self, passport_ids, community_id: int) -> List[ScoreData]:
         """
         Compute the weighted score for the passports identified by `ids`
         Note: the `ids` are not validated. The caller shall ensure that these are indeed proper IDs, from the correct community
         """
         from .computation import acalculate_weighted_score
 
-        scores = await acalculate_weighted_score(self, passport_ids)
+        scores = await acalculate_weighted_score(self, passport_ids, community_id)
         return [
             ScoreData(
                 score=s["sum_of_weights"], evidence=None, points=s["earned_points"]
@@ -210,14 +208,14 @@ class BinaryWeightedScorer(Scorer):
             )
         )
 
-    async def acompute_score(self, passport_ids) -> List[ScoreData]:
+    async def acompute_score(self, passport_ids, community_id: int) -> List[ScoreData]:
         """
         Compute the weighted score for the passports identified by `ids`
         Note: the `ids` are not validated. The caller shall ensure that these are indeed proper IDs, from the correct community
         """
         from .computation import acalculate_weighted_score
 
-        rawScores = await acalculate_weighted_score(self, passport_ids)
+        rawScores = await acalculate_weighted_score(self, passport_ids, community_id)
         binaryScores = [
             Decimal(1) if s["sum_of_weights"] >= self.threshold else Decimal(0)
             for s in rawScores

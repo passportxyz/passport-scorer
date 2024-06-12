@@ -474,6 +474,23 @@ class Customization(models.Model):
         null=True,
     )
 
+    def get_customization_dynamic_weights(self) -> dict:
+        weights = {}
+        for allow_list in self.allow_lists.all():
+            weights[f"AllowList#{allow_list.address_list.name}"] = str(
+                allow_list.weight
+            )
+
+        return weights
+
+    async def aget_customization_dynamic_weights(self) -> dict:
+        weights = {}
+        async for allow_list in self.allow_lists.all():
+            address_list = await AddressList.objects.aget(pk=allow_list.address_list_id)
+            weights[f"AllowList#{address_list.name}"] = str(allow_list.weight)
+
+        return weights
+
 
 class AllowList(models.Model):
     address_list = models.ForeignKey(
