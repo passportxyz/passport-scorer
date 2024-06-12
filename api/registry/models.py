@@ -1,5 +1,3 @@
-import json
-
 from account.models import Community, EthAddressField
 from django.db import models
 from django.db.models.signals import pre_save
@@ -89,7 +87,7 @@ def score_updated(sender, instance, **kwargs):
         address=instance.passport.address,
         community=instance.passport.community,
         data={
-            "score": float(instance.score) if instance.score != None else 0,
+            "score": float(instance.score) if instance.score is not None else 0,
             "evidence": instance.evidence,
         },
     )

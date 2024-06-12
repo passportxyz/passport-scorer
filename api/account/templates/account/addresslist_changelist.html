@@ -1,0 +1,11 @@
+{% extends 'admin/change_list.html' %}
+
+{% block object-tools %}
+<a style="padding: 8px; margin: 20px; font-weight: bold; text-decoration: none; border-radius: 12px; background-color: blue; color: white;"
+  href="import-csv/">
+  Import CSV 📁
+</a>
+<br />
+<br />
+{{ block.super }}
+{% endblock %}
