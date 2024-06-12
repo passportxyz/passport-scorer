@@ -484,4 +484,4 @@ class AllowList(models.Model):
         Customization, on_delete=models.CASCADE, related_name="allow_lists"
     )
 
-    weight = models.FloatField(default=0.0)
+    weight = models.DecimalField(default=0.0, max_digits=7, decimal_places=4)
