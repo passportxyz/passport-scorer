@@ -1,10 +1,8 @@
 import csv
 import json
-from urllib.parse import urlparse
 
 from cgrants.management.commands.utils import batch_iterator, stream_object_from_s3_uri
 from cgrants.models import RoundMapping, SquelchedAccounts
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from tqdm import tqdm
 
@@ -27,7 +25,7 @@ class Command(BaseCommand):
         num_errors = 0
         stream = stream_object_from_s3_uri(squelched_users_uri, self.stdout, self.style)
         if stream:
-            self.stdout.write(self.style.SUCCESS(f"Got stream, processing JSONL"))
+            self.stdout.write(self.style.SUCCESS("Got stream, processing JSONL"))
 
             total_size = None
 
@@ -35,7 +33,7 @@ class Command(BaseCommand):
             with tqdm(
                 total=total_size, unit="B", unit_scale=True, desc="Processing JSONL"
             ) as pbar:
-                self.stdout.write(f"reading squelched users lines ...")
+                self.stdout.write("reading squelched users lines ...")
                 chunk_size = 1000
 
                 for dataset in batch_iterator(stream.iter_lines(), chunk_size):
@@ -78,18 +76,18 @@ class Command(BaseCommand):
         num_errors = 0
         stream = stream_object_from_s3_uri(round_data_uri, self.stdout, self.style)
         if stream:
-
-            for line in stream.read().decode("utf-8").splitlines():
-                round_data = line.split(",")
-                round_number = round_data[0]
-                round_eth_address = round_data[5]
+            data = stream.read().decode("utf-8").splitlines()
+            csvreader = csv.DictReader(data)
+            for row in csvreader:
                 RoundMapping.objects.update_or_create(
-                    round_number=round_number,
-                    round_eth_address=round_eth_address,
+                    round_number=row["program"],
+                    round_eth_address=row["round_id"],
                 )
 
         else:
-            self.stdout.write(self.style.ERROR(f"Empty file read from S3: {s3_uri}"))
+            self.stdout.write(
+                self.style.ERROR(f"Empty file read from S3: {round_data_uri}")
+            )
 
         if num_errors == 0:
             self.stdout.write(
@@ -132,7 +130,7 @@ class Command(BaseCommand):
         self.stdout.write(f'Round Data Input file "{squelched_users_uri}"')
         self.import_round_data(round_data_uri)
 
-        # Verify that round_number os valid.
+        # Verify that round_number is valid.
         # We check that this exists in RoundMapping
 
         if not RoundMapping.objects.filter(round_number=round_number).exists():
