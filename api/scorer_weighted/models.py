@@ -80,7 +80,7 @@ class Scorer(models.Model):
         help_text="If true, this scorer will be excluded from automatic weight updates and associated rescores",
     )
 
-    def compute_score(self, passport_ids) -> List[ScoreData]:
+    def compute_score(self, passport_ids, community_id: int) -> List[ScoreData]:
         """Compute the score. This shall be overridden in child classes"""
         raise NotImplementedError()
 
@@ -91,7 +91,7 @@ class Scorer(models.Model):
 class WeightedScorer(Scorer):
     weights = models.JSONField(default=get_default_weights, blank=True, null=True)
 
-    def compute_score(self, passport_ids) -> List[ScoreData]:
+    def compute_score(self, passport_ids, community_id: int) -> List[ScoreData]:
         """
         Compute the weighted score for the passports identified by `ids`
         Note: the `ids` are not validated. The caller shall ensure that these are indeed proper IDs, from the correct community
@@ -102,10 +102,12 @@ class WeightedScorer(Scorer):
             ScoreData(
                 score=s["sum_of_weights"], evidence=None, points=s["earned_points"]
             )
-            for s in calculate_weighted_score(self, passport_ids)
+            for s in calculate_weighted_score(self, passport_ids, community_id)
         ]
 
-    def recompute_score(self, passport_ids, stamps) -> List[ScoreData]:
+    def recompute_score(
+        self, passport_ids, stamps, community_id: int
+    ) -> List[ScoreData]:
         """
         Compute the weighted score for the passports identified by `ids`
         Note: the `ids` are not validated. The caller shall ensure that these are indeed proper IDs, from the correct community
@@ -116,7 +118,9 @@ class WeightedScorer(Scorer):
             ScoreData(
                 score=s["sum_of_weights"], evidence=None, points=s["earned_points"]
             )
-            for s in recalculate_weighted_score(self, passport_ids, stamps)
+            for s in recalculate_weighted_score(
+                self, passport_ids, stamps, community_id
+            )
         ]
 
     async def acompute_score(self, passport_ids, community_id: int) -> List[ScoreData]:
@@ -146,14 +150,14 @@ class BinaryWeightedScorer(Scorer):
         default=get_default_threshold,
     )
 
-    def compute_score(self, passport_ids) -> List[ScoreData]:
+    def compute_score(self, passport_ids, community_id: int) -> List[ScoreData]:
         """
         Compute the weighted score for the passports identified by `ids`
         Note: the `ids` are not validated. The caller shall ensure that these are indeed proper IDs, from the correct community
         """
         from .computation import calculate_weighted_score
 
-        rawScores = calculate_weighted_score(self, passport_ids)
+        rawScores = calculate_weighted_score(self, passport_ids, community_id)
         binaryScores = [
             Decimal(1) if s["sum_of_weights"] >= self.threshold else Decimal(0)
             for s in rawScores
@@ -177,14 +181,16 @@ class BinaryWeightedScorer(Scorer):
             )
         )
 
-    def recompute_score(self, passport_ids, stamps) -> List[ScoreData]:
+    def recompute_score(
+        self, passport_ids, stamps, community_id: int
+    ) -> List[ScoreData]:
         """
         Compute the weighted score for the passports identified by `ids`
         Note: the `ids` are not validated. The caller shall ensure that these are indeed proper IDs, from the correct community
         """
         from .computation import recalculate_weighted_score
 
-        rawScores = recalculate_weighted_score(self, passport_ids, stamps)
+        rawScores = recalculate_weighted_score(self, passport_ids, stamps, community_id)
         binaryScores = [
             Decimal(1) if s["sum_of_weights"] >= self.threshold else Decimal(0)
             for s in rawScores
