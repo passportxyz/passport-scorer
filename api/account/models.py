@@ -379,8 +379,20 @@ class Community(models.Model):
             return await BinaryWeightedScorer.objects.aget(scorer_ptr_id=scorer.id)
 
 
+alphanumeric = RegexValidator(
+    r"^[0-9a-zA-Z]*$", "Only alphanumeric characters are allowed."
+)
+
+
 class AddressList(models.Model):
-    name = models.CharField(max_length=100, db_index=True, unique=True)
+    name = models.CharField(
+        max_length=100,
+        db_index=True,
+        unique=True,
+        null=False,
+        blank=False,
+        validators=[alphanumeric],
+    )
 
     def __str__(self):
         return f"AllowList - {self.name}"
