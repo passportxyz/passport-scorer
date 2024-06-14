@@ -290,6 +290,13 @@ class AddressListAdmin(ScorerModelAdmin):
     inlines = [AddressListMemberInline]
     change_list_template = "account/addresslist_changelist.html"
 
+    def get_readonly_fields(self, request, obj=None):
+        # This makes name read-only after creation, but editable during creation
+        if obj:
+            return ["name"]
+        else:
+            return []
+
     def address_count(self, obj):
         return obj.addresses.count()
 
