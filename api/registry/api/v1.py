@@ -735,9 +735,8 @@ def check_on_allow_list(request, list: str, address: str):
     Check if an address is on the allow list for a specific round
     """
     try:
-        address_list = AddressList.objects.filter(name=list).get()
         is_member = AddressListMember.objects.filter(
-            list=address_list.id, address=address
+            list__name=list, address=address
         ).exists()
         return {"is_member": is_member}
     except AddressList.DoesNotExist:

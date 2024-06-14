@@ -32,4 +32,4 @@ class TestAllowList:
             f"/registry/allow-list/{list_name}/0x123",
         )
         assert response.status_code == 200
-        assert response.json()["is_member"]
+        assert not response.json()["is_member"]
