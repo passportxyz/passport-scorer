@@ -1,16 +1,16 @@
-from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List
 
 import api_logging as logging
 from registry.models import Stamp
 from scorer_weighted.models import WeightedScorer
+from account.models import Customization
 
 log = logging.getLogger(__name__)
 
 
 def calculate_weighted_score(
-    scorer: WeightedScorer, passport_ids: List[int]
+    scorer: WeightedScorer, passport_ids: List[int], community_id: int
 ) -> List[dict]:
     """
     Calculate the weighted score for the given list of passport IDs and a single scorer.
@@ -33,6 +33,13 @@ def calculate_weighted_score(
         "calculate_weighted_score for scorer %s and passports %s", scorer, passport_ids
     )
     weights = scorer.weights
+
+    try:
+        customization = Customization.objects.get(scorer_id=community_id)
+        weights.update(customization.get_customization_dynamic_weights())
+    except Customization.DoesNotExist:
+        pass
+
     for passport_id in passport_ids:
         sum_of_weights: Decimal = Decimal(0)
         scored_providers = []
@@ -55,10 +62,20 @@ def calculate_weighted_score(
 
 
 def recalculate_weighted_score(
-    scorer: WeightedScorer, passport_ids: List[int], stamps: Dict[int, List[Stamp]]
+    scorer: WeightedScorer,
+    passport_ids: List[int],
+    stamps: Dict[int, List[Stamp]],
+    community_id: int,
 ) -> List[dict]:
     ret: List[dict] = []
     weights = scorer.weights
+
+    try:
+        customization = Customization.objects.get(scorer_id=community_id)
+        weights.update(customization.get_customization_dynamic_weights())
+    except Customization.DoesNotExist:
+        pass
+
     for passport_id in passport_ids:
         stamp_list = stamps.get(passport_id, [])
         sum_of_weights: Decimal = Decimal(0)
@@ -82,7 +99,7 @@ def recalculate_weighted_score(
 
 
 async def acalculate_weighted_score(
-    scorer: WeightedScorer, passport_ids: List[int]
+    scorer: WeightedScorer, passport_ids: List[int], community_id: int
 ) -> List[dict]:
     """
     Calculate the weighted score for the given list of passport IDs and a single scorer.
@@ -105,6 +122,12 @@ async def acalculate_weighted_score(
         "calculate_weighted_score for scorer %s and passports %s", scorer, passport_ids
     )
     weights = scorer.weights
+
+    try:
+        customization = await Customization.objects.aget(scorer_id=community_id)
+        weights.update(await customization.aget_customization_dynamic_weights())
+    except Customization.DoesNotExist:
+        pass
 
     for passport_id in passport_ids:
         sum_of_weights: Decimal = Decimal(0)

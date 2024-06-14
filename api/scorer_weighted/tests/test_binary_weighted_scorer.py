@@ -76,7 +76,7 @@ class TestBinaraWeightedScorer:
 
         scores = [
             s.score
-            for s in scorer.compute_score([p.id for p in weighted_scorer_passports])
+            for s in scorer.compute_score([p.id for p in weighted_scorer_passports], 1)
         ]
         assert scores == [Decimal(0), Decimal(1), Decimal(1)]
 
@@ -98,5 +98,7 @@ class TestBinaraWeightedScorer:
         )
         scorer.save()
 
-        scores = [s.score for s in scorer.compute_score([weighted_scorer_passports[0]])]
+        scores = [
+            s.score for s in scorer.compute_score([weighted_scorer_passports[0]], 1)
+        ]
         assert scores == [Decimal(0)]

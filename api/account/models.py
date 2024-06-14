@@ -379,8 +379,20 @@ class Community(models.Model):
             return await BinaryWeightedScorer.objects.aget(scorer_ptr_id=scorer.id)
 
 
+alphanumeric = RegexValidator(
+    r"^[0-9a-zA-Z]*$", "Only alphanumeric characters are allowed."
+)
+
+
 class AddressList(models.Model):
-    name = models.CharField(max_length=100, db_index=True, unique=True)
+    name = models.CharField(
+        max_length=100,
+        db_index=True,
+        unique=True,
+        null=False,
+        blank=False,
+        validators=[alphanumeric],
+    )
 
     def __str__(self):
         return f"AllowList - {self.name}"
@@ -473,6 +485,23 @@ class Customization(models.Model):
         blank=True,
         null=True,
     )
+
+    def get_customization_dynamic_weights(self) -> dict:
+        weights = {}
+        for allow_list in self.allow_lists.all():
+            weights[f"AllowList#{allow_list.address_list.name}"] = str(
+                allow_list.weight
+            )
+
+        return weights
+
+    async def aget_customization_dynamic_weights(self) -> dict:
+        weights = {}
+        async for allow_list in self.allow_lists.all():
+            address_list = await AddressList.objects.aget(pk=allow_list.address_list_id)
+            weights[f"AllowList#{address_list.name}"] = str(allow_list.weight)
+
+        return weights
 
 
 class AllowList(models.Model):

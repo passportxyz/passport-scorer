@@ -4,7 +4,7 @@ from datetime import datetime
 from account.models import Community
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 from registry.models import Passport, Score, Stamp
 from registry.utils import get_utc_time
 from scorer_weighted.models import BinaryWeightedScorer, RescoreRequest, WeightedScorer
@@ -73,7 +73,7 @@ class Command(BaseCommand):
         if kwargs["only_weights"]:
             return
 
-        self.stdout.write(f"Recalculating scores")
+        self.stdout.write("Recalculating scores")
 
         return recalculate_scores(communities, batch_size, self.stdout)
 
@@ -136,7 +136,9 @@ scorer type: {scorer.type}, {type(scorer)}"""
                         if s.passport_id not in stamps:
                             stamps[s.passport_id] = []
                         stamps[s.passport_id].append(s)
-                    calculated_scores = scorer.recompute_score(passport_ids, stamps)
+                    calculated_scores = scorer.recompute_score(
+                        passport_ids, stamps, community.id
+                    )
                     scores_to_update = []
                     scores_to_create = []
 

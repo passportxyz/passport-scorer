@@ -96,7 +96,7 @@ class Command(BaseCommand):
         )
 
         scorer = community.get_scorer()
-        calculated_scores = scorer.recompute_score(passport_ids, {})
+        calculated_scores = scorer.recompute_score(passport_ids, {}, community_id)
 
         scores_to_update = []
         scores_to_create = []

@@ -1,6 +1,6 @@
 import copy
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict
 
 import api_logging as logging
 from account.deduplication.lifo import alifo
@@ -68,9 +68,11 @@ async def aremove_stale_stamps_from_db(passport: Passport, passport_data: dict):
         stamp["credential"]["credentialSubject"]["hash"]
         for stamp in passport_data["stamps"]
     ]
-    await Stamp.objects.filter(passport=passport).exclude(
-        hash__in=current_hashes
-    ).adelete()
+    await (
+        Stamp.objects.filter(passport=passport)
+        .exclude(hash__in=current_hashes)
+        .adelete()
+    )
 
 
 async def aload_passport_data(address: str) -> Dict:
@@ -87,7 +89,7 @@ async def acalculate_score(passport: Passport, community_id: int, score: Score):
     user_community = await Community.objects.aget(pk=community_id)
 
     scorer = await user_community.aget_scorer()
-    scores = await scorer.acompute_score([passport.id])
+    scores = await scorer.acompute_score([passport.id], community_id)
 
     log.info("Scores for address '%s': %s", passport.address, scores)
     scoreData = scores[0]
