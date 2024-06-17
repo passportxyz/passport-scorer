@@ -5,6 +5,7 @@ from django.db.models import Subquery
 from ninja import Router, Schema
 
 from .models import DismissedBanners, PassportBanner
+from django.utils import timezone
 
 router = Router()
 
@@ -79,6 +80,49 @@ def dismiss_banner(request, banner_id: int):
             "status": "success",
         }
     except PassportBanner.DoesNotExist:
+        return {
+            "status": "failed",
+        }
+
+
+class Notification(Schema):
+    notification_id: str
+    type: str
+    title: str
+    content: str
+
+
+@router.get(
+    "/notifications",
+    response=List[Notification],
+    auth=JWTDidAuth(),
+)
+def get_notifications(request):
+    """
+    Get all notifications for a specific address.
+    This also includes the generic notifications
+    """
+    try:
+        address = get_address(request.auth.did)
+        current_date = timezone.now().date()
+
+        notifications = Notification.objects.filter(
+            is_active=True, eth_address=address, expires__gte=current_date
+        ).all()
+        general_notifications = Notification.objects.filter(
+            is_active=True, eth_address="", expires__gte=current_date
+        ).all()
+
+        return [
+            Notification(
+                notification_id=n.notification_id,
+                type=n.type,
+                title=n.title,
+                content=n.content,
+            )
+            for n in [*notifications, *general_notifications]
+        ]
+    except Notification.DoesNotExist:
         return {
             "status": "failed",
         }
