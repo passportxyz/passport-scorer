@@ -232,17 +232,12 @@ class BinaryWeightedScorer(Scorer):
         """
         from .computation import acalculate_weighted_score
 
-        print(">>>")
         rawScores = await acalculate_weighted_score(self, passport_ids, community_id)
-        print(">>>>>> rawScores", rawScores)
         binaryScores = [
             Decimal(1) if s["sum_of_weights"] >= self.threshold else Decimal(0)
             for s in rawScores
         ]
 
-        print("-----")
-        print("rawScores", rawScores)
-        print("-----")
         return list(
             map(
                 lambda rawScore, binaryScore: ScoreData(

@@ -3,8 +3,11 @@ from decimal import Decimal
 import pytest
 from registry.models import Passport, Stamp
 from scorer_weighted.models import BinaryWeightedScorer
+from datetime import datetime, timezone
 
 pytestmark = pytest.mark.django_db
+
+now_iso_timestamp = datetime.now(timezone.utc).isoformat()
 
 
 @pytest.fixture(name="weighted_scorer_passports")
@@ -19,7 +22,9 @@ def fixture_weighted_scorer_passports(
         passport=passport,
         provider="FirstEthTxnProvider",
         hash="0x1234",
-        credential={},
+        credential={
+            "expirationDate": now_iso_timestamp,
+        },
     )
 
     passport1 = Passport.objects.create(
@@ -31,13 +36,17 @@ def fixture_weighted_scorer_passports(
         passport=passport1,
         provider="FirstEthTxnProvider",
         hash="0x12345",
-        credential={},
+        credential={
+            "expirationDate": now_iso_timestamp,
+        },
     )
     Stamp.objects.create(
         passport=passport1,
         provider="Google",
         hash="0x123456",
-        credential={},
+        credential={
+            "expirationDate": now_iso_timestamp,
+        },
     )
 
     passport2 = Passport.objects.create(
@@ -49,19 +58,25 @@ def fixture_weighted_scorer_passports(
         passport=passport2,
         provider="FirstEthTxnProvider",
         hash="0x12345a",
-        credential={},
+        credential={
+            "expirationDate": now_iso_timestamp,
+        },
     )
     Stamp.objects.create(
         passport=passport2,
         provider="Google",
         hash="0x123456ab",
-        credential={},
+        credential={
+            "expirationDate": now_iso_timestamp,
+        },
     )
     Stamp.objects.create(
         passport=passport2,
         provider="Ens",
         hash="0x123456abc",
-        credential={},
+        credential={
+            "expirationDate": now_iso_timestamp,
+        },
     )
 
     return [passport, passport1, passport2]

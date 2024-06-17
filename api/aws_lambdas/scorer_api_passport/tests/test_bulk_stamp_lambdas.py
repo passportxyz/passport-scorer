@@ -37,11 +37,6 @@ def test_patch(
 
     body = json.loads(response["body"])
 
-    print("response", response)
-    print("---")
-    print("body", body["score"])
-    print("---")
-
     assert response["statusCode"] == 200
     assert body["stamps"][0]["provider"] == "Google"
     assert int(body["score"]["evidence"]["rawScore"]) > 0

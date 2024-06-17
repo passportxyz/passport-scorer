@@ -142,8 +142,6 @@ async def acalculate_weighted_score(
     """
     from registry.models import Stamp
 
-    print("---> acalculate_weighted_score")
-
     ret: List[dict] = []
     log.debug(
         "calculate_weighted_score for scorer %s and passports %s", scorer, passport_ids
@@ -187,5 +185,4 @@ async def acalculate_weighted_score(
                 "expiration_date": earliest_expiration_date,
             }
         )
-        print("---> ret", ret)
     return ret
