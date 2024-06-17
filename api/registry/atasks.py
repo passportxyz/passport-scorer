@@ -100,6 +100,7 @@ async def acalculate_score(passport: Passport, community_id: int, score: Score):
     score.evidence = scoreData.evidence[0].as_dict() if scoreData.evidence else None
     score.error = None
     score.stamp_scores = scoreData.stamp_scores
+    score.expiration_date = scoreData.expiration_date
     log.info("Calculated score: %s", score)
 
 

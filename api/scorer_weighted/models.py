@@ -6,6 +6,7 @@ from typing import List, Optional
 import api_logging as logging
 from django.conf import settings
 from django.db import models
+from datetime import datetime
 
 log = logging.getLogger(__name__)
 
@@ -40,10 +41,12 @@ class ScoreData:
         score: Decimal,
         evidence: Optional[List[ThresholdScoreEvidence]],
         points: dict,
+        expiration_date: datetime,
     ):
         self.score = score
         self.evidence = evidence
         self.stamp_scores = points
+        self.expiration_date = expiration_date
 
     def __repr__(self):
         return f"ScoreData(score={self.score}, evidence={self.evidence})"
@@ -116,7 +119,10 @@ class WeightedScorer(Scorer):
 
         return [
             ScoreData(
-                score=s["sum_of_weights"], evidence=None, points=s["earned_points"]
+                score=s["sum_of_weights"],
+                evidence=None,
+                points=s["earned_points"],
+                expiration_date=s["expiration_date"],
             )
             for s in recalculate_weighted_score(
                 self, passport_ids, stamps, community_id
@@ -133,7 +139,10 @@ class WeightedScorer(Scorer):
         scores = await acalculate_weighted_score(self, passport_ids, community_id)
         return [
             ScoreData(
-                score=s["sum_of_weights"], evidence=None, points=s["earned_points"]
+                score=s["sum_of_weights"],
+                evidence=None,
+                points=s["earned_points"],
+                expiration_date=s["expiration_date"],
             )
             for s in scores
         ]
@@ -175,6 +184,7 @@ class BinaryWeightedScorer(Scorer):
                         )
                     ],
                     points=rawScore["earned_points"],
+                    expiration_date=rawScore["expiration_date"],
                 ),
                 rawScores,
                 binaryScores,
@@ -208,6 +218,7 @@ class BinaryWeightedScorer(Scorer):
                         )
                     ],
                     points=rawScore["earned_points"],
+                    expiration_date=rawScore["expiration_date"],
                 ),
                 rawScores,
                 binaryScores,
@@ -221,12 +232,17 @@ class BinaryWeightedScorer(Scorer):
         """
         from .computation import acalculate_weighted_score
 
+        print(">>>")
         rawScores = await acalculate_weighted_score(self, passport_ids, community_id)
+        print(">>>>>> rawScores", rawScores)
         binaryScores = [
             Decimal(1) if s["sum_of_weights"] >= self.threshold else Decimal(0)
             for s in rawScores
         ]
 
+        print("-----")
+        print("rawScores", rawScores)
+        print("-----")
         return list(
             map(
                 lambda rawScore, binaryScore: ScoreData(
@@ -239,6 +255,7 @@ class BinaryWeightedScorer(Scorer):
                         )
                     ],
                     points=rawScore["earned_points"],
+                    expiration_date=rawScore["expiration_date"],
                 ),
                 rawScores,
                 binaryScores,

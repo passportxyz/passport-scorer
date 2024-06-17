@@ -5,6 +5,7 @@ import api_logging as logging
 from registry.models import Stamp
 from scorer_weighted.models import WeightedScorer
 from account.models import Customization
+from datetime import datetime
 
 log = logging.getLogger(__name__)
 
@@ -44,18 +45,30 @@ def calculate_weighted_score(
         sum_of_weights: Decimal = Decimal(0)
         scored_providers = []
         earned_points = {}
+        earliest_expiration_date = None
         for stamp in Stamp.objects.filter(passport_id=passport_id):
             if stamp.provider not in scored_providers:
                 weight = Decimal(weights.get(stamp.provider, 0))
                 sum_of_weights += weight
                 scored_providers.append(stamp.provider)
                 earned_points[stamp.provider] = str(weight)
+                expiration_date = datetime.fromisoformat(
+                    stamp.credential["expirationDate"]
+                )
+                # Compute the earliest expiration date for the stamps used to calculate the score
+                # as this will be the expiration date of the score
+                if (
+                    not earliest_expiration_date
+                    or expiration_date < earliest_expiration_date
+                ):
+                    earliest_expiration_date = expiration_date
             else:
                 earned_points[stamp.provider] = str(Decimal(0))
         ret.append(
             {
                 "sum_of_weights": sum_of_weights,
                 "earned_points": earned_points,
+                "expiration_date": earliest_expiration_date,
             }
         )
     return ret
@@ -81,18 +94,30 @@ def recalculate_weighted_score(
         sum_of_weights: Decimal = Decimal(0)
         scored_providers = []
         earned_points = {}
+        earliest_expiration_date = None
         for stamp in stamp_list:
             if stamp.provider not in scored_providers:
                 weight = Decimal(weights.get(stamp.provider, 0))
                 sum_of_weights += weight
                 scored_providers.append(stamp.provider)
                 earned_points[stamp.provider] = str(weight)
+                expiration_date = datetime.fromisoformat(
+                    stamp.credential["expirationDate"]
+                )
+                # Compute the earliest expiration date for the stamps used to calculate the score
+                # as this will be the expiration date of the score
+                if (
+                    not earliest_expiration_date
+                    or expiration_date < earliest_expiration_date
+                ):
+                    earliest_expiration_date = expiration_date
             else:
                 earned_points[stamp.provider] = str(Decimal(0))
         ret.append(
             {
                 "sum_of_weights": sum_of_weights,
                 "earned_points": earned_points,
+                "expiration_date": earliest_expiration_date,
             }
         )
     return ret
@@ -117,6 +142,8 @@ async def acalculate_weighted_score(
     """
     from registry.models import Stamp
 
+    print("---> acalculate_weighted_score")
+
     ret: List[dict] = []
     log.debug(
         "calculate_weighted_score for scorer %s and passports %s", scorer, passport_ids
@@ -133,12 +160,23 @@ async def acalculate_weighted_score(
         sum_of_weights: Decimal = Decimal(0)
         scored_providers = []
         earned_points = {}
+        earliest_expiration_date = None
         async for stamp in Stamp.objects.filter(passport_id=passport_id):
             if stamp.provider not in scored_providers:
                 weight = Decimal(weights.get(stamp.provider, 0))
                 sum_of_weights += weight
                 scored_providers.append(stamp.provider)
                 earned_points[stamp.provider] = float(weight)
+                expiration_date = datetime.fromisoformat(
+                    stamp.credential["expirationDate"]
+                )
+                # Compute the earliest expiration date for the stamps used to calculate the score
+                # as this will be the expiration date of the score
+                if (
+                    not earliest_expiration_date
+                    or expiration_date < earliest_expiration_date
+                ):
+                    earliest_expiration_date = expiration_date
             else:
                 earned_points[stamp.provider] = float(Decimal(0))
 
@@ -146,6 +184,8 @@ async def acalculate_weighted_score(
             {
                 "sum_of_weights": sum_of_weights,
                 "earned_points": earned_points,
+                "expiration_date": earliest_expiration_date,
             }
         )
+        print("---> ret", ret)
     return ret
