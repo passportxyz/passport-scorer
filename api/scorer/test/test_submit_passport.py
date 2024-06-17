@@ -8,9 +8,11 @@ from account.models import Nonce
 from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when
-from registry.models import Passport
-from registry.tasks import score_passport
-from registry.test.test_passport_submission import mock_passport, mock_utc_timestamp
+from registry.test.test_passport_submission import (
+    mock_passport,
+    mock_utc_timestamp,
+    mock_passport_expiration_date,
+)
 from registry.utils import get_signing_message
 from web3 import Web3
 
@@ -103,6 +105,7 @@ def _(scorer_community_with_gitcoin_default, submit_passport_response):
         "score": Decimal("1001234.000000000"),
         "status": "DONE",
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
+        "expiration_date": mock_passport_expiration_date.isoformat(),
         "evidence": None,
         "error": None,
         "stamp_scores": {
@@ -166,6 +169,7 @@ def _(scorer_community_with_gitcoin_default, score_response):
         "score": "1001234.000000000",
         "status": "DONE",
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
+        "expiration_date": mock_passport_expiration_date.isoformat(),
         "evidence": None,
         "error": None,
         "stamp_scores": {
@@ -225,6 +229,7 @@ def _(scorer_community_with_gitcoin_default, scoring_failed_score_response):
         "score": None,
         "status": "ERROR",
         "last_score_timestamp": None,
+        "expiration_date": None,
         "evidence": None,
         "error": "something bad",
         "stamp_scores": {
@@ -297,7 +302,7 @@ def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
 @then("the previous error message has been reset to None")
 def _(score_response):
     """the previous error message has been reset to None."""
-    assert score_response.json()["error"] == None
+    assert score_response.json()["error"] is None
 
 
 ####################################################################################
@@ -340,6 +345,7 @@ def _(scorer_community_with_gitcoin_default, score_response):
         "score": "1001234.000000000",
         "status": "DONE",
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
+        "expiration_date": mock_passport_expiration_date.isoformat(),
         "evidence": None,
         "error": None,
         "stamp_scores": {

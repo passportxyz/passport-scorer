@@ -3,7 +3,6 @@ from enum import Enum
 from typing import Dict, List, Optional
 
 from ninja import Schema
-from pydantic import Json
 from registry.models import Event, Score
 
 
@@ -80,6 +79,7 @@ class DetailedScoreResponse(Schema):
     score: Optional[str]
     status: Optional[StatusEnum]
     last_score_timestamp: Optional[str]
+    expiration_date: Optional[str]
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
     stamp_scores: Optional[Dict]
@@ -88,6 +88,12 @@ class DetailedScoreResponse(Schema):
     def resolve_last_score_timestamp(obj):
         if obj.last_score_timestamp:
             return obj.last_score_timestamp.isoformat()
+        return None
+
+    @staticmethod
+    def resolve_expiration_date(obj):
+        if obj.expiration_date:
+            return obj.expiration_date.isoformat()
         return None
 
     @staticmethod

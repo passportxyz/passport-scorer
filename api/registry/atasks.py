@@ -246,6 +246,7 @@ async def ascore_passport(
             score.score = None
             score.status = Score.Status.ERROR
             score.last_score_timestamp = None
+            score.expiration_date = None
             score.evidence = None
             score.error = e.detail
     except Exception as e:
@@ -260,5 +261,6 @@ async def ascore_passport(
             score.score = None
             score.status = Score.Status.ERROR
             score.last_score_timestamp = None
+            score.expiration_date = None
             score.evidence = None
             score.error = str(e)

@@ -224,7 +224,6 @@ async def ahandle_submit_passport(
 
     await ascore_passport(user_community, db_passport, payload.address, score)
     await score.asave()
-
     return DetailedScoreResponse.from_orm(score)
 
 
