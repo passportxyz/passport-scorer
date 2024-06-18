@@ -1,12 +1,12 @@
 """Ceramic Cache API"""
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, Dict, List, Type, Optional
 
 import api_logging as logging
 import tos.api
 import tos.schema
-from account.models import Account, Nonce
+from account.models import Account, Nonce, Community
 from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -27,7 +27,6 @@ from registry.api.v1 import (
     ErrorMessageResponse,
     SubmitPassportPayload,
     ahandle_submit_passport,
-    handle_get_score,
 )
 from registry.models import Score
 from stake.api import handle_get_gtc_stake
@@ -52,14 +51,19 @@ from .schema import (
     GetStampResponse,
     GetStampsWithScoreResponse,
 )
+from ceramic_cache.utils import get_utc_time
+from registry.api.utils import (
+    is_valid_address,
+)
+from registry.exceptions import (
+    InvalidAddressException,
+    InvalidCommunityScoreRequestException,
+    NotFoundApiException,
+)
 
 log = logging.getLogger(__name__)
 
 router = Router()
-
-
-def get_utc_time():
-    return datetime.utcnow()
 
 
 def get_address_from_did(did: str):
@@ -418,8 +422,52 @@ def handle_get_ui_score(
     address: str, alternate_scorer_id: Optional[int]
 ) -> DetailedScoreResponse:
     scorer_id = alternate_scorer_id or settings.CERAMIC_CACHE_SCORER_ID
-    account = get_object_or_404(Account, community__id=scorer_id)
-    return handle_get_score(address, scorer_id, account)
+    lower_address = address.lower()
+
+    if not is_valid_address(lower_address):
+        raise InvalidAddressException()
+
+    try:
+        # Get community object, for the configured scorer
+        user_community = Community.objects.get(id=scorer_id)
+
+        score = None
+        try:
+            score = Score.objects.get(
+                passport__address=lower_address, passport__community=user_community
+            )
+        except Score.DoesNotExist:
+            pass
+
+        # If score is expired re-calculate it
+        now = get_utc_time()
+
+        if score is None or (
+            score.expiration_date is not None and score.expiration_date < now
+        ):
+            # This will re-calculate the score and update the expiration date
+            ret = get_detailed_score_response_for_address(address)
+
+            return ret
+
+        return DetailedScoreResponse.from_orm(score)
+
+    except Community.DoesNotExist as e:
+        raise NotFoundApiException(
+            "Community matching the configured scorer id does not exist! This is probably a misconfiguration!",
+            code=500,
+        ) from e
+    except Score.DoesNotExist as e:
+        raise NotFoundApiException(
+            "No score could be found matching the request!"
+        ) from e
+    except Exception as e:
+        log.error(
+            "Error getting passport scores. scorer_id=%s",
+            scorer_id,
+            exc_info=True,
+        )
+        raise InvalidCommunityScoreRequestException() from e
 
 
 @router.post(

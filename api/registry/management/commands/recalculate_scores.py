@@ -89,11 +89,6 @@ class Command(BaseCommand):
         weighted_scorers.update(weights=weights)
         binary_weighted_scorers.update(weights=weights, threshold=threshold)
 
-        print(
-            "Updated scorers:",
-            weighted_scorers.count() + binary_weighted_scorers.count(),
-        )
-
 
 def recalculate_scores(communities, batch_size, outstream):
     count = 0

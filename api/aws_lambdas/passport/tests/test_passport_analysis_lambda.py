@@ -89,6 +89,5 @@ def test_bad_address(
     response = _handler(event, MockContext())
 
     assert response is not None
-    print(response)
     assert response["statusCode"] == 400
     assert json.loads(response["body"])["error"] == "Invalid address"

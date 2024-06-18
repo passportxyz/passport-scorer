@@ -1,15 +1,17 @@
 import pytest
 from django.conf import settings
 from scorer.test.conftest import (
-    api_key,
-    sample_address,
-    sample_provider,
-    sample_token,
-    scorer_account,
-    scorer_community_with_binary_scorer,
-    scorer_user,
-    ui_scorer,
-    verifiable_credential,
+    api_key,  # noqa
+    sample_address,  # noqa
+    sample_provider,  # noqa
+    sample_token,  # noqa
+    scorer_account,  # noqa
+    scorer_community,  # noqa
+    scorer_passport,  # noqa
+    scorer_community_with_binary_scorer,  # noqa
+    scorer_user,  # noqa
+    ui_scorer,  # noqa
+    verifiable_credential,  # noqa
 )
 
 
@@ -33,8 +35,5 @@ def sample_stamps():
 
 
 def pytest_configure():
-    try:
-        settings.CERAMIC_CACHE_API_KEY = "supersecret"
-        settings.CERAMIC_CACHE_SCORER_ID = ""
-    except:
-        pass
+    settings.CERAMIC_CACHE_API_KEY = "supersecret"
+    settings.CERAMIC_CACHE_SCORER_ID = ""
