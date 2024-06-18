@@ -20,7 +20,11 @@ class PassportBanner(models.Model):
     link = models.URLField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     application = models.CharField(
-        max_length=50, choices=APPLICATION_CHOICES, default="passport", db_index=True
+        max_length=50,
+        choices=APPLICATION_CHOICES,
+        default="passport",
+        # TODO: migration fails here
+        #   db_index=True
     )
 
 
@@ -52,7 +56,7 @@ class Notification(models.Model):
     """
 
     notification_id = models.CharField(
-        unique=True
+        max_length=100, unique=True
     )  # unique deterministic identifier for the notification
 
     type = models.CharField(
@@ -65,7 +69,7 @@ class Notification(models.Model):
     created_at = models.DateField(auto_now_add=True)
     expires_at = models.DateField()
     eth_address = models.CharField(
-        max_length=255
+        max_length=255, null=True
     )  # account/ eth address for which the notification is created. If null then it is a global notification wgich will be shown to all users.
     # application = models.CharField(
     #     max_length=50, choices=APPLICATION_CHOICES, default="passport", db_index=True

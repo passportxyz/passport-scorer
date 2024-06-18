@@ -12,7 +12,6 @@ from .models import (
     DismissedNotification,
 )
 
-# admin.site.register(PassportBanner)
 admin.site.register(DismissedBanners)
 admin.site.register(DismissedNotification)
 
