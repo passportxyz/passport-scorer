@@ -3,8 +3,17 @@ import string
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, cast
 
+from registry.api.utils import ApiKey
 import api_logging as logging
-from account.models import Account, AccountAPIKey, Community, Nonce, Customization
+from account.models import (
+    Account,
+    AccountAPIKey,
+    AddressList,
+    AddressListMember,
+    Community,
+    Nonce,
+    Customization,
+)
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
@@ -636,3 +645,20 @@ def get_account_customization(request, dashboard_path: str):
 
     except Customization.DoesNotExist:
         raise APIException("Customization not found", status.HTTP_404_NOT_FOUND)
+
+
+@api.get(
+    "/allow-list/{str:list}/{str:address}",
+    auth=ApiKey(),
+)
+def check_on_allow_list(request, list: str, address: str):
+    """
+    Check if an address is on the allow list for a specific round
+    """
+    try:
+        is_member = AddressListMember.objects.filter(
+            list__name=list, address=address
+        ).exists()
+        return {"is_member": is_member}
+    except AddressList.DoesNotExist:
+        return {"is_member": False}
