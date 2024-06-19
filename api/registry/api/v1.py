@@ -9,8 +9,6 @@ from account.api import UnauthorizedException, create_community_for_account
 # --- Deduplication Modules
 from account.models import (
     Account,
-    AddressList,
-    AddressListMember,
     Community,
     Nonce,
     Rules,
@@ -727,20 +725,6 @@ def fetch_stamp_metadata_for_provider(provider: str):
 def stamp_display(request) -> List[StampDisplayResponse]:
     check_rate_limit(request)
     return fetch_all_stamp_metadata()
-
-
-@router.get("/allow-list/{str:list}/{str:address}")
-def check_on_allow_list(request, list: str, address: str):
-    """
-    Check if an address is on the allow list for a specific round
-    """
-    try:
-        is_member = AddressListMember.objects.filter(
-            list__name=list, address=address
-        ).exists()
-        return {"is_member": is_member}
-    except AddressList.DoesNotExist:
-        return {"is_member": False}
 
 
 @router.get(

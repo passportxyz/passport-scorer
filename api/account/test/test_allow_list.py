@@ -19,17 +19,13 @@ class TestAllowList:
         )
 
         client = Client()
-        response = client.get(
-            f"/registry/allow-list/{list_name}/{user_address}",
-        )
+        response = client.get(f"/account/allow-list/{list_name}/{user_address}")
         assert response.status_code == 200
         assert response.json()["is_member"]
 
     def test_unsuccessful_get_allow_list(self):
         list_name = "test"
         client = Client()
-        response = client.get(
-            f"/registry/allow-list/{list_name}/0x123",
-        )
+        response = client.get(f"/account/allow-list/{list_name}/0x123")
         assert response.status_code == 200
         assert not response.json()["is_member"]
