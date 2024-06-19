@@ -3,7 +3,6 @@ import string
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, cast
 
-from registry.api.utils import ApiKey
 import api_logging as logging
 from account.models import (
     Account,
@@ -647,10 +646,7 @@ def get_account_customization(request, dashboard_path: str):
         raise APIException("Customization not found", status.HTTP_404_NOT_FOUND)
 
 
-@api.get(
-    "/allow-list/{str:list}/{str:address}",
-    auth=ApiKey(),
-)
+@api.get("/allow-list/{str:list}/{str:address}", auth=None)
 def check_on_allow_list(request, list: str, address: str):
     """
     Check if an address is on the allow list for a specific round
