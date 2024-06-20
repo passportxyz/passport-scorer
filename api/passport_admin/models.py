@@ -24,8 +24,7 @@ class PassportBanner(models.Model):
         max_length=50,
         choices=APPLICATION_CHOICES,
         default="passport",
-        # TODO: migration fails here
-        #   db_index=True
+        # db_index=True,
     )
 
 
@@ -44,7 +43,7 @@ class DismissedBanners(models.Model):
 
 
 # Notifications
-NOTIFICATION_TYPEs = [
+NOTIFICATION_TYPES = [
     ("custom", "Custom"),
     ("expiry", "Expiry"),
     ("deduplication", "Deduplication"),
@@ -61,7 +60,7 @@ class Notification(models.Model):
     )  # unique deterministic identifier for the notification
 
     type = models.CharField(
-        max_length=50, choices=NOTIFICATION_TYPEs, default="custom", db_index=True
+        max_length=50, choices=NOTIFICATION_TYPES, default="custom", db_index=True
     )
     is_active = models.BooleanField(default=False)
 
@@ -69,7 +68,7 @@ class Notification(models.Model):
     content = models.TextField()
     created_at = models.DateField(auto_now_add=True)
     expires_at = models.DateField()
-    eth_address = models.CharField(
+    eth_address = models.CharField(  # EthAddressField
         max_length=255, null=True
     )  # account/ eth address for which the notification is created. If null then it is a global notification wgich will be shown to all users.
     # application = models.CharField(
@@ -77,9 +76,10 @@ class Notification(models.Model):
     # )
 
 
-class DismissedNotification(models.Model):
+class NotificationStatus(models.Model):
     notification = models.ForeignKey(Notification, on_delete=models.CASCADE)
-    dismissed = models.BooleanField()
-    eth_address = models.CharField(
+    is_read = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
+    eth_address = models.CharField(  # EthAddressField
         max_length=255
     )  # The account / eth address that dissmised the notification. Required to track the dismissed notifications / user in case of global notifications.

@@ -1,15 +1,32 @@
-import json
 from typing import List, Optional
 
 from ceramic_cache.api.v1 import JWTDidAuth
 from django.db.models import Subquery
-from ninja import Router, Schema
+from ninja import Router
+from passport_admin.schema import (
+    Banner,
+    GenericResponse,
+    NotificationSchema,
+    NotificationResponse,
+    NotificationPayload,
+    DismissPayload,
+)
+from passport_admin.notification_generators.deduplication_events import (
+    generate_deduplication_notifications,
+)
+from passport_admin.notification_generators.expired_stamp import (
+    generate_stamp_expired_notifications,
+)
+from passport_admin.notification_generators.on_chain_expired import (
+    generate_on_chain_expired_notifications,
+)
+
 
 from .models import (
     DismissedBanners,
     PassportBanner,
     Notification,
-    DismissedNotification,
+    NotificationStatus,
 )
 from django.utils import timezone
 
@@ -19,13 +36,6 @@ router = Router()
 def get_address(did: str):
     start = did.index("0x")
     return did[start:]
-
-
-class Banner(Schema):
-    content: str
-    link: Optional[str] = None
-    banner_id: int
-    application: str = "passport"
 
 
 @router.get(
@@ -65,10 +75,6 @@ def get_banners(request, application: Optional[str] = "passport"):
         }
 
 
-class GenericResponse(Schema):
-    status: str
-
-
 @router.post(
     "/banners/{banner_id}/dismiss",
     response={200: GenericResponse},
@@ -91,47 +97,32 @@ def dismiss_banner(request, banner_id: int):
         }
 
 
-class NotificationResponse(Schema):
-    notification_id: int
-    type: str
-    title: str
-    content: str
-
-
-class NotificationSchema(Schema):
-    items: List[NotificationResponse]
-
-
 @router.post(
     "/notifications",
-    response=NotificationSchema,
+    response=NotificationResponse,
     auth=JWTDidAuth(),
 )
-def get_notifications(request):
+def get_notifications(request, payload: NotificationPayload):
     """
     Get all notifications for a specific address.
     This also includes the generic notifications
     """
     try:
-        address = "0x1"  # get_address(request.auth.did)
+        address = get_address(request.auth.did)
         current_date = timezone.now().date()
 
-        # TODO: verify payload here for onchain passport expiry notifications
-        # Events.objects.filter(
-        #     address=address, action=Event.Action.LIFO_DEDUPLICATION
-        # ).all()
-        # TODO: generate stamp expiry notifications
-        # CeramicCache.objects.filter(
-        #     address=address, type=CeramicCache.StampType.V1, deleted_at__isnull=True
-        # ) -> filter by expiration date
-
-        # TODO: check for deduplication events
+        generate_deduplication_notifications(address=address)
+        generate_stamp_expired_notifications(address=address)
+        if payload.expired_chain_ids:
+            generate_on_chain_expired_notifications(
+                address=address, expired_chains=payload.expired_chain_ids
+            )
 
         notifications = Notification.objects.filter(
-            is_active=True, eth_address=address, expires__gte=current_date
+            is_active=True, eth_address=address, expires_at__gte=current_date
         ).all()
         general_notifications = Notification.objects.filter(
-            is_active=True, eth_address="", expires__gte=current_date
+            is_active=True, eth_address__isnull=True, expires_at__gte=current_date
         ).all()
 
         all_notifications = [
@@ -143,7 +134,7 @@ def get_notifications(request):
             ).dict()
             for n in [*notifications, *general_notifications]
         ]
-        return NotificationSchema(items=all_notifications)
+        return NotificationResponse(items=all_notifications).dict()
 
     except Notification.DoesNotExist:
         return {
@@ -151,20 +142,48 @@ def get_notifications(request):
         }
 
 
+# TODO: @Larisa : UI implementation is like this:
+# const dismissNotification = async (
+#   notification_id: string,
+#   dismissalType: "delete" | "read",
+#   dbAccessToken?: string
+# ) => {
+#   if (!dbAccessToken) return;
+#   const res = await axios.patch(
+#     `${process.env.NEXT_PUBLIC_SCORER_ENDPOINT}/passport-admin/notifications/${notification_id}`,
+#     { dismissal_type: dismissalType },
+#     {
+#       headers: {
+#         Authorization: `Bearer ${dbAccessToken}`,
+#       },
+#     }
+#   );
+
+#   return res.data;
+# };
+
+
+# HOW TO TREAT THIS  (Read vs Delete) ?. Once a notification is dismissed, it should not be shown again.?
+
+
 @router.post(
     "/notifications/{notification_id}/dismiss",
     response={200: GenericResponse},
     auth=JWTDidAuth(),
 )
-def dismiss_notification(request, notification_id):
+# ayload: DismissPayload
+def dismiss_notification(request, notification_id: str):
     """
     Dismiss a notification
     """
     try:
+        # TODO: set dismissal type
         address = get_address(request.auth.did)
         notification = Notification.objects.get(notification_id=notification_id)
 
-        DismissedNotification.objects.create(address=address, notification=notification)
+        NotificationStatus.objects.create(
+            eth_address=address, notification=notification, dismissed=True
+        )
         return {
             "status": "success",
         }
