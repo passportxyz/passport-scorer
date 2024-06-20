@@ -35,8 +35,7 @@ def generate_stamp_expired_notifications(address):
         if not notification_exists:
             Notification.objects.create(
                 notification_id=notification_id,
-                type="expiry",
+                type="stamp_expiry",
                 is_active=True,
-                title=f"{cc.provider} Stamp Expired",
                 content=f"Your {cc.provider} stamp has expired. Please reverify to keep your Passport up to date.",
             )

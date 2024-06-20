@@ -27,8 +27,7 @@ def generate_on_chain_expired_notifications(address, expired_chains: List[ChainS
         if not notification_exists:
             Notification.objects.create(
                 notification_id=notification_id,
-                type="expiry",
+                type="on_chain_expiry",
                 is_active=True,
-                title=f"{chain.name} Chain Expired",
                 content=f"Your on-chain Passport on {chain.name} has expired. Update now to maintain your active status.",
             )

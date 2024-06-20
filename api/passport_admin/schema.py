@@ -16,8 +16,9 @@ class Banner(Schema):
 class NotificationSchema(Schema):
     notification_id: str
     type: str
-    title: str
     content: str
+    link: Optional[str] = None
+    link_text: Optional[str] = None
 
 
 class NotificationResponse(Schema):
@@ -34,4 +35,4 @@ class NotificationPayload(Schema):
 
 
 class DismissPayload(Schema):
-    dismissal_type: bool
+    dismissal_type: str

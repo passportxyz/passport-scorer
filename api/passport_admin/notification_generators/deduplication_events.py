@@ -40,8 +40,8 @@ def generate_deduplication_notifications(address):
                     notification_id=notification_id,
                     type="deduplication",
                     is_active=True,
-                    title=f"'{stamp_name}' Duplicate Stamp Claim",
                     content=f"You have claimed the same '{stamp_name}' stamp in two Passports. We only count your stamp once. This duplicate is in your wallet {address}. Learn more about deduplication <a href='https://github.com/orgs/gitcoinco/projects/6/views/link'>here</a>",
+                    link="https://github.com/orgs/gitcoinco/projects/6/views/link",
                     created_at=timezone.now().date(),
                     eth_address=address,
                 )

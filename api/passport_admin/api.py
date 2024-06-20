@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from ceramic_cache.api.v1 import JWTDidAuth
-from django.db.models import Subquery
+from django.db.models import Subquery, Q
 from ninja import Router
 from passport_admin.schema import (
     Banner,
@@ -69,7 +69,7 @@ def get_banners(request, application: Optional[str] = "passport"):
             )
             for b in banners
         ]
-    except:
+    except PassportBanner.DoesNotExist:
         return {
             "status": "failed",
         }
@@ -118,21 +118,32 @@ def get_notifications(request, payload: NotificationPayload):
                 address=address, expired_chains=payload.expired_chain_ids
             )
 
-        notifications = Notification.objects.filter(
-            is_active=True, eth_address=address, expires_at__gte=current_date
+        custom_notifications = Notification.objects.filter(
+            Q(is_active=True, eth_address=address, expires_at__gte=current_date)
+            & (
+                Q(notificationstatus__is_deleted=False)
+                | Q(notificationstatus__isnull=True)
+            )
         ).all()
+
         general_notifications = Notification.objects.filter(
-            is_active=True, eth_address__isnull=True, expires_at__gte=current_date
+            Q(is_active=True, eth_address__isnull=True, expires_at__gte=current_date)
+            & (
+                Q(notificationstatus__is_deleted=False)
+                | Q(notificationstatus__isnull=True)
+            )
         ).all()
 
         all_notifications = [
             NotificationSchema(
                 notification_id=n.notification_id,
                 type=n.type,
-                title=n.title,
                 content=n.content,
+                link=n.link,
+                link_text=n.link_text,
+                # is_read = n.notificationstatus.is_read
             ).dict()
-            for n in [*notifications, *general_notifications]
+            for n in [*custom_notifications, *general_notifications]
         ]
         return NotificationResponse(items=all_notifications).dict()
 
@@ -142,50 +153,35 @@ def get_notifications(request, payload: NotificationPayload):
         }
 
 
-# TODO: @Larisa : UI implementation is like this:
-# const dismissNotification = async (
-#   notification_id: string,
-#   dismissalType: "delete" | "read",
-#   dbAccessToken?: string
-# ) => {
-#   if (!dbAccessToken) return;
-#   const res = await axios.patch(
-#     `${process.env.NEXT_PUBLIC_SCORER_ENDPOINT}/passport-admin/notifications/${notification_id}`,
-#     { dismissal_type: dismissalType },
-#     {
-#       headers: {
-#         Authorization: `Bearer ${dbAccessToken}`,
-#       },
-#     }
-#   );
-
-#   return res.data;
-# };
-
-
-# HOW TO TREAT THIS  (Read vs Delete) ?. Once a notification is dismissed, it should not be shown again.?
-
-
 @router.post(
-    "/notifications/{notification_id}/dismiss",
+    "/notifications/{notification_id}",
     response={200: GenericResponse},
     auth=JWTDidAuth(),
 )
-# ayload: DismissPayload
-def dismiss_notification(request, notification_id: str):
+def dismiss_notification(request, notification_id: str, payload: DismissPayload):
     """
     Dismiss a notification
     """
     try:
-        # TODO: set dismissal type
         address = get_address(request.auth.did)
         notification = Notification.objects.get(notification_id=notification_id)
-
-        NotificationStatus.objects.create(
-            eth_address=address, notification=notification, dismissed=True
-        )
+        if payload.dismissal_type == "read":
+            NotificationStatus.objects.get_or_create(
+                eth_address=address, notification=notification, is_read=True
+            )
+            return {
+                "status": "success",
+            }
+        # TODO:@Larisa update the field in case the Status already exists
+        if payload.dismissal_type == "delete":
+            NotificationStatus.objects.get_or_create(
+                eth_address=address, notification=notification, is_deleted=True
+            )
+            return {
+                "status": "success",
+            }
         return {
-            "status": "success",
+            "status": "Failed! Bad dismissal type.",
         }
     except Notification.DoesNotExist:
         return {

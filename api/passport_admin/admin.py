@@ -33,6 +33,14 @@ class NotificationAdmin(admin.ModelAdmin):
     Admin class for Notification.
     """
 
-    list_display = ("notification_id", "type", "title", "is_active", "eth_address")
-    search_fields = ("title", "eth_address")
-    list_filter = ("type", "eth_address", "is_active", "created_at", "expires_at")
+    list_display = ("notification_id", "type", "is_active", "eth_address")
+    search_fields = ("eth_address", "type")
+    list_filter = (
+        "type",
+        "eth_address",
+        "is_active",
+        "created_at",
+        "expires_at",
+        "link",
+        "link_text",
+    )
