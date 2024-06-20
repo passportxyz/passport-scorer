@@ -19,6 +19,7 @@ class NotificationSchema(Schema):
     content: str
     link: Optional[str] = None
     link_text: Optional[str] = None
+    is_read: bool
 
 
 class NotificationResponse(Schema):

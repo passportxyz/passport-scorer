@@ -1,8 +1,7 @@
 import pytest
-from django.test import Client, TestCase
+from django.test import Client
 from django.utils import timezone
 from datetime import timedelta
-from passport_admin.api import get_address
 from ceramic_cache.api.v1 import DbCacheToken
 from passport_admin.models import Notification, NotificationStatus
 
@@ -96,7 +95,7 @@ def custom_notifications(current_date, sample_address):
 
 
 @pytest.fixture
-def generic_notifications(current_date):
+def generic_notifications(current_date, sample_address):
     ret = {
         "active": Notification.objects.create(
             notification_id="generic_active",
@@ -140,11 +139,12 @@ def generic_notifications(current_date):
         ),
     }
 
-    NotificationStatus.objects.create(
+    read = NotificationStatus.objects.create(
         notification=ret["read"],
         is_read=True,
         eth_address=sample_address,
     )
+    print("read is read", read.is_read)
 
     NotificationStatus.objects.create(
         notification=ret["deleted"],
@@ -177,6 +177,7 @@ class TestNotifications:
                     "link": None,
                     "link_text": None,
                     "content": custom_notifications["active"].content,
+                    "is_read": False,
                 },
                 {
                     "notification_id": custom_notifications["read"].notification_id,
@@ -184,6 +185,7 @@ class TestNotifications:
                     "link": None,
                     "link_text": None,
                     "content": custom_notifications["read"].content,
+                    "is_read": True,
                 },
                 {
                     "notification_id": generic_notifications["active"].notification_id,
@@ -191,6 +193,7 @@ class TestNotifications:
                     "link": None,
                     "link_text": None,
                     "content": generic_notifications["active"].content,
+                    "is_read": False,
                 },
                 {
                     "notification_id": generic_notifications["read"].notification_id,
@@ -198,6 +201,7 @@ class TestNotifications:
                     "link": None,
                     "link_text": None,
                     "content": generic_notifications["read"].content,
+                    "is_read": True,
                 },
             ]
         }
