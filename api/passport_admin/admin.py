@@ -9,11 +9,11 @@ from .models import (
     DismissedBanners,
     PassportBanner,
     Notification,
-    DismissedNotification,
+    NotificationStatus,
 )
 
 admin.site.register(DismissedBanners)
-admin.site.register(DismissedNotification)
+admin.site.register(NotificationStatus)
 
 
 @admin.register(PassportBanner)
