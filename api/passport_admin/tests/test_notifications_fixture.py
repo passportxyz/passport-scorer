@@ -1,10 +1,11 @@
 import pytest
-from django.test import Client, TestCase
+from django.test import Client
 from django.utils import timezone
 from datetime import timedelta
 from passport_admin.api import get_address
 from ceramic_cache.api.v1 import DbCacheToken
 from passport_admin.models import Notification, NotificationStatus
+from passport_admin.models import DismissedNotification
 
 pytestmark = pytest.mark.django_db
 
@@ -31,7 +32,7 @@ def current_date():
 
 
 @pytest.fixture
-def custom_notification():
+def custom_notification(current_date):
     ret = {
         "active": Notification.objects.create(
             notification_id="custom_active",
@@ -85,7 +86,7 @@ def custom_notification():
 
 
 @pytest.fixture
-def genereic_notification():
+def generic_notification():
     ret = {
         "active": Notification.objects.create(
             notification_id="genereic_active",
@@ -151,8 +152,6 @@ class TestNotifications:
             HTTP_AUTHORIZATION=f"Bearer {sample_token}",
             content_type="application/json",
         )
-
-        current_date = timezone.now().date()
 
         # custom_notifications = {
         #     "active": Notification.objects.create(
@@ -271,9 +270,10 @@ class TestNotifications:
 
         assert response.json() == {"items": [{}]}
 
-    def test_dismiss_notification(self, sample_token):
+    def test_dismiss_notification(self, sample_token, custom_notification):
+        print("custom_active: ", custom_notification)
         response = client.post(
-            f"/passport-admin/notifications/{self.custom_active.notification_id}/dismiss",
+            f"/passport-admin/notifications/{custom_notification.notification_id}/dismiss",
             {},
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {sample_token}",
