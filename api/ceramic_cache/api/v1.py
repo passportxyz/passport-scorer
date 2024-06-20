@@ -157,7 +157,8 @@ def handle_add_stamps(
             stamp=p.stamp,
             updated_at=now,
             compose_db_save_status=CeramicCache.ComposeDBSaveStatus.PENDING,
-            # TODO:
+            issuance_date=p.stamp.get("issuanceDate", None),
+            expiration_date=p.stamp.get("expirationDate", None),
         )
         for p in payload
     ]
@@ -227,7 +228,8 @@ def handle_patch_stamps(
             stamp=p.stamp,
             updated_at=now,
             compose_db_save_status=CeramicCache.ComposeDBSaveStatus.PENDING,
-            # TODO:
+            issuance_date=p.stamp.get("issuanceDate", None),
+            expiration_date=p.stamp.get("expirationDate", None),
         )
         for p in payload
         if p.stamp

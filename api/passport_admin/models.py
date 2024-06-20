@@ -4,6 +4,7 @@ Includes models for PassportBanner and DismissedBanners.
 """
 
 from django.db import models
+from account.models import EthAddressField
 
 APPLICATION_CHOICES = [
     ("passport", "Passport"),
@@ -44,7 +45,8 @@ class DismissedBanners(models.Model):
 # Notifications
 NOTIFICATION_TYPES = [
     ("custom", "Custom"),
-    ("expiry", "Expiry"),
+    ("stamp_expiry", "Stamp Expiry"),
+    ("on_chain_expiry", "OnChain Expiry"),
     ("deduplication", "Deduplication"),
 ]
 
@@ -63,22 +65,20 @@ class Notification(models.Model):
     )
     is_active = models.BooleanField(default=False)
 
-    title = models.CharField(max_length=255)
+    link = models.CharField(max_length=255, null=True)
+    link_text = models.CharField(max_length=255, null=True)
     content = models.TextField()
     created_at = models.DateField(auto_now_add=True)
     expires_at = models.DateField()
-    eth_address = models.CharField(  # EthAddressField
-        max_length=255, null=True
+    eth_address = EthAddressField(
+        null=True
     )  # account/ eth address for which the notification is created. If null then it is a global notification wgich will be shown to all users.
-    # application = models.CharField(
-    #     max_length=50, choices=APPLICATION_CHOICES, default="passport", db_index=True
-    # )
 
 
 class NotificationStatus(models.Model):
     notification = models.ForeignKey(Notification, on_delete=models.CASCADE)
     is_read = models.BooleanField(default=False)
-    is_deleted = models.BooleanField(default=False)
-    eth_address = models.CharField(  # EthAddressField
-        max_length=255
-    )  # The account / eth address that dissmised the notification. Required to track the dismissed notifications / user in case of global notifications.
+    is_deleted = models.BooleanField(
+        default=False
+    )  # is dismissed => should not longer be shown to the user
+    eth_address = EthAddressField()  # The account / eth address that dissmised the notification. Required to track the dismissed notifications / user in case of global notifications.
