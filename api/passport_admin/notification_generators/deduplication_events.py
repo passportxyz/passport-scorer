@@ -22,9 +22,9 @@ def generate_deduplication_notifications(address):
                 {
                     "action": event.action,
                     "address": event.address,
-                    "community": event.community,
+                    "community": event.community.id,
                     "data": event.data,
-                    "created_at": event.created_at,
+                    "created_at": event.created_at.strftime("%Y-%m-%d-%H:%M:%S"),
                     "id": event.id,
                 }
             )
