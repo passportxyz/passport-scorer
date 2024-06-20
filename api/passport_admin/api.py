@@ -127,7 +127,7 @@ def get_notifications(request, payload: NotificationPayload):
         ).all()
 
         general_notifications = Notification.objects.filter(
-            Q(is_active=True, eth_address__isnull=True, expires_at__gte=current_date)
+            Q(is_active=True, eth_address=None, expires_at__gte=current_date)
             & (
                 Q(notificationstatus__is_deleted=False)
                 | Q(notificationstatus__isnull=True)
