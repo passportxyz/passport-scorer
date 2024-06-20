@@ -1,7 +1,8 @@
 from typing import List, Optional
 
 from ceramic_cache.api.v1 import JWTDidAuth
-from django.db.models import Subquery, Q
+from django.db.models import Subquery, Q, OuterRef, Value
+from django.db.models.functions import Coalesce
 from ninja import Router
 from passport_admin.schema import (
     Banner,
@@ -118,13 +119,23 @@ def get_notifications(request, payload: NotificationPayload):
                 address=address, expired_chains=payload.expired_chain_ids
             )
 
+        notification_status_subquery = NotificationStatus.objects.filter(
+            notification=OuterRef("pk"), eth_address=address
+        ).values(
+            "is_read"
+        )[
+            :1
+        ]  # [:1] is used to limit the subquery to 1 result. There should be only 1 NotificationStatus per Notification
+
         custom_notifications = Notification.objects.filter(
             Q(is_active=True, eth_address=address, expires_at__gte=current_date)
             & (
                 Q(notificationstatus__is_deleted=False)
                 | Q(notificationstatus__isnull=True)
             )
-        ).all()
+        ).annotate(
+            is_read=Coalesce(Subquery(notification_status_subquery), Value(False))
+        )
 
         general_notifications = Notification.objects.filter(
             Q(is_active=True, eth_address=None, expires_at__gte=current_date)
@@ -132,7 +143,9 @@ def get_notifications(request, payload: NotificationPayload):
                 Q(notificationstatus__is_deleted=False)
                 | Q(notificationstatus__isnull=True)
             )
-        ).all()
+        ).annotate(
+            is_read=Coalesce(Subquery(notification_status_subquery), Value(False))
+        )
 
         all_notifications = [
             NotificationSchema(
@@ -141,7 +154,7 @@ def get_notifications(request, payload: NotificationPayload):
                 content=n.content,
                 link=n.link,
                 link_text=n.link_text,
-                # is_read = n.notificationstatus.is_read
+                is_read=n.is_read,
             ).dict()
             for n in [*custom_notifications, *general_notifications]
         ]
