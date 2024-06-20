@@ -57,7 +57,7 @@ class Notification(models.Model):
     """
 
     notification_id = models.CharField(
-        max_length=100, unique=True
+        max_length=255, unique=True
     )  # unique deterministic identifier for the notification
 
     type = models.CharField(
