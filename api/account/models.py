@@ -504,6 +504,16 @@ class Customization(models.Model):
         return weights
 
 
+class IncludedChainId(models.Model):
+    chain_id = models.CharField(max_length=200, blank=False, null=False)
+    customization = models.ForeignKey(
+        Customization, on_delete=models.CASCADE, related_name="included_chain_ids"
+    )
+
+    class Meta:
+        unique_together = ["chain_id", "customization"]
+
+
 class AllowList(models.Model):
     address_list = models.ForeignKey(
         AddressList, on_delete=models.PROTECT, related_name="allow_lists"

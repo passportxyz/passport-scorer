@@ -22,6 +22,7 @@ from .models import (
     Customization,
     AddressList,
     AddressListMember,
+    IncludedChainId,
 )
 
 
@@ -210,11 +211,16 @@ class AllowListInline(admin.TabularInline):
     extra = 0
 
 
+class IncludedChainIdInline(admin.TabularInline):
+    model = IncludedChainId
+    extra = 0
+
+
 @admin.register(Customization)
 class CustomizationAdmin(ScorerModelAdmin):
     form = CustomizationForm
     raw_id_fields = ["scorer"]
-    inlines = [AllowListInline]
+    inlines = [AllowListInline, IncludedChainIdInline]
     fieldsets = [
         (
             None,

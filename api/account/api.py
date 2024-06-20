@@ -611,6 +611,10 @@ def get_account_customization(request, dashboard_path: str):
 
         weights.update(customization.get_customization_dynamic_weights())
 
+        included_chain_ids = list(
+            customization.included_chain_ids.values_list("chain_id", flat=True)
+        )
+
         return dict(
             key=customization.path,
             useCustomDashboardPanel=customization.use_custom_dashboard_panel,
@@ -644,6 +648,7 @@ def get_account_customization(request, dashboard_path: str):
                 "weights": weights,
                 "id": customization.scorer.id,
             },
+            includedChainIds=included_chain_ids,
         )
 
     except Customization.DoesNotExist:
