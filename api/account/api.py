@@ -623,6 +623,7 @@ def get_account_customization(request, dashboard_path: str):
                     "customizationBackground1": customization.customization_background_1,
                     "customizationBackground2": customization.customization_background_2,
                     "customizationForeground1": customization.customization_foreground_1,
+                    "customizationBackground3": customization.customization_button_background,
                 }
             },
             scorerPanel={

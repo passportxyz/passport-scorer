@@ -462,6 +462,12 @@ class Customization(models.Model):
         blank=True,
     )
 
+    customization_button_background = RGBHexColorField(
+        help_text="Action button backgroun color. RGB hex value expected, for example `#aaff66`",
+        null=True,
+        blank=True,
+    )
+
     # Logo
     logo_image = ReactNodeField(
         help_text="The logo in SVG format", null=True, blank=True

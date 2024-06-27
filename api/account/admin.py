@@ -242,6 +242,7 @@ class CustomizationAdmin(ScorerModelAdmin):
                     "customization_background_1",
                     "customization_background_2",
                     "customization_foreground_1",
+                    "customization_button_background",
                 ],
             },
         ),
