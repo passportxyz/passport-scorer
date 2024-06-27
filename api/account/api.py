@@ -641,6 +641,11 @@ def get_account_customization(request, dashboard_path: str):
                     "action": {
                         "text": customization.body_action_text,
                         "url": customization.body_action_url,
+                        "type": customization.button_action_type,
+                    },
+                    "displayInfoTooltip": {
+                        "shouldDisplay": customization.body_display_info_tooltip,
+                        "text": customization.body_info_tooltip_text,
                     },
                 },
             },
