@@ -462,8 +462,14 @@ class Customization(models.Model):
         blank=True,
     )
 
-    customization_button_background = RGBHexColorField(
-        help_text="Action button backgroun color. RGB hex value expected, for example `#aaff66`",
+    customization_background_3 = RGBHexColorField(
+        help_text="Action button background color. RGB hex value expected, for example `#aaff66`",
+        null=True,
+        blank=True,
+    )
+
+    customization_foreground_2 = RGBHexColorField(
+        help_text="Action button text color. RGB hex value expected, for example `#aaff66`",
         null=True,
         blank=True,
     )
