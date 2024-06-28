@@ -520,7 +520,7 @@ class AllowList(models.Model):
     )
 
     customization = models.ForeignKey(
-        Customization, on_delete=models.CASCADE, related_name="allow_lists"
+        Customization, on_delete=models.PROTECT, related_name="allow_lists"
     )
 
     weight = models.DecimalField(default=0.0, max_digits=7, decimal_places=4)
