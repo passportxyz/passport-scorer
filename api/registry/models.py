@@ -73,6 +73,10 @@ class Score(models.Model):
     evidence = models.JSONField(null=True, blank=True)
     stamp_scores = models.JSONField(null=True, blank=True)
 
+    expiration_date = models.DateTimeField(
+        default=None, null=True, blank=True, db_index=True
+    )
+
     def __str__(self):
         return f"Score #{self.id}, score={self.score}, last_score_timestamp={self.last_score_timestamp}, status={self.status}, error={self.error}, evidence={self.evidence}, passport_id={self.passport_id}"
 

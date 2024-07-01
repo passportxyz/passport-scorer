@@ -41,7 +41,7 @@ def test_patch(
     assert body["stamps"][0]["provider"] == "Google"
     assert int(body["score"]["evidence"]["rawScore"]) > 0
     assert body["score"]["status"] == "DONE"
-    assert body["success"] == True
+    assert body["success"] is True
 
 
 def test_delete(
@@ -74,7 +74,7 @@ def test_delete(
     assert len(body["stamps"]) == 0
     assert int(body["score"]["evidence"]["rawScore"]) == 0
     assert body["score"]["status"] == "DONE"
-    assert body["success"] == True
+    assert body["success"] is True
 
 
 def test_post(
@@ -107,4 +107,4 @@ def test_post(
     assert body["stamps"][0]["provider"] == "Google"
     assert int(body["score"]["evidence"]["rawScore"]) > 0
     assert body["score"]["status"] == "DONE"
-    assert body["success"] == True
+    assert body["success"] is True

@@ -88,6 +88,7 @@ class TestGetStamps:
             "passport",
             "score",
             "last_score_timestamp",
+            "expiration_date",
             "status",
             "error",
             "evidence",

@@ -107,6 +107,7 @@ def scorer_community_with_binary_scorer(mocker, scorer_account):
 @pytest.fixture
 def ui_scorer(scorer_community_with_binary_scorer):
     settings.CERAMIC_CACHE_SCORER_ID = scorer_community_with_binary_scorer.id
+    return settings.CERAMIC_CACHE_SCORER_ID
 
 
 @pytest.fixture

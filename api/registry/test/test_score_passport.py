@@ -3,9 +3,7 @@ import re
 from decimal import Decimal
 from unittest.mock import call, patch
 
-from account.deduplication import Rules
 from account.models import Account, AccountAPIKey, Community
-from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TransactionTestCase
@@ -13,11 +11,20 @@ from registry.api.v2 import SubmitPassportPayload, a_submit_passport, get_score
 from registry.models import Event, HashScorerLink, Passport, Score, Stamp
 from registry.tasks import score_passport_passport, score_registry_passport
 from web3 import Web3
+from datetime import datetime, timezone, timedelta
+import copy
 
 User = get_user_model()
 my_mnemonic = settings.TEST_MNEMONIC
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
+
+now = datetime.now(timezone.utc)
+expiration_dates = [
+    now + timedelta(days=2),
+    now + timedelta(days=1),
+    now + timedelta(days=3),
+]
 
 mock_passport_data = {
     "stamps": [
@@ -31,8 +38,8 @@ mock_passport_data = {
                     "provider": "Ens",
                 },
                 "issuer": settings.TRUSTED_IAM_ISSUERS[0],
-                "issuanceDate": "2023-02-06T23:22:58.848Z",
-                "expirationDate": "2099-02-06T23:22:58.848Z",
+                "issuanceDate": (expiration_dates[0] - timedelta(days=30)).isoformat(),
+                "expirationDate": expiration_dates[0].isoformat(),
             },
         },
         {
@@ -45,8 +52,8 @@ mock_passport_data = {
                     "provider": "Google",
                 },
                 "issuer": settings.TRUSTED_IAM_ISSUERS[0],
-                "issuanceDate": "2023-02-06T23:22:58.848Z",
-                "expirationDate": "2099-02-06T23:22:58.848Z",
+                "issuanceDate": (expiration_dates[1] - timedelta(days=30)).isoformat(),
+                "expirationDate": expiration_dates[1].isoformat(),
             },
         },
         {
@@ -59,8 +66,8 @@ mock_passport_data = {
                     "provider": "Gitcoin",
                 },
                 "issuer": settings.TRUSTED_IAM_ISSUERS[0],
-                "issuanceDate": "2023-02-06T23:22:58.848Z",
-                "expirationDate": "2099-02-06T23:22:58.848Z",
+                "issuanceDate": (expiration_dates[2] - timedelta(days=30)).isoformat(),
+                "expirationDate": expiration_dates[2].isoformat(),
             },
         },
     ]
@@ -131,6 +138,7 @@ class TestScorePassportTestCase(TransactionTestCase):
             self.assertEqual(score.evidence, None)
             self.assertEqual(score.status, Score.Status.ERROR)
             self.assertEqual(score.error, "No Passport found for this address.")
+            self.assertEqual(score.expiration_date, None)
 
     def test_score_checksummed_address(self):
         address = self.account.address
@@ -383,3 +391,103 @@ class TestScorePassportTestCase(TransactionTestCase):
         assert (
             Event.objects.filter(action=Event.Action.SCORE_UPDATE).count() == count + 1
         )
+
+    def test_score_expiration_time(self):
+        """
+        Test that the score expiration time is correctly calculated and stored
+        """
+        passport, _ = Passport.objects.update_or_create(
+            address=self.account.address,
+            community_id=self.community.pk,
+            requires_calculation=True,
+        )
+
+        Stamp.objects.filter(passport=passport).delete()
+
+        expected_score_expiration = min(expiration_dates)
+
+        for idx, credential in enumerate(mock_passport_data["stamps"]):
+            Stamp.objects.update_or_create(
+                hash=f"0x1234{idx}",
+                passport=passport,
+                defaults={
+                    "provider": credential["provider"],
+                    "credential": credential,
+                },
+            )
+
+        assert Stamp.objects.filter(passport=passport).count() == len(expiration_dates)
+
+        with patch("registry.atasks.aget_passport", return_value=mock_passport_data):
+            with patch(
+                "registry.atasks.validate_credential", side_effect=mock_validate
+            ):
+                score_passport_passport(self.community.pk, self.account.address)
+
+                score = Score.objects.get(passport=passport)
+
+                assert score.expiration_date == expected_score_expiration
+
+    def test_score_expiration_time_when_all_stamps_expired(self):
+        """
+        Test that the score expiration time is set to None when recalculating the score when all stamps are expired
+        """
+        passport, _ = Passport.objects.update_or_create(
+            address=self.account.address,
+            community_id=self.community.pk,
+            requires_calculation=True,
+        )
+
+        Stamp.objects.filter(passport=passport).delete()
+
+        expected_score_expiration = min(expiration_dates)
+
+        #############################################################################################
+        # Step 1: calculate the score as usual, with all stamps valid
+        #############################################################################################
+        for idx, credential in enumerate(mock_passport_data["stamps"]):
+            Stamp.objects.update_or_create(
+                hash=f"0x1234{idx}",
+                passport=passport,
+                defaults={
+                    "provider": credential["provider"],
+                    "credential": credential,
+                },
+            )
+
+        assert Stamp.objects.filter(passport=passport).count() == len(expiration_dates)
+
+        with patch("registry.atasks.aget_passport", return_value=mock_passport_data):
+            with patch(
+                "registry.atasks.validate_credential", side_effect=mock_validate
+            ):
+                score_passport_passport(self.community.pk, self.account.address)
+
+                score = Score.objects.get(passport=passport)
+
+                assert score.expiration_date == expected_score_expiration
+
+        #############################################################################################
+        # Step 2: calculate the score as usual, with a passport where all stamps are expired
+        #############################################################################################
+        passport.requires_calculation = True
+        passport.save()
+
+        mock_passport_data_expired = copy.deepcopy(mock_passport_data)
+        for stamp in mock_passport_data_expired["stamps"]:
+            stamp["credential"]["expirationDate"] = (
+                now - timedelta(days=1)
+            ).isoformat()
+
+        with patch(
+            "registry.atasks.aget_passport", return_value=mock_passport_data_expired
+        ):
+            with patch(
+                "registry.atasks.validate_credential", side_effect=mock_validate
+            ):
+                score_passport_passport(self.community.pk, self.account.address)
+
+                score = Score.objects.get(passport=passport)
+
+                assert score.score == 0
+                assert score.expiration_date is None
