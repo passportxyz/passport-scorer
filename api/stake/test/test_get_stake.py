@@ -70,7 +70,6 @@ class TestGetStakingResults:
             HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
         response_data = response.json()["items"]
-        print(response_data)
         assert response.status_code == 200
 
         # an extra stake event was added that is below the filtered amount, hence the minus 1

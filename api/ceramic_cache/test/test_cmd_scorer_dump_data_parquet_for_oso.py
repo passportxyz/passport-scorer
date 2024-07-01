@@ -128,7 +128,6 @@ class TestGetStamps:
         ] == list(df.columns)
         assert df.shape == (5, 5)
         for idx, (_, r) in enumerate(df.iterrows()):
-            print(f"Row: {r}")
             assert expected_results[idx]["passport_address"] == r.iloc[0]
             assert (
                 expected_results[idx]["last_score_timestamp"]

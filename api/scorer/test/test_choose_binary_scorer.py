@@ -139,7 +139,13 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
     """I submit a passport that yields a weighted score less than the threshold."""
     with patch(
         "scorer_weighted.computation.acalculate_weighted_score",
-        return_value=[{"sum_of_weights": Decimal("70"), "earned_points": {}}],
+        return_value=[
+            {
+                "sum_of_weights": Decimal("70"),
+                "earned_points": {},
+                "expiration_date": datetime.now(timezone.utc),
+            }
+        ],
     ):
         with patch("registry.atasks.aget_passport", return_value=mock_passport):
             with patch("registry.atasks.validate_credential", side_effect=[[], []]):
@@ -199,7 +205,13 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
     with patch("registry.atasks.get_utc_time", return_value=mock_utc_timestamp):
         with patch(
             "scorer_weighted.computation.acalculate_weighted_score",
-            return_value=[{"sum_of_weights": Decimal("90"), "earned_points": {}}],
+            return_value=[
+                {
+                    "sum_of_weights": Decimal("90"),
+                    "earned_points": {},
+                    "expiration_date": datetime.now(timezone.utc),
+                }
+            ],
         ):
             with patch("registry.atasks.aget_passport", return_value=mock_passport):
                 with patch("registry.atasks.validate_credential", side_effect=[[], []]):

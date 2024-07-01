@@ -4,7 +4,6 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import patch
 
-from account.deduplication import Rules
 from account.models import Account, AccountAPIKey, Community, Nonce
 from ceramic_cache.models import CeramicCache
 from django.conf import settings
@@ -21,6 +20,7 @@ web3.eth.account.enable_unaudited_hdwallet_features()
 
 my_mnemonic = settings.TEST_MNEMONIC
 
+now = datetime.now(timezone.utc)
 ens_credential = {
     "type": ["VerifiableCredential"],
     "proof": {
@@ -32,12 +32,8 @@ ens_credential = {
     },
     "issuer": settings.TRUSTED_IAM_ISSUERS[0],
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    ),
-    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    ),
+    "issuanceDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "expirationDate": (now + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:xG1Todke+0P1jphcnZhP/3UA5XUBMaEux4fHG86I20U=",
@@ -63,12 +59,8 @@ ens_credential_corrupted = {
     },
     "issuer": settings.TRUSTED_IAM_ISSUERS[0],
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    ),
-    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    ),
+    "issuanceDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "expirationDate": (now + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:xG1Todke+0P1jphcnZhP/3UA5XUBMaEux4fHG86I20U=",
@@ -94,12 +86,8 @@ google_credential = {
     },
     "issuer": settings.TRUSTED_IAM_ISSUERS[0],
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    ),
-    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    ),
+    "issuanceDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "expirationDate": (now + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
@@ -125,12 +113,8 @@ google_credential_2 = {
     },
     "issuer": settings.TRUSTED_IAM_ISSUERS[0],
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=3)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    ),
-    "expirationDate": (datetime.utcnow() + timedelta(days=30)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    ),
+    "issuanceDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "expirationDate": (now + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:edgFWHsCSaqGxthSqdilpEXR06Ojw+YLO8K0BSjz0d8=",
@@ -156,12 +140,8 @@ google_credential_expired = {
     },
     "issuer": settings.TRUSTED_IAM_ISSUERS[0],
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=30)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    ),
-    "expirationDate": (datetime.utcnow() - timedelta(days=3)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    ),
+    "issuanceDate": (now - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "expirationDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
@@ -186,12 +166,8 @@ google_credential_soon_to_be_expired = {
     },
     "issuer": settings.TRUSTED_IAM_ISSUERS[0],
     "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "issuanceDate": (datetime.utcnow() - timedelta(days=27)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    ),
-    "expirationDate": (datetime.utcnow() + timedelta(days=3)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    ),
+    "issuanceDate": (now - timedelta(days=27)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "expirationDate": (now + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "credentialSubject": {
         "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
         "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
@@ -207,6 +183,10 @@ google_credential_soon_to_be_expired = {
 
 mock_utc_timestamp = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
 
+mock_passport_expiration_date = min(
+    datetime.fromisoformat(ens_credential["expirationDate"]),
+    datetime.fromisoformat(google_credential["expirationDate"]),
+)
 mock_passport = {
     "issuanceDate": "2022-06-03T15:31:56.944Z",
     "expirationDate": "2022-06-03T15:31:56.944Z",
@@ -406,8 +386,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         # get_passport.return_value = mock_passport
         settings.FF_API_ANALYTICS = "on"
 
-        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
-
         payload = {
             "community": self.community.id,
             "address": self.account.address,
@@ -436,8 +414,6 @@ class ValidatePassportTestCase(TransactionTestCase):
     )
     def test_submit_passport(self, aget_passport, validate_credential):
         # get_passport.return_value = mock_passport
-
-        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
 
         payload = {
             "community": self.community.id,
@@ -510,8 +486,6 @@ class ValidatePassportTestCase(TransactionTestCase):
     def test_submit_passport_reused_nonce(self, aget_passport, validate_credential):
         """Test that submitting a reused nonce results in rejection"""
 
-        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
-
         payload = {
             "community": self.community.id,
             "address": self.account.address,
@@ -572,6 +546,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "score": None,
             "evidence": None,
             "last_score_timestamp": None,
+            "expiration_date": None,
             "status": "ERROR",
             "error": "No Passport found for this address.",
             "stamp_scores": {},
@@ -592,8 +567,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
         # get_passport.return_value = mock_passport
 
-        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
-
         payload = {
             "community": self.community.id,
             "address": self.account.address,
@@ -605,6 +578,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "evidence": None,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
+            "expiration_date": mock_passport_expiration_date.isoformat(),
             "score": Decimal("2.000000000"),
             "status": "DONE",
             "error": None,
@@ -615,6 +589,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "evidence": None,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
+            "expiration_date": mock_passport_expiration_date.isoformat(),
             "score": Decimal("2.000000000"),
             "status": "DONE",
             "error": None,
@@ -692,7 +667,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         """
         Make sure that the community is required when submitting eth address
         """
-        did = f"did:pkh:eip155:1:{self.account.address.lower()}"
 
         payload = {
             "address": self.account.address,

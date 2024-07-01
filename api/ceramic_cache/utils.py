@@ -10,8 +10,13 @@ from jose import jwk, jws
 from multibase import decode
 from multiformats import CID
 from nacl.signing import VerifyKey
+from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
+
+
+def get_utc_time():
+    return datetime.now(timezone.utc)
 
 
 def validate_dag_jws_payload(payload: dict, payload_cid_str: str) -> bool:
@@ -138,11 +143,11 @@ def verify_jws_new(data):
         data["signatures"][0]["protected"] + "." + data["payload"] + "." + signature
     )
 
-    result = jws.verify(signing_input, jwkObj, algorithms=["ES256"])
+    jws.verify(signing_input, jwkObj, algorithms=["ES256"])
 
 
 def verify_jws(data):
     try:
         verify_jws_old(data)
-    except:
+    except Exception:
         verify_jws_new(data)

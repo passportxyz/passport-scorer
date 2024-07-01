@@ -1,13 +1,12 @@
 import datetime
 from datetime import datetime as dt
-from unittest.mock import patch
 
 import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
-from registry.models import Event, Passport, Score
+from registry.models import Passport, Score
 from registry.test.test_passport_get_score import TestPassportGetScore
 from web3 import Web3
 
@@ -26,7 +25,6 @@ def paginated_scores(scorer_passport, passport_holder_addresses, scorer_communit
     last_score_timestamp - will be incresaing from first to last, with a time delta of 1 day
     """
     scores = []
-    events = []
     i = 0
     for holder in passport_holder_addresses:
         passport = Passport.objects.create(
@@ -99,7 +97,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
         response_data = response.json()
 
         assert response.status_code == 200
-        assert response_data["prev"] == None
+        assert response_data["prev"] is None
 
         next_page = client.get(
             response_data["next"],
@@ -285,6 +283,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "score": str(s.score),
                 "status": s.status,
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "expiration_date": None,
                 "evidence": s.evidence,
                 "error": s.error,
                 "stamp_scores": {},
@@ -311,6 +310,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "score": str(s.score),
                 "status": s.status,
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "expiration_date": None,
                 "evidence": s.evidence,
                 "error": s.error,
                 "stamp_scores": {},
@@ -371,6 +371,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "score": str(s.score),
                 "status": s.status,
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "expiration_date": None,
                 "evidence": s.evidence,
                 "error": s.error,
                 "stamp_scores": {},
@@ -397,6 +398,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "score": str(s.score),
                 "status": s.status,
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "expiration_date": None,
                 "evidence": s.evidence,
                 "error": s.error,
                 "stamp_scores": {},
@@ -421,6 +423,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "score": str(s.score),
                 "status": s.status,
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "expiration_date": None,
                 "evidence": s.evidence,
                 "error": s.error,
                 "stamp_scores": {},
@@ -469,6 +472,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "score": str(s.score),
                 "status": s.status,
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "expiration_date": None,
                 "evidence": s.evidence,
                 "error": s.error,
                 "stamp_scores": {},
@@ -494,6 +498,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "score": str(s.score),
                 "status": s.status,
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "expiration_date": None,
                 "evidence": s.evidence,
                 "error": s.error,
                 "stamp_scores": {},
@@ -512,7 +517,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
         response_json = response.json()
         response_data = response_json["items"]
         prev_page = response_json["prev"]
-        assert response_json["next"] == None
+        assert response_json["next"] is None
         assert len(response_data) == 1
         assert response_data == [
             {
@@ -520,6 +525,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "score": str(s.score),
                 "status": s.status,
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "expiration_date": None,
                 "evidence": s.evidence,
                 "error": s.error,
                 "stamp_scores": {},
@@ -545,6 +551,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "score": str(s.score),
                 "status": s.status,
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "expiration_date": None,
                 "evidence": s.evidence,
                 "error": s.error,
                 "stamp_scores": {},
@@ -570,6 +577,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "score": str(s.score),
                 "status": s.status,
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "expiration_date": None,
                 "evidence": s.evidence,
                 "error": s.error,
                 "stamp_scores": {},
@@ -614,6 +622,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "score": str(s.score),
                 "status": s.status,
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "expiration_date": None,
                 "evidence": s.evidence,
                 "error": s.error,
                 "stamp_scores": {},
@@ -640,6 +649,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
                 "score": str(s.score),
                 "status": s.status,
                 "last_score_timestamp": s.last_score_timestamp.isoformat(),
+                "expiration_date": None,
                 "evidence": s.evidence,
                 "error": s.error,
                 "stamp_scores": {},
@@ -776,8 +786,6 @@ class TestPassportGetScoreV2(TestPassportGetScore):
     ):
         address = passport_holder_addresses[0]["address"]
 
-        event_object = list(Event.objects.all())
-
         client = Client()
         response = client.get(
             f"{self.base_url}/score/{scorer_community.id}/history",
@@ -799,8 +807,6 @@ class TestPassportGetScoreV2(TestPassportGetScore):
     ):
         created_at = timezone.now() + datetime.timedelta(days=40)
         address = passport_holder_addresses[0]["address"]
-
-        event_object = list(Event.objects.all())
 
         client = Client()
         response = client.get(

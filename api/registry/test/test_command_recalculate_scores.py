@@ -24,7 +24,9 @@ def fixture_binaty_weighted_scorer_passports(
         passport=passport,
         provider="FirstEthTxnProvider",
         hash="0x1234",
-        credential={},
+        credential={
+            "expirationDate": "2022-01-01T00:00:00Z",
+        },
     )
 
     passport1 = Passport.objects.create(
@@ -36,13 +38,17 @@ def fixture_binaty_weighted_scorer_passports(
         passport=passport1,
         provider="FirstEthTxnProvider",
         hash="0x12345",
-        credential={},
+        credential={
+            "expirationDate": "2022-01-01T00:00:00Z",
+        },
     )
     Stamp.objects.create(
         passport=passport1,
         provider="Google",
         hash="0x123456",
-        credential={},
+        credential={
+            "expirationDate": "2022-01-01T00:00:00Z",
+        },
     )
 
     passport2 = Passport.objects.create(
@@ -54,19 +60,25 @@ def fixture_binaty_weighted_scorer_passports(
         passport=passport2,
         provider="FirstEthTxnProvider",
         hash="0x12345a",
-        credential={},
+        credential={
+            "expirationDate": "2022-01-01T00:00:00Z",
+        },
     )
     Stamp.objects.create(
         passport=passport2,
         provider="Google",
         hash="0x123456ab",
-        credential={},
+        credential={
+            "expirationDate": "2022-01-01T00:00:00Z",
+        },
     )
     Stamp.objects.create(
         passport=passport2,
         provider="Ens",
         hash="0x123456abc",
-        credential={},
+        credential={
+            "expirationDate": "2022-01-01T00:00:00Z",
+        },
     )
 
     return [passport, passport1, passport2]
@@ -84,7 +96,9 @@ def fixture_weighted_scorer_passports(
         passport=passport,
         provider="FirstEthTxnProvider",
         hash="0x1234",
-        credential={},
+        credential={
+            "expirationDate": "2022-01-01T00:00:00Z",
+        },
     )
 
     passport1 = Passport.objects.create(
@@ -96,13 +110,17 @@ def fixture_weighted_scorer_passports(
         passport=passport1,
         provider="FirstEthTxnProvider",
         hash="0x12345",
-        credential={},
+        credential={
+            "expirationDate": "2022-01-01T00:00:00Z",
+        },
     )
     Stamp.objects.create(
         passport=passport1,
         provider="Google",
         hash="0x123456",
-        credential={},
+        credential={
+            "expirationDate": "2022-01-01T00:00:00Z",
+        },
     )
 
     passport2 = Passport.objects.create(
@@ -114,19 +132,25 @@ def fixture_weighted_scorer_passports(
         passport=passport2,
         provider="FirstEthTxnProvider",
         hash="0x12345a",
-        credential={},
+        credential={
+            "expirationDate": "2022-01-01T00:00:00Z",
+        },
     )
     Stamp.objects.create(
         passport=passport2,
         provider="Google",
         hash="0x123456ab",
-        credential={},
+        credential={
+            "expirationDate": "2022-01-01T00:00:00Z",
+        },
     )
     Stamp.objects.create(
         passport=passport2,
         provider="Ens",
         hash="0x123456abc",
-        credential={},
+        credential={
+            "expirationDate": "2022-01-01T00:00:00Z",
+        },
     )
 
     return [passport, passport1, passport2]
@@ -161,7 +185,7 @@ class TestRecalculatScores:
         for s in scores:
             assert s.score == 0
             assert s.status == "DONE"
-            assert s.error == None
+            assert s.error is None
 
     updated_weights = {
         "FirstEthTxnProvider": "75",
@@ -196,7 +220,7 @@ class TestRecalculatScores:
         for s in scores:
             assert s.score == 1
             assert s.status == "DONE"
-            assert s.error == None
+            assert s.error is None
 
         s1 = Score.objects.get(passport=binary_weighted_scorer_passports[0])
         assert s1.evidence["rawScore"] == "75"
@@ -224,13 +248,10 @@ class TestRecalculatScores:
     ):
         """Test the recalculate_scores command for weighted scorer"""
 
-        community = scorer_community_with_weighted_scorer
         args = []
         opts = {}
 
         scores = list(Score.objects.all())
-
-        scorer = community.get_scorer()
 
         # Check the initial threshold
         assert len(scores) == 0
@@ -241,8 +262,8 @@ class TestRecalculatScores:
 
         for s in scores:
             assert s.status == "DONE"
-            assert s.error == None
-            assert s.evidence == None
+            assert s.error is None
+            assert s.evidence is None
 
         s1 = Score.objects.get(passport=weighted_scorer_passports[0])
         assert s1.score == 1
@@ -298,8 +319,8 @@ class TestRecalculatScores:
         # Expect all scores to be above threshold
         for s in scores:
             assert s.status == "DONE"
-            assert s.error == None
-            assert s.evidence == None
+            assert s.error is None
+            assert s.evidence is None
 
         s1 = Score.objects.get(passport=weighted_scorer_passports[0])
         assert s1.score == 75
