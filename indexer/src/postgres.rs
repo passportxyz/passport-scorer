@@ -250,11 +250,12 @@ impl PostgresClient {
             )
             .await?;
 
-        if let Some(row) = start_block_rows.get(0) {
-            let start_block: Decimal = row.get("start_block_number");
-            Ok(start_block.to_u64().unwrap())
-        } else {
-            Ok(0)
+        match start_block_rows.get(0) {
+            Some(row) => {
+                let start_block: Decimal = row.get("start_block_number");
+                Ok(start_block.to_u64().unwrap())
+            }
+            None => Ok(0),
         }
     }
 
@@ -280,11 +281,12 @@ impl PostgresClient {
             )
             .await?;
 
-        if let Some(row) = count_rows.get(0) {
-            let count: i64 = row.get("count");
-            Ok(count)
-        } else {
-            Ok(0)
+        match count_rows.get(0) {
+            Some(row) => {
+                let count: i64 = row.get("count");
+                Ok(count)
+            }
+            None => Ok(0),
         }
     }
 
@@ -301,12 +303,12 @@ impl PostgresClient {
             )
             .await?;
 
-        if let Some(row) = latest_block_rows.get(0) {
-            // Extract and return the block number
-            let latest_block: Decimal = row.get("block_number");
-            Ok(latest_block.to_u64().unwrap())
-        } else {
-            Ok(0)
+        match latest_block_rows.get(0) {
+            Some(row) => {
+                let latest_block: Decimal = row.get("block_number");
+                Ok(latest_block.to_u64().unwrap())
+            }
+            None => Ok(0),
         }
     }
 
@@ -319,13 +321,13 @@ impl PostgresClient {
             )
             .await?;
 
-        if let Some(row) = latest_block_rows.get(0) {
-            // Extract and return the block number
-            let latest_block: i32 = row.get("block_number");
-            Ok(latest_block)
-        } else {
-            // return contract start block
-            Ok(LEGACY_CONTRACT_START_BLOCK)
+        match latest_block_rows.get(0) {
+            Some(row) => {
+                // Extract and return the block number
+                let latest_block: i32 = row.get("block_number");
+                Ok(latest_block)
+            }
+            None => Ok(LEGACY_CONTRACT_START_BLOCK),
         }
     }
 }
