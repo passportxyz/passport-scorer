@@ -125,14 +125,13 @@ impl PostgresClient {
             // Log current stake state
             client.execute(
                 concat!(
-                    "INSERT INTO stake_stake as stake (chain, staker, stakee, unlock_time, lock_time, last_updated_in_block, current_amount)",
-                    " VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (chain, staker, stakee) DO UPDATE",
-                    " SET unlock_time = EXCLUDED.unlock_time,",
-                    "     lock_time = EXCLUDED.lock_time,",
-                    "     last_updated_in_block = EXCLUDED.last_updated_in_block,",
+                    "INSERT INTO stake_stake as stake (chain, staker, stakee, unlock_time, lock_time, current_amount)",
+                    " VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (chain, staker, stakee) DO UPDATE",
+                    " SET unlock_time = GREATEST(EXCLUDED.unlock_time, stake.unlock_time),",
+                    "     lock_time = GREATEST(EXCLUDED.lock_time, stake.lock_time),",
                     "     current_amount = stake.current_amount + EXCLUDED.current_amount",
                 ),
-                &[&chain_id, &staker, &stakee, &unlock_time, &lock_time, &block_number, &increase_amount]
+                &[&chain_id, &staker, &stakee, &unlock_time, &lock_time, &increase_amount]
             ).await?;
 
             Ok::<(), Error>(())
@@ -147,7 +146,7 @@ impl PostgresClient {
                 // rollback transaction
                 client.execute("ROLLBACK", &[]).await?;
                 // continue if duplicate key error
-                if format!("{:?}", e).contains(&format!("Key (tx_hash)=({}) already exists.", tx_hash)) {
+                if format!("{:?}", e).contains(&format!("Key (tx_hash, chain)=({}, {}) already exists.", tx_hash, chain_id)) {
                     return Ok(());
                 }
                 return Err(e);
@@ -224,7 +223,7 @@ impl PostgresClient {
                 // rollback transaction
                 client.execute("ROLLBACK", &[]).await?;
                 // continue if duplicate key error
-                if format!("{:?}", e).contains(&format!("Key (tx_hash)=({}) already exists.", tx_hash)) {
+                if format!("{:?}", e).contains(&format!("Key (tx_hash, chain)=({}, {}) already exists.", tx_hash, chain_id)) {
                     return Ok(());
                 }
                 return Err(e);

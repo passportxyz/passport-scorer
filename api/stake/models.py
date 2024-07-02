@@ -10,15 +10,6 @@ class Stake(models.Model):
     lock_time = models.DateTimeField(null=False, blank=False)
     unlock_time = models.DateTimeField(null=False, blank=False)
 
-    last_updated_in_block = models.DecimalField(
-        decimal_places=0,
-        null=False,
-        blank=False,
-        max_digits=78,
-        db_index=True,
-        help_text="Block number (uint256) in which the stake was last updated (including slash/release)",
-    )
-
     # For self-stake, staker and stakee are the same
     staker = EthAddressField(null=False, blank=False, db_index=True)
     stakee = EthAddressField(null=False, blank=False, db_index=True)
@@ -68,10 +59,13 @@ class StakeEvent(models.Model):
         decimal_places=0, null=False, blank=False, max_digits=78, db_index=True
     )
 
-    tx_hash = models.CharField(max_length=66, null=False, blank=False, unique=True)
+    tx_hash = models.CharField(max_length=66, null=False, blank=False)
 
     # Only applies to SelfStake and CommunityStake events
     unlock_time = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ["tx_hash", "chain"]
 
 
 class ReindexRequest(models.Model):
