@@ -65,10 +65,34 @@ class StakeEvent(models.Model):
     )
 
     block_number = models.DecimalField(
-        decimal_places=0, null=False, blank=False, max_digits=78
+        decimal_places=0, null=False, blank=False, max_digits=78, db_index=True
     )
 
-    tx_hash = models.CharField(max_length=66, null=False, blank=False)
+    tx_hash = models.CharField(max_length=66, null=False, blank=False, unique=True)
 
     # Only applies to SelfStake and CommunityStake events
     unlock_time = models.DateTimeField(null=True, blank=True)
+
+
+class ReindexRequest(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    chain = models.IntegerField(
+        null=False, blank=False, db_index=True, help_text="Decimal chain ID"
+    )
+
+    start_block_number = models.DecimalField(
+        decimal_places=0, null=False, blank=False, max_digits=78
+    )
+
+    pending = models.BooleanField(null=False, blank=False, default=True, db_index=True)
+
+    class Meta:
+        # Only one reindex request can be pending at a time for a chain
+        constraints = [
+            models.UniqueConstraint(
+                fields=["chain"],
+                name="unique_only_one_pending_per_chain",
+                condition=models.Q(pending=True),
+            ),
+        ]

@@ -83,7 +83,7 @@ async fn run_ethereum_indexer(
         contract_address,
     )
     .await?;
-    ethereum_staking_indexer.index_events().await
+    ethereum_staking_indexer.listen_with_timeout_reset().await
 }
 
 async fn run_optimism_indexer(
@@ -105,7 +105,7 @@ async fn run_optimism_indexer(
         contract_address,
     )
     .await?;
-    optimism_staking_indexer.index_events().await
+    optimism_staking_indexer.listen_with_timeout_reset().await
 }
 
 async fn run_arbitrum_indexer(
@@ -127,7 +127,7 @@ async fn run_arbitrum_indexer(
         contract_address,
     )
     .await?;
-    arbitrum_staking_indexer.index_events().await
+    arbitrum_staking_indexer.listen_with_timeout_reset().await
 }
 
 
@@ -150,5 +150,5 @@ async fn run_optimism_sepolia_indexer(
         contract_address,
     )
     .await?;
-    op_sepolia_staking_indexer.index_events().await
+    op_sepolia_staking_indexer.listen_with_timeout_reset().await
 }

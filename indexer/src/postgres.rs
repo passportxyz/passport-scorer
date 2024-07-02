@@ -18,12 +18,6 @@ pub struct PostgresClient {
     pool: Pool,
 }
 
-pub struct ManualIndexRequest {
-    pub id: i32,
-    pub block_number: u64,
-    pub tx_hash: String,
-}
-
 impl PostgresClient {
     pub async fn new() -> Result<Self, Error> {
         let mut pg_config = tokio_postgres::Config::new();
@@ -42,9 +36,7 @@ impl PostgresClient {
 
         let pool = Pool::builder(mgr).max_size(16).build().unwrap();
 
-        Ok(Self {
-            pool,
-        })
+        Ok(Self { pool })
     }
 
     // This function is for legacy staking contract events
@@ -94,36 +86,6 @@ impl PostgresClient {
         DateTime::from_timestamp(*unix_time as i64, 0).unwrap()
     }
 
-    pub async fn get_pending_manual_index_requests(&self, chain_id: u32) -> Result<Vec<ManualIndexRequest>, Error> {
-        let client = self.pool.get().await.unwrap();
-        let raw_rows = client
-            .query("SELECT id, block_number, tx_hash FROM stake_manualindexrequest WHERE status = 'pending' AND chain_id = $1", &[&(chain_id as i32)])
-            .await?;
-
-        let mut rows = Vec::new();
-
-        for row in raw_rows {
-            let id: i32 = row.get("id");
-            let decimal_block_number: Decimal = row.get("block_number");
-            let block_number: u64 = decimal_block_number.to_u64().unwrap();
-            let tx_hash: String = row.get("tx_hash");
-
-            rows.push(ManualIndexRequest {
-                id,
-                block_number,
-                tx_hash,
-            });
-        }
-
-        Ok(rows)
-    }
-
-    pub async fn update_manual_index_request_status(&self, id: i32, status: &str) -> Result<(), Error> {
-        let client = self.pool.get().await.unwrap();
-        client.execute("UPDATE stake_manualindexrequest SET status = $1 WHERE id = $2", &[&status, &id]).await?;
-        Ok(())
-    }
-
     pub async fn add_or_extend_stake(
         &self,
         event_type: &StakeEventType,
@@ -147,28 +109,51 @@ impl PostgresClient {
 
         let client = self.pool.get().await.unwrap();
 
-        // Log current stake state
-        client.execute(
-            concat!(
-                "INSERT INTO stake_stake as stake (chain, staker, stakee, unlock_time, lock_time, last_updated_in_block, current_amount)",
-                " VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (chain, staker, stakee) DO UPDATE",
-                " SET unlock_time = EXCLUDED.unlock_time,",
-                "     lock_time = EXCLUDED.lock_time,",
-                "     last_updated_in_block = EXCLUDED.last_updated_in_block,",
-                "     current_amount = stake.current_amount + EXCLUDED.current_amount",
-                " WHERE EXCLUDED.last_updated_in_block >= stake.last_updated_in_block"
-            ),
-            &[&chain_id, &staker, &stakee, &unlock_time, &lock_time, &block_number, &increase_amount]
-        ).await?;
+        // begin transaction
+        client.execute("BEGIN", &[]).await?;
 
-        // Log raw event
-        client.execute(
-            concat!(
-                "INSERT INTO stake_stakeevent (event_type, chain, staker, stakee, amount, unlock_time, block_number, tx_hash)",
-                " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
-            ),
-            &[&get_code_for_stake_event_type(event_type), &chain_id, &staker, &stakee, &increase_amount, &unlock_time, &block_number, &tx_hash]
-        ).await?;
+        let do_query = async {
+            // Log raw event
+            client.execute(
+                concat!(
+                    "INSERT INTO stake_stakeevent (event_type, chain, staker, stakee, amount, unlock_time, block_number, tx_hash)",
+                    " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+                ),
+                &[&get_code_for_stake_event_type(event_type), &chain_id, &staker, &stakee, &increase_amount, &unlock_time, &block_number, &tx_hash]
+            ).await?;
+
+            // Log current stake state
+            client.execute(
+                concat!(
+                    "INSERT INTO stake_stake as stake (chain, staker, stakee, unlock_time, lock_time, last_updated_in_block, current_amount)",
+                    " VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (chain, staker, stakee) DO UPDATE",
+                    " SET unlock_time = EXCLUDED.unlock_time,",
+                    "     lock_time = EXCLUDED.lock_time,",
+                    "     last_updated_in_block = EXCLUDED.last_updated_in_block,",
+                    "     current_amount = stake.current_amount + EXCLUDED.current_amount",
+                    " WHERE EXCLUDED.last_updated_in_block >= stake.last_updated_in_block"
+                ),
+                &[&chain_id, &staker, &stakee, &unlock_time, &lock_time, &block_number, &increase_amount]
+            ).await?;
+
+            Ok::<(), Error>(())
+        };
+
+        match do_query.await {
+            Ok(_) => {
+                // commit transaction
+                client.execute("COMMIT", &[]).await?;
+            }
+            Err(e) => {
+                // rollback transaction
+                client.execute("ROLLBACK", &[]).await?;
+                // continue if duplicate key error
+                if format!("{:?}", e).contains(&format!("Key (tx_hash)=({}) already exists.", tx_hash)) {
+                    return Ok(());
+                }
+                return Err(e);
+            }
+        }
 
         println!(
             "Added or extended stake in block {} on chain {}!",
@@ -202,29 +187,51 @@ impl PostgresClient {
 
         let client = self.pool.get().await.unwrap();
 
-        // Log current stake state
-        client
-            .execute(
-                concat!(
-                    "UPDATE stake_stake",
-                    " SET current_amount = current_amount + $1",
-                    " WHERE chain = $2 AND staker = $3 AND stakee = $4",
-                    " AND last_updated_in_block <= $5"
-                ),
-                &[&amount, &chain_id, &staker, &stakee, &block_number],
-            )
-            .await?;
+        // begin transaction
+        client.execute("BEGIN", &[]).await?;
 
-        // Log raw event
-        client
-            .execute(
-                concat!(
-                    "INSERT INTO stake_stakeevent (event_type, chain, staker, stakee, amount, block_number, tx_hash)",
-                    " VALUES ($1, $2, $3, $4, $5, $6, $7)"
-                ),
-                &[&get_code_for_stake_event_type(event_type), &chain_id, &staker, &stakee, &amount, &block_number, &tx_hash],
-            )
-            .await?;
+        let do_query = async {
+            // Log raw event
+            client.execute(
+                    concat!(
+                        "INSERT INTO stake_stakeevent (event_type, chain, staker, stakee, amount, block_number, tx_hash)",
+                        " VALUES ($1, $2, $3, $4, $5, $6, $7)"
+                    ),
+                    &[&get_code_for_stake_event_type(event_type), &chain_id, &staker, &stakee, &amount, &block_number, &tx_hash],
+                )
+                .await?;
+
+            // Log current stake state
+            client
+                .execute(
+                    concat!(
+                        "UPDATE stake_stake",
+                        " SET current_amount = current_amount + $1",
+                        " WHERE chain = $2 AND staker = $3 AND stakee = $4",
+                        " AND last_updated_in_block <= $5"
+                    ),
+                    &[&amount, &chain_id, &staker, &stakee, &block_number],
+                )
+                .await?;
+
+            Ok::<(), Error>(())
+        };
+
+        match do_query.await {
+            Ok(_) => {
+                // commit transaction
+                client.execute("COMMIT", &[]).await?;
+            }
+            Err(e) => {
+                // rollback transaction
+                client.execute("ROLLBACK", &[]).await?;
+                // continue if duplicate key error
+                if format!("{:?}", e).contains(&format!("Key (tx_hash)=({}) already exists.", tx_hash)) {
+                    return Ok(());
+                }
+                return Err(e);
+            }
+        }
 
         println!(
             "Modified stake amount in block {} on chain {}!",
@@ -234,23 +241,73 @@ impl PostgresClient {
         Ok(())
     }
 
-    pub async fn get_latest_block(&self, chain_id: u32, fallback_start_block: u64) -> Result<u64, Error> {
+    pub async fn get_requested_start_block(&self, chain_id: u32) -> Result<u64, Error> {
+        let chain_id: i32 = chain_id as i32;
+        let client = self.pool.get().await.unwrap();
+        let start_block_rows = client
+            .query(
+                "SELECT start_block_number FROM stake_reindexrequest WHERE chain = $1 AND pending = true",
+                &[&chain_id],
+            )
+            .await?;
+
+        if let Some(row) = start_block_rows.get(0) {
+            let start_block: Decimal = row.get("start_block_number");
+            Ok(start_block.to_u64().unwrap())
+        } else {
+            Ok(0)
+        }
+    }
+
+    pub async fn acknowledge_requested_start_block(&self, chain_id: u32) -> Result<(), Error> {
+        let chain_id: i32 = chain_id as i32;
+        let client = self.pool.get().await.unwrap();
+        client
+            .execute(
+                "UPDATE stake_reindexrequest SET pending = false WHERE chain = $1 and pending = true",
+                &[&chain_id],
+            )
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_stake_event_count(&self, chain_id: u32) -> Result<i64, Error> {
+        let chain_id: i32 = chain_id as i32;
+        let client = self.pool.get().await.unwrap();
+        let count_rows = client
+            .query(
+                "SELECT COUNT(*) FROM stake_stakeevent WHERE chain = $1",
+                &[&chain_id],
+            )
+            .await?;
+
+        if let Some(row) = count_rows.get(0) {
+            let count: i64 = row.get("count");
+            Ok(count)
+        } else {
+            Ok(0)
+        }
+    }
+
+    pub async fn get_latest_block(
+        &self,
+        chain_id: u32
+    ) -> Result<u64, Error> {
         let chain_id: i32 = chain_id as i32;
         let client = self.pool.get().await.unwrap();
         let latest_block_rows = client
             .query(
-                "SELECT last_updated_in_block FROM stake_stake WHERE chain = $1 ORDER BY last_updated_in_block DESC LIMIT 1;",
+                "SELECT block_number FROM stake_stakeevent WHERE chain = $1 ORDER BY block_number DESC LIMIT 1;",
                 &[&chain_id],
             )
             .await?;
 
         if let Some(row) = latest_block_rows.get(0) {
             // Extract and return the block number
-            let latest_block: Decimal = row.get("last_updated_in_block");
+            let latest_block: Decimal = row.get("block_number");
             Ok(latest_block.to_u64().unwrap())
         } else {
-            // return contract start block
-            Ok(fallback_start_block)
+            Ok(0)
         }
     }
 
