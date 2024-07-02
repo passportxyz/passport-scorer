@@ -78,7 +78,10 @@ class ReindexRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     chain = models.IntegerField(
-        null=False, blank=False, db_index=True, help_text="Decimal chain ID"
+        null=False,
+        blank=False,
+        db_index=True,
+        help_text="Decimal chain ID. Ethereum: 1, Optimism: 10, Arbitrum: 42161",
     )
 
     start_block_number = models.DecimalField(
