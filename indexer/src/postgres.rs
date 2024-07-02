@@ -125,13 +125,14 @@ impl PostgresClient {
             // Log current stake state
             client.execute(
                 concat!(
-                    "INSERT INTO stake_stake as stake (chain, staker, stakee, unlock_time, lock_time, current_amount)",
-                    " VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (chain, staker, stakee) DO UPDATE",
+                    "INSERT INTO stake_stake as stake (chain, staker, stakee, unlock_time, lock_time, last_updated_in_block, current_amount)",
+                    " VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (chain, staker, stakee) DO UPDATE",
                     " SET unlock_time = GREATEST(EXCLUDED.unlock_time, stake.unlock_time),",
                     "     lock_time = GREATEST(EXCLUDED.lock_time, stake.lock_time),",
+                    "     last_updated_in_block = GREATEST(EXCLUDED.last_updated_in_block, stake.last_updated_in_block),",
                     "     current_amount = stake.current_amount + EXCLUDED.current_amount",
                 ),
-                &[&chain_id, &staker, &stakee, &unlock_time, &lock_time, &increase_amount]
+                &[&chain_id, &staker, &stakee, &unlock_time, &lock_time, &block_number, &increase_amount]
             ).await?;
 
             Ok::<(), Error>(())
@@ -203,11 +204,12 @@ impl PostgresClient {
             client
                 .execute(
                     concat!(
-                        "UPDATE stake_stake",
-                        " SET current_amount = current_amount + $1",
+                        "UPDATE stake_stake as stake",
+                        " SET current_amount = current_amount + $1,",
+                        "     last_updated_in_block = GREATEST($5, stake.last_updated_in_block)",
                         " WHERE chain = $2 AND staker = $3 AND stakee = $4",
                     ),
-                    &[&amount, &chain_id, &staker, &stakee],
+                    &[&amount, &chain_id, &staker, &stakee, &block_number],
                 )
                 .await?;
 

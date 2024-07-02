@@ -59,10 +59,7 @@ impl<'a> StakingIndexer<'a> {
                 .await?;
             return Ok(requested_start_block);
         } else {
-            let latest_logged_block = self
-                .postgres_client
-                .get_latest_block(self.chain_id)
-                .await?;
+            let latest_logged_block = self.postgres_client.get_latest_block(self.chain_id).await?;
 
             if latest_logged_block > 0 {
                 return Ok(latest_logged_block + 1);
