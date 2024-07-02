@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
         let contract_address_op_mainnet = get_env("STAKING_CONTRACT_ADDRESS_OP_MAINNET")
             .parse::<Address>()
             .unwrap();
-      
+
         let contract_address_op_sepolia = get_env("STAKING_CONTRACT_ADDRESS_OP_SEPOLIA")
             .parse::<Address>()
             .unwrap();

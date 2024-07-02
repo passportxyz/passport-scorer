@@ -1,6 +1,6 @@
 from django.contrib import admin
 from scorer.scorer_admin import ScorerModelAdmin
-from stake.models import Stake, StakeEvent
+from stake.models import Stake, StakeEvent, ReindexRequest
 
 
 @admin.register(Stake)
@@ -51,3 +51,20 @@ class StakeEventAdmin(ScorerModelAdmin):
         "tx_hash",
     ]
     search_help_text = "Search by: " + ", ".join(search_fields)
+
+
+@admin.register(ReindexRequest)
+class ReindexRequestAdmin(admin.ModelAdmin):
+    list_display = [
+        "pending",
+        "chain",
+        "start_block_number",
+        "created_at",
+    ]
+
+    list_filter = [
+        "chain",
+        "pending",
+    ]
+
+    readonly_fields = ("pending",)
