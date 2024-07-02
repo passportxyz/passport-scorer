@@ -131,7 +131,6 @@ impl PostgresClient {
                     "     lock_time = EXCLUDED.lock_time,",
                     "     last_updated_in_block = EXCLUDED.last_updated_in_block,",
                     "     current_amount = stake.current_amount + EXCLUDED.current_amount",
-                    " WHERE EXCLUDED.last_updated_in_block >= stake.last_updated_in_block"
                 ),
                 &[&chain_id, &staker, &stakee, &unlock_time, &lock_time, &block_number, &increase_amount]
             ).await?;
@@ -208,9 +207,8 @@ impl PostgresClient {
                         "UPDATE stake_stake",
                         " SET current_amount = current_amount + $1",
                         " WHERE chain = $2 AND staker = $3 AND stakee = $4",
-                        " AND last_updated_in_block <= $5"
                     ),
-                    &[&amount, &chain_id, &staker, &stakee, &block_number],
+                    &[&amount, &chain_id, &staker, &stakee],
                 )
                 .await?;
 
