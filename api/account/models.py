@@ -417,6 +417,10 @@ class Customization(models.Model):
         DOTS = "DOTS"
         NONE = "NONE"
 
+    class CustomizationOnChainButtonAction(models.TextChoices):
+        SIMPLE_LINK = "Simple Link"
+        ONCHAIN_PUSH = "Onchain Push"
+
     path = models.CharField(
         max_length=100,
         db_index=True,
@@ -458,6 +462,18 @@ class Customization(models.Model):
         blank=True,
     )
 
+    customization_background_3 = RGBHexColorField(
+        help_text="Action button background color. RGB hex value expected, for example `#aaff66`",
+        null=True,
+        blank=True,
+    )
+
+    customization_foreground_2 = RGBHexColorField(
+        help_text="Action button text color. RGB hex value expected, for example `#aaff66`",
+        null=True,
+        blank=True,
+    )
+
     # Logo
     logo_image = ReactNodeField(
         help_text="The logo in SVG format", null=True, blank=True
@@ -484,6 +500,17 @@ class Customization(models.Model):
     body_action_url = models.URLField(
         blank=True,
         null=True,
+    )
+
+    button_action_type = models.CharField(
+        max_length=25,
+        choices=CustomizationOnChainButtonAction.choices,
+        default=CustomizationOnChainButtonAction.SIMPLE_LINK,
+    )
+
+    body_display_info_tooltip = models.BooleanField(default=False)
+    body_info_tooltip_text = ReactNodeField(
+        help_text="The info tooltip text", null=True, blank=True
     )
 
     def get_customization_dynamic_weights(self) -> dict:

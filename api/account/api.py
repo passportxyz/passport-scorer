@@ -623,6 +623,8 @@ def get_account_customization(request, dashboard_path: str):
                     "customizationBackground1": customization.customization_background_1,
                     "customizationBackground2": customization.customization_background_2,
                     "customizationForeground1": customization.customization_foreground_1,
+                    "customizationForeground2": customization.customization_foreground_2,
+                    "customizationBackground3": customization.customization_background_3,
                 }
             },
             scorerPanel={
@@ -641,6 +643,11 @@ def get_account_customization(request, dashboard_path: str):
                     "action": {
                         "text": customization.body_action_text,
                         "url": customization.body_action_url,
+                        "type": customization.button_action_type,
+                    },
+                    "displayInfoTooltip": {
+                        "shouldDisplay": customization.body_display_info_tooltip,
+                        "text": customization.body_info_tooltip_text,
                     },
                 },
             },
