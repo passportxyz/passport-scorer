@@ -106,7 +106,8 @@ def test_stamp_get(
     assert body["stamps"][0]["provider"] == "Google"
 
 
-def test_weights_get():
+def test_weights_get(scorer_community_with_binary_scorer):
+    settings.CERAMIC_CACHE_SCORER_ID = scorer_community_with_binary_scorer.pk
     event = {
         "isBase64Encoded": False,
     }
