@@ -3,6 +3,7 @@ Module for defining models for Passport Admin.
 Includes models for PassportBanner and DismissedBanners.
 """
 
+from account.models import EthAddressField
 from django.db import models
 
 APPLICATION_CHOICES = [
@@ -29,7 +30,7 @@ class DismissedBanners(models.Model):
     Model representing Dismissed Banners.
     """
 
-    address = models.CharField(max_length=255)
+    address = EthAddressField()
     banner = models.ForeignKey(
         PassportBanner,
         on_delete=models.CASCADE,
