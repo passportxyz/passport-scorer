@@ -42,8 +42,21 @@ def delete_all_user_data(eth_address, dry_run=True):
 
 
 class Command(BaseCommand):
-    """
-    Delete user data, usually as per users request
+    help = """
+    Delete user data (usually as per users request).
+    This will delete the following objects linked to the specified address:
+
+        CeramicCache
+        CeramicCacheLegacy
+        Stamp
+        Score
+        Passport
+        Event
+        HashScorerLink
+        DismissedBanners
+
+    Other data, like Account objects (And all its dependents: AccountAPIKey, Community, ...) are currently not deleted.
+    If required please extend this script for those objects as well
     """
 
     def add_arguments(self, parser):
@@ -63,16 +76,19 @@ class Command(BaseCommand):
         if dry_run:
             print("\n" + "*" * 120)
             print(
-                f"This is a dry run for deleting user data for '{eth_address}'. No data will be deleted."
+                f"\nThis is a dry run for deleting user data for '{eth_address}'. No data will be deleted.\n\n{self.help}"
             )
             print("*" * 120 + "\n")
             delete_all_user_data(eth_address, True)
         else:
-            print("\n" + "*" * 120)
-            print(
-                f"Deleting user data for '{eth_address}'! This is not reversible. Please be careful"
+            self.stdout.write(self.style.ERROR("\n" + "*" * 120))
+            self.stdout.write(
+                self.style.ERROR(
+                    f"\n   >>> Deleting user data for '{eth_address}'! This is not reversible. Please be careful! <<<"
+                )
             )
-            print("*" * 120 + "\n")
+            self.stdout.write(f"\n\n{self.help}")
+            self.stdout.write(self.style.ERROR("*" * 120 + "\n"))
             delete_all_user_data(eth_address, True)
             confirmation = (
                 input("\n\nAre you sure you want to delete these objects? (yes/no): ")
