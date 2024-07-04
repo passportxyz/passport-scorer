@@ -166,6 +166,7 @@ def get_notifications(request, payload: NotificationPayload):
                     link=n.link,
                     link_text=n.link_text,
                     is_read=n.is_read,
+                    created_at=n.created_at,
                 ).dict()
                 for n in [*custom_notifications, *general_notifications]
             ],

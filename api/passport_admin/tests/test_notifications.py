@@ -297,6 +297,7 @@ class TestNotifications:
         generic_notifications,
         deduplication_event,
         expired_stamp,
+        current_date,
     ):
         response = client.post(
             "/passport-admin/notifications",
@@ -320,6 +321,7 @@ class TestNotifications:
             "link": "https://github.com/orgs/gitcoinco/projects/6/views/link",
             "link_text": "here",
             "content": f"You have claimed the same '{deduplication_event.data['provider']}' stamp in two Passports. We only count your stamp once. This duplicate is in your wallet {sample_address}. Learn more about deduplication",
+            "created_at": current_date.isoformat(),
             "is_read": False,
         }
 
@@ -341,6 +343,7 @@ class TestNotifications:
             "link": "some_provider",
             "link_text": None,
             "content": f"Your {expired_stamp.provider} stamp has expired. Please reverify to keep your Passport up to date.",
+            "created_at": current_date.isoformat(),
             "is_read": False,
         }
 
@@ -352,6 +355,7 @@ class TestNotifications:
                     "link": None,
                     "link_text": None,
                     "content": custom_notifications["active"].content,
+                    "created_at": custom_notifications["active"].created_at.isoformat(),
                     "is_read": False,
                 },
                 {
@@ -360,6 +364,7 @@ class TestNotifications:
                     "link": None,
                     "link_text": None,
                     "content": custom_notifications["read"].content,
+                    "created_at": custom_notifications["read"].created_at.isoformat(),
                     "is_read": True,
                 },
                 {
@@ -368,6 +373,9 @@ class TestNotifications:
                     "link": None,
                     "link_text": None,
                     "content": generic_notifications["active"].content,
+                    "created_at": generic_notifications[
+                        "active"
+                    ].created_at.isoformat(),
                     "is_read": False,
                 },
                 {
@@ -376,6 +384,7 @@ class TestNotifications:
                     "link": None,
                     "link_text": None,
                     "content": generic_notifications["read"].content,
+                    "created_at": generic_notifications["read"].created_at.isoformat(),
                     "is_read": True,
                 },
                 expected_deduplication_notification,
@@ -390,7 +399,7 @@ class TestNotifications:
 
         assert received_items == expected_response_items
 
-    def test_expired_chain(self, sample_token, sample_address):
+    def test_expired_chain(self, sample_token, sample_address, current_date):
         response = client.post(
             "/passport-admin/notifications",
             {
@@ -419,6 +428,7 @@ class TestNotifications:
                     "link": None,
                     "link_text": None,
                     "content": "Your on-chain Passport on Chain 1 has expired. Update now to maintain your active status.",
+                    "created_at": current_date.isoformat(),
                     "is_read": False,
                 },
                 {
@@ -435,6 +445,7 @@ class TestNotifications:
                     "link": None,
                     "link_text": None,
                     "content": "Your on-chain Passport on Chain 2 has expired. Update now to maintain your active status.",
+                    "created_at": current_date.isoformat(),
                     "is_read": False,
                 },
             ],
@@ -536,6 +547,7 @@ class TestNotifications:
                 "link": existing_notification_expired_chain.link,
                 "link_text": existing_notification_expired_chain.link_text,
                 "content": existing_notification_expired_chain.content,
+                "created_at": existing_notification_expired_chain.created_at.isoformat(),
                 "is_read": False,
             }
         ]
@@ -571,6 +583,7 @@ class TestNotifications:
                 "link": existing_notification_expired_stamp.link,
                 "link_text": existing_notification_expired_stamp.link_text,
                 "content": existing_notification_expired_stamp.content,
+                "created_at": existing_notification_expired_stamp.created_at.isoformat(),
                 "is_read": False,
             }
         ]
@@ -606,6 +619,7 @@ class TestNotifications:
                 "link": existing_notification_deduplication_event.link,
                 "link_text": existing_notification_deduplication_event.link_text,
                 "content": existing_notification_deduplication_event.content,
+                "created_at": existing_notification_deduplication_event.created_at.isoformat(),
                 "is_read": False,
             }
         ]
@@ -613,3 +627,86 @@ class TestNotifications:
         res = response.json()
         received_items = sorted(res["items"], key=lambda x: x["notification_id"])
         assert expected_response == received_items
+
+    def test_no_old_deduplication_events(self, sample_token, sample_address):
+        """
+        Test that no deduplication notifications are generated for events older than 30 days
+        """
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+
+        # Generate deduplication events older than 30 days
+        for i in range(5):
+            obj = Event.objects.create(
+                action=Event.Action.LIFO_DEDUPLICATION,
+                address=sample_address,
+                data={
+                    "hash": "some_hash",
+                    "provider": "some_provider",
+                    "community_id": "some_community_id",
+                },
+            )
+            obj.created_at = thirty_days_ago - timedelta(days=i)
+            obj.save()
+
+        deduplication_events = Event.objects.filter(
+            action=Event.Action.LIFO_DEDUPLICATION,
+            address=sample_address,
+        )
+        assert deduplication_events.count() == 5
+
+        # Call the same endpoint again to check if the same notifications are returned
+        response = client.post(
+            "/passport-admin/notifications",
+            {},
+            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
+            content_type="application/json",
+        )
+
+        res = response.json()
+        received_items = sorted(res["items"], key=lambda x: x["notification_id"])
+        assert len(received_items) == 0
+
+    def test_max_20_active_notifications(self, sample_token, sample_address):
+        """
+        Test that only the 20 newest notifications are returned
+        """
+        for i in range(25):
+            notification = Notification.objects.create(
+                notification_id=f"notification_{i}",
+                type="custom",
+                is_active=True,
+                content=f"Hello! This is a custom notification {i}",
+                eth_address=sample_address,
+            )
+            notification.created_at = timezone.now() - timedelta(days=i)
+            notification.save()
+
+        notifications = Notification.objects.filter(eth_address=sample_address)
+        assert notifications.count() == 25
+
+        # Call the same endpoint again to check if the same notifications are returned
+        response = client.post(
+            "/passport-admin/notifications",
+            {},
+            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
+            content_type="application/json",
+        )
+
+        res = response.json()
+        assert len(res["items"]) == 20
+
+        newest_created_at = max(res["items"], key=lambda x: x["created_at"])[
+            "created_at"
+        ]
+        oldest_created_at = min(res["items"], key=lambda x: x["created_at"])[
+            "created_at"
+        ]
+        assert (
+            res["items"][0]["notification_id"] == "notification_0"
+        )  # Newest notification
+        assert res["items"][0]["created_at"] == newest_created_at
+        assert (
+            res["items"][-1]["notification_id"] == "notification_19"
+        )  # Oldest notification
+
+        assert res["items"][-1]["created_at"] == oldest_created_at

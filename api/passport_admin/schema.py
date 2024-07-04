@@ -1,3 +1,4 @@
+from datetime import date
 from ninja import Schema
 from typing import List, Optional
 
@@ -20,6 +21,7 @@ class NotificationSchema(Schema):
     link: Optional[str] = None
     link_text: Optional[str] = None
     is_read: bool
+    created_at: date
 
 
 class NotificationResponse(Schema):
