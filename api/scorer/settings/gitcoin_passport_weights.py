@@ -48,6 +48,7 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "zkSyncScore#50": "1.67",
     "zkSyncScore#5": "1.67",
     "Outdid": "10",
+    "BinanceBABT": "16.021",
 }
 
 
