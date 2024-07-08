@@ -80,7 +80,7 @@ class PassportAnalysisError(APIException):
     tags=["Passport Analysis"],
 )
 async def get_analysis(
-    request, address: str, model_list: str
+    request, address: str, model_list: str = ""
 ) -> PassportAnalysisResponse:
     split_model_list = [model.trim for model in model_list.split(",")]
     return await handle_get_analysis(address, split_model_list)
