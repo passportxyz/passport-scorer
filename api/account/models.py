@@ -6,14 +6,16 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional, Type
 
-from django.utils.deconstruct import deconstructible
 import api_logging as logging
 from django.conf import settings
+from django.contrib import admin
+from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
+from django.utils.deconstruct import deconstructible
 from rest_framework_api_key.models import AbstractAPIKey
 from scorer_weighted.models import BinaryWeightedScorer, Scorer, WeightedScorer
-from django.core.exceptions import ValidationError
+
 from .deduplication import Rules
 
 log = logging.getLogger(__name__)
@@ -221,6 +223,16 @@ class RateLimits(str, Enum):
         return f"{self.name} - {self.value}"
 
 
+class AnalysisRateLimits(str, Enum):
+    TIER_1 = "15/15m"
+    TIER_2 = "350/15m"
+    TIER_3 = "2000/15m"
+    UNLIMITED = ""
+
+    def __str__(self):
+        return f"{self.name} - {self.value}"
+
+
 class Account(models.Model):
     address = EthAddressField(max_length=100, blank=False, null=False, db_index=True)
     user = models.OneToOneField(
@@ -244,14 +256,29 @@ class AccountAPIKey(AbstractAPIKey):
         blank=True,
     )
 
+    analysis_rate_limit = models.CharField(
+        max_length=20,
+        choices=[(limit.value, limit) for limit in AnalysisRateLimits],
+        default=AnalysisRateLimits.TIER_1.value,
+        null=True,
+        blank=True,
+    )
+
     submit_passports = models.BooleanField(default=True)
     read_scores = models.BooleanField(default=True)
     create_scorers = models.BooleanField(default=False)
 
+    @admin.display(description="Rate Limit")
     def rate_limit_display(self):
         if self.rate_limit == "" or self.rate_limit is None:
             return "Unlimited"
         return str(RateLimits(self.rate_limit))
+
+    @admin.display(description="Analysis Rate Limit")
+    def analysis_rate_limit_display(self):
+        if self.analysis_rate_limit == "" or self.analysis_rate_limit is None:
+            return "Unlimited"
+        return str(AnalysisRateLimits(self.analysis_rate_limit))
 
 
 class AccountAPIKeyAnalytics(models.Model):

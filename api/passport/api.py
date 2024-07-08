@@ -8,7 +8,7 @@ from django.conf import settings
 from ninja import Schema
 from ninja_extra import NinjaExtraAPI
 from ninja_extra.exceptions import APIException
-from registry.api.utils import aapi_key, is_valid_address
+from registry.api.utils import aapi_key, check_rate_limit, is_valid_address
 from registry.exceptions import InvalidAddressException
 
 log = logging.getLogger(__name__)
@@ -66,6 +66,7 @@ class PassportAnalysisError(APIException):
 async def get_analysis(
     request, address: str, model_list: str = None
 ) -> PassportAnalysisResponse:
+    check_rate_limit(request)
     return await handle_get_analysis(address, model_list)
 
 

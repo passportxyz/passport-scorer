@@ -201,13 +201,30 @@ def check_rate_limit(request):
     This is based on the original ratelimit decorator from django_ratelimit
     """
     old_limited = getattr(request, "limited", False)
+
+    # TODO
+    print("request.path", request.path)
+
+    if request.path.startswith("/passport"):
+        ratelimited = check_analysis_rate_limit(request)
+    else:
+        ratelimited = check_standard_rate_limit(request)
+
+    request.limited = ratelimited or old_limited
+
+    if ratelimited:
+        cls = getattr(settings, "RATELIMIT_EXCEPTION_CLASS", Ratelimited)
+        raise (import_string(cls) if isinstance(cls, str) else cls)()
+
+
+def check_standard_rate_limit(request) -> bool:
     rate = request.api_key.rate_limit
 
     # Bypass rate limiting if rate is set to None
     if rate == "":
-        return
+        return False
 
-    ratelimited = is_ratelimited(
+    return is_ratelimited(
         request=request,
         group="registry",
         fn=None,
@@ -216,10 +233,24 @@ def check_rate_limit(request):
         method=ALL,
         increment=True,
     )
-    request.limited = ratelimited or old_limited
-    if ratelimited:
-        cls = getattr(settings, "RATELIMIT_EXCEPTION_CLASS", Ratelimited)
-        raise (import_string(cls) if isinstance(cls, str) else cls)()
+
+
+def check_analysis_rate_limit(request) -> bool:
+    rate = request.api_key.analysis_rate_limit
+
+    # Bypass rate limiting if rate is set to None
+    if rate == "":
+        return False
+
+    return is_ratelimited(
+        request=request,
+        group="analysis",
+        fn=None,
+        key=lambda _request, _group: request.api_key.prefix,
+        rate=rate,
+        method=ALL,
+        increment=True,
+    )
 
 
 # TODO define logic once Community model has been updated
