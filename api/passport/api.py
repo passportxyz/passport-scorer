@@ -1,5 +1,8 @@
+import asyncio
 import json
+from typing import List
 
+import aiohttp
 import api_logging as logging
 import boto3
 from django.conf import settings
@@ -76,42 +79,72 @@ class PassportAnalysisError(APIException):
     description="Retrieve Passport analysis for an Ethereum address, currently consisting of the ETH activity model humanity score (0-100, higher is more likely human).",
     tags=["Passport Analysis"],
 )
-def get_analysis(request, address: str) -> PassportAnalysisResponse:
-    return handle_get_analysis(address)
+async def get_analysis(
+    request, address: str, model_list: str
+) -> PassportAnalysisResponse:
+    split_model_list = [model.trim for model in model_list.split(",")]
+    return await handle_get_analysis(address, split_model_list)
 
 
-def handle_get_analysis(address: str) -> PassportAnalysisResponse:
+# TODO: this should be loaded from settings & env vars
+MODEL_ENDPOINTS = {
+    "eth-model": "http://core-alb.private.gitcoin.co/eth-stamp-v2-predict",
+    "nft-model": "http://core-alb.private.gitcoin.co/nft-model-predict",
+    "zksync-model": "http://core-alb.private.gitcoin.co/zksync-model-v2-predict",
+}
+
+
+async def handle_get_analysis(
+    address: str, model_list: List[str] = ["eth-model", "nft-model", "zksync-model"]
+) -> PassportAnalysisResponse:
     if not is_valid_address(address):
         raise InvalidAddressException()
 
     checksum_address = to_checksum_address(address)
 
     try:
-        lambda_client = get_lambda_client()
-        response = lambda_client.invoke(
-            FunctionName="eth-stamp-v2-api",
-            InvocationType="RequestResponse",
-            Payload=json.dumps(
-                {
-                    "body": json.dumps({"address": checksum_address}),
-                    "isBase64Encoded": False,
-                }
-            ),
-        )
 
-        decoded_response = response["Payload"].read().decode("utf-8")
+        async def post(session, url, data):
+            headers = {"Content-Type": "application/json"}
+            print("individual post request", url, data)
+            async with session.post(
+                url, data=json.dumps(data), headers=headers
+            ) as response:
+                return await response.text()
 
-        parsed_response = json.loads(decoded_response)
+        async def fetch_all(requests):
+            async with aiohttp.ClientSession() as session:
+                tasks = []
+                for url, data in requests:
+                    task = asyncio.ensure_future(post(session, url, data))
+                    tasks.append(task)
+                responses = await asyncio.gather(*tasks)
+                return responses
 
-        response_body = json.loads(parsed_response["body"])
+        requests = []
+        for model_name in model_list:
+            if model_name in MODEL_ENDPOINTS:
+                requests.append(
+                    (f"{MODEL_ENDPOINTS[model_name]}/", {"address": checksum_address})
+                )
+            else:
+                # TODO: raise 400 cause bad model name
+                pass
 
-        score = response_body.get("data", {}).get("human_probability", 0)
+        print("Requests:", requests)
+        # Run the event loop
+        responses = await fetch_all(requests)
+        print("Responses:", responses)
+
+        # Print the responses
+        for response in responses:
+            print(response)
 
         return PassportAnalysisResponse(
             address=address,
             details=PassportAnalysisDetails(
                 models=PassportAnalysisDetailsModels(
-                    ethereum_activity=EthereumActivityModel(score=score)
+                    ethereum_activity=EthereumActivityModel(score=0)
                 )
             ),
         )
