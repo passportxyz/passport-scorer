@@ -93,9 +93,10 @@ async def get_analysis(
 
 # TODO: this should be loaded from settings & env vars
 MODEL_ENDPOINTS = {
-    "eth-model": "http://core-alb.private.gitcoin.co/eth-stamp-v2-predict",
-    "nft-model": "http://core-alb.private.gitcoin.co/nft-model-predict",
-    "zksync-model": "http://core-alb.private.gitcoin.co/zksync-model-v2-predict",
+    "eth-model": "http://core-alb.private.gitcoin.co:80/eth-stamp-v2-predict",
+    # "eth-model": "http://localhost:8009/eth-stamp-predict-v2",
+    "nft-model": "http://core-alb.private.gitcoin.co:80/nft-model-predict",
+    "zksync-model": "http://core-alb.private.gitcoin.co:80/zksync-model-v2-predict",
 }
 
 
@@ -117,7 +118,7 @@ async def handle_get_analysis(
             headers = {"Content-Type": "application/json", "Accept": "application/json"}
             print("individual post request", url, data)
             async with session.post(
-                url, data=json.dumps(data), headers=headers, ssl=False
+                url, data=json.dumps(data), headers=headers
             ) as response:
                 return await response.text()
 
