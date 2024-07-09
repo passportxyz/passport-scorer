@@ -69,9 +69,9 @@ def get_analysis(request, address: str, model_list: str) -> PassportAnalysisResp
 
 # TODO: this should be loaded from settings & env vars
 MODEL_ENDPOINTS = {
-    "eth-model": "http://core-alb.private.gitcoin.co/eth-stamp-v2-predict",
-    "nft-model": "http://core-alb.private.gitcoin.co/nft-model-predict",
-    "zksync-model": "http://core-alb.private.gitcoin.co/zksync-model-v2-predict",
+    "ethereum": "http://core-alb.private.gitcoin.co/eth-stamp-v2-predict",
+    "nft": "http://core-alb.private.gitcoin.co/nft-model-predict",
+    "zksync": "http://core-alb.private.gitcoin.co/zksync-model-v2-predict",
 }
 
 

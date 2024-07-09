@@ -82,7 +82,7 @@ class PassportAnalysisTestCase(TestCase):
         client = Client()
 
         analysis_response = client.get(
-            "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+            "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D?model_list=ethereum",
             content_type="application/json",
             **headers,
         )
@@ -93,7 +93,7 @@ class PassportAnalysisTestCase(TestCase):
         client = Client()
 
         analysis_response = client.get(
-            "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7d",
+            "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7d?model_list=ethereum",
             content_type="application/json",
             **self.headers,
         )
