@@ -28,10 +28,10 @@ def test_successful_analysis(
         "queryStringParameters": {},
         "isBase64Encoded": False,
     }
-    mocker.patch(
-        "passport.api.get_lambda_client",
-        MockLambdaClient,
-    )
+    # mocker.patch(
+    #     "passport.api.get_lambda_client",
+    #     MockLambdaClient,
+    # )
     response = _handler(event, MockContext())
 
     # TODO: geri uncomment this
@@ -57,10 +57,10 @@ def test_bad_auth(
         "queryStringParameters": {},
         "isBase64Encoded": False,
     }
-    mocker.patch(
-        "passport.api.get_lambda_client",
-        MockLambdaClient,
-    )
+    # mocker.patch(
+    #     "passport.api.get_lambda_client",
+    #     MockLambdaClient,
+    # )
     response = _handler(event, MockContext())
 
     assert response is not None
@@ -84,10 +84,10 @@ def test_bad_address(
         "queryStringParameters": {},
         "isBase64Encoded": False,
     }
-    mocker.patch(
-        "passport.api.get_lambda_client",
-        MockLambdaClient,
-    )
+    # mocker.patch(
+    #     "passport.api.get_lambda_client",
+    #     MockLambdaClient,
+    # )
     response = _handler(event, MockContext())
 
     assert response is not None
