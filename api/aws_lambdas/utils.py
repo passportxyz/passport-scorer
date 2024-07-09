@@ -20,7 +20,6 @@ from django.db import (
     OperationalError,
     ProgrammingError,
 )
-from ninja_extra.exceptions import APIException
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
@@ -78,14 +77,13 @@ logger = logging.getLogger(__name__)
 
 from django.http import HttpRequest  # noqa: E402
 from django_ratelimit.exceptions import Ratelimited  # noqa: E402
+from ninja_extra.exceptions import APIException
 from ninja_jwt.exceptions import InvalidToken  # noqa: E402
 from registry.api.utils import (
     ApiKey,
     check_rate_limit,
     save_api_key_analytics,
 )
-
-# noqa: E402
 from registry.exceptions import (  # noqa: E402
     InvalidAddressException,
     NotFoundApiException,
