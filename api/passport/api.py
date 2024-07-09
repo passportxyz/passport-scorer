@@ -1,3 +1,5 @@
+from typing import Optional
+
 import api_logging as logging
 import requests
 from eth_utils.address import to_checksum_address
@@ -20,12 +22,22 @@ Other endpoints documented at [/docs](/docs)
 )
 
 
-class EthereumActivityModel(Schema):
+class EthereumModel(Schema):
+    score: int
+
+
+class NFTModel(Schema):
+    score: int
+
+
+class ZkSyncModel(Schema):
     score: int
 
 
 class PassportAnalysisDetailsModels(Schema):
-    ethereum_activity: EthereumActivityModel
+    ethereum: Optional[EthereumModel]
+    nft: Optional[NFTModel]
+    zksync: Optional[ZkSyncModel]
 
 
 class PassportAnalysisDetails(Schema):
@@ -92,14 +104,18 @@ def handle_get_analysis(address: str, model_list: str) -> PassportAnalysisRespon
     bad_models = set(models) - set(MODEL_ENDPOINTS.keys())
     if bad_models:
         raise BadModelNameError(
-            detail=f"Invalid model name(s): {','.join(bad_models)}. Must be one of {','.join(MODEL_ENDPOINTS.keys())}"
+            detail=f"Invalid model name(s): {', '.join(bad_models)}. Must be one of {', '.join(MODEL_ENDPOINTS.keys())}"
         )
 
     checksum_address = to_checksum_address(address)
 
     try:
+        scores = {}
+
+        model = models[0]
+
         response = requests.post(
-            MODEL_ENDPOINTS[models[0]],
+            MODEL_ENDPOINTS[model],
             json={"address": checksum_address},
             headers={"Content-Type": "application/json", "Accept": "application/json"},
         )
@@ -111,6 +127,8 @@ def handle_get_analysis(address: str, model_list: str) -> PassportAnalysisRespon
         print("Response body:", response_body)
 
         score = response_body.get("data", {}).get("human_probability", 0)
+
+        scores[model] = score
 
         # async def post(session, url, data):
         #     print("individual post request", url, data)
@@ -144,13 +162,14 @@ def handle_get_analysis(address: str, model_list: str) -> PassportAnalysisRespon
         # for response in responses:
         #     print(response)
 
+        model_results = PassportAnalysisDetailsModels()
+        for model_name, score in scores.items():
+            setattr(model_results, model_name, {"score": score})
+
         return PassportAnalysisResponse(
             address=address,
             details=PassportAnalysisDetails(
-                models=PassportAnalysisDetailsModels(
-                    # TODO
-                    ethereum_activity=EthereumActivityModel(score=score)
-                )
+                models=model_results,
             ),
         )
 

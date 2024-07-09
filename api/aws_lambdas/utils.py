@@ -243,28 +243,33 @@ def with_api_request_exception_handling(func):
             )
         except Exception as e:
             error_msg = str(e)
-            error_descriptions: Dict[Any, Tuple[int, str]] = {
-                Unauthorized: (403, "Unauthorized"),
-                InvalidToken: (403, "Invalid token"),
-                InvalidRequest: (400, "Bad request"),
-                InvalidAddressException: (400, "Invalid address"),
-                NotFoundApiException: (400, "Bad request"),
-                Ratelimited: (
-                    429,
-                    "You have been rate limited. Please try again later.",
-                ),
-                InterfaceError: (500, "DB Error: InterfaceError"),
-                DataError: (500, "DB Error: DataError"),
-                OperationalError: (500, "DB Error: OperationalError"),
-                IntegrityError: (500, "DB Error: IntegrityError"),
-                InternalError: (500, "DB Error: InternalError"),
-                ProgrammingError: (500, "DB Error: ProgrammingError"),
-                NotSupportedError: (500, "DB Error: NotSupportedError"),
-            }
 
-            status, message = error_descriptions.get(
-                type(e), (500, "An error has occurred")
-            )
+            if isinstance(e, APIException):
+                status = e.status_code
+                message = str(e.detail)
+            else:
+                error_descriptions: Dict[Any, Tuple[int, str]] = {
+                    Unauthorized: (403, "Unauthorized"),
+                    InvalidToken: (403, "Invalid token"),
+                    InvalidRequest: (400, "Bad request"),
+                    InvalidAddressException: (400, "Invalid address"),
+                    NotFoundApiException: (400, "Bad request"),
+                    Ratelimited: (
+                        429,
+                        "You have been rate limited. Please try again later.",
+                    ),
+                    InterfaceError: (500, "DB Error: InterfaceError"),
+                    DataError: (500, "DB Error: DataError"),
+                    OperationalError: (500, "DB Error: OperationalError"),
+                    IntegrityError: (500, "DB Error: IntegrityError"),
+                    InternalError: (500, "DB Error: InternalError"),
+                    ProgrammingError: (500, "DB Error: ProgrammingError"),
+                    NotSupportedError: (500, "DB Error: NotSupportedError"),
+                }
+
+                status, message = error_descriptions.get(
+                    type(e), (500, "An error has occurred")
+                )
 
             bind_contextvars(
                 statusCode=status,
