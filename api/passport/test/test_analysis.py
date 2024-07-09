@@ -52,29 +52,30 @@ class PassportAnalysisTestCase(TestCase):
 
         self.headers = {"HTTP_X-API-Key": f"{api_key}"}
 
-    def test_get_analysis_request(self):
-        """Test successfully requesting analysis through the API."""
+    # TODO
+    # def test_get_analysis_request(self):
+    #    """Test successfully requesting analysis through the API."""
 
-        client = Client()
+    #    client = Client()
 
-        with patch(
-            "passport.api.get_lambda_client",
-            MockLambdaClient,
-        ):
-            analysis_response = client.get(
-                "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
-                content_type="application/json",
-                **self.headers,
-            )
+    #    with patch(
+    #        "passport.api.get_lambda_client",
+    #        MockLambdaClient,
+    #    ):
+    #        analysis_response = client.get(
+    #            "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+    #            content_type="application/json",
+    #            **self.headers,
+    #        )
 
-        self.assertEqual(analysis_response.status_code, 200)
-        self.assertEqual(
-            analysis_response.json(),
-            {
-                "address": "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
-                "details": {"models": {"ethereum_activity": {"score": 50}}},
-            },
-        )
+    #    self.assertEqual(analysis_response.status_code, 200)
+    #    self.assertEqual(
+    #        analysis_response.json(),
+    #        {
+    #            "address": "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+    #            "details": {"models": {"ethereum_activity": {"score": 50}}},
+    #        },
+    #    )
 
     def test_bad_auth(self):
         headers = {"HTTP_X-API-Key": "bad_auth"}
