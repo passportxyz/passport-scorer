@@ -64,8 +64,8 @@ def test_bad_auth(
     response = _handler(event, MockContext())
 
     assert response is not None
-    assert response["statusCode"] == 403
-    assert json.loads(response["body"])["error"] == "Unauthorized"
+    assert response["statusCode"] == 401
+    assert json.loads(response["body"])["error"] == "Invalid API Key."
 
 
 def test_bad_address(
@@ -92,4 +92,4 @@ def test_bad_address(
 
     assert response is not None
     assert response["statusCode"] == 400
-    assert json.loads(response["body"])["error"] == "Invalid address"
+    assert json.loads(response["body"])["error"] == "Invalid address."
