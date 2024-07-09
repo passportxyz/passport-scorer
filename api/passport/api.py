@@ -5,6 +5,7 @@ from typing import List
 import aiohttp
 import api_logging as logging
 import boto3
+import requests
 from django.conf import settings
 from eth_utils.address import to_checksum_address
 from ninja import Schema
@@ -113,38 +114,42 @@ async def handle_get_analysis(
     checksum_address = to_checksum_address(address)
 
     try:
+        requests.post(
+            "http://core-alb.private.gitcoin.co:80/eth-stamp-v2-predict",
+            json={"address": checksum_address},
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+        )
+        # async def post(session, url, data):
+        #     print("individual post request", url, data)
+        #     headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        #     async with session.post(
+        #         url, data=json.dumps(data), headers=headers
+        #     ) as response:
+        #         return await response.text()
 
-        async def post(session, url, data):
-            headers = {"Content-Type": "application/json", "Accept": "application/json"}
-            print("individual post request", url, data)
-            async with session.post(
-                url, data=json.dumps(data), headers=headers
-            ) as response:
-                return await response.text()
+        # async def fetch_all(requests):
+        #     async with aiohttp.ClientSession() as session:
+        #         tasks = []
+        #         for url, data in requests:
+        #             task = asyncio.ensure_future(post(session, url, data))
+        #             tasks.append(task)
+        #         responses = await asyncio.gather(*tasks)
+        #         return responses
 
-        async def fetch_all(requests):
-            async with aiohttp.ClientSession() as session:
-                tasks = []
-                for url, data in requests:
-                    task = asyncio.ensure_future(post(session, url, data))
-                    tasks.append(task)
-                responses = await asyncio.gather(*tasks)
-                return responses
+        # requests = []
+        # for model_name in model_list:
+        #     requests.append(
+        #         (f"{MODEL_ENDPOINTS[model_name]}/", {"address": checksum_address})
+        #     )
 
-        requests = []
-        for model_name in model_list:
-            requests.append(
-                (f"{MODEL_ENDPOINTS[model_name]}/", {"address": checksum_address})
-            )
+        # print("Requests:", requests)
+        # # Run the event loop
+        # responses = await fetch_all(requests)
+        # print("Responses:", responses)
 
-        print("Requests:", requests)
-        # Run the event loop
-        responses = await fetch_all(requests)
-        print("Responses:", responses)
-
-        # Print the responses
-        for response in responses:
-            print(response)
+        # # Print the responses
+        # for response in responses:
+        #     print(response)
 
         return PassportAnalysisResponse(
             address=address,
