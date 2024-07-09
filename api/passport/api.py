@@ -114,10 +114,10 @@ async def handle_get_analysis(
     try:
 
         async def post(session, url, data):
-            headers = {"Content-Type": "application/json"}
+            headers = {"Content-Type": "application/json", "Accept": "application/json"}
             print("individual post request", url, data)
             async with session.post(
-                url, data=json.dumps(data), headers=headers
+                url, data=json.dumps(data), headers=headers, ssl=False
             ) as response:
                 return await response.text()
 
