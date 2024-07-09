@@ -10,7 +10,7 @@ from eth_utils.address import to_checksum_address
 from ninja import Schema
 from ninja_extra import NinjaExtraAPI
 from ninja_extra.exceptions import APIException
-from registry.api.utils import ApiKey, is_valid_address
+from registry.api.utils import aapi_key, is_valid_address
 from registry.exceptions import InvalidAddressException
 
 log = logging.getLogger(__name__)
@@ -62,6 +62,11 @@ class ErrorMessageResponse(Schema):
     detail: str
 
 
+class BadModelNameError(APIException):
+    status_code = 400
+    default_detail = "Invalid model names"
+
+
 class PassportAnalysisError(APIException):
     status_code = 500
     default_detail = "Error retrieving Passport analysis"
@@ -69,7 +74,7 @@ class PassportAnalysisError(APIException):
 
 @api.get(
     "/analysis/{address}",
-    auth=ApiKey(),
+    auth=aapi_key,
     response={
         200: PassportAnalysisResponse,
         400: ErrorMessageResponse,
@@ -82,7 +87,7 @@ class PassportAnalysisError(APIException):
 async def get_analysis(
     request, address: str, model_list: str = ""
 ) -> PassportAnalysisResponse:
-    split_model_list = [model.trim for model in model_list.split(",")]
+    split_model_list = [model.strip() for model in model_list.split(",")]
     return await handle_get_analysis(address, split_model_list)
 
 
@@ -99,6 +104,10 @@ async def handle_get_analysis(
 ) -> PassportAnalysisResponse:
     if not is_valid_address(address):
         raise InvalidAddressException()
+
+    bad_models = set(model_list) - set(MODEL_ENDPOINTS.keys())
+    if bad_models:
+        raise BadModelNameError(detail=f"Invalid model names: {','.join(bad_models)}")
 
     checksum_address = to_checksum_address(address)
 
@@ -123,13 +132,9 @@ async def handle_get_analysis(
 
         requests = []
         for model_name in model_list:
-            if model_name in MODEL_ENDPOINTS:
-                requests.append(
-                    (f"{MODEL_ENDPOINTS[model_name]}/", {"address": checksum_address})
-                )
-            else:
-                # TODO: raise 400 cause bad model name
-                pass
+            requests.append(
+                (f"{MODEL_ENDPOINTS[model_name]}/", {"address": checksum_address})
+            )
 
         print("Requests:", requests)
         # Run the event loop

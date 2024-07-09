@@ -2,14 +2,12 @@
 This module provides a handler to manage API requests in AWS Lambda.
 """
 
+from aws_lambdas.utils import with_api_request_exception_handling  # isort:skip
+
 import asyncio
 
 from django.db import close_old_connections
 from passport.api import handle_get_analysis
-
-from aws_lambdas.utils import (
-    with_api_request_exception_handling,
-)
 
 
 @with_api_request_exception_handling
