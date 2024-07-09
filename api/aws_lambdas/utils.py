@@ -8,18 +8,19 @@ import os
 from functools import wraps
 from traceback import print_exc
 from typing import Any, Dict, Tuple
+
 import boto3
 from botocore.exceptions import ClientError
 from django.db import (
-    InterfaceError,
     DataError,
-    OperationalError,
     IntegrityError,
+    InterfaceError,
     InternalError,
-    ProgrammingError,
     NotSupportedError,
+    OperationalError,
+    ProgrammingError,
 )
-
+from ninja_extra.exceptions import APIException
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
@@ -75,17 +76,24 @@ import api_logging as logging  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
-from aws_lambdas.exceptions import InvalidRequest  # noqa: E402
 from django.http import HttpRequest  # noqa: E402
 from django_ratelimit.exceptions import Ratelimited  # noqa: E402
 from ninja_jwt.exceptions import InvalidToken  # noqa: E402
-from registry.api.utils import ApiKey, check_rate_limit, save_api_key_analytics  # noqa: E402
+from registry.api.utils import (
+    ApiKey,
+    check_rate_limit,
+    save_api_key_analytics,
+)
+
+# noqa: E402
 from registry.exceptions import (  # noqa: E402
     InvalidAddressException,
     NotFoundApiException,
     Unauthorized,
 )
 from structlog.contextvars import bind_contextvars  # noqa: E402
+
+from aws_lambdas.exceptions import InvalidRequest  # noqa: E402
 
 RESPONSE_HEADERS = {
     "Content-Type": "application/json",
@@ -150,26 +158,31 @@ def with_request_exception_handling(func):
 
             return func(event, context, *args)
         except Exception as e:
-            error_descriptions: Dict[Any, Tuple[int, str]] = {
-                Unauthorized: (403, "Unauthorized"),
-                InvalidToken: (403, "Invalid token"),
-                InvalidRequest: (400, "Bad request"),
-                Ratelimited: (
-                    429,
-                    "You have been rate limited. Please try again later.",
-                ),
-                InterfaceError: (500, "DB Error: InterfaceError"),
-                DataError: (500, "DB Error: DataError"),
-                OperationalError: (500, "DB Error: OperationalError"),
-                IntegrityError: (500, "DB Error: IntegrityError"),
-                InternalError: (500, "DB Error: InternalError"),
-                ProgrammingError: (500, "DB Error: ProgrammingError"),
-                NotSupportedError: (500, "DB Error: NotSupportedError"),
-            }
+            if isinstance(e, APIException):
+                status = e.status_code
+                message = str(e.detail)
+            else:
+                error_descriptions: Dict[Any, Tuple[int, str]] = {
+                    Unauthorized: (403, "Unauthorized"),
+                    InvalidToken: (403, "Invalid token"),
+                    InvalidRequest: (400, "Bad request"),
+                    Ratelimited: (
+                        429,
+                        "You have been rate limited. Please try again later.",
+                    ),
+                    InterfaceError: (500, "DB Error: InterfaceError"),
+                    DataError: (500, "DB Error: DataError"),
+                    OperationalError: (500, "DB Error: OperationalError"),
+                    IntegrityError: (500, "DB Error: IntegrityError"),
+                    InternalError: (500, "DB Error: InternalError"),
+                    ProgrammingError: (500, "DB Error: ProgrammingError"),
+                    NotSupportedError: (500, "DB Error: NotSupportedError"),
+                }
 
-            status, message = error_descriptions.get(
-                type(e), (400, "An error has occurred")
-            )
+                status, message = error_descriptions.get(
+                    type(e), (400, "An error has occurred")
+                )
+
             bind_contextvars(
                 statusCode=status,
                 statusCategory="4XX" if (status >= 400 and status < 500) else "5XX",
