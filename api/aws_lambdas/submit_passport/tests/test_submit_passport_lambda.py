@@ -4,9 +4,10 @@ from copy import deepcopy
 
 import pytest
 from account.models import AccountAPIKeyAnalytics
+from registry.test.test_passport_submission import mock_passport
+
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
 from aws_lambdas.scorer_api_passport.utils import strip_event
-from registry.test.test_passport_submission import mock_passport
 
 from ..submit_passport import _handler
 
@@ -179,7 +180,7 @@ def test_unsucessfull_auth(scorer_account, scorer_community_with_binary_scorer):
     response = _handler(event, MockContext())
 
     assert response is not None
-    assert response["statusCode"] == 403
+    assert response["statusCode"] == 401
 
 
 def test_strip_event():
@@ -362,7 +363,7 @@ def test_failed_authentication_and_analytics_logging(
             response = _handler(event, MockContext())
 
             assert response is not None
-            assert response["statusCode"] == 403
+            assert response["statusCode"] == 401
 
             # Check for the proper analytics entry
             analytics_entry_count = AccountAPIKeyAnalytics.objects.order_by(
@@ -423,7 +424,7 @@ def test_bad_scorer_id_and_analytics_logging(
             response = _handler(event, MockContext())
 
             assert response is not None
-            assert response["statusCode"] == 400
+            assert response["statusCode"] == 404
             # Check for the proper analytics entry
             analytics_entry = AccountAPIKeyAnalytics.objects.order_by("-created_at")[0]
             assert analytics_entry.path == event["path"]
