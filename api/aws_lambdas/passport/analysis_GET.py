@@ -14,7 +14,6 @@ def _handler(event, _context, _request, _user_account, _body):
     Handles the incoming events and translates them into Django's context.
     """
 
-    print(f"EVENT: \n***************\n{event}\n***************\n")
     address = event["path"].split("/")[-1]
     model_list = event.get("queryStringParameters", {}).get("model_list", "")
 

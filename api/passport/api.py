@@ -2,6 +2,7 @@ from typing import Optional
 
 import api_logging as logging
 import requests
+from django.conf import settings
 from eth_utils.address import to_checksum_address
 from ninja import Schema
 from ninja_extra import NinjaExtraAPI
@@ -81,9 +82,9 @@ def get_analysis(request, address: str, model_list: str) -> PassportAnalysisResp
 
 # TODO: this should be loaded from settings & env vars
 MODEL_ENDPOINTS = {
-    "ethereum": "http://core-alb.private.gitcoin.co/eth-stamp-v2-predict",
-    "nft": "http://core-alb.private.gitcoin.co/nft-model-predict",
-    "zksync": "http://core-alb.private.gitcoin.co/zksync-model-v2-predict",
+    "ethereum": settings.ETHEREUM_MODEL_ENDPOINT,
+    "nft": settings.NFT_MODEL_ENDPOINT,
+    "zksync": settings.ZKSYNC_MODEL_ENDPOINT,
 }
 
 
@@ -129,38 +130,6 @@ def handle_get_analysis(address: str, model_list: str) -> PassportAnalysisRespon
         score = response_body.get("data", {}).get("human_probability", 0)
 
         scores[model] = score
-
-        # async def post(session, url, data):
-        #     print("individual post request", url, data)
-        #     headers = {"Content-Type": "application/json", "Accept": "application/json"}
-        #     async with session.post(
-        #         url, data=json.dumps(data), headers=headers
-        #     ) as response:
-        #         return await response.text()
-
-        # async def fetch_all(requests):
-        #     async with aiohttp.ClientSession() as session:
-        #         tasks = []
-        #         for url, data in requests:
-        #             task = asyncio.ensure_future(post(session, url, data))
-        #             tasks.append(task)
-        #         responses = await asyncio.gather(*tasks)
-        #         return responses
-
-        # requests = []
-        # for model_name in models:
-        #     requests.append(
-        #         (f"{MODEL_ENDPOINTS[model_name]}/", {"address": checksum_address})
-        #     )
-
-        # print("Requests:", requests)
-        # # Run the event loop
-        # responses = await fetch_all(requests)
-        # print("Responses:", responses)
-
-        # # Print the responses
-        # for response in responses:
-        #     print(response)
 
         model_results = PassportAnalysisDetailsModels()
         for model_name, score in scores.items():
