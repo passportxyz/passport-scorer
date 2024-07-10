@@ -64,6 +64,11 @@ const redashMailPassword = pulumi.secret(
   `${process.env["REDASH_MAIL_PASSWORD"]}`
 );
 
+const ethereumModelEndpoint = `${process.env["ETHEREUM_MODEL_ENDPOINT"]}`;
+const nftModelEndpoint = `${process.env["NFT_MODEL_ENDPOINT"]}`;
+const zksyncModelEndpoint = `${process.env["ZKSYNC_MODEL_ENDPOINT"]}`;
+
+
 const pagerDutyIntegrationEndpoint = `${process.env["PAGERDUTY_INTEGRATION_ENDPOINT"]}`;
 
 const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
@@ -1485,6 +1490,21 @@ buildHttpLambdaFn(
 buildHttpLambdaFn(
   {
     ...lambdaSettings,
+    environment: [
+      ...lambdaSettings.environment,
+      {
+        name: "ETHEREUM_MODEL_ENDPOINT",
+        value: ethereumModelEndpoint,
+      },
+      {
+        name: "NFT_MODEL_ENDPOINT",
+        value: nftModelEndpoint,
+      },
+      {
+        name: "ZKSYNC_MODEL_ENDPOINT",
+        value: zksyncModelEndpoint,
+      },
+    ],
     name: "passport-analysis-GET-0",
     memorySize: 256,
     dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],

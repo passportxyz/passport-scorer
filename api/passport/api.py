@@ -1,7 +1,7 @@
 import json
 
 import api_logging as logging
-import boto3
+import requests
 from django.conf import settings
 from eth_utils.address import to_checksum_address
 from ninja import Schema
@@ -23,27 +23,22 @@ Other endpoints documented at [/docs](/docs)
 )
 
 
-lambda_client = None
+class EthereumModel(Schema):
+    score: int
 
 
-def get_lambda_client():
-    global lambda_client
-    if lambda_client is None:
-        lambda_client = boto3.client(
-            "lambda",
-            aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
-            aws_secret_access_key=settings.S3_DATA_AWS_SECRET_ACCESS_KEY,
-            region_name="us-west-2",
-        )
-    return lambda_client
+class NFTModel(Schema):
+    score: int
 
 
-class EthereumActivityModel(Schema):
+class ZkSyncModel(Schema):
     score: int
 
 
 class PassportAnalysisDetailsModels(Schema):
-    ethereum_activity: EthereumActivityModel
+    ethereum: Optional[EthereumModel]
+    nft: Optional[NFTModel]
+    zksync: Optional[ZkSyncModel]
 
 
 class PassportAnalysisDetails(Schema):
@@ -57,6 +52,11 @@ class PassportAnalysisResponse(Schema):
 
 class ErrorMessageResponse(Schema):
     detail: str
+
+
+class BadModelNameError(APIException):
+    status_code = 400
+    default_detail = "Invalid model names"
 
 
 class PassportAnalysisError(APIException):
@@ -83,6 +83,20 @@ def get_analysis(request, address: str) -> PassportAnalysisResponse:
 def handle_get_analysis(address: str) -> PassportAnalysisResponse:
     if not is_valid_address(address):
         raise InvalidAddressException()
+
+    if len(models) > 1:
+        raise BadModelNameError(
+            detail="Currently, only one model name can be provided at a time"
+        )
+
+    if len(models) == 0 or models[0] == "":
+        raise BadModelNameError(detail="No model names provided")
+
+    bad_models = set(models) - set(MODEL_ENDPOINTS.keys())
+    if bad_models:
+        raise BadModelNameError(
+            detail=f"Invalid model name(s): {', '.join(bad_models)}. Must be one of {', '.join(MODEL_ENDPOINTS.keys())}"
+        )
 
     checksum_address = to_checksum_address(address)
 

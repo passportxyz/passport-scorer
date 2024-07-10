@@ -59,6 +59,7 @@ def _handler(event, _context, _request, _user_account, _body):
     """
 
     address = event["path"].split("/")[-1]
+    model_list = event.get("queryStringParameters", {}).get("model_list", "")
 
     # analysis = handle_get_analysis(address)
 
