@@ -416,9 +416,13 @@ CERAMIC_CACHE_CONVERT_STAMP_TO_V2_URL = env(
 
 PASSPORT_PUBLIC_URL = env("PASSPORT_PUBLIC_URL", default="http://localhost:80")
 
-ETHEREUM_MODEL_ENDPOINT = env("ETHEREUM_MODEL_ENDPOINT", default="http://localhost:80")
-NFT_MODEL_ENDPOINT = env("NFT_MODEL_ENDPOINT", default="http://localhost:80")
-ZKSYNC_MODEL_ENDPOINT = env("ZKSYNC_MODEL_ENDPOINT", default="http://localhost:80")
+ETHEREUM_MODEL_ENDPOINT = env(
+    "ETHEREUM_MODEL_ENDPOINT", default="http://localhost:80/ethereum"
+)
+NFT_MODEL_ENDPOINT = env("NFT_MODEL_ENDPOINT", default="http://localhost:80/nft")
+ZKSYNC_MODEL_ENDPOINT = env(
+    "ZKSYNC_MODEL_ENDPOINT", default="http://localhost:80/zksync"
+)
 
 # Deprecated in favour of TRUSTED_IAM_ISSUERS which will store a list of trusted issuers
 TRUSTED_IAM_ISSUER = env(

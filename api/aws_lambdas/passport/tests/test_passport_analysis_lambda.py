@@ -5,7 +5,6 @@ from unittest.mock import Mock
 
 import pytest
 from passport.api import MODEL_ENDPOINTS
-from passport.test.test_analysis import MockLambdaClient
 
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
 
@@ -62,11 +61,10 @@ def test_successful_analysis_eth(
     event = {
         "headers": {"x-api-key": scorer_api_key},
         "path": f"/passport/analysis/{address}",
-        "queryStringParameters": {"model_list": "model_list"},
+        "queryStringParameters": {"model_list": "ethereum"},
         "isBase64Encoded": False,
     }
     with mocker.patch("requests.post", side_effect=mock_post_response):
-        event["queryStringParameters"] = {"model_list": "ethereum"}
         response = _handler(event, MockContext())
 
         assert response is not None
@@ -75,7 +73,7 @@ def test_successful_analysis_eth(
         body = json.loads(response["body"])
 
         assert body["address"] == address
-        assert body["details"]["models"]["ethereum"]["score"] == 95
+        assert body["details"]["models"]["ethereum"]["score"] == 75
 
 
 def test_successful_analysis_zksync(
@@ -89,11 +87,10 @@ def test_successful_analysis_zksync(
     event = {
         "headers": {"x-api-key": scorer_api_key},
         "path": f"/passport/analysis/{address}",
-        "queryStringParameters": {"model_list": "model_list"},
+        "queryStringParameters": {"model_list": "zksync"},
         "isBase64Encoded": False,
     }
     with mocker.patch("requests.post", side_effect=mock_post_response):
-        event["queryStringParameters"] = {"model_list": "zksync"}
         response = _handler(event, MockContext())
 
         assert response is not None
@@ -118,10 +115,7 @@ def test_bad_auth(
         "queryStringParameters": {},
         "isBase64Encoded": False,
     }
-    # mocker.patch(
-    #     "passport.api.get_lambda_client",
-    #     MockLambdaClient,
-    # )
+
     response = _handler(event, MockContext())
 
     assert response is not None
