@@ -1,7 +1,10 @@
-from typing import Optional
+import asyncio
+import json
+from typing import List
 
+import aiohttp
 import api_logging as logging
-import requests
+import boto3
 from django.conf import settings
 from eth_utils.address import to_checksum_address
 from ninja import Schema
@@ -23,22 +26,27 @@ Other endpoints documented at [/docs](/docs)
 )
 
 
-class EthereumModel(Schema):
-    score: int
+lambda_client = None
 
 
-class NFTModel(Schema):
-    score: int
+def get_lambda_client():
+    global lambda_client
+    if lambda_client is None:
+        lambda_client = boto3.client(
+            "lambda",
+            aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
+            aws_secret_access_key=settings.S3_DATA_AWS_SECRET_ACCESS_KEY,
+            region_name="us-west-2",
+        )
+    return lambda_client
 
 
-class ZkSyncModel(Schema):
+class EthereumActivityModel(Schema):
     score: int
 
 
 class PassportAnalysisDetailsModels(Schema):
-    ethereum: Optional[EthereumModel]
-    nft: Optional[NFTModel]
-    zksync: Optional[ZkSyncModel]
+    ethereum_activity: EthereumActivityModel
 
 
 class PassportAnalysisDetails(Schema):
@@ -52,11 +60,6 @@ class PassportAnalysisResponse(Schema):
 
 class ErrorMessageResponse(Schema):
     detail: str
-
-
-class BadModelNameError(APIException):
-    status_code = 400
-    default_detail = "Invalid model names"
 
 
 class PassportAnalysisError(APIException):
@@ -76,69 +79,73 @@ class PassportAnalysisError(APIException):
     description="Retrieve Passport analysis for an Ethereum address, currently consisting of the ETH activity model humanity score (0-100, higher is more likely human).",
     tags=["Passport Analysis"],
 )
-def get_analysis(request, address: str, model_list: str) -> PassportAnalysisResponse:
-    return handle_get_analysis(address, model_list)
+async def get_analysis(
+    request, address: str, model_list: str
+) -> PassportAnalysisResponse:
+    split_model_list = [model.trim for model in model_list.split(",")]
+    return await handle_get_analysis(address, split_model_list)
 
 
 # TODO: this should be loaded from settings & env vars
 MODEL_ENDPOINTS = {
-    "ethereum": settings.ETHEREUM_MODEL_ENDPOINT,
-    "nft": settings.NFT_MODEL_ENDPOINT,
-    "zksync": settings.ZKSYNC_MODEL_ENDPOINT,
+    "eth-model": "http://core-alb.private.gitcoin.co/eth-stamp-v2-predict",
+    "nft-model": "http://core-alb.private.gitcoin.co/nft-model-predict",
+    "zksync-model": "http://core-alb.private.gitcoin.co/zksync-model-v2-predict",
 }
 
 
-def handle_get_analysis(address: str, model_list: str) -> PassportAnalysisResponse:
-    models = [model.strip() for model in model_list.split(",")]
-
+async def handle_get_analysis(
+    address: str, model_list: List[str] = ["eth-model", "nft-model", "zksync-model"]
+) -> PassportAnalysisResponse:
     if not is_valid_address(address):
         raise InvalidAddressException()
-
-    if len(models) > 1:
-        raise BadModelNameError(
-            detail="Currently, only one model name can be provided at a time"
-        )
-
-    if len(models) == 0 or models[0] == "":
-        raise BadModelNameError(detail="No model names provided")
-
-    bad_models = set(models) - set(MODEL_ENDPOINTS.keys())
-    if bad_models:
-        raise BadModelNameError(
-            detail=f"Invalid model name(s): {', '.join(bad_models)}. Must be one of {', '.join(MODEL_ENDPOINTS.keys())}"
-        )
 
     checksum_address = to_checksum_address(address)
 
     try:
-        scores = {}
 
-        model = models[0]
+        async def post(session, url, data):
+            headers = {"Content-Type": "application/json"}
+            print("individual post request", url, data)
+            async with session.post(
+                url, data=json.dumps(data), headers=headers
+            ) as response:
+                return await response.text()
 
-        response = requests.post(
-            MODEL_ENDPOINTS[model],
-            json={"address": checksum_address},
-            headers={"Content-Type": "application/json", "Accept": "application/json"},
-        )
+        async def fetch_all(requests):
+            async with aiohttp.ClientSession() as session:
+                tasks = []
+                for url, data in requests:
+                    task = asyncio.ensure_future(post(session, url, data))
+                    tasks.append(task)
+                responses = await asyncio.gather(*tasks)
+                return responses
 
-        response.raise_for_status()
+        requests = []
+        for model_name in model_list:
+            if model_name in MODEL_ENDPOINTS:
+                requests.append(
+                    (f"{MODEL_ENDPOINTS[model_name]}/", {"address": checksum_address})
+                )
+            else:
+                # TODO: raise 400 cause bad model name
+                pass
 
-        response_body = response.json()
+        print("Requests:", requests)
+        # Run the event loop
+        responses = await fetch_all(requests)
+        print("Responses:", responses)
 
-        print("Response body:", response_body)
-
-        score = response_body.get("data", {}).get("human_probability", 0)
-
-        scores[model] = score
-
-        model_results = PassportAnalysisDetailsModels()
-        for model_name, score in scores.items():
-            setattr(model_results, model_name, {"score": score})
+        # Print the responses
+        for response in responses:
+            print(response)
 
         return PassportAnalysisResponse(
             address=address,
             details=PassportAnalysisDetails(
-                models=model_results,
+                models=PassportAnalysisDetailsModels(
+                    ethereum_activity=EthereumActivityModel(score=0)
+                )
             ),
         )
 

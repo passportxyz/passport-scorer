@@ -1,14 +1,14 @@
 import json
 
 import pytest
-from registry.test.test_passport_submission import mock_passport
-
-from aws_lambdas.exceptions import InvalidRequest
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
 from aws_lambdas.submit_passport.tests.test_submit_passport_lambda import (
     make_test_event,
 )
 from aws_lambdas.utils import with_api_request_exception_handling
+from registry.test.test_passport_submission import mock_passport
+from aws_lambdas.exceptions import InvalidRequest
+
 
 pytestmark = pytest.mark.django_db
 
@@ -31,6 +31,7 @@ def test_with_api_request_exception_handling_success(
     passport_holder_addresses,
     mocker,
 ):
+
     with mocker.patch(
         "registry.atasks.aget_passport",
         return_value=mock_passport,
@@ -38,6 +39,7 @@ def test_with_api_request_exception_handling_success(
         with mocker.patch(
             "registry.atasks.validate_credential", side_effect=[[], [], []]
         ):
+
             wrapped_func = with_api_request_exception_handling(func_to_test)
 
             address = passport_holder_addresses[0]["address"].lower()
@@ -57,6 +59,7 @@ def test_with_api_request_exception_handling_bad_api_key(
     passport_holder_addresses,
     mocker,
 ):
+
     with mocker.patch(
         "registry.atasks.aget_passport",
         return_value=mock_passport,
@@ -64,6 +67,7 @@ def test_with_api_request_exception_handling_bad_api_key(
         with mocker.patch(
             "registry.atasks.validate_credential", side_effect=[[], [], []]
         ):
+
             wrapped_func = with_api_request_exception_handling(func_to_test)
 
             address = passport_holder_addresses[0]["address"].lower()
@@ -73,8 +77,8 @@ def test_with_api_request_exception_handling_bad_api_key(
 
             ret = wrapped_func(test_event, MockContext())
 
-            assert ret["statusCode"] == 401
-            assert ret["body"] == '{"error": "Invalid API Key."}'
+            assert ret["statusCode"] == 403
+            assert ret["body"] == '{"error": "Unauthorized"}'
 
 
 def test_with_api_request_exception_handling_bad_request(
@@ -83,6 +87,7 @@ def test_with_api_request_exception_handling_bad_request(
     passport_holder_addresses,
     mocker,
 ):
+
     with mocker.patch(
         "registry.atasks.aget_passport",
         return_value=mock_passport,
@@ -90,6 +95,7 @@ def test_with_api_request_exception_handling_bad_request(
         with mocker.patch(
             "registry.atasks.validate_credential", side_effect=[[], [], []]
         ):
+
             wrapped_func = with_api_request_exception_handling(func_to_test_bad_request)
 
             address = passport_holder_addresses[0]["address"].lower()
@@ -109,6 +115,7 @@ def test_with_api_request_exception_handling_unexpected_error(
     passport_holder_addresses,
     mocker,
 ):
+
     with mocker.patch(
         "registry.atasks.aget_passport",
         return_value=mock_passport,
@@ -116,6 +123,7 @@ def test_with_api_request_exception_handling_unexpected_error(
         with mocker.patch(
             "registry.atasks.validate_credential", side_effect=[[], [], []]
         ):
+
             wrapped_func = with_api_request_exception_handling(
                 func_to_test_unexpected_error
             )
@@ -134,6 +142,7 @@ def test_with_api_request_exception_handling_unexpected_error(
 def test_with_api_request_exception_handling_bad_event(
     mocker,
 ):
+
     with mocker.patch(
         "registry.atasks.aget_passport",
         return_value=mock_passport,
@@ -141,6 +150,7 @@ def test_with_api_request_exception_handling_bad_event(
         with mocker.patch(
             "registry.atasks.validate_credential", side_effect=[[], [], []]
         ):
+
             wrapped_func = with_api_request_exception_handling(
                 func_to_test_unexpected_error
             )
