@@ -3,9 +3,8 @@
 import json
 
 import pytest
-from passport.test.test_analysis import MockLambdaClient
-
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
+from passport.test.test_analysis import MockLambdaClient
 
 from ..analysis_GET import _handler
 
@@ -34,14 +33,13 @@ def test_successful_analysis(
     )
     response = _handler(event, MockContext())
 
-    # TODO: geri uncomment this
-    # assert response is not None
-    # assert response["statusCode"] == 200
+    assert response is not None
+    assert response["statusCode"] == 200
 
-    # body = json.loads(response["body"])
+    body = json.loads(response["body"])
 
-    # assert body["address"] == address
-    # assert body["details"]["models"]["ethereum_activity"]["score"] == 50
+    assert body["address"] == address
+    assert body["details"]["models"]["ethereum_activity"]["score"] == 50
 
 
 def test_bad_auth(

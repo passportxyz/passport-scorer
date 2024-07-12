@@ -57,46 +57,44 @@ class PassportAnalysisTestCase(TestCase):
 
         client = Client()
 
-        # TODO: geri uncomment this
-        # with patch(
-        #     "passport.api.get_lambda_client",
-        #     MockLambdaClient,
-        # ):
-        #     analysis_response = client.get(
-        #         "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
-        #         content_type="application/json",
-        #         **self.headers,
-        #     )
+        with patch(
+            "passport.api.get_lambda_client",
+            MockLambdaClient,
+        ):
+            analysis_response = client.get(
+                "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+                content_type="application/json",
+                **self.headers,
+            )
 
-        # self.assertEqual(analysis_response.status_code, 200)
-        # self.assertEqual(
-        #     analysis_response.json(),
-        #     {
-        #         "address": "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
-        #         "details": {"models": {"ethereum_activity": {"score": 50}}},
-        #     },
-        # )
+        self.assertEqual(analysis_response.status_code, 200)
+        self.assertEqual(
+            analysis_response.json(),
+            {
+                "address": "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+                "details": {"models": {"ethereum_activity": {"score": 50}}},
+            },
+        )
 
     def test_bad_auth(self):
         headers = {"HTTP_X-API-Key": "bad_auth"}
         client = Client()
 
-        # TODO: geri uncomment this
-        # analysis_response = client.get(
-        #     "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
-        #     content_type="application/json",
-        #     **headers,
-        # )
+        analysis_response = client.get(
+            "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+            content_type="application/json",
+            **headers,
+        )
 
-        # self.assertEqual(analysis_response.status_code, 401)
+        self.assertEqual(analysis_response.status_code, 401)
 
     def test_bad_address(self):
         client = Client()
 
-        # TODO: geri uncomment this
-        # analysis_response = client.get(
-        #     "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7d",
-        #     content_type="application/json",
-        #     **self.headers,
-        # )
-        # self.assertEqual(analysis_response.status_code, 400)
+        analysis_response = client.get(
+            "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7d",
+            content_type="application/json",
+            **self.headers,
+        )
+
+        self.assertEqual(analysis_response.status_code, 400)
