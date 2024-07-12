@@ -1,7 +1,7 @@
-from typing import Optional
+import json
 
 import api_logging as logging
-import requests
+import boto3
 from django.conf import settings
 from eth_utils.address import to_checksum_address
 from ninja import Schema
@@ -23,22 +23,27 @@ Other endpoints documented at [/docs](/docs)
 )
 
 
-class EthereumModel(Schema):
-    score: int
+lambda_client = None
 
 
-class NFTModel(Schema):
-    score: int
+def get_lambda_client():
+    global lambda_client
+    if lambda_client is None:
+        lambda_client = boto3.client(
+            "lambda",
+            aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
+            aws_secret_access_key=settings.S3_DATA_AWS_SECRET_ACCESS_KEY,
+            region_name="us-west-2",
+        )
+    return lambda_client
 
 
-class ZkSyncModel(Schema):
+class EthereumActivityModel(Schema):
     score: int
 
 
 class PassportAnalysisDetailsModels(Schema):
-    ethereum: Optional[EthereumModel]
-    nft: Optional[NFTModel]
-    zksync: Optional[ZkSyncModel]
+    ethereum_activity: EthereumActivityModel
 
 
 class PassportAnalysisDetails(Schema):
@@ -52,11 +57,6 @@ class PassportAnalysisResponse(Schema):
 
 class ErrorMessageResponse(Schema):
     detail: str
-
-
-class BadModelNameError(APIException):
-    status_code = 400
-    default_detail = "Invalid model names"
 
 
 class PassportAnalysisError(APIException):
@@ -76,69 +76,43 @@ class PassportAnalysisError(APIException):
     description="Retrieve Passport analysis for an Ethereum address, currently consisting of the ETH activity model humanity score (0-100, higher is more likely human).",
     tags=["Passport Analysis"],
 )
-def get_analysis(request, address: str, model_list: str) -> PassportAnalysisResponse:
-    return handle_get_analysis(address, model_list)
+def get_analysis(request, address: str) -> PassportAnalysisResponse:
+    return handle_get_analysis(address)
 
 
-# TODO: this should be loaded from settings & env vars
-MODEL_ENDPOINTS = {
-    "ethereum": settings.ETHEREUM_MODEL_ENDPOINT,
-    "nft": settings.NFT_MODEL_ENDPOINT,
-    "zksync": settings.ZKSYNC_MODEL_ENDPOINT,
-}
-
-
-def handle_get_analysis(address: str, model_list: str) -> PassportAnalysisResponse:
-    models = [model.strip() for model in model_list.split(",")]
-
+def handle_get_analysis(address: str) -> PassportAnalysisResponse:
     if not is_valid_address(address):
         raise InvalidAddressException()
-
-    if len(models) > 1:
-        raise BadModelNameError(
-            detail="Currently, only one model name can be provided at a time"
-        )
-
-    if len(models) == 0 or models[0] == "":
-        raise BadModelNameError(detail="No model names provided")
-
-    bad_models = set(models) - set(MODEL_ENDPOINTS.keys())
-    if bad_models:
-        raise BadModelNameError(
-            detail=f"Invalid model name(s): {', '.join(bad_models)}. Must be one of {', '.join(MODEL_ENDPOINTS.keys())}"
-        )
 
     checksum_address = to_checksum_address(address)
 
     try:
-        scores = {}
-
-        model = models[0]
-
-        response = requests.post(
-            MODEL_ENDPOINTS[model],
-            json={"address": checksum_address},
-            headers={"Content-Type": "application/json", "Accept": "application/json"},
+        lambda_client = get_lambda_client()
+        response = lambda_client.invoke(
+            FunctionName="eth-stamp-v2-api",
+            InvocationType="RequestResponse",
+            Payload=json.dumps(
+                {
+                    "body": json.dumps({"address": checksum_address}),
+                    "isBase64Encoded": False,
+                }
+            ),
         )
 
-        response.raise_for_status()
+        decoded_response = response["Payload"].read().decode("utf-8")
 
-        response_body = response.json()
+        parsed_response = json.loads(decoded_response)
 
-        print("Response body:", response_body)
+        response_body = json.loads(parsed_response["body"])
 
         score = response_body.get("data", {}).get("human_probability", 0)
-
-        scores[model] = score
-
-        model_results = PassportAnalysisDetailsModels()
-        for model_name, score in scores.items():
-            setattr(model_results, model_name, {"score": score})
 
         return PassportAnalysisResponse(
             address=address,
             details=PassportAnalysisDetails(
-                models=model_results,
+                models=PassportAnalysisDetailsModels(
+                    ethereum_activity=EthereumActivityModel(score=score)
+                )
             ),
         )
 

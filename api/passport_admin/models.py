@@ -5,6 +5,7 @@ Includes models for PassportBanner and DismissedBanners.
 
 from account.models import EthAddressField
 from django.db import models
+from account.models import EthAddressField
 
 APPLICATION_CHOICES = [
     ("passport", "Passport"),
