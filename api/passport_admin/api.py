@@ -1,17 +1,12 @@
 from typing import List, Optional
 
+from account.models import Community
 from ceramic_cache.api.v1 import JWTDidAuth
-from django.db.models import Subquery, Q, OuterRef, Value
+from django.db.models import OuterRef, Q, Subquery, Value
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 from ninja import Router
-from passport_admin.schema import (
-    Banner,
-    GenericResponse,
-    NotificationSchema,
-    NotificationResponse,
-    NotificationPayload,
-    DismissPayload,
-)
+
 from passport_admin.notification_generators.deduplication_events import (
     generate_deduplication_notifications,
 )
@@ -21,15 +16,21 @@ from passport_admin.notification_generators.expired_stamp import (
 from passport_admin.notification_generators.on_chain_expired import (
     generate_on_chain_expired_notifications,
 )
-
+from passport_admin.schema import (
+    Banner,
+    DismissPayload,
+    GenericResponse,
+    NotificationPayload,
+    NotificationResponse,
+    NotificationSchema,
+)
 
 from .models import (
     DismissedBanners,
-    PassportBanner,
     Notification,
     NotificationStatus,
+    PassportBanner,
 )
-from django.utils import timezone
 
 router = Router()
 
@@ -111,9 +112,14 @@ def get_notifications(request, payload: NotificationPayload):
     try:
         address = get_address(request.auth.did)
         current_date = timezone.now().date()
+        scorer_id = payload.scorer_id
+        try:
+            community = Community.objects.get(id=scorer_id)
+        except Community.DoesNotExist:
+            raise Exception("Scorer for provided id does not exist")
 
-        generate_deduplication_notifications(address=address)
-        generate_stamp_expired_notifications(address=address)
+        generate_deduplication_notifications(address=address, community=community)
+        generate_stamp_expired_notifications(address=address, community=community)
         if payload.expired_chain_ids:
             generate_on_chain_expired_notifications(
                 address=address, expired_chains=payload.expired_chain_ids

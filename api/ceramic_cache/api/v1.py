@@ -4,11 +4,10 @@ import json
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, Type
 
-
 import api_logging as logging
 import tos.api
 import tos.schema
-from account.models import Account, Nonce, Community
+from account.models import Account, Community, Nonce
 from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -25,18 +24,25 @@ from ninja_jwt.authentication import InvalidToken
 # from ninja_jwt.schema import RefreshToken
 from ninja_jwt.settings import api_settings
 from ninja_jwt.tokens import RefreshToken, Token, TokenError
-
-import tos.api
-import tos.schema
+from registry.api.utils import (
+    is_valid_address,
+)
 from registry.api.v1 import (
     DetailedScoreResponse,
     ErrorMessageResponse,
     SubmitPassportPayload,
     ahandle_submit_passport,
 )
+from registry.exceptions import (
+    InvalidAddressException,
+    InvalidCommunityScoreRequestException,
+    NotFoundApiException,
+)
 from registry.models import Score
 from stake.api import handle_get_gtc_stake
 from stake.schema import GetSchemaResponse
+
+from ceramic_cache.utils import get_utc_time
 
 from ..exceptions import (
     InternalServerException,
@@ -56,15 +62,6 @@ from .schema import (
     DeleteStampPayload,
     GetStampResponse,
     GetStampsWithScoreResponse,
-)
-from ceramic_cache.utils import get_utc_time
-from registry.api.utils import (
-    is_valid_address,
-)
-from registry.exceptions import (
-    InvalidAddressException,
-    InvalidCommunityScoreRequestException,
-    NotFoundApiException,
 )
 
 log = logging.getLogger(__name__)
@@ -381,8 +378,11 @@ def get_scorer_weights(request):
     return handle_get_scorer_weights()
 
 
-def handle_get_scorer_weights() -> Dict[str, str]:
-    cache_key = f"ceramic_cache_scorer_weights_{settings.CERAMIC_CACHE_SCORER_ID}"
+def handle_get_scorer_weights(community_id=None) -> Dict[str, str]:
+    if not community_id:
+        community_id = settings.CERAMIC_CACHE_SCORER_ID
+
+    cache_key = f"ceramic_cache_scorer_weights_{community_id}"
     weights = cache.get(cache_key)
     if weights:
         try:
@@ -391,7 +391,7 @@ def handle_get_scorer_weights() -> Dict[str, str]:
             log.error("Failed to parse weights from cache!", exc_info=True)
 
     try:
-        community = Community.objects.get(id=settings.CERAMIC_CACHE_SCORER_ID)
+        community = Community.objects.get(id=community_id)
         weights = community.get_scorer().weights
         # Cache the value for 1 minute
         cache.set(cache_key, json.dumps(weights), 1 * 60)
