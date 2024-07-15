@@ -10,7 +10,8 @@ RUN apt update && \
 #########################################################
 FROM base AS builder
 
-RUN pip install --user pipenv
+RUN  pip install --upgrade pip && \
+    pip install --user pipenv
 
 # Tell pipenv to create venv in the current directory
 ENV PIPENV_VENV_IN_PROJECT=1

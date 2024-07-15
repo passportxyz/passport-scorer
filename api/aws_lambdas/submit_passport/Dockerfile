@@ -1,6 +1,6 @@
 
 # https://pipenv.pypa.io/en/latest/basics/#pipenv-and-docker-containers
-FROM public.ecr.aws/lambda/python:3.11 AS base
+FROM --platform=linux/amd64 public.ecr.aws/lambda/python:3.11 AS base
 
 
 #########################################################
@@ -8,7 +8,8 @@ FROM public.ecr.aws/lambda/python:3.11 AS base
 #########################################################
 FROM base AS builder
 
-RUN pip install pipenv
+RUN  pip install --upgrade pip && \
+    pip install pipenv
 
 # Tell pipenv to create venv in the current directory
 ENV PIPENV_VENV_IN_PROJECT=1
