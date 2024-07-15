@@ -202,10 +202,7 @@ def check_rate_limit(request):
     """
     old_limited = getattr(request, "limited", False)
 
-    # TODO
-    print("request.path", request.path)
-
-    if request.path.startswith("/passport"):
+    if request.path.startswith("/passport/"):
         ratelimited = check_analysis_rate_limit(request)
     else:
         ratelimited = check_standard_rate_limit(request)

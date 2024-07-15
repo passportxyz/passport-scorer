@@ -5,6 +5,8 @@ from typing import Dict
 import aiohttp
 import api_logging as logging
 from django.conf import settings
+from django_ratelimit.exceptions import Ratelimited
+from eth_utils.address import to_checksum_address
 from ninja import Schema
 from ninja_extra import NinjaExtraAPI
 from ninja_extra.exceptions import APIException
@@ -26,6 +28,15 @@ Other endpoints documented at [/docs](/docs)
 
 class ScoreModel(Schema):
     score: int
+
+
+@api.exception_handler(Ratelimited)
+def service_unavailable(request, _):
+    return api.create_response(
+        request,
+        {"detail": "You have been rate limited!"},
+        status=429,
+    )
 
 
 class PassportAnalysisDetails(Schema):
@@ -121,8 +132,11 @@ async def handle_get_analysis(
 
     urls = [settings.MODEL_ENDPOINTS[model] for model in models]
 
+    # The cache historically uses checksummed addresses, need to do this for consistency
+    checksummed_address = to_checksum_address(address)
+
     try:
-        responses = await fetch_all(urls, address)
+        responses = await fetch_all(urls, checksummed_address)
 
         ret = PassportAnalysisResponse(
             address=address,

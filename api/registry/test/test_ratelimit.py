@@ -50,6 +50,25 @@ def test_rate_limit_from_db_is_applied_for_api_key(scorer_api_key):
 
     assert response.status_code == 429
 
+    address = "0xd49e5a2c0EF6ca8B5A826c93e1c4720026da565D"
+
+    # make sure doesn't interfere with analytics rate limit
+    with patch(
+        "passport.api.handle_get_analysis",
+        return_value={
+            "address": address,
+            "details": {"models": {"ethereum_activity": {"score": 0.5}}},
+        },
+    ):
+        response = client.get(
+            f"/passport/analysis/{address}",
+            **{
+                "HTTP_X_API_KEY": scorer_api_key,
+            },
+        )
+
+        assert response.status_code == 200
+
 
 @override_settings(RATELIMIT_ENABLE=True)
 def test_rate_limit_from_db_is_applied_for_token(scorer_api_key):
