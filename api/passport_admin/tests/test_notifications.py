@@ -314,7 +314,7 @@ def existing_notification_deduplication_event(sample_address, community):
             )
         ).hexdigest(),
         content=f"You have claimed the same '{stamp_name}' stamp in two Passports. We only count your stamp once. This duplicate is in your wallet {event.address}. Learn more about deduplication",
-        link="https://github.com/orgs/gitcoinco/projects/6/views/link",
+        link="https://support.passport.xyz/passport-knowledge-base/using-passport/common-questions/why-is-my-passport-score-not-adding-up",
         link_text="here",
         type="deduplication",
         is_active=True,
@@ -355,7 +355,7 @@ class TestNotifications:
                 )
             ).hexdigest(),
             "type": "deduplication",
-            "link": "https://github.com/orgs/gitcoinco/projects/6/views/link",
+            "link": "https://support.passport.xyz/passport-knowledge-base/using-passport/common-questions/why-is-my-passport-score-not-adding-up",
             "link_text": "here",
             "content": f"You have claimed the same '{deduplication_event.data['provider']}' stamp in two Passports. We only count your stamp once. This duplicate is in your wallet {sample_address}. Learn more about deduplication",
             "created_at": current_date.isoformat(),
