@@ -1,6 +1,7 @@
 from datetime import date
-from ninja import Schema
 from typing import List, Optional
+
+from ninja import Schema
 
 
 class GenericResponse(Schema):
@@ -34,6 +35,7 @@ class ChainSchema(Schema):
 
 
 class NotificationPayload(Schema):
+    scorer_id: int
     expired_chain_ids: Optional[List[ChainSchema]] = None
 
 

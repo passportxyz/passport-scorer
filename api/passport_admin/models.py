@@ -3,9 +3,9 @@ Module for defining models for Passport Admin.
 Includes models for PassportBanner and DismissedBanners.
 """
 
-from account.models import EthAddressField
+from account.models import Community, EthAddressField
+from django.conf import settings
 from django.db import models
-from account.models import EthAddressField
 
 APPLICATION_CHOICES = [
     ("passport", "Passport"),
@@ -52,6 +52,13 @@ NOTIFICATION_TYPES = [
 ]
 
 
+def get_default_ceramic_cache_community():
+    if not settings.CERAMIC_CACHE_SCORER_ID:
+        return Community.objects.first().id
+    else:
+        return settings.CERAMIC_CACHE_SCORER_ID
+
+
 class Notification(models.Model):
     """
     Model representing a Notification.
@@ -74,6 +81,12 @@ class Notification(models.Model):
     eth_address = EthAddressField(
         null=True, blank=True
     )  # account/ eth address for which the notification is created. If null then it is a global notification wgich will be shown to all users.
+    community = models.ForeignKey(
+        Community,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        default=get_default_ceramic_cache_community,
+    )
 
 
 class NotificationStatus(models.Model):

@@ -7,8 +7,8 @@ from scorer.test.conftest import (
     sample_token,  # noqa
     scorer_account,  # noqa
     scorer_community,  # noqa
-    scorer_passport,  # noqa
     scorer_community_with_binary_scorer,  # noqa
+    scorer_passport,  # noqa
     scorer_user,  # noqa
     ui_scorer,  # noqa
     verifiable_credential,  # noqa
@@ -36,4 +36,4 @@ def sample_stamps():
 
 def pytest_configure():
     settings.CERAMIC_CACHE_API_KEY = "supersecret"
-    settings.CERAMIC_CACHE_SCORER_ID = ""
+    settings.CERAMIC_CACHE_SCORER_ID = "1"
