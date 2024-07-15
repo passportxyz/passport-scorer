@@ -61,7 +61,7 @@ def generate_deduplication_notifications(address, community: Community):
                     type="deduplication",
                     is_active=True,
                     content=f"You have claimed the same '{stamp_name}' stamp in two Passports. We only count your stamp once. This duplicate is in your wallet {address}. Learn more about deduplication",
-                    link="https://github.com/orgs/gitcoinco/projects/6/views/link",
+                    link="https://support.passport.xyz/passport-knowledge-base/using-passport/common-questions/why-is-my-passport-score-not-adding-up",
                     link_text="here",
                     created_at=timezone.now().date(),
                     eth_address=address,
