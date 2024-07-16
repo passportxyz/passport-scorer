@@ -64,6 +64,14 @@ const redashMailPassword = pulumi.secret(
   `${process.env["REDASH_MAIL_PASSWORD"]}`
 );
 
+// TODO: we could load this from these endpoints data-science stack
+const ethereumModelEndpoint = `${process.env["ETHEREUM_MODEL_ENDPOINT"]}`;
+const nftModelEndpoint = `${process.env["NFT_MODEL_ENDPOINT"]}`;
+const zksyncModelEndpoint = `${process.env["ZKSYNC_MODEL_ENDPOINT"]}`;
+const polygonModelEndpoint = `${process.env["POLYGON_MODEL_ENDPOINT"]}`;
+const arbitrumModelEndpoint = `${process.env["ARBITRUM_MODEL_ENDPOINT"]}`;
+const optimismModelEndpoint = `${process.env["OPTIMISM_MODEL_ENDPOINT"]}`;
+
 const pagerDutyIntegrationEndpoint = `${process.env["PAGERDUTY_INTEGRATION_ENDPOINT"]}`;
 
 const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
@@ -1485,6 +1493,33 @@ buildHttpLambdaFn(
 buildHttpLambdaFn(
   {
     ...lambdaSettings,
+    environment: [
+      ...lambdaSettings.environment,
+      {
+        name: "ETHEREUM_MODEL_ENDPOINT",
+        value: ethereumModelEndpoint,
+      },
+      {
+        name: "NFT_MODEL_ENDPOINT",
+        value: nftModelEndpoint,
+      },
+      {
+        name: "ZKSYNC_MODEL_ENDPOINT",
+        value: zksyncModelEndpoint,
+      },
+      {
+        name: "POLYGON_MODEL_ENDPOINT",
+        value: polygonModelEndpoint,
+      },
+      {
+        name: "ARBITRUM_MODEL_ENDPOINT",
+        value: arbitrumModelEndpoint,
+      },
+      {
+        name: "OPTIMISM_MODEL_ENDPOINT",
+        value: optimismModelEndpoint,
+      },
+    ],
     name: "passport-analysis-GET-0",
     memorySize: 256,
     dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],

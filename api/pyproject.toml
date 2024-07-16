@@ -1,0 +1,6 @@
+[tool.ruff.lint]
+fixable = ["ALL"]
+select = [
+    # isort
+    "I",
+]
