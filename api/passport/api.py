@@ -24,12 +24,12 @@ Other endpoints documented at [/docs](/docs)
 )
 
 
-class ModelScore(Schema):
+class ScoreModel(Schema):
     score: int
 
 
 class PassportAnalysisDetails(Schema):
-    models: Dict[str, ModelScore]
+    models: Dict[str, ScoreModel]
 
 
 class PassportAnalysisResponse(Schema):
@@ -72,7 +72,7 @@ async def get_analysis(
 async def fetch(session, url, data):
     headers = {"Content-Type": "application/json"}
     async with session.post(url, data=json.dumps(data), headers=headers) as response:
-        return await response.text()
+        return await response.json()
 
 
 async def fetch_all(urls, address):
@@ -127,9 +127,8 @@ async def handle_get_analysis(
             address=address,
             details=PassportAnalysisDetails(models={}),
         )
-        for model, response_str in zip(models, responses):
-            response = json.loads(response_str)
-            ret.details.models[model] = ModelScore(
+        for model, response in zip(models, responses):
+            ret.details.models[model] = ScoreModel(
                 score=response.get("data", {}).get("human_probability", 0)
             )
 

@@ -1,10 +1,9 @@
 # pylint: disable=no-value-for-parameter
 # pyright: reportGeneralTypeIssues=false
 import json
-from unittest.mock import Mock
 
 import pytest
-from passport.test.test_analysis import MockLambdaClient
+from django.conf import settings
 
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
 
@@ -15,14 +14,14 @@ pytestmark = pytest.mark.django_db
 address = "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D"
 
 
-def mock_post_response(url, json, headers):
+def mock_post_response(session, url, data):
     # Create a mock response object
-    mock_response = Mock()
-    mock_response.status_code = 200
+    # mock_response = Mock()
+    # mock_response.status_code = 200
 
     # Define different responses based on the model (which we can infer from the URL)
     responses = {
-        "ethereum": {
+        "ethereum_activity": {
             "data": {"human_probability": 75},
             "metadata": {"model_name": "ethereum_activity", "version": "1.0"},
         },
@@ -37,7 +36,7 @@ def mock_post_response(url, json, headers):
     }
 
     # Determine which model is being requested
-    for model, endpoint in MODEL_ENDPOINTS.items():
+    for model, endpoint in settings.MODEL_ENDPOINTS.items():
         if endpoint in url:
             response_data = responses.get(model, {"data": {"human_probability": 0}})
             break
@@ -45,9 +44,13 @@ def mock_post_response(url, json, headers):
         response_data = {"error": "Unknown model"}
 
     # Set the json method of the mock response
-    mock_response.json = lambda: response_data
+    # mock_response.json = lambda: response_data
 
-    return mock_response
+    # print("*" * 40)
+    # print("mock_response: ", mock_response)
+    # print("*" * 40)
+    # return mock_response
+    return response_data
 
 
 def test_successful_analysis_eth(
@@ -61,10 +64,10 @@ def test_successful_analysis_eth(
     event = {
         "headers": {"x-api-key": scorer_api_key},
         "path": f"/passport/analysis/{address}",
-        "queryStringParameters": {"model_list": "ethereum"},
+        "queryStringParameters": {"model_list": "ethereum_activity"},
         "isBase64Encoded": False,
     }
-    with mocker.patch("requests.post", side_effect=mock_post_response):
+    with mocker.patch("passport.api.fetch", side_effect=mock_post_response):
         response = _handler(event, MockContext())
 
     assert response is not None
@@ -73,7 +76,7 @@ def test_successful_analysis_eth(
     body = json.loads(response["body"])
 
     assert body["address"] == address
-    assert body["details"]["models"]["ethereum_activity"]["score"] == 50
+    assert body["details"]["models"]["ethereum_activity"]["score"] == 75
 
 
 def test_bad_auth(
@@ -142,5 +145,5 @@ def test_bad_model(
     assert response["statusCode"] == 400
     assert (
         json.loads(response["body"])["error"]
-        == f"Invalid model name(s): {', '.join([model])}. Must be one of {', '.join(MODEL_ENDPOINTS.keys())}"
+        == f"Invalid model name(s): {', '.join([model])}. Must be one of {', '.join(settings.MODEL_ENDPOINTS.keys())}"
     )
