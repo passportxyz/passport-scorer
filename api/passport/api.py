@@ -1,13 +1,14 @@
+import asyncio
 import json
+from typing import Dict
 
+import aiohttp
 import api_logging as logging
-import requests
 from django.conf import settings
-from eth_utils.address import to_checksum_address
 from ninja import Schema
 from ninja_extra import NinjaExtraAPI
 from ninja_extra.exceptions import APIException
-from registry.api.utils import ApiKey, is_valid_address
+from registry.api.utils import aapi_key, is_valid_address
 from registry.exceptions import InvalidAddressException
 
 log = logging.getLogger(__name__)
@@ -23,26 +24,12 @@ Other endpoints documented at [/docs](/docs)
 )
 
 
-class EthereumModel(Schema):
+class ModelScore(Schema):
     score: int
-
-
-class NFTModel(Schema):
-    score: int
-
-
-class ZkSyncModel(Schema):
-    score: int
-
-
-class PassportAnalysisDetailsModels(Schema):
-    ethereum: Optional[EthereumModel]
-    nft: Optional[NFTModel]
-    zksync: Optional[ZkSyncModel]
 
 
 class PassportAnalysisDetails(Schema):
-    models: PassportAnalysisDetailsModels
+    models: Dict[str, ModelScore]
 
 
 class PassportAnalysisResponse(Schema):
@@ -66,7 +53,7 @@ class PassportAnalysisError(APIException):
 
 @api.get(
     "/analysis/{address}",
-    auth=ApiKey(),
+    auth=aapi_key,
     response={
         200: PassportAnalysisResponse,
         400: ErrorMessageResponse,
@@ -76,11 +63,43 @@ class PassportAnalysisError(APIException):
     description="Retrieve Passport analysis for an Ethereum address, currently consisting of the ETH activity model humanity score (0-100, higher is more likely human).",
     tags=["Passport Analysis"],
 )
-def get_analysis(request, address: str) -> PassportAnalysisResponse:
-    return handle_get_analysis(address)
+async def get_analysis(
+    request, address: str, model_list: str = None
+) -> PassportAnalysisResponse:
+    return await handle_get_analysis(address, model_list)
 
 
-def handle_get_analysis(address: str) -> PassportAnalysisResponse:
+async def fetch(session, url, data):
+    headers = {"Content-Type": "application/json"}
+    async with session.post(url, data=json.dumps(data), headers=headers) as response:
+        return await response.text()
+
+
+async def fetch_all(urls, address):
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        for url in urls:
+            task = asyncio.ensure_future(
+                fetch(
+                    session,
+                    url,
+                    {"address": address},
+                )
+            )
+            tasks.append(task)
+        responses = await asyncio.gather(*tasks)
+        return responses
+
+
+async def handle_get_analysis(
+    address: str, model_list: str = None
+) -> PassportAnalysisResponse:
+    # Set default in case nothing was selected by the user
+    if not model_list or model_list.strip() == "":
+        model_list = settings.MODEL_ENDPOINTS_DEFAULT
+
+    models = [model.strip() for model in model_list.split(",")]
+
     if not is_valid_address(address):
         raise InvalidAddressException()
 
@@ -90,45 +109,31 @@ def handle_get_analysis(address: str) -> PassportAnalysisResponse:
         )
 
     if len(models) == 0 or models[0] == "":
+        models = ""
         raise BadModelNameError(detail="No model names provided")
 
-    bad_models = set(models) - set(MODEL_ENDPOINTS.keys())
+    bad_models = set(models) - set(settings.MODEL_ENDPOINTS.keys())
     if bad_models:
         raise BadModelNameError(
-            detail=f"Invalid model name(s): {', '.join(bad_models)}. Must be one of {', '.join(MODEL_ENDPOINTS.keys())}"
+            detail=f"Invalid model name(s): {', '.join(bad_models)}. Must be one of {', '.join(settings.MODEL_ENDPOINTS.keys())}"
         )
 
-    checksum_address = to_checksum_address(address)
+    urls = [settings.MODEL_ENDPOINTS[model] for model in models]
 
     try:
-        lambda_client = get_lambda_client()
-        response = lambda_client.invoke(
-            FunctionName="eth-stamp-v2-api",
-            InvocationType="RequestResponse",
-            Payload=json.dumps(
-                {
-                    "body": json.dumps({"address": checksum_address}),
-                    "isBase64Encoded": False,
-                }
-            ),
-        )
+        responses = await fetch_all(urls, address)
 
-        decoded_response = response["Payload"].read().decode("utf-8")
-
-        parsed_response = json.loads(decoded_response)
-
-        response_body = json.loads(parsed_response["body"])
-
-        score = response_body.get("data", {}).get("human_probability", 0)
-
-        return PassportAnalysisResponse(
+        ret = PassportAnalysisResponse(
             address=address,
-            details=PassportAnalysisDetails(
-                models=PassportAnalysisDetailsModels(
-                    ethereum_activity=EthereumActivityModel(score=score)
-                )
-            ),
+            details=PassportAnalysisDetails(models={}),
         )
+        for model, response_str in zip(models, responses):
+            response = json.loads(response_str)
+            ret.details.models[model] = ModelScore(
+                score=response.get("data", {}).get("human_probability", 0)
+            )
+
+        return ret
 
     except Exception:
         log.error("Error retrieving Passport analysis", exc_info=True)

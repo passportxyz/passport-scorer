@@ -3,6 +3,7 @@ from .base import *
 from .celery import *
 from .feature_flags import *
 from .gitcoin_passport_weights import *
+from .model_config import *
 from .ninja_jwt import *
 from .ratelimit import *
 from .registry import *
