@@ -1,27 +1,27 @@
+import codecs
+import csv
+
 import boto3
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
-from django.urls import reverse
+from django.shortcuts import redirect, render
+from django.urls import path, reverse
 from django.utils.safestring import mark_safe
 from django_ace import AceWidget
 from rest_framework_api_key.admin import APIKeyAdmin
 from scorer.scorer_admin import ScorerModelAdmin
 from scorer_weighted.models import Scorer
-from django.urls import path
-from django.shortcuts import render, redirect
-import csv
-import codecs
 
 from .models import (
     Account,
     AccountAPIKey,
+    AddressList,
+    AddressListMember,
     AllowList,
     Community,
     Customization,
-    AddressList,
-    AddressListMember,
     IncludedChainId,
 )
 
@@ -116,6 +116,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         "name",
         "prefix",
         "rate_limit",
+        "analysis_rate_limit",
         "account__user__username",
         "account__address",
     )
@@ -124,6 +125,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         "name",
         "account",
         "rate_limit_display",
+        "analysis_rate_limit_display",
         "created",
         "revoked",
     )

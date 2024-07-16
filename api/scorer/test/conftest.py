@@ -65,6 +65,7 @@ def scorer_api_key(scorer_account):
         account=scorer_account,
         name="Token for user 1",
         rate_limit="3/30seconds",
+        analysis_rate_limit="3/30seconds",
     )
     return secret
 

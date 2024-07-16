@@ -5,7 +5,7 @@ from account.models import Account, AccountAPIKey
 from aws_lambdas.passport.tests.test_passport_analysis_lambda import mock_post_response
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from web3 import Web3
 
 pytestmark = pytest.mark.django_db
@@ -29,7 +29,9 @@ class TestPassportAnalysis(TestCase):
         user_account = Account.objects.create(user=user, address=account.address)
 
         _obj, api_key = AccountAPIKey.objects.create_key(
-            account=user_account, name="Token for user 1"
+            account=user_account,
+            name="Token for user 1",
+            analysis_rate_limit="100/30seconds",
         )
 
         self.headers = {"HTTP_X-API-Key": f"{api_key}"}
@@ -71,3 +73,17 @@ class TestPassportAnalysis(TestCase):
         )
 
         self.assertEqual(analysis_response.status_code, 400)
+
+    @override_settings(RATELIMIT_ENABLE=True)
+    def test_rate_limit_is_applied(self):
+        """
+        Test that api rate limit is applied
+        """
+        client = Client()
+
+        with patch("registry.api.utils.is_ratelimited", return_value=True):
+            response = client.get(
+                "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+                **self.headers,
+            )
+            assert response.status_code == 429
