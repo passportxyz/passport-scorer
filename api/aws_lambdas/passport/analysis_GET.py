@@ -5,11 +5,13 @@ This module provides a handler to manage API requests in AWS Lambda.
 import asyncio
 
 from django.db import close_old_connections
-from passport.api import handle_get_analysis
 
 from aws_lambdas.utils import (
     with_api_request_exception_handling,
 )
+
+# The following needs to be imported after aws_lambdas.utils
+from passport.api import handle_get_analysis  # noqa
 
 
 @with_api_request_exception_handling
