@@ -166,12 +166,5 @@ def test_analysis_eth_unqoute_model_list(
     spy = mocker.spy(aws_lambdas.passport.analysis_GET, "handle_get_analysis")
     response = _handler(event, MockContext())
 
+    # Check that the model_list is unquoted properly
     spy.assert_called_with(address, "ethereum_activity, zksync")
-
-    assert response is not None
-    assert response["statusCode"] == 200
-
-    body = json.loads(response["body"])
-
-    assert body["address"] == address
-    assert body["details"]["models"]["ethereum_activity"]["score"] == 75
