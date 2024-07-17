@@ -7,12 +7,13 @@ from datetime import timedelta
 
 import dag_cbor
 import pytest
-from account.models import Community
-from ceramic_cache.api.v1 import DbCacheToken
-from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.test import Client
 from django.utils import timezone
+
+from account.models import Community
+from ceramic_cache.api.v1 import DbCacheToken
+from ceramic_cache.models import CeramicCache
 from passport_admin.models import Notification, NotificationStatus
 from registry.models import Event
 from scorer_weighted.models import BinaryWeightedScorer, Scorer
@@ -872,3 +873,47 @@ class TestNotifications:
         )  # Oldest notification
 
         assert res["items"][-1]["created_at"] == oldest_created_at
+
+    def test_ndeduplication_events_are_returned_for_signed_in_user(
+        self, sample_token, sample_address, community
+    ):
+        """
+        This tests that only a users notifications are returned
+        """
+        notification = Notification.objects.create(
+            notification_id=f"notification_1",
+            type="custom",
+            is_active=True,
+            content=f"Hello! This is a custom notification 1",
+            eth_address=sample_address,
+            community=community,
+        )
+        notification.created_at = timezone.now() - timedelta(days=1)
+        notification.save()
+
+        notification = Notification.objects.create(
+            notification_id=f"notification_2",
+            type="custom",
+            is_active=True,
+            content=f"Hello! This is a custom notification 2",
+            eth_address="sample_address",
+            community=community,
+        )
+        notification.created_at = timezone.now() - timedelta(days=2)
+        notification.save()
+
+        assert Notification.objects.all().count() == 2
+
+        notifications = Notification.objects.filter(eth_address=sample_address)
+        assert notifications.count() == 1
+
+        # Call the same endpoint again to check if the same notifications are returned
+        response = client.post(
+            "/passport-admin/notifications",
+            {"scorer_id": community.id},
+            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
+            content_type="application/json",
+        )
+
+        res = response.json()
+        assert len(res["items"]) == 1

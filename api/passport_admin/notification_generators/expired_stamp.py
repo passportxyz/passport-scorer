@@ -1,11 +1,11 @@
 import hashlib
 
 import dag_cbor
+from django.utils import timezone
+
 from account.models import Community
 from ceramic_cache.api.v1 import handle_get_scorer_weights
 from ceramic_cache.models import CeramicCache
-from django.utils import timezone
-
 from passport_admin.models import Notification
 
 
@@ -46,4 +46,5 @@ def generate_stamp_expired_notifications(address, community: Community):
                     is_active=True,
                     content=f"Your {cc.provider} stamp has expired. Please reverify to keep your Passport up to date.",
                     link=cc.provider,
+                    eth_address=address,
                 )
