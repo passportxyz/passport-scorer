@@ -5,9 +5,9 @@ import json
 import pytest
 from django.conf import settings
 
+import aws_lambdas.passport.analysis_GET
+from aws_lambdas.passport.analysis_GET import _handler
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
-
-from ..analysis_GET import _handler
 
 pytestmark = pytest.mark.django_db
 
@@ -147,3 +147,31 @@ def test_bad_model(
         json.loads(response["body"])["error"]
         == f"Invalid model name(s): {', '.join([model])}. Must be one of {', '.join(settings.MODEL_ENDPOINTS.keys())}"
     )
+
+
+def test_analysis_eth_unqoute_model_list(
+    scorer_api_key,
+    mocker,
+):
+    """
+    Tests that the model_list in the aws_lambda function is urlunquoted
+    """
+
+    event = {
+        "headers": {"x-api-key": scorer_api_key},
+        "path": f"/passport/analysis/{address}",
+        "queryStringParameters": {"model_list": "ethereum_activity%2C%20zksync"},
+        "isBase64Encoded": False,
+    }
+    spy = mocker.spy(aws_lambdas.passport.analysis_GET, "handle_get_analysis")
+    response = _handler(event, MockContext())
+
+    spy.assert_called_with(address, "ethereum_activity, zksync")
+
+    assert response is not None
+    assert response["statusCode"] == 200
+
+    body = json.loads(response["body"])
+
+    assert body["address"] == address
+    assert body["details"]["models"]["ethereum_activity"]["score"] == 75
