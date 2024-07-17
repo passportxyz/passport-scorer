@@ -1,5 +1,6 @@
-from account.models import EthAddressField
 from django.db import models
+
+from account.models import EthAddressField
 
 
 # Stores the current summary for each (chain, staker, stakee) combo
@@ -74,7 +75,7 @@ class StakeEvent(models.Model):
     unlock_time = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        unique_together = ["tx_hash", "chain"]
+        unique_together = ["tx_hash", "chain", "stakee"]
 
 
 class ReindexRequest(models.Model):

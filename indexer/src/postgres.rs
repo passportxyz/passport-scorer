@@ -147,7 +147,7 @@ impl PostgresClient {
                 // rollback transaction
                 client.execute("ROLLBACK", &[]).await?;
                 // continue if duplicate key error
-                if format!("{:?}", e).contains(&format!("Key (tx_hash, chain)=({}, {}) already exists.", tx_hash, chain_id)) {
+                if format!("{:?}", e).contains(&format!("Key (tx_hash, chain, stakee)=({}, {}, {}) already exists.", tx_hash, chain_id, stakee)) {
                     return Ok(());
                 }
                 return Err(e);
@@ -225,7 +225,7 @@ impl PostgresClient {
                 // rollback transaction
                 client.execute("ROLLBACK", &[]).await?;
                 // continue if duplicate key error
-                if format!("{:?}", e).contains(&format!("Key (tx_hash, chain)=({}, {}) already exists.", tx_hash, chain_id)) {
+                if format!("{:?}", e).contains(&format!("Key (tx_hash, chain, stakee)=({}, {}, {}) already exists.", tx_hash, chain_id, stakee)) {
                     return Ok(());
                 }
                 return Err(e);
