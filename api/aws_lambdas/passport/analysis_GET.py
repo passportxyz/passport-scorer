@@ -3,6 +3,7 @@ This module provides a handler to manage API requests in AWS Lambda.
 """
 
 import asyncio
+from urllib.parse import unquote
 
 from django.db import close_old_connections
 
@@ -21,7 +22,7 @@ def _handler(event, _context, _request, _user_account, _body):
     """
 
     address = event["path"].split("/")[-1]
-    model_list = event.get("queryStringParameters", {}).get("model_list", "")
+    model_list = unquote(event.get("queryStringParameters", {}).get("model_list", ""))
 
     loop = asyncio.get_event_loop()
     response = loop.run_until_complete(handle_get_analysis(address, model_list))

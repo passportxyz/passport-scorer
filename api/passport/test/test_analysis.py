@@ -1,12 +1,13 @@
 from unittest.mock import patch
 
 import pytest
-from account.models import Account, AccountAPIKey
-from aws_lambdas.passport.tests.test_passport_analysis_lambda import mock_post_response
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase, override_settings
 from web3 import Web3
+
+from account.models import Account, AccountAPIKey
+from aws_lambdas.passport.tests.test_passport_analysis_lambda import mock_post_response
 
 pytestmark = pytest.mark.django_db
 
@@ -87,3 +88,21 @@ class TestPassportAnalysis(TestCase):
                 **self.headers,
             )
             assert response.status_code == 429
+
+    @patch("passport.api.fetch", side_effect=mock_post_response)
+    def test_checksummed_address_is_passed_on(self, mock_post):
+        """
+        It is a requirement that the checksummed address is passed on in the requests to the model APIs.
+        This is not enforced in the models.
+        Changing this would affect the current cached values
+        """
+        self.client.get(
+            "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7d".lower(),
+            content_type="application/json",
+            **self.headers,
+        )
+
+        # Verify that the address passed on is the checksummed address
+        assert mock_post.call_args.args[2] == {
+            "address": "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D"
+        }
