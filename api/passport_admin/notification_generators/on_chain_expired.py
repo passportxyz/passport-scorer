@@ -1,9 +1,10 @@
-import dag_cbor
 import hashlib
-
 from typing import List
-from passport_admin.schema import ChainSchema
+
+import dag_cbor
+
 from passport_admin.models import Notification
+from passport_admin.schema import ChainSchema
 
 
 def generate_on_chain_expired_notifications(address, expired_chains: List[ChainSchema]):
@@ -30,4 +31,5 @@ def generate_on_chain_expired_notifications(address, expired_chains: List[ChainS
                 type="on_chain_expiry",
                 is_active=True,
                 content=f"Your on-chain Passport on {chain.name} has expired. Update now to maintain your active status.",
+                eth_address=address,
             )
