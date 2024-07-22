@@ -1,7 +1,5 @@
 import functools
 
-import api_logging as logging
-from account.models import Account, AccountAPIKey
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils.module_loading import import_string
@@ -16,6 +14,9 @@ from eth_utils.address import (
 from ninja.compatibility.request import get_headers
 from ninja.security import APIKeyHeader
 from ninja.security.base import SecuritySchema
+
+import api_logging as logging
+from account.models import Account, AccountAPIKey
 from registry.api.schema import SubmitPassportPayload
 from registry.atasks import asave_api_key_analytics
 from registry.exceptions import InvalidScorerIdException, Unauthorized
@@ -202,11 +203,15 @@ def check_rate_limit(request):
     """
     old_limited = getattr(request, "limited", False)
 
+    print("request.path", request.path)
+    print("request.path.startswith", request.path.startswith("/passport/"))
+
     if request.path.startswith("/passport/"):
         ratelimited = check_analysis_rate_limit(request)
     else:
         ratelimited = check_standard_rate_limit(request)
 
+    print("ratelimited", ratelimited, "old_limited", old_limited)
     request.limited = ratelimited or old_limited
 
     if ratelimited:
@@ -234,6 +239,7 @@ def check_standard_rate_limit(request) -> bool:
 
 def check_analysis_rate_limit(request) -> bool:
     rate = request.api_key.analysis_rate_limit
+    print("rate", rate)
 
     # Bypass rate limiting if rate is set to None
     if rate == "":
