@@ -3,7 +3,7 @@ import functools
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils.module_loading import import_string
-from django_ratelimit.core import is_ratelimited
+from django_ratelimit.core import is_ratelimited, get_usage
 from django_ratelimit.decorators import ALL
 from django_ratelimit.exceptions import Ratelimited
 from eth_utils.address import (
@@ -240,10 +240,24 @@ def check_standard_rate_limit(request) -> bool:
 def check_analysis_rate_limit(request) -> bool:
     rate = request.api_key.analysis_rate_limit
     print("rate", rate)
+    print("prefix", request.api_key.prefix)
 
     # Bypass rate limiting if rate is set to None
     if rate == "":
         return False
+
+    print(
+        "usage",
+        get_usage(
+            request=request,
+            group="analysis",
+            fn=None,
+            key=lambda _request, _group: request.api_key.prefix,
+            rate=rate,
+            method=ALL,
+            increment=True,
+        ),
+    )
 
     return is_ratelimited(
         request=request,
