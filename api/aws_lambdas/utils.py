@@ -55,6 +55,7 @@ def load_secrets():
     os.environ["S3_DATA_AWS_SECRET_ACCESS_KEY"] = secrets[
         "S3_DATA_AWS_SECRET_ACCESS_KEY"
     ]
+    os.environ["RATELIMIT_ENABLE"] = secrets["RATELIMIT_ENABLE"]
 
 
 if "SCORER_SERVER_SSM_ARN" in os.environ:
@@ -79,6 +80,9 @@ from django.http import HttpRequest  # noqa: E402
 from django_ratelimit.exceptions import Ratelimited  # noqa: E402
 from ninja_extra.exceptions import APIException
 from ninja_jwt.exceptions import InvalidToken  # noqa: E402
+from structlog.contextvars import bind_contextvars  # noqa: E402
+
+from aws_lambdas.exceptions import InvalidRequest  # noqa: E402
 from registry.api.utils import (
     ApiKey,
     check_rate_limit,
@@ -89,9 +93,6 @@ from registry.exceptions import (  # noqa: E402
     NotFoundApiException,
     Unauthorized,
 )
-from structlog.contextvars import bind_contextvars  # noqa: E402
-
-from aws_lambdas.exceptions import InvalidRequest  # noqa: E402
 
 RESPONSE_HEADERS = {
     "Content-Type": "application/json",
