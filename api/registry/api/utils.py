@@ -1,9 +1,17 @@
 import functools
 
+import socket
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils.module_loading import import_string
-from django_ratelimit.core import is_ratelimited, get_usage
+from django_ratelimit.core import (
+    is_ratelimited,
+    get_usage,
+    _split_rate,
+    _get_window,
+    _make_cache_key,
+    EXPIRATION_FUDGE,
+)
 from django_ratelimit.decorators import ALL
 from django_ratelimit.exceptions import Ratelimited
 from eth_utils.address import (
@@ -21,6 +29,7 @@ from registry.api.schema import SubmitPassportPayload
 from registry.atasks import asave_api_key_analytics
 from registry.exceptions import InvalidScorerIdException, Unauthorized
 from registry.tasks import save_api_key_analytics
+from django.core.cache import caches
 
 log = logging.getLogger(__name__)
 
@@ -241,6 +250,47 @@ def check_analysis_rate_limit(request) -> bool:
     rate = request.api_key.analysis_rate_limit
     print("rate", rate)
     print("prefix", request.api_key.prefix)
+    print("RATELIMIT_ENABLE", getattr(settings, "RATELIMIT_ENABLE", True))
+    print("RATELIMIT_FAIL_OPEN", getattr(settings, "RATELIMIT_FAIL_OPEN", False))
+    print("cache_name", getattr(settings, "RATELIMIT_USE_CACHE", "default"))
+
+    cache_name = getattr(settings, "RATELIMIT_USE_CACHE", "default")
+    cache = caches[cache_name]
+
+    limit, period = _split_rate(rate)
+
+    print("limit", limit)
+    print("period", period)
+
+    value = request.api_key.prefix
+    window = _get_window(value, period)
+
+    print("window", window)
+
+    cache_key = _make_cache_key("analysis", window, rate, value, ALL)
+    initial_value = 1
+
+    print("cache_key", cache_key)
+
+    try:
+        added = cache.add(cache_key, initial_value, period + EXPIRATION_FUDGE)
+    except socket.gaierror:  # for redis
+        print("socket.gaierror")
+        added = False
+
+    count = None
+    if added:
+        count = initial_value
+    else:
+        try:
+            # python3-memcached will throw a ValueError if the server is
+            # unavailable or (somehow) the key doesn't exist. redis, on the
+            # other hand, simply returns None.
+            count = cache.incr(cache_key)
+        except ValueError:
+            pass
+
+    print("count", count)
 
     # Bypass rate limiting if rate is set to None
     if rate == "":
