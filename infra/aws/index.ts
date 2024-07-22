@@ -9,7 +9,6 @@ import {
   createScoreExportBucketAndDomain,
   createScorerECSService,
   createTargetGroup,
-  getEnvironment,
   createSharedLambdaResources,
   createDeadLetterQueue,
   createRescoreQueue,
@@ -20,6 +19,7 @@ import {
   createLoadBalancerAlarms,
 } from "../lib/scorer/loadBalancer";
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
+import { secretsManager } from "infra-libs";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -545,7 +545,12 @@ const envConfig: ScorerEnvironmentConfig = {
   rescoreQueueUrl: rescoreQueue.url,
 };
 
-const environment = getEnvironment(envConfig);
+const environment = secretsManager.getEnvironmentVars({
+  vault: "DevOps",
+  repo: "passport-scorer",
+  env: stack,
+  section: "api",
+});
 
 //////////////////////////////////////////////////////////////
 // Set up log groups for API service and worker
@@ -1357,7 +1362,7 @@ const lambdaSettings = {
       name: "SCORER_SERVER_SSM_ARN",
       value: SCORER_SERVER_SSM_ARN,
     },
-  ],
+  ].sort(secretsManager.sortByName),
   roleAttachments: httpRoleAttachments,
   role: httpLambdaRole,
   alertTopic: pagerdutyTopic,
@@ -1519,7 +1524,7 @@ buildHttpLambdaFn(
         name: "OPTIMISM_MODEL_ENDPOINT",
         value: optimismModelEndpoint,
       },
-    ],
+    ].sort(secretsManager.sortByName),
     name: "passport-analysis-GET-0",
     memorySize: 256,
     dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],
