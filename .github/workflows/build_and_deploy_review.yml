@@ -69,6 +69,7 @@ jobs:
         env:
           UPTIME_ROBOT_READONLY_API_KEY: op://DevOps/passport-scorer-api-review-secrets/ci/UPTIME_ROBOT_READONLY_API_KEY
           IGNORE_UNMONITORED_URLS: op://DevOps/passport-scorer-api-review-env/ci/IGNORE_UNMONITORED_URLS
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
       - name: URL Monitoring Check
         working-directory: ./api
