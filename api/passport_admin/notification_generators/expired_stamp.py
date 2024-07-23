@@ -13,7 +13,7 @@ def generate_stamp_expired_notifications(address, community: Community):
     """
     Generate stamp expired notifications for a specific address
     """
-    current_date = timezone.now().date()
+    current_date = timezone.now()
 
     ceramic_cache = CeramicCache.objects.filter(
         address=address, deleted_at__isnull=True, expiration_date__lt=current_date

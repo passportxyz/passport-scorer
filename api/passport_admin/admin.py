@@ -5,15 +5,16 @@ This includes registering the relevant models for PassportBanner and DismissedBa
 
 from django.contrib import admin
 
+from scorer.scorer_admin import ScorerModelAdmin
+
 from .models import (
     DismissedBanners,
-    PassportBanner,
     Notification,
     NotificationStatus,
+    PassportBanner,
 )
 
 admin.site.register(DismissedBanners)
-admin.site.register(NotificationStatus)
 
 
 @admin.register(PassportBanner)
@@ -27,8 +28,9 @@ class PassportAdmin(admin.ModelAdmin):
     list_filter = ("is_active", "application")
 
 
+# ScorerModelAdmin
 @admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
+class NotificationAdmin(ScorerModelAdmin):
     """
     Admin class for Notification.
     """
@@ -44,3 +46,14 @@ class NotificationAdmin(admin.ModelAdmin):
         "link",
         "link_text",
     )
+
+
+@admin.register(NotificationStatus)
+class NotificationStatusAdmin(ScorerModelAdmin):
+    """
+    Admin class for NotificationStatus.
+    """
+
+    list_display = ("notification", "eth_address", "is_read", "is_deleted")
+    search_fields = ("notification", "eth_address", "is_read", "is_deleted")
+    list_filter = ("eth_address", "is_read", "is_deleted")
