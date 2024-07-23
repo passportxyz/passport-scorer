@@ -50,11 +50,8 @@ def load_secrets():
     # Decrypts secret using the associated KMS key.
     # Load secrets and store them in env variables
     secrets = json.loads(get_secret_value_response["SecretString"])
-    os.environ["SECRET_KEY"] = secrets["SECRET_KEY"]
-    os.environ["S3_DATA_AWS_SECRET_KEY_ID"] = secrets["S3_DATA_AWS_SECRET_KEY_ID"]
-    os.environ["S3_DATA_AWS_SECRET_ACCESS_KEY"] = secrets[
-        "S3_DATA_AWS_SECRET_ACCESS_KEY"
-    ]
+    for key in secrets:
+        os.environ[key] = secrets[key]
 
 
 if "SCORER_SERVER_SSM_ARN" in os.environ:
@@ -79,6 +76,9 @@ from django.http import HttpRequest  # noqa: E402
 from django_ratelimit.exceptions import Ratelimited  # noqa: E402
 from ninja_extra.exceptions import APIException
 from ninja_jwt.exceptions import InvalidToken  # noqa: E402
+from structlog.contextvars import bind_contextvars  # noqa: E402
+
+from aws_lambdas.exceptions import InvalidRequest  # noqa: E402
 from registry.api.utils import (
     ApiKey,
     check_rate_limit,
@@ -89,9 +89,6 @@ from registry.exceptions import (  # noqa: E402
     NotFoundApiException,
     Unauthorized,
 )
-from structlog.contextvars import bind_contextvars  # noqa: E402
-
-from aws_lambdas.exceptions import InvalidRequest  # noqa: E402
 
 RESPONSE_HEADERS = {
     "Content-Type": "application/json",
