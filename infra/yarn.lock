@@ -425,10 +425,10 @@
     "@pulumi/pulumi" "^3.0.0"
     semver "^5.4.0"
 
-"@pulumi/pulumi@^3.0.0", "@pulumi/pulumi@^3.79.0":
-  version "3.125.0"
-  resolved "https://registry.npmjs.org/@pulumi/pulumi/-/pulumi-3.125.0.tgz"
-  integrity sha512-NrSUA1sEQIu/Qc11laAHzY6yA5GJlYcLyuj7ZYPAHEhUSHwPa6PdhQcZ36xX/RHZlRihLb1vLPyV5ZsQ3VzofQ==
+"@pulumi/pulumi@^3.0.0", "@pulumi/pulumi@^3.126.0", "@pulumi/pulumi@^3.79.0":
+  version "3.126.0"
+  resolved "https://registry.npmjs.org/@pulumi/pulumi/-/pulumi-3.126.0.tgz"
+  integrity sha512-NPYGHeavLh8Y2quOcx0KLMAM0WWES5RoJ9iywp953iL7hSqv1W77/GjvYuhj5jdm2O9Ty2AjYs74zpfeYzkOoQ==
   dependencies:
     "@grpc/grpc-js" "^1.10.1"
     "@logdna/tail-file" "^2.0.6"
@@ -1468,12 +1468,13 @@ inflight@^1.0.4:
     once "^1.3.0"
     wrappy "1"
 
-"infra-libs@github:lucianHymer/infra-libs#test-precommit":
+"infra-libs@github:lucianHymer/infra-libs#0723-working-branch":
   version "1.0.0"
-  resolved "git+ssh://git@github.com/lucianHymer/infra-libs.git#bf14590fa332a3ade2882ba0a944eb481ff0bf74"
+  resolved "git+ssh://git@github.com/lucianHymer/infra-libs.git#211820dc44c2f4a49afd8492923ebfaebaf839ad"
   dependencies:
     "@1password/op-js" "^0.1.13"
     "@pulumi/aws" "^6.45.0"
+    "@pulumi/pulumi" "^3.126.0"
 
 inherits@^2.0.3, inherits@2:
   version "2.0.4"

@@ -1,12 +1,11 @@
 import json
 from contextlib import contextmanager
 from logging import getLogger
+from typing import Optional
 
 import boto3
 import pyarrow as pa
 import pyarrow.parquet as pq
-
-
 from tqdm import tqdm
 
 log = getLogger(__name__)
@@ -121,13 +120,29 @@ def export_data_for_model(
                         has_more = False
 
 
+class AWSOverrideCredentials:
+    def __init__(self, aws_access_key_id, aws_secret_access_key, aws_endpoint_url):
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+        self.aws_endpoint_url = aws_endpoint_url
+
+
 def upload_to_s3(
     output_file,
     s3_folder,
     s3_bucket_name,
     extra_args,
+    aws_override_credentials: Optional[AWSOverrideCredentials] = None,
 ):
-    s3 = boto3.client("s3")
+    if aws_override_credentials:
+        s3 = boto3.client(
+            "s3",
+            aws_access_key_id=aws_override_credentials.aws_access_key_id,
+            aws_secret_access_key=aws_override_credentials.aws_secret_access_key,
+            endpoint_url=aws_override_credentials.aws_endpoint_url,
+        )
+    else:
+        s3 = boto3.client("s3")
 
     s3_key = f"{s3_folder}/{output_file}"
 

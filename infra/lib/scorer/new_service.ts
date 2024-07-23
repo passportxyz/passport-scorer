@@ -10,12 +10,11 @@ import { Topic } from "@pulumi/aws/sns";
 import { Listener } from "@pulumi/aws/alb";
 import { SecurityGroup } from "@pulumi/aws/ec2";
 import { RolePolicyAttachment } from "@pulumi/aws/iam";
+import { secretsManager } from "infra-libs";
 import {
   AlarmConfigurations,
   TargetGroupAlarmsConfiguration,
 } from "./loadBalancer";
-
-let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
 export type ScorerService = {
   dockerImageScorer: Input<string>;
@@ -40,169 +39,6 @@ export type ScorerService = {
   desiredCount?: number;
 };
 
-export type ScorerEnvironmentConfig = {
-  domain: Input<string>;
-  rdsConnectionUrl: Input<string>;
-  uiDomains: Input<string>;
-  allowedHosts: Input<string>;
-  csrfTrustedOrigins: Input<string>;
-  redisCacheOpsConnectionUrl: Input<string>;
-  rescoreQueueUrl: Input<string>;
-  debug?: Input<string>;
-  readReplicaConnectionUrl?: Input<string>;
-  passportPublicUrl?: Input<string>;
-  heartBeatMonitorUrl?: Input<string>;
-};
-
-export type Secret = { name: string; valueFrom: Input<string> };
-
-export type SecretsConfig = {
-  aws_access_key_id: Input<string>;
-  aws_secret_access_key: Input<string>;
-  aws_endpoint_url: Input<string>;
-};
-
-export const secrets: Secret[] = [
-  {
-    name: "SECRET_KEY",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:SECRET_KEY::`,
-  },
-  {
-    name: "GOOGLE_OAUTH_CLIENT_ID",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:GOOGLE_OAUTH_CLIENT_ID::`,
-  },
-  {
-    name: "GOOGLE_CLIENT_SECRET",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:GOOGLE_CLIENT_SECRET::`,
-  },
-  {
-    name: "RATELIMIT_ENABLE",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:RATELIMIT_ENABLE::`,
-  },
-  {
-    name: "TRUSTED_IAM_ISSUERS",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:TRUSTED_IAM_ISSUERS::`,
-  },
-  {
-    name: "CERAMIC_CACHE_SCORER_ID",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:CERAMIC_CACHE_SCORER_ID::`,
-  },
-  {
-    name: "FF_API_ANALYTICS",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:FF_API_ANALYTICS::`,
-  },
-  {
-    name: "CGRANTS_API_TOKEN",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:CGRANTS_API_TOKEN::`,
-  },
-  {
-    name: "S3_DATA_AWS_SECRET_KEY_ID",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_KEY_ID::`,
-  },
-  {
-    name: "S3_DATA_AWS_SECRET_ACCESS_KEY",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_DATA_AWS_SECRET_ACCESS_KEY::`,
-  },
-  {
-    name: "S3_WEEKLY_BACKUP_BUCKET_NAME",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:S3_WEEKLY_BACKUP_BUCKET_NAME::`,
-  },
-  {
-    name: "REGISTRY_API_READ_DB",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:REGISTRY_API_READ_DB::`,
-  },
-  {
-    name: "STAKING_SUBGRAPH_API_KEY",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_SUBGRAPH_API_KEY::`,
-  },
-  // This contains the connection string for the database used in the 'Passport-Data-Science'
-  // which is managed by the data team.
-  // These are read-only credentials as the model & the db is not managed by the scorer project
-  // This is only used for exporting data from that DB
-  {
-    name: "DATA_MODEL_DATABASE_URL",
-    valueFrom: `${SCORER_SERVER_SSM_ARN}:DATA_MODEL_DATABASE_URL::`,
-  },
-];
-
-export function getSecrets(config: SecretsConfig): Secret[] {
-  const ret: Secret[] = [];
-  ret.push({
-    name: "AWS_ACCESS_KEY_ID",
-    valueFrom: config.aws_access_key_id,
-  });
-  ret.push({
-    name: "AWS_SECRET_ACCESS_KEY",
-    valueFrom: config.aws_secret_access_key,
-  });
-  ret.push({
-    name: "AWS_ENDPOINT_URL",
-    valueFrom: config.aws_endpoint_url,
-  });
-  return ret;
-}
-
-export function getEnvironment(config: ScorerEnvironmentConfig) {
-  return [
-    {
-      name: "DEBUG",
-      value: config.debug || "off",
-    },
-    {
-      name: "DATABASE_URL",
-      value: config.rdsConnectionUrl,
-    },
-    {
-      name: "READ_REPLICA_0_URL",
-      value: config.readReplicaConnectionUrl || config.rdsConnectionUrl,
-    },
-    {
-      name: "UI_DOMAINS",
-      value: config.uiDomains,
-    },
-    {
-      name: "ALLOWED_HOSTS",
-      value: JSON.stringify([config.domain, "*"]),
-    },
-    {
-      name: "CSRF_TRUSTED_ORIGINS",
-      value: JSON.stringify([`https://${config.domain}`]),
-    },
-    {
-      name: "CELERY_BROKER_URL",
-      value: config.redisCacheOpsConnectionUrl,
-    },
-    {
-      name: "CERAMIC_CACHE_CACAO_VALIDATION_URL",
-      value: "http://localhost:8001/verify",
-    },
-    {
-      name: "SECURE_SSL_REDIRECT",
-      value: "off",
-    },
-    {
-      name: "SECURE_PROXY_SSL_HEADER",
-      value: JSON.stringify(["HTTP_X_FORWARDED_PROTO", "https"]),
-    },
-    {
-      name: "LOGGING_STRATEGY",
-      value: "structlog_json",
-    },
-    {
-      name: "PASSPORT_PUBLIC_URL",
-      value: config.passportPublicUrl || "https://passport.gitcoin.co/",
-    },
-    {
-      name: "RESCORE_QUEUE_URL",
-      value: config.rescoreQueueUrl,
-    },
-    {
-      name: "UPTIME_ROBOT_HEARTBEAT_URL",
-      value: config.heartBeatMonitorUrl || "",
-    },
-  ];
-}
-
 export function createTargetGroup(
   name: string,
   vpcId: Input<string>
@@ -217,12 +53,19 @@ export function createTargetGroup(
   });
 }
 
-export function createScorerECSService(
-  name: string,
-  config: ScorerService,
-  envConfig: ScorerEnvironmentConfig,
-  loadBalancerAlarmThresholds: AlarmConfigurations
-): awsx.ecs.FargateService {
+export function createScorerECSService({
+  name,
+  config,
+  environment,
+  secrets,
+  loadBalancerAlarmThresholds,
+}: {
+  name: string;
+  config: ScorerService;
+  environment: secretsManager.EnvironmentVar[];
+  secrets: secretsManager.SecretRef[];
+  loadBalancerAlarmThresholds: AlarmConfigurations;
+}): awsx.ecs.FargateService {
   //////////////////////////////////////////////////////////////
   // Create target group and load balancer rules
   //////////////////////////////////////////////////////////////
@@ -273,11 +116,11 @@ export function createScorerECSService(
         "0.0.0.0:80",
       ],
       links: [],
-      secrets: secrets,
-      environment: getEnvironment(envConfig),
       linuxParameters: {
         initProcessEnabled: true,
       },
+      environment,
+      secrets,
     },
   };
 
@@ -750,130 +593,30 @@ export async function createScoreExportBucketAndDomain(
 export const dockerGtcStakingIndexerImage = `${process.env["DOCKER_GTC_PASSPORT_INDEXER_IMAGE"]}`;
 
 type IndexerServiceParams = {
-  rdsConnectionConfig: {
-    dbHost: Output<any>;
-    dbPort: string;
-  };
-  rdsSecretArn: Output<any>;
   cluster: Cluster;
-  vpc: Output<any>;
   privateSubnetIds: Output<any>;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   workerRole: Role;
   alertTopic: aws.sns.Topic;
+  secretReferences: secretsManager.SecretRef[];
+  environment: secretsManager.EnvironmentVar[];
 };
 
 export function createIndexerService(
   {
-    rdsConnectionConfig,
-    rdsSecretArn,
     cluster,
-    vpc,
     privateSubnetIds,
     privateSubnetSecurityGroup,
     workerRole,
     alertTopic,
+    secretReferences,
+    environment,
   }: IndexerServiceParams,
   alarmThresholds: AlarmConfigurations
 ) {
   const indexerLogGroup = new aws.cloudwatch.LogGroup("scorer-indexer", {
     retentionInDays: 90,
   });
-
-  const indexerSecrets = rdsSecretArn.apply((rdsSecret) => [
-    {
-      name: "DB_USER",
-      valueFrom: `${rdsSecret}:username::`,
-    },
-    {
-      name: "DB_PASSWORD",
-      valueFrom: `${rdsSecret}:password::`,
-    },
-    {
-      name: "DB_NAME",
-      valueFrom: `${rdsSecret}:dbname::`,
-    },
-    {
-      name: "INDEXER_ETHEREUM_RPC_URL",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ETHEREUM_RPC_URL::`,
-    },
-    {
-      name: "INDEXER_OPTIMISM_RPC_URL",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_RPC_URL::`,
-    },
-    {
-      name: "INDEXER_ARBITRUM_RPC_URL",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ARBITRUM_RPC_URL::`,
-    },
-    {
-      name: "INDEXER_ETHEREUM_ENABLED",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ETHEREUM_ENABLED::`,
-    },
-    {
-      name: "INDEXER_OPTIMISM_ENABLED",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_ENABLED::`,
-    },
-    {
-      name: "INDEXER_ARBITRUM_ENABLED",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ARBITRUM_ENABLED::`,
-    },
-    {
-      name: "INDEXER_ETHEREUM_START_BLOCK",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ETHEREUM_START_BLOCK::`,
-    },
-    {
-      name: "INDEXER_OPTIMISM_START_BLOCK",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_START_BLOCK::`,
-    },
-    {
-      name: "INDEXER_ARBITRUM_START_BLOCK",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_ARBITRUM_START_BLOCK::`,
-    },
-    {
-      name: "INDEXER_LEGACY_ENABLED",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_LEGACY_ENABLED::`,
-    },
-    {
-      name: "STAKING_CONTRACT_ADDRESS_ETH_MAINNET",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_CONTRACT_ADDRESS_ETH_MAINNET::`,
-    },
-    {
-      name: "STAKING_CONTRACT_ADDRESS_OP_MAINNET",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_CONTRACT_ADDRESS_OP_MAINNET::`,
-    },
-    {
-      name: "STAKING_CONTRACT_ADDRESS_ARBITRUM_MAINNET",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_CONTRACT_ADDRESS_ARBITRUM_MAINNET::`,
-    },
-    // OP Sepolia 
-    {
-      name: "INDEXER_OPTIMISM_SEPOLIA_RPC_URL",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_SEPOLIA_RPC_URL::`,
-    },
-    {
-      name: "INDEXER_OPTIMISM_SEPOLIA_ENABLED",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_SEPOLIA_ENABLED::`,
-    },
-    {
-      name: "INDEXER_OPTIMISM_SEPOLIA_START_BLOCK",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:INDEXER_OPTIMISM_SEPOLIA_START_BLOCK::`,
-    },
-    {
-      name: "STAKING_CONTRACT_ADDRESS_OP_SEPOLIA",
-      valueFrom: `${SCORER_SERVER_SSM_ARN}:STAKING_CONTRACT_ADDRESS_OP_SEPOLIA::`,
-    },
-  ]);
-
-  const indexerEnvironment: { name: string; value: Input<string> }[] = [
-    {
-      name: "DB_HOST",
-      value: rdsConnectionConfig.dbHost,
-    },
-    {
-      name: "DB_PORT",
-      value: rdsConnectionConfig.dbPort,
-    },
-  ];
 
   new awsx.ecs.FargateService("scorer-staking-indexer", {
     propagateTags: "TASK_DEFINITION",
@@ -898,8 +641,8 @@ export function createIndexerService(
           image: dockerGtcStakingIndexerImage,
           // command: ["cargo", "run"],
           portMappings: [],
-          secrets: indexerSecrets,
-          environment: indexerEnvironment,
+          secrets: secretReferences,
+          environment,
           dependsOn: [],
           links: [],
         },

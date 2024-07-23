@@ -9,8 +9,14 @@ import pyarrow.parquet as pq
 from django.conf import settings
 from django.db import DEFAULT_DB_ALIAS
 from django.db.models.functions import Lower
+
 from registry.models import Score
-from scorer.export_utils import export_data_for_model, upload_to_s3
+from scorer.export_utils import (
+    AWSOverrideCredentials,
+    export_data_for_model,
+    upload_to_s3,
+)
+
 from .base_cron_cmds import BaseCronJobCmd
 
 
@@ -136,7 +142,16 @@ class Command(BaseCronJobCmd):
                 self.style.SUCCESS(f"EXPORT - Data exported to '{self.filename}'")
             )
 
-            upload_to_s3(self.filename, s3_folder, s3_bucket_name, {})
+            aws_override_credentials = AWSOverrideCredentials(
+                aws_access_key_id=os.environ.get("OSO_EXPORT_AWS_ACCESS_KEY_ID", ""),
+                aws_secret_access_key=os.environ.get(
+                    "OSO_EXPORT_AWS_SECRET_ACCESS_KEY", ""
+                ),
+                aws_endpoint_url=os.environ.get("OSO_EXPORT_AWS_ENDPOINT_URL", ""),
+            )
+            upload_to_s3(
+                self.filename, s3_folder, s3_bucket_name, {}, aws_override_credentials
+            )
 
             self.stdout.write(
                 self.style.SUCCESS(

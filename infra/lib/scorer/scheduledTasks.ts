@@ -1,14 +1,8 @@
 import * as awsx from "@pulumi/awsx";
 import { all } from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import {
-  secrets,
-  ScorerService,
-  ScorerEnvironmentConfig,
-  getEnvironment,
-  SecretsConfig,
-  getSecrets,
-} from "./new_service";
+import { ScorerService } from "./new_service";
+import { secretsManager } from "infra-libs";
 
 let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
@@ -29,14 +23,21 @@ export type ScheduledTaskConfig = Pick<
     ephemeralStorageSizeInGiB?: number;
   };
 
-export function createScheduledTask(
-  name: string,
-  config: ScheduledTaskConfig,
-  envConfig: ScorerEnvironmentConfig,
-  alarmPeriondSeconds?: number,
-  enableInvocationAlerts?: boolean,
-  secretsConfig?: SecretsConfig
-) {
+export function createScheduledTask({
+  name,
+  config,
+  environment,
+  secrets,
+  alarmPeriodSeconds,
+  enableInvocationAlerts,
+}: {
+  name: string;
+  config: ScheduledTaskConfig;
+  environment: secretsManager.EnvironmentVar[];
+  secrets: secretsManager.SecretRef[];
+  alarmPeriodSeconds?: number;
+  enableInvocationAlerts?: boolean;
+}) {
   const {
     alertTopic,
     executionRole,
@@ -86,11 +87,9 @@ export function createScheduledTask(
         image: dockerImageScorer,
         cpu: cpu ? cpu : 256,
         memory: memory ? memory : 2048,
-        secrets: secretsConfig
-          ? getSecrets(secretsConfig).concat(secrets)
-          : secrets,
-        environment: getEnvironment(envConfig),
         command: commandWithTest,
+        environment,
+        secrets,
       },
     },
   });
@@ -209,7 +208,7 @@ export function createScheduledTask(
     },
   });
 
-  if (alarmPeriondSeconds) {
+  if (alarmPeriodSeconds) {
     if (enableInvocationAlerts) {
       // No invocation in the given period
       const missingInvocationsAlarm = new aws.cloudwatch.MetricAlarm(
@@ -226,7 +225,7 @@ export function createScheduledTask(
           dimensions: {
             RuleName: scheduledEventRule.name,
           },
-          period: alarmPeriondSeconds,
+          period: alarmPeriodSeconds,
           statistic: "Sum",
           threshold: 1,
           treatMissingData: "notBreaching",
@@ -248,7 +247,7 @@ export function createScheduledTask(
         dimensions: {
           RuleName: scheduledEventRule.name,
         },
-        period: alarmPeriondSeconds,
+        period: alarmPeriodSeconds,
         statistic: "Sum",
         threshold: 0,
         treatMissingData: "notBreaching",
@@ -284,7 +283,7 @@ export function createScheduledTask(
           metric: {
             metricName: successfulRunMetricName,
             namespace: successfulRunMetricNamespace,
-            period: alarmPeriondSeconds,
+            period: alarmPeriodSeconds,
             stat: "Sum",
           },
         },
@@ -296,7 +295,7 @@ export function createScheduledTask(
             },
             metricName: "Invocations",
             namespace: "AWS/Events",
-            period: alarmPeriondSeconds,
+            period: alarmPeriodSeconds,
             stat: "Sum",
           },
         },
@@ -344,7 +343,7 @@ export function createScheduledTask(
         metricName: cronJobErrorMetricName,
         name: `CronJobErrorMsgAlarm-${name}`,
         namespace: cronJobErrorMetricNamespace,
-        period: alarmPeriondSeconds,
+        period: alarmPeriodSeconds,
         statistic: "Sum",
         threshold: 1,
         treatMissingData: "notBreaching",
