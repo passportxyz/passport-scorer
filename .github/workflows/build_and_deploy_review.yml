@@ -61,14 +61,23 @@ jobs:
           SECRET_KEY: secret-test-value
         run: python manage.py check
 
+      - name: Load secret
+        id: op-load-secret
+        uses: 1password/load-secrets-action@v1
+        with:
+          export-env: true
+        env:
+          UPTIME_ROBOT_READONLY_API_KEY: op://DevOps/passport-scorer-api-review-secrets/ci/UPTIME_ROBOT_READONLY_API_KEY
+          IGNORE_UNMONITORED_URLS: op://DevOps/passport-scorer-api-review-env/ci/IGNORE_UNMONITORED_URLS
+
       - name: URL Monitoring Check
         working-directory: ./api
         shell: bash
         env:
           CERAMIC_CACHE_SCORER_ID: ""
           SECRET_KEY: secret-test-value
-          UPTIME_ROBOT_READONLY_API_KEY: ${{ secrets.UPTIME_ROBOT_READONLY_API_KEY }}
-          IGNORE_UNMONITORED_URLS: ${{ vars.IGNORE_UNMONITORED_URLS }}
+          UPTIME_ROBOT_READONLY_API_KEY: ${{ env.UPTIME_ROBOT_READONLY_API_KEY }}
+          IGNORE_UNMONITORED_URLS: ${{ env.IGNORE_UNMONITORED_URLS }}
         run: python manage.py show_urls -f json > urls.json &&
           python manage.py get_unmonitored_urls --urls urls.json --base-url https://api.scorer.gitcoin.co --out unmonitored.json --allow-paused True &&
           [ -f unmonitored.json ] && [ `cat unmonitored.json | wc -m` -eq 2 ]
