@@ -8,33 +8,80 @@ on:
         required: false
 
 jobs:
-  ref:
-    name: Load Commit Ref
-    runs-on: ubuntu-latest
-    steps:
-      - id: ref
-        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref@main
-        with:
-          commit: ${{ inputs.commit }}
-
-    outputs:
-      version_tag: ${{ steps.ref.outputs.version_tag }}
-      docker_tag: ${{ steps.ref.outputs.docker_tag }}
-      refspec: ${{ steps.ref.outputs.refspec }}
-
   test:
-    name: Run Tests
-    needs: [ref]
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ needs.ref.outputs.refspec }}
-          fetch-depth: 0
+    services:
+      redis:
+        image: redis
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
 
-      - id: test
-        uses: ./.github/actions/test
+      postgres:
+        image: postgres:12.3-alpine
+        env:
+          POSTGRES_USER: passport_scorer
+          POSTGRES_PASSWORD: passport_scorer_pwd
+          POSTGRES_DB: passport_scorer
+
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install pipenv
+        run: pip3 install pipenv
+
+      - name: Generate requirements.txt
+        working-directory: ./api
+        run: pipenv requirements --dev > requirements.txt
+
+      - name: Install API dependencies
+        working-directory: ./api
+        run: pip3 install -r requirements.txt
+
+      - name: Django Check
+        working-directory: ./api
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
+        run: python manage.py check
+
+      - name: URL Monitoring Check
+        working-directory: ./api
+        shell: bash
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
+          UPTIME_ROBOT_READONLY_API_KEY: ${{ secrets.UPTIME_ROBOT_READONLY_API_KEY }}
+          IGNORE_UNMONITORED_URLS: ${{ vars.IGNORE_UNMONITORED_URLS }}
+        run: python manage.py show_urls -f json > urls.json &&
+          python manage.py get_unmonitored_urls --urls urls.json --base-url https://api.scorer.gitcoin.co --out unmonitored.json --allow-paused True &&
+          [ -f unmonitored.json ] && [ `cat unmonitored.json | wc -m` -eq 2 ]
+
+      - name: Run API unittests
+        working-directory: ./api
+        run: pytest
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
+          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          DATA_MODEL_DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          FF_API_ANALYTICS: on
 
   deploy:
     name: Deploy
