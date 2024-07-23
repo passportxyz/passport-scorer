@@ -34,7 +34,7 @@ jobs:
           fetch-depth: 0
 
       - id: test
-        uses: ./.github/actions/test.yml
+        uses: ./.github/actions/test
 
   deploy:
     name: Deploy
