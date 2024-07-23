@@ -8,9 +8,33 @@ on:
         required: false
 
 jobs:
+  ref:
+    name: Load Commit Ref
+    runs-on: ubuntu-latest
+    steps:
+      - id: ref
+        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref@main
+        with:
+          commit: ${{ inputs.commit }}
+
+    outputs:
+      version_tag: ${{ steps.ref.outputs.version_tag }}
+      docker_tag: ${{ steps.ref.outputs.docker_tag }}
+      refspec: ${{ steps.ref.outputs.refspec }}
+
   test:
-    name: Test
-    uses: ./.github/actions/test.yml
+    name: Run Tests
+    needs: [ref]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.ref.outputs.refspec }}
+          fetch-depth: 0
+
+      - id: test
+        uses: ./.github/actions/test.yml
 
   deploy:
     name: Deploy
