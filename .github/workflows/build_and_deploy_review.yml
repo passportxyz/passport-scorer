@@ -8,8 +8,13 @@ on:
         required: false
 
 jobs:
+  test:
+    name: Test
+    uses: ./.github/workflows/test.yml
+
   deploy:
     name: Deploy
+    needs: [test]
     uses: ./.github/workflows/build_and_deploy_generic.yml
     with:
       commit: ${{ inputs.commit }}

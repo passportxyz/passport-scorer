@@ -39,8 +39,8 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-review-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-review-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
       - id: build_and_push_docker_image
         uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
         with:
@@ -50,8 +50,8 @@ jobs:
           aws_region: us-west-2
           aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          dockerfile_name: Dockerfile
-          build_dir: ./
+          dockerfile_name: api/Dockerfile
+          build_dir: ./api/
 
   deploy_preview:
     name: Preview - Deploying AWS Infra
@@ -75,9 +75,9 @@ jobs:
         with:
           export-env: true
         env:
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-review-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-review-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
+          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-review-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
       - name: Prepare to Deploy to AWS
         uses: ./.github/actions/prepare_deploy_to_aws
       - name: Deploy Preview
@@ -125,9 +125,9 @@ jobs:
         with:
           export-env: true
         env:
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-review-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-review-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
+          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-review-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
       - name: Prepare to Deploy to AWS
         uses: ./.github/actions/prepare_deploy_to_aws
       - name: Deploy Review

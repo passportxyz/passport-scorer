@@ -2,7 +2,7 @@ name: Deploy Interface to Review
 
 on:
   push:
-    branches: [main]
+    branches: [mainXXX]
 
 jobs:
   ui-test:
