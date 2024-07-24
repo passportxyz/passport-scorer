@@ -17,13 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: ref
-        uses: ./.github/actions/load_commit_ref
+        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref@main
         with:
           commit: ${{ inputs.commit }}
 
     outputs:
       version_tag: ${{ steps.ref.outputs.version_tag }}
-      docker_tag: ${{ steps.ref.outputs.sha_short }}
+      docker_tag: ${{ steps.ref.outputs.docker_tag }}
       refspec: ${{ steps.ref.outputs.refspec }}
 
   deploy_preview:
@@ -48,16 +48,13 @@ jobs:
         with:
           export-env: true
         env:
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/AWS_SECRET_ACCESS_KEY
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/PULUMI_ACCESS_TOKEN
-          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/service/ROUTE_53_DOMAIN
-          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/service/SCROLL_SECRETS_ARN
-          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/service/VC_SECRETS_ARN
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
+          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
       - name: Prepare to Deploy to AWS
-        uses: ./.github/actions/prepare_deploy_to_aws
-      - name: Preview Deploy
-        uses: ./.github/actions/deploy_to_aws
+        uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@main
+      - name: Deploy Review
+        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@main
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
           stack_name: gitcoin/scroll-badge-service/${{ inputs.environment }}
@@ -67,9 +64,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
-          ROUTE_53_DOMAIN: ${{ env.ROUTE_53_DOMAIN }}
-          SCROLL_SECRETS_ARN: ${{ env.SCROLL_SECRETS_ARN }}
-          VC_SECRETS_ARN: ${{ env.VC_SECRETS_ARN }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
   deploy_confirm:
     name: Review Approval Pending
@@ -103,23 +98,19 @@ jobs:
         with:
           export-env: true
         env:
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/AWS_SECRET_ACCESS_KEY
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-secrets/service/PULUMI_ACCESS_TOKEN
-          ROUTE_53_DOMAIN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/service/ROUTE_53_DOMAIN
-          SCROLL_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/service/SCROLL_SECRETS_ARN
-          VC_SECRETS_ARN: op://DevOps/passport-scroll-badge-service-${{ inputs.environment }}-env/service/VC_SECRETS_ARN
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
+          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
       - name: Prepare to Deploy to AWS
-        uses: ./.github/actions/prepare_deploy_to_aws
+        uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@main
       - name: Deploy Review
-        uses: ./.github/actions/deploy_to_aws
+        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@main
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
           stack_name: gitcoin/scroll-badge-service/${{ inputs.environment }}
+          pulumi_command: up
           aws_region: us-west-2
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
-          ROUTE_53_DOMAIN: ${{ env.ROUTE_53_DOMAIN }}
-          SCROLL_SECRETS_ARN: ${{ env.SCROLL_SECRETS_ARN }}
-          VC_SECRETS_ARN: ${{ env.VC_SECRETS_ARN }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}

@@ -42,7 +42,7 @@ jobs:
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
       - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@fix_build_dir
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
         with:
           refspec: ${{ needs.ref.outputs.refspec }}
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
@@ -68,7 +68,7 @@ jobs:
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
       - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@fix_build_dir
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
         with:
           refspec: ${{ needs.ref.outputs.refspec }}
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
@@ -94,7 +94,7 @@ jobs:
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
       - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@fix_build_dir
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
         with:
           refspec: ${{ needs.ref.outputs.refspec }}
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
@@ -104,6 +104,7 @@ jobs:
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           dockerfile_name: ./indexer/Dockerfile
           build_dir: ./indexer/
+
 
   deploy_preview:
     name: Preview - Deploying AWS Infra
@@ -131,9 +132,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
       - name: Prepare to Deploy to AWS
-        uses: ./.github/actions/prepare_deploy_to_aws
+        uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@main
       - name: Deploy Preview
-        uses: ./.github/actions/deploy_to_aws
+        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@main
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
           stack_name: gitcoin/scroll-badge-service/${{ inputs.environment }}
@@ -181,12 +182,13 @@ jobs:
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
       - name: Prepare to Deploy to AWS
-        uses: ./.github/actions/prepare_deploy_to_aws
+        uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@main
       - name: Deploy Review
-        uses: ./.github/actions/deploy_to_aws
+        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@main
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
           stack_name: gitcoin/scroll-badge-service/${{ inputs.environment }}
+          pulumi_command: up
           aws_region: us-west-2
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
