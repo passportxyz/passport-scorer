@@ -157,7 +157,7 @@ jobs:
 
   deploy_backends:
     name: Deploying AWS Infra
-    needs: [ref, docker, deploy_preview, deploy_confirm]
+    needs: [ref, docker-ecs, docker-indexer, docker-lambda, deploy_preview, deploy_confirm]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
