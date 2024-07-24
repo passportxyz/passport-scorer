@@ -1,6 +1,7 @@
 import * as awsx from "@pulumi/awsx";
 import { all } from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
+import * as pulumi from "@pulumi/pulumi";
 import { ScorerService } from "./new_service";
 import { secretsManager } from "infra-libs";
 
@@ -34,7 +35,7 @@ export function createScheduledTask({
   name: string;
   config: ScheduledTaskConfig;
   environment: secretsManager.EnvironmentVar[];
-  secrets: secretsManager.SecretRef[];
+  secrets: pulumi.Output<secretsManager.SecretRef[]>;
   alarmPeriodSeconds?: number;
   enableInvocationAlerts?: boolean;
 }) {

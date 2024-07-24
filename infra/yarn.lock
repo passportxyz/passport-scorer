@@ -1468,9 +1468,9 @@ inflight@^1.0.4:
     once "^1.3.0"
     wrappy "1"
 
-"infra-libs@github:lucianHymer/infra-libs#0723-working-branch":
+"infra-libs@github:passportxyz/infra-libs#semver:^1.0.0":
   version "1.0.0"
-  resolved "git+ssh://git@github.com/lucianHymer/infra-libs.git#211820dc44c2f4a49afd8492923ebfaebaf839ad"
+  resolved "git+ssh://git@github.com/passportxyz/infra-libs.git#f3072dc8d547529c5cb7200c02178046d2d47e0e"
   dependencies:
     "@1password/op-js" "^0.1.13"
     "@pulumi/aws" "^6.45.0"

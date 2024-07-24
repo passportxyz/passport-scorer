@@ -4,6 +4,7 @@ import * as awsx from "@pulumi/awsx";
 import { Input, Output, interpolate } from "@pulumi/pulumi";
 import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 import * as aws from "@pulumi/aws";
+import * as pulumi from "@pulumi/pulumi";
 
 import { Cluster } from "@pulumi/aws/ecs";
 import { Topic } from "@pulumi/aws/sns";
@@ -63,7 +64,7 @@ export function createScorerECSService({
   name: string;
   config: ScorerService;
   environment: secretsManager.EnvironmentVar[];
-  secrets: secretsManager.SecretRef[];
+  secrets: pulumi.Output<secretsManager.SecretRef[]>;
   loadBalancerAlarmThresholds: AlarmConfigurations;
 }): awsx.ecs.FargateService {
   //////////////////////////////////////////////////////////////
@@ -598,7 +599,7 @@ type IndexerServiceParams = {
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   workerRole: Role;
   alertTopic: aws.sns.Topic;
-  secretReferences: secretsManager.SecretRef[];
+  secretReferences: pulumi.Output<secretsManager.SecretRef[]>;
   environment: secretsManager.EnvironmentVar[];
 };
 

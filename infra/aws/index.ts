@@ -45,9 +45,6 @@ const publicDataDomain =
     ? `public.scorer.${process.env["DOMAIN"]}`
     : `public.${stack}.scorer.${process.env["DOMAIN"]}`;
 
-const SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
-const INDEXER_SECRET_ARN = `${process.env["INDEXER_SECRET_ARN"]}`;
-
 const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
 const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
 
@@ -375,6 +372,16 @@ const www = new aws.route53.Record("scorer", {
   ],
 });
 
+const scorerSecret = new aws.secretsmanager.Secret("scorer-secret", {
+  name: "scorer-secret",
+  description: "Scorer Secrets",
+});
+
+const indexerSecret = new aws.secretsmanager.Secret("indexer-secret", {
+  name: "indexer-secret",
+  description: "Secrets for passport-scorer indexer",
+});
+
 const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
   assumeRolePolicy: JSON.stringify({
     Version: "2012-10-17",
@@ -410,13 +417,13 @@ const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
     },
     {
       name: "allow_iam_secrets_access",
-      policy: JSON.stringify({
+      policy: pulumi.jsonStringify({
         Version: "2012-10-17",
         Statement: [
           {
             Action: ["secretsmanager:GetSecretValue"],
             Effect: "Allow",
-            Resource: SCORER_SERVER_SSM_ARN,
+            Resource: [scorerSecret.arn, indexerSecret.arn],
           },
         ],
       }),
@@ -583,7 +590,8 @@ const apiSecrets = secretsManager.syncSecretsAndGetRefs({
   repo: "passport-scorer",
   env: stack,
   section: "api",
-  targetSecretArn: SCORER_SERVER_SSM_ARN,
+  targetSecret: scorerSecret,
+  secretVersionName: "scorer-secret-version",
   extraSecretDefinitions: [
     {
       name: "DATABASE_URL",
@@ -618,27 +626,32 @@ const indexerEnvironment = [
   },
 ].sort(secretsManager.sortByName);
 
-const indexerSecrets = [
-  ...secretsManager.syncSecretsAndGetRefs({
+const indexerSecrets = secretsManager
+  .syncSecretsAndGetRefs({
     vault: "DevOps",
     repo: "passport-scorer",
     env: stack,
     section: "indexer",
-    targetSecretArn: INDEXER_SECRET_ARN,
-  }),
-  {
-    name: "DB_USER",
-    valueFrom: `${RDS_SECRET_ARN}:username::`,
-  },
-  {
-    name: "DB_PASSWORD",
-    valueFrom: `${RDS_SECRET_ARN}:password::`,
-  },
-  {
-    name: "DB_NAME",
-    valueFrom: `${RDS_SECRET_ARN}:dbname::`,
-  },
-].sort(secretsManager.sortByName);
+    targetSecret: indexerSecret,
+    secretVersionName: "indexer-secret-version",
+  })
+  .apply((secretRefs) =>
+    [
+      ...secretRefs,
+      {
+        name: "DB_USER",
+        valueFrom: `${RDS_SECRET_ARN}:username::`,
+      },
+      {
+        name: "DB_PASSWORD",
+        valueFrom: `${RDS_SECRET_ARN}:password::`,
+      },
+      {
+        name: "DB_NAME",
+        valueFrom: `${RDS_SECRET_ARN}:dbname::`,
+      },
+    ].sort(secretsManager.sortByName)
+  );
 
 //////////////////////////////////////////////////////////////
 // Set up log groups for API service and worker
@@ -711,63 +724,60 @@ const scorerServiceRegistry = createScorerECSService({
 //////////////////////////////////////////////////////////////
 // Set up the worker role
 //////////////////////////////////////////////////////////////
-const workerRole = RDS_SECRET_ARN.apply(
-  (rdsSecrets) =>
-    new aws.iam.Role("scorer-bkgrnd-worker-role", {
-      assumeRolePolicy: JSON.stringify({
+const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
+  assumeRolePolicy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Action: "sts:AssumeRole",
+        Effect: "Allow",
+        Sid: "",
+        Principal: {
+          Service: "ecs-tasks.amazonaws.com",
+        },
+      },
+    ],
+  }),
+  inlinePolicies: [
+    {
+      name: "allow_exec",
+      policy: JSON.stringify({
         Version: "2012-10-17",
         Statement: [
           {
-            Action: "sts:AssumeRole",
             Effect: "Allow",
-            Sid: "",
-            Principal: {
-              Service: "ecs-tasks.amazonaws.com",
-            },
+            Action: [
+              "ssmmessages:CreateControlChannel",
+              "ssmmessages:CreateDataChannel",
+              "ssmmessages:OpenControlChannel",
+              "ssmmessages:OpenDataChannel",
+            ],
+            Resource: "*",
           },
         ],
       }),
-      inlinePolicies: [
-        {
-          name: "allow_exec",
-          policy: JSON.stringify({
-            Version: "2012-10-17",
-            Statement: [
-              {
-                Effect: "Allow",
-                Action: [
-                  "ssmmessages:CreateControlChannel",
-                  "ssmmessages:CreateDataChannel",
-                  "ssmmessages:OpenControlChannel",
-                  "ssmmessages:OpenDataChannel",
-                ],
-                Resource: "*",
-              },
-            ],
-          }),
-        },
-        {
-          name: "allow_iam_secrets_access",
-          policy: JSON.stringify({
-            Version: "2012-10-17",
-            Statement: [
-              {
-                Action: ["secretsmanager:GetSecretValue"],
-                Effect: "Allow",
-                Resource: [SCORER_SERVER_SSM_ARN, rdsSecrets],
-              },
-            ],
-          }),
-        },
-      ],
-      managedPolicyArns: [
-        "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
-      ],
-      tags: {
-        dpopp: "",
-      },
-    })
-);
+    },
+    {
+      name: "allow_iam_secrets_access",
+      policy: pulumi.jsonStringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Action: ["secretsmanager:GetSecretValue"],
+            Effect: "Allow",
+            Resource: [scorerSecret.arn, indexerSecret.arn, RDS_SECRET_ARN],
+          },
+        ],
+      }),
+    },
+  ],
+  managedPolicyArns: [
+    "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+  ],
+  tags: {
+    dpopp: "",
+  },
+});
 
 const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
   description: "gitcoin-ecs-task",
@@ -1382,19 +1392,17 @@ const exportVals = createScoreExportBucketAndDomain(
   route53ZoneForPublicData
 );
 
-workerRole.apply((serviceRole) =>
-  createIndexerService(
-    {
-      cluster,
-      privateSubnetIds: vpcPrivateSubnetIds,
-      privateSubnetSecurityGroup,
-      workerRole: serviceRole,
-      alertTopic: pagerdutyTopic,
-      secretReferences: indexerSecrets,
-      environment: indexerEnvironment,
-    },
-    alarmConfigurations
-  )
+createIndexerService(
+  {
+    cluster,
+    workerRole,
+    privateSubnetIds: vpcPrivateSubnetIds,
+    privateSubnetSecurityGroup,
+    alertTopic: pagerdutyTopic,
+    secretReferences: indexerSecrets,
+    environment: indexerEnvironment,
+  },
+  alarmConfigurations
 );
 
 const {
@@ -1427,7 +1435,7 @@ const lambdaSettings = {
     },
     {
       name: "SCORER_SERVER_SSM_ARN",
-      value: SCORER_SERVER_SSM_ARN,
+      value: scorerSecret.arn,
     },
   ].sort(secretsManager.sortByName),
   roleAttachments: httpRoleAttachments,
