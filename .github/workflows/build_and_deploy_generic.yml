@@ -50,7 +50,7 @@ jobs:
           aws_region: us-west-2
           aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          dockerfile_name: api/Dockerfile
+          dockerfile_name: ./Dockerfile
           build_dir: ./api/
 
   docker-lambda:
@@ -76,7 +76,7 @@ jobs:
           aws_region: us-west-2
           aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          dockerfile_name: api/aws_lambdas/submit_passport/Dockerfile
+          dockerfile_name: ./aws_lambdas/submit_passport/Dockerfile
           build_dir: ./api/
 
   docker-indexer:
@@ -102,7 +102,7 @@ jobs:
           aws_region: us-west-2
           aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          dockerfile_name: indexer/Dockerfile
+          dockerfile_name: ./Dockerfile
           build_dir: ./indexer/
 
   deploy_preview:
