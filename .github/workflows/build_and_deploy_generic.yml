@@ -27,8 +27,8 @@ jobs:
       docker_tag: ${{ steps.ref.outputs.docker_tag }}
       refspec: ${{ steps.ref.outputs.refspec }}
 
-  docker:
-    name: Build and push docker image
+  docker-ecs:
+    name: Build and push docker image for ECS
     needs: [ref]
     runs-on: ubuntu-latest
     steps:
@@ -39,23 +39,75 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-review-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-review-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
       - id: build_and_push_docker_image
         uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
         with:
           refspec: ${{ needs.ref.outputs.refspec }}
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
-          ecr_repository_name: scroll-badge-service
+          ecr_repository_name: passport-scorer
           aws_region: us-west-2
           aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           dockerfile_name: api/Dockerfile
           build_dir: ./api/
 
+  docker-lambda:
+    name: Build and push docker image for lambdas
+    needs: [ref]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load secret
+        id: op-load-secret
+        uses: 1password/load-secrets-action@v1
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
+      - id: build_and_push_docker_image
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
+        with:
+          refspec: ${{ needs.ref.outputs.refspec }}
+          docker_tag: ${{ needs.ref.outputs.docker_tag }}
+          ecr_repository_name: submit-passport-lambdas
+          aws_region: us-west-2
+          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          dockerfile_name: api/aws_lambdas/submit_passport/Dockerfile
+          build_dir: ./api/
+
+  docker-indexer:
+    name: Build and push docker image for indexer
+    needs: [ref]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load secret
+        id: op-load-secret
+        uses: 1password/load-secrets-action@v1
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
+      - id: build_and_push_docker_image
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
+        with:
+          refspec: ${{ needs.ref.outputs.refspec }}
+          docker_tag: ${{ needs.ref.outputs.docker_tag }}
+          ecr_repository_name: submit-passport-lambdas
+          aws_region: us-west-2
+          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          dockerfile_name: indexer/Dockerfile
+          build_dir: ./indexer/
+
   deploy_preview:
     name: Preview - Deploying AWS Infra
-    needs: [ref, docker]
+    needs: [ref, docker-ecs, docker-lambda, docker-indexer]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
