@@ -108,7 +108,7 @@ jobs:
 
   deploy_preview:
     name: Preview - Deploying AWS Infra
-    needs: [ref, docker-ecs, docker-lambda, docker-indexer]
+    needs: [ref]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -137,7 +137,7 @@ jobs:
         uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@main
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
-          stack_name: gitcoin/scroll-badge-service/${{ inputs.environment }}
+          stack_name: gitcoin/passport-scorer/${{ inputs.environment }}
           aws_region: us-west-2
           pulumi_command: preview
           pulumi_diff: "true"
@@ -187,7 +187,7 @@ jobs:
         uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@main
         with:
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
-          stack_name: gitcoin/scroll-badge-service/${{ inputs.environment }}
+          stack_name: gitcoin/passport-scorer/${{ inputs.environment }}
           pulumi_command: up
           aws_region: us-west-2
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
