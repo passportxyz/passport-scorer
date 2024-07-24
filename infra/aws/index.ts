@@ -20,6 +20,8 @@ import {
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 import { secretsManager } from "infra-libs";
 
+import * as op from "@1password/op-js";
+
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
 //////////////////////////////////////////////////////////////
@@ -31,44 +33,81 @@ const PROVISION_STAGING_FOR_LOADTEST =
 type StackType = "review" | "staging" | "production";
 export const stack: StackType = pulumi.getStack() as StackType;
 export const region = aws.getRegion();
-const route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
-const route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
+const route53Zone = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE`
+);
+const route53ZoneForPublicData = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE_FOR_PUBLIC_DATA`
+);
+
+const rootDomain = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/ROOT_DOMAIN`
+);
 
 const domain =
   stack == "production"
-    ? `api.scorer.${process.env["DOMAIN"]}`
-    : `api.${stack}.scorer.${process.env["DOMAIN"]}`;
-const rootDomain = process.env["DOMAIN"];
+    ? `api.scorer.${rootDomain}`
+    : `api.${stack}.scorer.${rootDomain}`;
 
 const publicDataDomain =
   stack == "production"
-    ? `public.scorer.${process.env["DOMAIN"]}`
-    : `public.${stack}.scorer.${process.env["DOMAIN"]}`;
+    ? `public.scorer.${rootDomain}`
+    : `public.${stack}.scorer.${rootDomain}`;
 
 const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
 const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
 
 const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
-const trustedIAMIssuers = `${process.env["TRUSTED_IAM_ISSUERS"]}`;
-
-const redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
-const redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
-const redashDbName = `${process.env["REDASH_DB_NAME"]}`;
-const redashSecretKey = pulumi.secret(`${process.env["REDASH_SECRET_KEY"]}`);
-const redashMailUsername = `${process.env["REDASH_MAIL_USERNAME"]}`;
-const redashMailPassword = pulumi.secret(
-  `${process.env["REDASH_MAIL_PASSWORD"]}`
+const trustedIAMIssuers = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/TRUSTED_IAM_ISSUERS`
 );
 
-// TODO: we could load this from these endpoints data-science stack
-const ethereumModelEndpoint = `${process.env["ETHEREUM_MODEL_ENDPOINT"]}`;
-const nftModelEndpoint = `${process.env["NFT_MODEL_ENDPOINT"]}`;
-const zksyncModelEndpoint = `${process.env["ZKSYNC_MODEL_ENDPOINT"]}`;
-const polygonModelEndpoint = `${process.env["POLYGON_MODEL_ENDPOINT"]}`;
-const arbitrumModelEndpoint = `${process.env["ARBITRUM_MODEL_ENDPOINT"]}`;
-const optimismModelEndpoint = `${process.env["OPTIMISM_MODEL_ENDPOINT"]}`;
+const redashDbUsername = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_USER`
+);
+const redashDbPassword = pulumi.secret(
+  op.read.parse(
+    `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_PASSWORD`
+  )
+);
+const redashDbName = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_NAME`
+);
+const redashSecretKey = pulumi.secret(
+  op.read.parse(`op://DevOps/passport-scorer-${stack}-env/ci/REDASH_SECRET_KEY`)
+);
+const redashMailUsername = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_MAIL_USERNAME`
+);
+const redashMailPassword = pulumi.secret(
+  op.read.parse(
+    `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_MAIL_PASSWORD`
+  )
+);
 
-const pagerDutyIntegrationEndpoint = `${process.env["PAGERDUTY_INTEGRATION_ENDPOINT"]}`;
+// TODO: we could load this from these endpoints data-science stackconst ethereumModelEndpoint = `${process.env["ETHEREUM_MODEL_ENDPOINT"]}`;
+const ethereumModelEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/ETHEREUM_MODEL_ENDPOINT`
+);
+const nftModelEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/NFT_MODEL_ENDPOINT`
+);
+const zksyncModelEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/ZKSYNC_MODEL_ENDPOINT`
+);
+const polygonModelEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/POLYGON_MODEL_ENDPOINT`
+);
+const arbitrumModelEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/ARBITRUM_MODEL_ENDPOINT`
+);
+const optimismModelEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/OPTIMISM_MODEL_ENDPOINT`
+);
+
+const pagerDutyIntegrationEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`
+);
 
 const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
 const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
