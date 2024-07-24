@@ -42,7 +42,7 @@ jobs:
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
       - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@fix_build_dir
         with:
           refspec: ${{ needs.ref.outputs.refspec }}
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
@@ -50,7 +50,7 @@ jobs:
           aws_region: us-west-2
           aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          dockerfile_name: ./Dockerfile
+          dockerfile_name: ./api/Dockerfile
           build_dir: ./api/
 
   docker-lambda:
@@ -68,7 +68,7 @@ jobs:
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
       - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@fix_build_dir
         with:
           refspec: ${{ needs.ref.outputs.refspec }}
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
@@ -76,7 +76,7 @@ jobs:
           aws_region: us-west-2
           aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          dockerfile_name: ./aws_lambdas/submit_passport/Dockerfile
+          dockerfile_name: ./api/aws_lambdas/submit_passport/Dockerfile
           build_dir: ./api/
 
   docker-indexer:
@@ -94,7 +94,7 @@ jobs:
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
       - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@main
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@fix_build_dir
         with:
           refspec: ${{ needs.ref.outputs.refspec }}
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
@@ -102,7 +102,7 @@ jobs:
           aws_region: us-west-2
           aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          dockerfile_name: ./Dockerfile
+          dockerfile_name: ./indexer/Dockerfile
           build_dir: ./indexer/
 
   deploy_preview:
