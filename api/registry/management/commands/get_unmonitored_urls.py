@@ -1,9 +1,12 @@
-from django.core.management.base import BaseCommand, CommandError
-from django.conf import settings
-from http.client import HTTPSConnection
-
 import json
 import re
+from http.client import HTTPSConnection
+
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
+from ninja.openapi.schema import OpenAPISchema
+
+from scorer.api import apis
 
 # Will ignore e.g. anything starting with /admin/
 IGNORED_PATH_ROOTS = [
@@ -105,6 +108,16 @@ class Command(BaseCommand):
             json.dump(unmonitored_urls, out_file)
 
         self.stdout.write("Done")
+
+    def get_all_urls_with_methods(self):
+        all_methods = []
+        for api in apis:
+            openapi = OpenAPISchema(api=api, path_prefix="")
+            paths = openapi.get("paths", {})
+            for url, methods in paths.items():
+                for method in methods:
+                    all_methods.append({"url": url, "method": method.upper()})
+        return all_methods
 
     def convert_django_url_to_regex(self, url: str):
         # Have to do sub and then replace because re.sub interprets
