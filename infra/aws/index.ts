@@ -29,6 +29,7 @@ import * as op from "@1password/op-js";
 //////////////////////////////////////////////////////////////
 const PROVISION_STAGING_FOR_LOADTEST =
   `${process.env["PROVISION_STAGING_FOR_LOADTEST"]}`.toLowerCase() === "true";
+export const DOCKER_IMAGE_TAG = `${process.env.DOCKER_IMAGE_TAG || ""}`;
 
 type StackType = "review" | "staging" | "production";
 export const stack: StackType = pulumi.getStack() as StackType;
@@ -54,10 +55,29 @@ const publicDataDomain =
     ? `public.scorer.${rootDomain}`
     : `public.${stack}.scorer.${rootDomain}`;
 
-const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
-const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
+const current = aws.getCallerIdentity({});
+const regionData = aws.getRegion({});
+export const dockerGtcPassportScorerImage = pulumi
+  .all([current, regionData])
+  .apply(
+    ([acc, region]) =>
+      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-scorer:${DOCKER_IMAGE_TAG}`
+  );
 
-const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
+export const dockerGtcSubmitPassportLambdaImage = pulumi
+  .all([current, regionData])
+  .apply(
+    ([acc, region]) =>
+      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/submit-passport-lambdas:${DOCKER_IMAGE_TAG}`
+  );
+
+export const dockerGtcStakingIndexerImage = pulumi
+  .all([current, regionData])
+  .apply(
+    ([acc, region]) =>
+      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-indexer:${DOCKER_IMAGE_TAG}`
+  );
+
 const trustedIAMIssuers = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/TRUSTED_IAM_ISSUERS`
 );
@@ -715,13 +735,11 @@ const baseScorerServiceConfig: ScorerService = {
   cluster,
   alb,
   dockerImageScorer: dockerGtcPassportScorerImage,
-  dockerImageVerifier: dockerGtcPassportVerifierImage,
   executionRole: dpoppEcsRole,
   taskRole: serviceTaskRole,
   logGroup: serviceLogGroup,
   subnets: vpcPrivateSubnetIds,
   securityGroup: privateSubnetSecurityGroup,
-  needsVerifier: false,
   httpListenerArn: httpsListener.arn,
   targetGroup: targetGroupDefault,
   autoScaleMaxCapacity: 20,
@@ -1440,6 +1458,7 @@ createIndexerService(
     alertTopic: pagerdutyTopic,
     secretReferences: indexerSecrets,
     environment: indexerEnvironment,
+    dockerGtcStakingIndexerImage,
   },
   alarmConfigurations
 );

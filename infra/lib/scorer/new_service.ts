@@ -19,14 +19,12 @@ import {
 
 export type ScorerService = {
   dockerImageScorer: Input<string>;
-  dockerImageVerifier: Input<string>;
   securityGroup: aws.ec2.SecurityGroup;
   executionRole: Role;
   taskRole: Role;
   cluster: Cluster;
   logGroup: LogGroup;
   subnets: Input<Input<string>[]>;
-  needsVerifier: boolean;
   httpListenerArn: Input<string>;
   httpListenerRulePaths?: Input<Input<string>[]>;
   listenerRulePriority?: Input<number>;
@@ -124,30 +122,6 @@ export function createScorerECSService({
       secrets,
     },
   };
-
-  if (config.needsVerifier) {
-    containers.verifier = {
-      name: "verifier",
-      image: config.dockerImageVerifier,
-      memory: 512,
-      links: [],
-      portMappings: [
-        {
-          containerPort: 8001,
-          hostPort: 8001,
-        },
-      ],
-      environment: [
-        {
-          name: "VERIFIER_PORT",
-          value: "8001",
-        },
-      ],
-      linuxParameters: {
-        initProcessEnabled: true,
-      },
-    };
-  }
 
   const service = new awsx.ecs.FargateService(name, {
     propagateTags: "TASK_DEFINITION",
@@ -591,8 +565,6 @@ export async function createScoreExportBucketAndDomain(
   };
 }
 
-export const dockerGtcStakingIndexerImage = `${process.env["DOCKER_GTC_PASSPORT_INDEXER_IMAGE"]}`;
-
 type IndexerServiceParams = {
   cluster: Cluster;
   privateSubnetIds: Output<any>;
@@ -601,6 +573,7 @@ type IndexerServiceParams = {
   alertTopic: aws.sns.Topic;
   secretReferences: pulumi.Output<secretsManager.SecretRef[]>;
   environment: secretsManager.EnvironmentVar[];
+  dockerGtcStakingIndexerImage: Input<string>;
 };
 
 export function createIndexerService(
@@ -612,6 +585,7 @@ export function createIndexerService(
     alertTopic,
     secretReferences,
     environment,
+    dockerGtcStakingIndexerImage,
   }: IndexerServiceParams,
   alarmThresholds: AlarmConfigurations
 ) {
@@ -886,7 +860,7 @@ export const createSharedLambdaResources = ({
 
 type BuildLambdaFnBaseParams = {
   name: string;
-  imageUri: string;
+  imageUri: Input<string>;
   privateSubnetSecurityGroup: SecurityGroup;
   vpcPrivateSubnetIds: Output<any>;
   environment: { name: string; value: Input<string> }[];

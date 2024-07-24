@@ -98,7 +98,7 @@ jobs:
         with:
           refspec: ${{ needs.ref.outputs.refspec }}
           docker_tag: ${{ needs.ref.outputs.docker_tag }}
-          ecr_repository_name: submit-passport-lambdas
+          ecr_repository_name: passport-indexer
           aws_region: us-west-2
           aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
