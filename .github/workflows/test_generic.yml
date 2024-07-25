@@ -1,0 +1,107 @@
+name: Library - Test
+on:
+  workflow_call:
+    inputs:
+      commit:
+        description: "Leave blank to use current HEAD, or provide an override commit SHA"
+        type: string
+        required: false
+      environment:
+        description: "Environment to deploy to"
+        type: string
+        required: true
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      postgres:
+        image: postgres:12.3-alpine
+        env:
+          POSTGRES_USER: passport_scorer
+          POSTGRES_PASSWORD: passport_scorer_pwd
+          POSTGRES_DB: passport_scorer
+
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - id: ref
+        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref@main
+        with:
+          commit: ${{ inputs.commit }}
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.ref.outputs.refspec }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install pipenv
+        run: pip3 install pipenv
+
+      - name: Generate requirements.txt
+        working-directory: ./api
+        run: pipenv requirements --dev > requirements.txt
+
+      - name: Install API dependencies
+        working-directory: ./api
+        run: pip3 install -r requirements.txt
+
+      - name: Django Check
+        working-directory: ./api
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
+        run: python manage.py check
+
+      - name: Load secret
+        id: op-load-secret
+        uses: 1password/load-secrets-action@v1
+        with:
+          export-env: true
+        env:
+          UPTIME_ROBOT_READONLY_API_KEY: op://DevOps/passport-scorer-api-review-secrets/ci/UPTIME_ROBOT_READONLY_API_KEY
+          IGNORE_UNMONITORED_URLS: op://DevOps/passport-scorer-api-review-env/ci/IGNORE_UNMONITORED_URLS
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+
+      - name: URL Monitoring Check
+        working-directory: ./api
+        shell: bash
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
+          UPTIME_ROBOT_READONLY_API_KEY: ${{ env.UPTIME_ROBOT_READONLY_API_KEY }}
+          IGNORE_UNMONITORED_URLS: ${{ env.IGNORE_UNMONITORED_URLS }}
+        run: python manage.py show_urls -f json > urls.json &&
+          python manage.py get_unmonitored_urls --urls urls.json --base-url https://api.scorer.gitcoin.co --out unmonitored.json --allow-paused True &&
+          [ -f unmonitored.json ] && [ `cat unmonitored.json | wc -m` -eq 2 ]
+
+      - name: Run API unittests
+        working-directory: ./api
+        run: pytest
+        env:
+          CERAMIC_CACHE_SCORER_ID: ""
+          SECRET_KEY: secret-test-value
+          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          DATA_MODEL_DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          FF_API_ANALYTICS: on
