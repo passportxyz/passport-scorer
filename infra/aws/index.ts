@@ -78,10 +78,6 @@ export const dockerGtcStakingIndexerImage = pulumi
       `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-indexer:${DOCKER_IMAGE_TAG}`
   );
 
-const trustedIAMIssuers = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/TRUSTED_IAM_ISSUERS`
-);
-
 const redashDbUsername = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_USER`
 );
@@ -1490,10 +1486,6 @@ const lambdaSettings = {
   vpcPrivateSubnetIds,
   environment: [
     ...apiEnvironment,
-    {
-      name: "TRUSTED_IAM_ISSUERS",
-      value: trustedIAMIssuers,
-    },
     {
       name: "FF_API_ANALYTICS",
       value: "on",
