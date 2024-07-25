@@ -576,6 +576,7 @@ type IndexerServiceParams = {
   dockerGtcStakingIndexerImage: Input<string>;
 };
 
+
 export function createIndexerService(
   {
     cluster,

@@ -1,11 +1,9 @@
 import * as awsx from "@pulumi/awsx";
-import { all } from "@pulumi/pulumi";
+import { all, Input } from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import { ScorerService } from "./new_service";
 import { secretsManager } from "infra-libs";
-
-let SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
 
 export type ScheduledTaskConfig = Pick<
   ScorerService,
@@ -31,6 +29,7 @@ export function createScheduledTask({
   secrets,
   alarmPeriodSeconds,
   enableInvocationAlerts,
+  scorerSecretManagerArn,
 }: {
   name: string;
   config: ScheduledTaskConfig;
@@ -38,6 +37,7 @@ export function createScheduledTask({
   secrets: pulumi.Output<secretsManager.SecretRef[]>;
   alarmPeriodSeconds?: number;
   enableInvocationAlerts?: boolean;
+  scorerSecretManagerArn: Input<string>;
 }) {
   const {
     alertTopic,
@@ -142,16 +142,19 @@ export function createScheduledTask({
       },
       {
         name: "allow_iam_secrets_access",
-        policy: JSON.stringify({
-          Version: "2012-10-17",
-          Statement: [
-            {
-              Action: ["secretsmanager:GetSecretValue"],
-              Effect: "Allow",
-              Resource: SCORER_SERVER_SSM_ARN,
-            },
-          ],
-        }),
+        policy: all([scorerSecretManagerArn]).apply(
+          ([scorerSecretManagerArnStr]) =>
+            JSON.stringify({
+              Version: "2012-10-17",
+              Statement: [
+                {
+                  Action: ["secretsmanager:GetSecretValue"],
+                  Effect: "Allow",
+                  Resource: scorerSecretManagerArnStr,
+                },
+              ],
+            })
+        ),
       },
       {
         name: "allow_run_task",

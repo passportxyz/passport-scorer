@@ -685,29 +685,32 @@ const indexerEnvironment = [
   },
 ].sort(secretsManager.sortByName);
 
-const indexerSecrets = secretsManager
-  .syncSecretsAndGetRefs({
-    vault: "DevOps",
-    repo: "passport-scorer",
-    env: stack,
-    section: "indexer",
-    targetSecret: indexerSecret,
-    secretVersionName: "indexer-secret-version",
-  })
-  .apply((secretRefs) =>
+const indexerSecrets = pulumi
+  .all([
+    secretsManager.syncSecretsAndGetRefs({
+      vault: "DevOps",
+      repo: "passport-scorer",
+      env: stack,
+      section: "indexer",
+      targetSecret: indexerSecret,
+      secretVersionName: "indexer-secret-version",
+    }),
+    RDS_SECRET_ARN,
+  ])
+  .apply(([secretRefs, rdsSecretArn]) =>
     [
       ...secretRefs,
       {
         name: "DB_USER",
-        valueFrom: `${RDS_SECRET_ARN}:username::`,
+        valueFrom: `${rdsSecretArn}:username::`,
       },
       {
         name: "DB_PASSWORD",
-        valueFrom: `${RDS_SECRET_ARN}:password::`,
+        valueFrom: `${rdsSecretArn}:password::`,
       },
       {
         name: "DB_NAME",
-        valueFrom: `${RDS_SECRET_ARN}:dbname::`,
+        valueFrom: `${rdsSecretArn}:dbname::`,
       },
     ].sort(secretsManager.sortByName)
   );
@@ -1202,6 +1205,7 @@ export const weeklyDataDumpTaskDefinition = createScheduledTask({
   secrets: apiSecrets,
   alarmPeriodSeconds: 86400, // 24h max period
   enableInvocationAlerts: false,
+  scorerSecretManagerArn: scorerSecret.arn,
 });
 
 export const dailyDataDumpTaskDefinition = createScheduledTask({
@@ -1240,6 +1244,7 @@ export const dailyDataDumpTaskDefinition = createScheduledTask({
   secrets: apiSecrets,
   alarmPeriodSeconds: 86400, // 24h max period
   enableInvocationAlerts: false,
+  scorerSecretManagerArn: scorerSecret.arn,
 });
 
 // Apps: registry,ceramic_cache,account,scorer_weighted,trusta_labs,stake
@@ -1280,6 +1285,7 @@ export const dailyDataDumpTaskDefinitionParquetList = dailyDataDumpApps.map(
       secrets: apiSecrets,
       alarmPeriodSeconds: 86400, // 24h max period
       enableInvocationAlerts: false,
+      scorerSecretManagerArn: scorerSecret.arn,
     });
 
     return dailyDataDumpTaskDefinitionParquet;
@@ -1309,6 +1315,7 @@ export const dailyScoreExportForOSO = createScheduledTask({
   secrets: apiSecrets,
   alarmPeriodSeconds: 86400, // 24h max period
   enableInvocationAlerts: false,
+  scorerSecretManagerArn: scorerSecret.arn,
 });
 
 // The following scorer dumps the Allo scorer scores to a public S3 bucket
@@ -1345,6 +1352,7 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask({
   secrets: apiSecrets,
   alarmPeriodSeconds: 3600, // 1h in seconds
   enableInvocationAlerts: true,
+  scorerSecretManagerArn: scorerSecret.arn,
 });
 
 export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
@@ -1380,6 +1388,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
     secrets: apiSecrets,
     alarmPeriodSeconds: 3600, // 1h in seconds
     enableInvocationAlerts: true,
+    scorerSecretManagerArn: scorerSecret.arn,
   });
 
 export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
@@ -1415,6 +1424,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
     secrets: apiSecrets,
     alarmPeriodSeconds: 3600, // 1h in seconds
     enableInvocationAlerts: true,
+    scorerSecretManagerArn: scorerSecret.arn,
   });
 
 /*
@@ -1441,6 +1451,7 @@ export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
     secrets: apiSecrets,
     alarmPeriodSeconds: 3600, // 1h in seconds
     enableInvocationAlerts: true,
+    scorerSecretManagerArn: scorerSecret.arn,
   });
 
 const exportVals = createScoreExportBucketAndDomain(
