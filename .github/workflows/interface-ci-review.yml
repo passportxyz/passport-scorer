@@ -51,5 +51,5 @@ jobs:
           git fetch
           git checkout -b review-interface origin/review-interface
           git reset --hard ${{ needs.ui-test.outputs.refspec }}
-          git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@${{ github.server_url }}/${{ github.repository }}
+          git remote set-url origin ${{ secrets.GITHUB_TOKEN }}@${{ github.server_url }}/${{ github.repository }}
           git push origin review-interface -f
