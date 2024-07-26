@@ -25,9 +25,10 @@ jobs:
 
   test:
     name: Test
+    needs: [ref]
     uses: ./.github/workflows/test_generic.yml
     with:
-      commit: ${{ inputs.commit }}
+      refspec: ${{ needs.ref.outputs.refspec }}
       environment: review
     secrets: inherit
 
@@ -50,10 +51,11 @@ jobs:
 
   deploy-staging:
     name: Deploy to Staging
-    needs: [create-draft-release]
+    needs: [create-draft-release, ref]
     uses: ./.github/workflows/build_and_deploy_generic.yml
     with:
-      commit: ${{ inputs.commit }}
+      refspec: ${{ needs.ref.outputs.refspec }}
+      docker_tag: ${{ needs.ref.outputs.docker_tag }}
       environment: staging
     secrets: inherit
 
@@ -71,10 +73,11 @@ jobs:
 
   deploy-production:
     name: Deploy to Production
-    needs: [deploy-staging, deploy-interface-to-staging]
+    needs: [ref, deploy-staging, deploy-interface-to-staging]
     uses: ./.github/workflows/build_and_deploy_generic.yml
     with:
-      commit: ${{ inputs.commit }}
+      refspec: ${{ needs.ref.outputs.refspec }}
+      docker_tag: ${{ needs.ref.outputs.docker_tag }}
       environment: production
     secrets: inherit
 
@@ -92,7 +95,7 @@ jobs:
 
   release:
     name: Release
-    needs: [ref, create-draft-release, deploy-production]
+    needs: [ref, create-draft-release, deploy-production, deploy-interface-to-production]
     permissions: write-all
     runs-on: ubuntu-latest
     steps:
