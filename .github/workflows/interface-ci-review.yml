@@ -1,0 +1,55 @@
+name: Deploy Interface to Review
+
+on:
+  push:
+    branches: [main, 2627-pulumi-1p-secrets]
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Leave blank to use current HEAD, or provide an override commit SHA"
+        type: string
+        required: false
+jobs:
+  ui-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - id: ref
+        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref@main
+        with:
+          commit: ${{ github.event.inputs.commit }}
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.ref.outputs.refspec }}
+          fetch-depth: 0
+
+      - name: Install UI dependencies
+        working-directory: ./interface
+        run: yarn --frozen-lockfile && yarn build
+
+      - name: Run tests
+        working-directory: ./interface
+        run: yarn test
+
+    outputs:
+      version_tag: ${{ steps.ref.outputs.version_tag }}
+      docker_tag: ${{ steps.ref.outputs.docker_tag }}
+      refspec: ${{ steps.ref.outputs.refspec }}
+
+  deploy-app:
+    needs: [ui-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.ui-test.outputs.refspec }}
+          fetch-depth: 0
+      - name: Checkout review-interface
+        run: |
+          git fetch
+          git checkout -b review-interface origin/review-interface
+          git reset --hard ${{ needs.ui-test.outputs.refspec }}
+          git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@${{ github.server_url }}/${{ github.repository }}
+          git push origin review-interface -f
