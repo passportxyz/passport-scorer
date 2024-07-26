@@ -59,12 +59,15 @@ jobs:
 
   deploy-interface-to-staging:
     name: Push code to branch
-    needs: [create-draft-release]
-    uses: passportxyz/gh-workflows/.github/actions/push_to_branch@main
-    with:
-      commit: ${{ needs.ref.outputs.refspec }}
-      github-token: ${{ secrets.GITHUB_TOKEN }}
-      branch: staging-interface
+    needs: [ref, create-draft-release]
+    runs-on: ubuntu-latest
+    steps:
+      - id: push-to-branch
+        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@main
+        with:
+          commit: ${{ needs.ref.outputs.refspec }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          branch: staging-interface
 
   deploy-production:
     name: Deploy to Production
@@ -77,12 +80,15 @@ jobs:
 
   deploy-interface-to-production:
     name: Push code to branch
-    needs: [deploy-staging, deploy-interface-to-staging]
-    uses: passportxyz/gh-workflows/.github/actions/push_to_branch@main
-    with:
-      commit: ${{ needs.ref.outputs.refspec }}
-      github-token: ${{ secrets.GITHUB_TOKEN }}
-      branch: staging-interface
+    needs: [ref, deploy-staging, deploy-interface-to-staging]
+    runs-on: ubuntu-latest
+    steps:
+      - id: push-to-branch
+        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@main
+        with:
+          commit: ${{ needs.ref.outputs.refspec }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          branch: production-interface
 
   release:
     name: Release
