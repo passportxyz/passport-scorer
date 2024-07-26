@@ -86,7 +86,7 @@ jobs:
           SECRET_KEY: secret-test-value
           UPTIME_ROBOT_API_KEY: op://DevOps/passport-scorer-review-secrets/ci/UPTIME_ROBOT_API_KEY
         run:
-          python manage.py get_unmonitored_urls --urls urls.json --base-url https://api.scorer.gitcoin.co --out unmanaged.json &&
+          python manage.py get_unmonitored_urls --base-url https://api.scorer.gitcoin.co --out unmanaged.json &&
           [ -f unmanaged.json ] && [ `cat unmanaged.json | wc -m` -eq 2 ]
 
   ui-test:
