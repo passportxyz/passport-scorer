@@ -2,14 +2,12 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 
 import {
-  ScorerEnvironmentConfig,
   ScorerService,
   buildHttpLambdaFn,
   createIndexerService,
   createScoreExportBucketAndDomain,
   createScorerECSService,
   createTargetGroup,
-  getEnvironment,
   createSharedLambdaResources,
   createDeadLetterQueue,
   createRescoreQueue,
@@ -20,6 +18,9 @@ import {
   createLoadBalancerAlarms,
 } from "../lib/scorer/loadBalancer";
 import { createScheduledTask } from "../lib/scorer/scheduledTasks";
+import { secretsManager } from "infra-libs";
+
+import * as op from "@1password/op-js";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -28,51 +29,101 @@ import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 //////////////////////////////////////////////////////////////
 const PROVISION_STAGING_FOR_LOADTEST =
   `${process.env["PROVISION_STAGING_FOR_LOADTEST"]}`.toLowerCase() === "true";
+export const DOCKER_IMAGE_TAG = `${process.env.DOCKER_IMAGE_TAG || ""}`;
 
 type StackType = "review" | "staging" | "production";
 export const stack: StackType = pulumi.getStack() as StackType;
 export const region = aws.getRegion();
-const route53Zone = `${process.env["ROUTE_53_ZONE"]}`;
-const route53ZoneForPublicData = `${process.env["ROUTE_53_ZONE_FOR_PUBLIC_DATA"]}`;
+const route53Zone = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE`
+);
+const route53ZoneForPublicData = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE_FOR_PUBLIC_DATA`
+);
+
+const rootDomain = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/ROOT_DOMAIN`
+);
 
 const domain =
   stack == "production"
-    ? `api.scorer.${process.env["DOMAIN"]}`
-    : `api.${stack}.scorer.${process.env["DOMAIN"]}`;
-const rootDomain = process.env["DOMAIN"];
+    ? `api.scorer.${rootDomain}`
+    : `api.${stack}.scorer.${rootDomain}`;
 
 const publicDataDomain =
   stack == "production"
-    ? `public.scorer.${process.env["DOMAIN"]}`
-    : `public.${stack}.scorer.${process.env["DOMAIN"]}`;
-const publicServiceUrl = `https://${domain}`;
+    ? `public.scorer.${rootDomain}`
+    : `public.${stack}.scorer.${rootDomain}`;
 
-const SCORER_SERVER_SSM_ARN = `${process.env["SCORER_SERVER_SSM_ARN"]}`;
+const current = aws.getCallerIdentity({});
+const regionData = aws.getRegion({});
+export const dockerGtcPassportScorerImage = pulumi
+  .all([current, regionData])
+  .apply(
+    ([acc, region]) =>
+      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-scorer:${DOCKER_IMAGE_TAG}`
+  );
 
-const dockerGtcPassportScorerImage = `${process.env["DOCKER_GTC_PASSPORT_SCORER_IMAGE"]}`;
-const dockerGtcPassportVerifierImage = `${process.env["DOCKER_GTC_PASSPORT_VERIFIER_IMAGE"]}`;
+export const dockerGtcSubmitPassportLambdaImage = pulumi
+  .all([current, regionData])
+  .apply(
+    ([acc, region]) =>
+      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/submit-passport-lambdas:${DOCKER_IMAGE_TAG}`
+  );
 
-const dockerGtcSubmitPassportLambdaImage = `${process.env["DOCKER_GTC_SUBMIT_PASSPORT_LAMBDA_IMAGE"]}`;
-const trustedIAMIssuers = `${process.env["TRUSTED_IAM_ISSUERS"]}`;
+export const dockerGtcStakingIndexerImage = pulumi
+  .all([current, regionData])
+  .apply(
+    ([acc, region]) =>
+      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-indexer:${DOCKER_IMAGE_TAG}`
+  );
 
-const redashDbUsername = `${process.env["REDASH_DB_USER"]}`;
-const redashDbPassword = pulumi.secret(`${process.env["REDASH_DB_PASSWORD"]}`);
-const redashDbName = `${process.env["REDASH_DB_NAME"]}`;
-const redashSecretKey = pulumi.secret(`${process.env["REDASH_SECRET_KEY"]}`);
-const redashMailUsername = `${process.env["REDASH_MAIL_USERNAME"]}`;
+const redashDbUsername = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_USER`
+);
+const redashDbPassword = pulumi.secret(
+  op.read.parse(
+    `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_PASSWORD`
+  )
+);
+const redashDbName = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_NAME`
+);
+const redashSecretKey = pulumi.secret(
+  op.read.parse(`op://DevOps/passport-scorer-${stack}-env/ci/REDASH_SECRET_KEY`)
+);
+const redashMailUsername = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_MAIL_USERNAME`
+);
 const redashMailPassword = pulumi.secret(
-  `${process.env["REDASH_MAIL_PASSWORD"]}`
+  op.read.parse(
+    `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_MAIL_PASSWORD`
+  )
 );
 
-// TODO: we could load this from these endpoints data-science stack
-const ethereumModelEndpoint = `${process.env["ETHEREUM_MODEL_ENDPOINT"]}`;
-const nftModelEndpoint = `${process.env["NFT_MODEL_ENDPOINT"]}`;
-const zksyncModelEndpoint = `${process.env["ZKSYNC_MODEL_ENDPOINT"]}`;
-const polygonModelEndpoint = `${process.env["POLYGON_MODEL_ENDPOINT"]}`;
-const arbitrumModelEndpoint = `${process.env["ARBITRUM_MODEL_ENDPOINT"]}`;
-const optimismModelEndpoint = `${process.env["OPTIMISM_MODEL_ENDPOINT"]}`;
+// TODO: we could load this from these endpoints data-science stackconst ethereumModelEndpoint = `${process.env["ETHEREUM_MODEL_ENDPOINT"]}`;
+const ethereumModelEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/ETHEREUM_MODEL_ENDPOINT`
+);
+const nftModelEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/NFT_MODEL_ENDPOINT`
+);
+const zksyncModelEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/ZKSYNC_MODEL_ENDPOINT`
+);
+const polygonModelEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/POLYGON_MODEL_ENDPOINT`
+);
+const arbitrumModelEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/ARBITRUM_MODEL_ENDPOINT`
+);
+const optimismModelEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/OPTIMISM_MODEL_ENDPOINT`
+);
 
-const pagerDutyIntegrationEndpoint = `${process.env["PAGERDUTY_INTEGRATION_ENDPOINT"]}`;
+const pagerDutyIntegrationEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`
+);
 
 const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
 const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
@@ -376,6 +427,16 @@ const www = new aws.route53.Record("scorer", {
   ],
 });
 
+const scorerSecret = new aws.secretsmanager.Secret("scorer-secret", {
+  name: "scorer-secret",
+  description: "Scorer Secrets",
+});
+
+const indexerSecret = new aws.secretsmanager.Secret("indexer-secret", {
+  name: "indexer-secret",
+  description: "Secrets for passport-scorer indexer",
+});
+
 const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
   assumeRolePolicy: JSON.stringify({
     Version: "2012-10-17",
@@ -411,13 +472,13 @@ const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
     },
     {
       name: "allow_iam_secrets_access",
-      policy: JSON.stringify({
+      policy: pulumi.jsonStringify({
         Version: "2012-10-17",
         Statement: [
           {
             Action: ["secretsmanager:GetSecretValue"],
             Effect: "Allow",
-            Resource: SCORER_SERVER_SSM_ARN,
+            Resource: [scorerSecret.arn, indexerSecret.arn],
           },
         ],
       }),
@@ -529,23 +590,126 @@ const serviceTaskRole = new aws.iam.Role("scorer-service-task-role", {
   ],
 });
 
-const envConfig: ScorerEnvironmentConfig = {
-  allowedHosts: JSON.stringify([domain, "*"]),
-  domain: domain,
-  csrfTrustedOrigins: JSON.stringify([`https://${domain}`]),
-  rdsConnectionUrl: scorerDbProxyEndpointConn,
-  readReplicaConnectionUrl: readreplica0ConnectionUrl,
-  redisCacheOpsConnectionUrl: redisCacheOpsConnectionUrl,
-  uiDomains: JSON.stringify([
-    "scorer." + rootDomain,
-    "www.scorer." + rootDomain,
-  ]),
-  debug: "off",
-  passportPublicUrl: "https://passport.gitcoin.co/",
-  rescoreQueueUrl: rescoreQueue.url,
-};
+const apiEnvironment = [
+  ...secretsManager.getEnvironmentVars({
+    vault: "DevOps",
+    repo: "passport-scorer",
+    env: stack,
+    section: "api",
+  }),
+  // TODO most of these (the static ones) could be moved to the password manager
+  {
+    name: "DEBUG",
+    value: "off",
+  },
+  {
+    name: "CSRF_TRUSTED_ORIGINS",
+    value: JSON.stringify([`https://${domain}`]),
+  },
+  {
+    name: "CERAMIC_CACHE_CACAO_VALIDATION_URL",
+    value: "http://localhost:8001/verify",
+  },
+  {
+    name: "SECURE_SSL_REDIRECT",
+    value: "off",
+  },
+  {
+    name: "SECURE_PROXY_SSL_HEADER",
+    value: JSON.stringify(["HTTP_X_FORWARDED_PROTO", "https"]),
+  },
+  {
+    name: "LOGGING_STRATEGY",
+    value: "structlog_json",
+  },
+  {
+    name: "PASSPORT_PUBLIC_URL",
+    value: "https://passport.gitcoin.co/",
+  },
+  {
+    name: "RESCORE_QUEUE_URL",
+    value: rescoreQueue.url,
+  },
+  {
+    name: "UI_DOMAINS",
+    value: JSON.stringify(["scorer." + rootDomain, "www.scorer." + rootDomain]),
+  },
+  {
+    name: "ALLOWED_HOSTS",
+    value: JSON.stringify([domain, "*"]),
+  },
+].sort(secretsManager.sortByName);
 
-const environment = getEnvironment(envConfig);
+const apiSecrets = secretsManager.syncSecretsAndGetRefs({
+  vault: "DevOps",
+  repo: "passport-scorer",
+  env: stack,
+  section: "api",
+  targetSecret: scorerSecret,
+  secretVersionName: "scorer-secret-version",
+  extraSecretDefinitions: [
+    {
+      name: "DATABASE_URL",
+      value: scorerDbProxyEndpointConn,
+    },
+    {
+      name: "READ_REPLICA_0_URL",
+      value: readreplica0ConnectionUrl || scorerDbProxyEndpointConn,
+    },
+    {
+      name: "READ_REPLICA_ANALYTICS_URL",
+      value: readreplicaAnalyticsConnectionUrl || scorerDbProxyEndpointConn,
+    },
+    { name: "CELERY_BROKER_URL", value: redisCacheOpsConnectionUrl },
+  ],
+});
+
+const indexerEnvironment = [
+  ...secretsManager.getEnvironmentVars({
+    vault: "DevOps",
+    repo: "passport-scorer",
+    env: stack,
+    section: "indexer",
+  }),
+  {
+    name: "DB_HOST",
+    value: scorerDbProxyEndpoint,
+  },
+  {
+    name: "DB_PORT",
+    value: String(5432),
+  },
+].sort(secretsManager.sortByName);
+
+const indexerSecrets = pulumi
+  .all([
+    secretsManager.syncSecretsAndGetRefs({
+      vault: "DevOps",
+      repo: "passport-scorer",
+      env: stack,
+      section: "indexer",
+      targetSecret: indexerSecret,
+      secretVersionName: "indexer-secret-version",
+    }),
+    RDS_SECRET_ARN,
+  ])
+  .apply(([secretRefs, rdsSecretArn]) =>
+    [
+      ...secretRefs,
+      {
+        name: "DB_USER",
+        valueFrom: `${rdsSecretArn}:username::`,
+      },
+      {
+        name: "DB_PASSWORD",
+        valueFrom: `${rdsSecretArn}:password::`,
+      },
+      {
+        name: "DB_NAME",
+        valueFrom: `${rdsSecretArn}:dbname::`,
+      },
+    ].sort(secretsManager.sortByName)
+  );
 
 //////////////////////////////////////////////////////////////
 // Set up log groups for API service and worker
@@ -570,13 +734,11 @@ const baseScorerServiceConfig: ScorerService = {
   cluster,
   alb,
   dockerImageScorer: dockerGtcPassportScorerImage,
-  dockerImageVerifier: dockerGtcPassportVerifierImage,
   executionRole: dpoppEcsRole,
   taskRole: serviceTaskRole,
   logGroup: serviceLogGroup,
   subnets: vpcPrivateSubnetIds,
   securityGroup: privateSubnetSecurityGroup,
-  needsVerifier: false,
   httpListenerArn: httpsListener.arn,
   targetGroup: targetGroupDefault,
   autoScaleMaxCapacity: 20,
@@ -584,9 +746,9 @@ const baseScorerServiceConfig: ScorerService = {
   alertTopic: pagerdutyTopic,
 };
 
-const scorerServiceDefault = createScorerECSService(
-  "scorer-api-default",
-  {
+const scorerServiceDefault = createScorerECSService({
+  name: "scorer-api-default",
+  config: {
     ...baseScorerServiceConfig,
     targetGroup: targetGroupDefault,
     memory: ecsTaskConfigurations["scorer-api-default"][stack].memory,
@@ -594,13 +756,14 @@ const scorerServiceDefault = createScorerECSService(
     desiredCount:
       ecsTaskConfigurations["scorer-api-default"][stack].desiredCount,
   },
-  envConfig,
-  alarmConfigurations
-);
+  environment: apiEnvironment,
+  secrets: apiSecrets,
+  loadBalancerAlarmThresholds: alarmConfigurations,
+});
 
-const scorerServiceRegistry = createScorerECSService(
-  "scorer-api-reg",
-  {
+const scorerServiceRegistry = createScorerECSService({
+  name: "scorer-api-reg",
+  config: {
     ...baseScorerServiceConfig,
     listenerRulePriority: 3000,
     httpListenerRulePaths: ["/registry/*"],
@@ -609,70 +772,68 @@ const scorerServiceRegistry = createScorerECSService(
     cpu: ecsTaskConfigurations["scorer-api-reg"][stack].cpu,
     desiredCount: ecsTaskConfigurations["scorer-api-reg"][stack].desiredCount,
   },
-  envConfig,
-  alarmConfigurations
-);
+  environment: apiEnvironment,
+  secrets: apiSecrets,
+  loadBalancerAlarmThresholds: alarmConfigurations,
+});
 
 //////////////////////////////////////////////////////////////
 // Set up the worker role
 //////////////////////////////////////////////////////////////
-const workerRole = RDS_SECRET_ARN.apply(
-  (rdsSecrets) =>
-    new aws.iam.Role("scorer-bkgrnd-worker-role", {
-      assumeRolePolicy: JSON.stringify({
+const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
+  assumeRolePolicy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Action: "sts:AssumeRole",
+        Effect: "Allow",
+        Sid: "",
+        Principal: {
+          Service: "ecs-tasks.amazonaws.com",
+        },
+      },
+    ],
+  }),
+  inlinePolicies: [
+    {
+      name: "allow_exec",
+      policy: JSON.stringify({
         Version: "2012-10-17",
         Statement: [
           {
-            Action: "sts:AssumeRole",
             Effect: "Allow",
-            Sid: "",
-            Principal: {
-              Service: "ecs-tasks.amazonaws.com",
-            },
+            Action: [
+              "ssmmessages:CreateControlChannel",
+              "ssmmessages:CreateDataChannel",
+              "ssmmessages:OpenControlChannel",
+              "ssmmessages:OpenDataChannel",
+            ],
+            Resource: "*",
           },
         ],
       }),
-      inlinePolicies: [
-        {
-          name: "allow_exec",
-          policy: JSON.stringify({
-            Version: "2012-10-17",
-            Statement: [
-              {
-                Effect: "Allow",
-                Action: [
-                  "ssmmessages:CreateControlChannel",
-                  "ssmmessages:CreateDataChannel",
-                  "ssmmessages:OpenControlChannel",
-                  "ssmmessages:OpenDataChannel",
-                ],
-                Resource: "*",
-              },
-            ],
-          }),
-        },
-        {
-          name: "allow_iam_secrets_access",
-          policy: JSON.stringify({
-            Version: "2012-10-17",
-            Statement: [
-              {
-                Action: ["secretsmanager:GetSecretValue"],
-                Effect: "Allow",
-                Resource: [SCORER_SERVER_SSM_ARN, rdsSecrets],
-              },
-            ],
-          }),
-        },
-      ],
-      managedPolicyArns: [
-        "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
-      ],
-      tags: {
-        dpopp: "",
-      },
-    })
-);
+    },
+    {
+      name: "allow_iam_secrets_access",
+      policy: pulumi.jsonStringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Action: ["secretsmanager:GetSecretValue"],
+            Effect: "Allow",
+            Resource: [scorerSecret.arn, indexerSecret.arn, RDS_SECRET_ARN],
+          },
+        ],
+      }),
+    },
+  ],
+  managedPolicyArns: [
+    "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+  ],
+  tags: {
+    dpopp: "",
+  },
+});
 
 const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
   description: "gitcoin-ecs-task",
@@ -805,7 +966,7 @@ const redashDbSecgrp = new aws.ec2.SecurityGroup(`redash-db`, {
   ],
   name: "redash-db",
 });
-// This is hardocded until redash db will be moved to core infra
+// This is hardcoded until redash db will be moved to core infra
 let dbSubnetGroupId = `core-rds`;
 
 // Create an RDS instance
@@ -1026,27 +1187,26 @@ new aws.lb.TargetGroupAttachment("redashTargetAttachment", {
   targetGroupArn: redashTarget.arn,
 });
 
-export const weeklyDataDumpTaskDefinition = createScheduledTask(
-  "weekly-data-dump",
-  {
+export const weeklyDataDumpTaskDefinition = createScheduledTask({
+  name: "weekly-data-dump",
+  config: {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
     command:
-      "python manage.py dump_stamp_data --database=read_replica_0 --batch-size=1000",
+      "python manage.py dump_stamp_data --database=read_replica_analytics --batch-size=1000",
     scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  {
-    ...envConfig,
-    readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
-  },
-  86400, // 24h max period
-  false
-);
+  environment: apiEnvironment,
+  secrets: apiSecrets,
+  alarmPeriodSeconds: 86400, // 24h max period
+  enableInvocationAlerts: false,
+  scorerSecretManagerArn: scorerSecret.arn,
+});
 
-export const dailyDataDumpTaskDefinition = createScheduledTask(
-  "daily-data-dump",
-  {
+export const dailyDataDumpTaskDefinition = createScheduledTask({
+  name: "daily-data-dump",
+  config: {
     ...baseScorerServiceConfig,
     cpu: 1024,
     memory: 2048,
@@ -1056,7 +1216,7 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
       "python",
       "manage.py",
       "scorer_dump_data",
-      "--database=read_replica_0",
+      "--database=read_replica_analytics",
       "--config",
       "'" +
         JSON.stringify([
@@ -1073,16 +1233,15 @@ export const dailyDataDumpTaskDefinition = createScheduledTask(
       "--s3-uri=s3://passport-scorer/daily_data_dumps/",
       "--batch-size=20000",
     ].join(" "),
-    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:45 UTC
+    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  {
-    ...envConfig,
-    readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
-  },
-  86400, // 24h max period
-  false
-);
+  environment: apiEnvironment,
+  secrets: apiSecrets,
+  alarmPeriodSeconds: 86400, // 24h max period
+  enableInvocationAlerts: false,
+  scorerSecretManagerArn: scorerSecret.arn,
+});
 
 // Apps: registry,ceramic_cache,account,scorer_weighted,trusta_labs,stake
 // Split the data dump by app to avoid having 1 bad app causing the whole dump to fail
@@ -1098,9 +1257,9 @@ const dailyDataDumpApps: string[] = [
 
 export const dailyDataDumpTaskDefinitionParquetList = dailyDataDumpApps.map(
   (app: string) => {
-    const dailyDataDumpTaskDefinitionParquet = createScheduledTask(
-      `daily-data-dump-parquet-${app}`,
-      {
+    const dailyDataDumpTaskDefinitionParquet = createScheduledTask({
+      name: `daily-data-dump-parquet-${app}`,
+      config: {
         ...baseScorerServiceConfig,
         cpu: 1024,
         memory: 2048,
@@ -1110,7 +1269,7 @@ export const dailyDataDumpTaskDefinitionParquetList = dailyDataDumpApps.map(
           "python",
           "manage.py",
           "scorer_dump_data_parquet",
-          "--database=read_replica_0",
+          "--database=read_replica_analytics",
           `--apps=${app}`,
           "--s3-uri=s3://passport-scorer/daily_data_dumps/",
           "--batch-size=20000",
@@ -1118,13 +1277,12 @@ export const dailyDataDumpTaskDefinitionParquetList = dailyDataDumpApps.map(
         scheduleExpression: "cron(45 0 ? * * *)", // Run the task daily at 00:30 UTC
         alertTopic: pagerdutyTopic,
       },
-      {
-        ...envConfig,
-        readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
-      },
-      86400, // 24h max period
-      false
-    );
+      environment: apiEnvironment,
+      secrets: apiSecrets,
+      alarmPeriodSeconds: 86400, // 24h max period
+      enableInvocationAlerts: false,
+      scorerSecretManagerArn: scorerSecret.arn,
+    });
 
     return dailyDataDumpTaskDefinitionParquet;
   }
@@ -1133,9 +1291,9 @@ export const dailyDataDumpTaskDefinitionParquetList = dailyDataDumpApps.map(
 /*
  * Exporting score data for OSO
  */
-export const dailyScoreExportForOSO = createScheduledTask(
-  "daily-score-export-for-oso",
-  {
+export const dailyScoreExportForOSO = createScheduledTask({
+  name: "daily-score-export-for-oso",
+  config: {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
     command: [
@@ -1144,29 +1302,23 @@ export const dailyScoreExportForOSO = createScheduledTask(
       "scorer_dump_data_parquet_for_oso",
       "--s3-uri=s3://oso-dataset-transfer-bucket/passport/",
       "--filename=scores.parquet",
-      "--database=read_replica_0",
+      "--database=read_replica_analytics",
     ].join(" "),
     scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
     alertTopic: pagerdutyTopic,
   },
-  {
-    ...envConfig,
-    readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
-  },
-  86400, // 24h max period
-  false,
-  {
-    aws_access_key_id: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ACCESS_KEY_ID::`,
-    aws_secret_access_key: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_SECRET_ACCESS_KEY::`,
-    aws_endpoint_url: `${SCORER_SERVER_SSM_ARN}:OSO_EXPORT_AWS_ENDPOINT_URL::`,
-  }
-);
+  environment: apiEnvironment,
+  secrets: apiSecrets,
+  alarmPeriodSeconds: 86400, // 24h max period
+  enableInvocationAlerts: false,
+  scorerSecretManagerArn: scorerSecret.arn,
+});
 
-// The follosing scorer dumps the Allo scorer scores to a public S3 bucket
+// The following scorer dumps the Allo scorer scores to a public S3 bucket
 // for the Allo team to easily pull the data
-export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
-  "frequent-allo-scorer-data-dump",
-  {
+export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask({
+  name: "frequent-allo-scorer-data-dump",
+  config: {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
     command: [
@@ -1174,7 +1326,7 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
       "manage.py",
       "scorer_dump_data",
       "--batch-size=1000",
-      "--database=read_replica_0",
+      "--database=read_replica_analytics",
       "--config",
       "'" +
         JSON.stringify([
@@ -1192,18 +1344,17 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask(
     scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
     alertTopic: pagerdutyTopic,
   },
-  {
-    ...envConfig,
-    readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
-  },
-  3600, // 1h in seconds
-  true
-);
+  environment: apiEnvironment,
+  secrets: apiSecrets,
+  alarmPeriodSeconds: 3600, // 1h in seconds
+  enableInvocationAlerts: true,
+  scorerSecretManagerArn: scorerSecret.arn,
+});
 
 export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
-  createScheduledTask(
-    "frequent-allo-scorer-data-dump-335",
-    {
+  createScheduledTask({
+    name: "frequent-allo-scorer-data-dump-335",
+    config: {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
       command: [
@@ -1211,7 +1362,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
         "manage.py",
         "scorer_dump_data",
         "--batch-size=1000",
-        "--database=read_replica_0",
+        "--database=read_replica_analytics",
         "--config",
         "'" +
           JSON.stringify([
@@ -1229,25 +1380,25 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,
     },
-    {
-      ...envConfig,
-      readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
-    },
-    3600, // 1h in seconds
-    true
-  );
+    environment: apiEnvironment,
+    secrets: apiSecrets,
+    alarmPeriodSeconds: 3600, // 1h in seconds
+    enableInvocationAlerts: true,
+    scorerSecretManagerArn: scorerSecret.arn,
+  });
 
 export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
-  createScheduledTask(
-    "frequent-allo-scorer-data-dump-6608",
-    {
+  createScheduledTask({
+    name: "frequent-allo-scorer-data-dump-6608",
+    config: {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
       command: [
         "python",
         "manage.py",
         "scorer_dump_data",
-        "--database=read_replica_0",
+        "--batch-size=1000",
+        "--database=read_replica_analytics",
         "--config",
         "'" +
           JSON.stringify([
@@ -1265,21 +1416,20 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,
     },
-    {
-      ...envConfig,
-      readReplicaConnectionUrl: readreplicaAnalyticsConnectionUrl,
-    },
-    3600, // 1h in seconds
-    true
-  );
+    environment: apiEnvironment,
+    secrets: apiSecrets,
+    alarmPeriodSeconds: 3600, // 1h in seconds
+    enableInvocationAlerts: true,
+    scorerSecretManagerArn: scorerSecret.arn,
+  });
 
 /*
  * Dump data for the eth-model V2
  */
 export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
-  createScheduledTask(
-    "frequent-eth-model-v2-score-dump",
-    {
+  createScheduledTask({
+    name: "frequent-eth-model-v2-score-dump",
+    config: {
       ...baseScorerServiceConfig,
       securityGroup: secgrp,
       command: [
@@ -1293,10 +1443,12 @@ export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,
     },
-    envConfig,
-    3600, // 1h in seconds
-    true
-  );
+    environment: apiEnvironment,
+    secrets: apiSecrets,
+    alarmPeriodSeconds: 3600, // 1h in seconds
+    enableInvocationAlerts: true,
+    scorerSecretManagerArn: scorerSecret.arn,
+  });
 
 const exportVals = createScoreExportBucketAndDomain(
   publicDataDomain,
@@ -1304,25 +1456,18 @@ const exportVals = createScoreExportBucketAndDomain(
   route53ZoneForPublicData
 );
 
-const rdsConnectionConfig = {
-  dbHost: scorerDbProxyEndpoint,
-  dbPort: String(5432),
-};
-
-workerRole.apply((serviceRole) =>
-  createIndexerService(
-    {
-      rdsConnectionConfig,
-      rdsSecretArn: RDS_SECRET_ARN,
-      cluster,
-      vpc: vpcID,
-      privateSubnetIds: vpcPrivateSubnetIds,
-      privateSubnetSecurityGroup,
-      workerRole: serviceRole,
-      alertTopic: pagerdutyTopic,
-    },
-    alarmConfigurations
-  )
+createIndexerService(
+  {
+    cluster,
+    workerRole,
+    privateSubnetIds: vpcPrivateSubnetIds,
+    privateSubnetSecurityGroup,
+    alertTopic: pagerdutyTopic,
+    secretReferences: indexerSecrets,
+    environment: indexerEnvironment,
+    dockerGtcStakingIndexerImage,
+  },
+  alarmConfigurations
 );
 
 const {
@@ -1340,11 +1485,7 @@ const lambdaSettings = {
   privateSubnetSecurityGroup,
   vpcPrivateSubnetIds,
   environment: [
-    ...environment,
-    {
-      name: "TRUSTED_IAM_ISSUERS",
-      value: trustedIAMIssuers,
-    },
+    ...apiEnvironment,
     {
       name: "FF_API_ANALYTICS",
       value: "on",
@@ -1355,9 +1496,9 @@ const lambdaSettings = {
     },
     {
       name: "SCORER_SERVER_SSM_ARN",
-      value: SCORER_SERVER_SSM_ARN,
+      value: scorerSecret.arn,
     },
-  ],
+  ].sort(secretsManager.sortByName),
   roleAttachments: httpRoleAttachments,
   role: httpLambdaRole,
   alertTopic: pagerdutyTopic,
@@ -1428,7 +1569,7 @@ buildHttpLambdaFn(
 buildHttpLambdaFn(
   {
     ...lambdaSettings,
-    name: "cc-auhenticate-0",
+    name: "cc-authenticate-0",
     memorySize: 512,
     dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
     pathPatterns: ["/ceramic-cache/authenticate"],
@@ -1519,7 +1660,7 @@ buildHttpLambdaFn(
         name: "OPTIMISM_MODEL_ENDPOINT",
         value: optimismModelEndpoint,
       },
-    ],
+    ].sort(secretsManager.sortByName),
     name: "passport-analysis-GET-0",
     memorySize: 256,
     dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],

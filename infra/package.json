@@ -12,6 +12,7 @@
     "@pulumi/aws": "^6.0.2",
     "@pulumi/awsx": "^1.0.5",
     "@pulumi/command": "^0.10.0",
-    "@pulumi/pulumi": "^3.79.0"
+    "@pulumi/pulumi": "^3.79.0",
+    "infra-libs": "github:passportxyz/infra-libs#semver:^1.0.0"
   }
 }

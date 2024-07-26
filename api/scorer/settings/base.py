@@ -153,6 +153,10 @@ DATABASES = {
         **env.db_url("READ_REPLICA_0_URL", default="sqlite:///db.sqlite3"),
         "TEST": {"MIRROR": "default"},
     },
+    "read_replica_analytics": {
+        **env.db_url("READ_REPLICA_ANALYTICS_URL", default="sqlite:///db.sqlite3"),
+        "TEST": {"MIRROR": "default"},
+    },
 }
 
 DATABASE_ROUTERS = ["scorer.db_router.ScorerRouter"]

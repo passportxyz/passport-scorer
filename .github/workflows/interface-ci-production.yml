@@ -1,8 +1,6 @@
-name: Deploy Interface to Review
+name: Deploy Interface to Production
 
 on:
-  push:
-    branches: [main, 2627-pulumi-1p-secrets]
   workflow_dispatch:
     inputs:
       commit:
@@ -54,4 +52,4 @@ jobs:
         with:
           commit: ${{ needs.ui-test.outputs.refspec }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          branch: review-interface
+          branch: production-interface

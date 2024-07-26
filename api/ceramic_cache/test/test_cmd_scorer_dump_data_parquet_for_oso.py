@@ -1,13 +1,15 @@
+import os
 import shutil
 from datetime import datetime, timezone
 
+import pyarrow.parquet as pq
 import pytest
-from account.models import Community
+from django.conf import settings
 from django.core.management import call_command
+
+from account.models import Community
 from registry.models import Passport, Score
 from scorer_weighted.models import BinaryWeightedScorer, Scorer
-from django.conf import settings
-import pyarrow.parquet as pq
 
 
 class TestGetStamps:
@@ -78,7 +80,13 @@ class TestGetStamps:
 
         mocked_upload_to_s3_call_args = []
 
-        def mocked_upload_to_s3(output_file, _s3_folder, _s3_bucket_name, _extra_args):
+        def mocked_upload_to_s3(
+            output_file,
+            _s3_folder,
+            _s3_bucket_name,
+            _extra_args,
+            aws_override_credentials=None,
+        ):
             copy_file_name = f"cpy_{output_file}"
             mocked_upload_to_s3_call_args.append(
                 {
@@ -86,6 +94,7 @@ class TestGetStamps:
                     "s3_folder": _s3_folder,
                     "s3_bucket_name": _s3_bucket_name,
                     "extra_args": _extra_args,
+                    "aws_override_credentials": aws_override_credentials,
                 }
             )
             shutil.copy(output_file, copy_file_name)
@@ -94,6 +103,8 @@ class TestGetStamps:
             "ceramic_cache.management.commands.scorer_dump_data_parquet_for_oso.upload_to_s3",
             side_effect=mocked_upload_to_s3,
         )
+
+        os.environ["OSO_EXPORT_AWS_ACCESS_KEY_ID"] = "fake"
         call_command(
             "scorer_dump_data_parquet_for_oso",
             *[],
@@ -110,6 +121,12 @@ class TestGetStamps:
         )
         assert mocked_upload_to_s3_call_args[0]["s3_bucket_name"] == "some_bucket"
         assert mocked_upload_to_s3_call_args[0]["extra_args"] == {}
+        assert (
+            mocked_upload_to_s3_call_args[0][
+                "aws_override_credentials"
+            ].aws_access_key_id
+            == "fake"
+        )
 
         # Check the content of the parquet file
         # Load the Parquet file
