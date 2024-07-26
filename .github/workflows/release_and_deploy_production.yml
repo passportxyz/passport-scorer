@@ -57,14 +57,32 @@ jobs:
       environment: staging
     secrets: inherit
 
+  deploy-interface-to-staging:
+    name: Push code to branch
+    needs: [create-draft-release]
+    uses: passportxyz/gh-workflows/.github/actions/push_to_branch@main
+    with:
+      commit: ${{ needs.ref.outputs.refspec }}
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+      branch: staging-interface
+
   deploy-production:
     name: Deploy to Production
-    needs: [deploy-staging]
+    needs: [deploy-staging, deploy-interface-to-staging]
     uses: ./.github/workflows/build_and_deploy_generic.yml
     with:
       commit: ${{ inputs.commit }}
       environment: production
     secrets: inherit
+
+  deploy-interface-to-production:
+    name: Push code to branch
+    needs: [deploy-staging, deploy-interface-to-staging]
+    uses: passportxyz/gh-workflows/.github/actions/push_to_branch@main
+    with:
+      commit: ${{ needs.ref.outputs.refspec }}
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+      branch: staging-interface
 
   release:
     name: Release
