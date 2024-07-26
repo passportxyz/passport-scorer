@@ -70,6 +70,9 @@ class Command(BaseCommand):
                 f"Unmonitored After Update: {url['path']} ({url['method']})"
             )
 
+        with open(kwargs["out"], "w") as out_file:
+            json.dump(updated_unmonitored_urls, out_file)
+
         self.stdout.write("Done")
 
     def get_unmonitored_urls(self, kwargs):
