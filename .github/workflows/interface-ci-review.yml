@@ -25,13 +25,13 @@ jobs:
           ref: ${{ steps.ref.outputs.refspec }}
           fetch-depth: 0
 
-      # - name: Install UI dependencies
-      #   working-directory: ./interface
-      #   run: yarn --frozen-lockfile && yarn build
+      - name: Install UI dependencies
+        working-directory: ./interface
+        run: yarn --frozen-lockfile && yarn build
 
-      # - name: Run tests
-      #   working-directory: ./interface
-      #   run: yarn test
+      - name: Run tests
+        working-directory: ./interface
+        run: yarn test
 
     outputs:
       version_tag: ${{ steps.ref.outputs.version_tag }}
