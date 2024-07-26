@@ -1,4 +1,4 @@
-name: Deploy Interface to Production
+name: Deploy UI to Production
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - id: ref
-        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref@main
+        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref@v1
         with:
           commit: ${{ github.event.inputs.commit }}
 
@@ -48,7 +48,7 @@ jobs:
           ref: ${{ needs.ui-test.outputs.refspec }}
           fetch-depth: 0
       - name: Push code to branch
-        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@main
+        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@v1
         with:
           commit: ${{ needs.ui-test.outputs.refspec }}
           github-token: ${{ secrets.GITHUB_TOKEN }}

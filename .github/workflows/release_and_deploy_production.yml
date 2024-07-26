@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: ref
-        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref@main
+        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref@v1
         with:
           commit: ${{ inputs.commit }}
 
@@ -25,9 +25,10 @@ jobs:
 
   test:
     name: Test
+    needs: [ref]
     uses: ./.github/workflows/test_generic.yml
     with:
-      commit: ${{ inputs.commit }}
+      refspec: ${{ needs.ref.outputs.refspec }}
       environment: review
     secrets: inherit
 
@@ -50,20 +51,21 @@ jobs:
 
   deploy-staging:
     name: Deploy to Staging
-    needs: [create-draft-release]
+    needs: [create-draft-release, ref]
     uses: ./.github/workflows/build_and_deploy_generic.yml
     with:
-      commit: ${{ inputs.commit }}
+      refspec: ${{ needs.ref.outputs.refspec }}
+      docker_tag: ${{ needs.ref.outputs.docker_tag }}
       environment: staging
     secrets: inherit
 
   deploy-interface-to-staging:
-    name: Push code to branch
-    needs: [ref, create-draft-release]
+    name: Push code to staging branch
+    needs: [ref, deploy-staging]
     runs-on: ubuntu-latest
     steps:
       - id: push-to-branch
-        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@main
+        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@v1
         with:
           commit: ${{ needs.ref.outputs.refspec }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -71,20 +73,21 @@ jobs:
 
   deploy-production:
     name: Deploy to Production
-    needs: [deploy-staging, deploy-interface-to-staging]
+    needs: [ref, deploy-staging, deploy-interface-to-staging]
     uses: ./.github/workflows/build_and_deploy_generic.yml
     with:
-      commit: ${{ inputs.commit }}
+      refspec: ${{ needs.ref.outputs.refspec }}
+      docker_tag: ${{ needs.ref.outputs.docker_tag }}
       environment: production
     secrets: inherit
 
   deploy-interface-to-production:
     name: Push code to branch
-    needs: [ref, deploy-staging, deploy-interface-to-staging]
+    needs: [ref, deploy-production]
     runs-on: ubuntu-latest
     steps:
       - id: push-to-branch
-        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@main
+        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@v1
         with:
           commit: ${{ needs.ref.outputs.refspec }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -92,7 +95,7 @@ jobs:
 
   release:
     name: Release
-    needs: [ref, create-draft-release, deploy-production]
+    needs: [ref, create-draft-release, deploy-production, deploy-interface-to-production]
     permissions: write-all
     runs-on: ubuntu-latest
     steps:
