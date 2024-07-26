@@ -1,4 +1,4 @@
-name: Deploy Interface to Production
+name: Deploy UI to Production
 
 on:
   workflow_dispatch:

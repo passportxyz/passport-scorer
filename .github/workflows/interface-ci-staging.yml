@@ -1,4 +1,4 @@
-name: Deploy Interface to Staging
+name: Deploy UI to Staging
 
 on:
   workflow_dispatch:

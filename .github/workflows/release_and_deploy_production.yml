@@ -61,8 +61,7 @@ jobs:
 
   deploy-interface-to-staging:
     name: Push code to staging branch
-    needs: [ref, create-draft-release]
-    environment: staging
+    needs: [ref, deploy-staging]
     runs-on: ubuntu-latest
     steps:
       - id: push-to-branch
@@ -84,9 +83,8 @@ jobs:
 
   deploy-interface-to-production:
     name: Push code to branch
-    needs: [ref, deploy-staging, deploy-interface-to-staging]
+    needs: [ref, deploy-production]
     runs-on: ubuntu-latest
-    environment: production
     steps:
       - id: push-to-branch
         uses: passportxyz/gh-workflows/.github/actions/push_to_branch@main

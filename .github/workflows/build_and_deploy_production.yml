@@ -1,4 +1,4 @@
-name: Build and Deploy to Production
+name: Build and Deploy API to Production
 on:
   workflow_dispatch:
     inputs:

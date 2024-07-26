@@ -1,4 +1,4 @@
-name: Library - Deploy only
+name: Library - Deploy API only
 on:
   workflow_call:
     inputs:

@@ -1,4 +1,4 @@
-name: Build and Deploy to Review
+name: Build and Deploy API to Review
 on:
   workflow_dispatch:
     inputs:
