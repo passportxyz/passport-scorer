@@ -18,7 +18,7 @@ jobs:
 
   deploy:
     name: Deploy
-    # needs: [test]
+    needs: [test]
     uses: ./.github/workflows/build_and_deploy_generic.yml
     with:
       commit: ${{ inputs.commit }}

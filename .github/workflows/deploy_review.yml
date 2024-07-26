@@ -8,10 +8,6 @@ on:
         required: false
 
 jobs:
-  test:
-    name: Test
-    uses: ./.github/workflows/test.yml
-
   deploy:
     name: Deploy
     uses: ./.github/workflows/deploy_generic.yml
