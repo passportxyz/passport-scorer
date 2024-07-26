@@ -1,6 +1,8 @@
 import json
 import re
+from collections import defaultdict
 from http.client import HTTPSConnection
+from urllib.parse import urlparse, urlunparse
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -12,6 +14,7 @@ from scorer.api import apis
 IGNORED_PATH_ROOTS = [
     "admin",
     "social",
+    "feature",
 ]
 
 # Will ignore exact path matches
@@ -19,25 +22,14 @@ IGNORED_URLS = [
     "/registry/feature/openapi.json",
     "/registry/feature/docs",
     "/registry/feature/scorer/generic",
+    "/feature/scorer/generic",
 ]
-
-# This should only be used to get a release out quickly when necessary, after
-# which the URL should be added to the hardcoded IGNORED_URLS above to be
-# ignored in the future
-if settings.IGNORE_UNMONITORED_URLS:
-    IGNORED_URLS.extend(settings.IGNORE_UNMONITORED_URLS)
 
 
 class Command(BaseCommand):
     help = "Removes stamp data and sets score to 0 for users in the provided list"
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "--urls",
-            type=str,
-            help="""Local path to a file containing json output of `show_urls` command""",
-            required=True,
-        )
         parser.add_argument(
             "--out",
             type=str,
@@ -62,10 +54,26 @@ class Command(BaseCommand):
         self.stdout.write(f"args     : {args}")
         self.stdout.write(f"kwargs   : {kwargs}")
 
-        if not settings.UPTIME_ROBOT_READONLY_API_KEY:
-            raise CommandError("UPTIME_ROBOT_READONLY_API_KEY is not set")
+        if not settings.UPTIME_ROBOT_API_KEY:
+            raise CommandError("UPTIME_ROBOT_API_KEY is not set")
 
-        all_django_urls = self.get_all_urls(kwargs["urls"])
+        unmonitored_urls = self.get_unmonitored_urls(kwargs)
+
+        self.stdout.write(f"Unmonitored URLs: {len(unmonitored_urls)}")
+
+        self.create_missing_monitors(unmonitored_urls, kwargs["base_url"])
+
+        updated_unmonitored_urls = self.get_unmonitored_urls(kwargs)
+
+        for url in updated_unmonitored_urls:
+            self.stdout.write(
+                f"Unmonitored After Update: {url['path']} ({url['method']})"
+            )
+
+        self.stdout.write("Done")
+
+    def get_unmonitored_urls(self, kwargs):
+        all_django_urls = self.get_all_urls_with_methods()
         django_urls = self.filter_urls(all_django_urls)
 
         self.stdout.write(f"Total URLs: {len(all_django_urls)}")
@@ -81,43 +89,142 @@ class Command(BaseCommand):
         self.stdout.write(f"Uptime robot URLs: {json.dumps(monitored_urls, indent=2)}")
 
         unmonitored_urls = []
-        for django_url in django_urls:
-            url_regex = self.convert_django_url_to_regex(django_url)
-
-            # Weird one-liner but it works. Basically the inner () is a generator
-            # and if anything matches the regex, it will result in a generator that
-            # will yield (return to next()) a value, the index of the matching url.
-            # Otherwise next() will return the default value of None
-            matching_monitored_url_index = next(
-                (i for i, url in enumerate(monitored_urls) if re.match(url_regex, url)),
-                None,
-            )
-
-            if matching_monitored_url_index is None:
-                unmonitored_urls.append(django_url)
-            else:
-                self.stdout.write(
-                    f"Matched: {django_url} to {monitored_urls[matching_monitored_url_index]}"
+        for method, data in all_django_urls.items():
+            for path in data["paths"]:
+                monitor_url = self.replace_placeholders(path)
+                matching_monitored_url = next(
+                    (url for url in monitored_urls if monitor_url == url), None
                 )
-                # remove matching monitored url so it doesn't get matched again
-                monitored_urls.pop(matching_monitored_url_index)
 
-        self.stdout.write(f"Unmonitored URLs: {len(unmonitored_urls)}")
+                if matching_monitored_url is None:
+                    # If the path is not monitored, add it to unmonitored_urls
+                    unmonitored_urls.append(
+                        {
+                            "path": path,
+                            "method": method,
+                            "request_bodies": data["request_bodies"],
+                        }
+                    )
+                else:
+                    self.stdout.write(
+                        f"Matched: {path} ({method}) to {matching_monitored_url}"
+                    )
+                    # Remove the matched URL from monitored_urls
+                    monitored_urls.remove(matching_monitored_url)
 
-        with open(kwargs["out"], "w") as out_file:
-            json.dump(unmonitored_urls, out_file)
+        return unmonitored_urls
 
-        self.stdout.write("Done")
+    def replace_placeholders(self, url_path):
+        static_replacements = {
+            "address": "0x96db2c6d93a8a12089f7a6eda5464e967308aded",
+            "scorer_id": "335",
+            "tos_type": "IST",
+            "banner_id": "1",
+            "notification_id": "1",
+            "round_id": "1",
+        }
+
+        def replace_match(match):
+            placeholder = match.group(1)
+            return static_replacements.get(placeholder, "placeholder-if-not-found")
+
+        return re.sub(r"{([^}]+)}", replace_match, url_path)
+
+    def create_missing_monitors(self, unmonitored_urls, base_url):
+        http_method_map = {
+            "HEAD": 1,
+            "GET": 2,
+            "POST": 3,
+            "PUT": 4,
+            "PATCH": 5,
+            "DELETE": 6,
+            "OPTIONS": 7,
+        }
+        created_monitors = []
+
+        for url_data in unmonitored_urls:
+            if "{" in url_data["path"]:
+                url_data["path"] = self.replace_placeholders(url_data["path"])
+
+            full_url = f"{base_url}{url_data['path']}"
+            friendly_name = f"[auto] {url_data['method']} {url_data['path']}"
+
+            mapped_http_method = http_method_map.get(url_data["method"].upper(), 2)
+            try:
+                result = self.create_uptime_robot_monitor(
+                    friendly_name=friendly_name,
+                    url=full_url,
+                    monitor_type=1,
+                    http_method=mapped_http_method,
+                )
+                if result.get("stat") == "ok":
+                    created_monitors.append(
+                        {
+                            "path": url_data["path"],
+                            "method": url_data["method"],
+                            "monitor_id": result.get("monitor", {}).get("id"),
+                        }
+                    )
+                    self.stdout.write(f"Created monitor for: {friendly_name}")
+                else:
+                    self.stdout.write(
+                        f"Failed to create monitor for: {friendly_name}. Error: {result.get('error')}"
+                    )
+            except Exception as e:
+                self.stdout.write(
+                    f"Error creating monitor for: {friendly_name}. Error: {str(e)}"
+                )
+
+        self.stdout.write(f"Created {len(created_monitors)} new monitors")
 
     def get_all_urls_with_methods(self):
-        all_methods = []
+        combined_data = {}
         for api in apis:
             openapi = OpenAPISchema(api=api, path_prefix="")
             paths = openapi.get("paths", {})
-            for url, methods in paths.items():
-                for method in methods:
-                    all_methods.append({"url": url, "method": method.upper()})
-        return all_methods
+            namespace = api.urls_namespace
+            endpoints = self.aggregate_paths_by_method(paths, namespace)
+
+            for method, data in endpoints.items():
+                if method not in combined_data:
+                    combined_data[method] = data
+                else:
+                    combined_data[method]["paths"].extend(data["paths"])
+                    combined_data[method]["request_bodies"].extend(
+                        data["request_bodies"]
+                    )
+        return combined_data
+
+    def aggregate_paths_by_method(self, paths, namespace):
+        aggregated = defaultdict(lambda: {"paths": [], "request_bodies": []})
+
+        for path, methods in paths.items():
+            for method, details in methods.items():
+                method = method.upper()
+                # Split the path into components
+                path_components = path.strip("/").split("/")
+
+                # Check if the namespace is already in the path
+                if namespace:
+                    namespace_parts = namespace.split("_")
+                    if all(part in path_components for part in namespace_parts):
+                        prefixed_path = path
+                    else:
+                        prefixed_path = f"/{namespace}{path}"
+                else:
+                    prefixed_path = path
+                aggregated[method]["paths"].append(prefixed_path)
+
+                if "requestBody" in details:
+                    request_body = details["requestBody"]
+                    if "content" in request_body:
+                        content_type = next(iter(request_body["content"]))
+                        schema_ref = request_body["content"][content_type][
+                            "schema"
+                        ].get("$ref")
+                        if schema_ref:
+                            aggregated[method]["request_bodies"].append(schema_ref)
+        return dict(aggregated)
 
     def convert_django_url_to_regex(self, url: str):
         # Have to do sub and then replace because re.sub interprets
@@ -151,8 +258,12 @@ class Command(BaseCommand):
         if base_url.endswith("/"):
             base_url = base_url[:-1]
 
+        def remove_query_params(url):
+            parsed = urlparse(url)
+            return urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
+
         urls = [
-            monitor["url"]
+            remove_query_params(monitor["url"])
             for monitor in monitors
             if (allow_paused or monitor["status"] != 0)
         ]
@@ -162,7 +273,7 @@ class Command(BaseCommand):
     def uptime_robot_monitors_request(self, limit, offset):
         conn = HTTPSConnection("api.uptimerobot.com")
 
-        payload = f"api_key={settings.UPTIME_ROBOT_READONLY_API_KEY}&format=json&limit={limit}&offset={offset}"
+        payload = f"api_key={settings.UPTIME_ROBOT_API_KEY}&format=json&limit={limit}&offset={offset}"
 
         headers = {
             "content-type": "application/x-www-form-urlencoded",
@@ -170,6 +281,43 @@ class Command(BaseCommand):
         }
 
         conn.request("POST", "/v2/getMonitors", payload, headers)
+
+        res = conn.getresponse()
+        data = res.read()
+
+        return json.loads(data.decode("utf-8"))
+
+    def create_uptime_robot_monitor(
+        self, friendly_name, url, monitor_type, http_method=None
+    ):
+        conn = HTTPSConnection("api.uptimerobot.com")
+
+        custom_http_statuses = "401:1_200:1_201:1"
+        # authenticate is a special case, we accept a 400 error since that is thrown if invalid signature is passed
+        if "authenticate" in url:
+            custom_http_statuses = "401:1_200:1_201:1_400:1"
+
+        payload = {
+            "api_key": settings.UPTIME_ROBOT_API_KEY,
+            "format": "json",
+            "friendly_name": friendly_name,
+            "url": url,
+            "type": monitor_type,
+            "alert_contacts": "6519234_5_1-6365912_5_1",
+            "custom_http_statuses": custom_http_statuses,
+        }
+
+        if http_method:
+            payload["http_method"] = http_method
+        if http_method and http_method > 2:
+            # We are not passing valid data to the POST requests but these are required
+            payload["post_type"] = 1  # raw data
+            payload["post_value"] = json.dumps([{"yo": "yo"}])
+            payload["post_content_type"] = 1
+
+        headers = {"content-type": "application/json", "cache-control": "no-cache"}
+
+        conn.request("POST", "/v2/newMonitor", json.dumps(payload), headers)
 
         res = conn.getresponse()
         data = res.read()

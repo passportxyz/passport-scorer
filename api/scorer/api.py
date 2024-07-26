@@ -125,7 +125,6 @@ passport_admin_api.add_router("", passport_admin_router)
 apis = [
     registry_api_v1,
     registry_api_v2,
-    feature_flag_api,
     ceramic_cache_api_v1,
     passport_admin_api,
 ]
