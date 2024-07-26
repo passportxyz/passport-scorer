@@ -153,6 +153,7 @@ jobs:
     environment: ${{ inputs.environment }}
     steps:
       - name: Approve Release to Review (check pulumi preview)
+        if: ${{ inputs.environment != 'review' }}
         run: |
           echo "Ref" ${{ needs.ref.outputs.refspec }}
 
