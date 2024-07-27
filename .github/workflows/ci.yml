@@ -76,7 +76,10 @@ jobs:
       - name: Configure 1Password Service Account
         uses: 1password/load-secrets-action/configure@v1
         with:
-          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          export-env: true
+        env:
+          OP_SEVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          UPTIME_ROBOT_API_KEY: op://DevOps/passport-scorer-review-secrets/ci/UPTIME_ROBOT_API_KEY
 
       - name: URL Monitoring Check
         working-directory: ./api
@@ -84,7 +87,8 @@ jobs:
         env:
           CERAMIC_CACHE_SCORER_ID: ""
           SECRET_KEY: secret-test-value
-          UPTIME_ROBOT_API_KEY: op://DevOps/passport-scorer-review-secrets/ci/UPTIME_ROBOT_API_KEY
+          UPTIME_ROBOT_API_KEY: ${{ env.UPTIME_ROBOT_API_KEY }}
+          
         run:
           python manage.py get_unmonitored_urls --base-url https://api.scorer.gitcoin.co --out unmanaged.json &&
           [ -f unmanaged.json ] && [ `cat unmanaged.json | wc -m` -eq 2 ]
