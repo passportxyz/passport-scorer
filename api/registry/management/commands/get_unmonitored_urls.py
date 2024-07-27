@@ -250,6 +250,7 @@ class Command(BaseCommand):
         while True:
             data = self.uptime_robot_monitors_request(limit, offset)
 
+            print(data)
             total = data["pagination"]["total"]
             monitors.extend(data["monitors"])
 
