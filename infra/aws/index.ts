@@ -1436,9 +1436,9 @@ export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
         "python",
         "manage.py",
         "scorer_dump_data_model_score",
-        `--s3-uri=s3://${publicDataDomain}/eth_model_scores_v2/`,
-        "--filename=eth_model_scores.jsonl",
-        "--data-model=predict_eth_v2",
+        `--s3-uri=s3://${publicDataDomain}/model_scores/`,
+        "--filename=model_scores.parquet",
+        "--format=parquet",
       ].join(" "),
       scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
       alertTopic: pagerdutyTopic,
