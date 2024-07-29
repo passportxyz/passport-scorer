@@ -101,6 +101,10 @@ const redashMailPassword = pulumi.secret(
   )
 );
 
+const pagerDutyIntegrationEndpoint = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`
+);
+
 const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
 const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
 
