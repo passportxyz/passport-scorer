@@ -1,17 +1,17 @@
 import json
 import traceback
+from contextlib import contextmanager
+from logging import getLogger
 from urllib.parse import urlparse
 
-
 from django.core.management.base import BaseCommand
+from django.core.serializers.json import DjangoJSONEncoder
+
+from data_model.models import Cache
 from scorer.export_utils import (
     export_data_for_model,
     upload_to_s3,
 )
-from data_model.models import Cache
-from contextlib import contextmanager
-from django.core.serializers.json import DjangoJSONEncoder
-from logging import getLogger
 
 log = getLogger(__name__)
 
@@ -31,9 +31,11 @@ def get_writer(output_file):
                             try:
                                 value = d["value"]
                                 address = d["key_1"].lower()
+                                model = d["key_0"].lower()
                                 self.file.write(
                                     json.dumps(
                                         {
+                                            "model": model,
                                             "address": address,
                                             "data": {
                                                 "score": str(
@@ -100,7 +102,11 @@ For example:
         batch_size = options["batch_size"]
         s3_uri = options["s3_uri"]
         filename = options["filename"]
-        data_model_name = options["data_model"]
+        data_model_names = (
+            [n.strip() for n in options["data_model"].split(",")]
+            if options["data_model"]
+            else None
+        )
 
         extra_args = (
             json.loads(options["s3_extra_args"]) if options["s3_extra_args"] else None
@@ -113,12 +119,13 @@ For example:
         parsed_uri = urlparse(s3_uri)
         s3_bucket_name = parsed_uri.netloc
         s3_folder = parsed_uri.path.strip("/")
+        query = Cache.objects.all()
+        if data_model_names:
+            query = query.filter(key_0__in=data_model_names)
 
         try:
             export_data_for_model(
-                Cache.objects.filter(
-                    key_0=data_model_name
-                ),  # This will only filter the scores for eth_stamp_model (v1)
+                query,
                 "id",
                 batch_size,
                 get_writer(filename),
