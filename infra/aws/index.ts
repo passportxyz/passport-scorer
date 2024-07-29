@@ -101,26 +101,6 @@ const redashMailPassword = pulumi.secret(
   )
 );
 
-// TODO: we could load this from these endpoints data-science stackconst ethereumModelEndpoint = `${process.env["ETHEREUM_MODEL_ENDPOINT"]}`;
-const ethereumModelEndpoint = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/ETHEREUM_MODEL_ENDPOINT`
-);
-const nftModelEndpoint = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/NFT_MODEL_ENDPOINT`
-);
-const zksyncModelEndpoint = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/ZKSYNC_MODEL_ENDPOINT`
-);
-const polygonModelEndpoint = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/POLYGON_MODEL_ENDPOINT`
-);
-const arbitrumModelEndpoint = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/ARBITRUM_MODEL_ENDPOINT`
-);
-const optimismModelEndpoint = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/OPTIMISM_MODEL_ENDPOINT`
-);
-
 const pagerDutyIntegrationEndpoint = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`
 );
@@ -1634,33 +1614,6 @@ buildHttpLambdaFn(
 buildHttpLambdaFn(
   {
     ...lambdaSettings,
-    environment: [
-      ...lambdaSettings.environment,
-      {
-        name: "ETHEREUM_MODEL_ENDPOINT",
-        value: ethereumModelEndpoint,
-      },
-      {
-        name: "NFT_MODEL_ENDPOINT",
-        value: nftModelEndpoint,
-      },
-      {
-        name: "ZKSYNC_MODEL_ENDPOINT",
-        value: zksyncModelEndpoint,
-      },
-      {
-        name: "POLYGON_MODEL_ENDPOINT",
-        value: polygonModelEndpoint,
-      },
-      {
-        name: "ARBITRUM_MODEL_ENDPOINT",
-        value: arbitrumModelEndpoint,
-      },
-      {
-        name: "OPTIMISM_MODEL_ENDPOINT",
-        value: optimismModelEndpoint,
-      },
-    ].sort(secretsManager.sortByName),
     name: "passport-analysis-GET-0",
     memorySize: 256,
     dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],

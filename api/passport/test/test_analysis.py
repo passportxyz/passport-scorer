@@ -97,7 +97,7 @@ class TestPassportAnalysis(TestCase):
         Changing this would affect the current cached values
         """
         self.client.get(
-            "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7d".lower(),
+            "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7d?model_list=ethereum_activity".lower(),
             content_type="application/json",
             **self.headers,
         )
