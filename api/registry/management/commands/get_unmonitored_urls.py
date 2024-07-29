@@ -185,8 +185,9 @@ class Command(BaseCommand):
         for api in apis:
             openapi = OpenAPISchema(api=api, path_prefix="")
             paths = openapi.get("paths", {})
+
             namespace = api.urls_namespace
-            endpoints = self.aggregate_paths_by_method(paths, namespace)
+            endpoints = self.aggregate_paths_by_method(paths, namespace, openapi)
 
             for method, data in endpoints.items():
                 if method not in combined_data:
@@ -198,8 +199,10 @@ class Command(BaseCommand):
                     )
         return combined_data
 
-    def aggregate_paths_by_method(self, paths, namespace):
+    def aggregate_paths_by_method(self, paths, namespace, openapi):
         aggregated = defaultdict(lambda: {"paths": [], "request_bodies": []})
+
+        components = openapi.get_components()
 
         for path, methods in paths.items():
             for method, details in methods.items():
@@ -226,7 +229,12 @@ class Command(BaseCommand):
                             "schema"
                         ].get("$ref")
                         if schema_ref:
-                            aggregated[method]["request_bodies"].append(schema_ref)
+                            schema = schema_ref.rsplit("/", 1)[-1]
+                            request_param_schema = components["schemas"].get(schema)
+                            aggregated[method]["request_bodies"].append(
+                                request_param_schema
+                            )
+
         return dict(aggregated)
 
     def convert_django_url_to_regex(self, url: str):
