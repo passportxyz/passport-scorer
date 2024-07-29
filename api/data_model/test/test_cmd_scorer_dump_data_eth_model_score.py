@@ -1,12 +1,13 @@
 import json
 from datetime import datetime, timezone
 
+import pandas as pd
 import pytest
 from django.core.management import call_command
-from data_model.models import Cache
 from django.core.serializers.json import DjangoJSONEncoder
-
 from django.db import connections
+
+from data_model.models import Cache
 
 
 @pytest.fixture
@@ -44,8 +45,8 @@ def create_cache_table():
 
 class TestGetStamps:
     @pytest.mark.django_db(databases=["default", "data_model"])
-    def test_dump_data_eth_model_score(self, mocker, create_cache_table):
-        """Test the 'scorer_dump_data_model_score' command"""
+    def test_dump_data_eth_model_score_jsonl(self, mocker, create_cache_table):
+        """Test the 'scorer_dump_data_model_score' command export jsonl format"""
 
         ###############################################################
         # Create data in the DB
@@ -54,21 +55,24 @@ class TestGetStamps:
         for i in range(10):
             address = f"0x{i}"
             timestamp = datetime(2024, 4, 9, i, 0, 0, tzinfo=timezone.utc)
-            Cache.objects.create(
+            value = {
+                "data": {"human_probability": i},
+                "meta": {"version": "v1", "Training_date": "2023/12/27"},
+            }
+            c = Cache.objects.create(
                 key_0="predict",
                 key_1=address,
-                value={
-                    "data": {"human_probability": i},
-                    "meta": {"version": "v1", "Training_date": "2023/12/27"},
-                },
+                value=value,
                 updated_at=timestamp,
             )
             expected_data.append(
                 json.loads(
                     json.dumps(
                         {
-                            "address": address,
-                            "data": {"score": str(i)},
+                            "id": c.id,
+                            "key_0": "predict",
+                            "key_1": address,
+                            "value": value,
                             "updated_at": timestamp,
                         },
                         cls=DjangoJSONEncoder,
@@ -106,8 +110,8 @@ class TestGetStamps:
         # The data file will always be the 1st file in the list
         data_file = s3_upload_mock.call_args[0][0]
         data = []
-        expected_keys = {"address", "data", "updated_at"}
-        expected_data_keys = {"score"}
+        expected_keys = {"id", "key_0", "key_1", "value", "updated_at"}
+        expected_data_keys = {"data", "meta"}
         with open(data_file, "r") as f:
             for idx, expected_record in enumerate(expected_data):
                 line = f.readline()
@@ -115,8 +119,197 @@ class TestGetStamps:
                 data.append(line_data)
 
                 assert expected_keys == set(line_data.keys())
-                assert expected_data_keys == set(line_data["data"].keys())
+                assert expected_data_keys == set(line_data["value"].keys())
                 assert expected_data[idx] == line_data
 
         # We only expect the number of records we generated for the community that we filtered by
         assert len(data) == 10
+
+    @pytest.mark.django_db(databases=["default", "data_model"])
+    def test_dump_data_eth_model_score_parquet(self, mocker, create_cache_table):
+        """Test the 'scorer_dump_data_model_score' command export parquet format"""
+
+        ###############################################################
+        # Create data in the DB
+        ###############################################################
+        expected_data = []
+        for i in range(10):
+            address = f"0x{i}"
+            timestamp = datetime(2024, 4, 9, i, 0, 0, tzinfo=timezone.utc)
+            value = {
+                "data": {"human_probability": i},
+                "meta": {"version": "v1", "Training_date": "2023/12/27"},
+            }
+            c = Cache.objects.create(
+                key_0="predict",
+                key_1=address,
+                value=value,
+                updated_at=timestamp,
+            )
+            expected_data.append(
+                json.loads(
+                    json.dumps(
+                        {
+                            "id": c.id,
+                            "key_0": "predict",
+                            "key_1": address,
+                            "value": value,
+                            "updated_at": timestamp,
+                        },
+                        cls=DjangoJSONEncoder,
+                    )
+                )
+            )
+            # Also add data to cache for other models (differet value in first element in key)
+            # The export command should filter correctly
+            Cache.objects.create(
+                key_0="predict_nft",
+                key_1=address,
+                value={
+                    "data": {"human_probability": i},
+                    "meta": {"version": "v1", "Training_date": "2023/12/27"},
+                },
+                updated_at=timestamp,
+            )
+
+        s3_upload_mock = mocker.patch(
+            "data_model.management.commands.scorer_dump_data_model_score.upload_to_s3"
+        )
+        call_command(
+            "scorer_dump_data_model_score",
+            *[],
+            **{
+                "batch_size": 2,  # set a small batch size, we want make sure it can handle pagination
+                "s3_uri": "s3://public.scorer.gitcoin.co/passport_scores/",
+                "filename": "eth_model_score.jsonl",
+                "data_model": "predict",
+                "format": "parquet",
+            },
+        )
+
+        s3_upload_mock.assert_called_once()
+
+        # The data file will always be the 1st file in the list
+        data_file = s3_upload_mock.call_args[0][0]
+        data = []
+        expected_keys = {"id", "key_0", "key_1", "value", "updated_at"}
+        expected_data_keys = {"data", "meta"}
+
+        # Load the Parquet file into a DataFrame
+        df = pd.read_parquet(data_file)
+
+        for idx, row in df.iterrows():
+            data.append(row)
+            row_dict = row.to_dict()
+            row_dict["updated_at"] = row_dict["updated_at"].isoformat() + "Z"
+            row_dict["value"] = json.loads(row_dict["value"])
+
+            row_value = json.loads(row.value)
+            assert expected_keys == set(df.columns)
+            assert expected_data_keys == set(row_value.keys())
+            assert expected_data[idx] == row_dict
+
+        # We only expect the number of records we generated for the community that we filtered by
+        assert len(data) == 10
+
+    @pytest.mark.django_db(databases=["default", "data_model"])
+    def test_dump_data_eth_model_score_parquet_multiple_models(
+        self, mocker, create_cache_table
+    ):
+        """Test the 'scorer_dump_data_model_score' command export multiple model to parquet format"""
+
+        ###############################################################
+        # Create data in the DB
+        ###############################################################
+        expected_data = []
+        for i in range(10):
+            address = f"0x{i}"
+            timestamp = datetime(2024, 4, 9, i, 0, 0, tzinfo=timezone.utc)
+            value = {
+                "data": {"human_probability": i},
+                "meta": {"version": "v1", "Training_date": "2023/12/27"},
+            }
+            c = Cache.objects.create(
+                key_0="predict",
+                key_1=address,
+                value=value,
+                updated_at=timestamp,
+            )
+            expected_data.append(
+                json.loads(
+                    json.dumps(
+                        {
+                            "id": c.id,
+                            "key_0": c.key_0,
+                            "key_1": c.key_1,
+                            "value": c.value,
+                            "updated_at": timestamp,
+                        },
+                        cls=DjangoJSONEncoder,
+                    )
+                )
+            )
+            # Also add data to cache for other models (differet value in first element in key)
+            # The export command should filter correctly
+            c = Cache.objects.create(
+                key_0="predict_nft",
+                key_1=address,
+                value={
+                    "data": {"human_probability": i},
+                    "meta": {"version": "v1", "Training_date": "2023/12/27"},
+                },
+                updated_at=timestamp,
+            )
+            expected_data.append(
+                json.loads(
+                    json.dumps(
+                        {
+                            "id": c.id,
+                            "key_0": c.key_0,
+                            "key_1": c.key_1,
+                            "value": c.value,
+                            "updated_at": timestamp,
+                        },
+                        cls=DjangoJSONEncoder,
+                    )
+                )
+            )
+        s3_upload_mock = mocker.patch(
+            "data_model.management.commands.scorer_dump_data_model_score.upload_to_s3"
+        )
+        call_command(
+            "scorer_dump_data_model_score",
+            *[],
+            **{
+                "batch_size": 2,  # set a small batch size, we want make sure it can handle pagination
+                "s3_uri": "s3://public.scorer.gitcoin.co/passport_scores/",
+                "filename": "eth_model_score.jsonl",
+                "data_model": "predict,predict_nft",
+                "format": "parquet",
+            },
+        )
+
+        s3_upload_mock.assert_called_once()
+
+        # The data file will always be the 1st file in the list
+        data_file = s3_upload_mock.call_args[0][0]
+        data = []
+        expected_keys = {"id", "key_0", "key_1", "value", "updated_at"}
+        expected_data_keys = {"data", "meta"}
+
+        # Load the Parquet file into a DataFrame
+        df = pd.read_parquet(data_file)
+
+        for idx, row in df.iterrows():
+            data.append(row)
+            row_dict = row.to_dict()
+            row_dict["updated_at"] = row_dict["updated_at"].isoformat() + "Z"
+            row_dict["value"] = json.loads(row_dict["value"])
+
+            row_value = json.loads(row.value)
+            assert expected_keys == set(df.columns)
+            assert expected_data_keys == set(row_value.keys())
+            assert expected_data[idx] == row_dict
+
+        # We only expect the number of records we generated for the community that we filtered by
+        assert len(data) == 20
