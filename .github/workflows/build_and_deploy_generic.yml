@@ -116,10 +116,6 @@ jobs:
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
-          INFRA_LIBS_SSH_KEY: "op://DevOps/infra-libs github deploy key/private key"
-      - uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ env.INFRA_LIBS_SSH_KEY }}
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v1
       - name: Deploy Preview
@@ -178,10 +174,6 @@ jobs:
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
-          INFRA_LIBS_SSH_KEY: "op://DevOps/infra-libs github deploy key/private key"
-      - uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ env.INFRA_LIBS_SSH_KEY }}
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v1
       - name: Deploy Review
