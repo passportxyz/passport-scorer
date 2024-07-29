@@ -71,6 +71,14 @@ jobs:
           DATA_MODEL_DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
           FF_API_ANALYTICS: on
 
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v1
+
+      - name: Configure 1Password Service Account
+        uses: 1password/load-secrets-action/configure@v1
+        with:
+          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+
       - name: Load secret
         id: op-load-secret
         uses: 1password/load-secrets-action@v1
