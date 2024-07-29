@@ -1549,7 +1549,7 @@ buildHttpLambdaFn(
 buildHttpLambdaFn(
   {
     ...lambdaSettings,
-    name: "cc-authenticate-0",
+    name: "cc-auhenticate-0",
     memorySize: 512,
     dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
     pathPatterns: ["/ceramic-cache/authenticate"],
