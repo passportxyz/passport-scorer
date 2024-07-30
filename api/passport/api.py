@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import aiohttp
 from django.conf import settings
@@ -13,7 +13,7 @@ from ninja_extra.exceptions import APIException
 import api_logging as logging
 from registry.api.utils import aapi_key, check_rate_limit, is_valid_address
 from registry.exceptions import InvalidAddressException
-from scorer.settings.model_config import MODEL_AGGREGATION_KEYS
+from scorer.settings.model_config import MODEL_AGGREGATION_NAMES
 
 log = logging.getLogger(__name__)
 
@@ -106,12 +106,12 @@ async def handle_get_analysis(
     if not model_list or model_list.strip() == "":
         model_list = settings.MODEL_ENDPOINTS_DEFAULT
 
-    models = [model.strip() for model in model_list.split(",")]
+    models = list(set([model.strip() for model in model_list.split(",")]))
 
     if not is_valid_address(address):
         raise InvalidAddressException()
 
-    if len(models) > 1:
+    if settings.ONLY_ONE_MODEL and len(models) > 1:
         raise BadModelNameError(
             detail="Currently, only one model name can be provided at a time"
         )
@@ -130,19 +130,27 @@ async def handle_get_analysis(
     checksummed_address = to_checksum_address(address)
 
     try:
-        # TODO How to handle this when multiple models allowed at once?
-        # Maybe prefetch all requested non-aggregate and pass them to the aggregate
-        # model which will skip checking those again?
-        if settings.AGGREGATE_MODEL_NAME in models:
-            responses = await get_aggregate_model_response(checksummed_address)
+        non_aggregate_models = list(set(models) - {settings.AGGREGATE_MODEL_NAME})
+        if non_aggregate_models:
+            responses_data = await get_model_responses(
+                non_aggregate_models, checksummed_address
+            )
+            model_responses = list(zip(non_aggregate_models, responses_data))
         else:
-            responses = await get_model_responses(models, checksummed_address)
+            model_responses = []
+
+        if settings.AGGREGATE_MODEL_NAME in models:
+            aggregate_response = await get_aggregate_model_response(
+                checksummed_address, model_responses
+            )
+            model_responses.append((settings.AGGREGATE_MODEL_NAME, aggregate_response))
 
         ret = PassportAnalysisResponse(
             address=address,
             details=PassportAnalysisDetails(models={}),
         )
-        for model, response in zip(models, responses):
+
+        for model, response in model_responses:
             ret.details.models[model] = ScoreModel(
                 score=response.get("data", {}).get("human_probability", 0)
             )
@@ -153,28 +161,52 @@ async def handle_get_analysis(
         raise PassportAnalysisError()
 
 
-async def get_aggregate_model_response(checksummed_address: str):
-    models = [model for model in MODEL_AGGREGATION_KEYS]
-
-    model_responses = await get_model_responses(models, checksummed_address)
+async def get_aggregate_model_response(
+    checksummed_address: str, prefetched_responses: List[Tuple[str, Dict]]
+):
+    model_responses = await get_submodel_responses_for_aggregate(
+        checksummed_address, prefetched_responses
+    )
 
     payload = {
         "address": checksummed_address,
         "data": {},
     }
 
-    for model, response in zip(models, model_responses):
+    for model, response in model_responses:
         data = response.get("data", {})
         score = data.get("human_probability", 0)
         num_transactions = data.get("n_transactions", 0)
-        model_key = MODEL_AGGREGATION_KEYS[model]
+        model_key = MODEL_AGGREGATION_NAMES[model]
 
         payload["data"][f"score_{model_key}"] = score
         payload["data"][f"txs_{model_key}"] = num_transactions
 
     url = settings.MODEL_ENDPOINTS[settings.AGGREGATE_MODEL_NAME]
 
-    return await fetch_all([url], payload)
+    return (await fetch_all([url], payload))[0]
+
+
+async def get_submodel_responses_for_aggregate(
+    checksummed_address: str, prefetched_responses: List[Tuple[str, Dict]]
+):
+    relevant_prefetched_responses = [
+        (model, response)
+        for model, response in prefetched_responses
+        if model in MODEL_AGGREGATION_NAMES.keys()
+    ]
+
+    prefetched_models = [model for model, _ in relevant_prefetched_responses]
+
+    additional_models = list(MODEL_AGGREGATION_NAMES.keys() - prefetched_models)
+
+    additional_responses_data = await get_model_responses(
+        additional_models, checksummed_address
+    )
+
+    additional_model_responses = list(zip(additional_models, additional_responses_data))
+
+    return relevant_prefetched_responses + additional_model_responses
 
 
 async def get_model_responses(models: List[str], checksummed_address: str):
