@@ -106,3 +106,63 @@ class TestPassportAnalysis(TestCase):
         assert mock_post.call_args.args[2] == {
             "address": "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D"
         }
+
+    @override_settings(ONLY_ONE_MODEL=False)
+    @patch("passport.api.fetch", side_effect=mock_post_response)
+    def test_aggregate_model(self, mock_fetch):
+        """Test aggregate model logic with prefetched_responses."""
+
+        analysis_response = self.client.get(
+            "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D?model_list=aggregate,ethereum_activity,nft",
+            content_type="application/json",
+            **self.headers,
+        )
+
+        self.assertEqual(
+            analysis_response.json(),
+            {
+                "address": "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+                "details": {
+                    "models": {
+                        "nft": {"score": 85},
+                        "ethereum_activity": {"score": 75},
+                        "aggregate": {"score": 90},
+                    }
+                },
+            },
+        )
+
+        self.assertEqual(analysis_response.status_code, 200)
+
+        # Should call once for each model involved in aggregation, once for aggregate,
+        # and once for the NFT model. This means it is only calling ethereum_activity
+        # once, even though it is involved in aggregation.
+        expected_count = len(settings.MODEL_AGGREGATION_NAMES) + 2
+        assert mock_fetch.call_count == expected_count
+
+    @override_settings(ONLY_ONE_MODEL=False)
+    @patch("passport.api.fetch", side_effect=mock_post_response)
+    def test_ignore_duplicate_model(self, mock_fetch):
+        """Test aggregate model logic with prefetched_responses."""
+
+        analysis_response = self.client.get(
+            "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D?model_list=nft,nft",
+            content_type="application/json",
+            **self.headers,
+        )
+
+        self.assertEqual(
+            analysis_response.json(),
+            {
+                "address": "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+                "details": {
+                    "models": {
+                        "nft": {"score": 85},
+                    }
+                },
+            },
+        )
+
+        self.assertEqual(analysis_response.status_code, 200)
+
+        assert mock_fetch.call_count == 1

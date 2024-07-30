@@ -14,31 +14,37 @@ pytestmark = pytest.mark.django_db
 address = "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D"
 
 
+mock_model_responses = {
+    "ethereum_activity": {
+        "data": {"human_probability": 75, "n_transactions": 10},
+        "metadata": {"model_name": "ethereum_activity", "version": "1.0"},
+    },
+    "nft": {
+        "data": {"human_probability": 85},
+        "metadata": {"model_name": "social_media", "version": "2.0"},
+    },
+    "zksync": {
+        "data": {"human_probability": 95, "n_transactions": 5},
+        "metadata": {"model_name": "transaction_history", "version": "1.5"},
+    },
+    "aggregate": {
+        "data": {"human_probability": 90},
+        "metadata": {"model_name": "aggregate", "version": "2.5"},
+    },
+}
+
+
 def mock_post_response(session, url, data):
     # Create a mock response object
     # mock_response = Mock()
     # mock_response.status_code = 200
 
-    # Define different responses based on the model (which we can infer from the URL)
-    responses = {
-        "ethereum_activity": {
-            "data": {"human_probability": 75},
-            "metadata": {"model_name": "ethereum_activity", "version": "1.0"},
-        },
-        "nft": {
-            "data": {"human_probability": 85},
-            "metadata": {"model_name": "social_media", "version": "2.0"},
-        },
-        "zksync": {
-            "data": {"human_probability": 95},
-            "metadata": {"model_name": "transaction_history", "version": "1.5"},
-        },
-    }
-
     # Determine which model is being requested
     for model, endpoint in settings.MODEL_ENDPOINTS.items():
         if endpoint in url:
-            response_data = responses.get(model, {"data": {"human_probability": 0}})
+            response_data = mock_model_responses.get(
+                model, {"data": {"human_probability": 0}}
+            )
             break
     else:
         response_data = {"error": "Unknown model"}

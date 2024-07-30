@@ -23,7 +23,7 @@ AGGREGATE_MODEL_ENDPOINT = env(
 AGGREGATE_MODEL_NAME = "aggregate"
 
 
-MODEL_AGGREGATION_KEYS = {
+MODEL_AGGREGATION_NAMES = {
     "zksync": "zk",
     "polygon": "polygon",
     "ethereum_activity": "eth",
@@ -42,3 +42,8 @@ MODEL_ENDPOINTS = {
 }
 
 MODEL_ENDPOINTS_DEFAULT = "aggregate"
+
+# This is really only here to allow for testing with multiple models
+# while the single-model restriction is in place. Once lifted,
+# this can be removed
+ONLY_ONE_MODEL = True
