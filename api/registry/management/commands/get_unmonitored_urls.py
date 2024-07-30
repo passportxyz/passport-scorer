@@ -10,6 +10,8 @@ from ninja.openapi.schema import OpenAPISchema
 
 from scorer.api import apis
 
+from .get_unmonitored_urls_config import get_config
+
 # Will ignore e.g. anything starting with /admin/
 IGNORED_PATH_ROOTS = [
     "admin",
@@ -24,6 +26,16 @@ IGNORED_URLS = [
     "/registry/feature/scorer/generic",
     "/feature/scorer/generic",
 ]
+
+http_method_map = {
+    "HEAD": 1,
+    "GET": 2,
+    "POST": 3,
+    "PUT": 4,
+    "PATCH": 5,
+    "DELETE": 6,
+    "OPTIONS": 7,
+}
 
 
 class Command(BaseCommand):
@@ -76,6 +88,59 @@ class Command(BaseCommand):
         self.stdout.write("Done")
 
     def get_unmonitored_urls(self, kwargs):
+        combined_data = {}
+        config = get_config(kwargs["base_url"])
+        for api in apis:
+            openapi = OpenAPISchema(api=api, path_prefix="")
+            paths = openapi.get("paths", {})
+
+            namespace = api.urls_namespace
+            endpoints = self.aggregate_paths_by_method(paths, namespace, openapi)
+            print("---> namespace", namespace)
+            print("---> endpoints", endpoints)
+
+            namespace_config = config[namespace]["urls"]
+            print(namespace_config)
+            for http_method, paths in endpoints.items():
+                print("===> http_method", http_method)
+                for path in paths["paths"]:
+                    print("===> path", path)
+                    http_endpoint = (http_method, path)
+                    endpoint_config = namespace_config.get(http_endpoint)
+                    print(
+                        "=====> endpoint_config", (http_method, path), endpoint_config
+                    )
+                    mapped_http_method = http_method_map.get(http_method, 2)
+
+                    if endpoint_config is not None:
+                        friendly_name = f"[auto] {http_method} {path}"
+                        monitor_status = self.create_uptime_robot_monitor(
+                            friendly_name=friendly_name,
+                            url=endpoint_config["url"],
+                            monitor_type=1,
+                            http_method=mapped_http_method,
+                            custom_http_headers=endpoint_config.get("http_headers"),
+                            body=endpoint_config.get("payload"),
+                        )
+                        print("=====> monitor_status", monitor_status)
+                        if monitor_status["stat"] != "ok":
+                            self.stderr.write(
+                                f"!!! Failed creation of monitor: {http_endpoint}:\n{monitor_status}"
+                            )
+                    else:
+                        self.stderr.write(f"!!! Missing config for: {http_endpoint}")
+
+        #     for method, data in endpoints.items():
+        #         if method not in combined_data:
+        #             combined_data[method] = data
+        #         else:
+        #             combined_data[method]["paths"].extend(data["paths"])
+        #             combined_data[method]["request_bodies"].extend(
+        #                 data["request_bodies"]
+        #             )
+        # return combined_data
+        return
+
         all_django_urls = self.get_all_urls_with_methods()
         django_urls = self.filter_urls(all_django_urls)
 
@@ -94,6 +159,7 @@ class Command(BaseCommand):
         unmonitored_urls = []
         for method, data in all_django_urls.items():
             for path in data["paths"]:
+                print("---> path: ", path)
                 monitor_url = self.replace_placeholders(path)
                 matching_monitored_url = next(
                     (url for url in monitored_urls if monitor_url == url), None
@@ -134,18 +200,10 @@ class Command(BaseCommand):
         return re.sub(r"{([^}]+)}", replace_match, url_path)
 
     def create_missing_monitors(self, unmonitored_urls, base_url):
-        http_method_map = {
-            "HEAD": 1,
-            "GET": 2,
-            "POST": 3,
-            "PUT": 4,
-            "PATCH": 5,
-            "DELETE": 6,
-            "OPTIONS": 7,
-        }
         created_monitors = []
 
         for url_data in unmonitored_urls:
+            print("url_data: ", url_data)
             if "{" in url_data["path"]:
                 url_data["path"] = self.replace_placeholders(url_data["path"])
 
@@ -300,11 +358,21 @@ class Command(BaseCommand):
         return json.loads(data.decode("utf-8"))
 
     def create_uptime_robot_monitor(
-        self, friendly_name, url, monitor_type, http_method=None
+        self,
+        friendly_name,
+        url,
+        monitor_type,
+        http_method=None,
+        custom_http_headers=None,
+        success_http_statues=[200],
+        body=None,
     ):
         conn = HTTPSConnection("api.uptimerobot.com")
 
-        custom_http_statuses = "401:1_200:1_201:1"
+        custom_http_statuses = "-".join(
+            [f"{status}:1" for status in success_http_statues]
+        )
+
         # authenticate is a special case, we accept a 400 error since that is thrown if invalid signature is passed
         if "authenticate" in url:
             custom_http_statuses = "401:1_200:1_201:1_400:1"
@@ -319,13 +387,17 @@ class Command(BaseCommand):
             "custom_http_statuses": custom_http_statuses,
         }
 
+        if custom_http_headers:
+            payload["custom_http_headers"] = custom_http_headers
+
         if http_method:
             payload["http_method"] = http_method
-        if http_method and http_method > 2:
+
+        if body is not None:
             # We are not passing valid data to the POST requests but these are required
             payload["post_type"] = 1  # raw data
-            payload["post_value"] = json.dumps([{"yo": "yo"}])
-            payload["post_content_type"] = 1
+            payload["post_value"] = json.dumps(body)
+            payload["post_content_type"] = 0
 
         headers = {"content-type": "application/json", "cache-control": "no-cache"}
 
@@ -333,6 +405,8 @@ class Command(BaseCommand):
 
         res = conn.getresponse()
         data = res.read()
+
+        self.stdout.write(f"Create monitor: {friendly_name}")
 
         return json.loads(data.decode("utf-8"))
 
