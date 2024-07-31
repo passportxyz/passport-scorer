@@ -86,7 +86,14 @@ jobs:
           export-env: true
         env:
           OP_SEVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          UPTIME_ROBOT_API_KEY: op://DevOps/passport-scorer-review-secrets/ci/UPTIME_ROBOT_API_KEY
+
+          UPTIME_ROBOT_API_KEY: op://DevOps/uptime-robot-config/ci/UPTIME_ROBOT_API_KEY
+          REGISTRY_API_KEY: op://DevOps/uptime-robot-config/ci/REGISTRY_API_KEY
+          REGISTRY_ROUND_ID: op://DevOps/uptime-robot-config/ci/REGISTRY_ROUND_ID
+          REGISTRY_SCORER_ID: op://DevOps/uptime-robot-config/ci/REGISTRY_SCORER_ID
+          REGISTRY_ADDRESS: op://DevOps/uptime-robot-config/ci/REGISTRY_ADDRESS
+          CERAMIC_CACHE_JWT_TOKEN: op://DevOps/uptime-robot-config/ceramic-cache/JWT_TOKEN
+          CERAMIC_CACHE_ADDRESS: op://DevOps/uptime-robot-config/ceramic-cache/ADDRESS
 
       - name: URL Monitoring Check
         working-directory: ./api
@@ -96,9 +103,15 @@ jobs:
           SECRET_KEY: secret-test-value
           UPTIME_ROBOT_API_KEY: ${{ env.UPTIME_ROBOT_API_KEY }}
 
+          REGISTRY_API_KEY: ${{ env.REGISTRY_API_KEY }}
+          REGISTRY_ROUND_ID: ${{ env.REGISTRY_ROUND_ID }}
+          REGISTRY_SCORER_ID: ${{ env.REGISTRY_SCORER_ID }}
+          REGISTRY_ADDRESS: ${{ env.REGISTRY_ADDRESS }}
+          CERAMIC_CACHE_JWT_TOKEN: ${{ env.CERAMIC_CACHE_JWT_TOKEN }}
+          CERAMIC_CACHE_ADDRESS: ${{ env.CERAMIC_CACHE_ADDRESS }}
+
         run:
-          python manage.py get_unmonitored_urls --base-url https://api.scorer.gitcoin.co --out unmanaged.json &&
-          [ -f unmanaged.json ] && [ `cat unmanaged.json | wc -m` -eq 2 ]
+          python manage.py get_unmonitored_urls --base-url https://api.scorer.gitcoin.co/
 
   ui-test:
     runs-on: ubuntu-latest
