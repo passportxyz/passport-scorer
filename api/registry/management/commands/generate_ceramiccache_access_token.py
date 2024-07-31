@@ -1,11 +1,8 @@
 from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 
 from ceramic_cache.api.v1 import DbCacheToken
-
-
-class LongLivedToken(DbCacheToken):
-    lifetime: timedelta = timedelta(days=100 * 365)
 
 
 class Command(BaseCommand):
@@ -23,7 +20,8 @@ class Command(BaseCommand):
         address = kwargs["address"].lower()
         self.stdout.write(f"Generating long-lived access token for {address}")
 
-        token = LongLivedToken()
+        token = DbCacheToken()
+        token.access_token_class.lifetime = timedelta(days=356)
         token["did"] = f"did:pkh:eip155:1:{address}"
 
         self.stdout.write("Access token:")

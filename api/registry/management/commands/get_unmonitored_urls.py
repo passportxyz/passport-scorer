@@ -68,6 +68,12 @@ class Command(BaseCommand):
         self.stdout.write(
             f"                   misconfig: {create_monitor_status['num_missing_config']}"
         )
+        self.stdout.write(
+            f"          skipped namespaces: {create_monitor_status['num_skipped_namespaces']}"
+        )
+        self.stdout.write(
+            f"           skipped endpoints: {create_monitor_status['num_skipped_endpoints']}"
+        )
 
         if create_monitor_status["num_failures"] > 0:
             raise CommandError("Failed to create required monitor")
@@ -76,6 +82,8 @@ class Command(BaseCommand):
         num_failures = 0
         num_successes = 0
         num_missing_config = 0
+        num_skipped_namespaces = 0
+        num_skipped_endpoints = 0
         config = get_config(kwargs["base_url"])
         for api in apis:
             openapi = OpenAPISchema(api=api, path_prefix="")
@@ -87,6 +95,7 @@ class Command(BaseCommand):
             namespace_config = config[namespace]["urls"]
             if config[namespace].get("skip"):
                 self.stdout.write(f"Skipping monitoring for namespace: {namespace}")
+                num_skipped_namespaces += 1
             else:
                 for http_method, paths in endpoints.items():
                     for path in paths["paths"]:
@@ -96,7 +105,12 @@ class Command(BaseCommand):
 
                         if endpoint_config is not None:
                             friendly_name = f"[auto] {http_method} {path}"
-                            if not kwargs["dry_run"]:
+                            if endpoint_config.get("skip"):
+                                num_skipped_endpoints += 1
+                                self.stdout.write(
+                                    f"Skipping monitoring for: {http_endpoint}"
+                                )
+                            elif not kwargs["dry_run"]:
                                 monitor_status = self.create_uptime_robot_monitor(
                                     friendly_name=friendly_name,
                                     url=endpoint_config["url"],
@@ -127,6 +141,8 @@ class Command(BaseCommand):
             "num_failures": num_failures,
             "num_successes": num_successes,
             "num_missing_config": num_missing_config,
+            "num_skipped_namespaces": num_skipped_namespaces,
+            "num_skipped_endpoints": num_skipped_endpoints,
         }
 
     def get_all_urls_with_methods(self):
