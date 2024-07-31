@@ -1,8 +1,6 @@
 import json
-import re
 from collections import defaultdict
 from http.client import HTTPSConnection
-from urllib.parse import urlparse, urlunparse
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -11,21 +9,6 @@ from ninja.openapi.schema import OpenAPISchema
 from scorer.api import apis
 
 from .get_unmonitored_urls_config import get_config
-
-# Will ignore e.g. anything starting with /admin/
-IGNORED_PATH_ROOTS = [
-    "admin",
-    "social",
-    "feature",
-]
-
-# Will ignore exact path matches
-IGNORED_URLS = [
-    "/registry/feature/openapi.json",
-    "/registry/feature/docs",
-    "/registry/feature/scorer/generic",
-    "/feature/scorer/generic",
-]
 
 http_method_map = {
     "HEAD": 1,
@@ -43,10 +26,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--out",
-            type=str,
-            help="Output file, json list of unmonitored paths",
-            required=True,
+            "--dry-run",
+            help="Will not delete or create any monitors, but will fail if URL config is missing",
+            action="store_true",
         )
         parser.add_argument(
             "--base-url",
@@ -65,30 +47,35 @@ class Command(BaseCommand):
         self.stdout.write("Running ...")
         self.stdout.write(f"args     : {args}")
         self.stdout.write(f"kwargs   : {kwargs}")
+        if kwargs["dry_run"]:
+            self.stdout.write("\n\nThis is a dry run\n\n")
 
         if not settings.UPTIME_ROBOT_API_KEY:
             raise CommandError("UPTIME_ROBOT_API_KEY is not set")
 
-        unmonitored_urls = self.get_unmonitored_urls(kwargs)
+        auto_monitors = self.get_uptime_robot_urls(kwargs["base_url"], True)
+        if not kwargs["dry_run"]:
+            self.delete_monitors(auto_monitors)
 
-        self.stdout.write(f"Unmonitored URLs: {len(unmonitored_urls)}")
+        create_monitor_status = self.get_unmonitored_urls(kwargs)
 
-        self.create_missing_monitors(unmonitored_urls, kwargs["base_url"])
+        self.stdout.write(
+            f"Monitors created succesfully: {create_monitor_status['num_successes']}"
+        )
+        self.stdout.write(
+            f"                    failures: {create_monitor_status['num_failures']}"
+        )
+        self.stdout.write(
+            f"                   misconfig: {create_monitor_status['num_missing_config']}"
+        )
 
-        updated_unmonitored_urls = self.get_unmonitored_urls(kwargs)
-
-        for url in updated_unmonitored_urls:
-            self.stdout.write(
-                f"Unmonitored After Update: {url['path']} ({url['method']})"
-            )
-
-        with open(kwargs["out"], "w") as out_file:
-            json.dump(updated_unmonitored_urls, out_file)
-
-        self.stdout.write("Done")
+        if create_monitor_status["num_failures"] > 0:
+            raise CommandError("Failed to create required monitor")
 
     def get_unmonitored_urls(self, kwargs):
-        combined_data = {}
+        num_failures = 0
+        num_successes = 0
+        num_missing_config = 0
         config = get_config(kwargs["base_url"])
         for api in apis:
             openapi = OpenAPISchema(api=api, path_prefix="")
@@ -96,147 +83,51 @@ class Command(BaseCommand):
 
             namespace = api.urls_namespace
             endpoints = self.aggregate_paths_by_method(paths, namespace, openapi)
-            print("---> namespace", namespace)
-            print("---> endpoints", endpoints)
 
             namespace_config = config[namespace]["urls"]
-            print(namespace_config)
-            for http_method, paths in endpoints.items():
-                print("===> http_method", http_method)
-                for path in paths["paths"]:
-                    print("===> path", path)
-                    http_endpoint = (http_method, path)
-                    endpoint_config = namespace_config.get(http_endpoint)
-                    print(
-                        "=====> endpoint_config", (http_method, path), endpoint_config
-                    )
-                    mapped_http_method = http_method_map.get(http_method, 2)
+            if config[namespace].get("skip"):
+                self.stdout.write(f"Skipping monitoring for namespace: {namespace}")
+            else:
+                for http_method, paths in endpoints.items():
+                    for path in paths["paths"]:
+                        http_endpoint = (http_method, path)
+                        endpoint_config = namespace_config.get(http_endpoint)
+                        mapped_http_method = http_method_map.get(http_method, 2)
 
-                    if endpoint_config is not None:
-                        friendly_name = f"[auto] {http_method} {path}"
-                        monitor_status = self.create_uptime_robot_monitor(
-                            friendly_name=friendly_name,
-                            url=endpoint_config["url"],
-                            monitor_type=1,
-                            http_method=mapped_http_method,
-                            custom_http_headers=endpoint_config.get("http_headers"),
-                            body=endpoint_config.get("payload"),
-                        )
-                        print("=====> monitor_status", monitor_status)
-                        if monitor_status["stat"] != "ok":
+                        if endpoint_config is not None:
+                            friendly_name = f"[auto] {http_method} {path}"
+                            if not kwargs["dry_run"]:
+                                monitor_status = self.create_uptime_robot_monitor(
+                                    friendly_name=friendly_name,
+                                    url=endpoint_config["url"],
+                                    monitor_type=1,
+                                    http_method=mapped_http_method,
+                                    custom_http_headers=endpoint_config.get(
+                                        "http_headers"
+                                    ),
+                                    body=endpoint_config.get("payload"),
+                                    success_http_statues=endpoint_config.get(
+                                        "success_http_statues"
+                                    ),
+                                )
+                                if monitor_status["stat"] != "ok":
+                                    self.stderr.write(
+                                        f"!!! Failed creation of monitor: {http_endpoint}:\n{monitor_status}"
+                                    )
+                                    num_failures += 1
+                                else:
+                                    num_successes += 1
+                        else:
                             self.stderr.write(
-                                f"!!! Failed creation of monitor: {http_endpoint}:\n{monitor_status}"
+                                f"!!! Missing config for: {http_endpoint}"
                             )
-                    else:
-                        self.stderr.write(f"!!! Missing config for: {http_endpoint}")
-
-        #     for method, data in endpoints.items():
-        #         if method not in combined_data:
-        #             combined_data[method] = data
-        #         else:
-        #             combined_data[method]["paths"].extend(data["paths"])
-        #             combined_data[method]["request_bodies"].extend(
-        #                 data["request_bodies"]
-        #             )
-        # return combined_data
-        return
-
-        all_django_urls = self.get_all_urls_with_methods()
-        django_urls = self.filter_urls(all_django_urls)
-
-        self.stdout.write(f"Total URLs: {len(all_django_urls)}")
-        self.stdout.write(f"Ignoring url path roots: {IGNORED_PATH_ROOTS}")
-        self.stdout.write(f"Ignoring urls: {IGNORED_URLS}")
-        self.stdout.write(f"URLs to check: {len(django_urls)}")
-
-        monitored_urls = self.get_uptime_robot_urls(
-            base_url=kwargs["base_url"], allow_paused=kwargs["allow_paused"]
-        )
-        self.stdout.write(f"Allowing paused monitors: {kwargs['allow_paused']}")
-        self.stdout.write(f"Uptime Robot URLs: {len(monitored_urls)}")
-        self.stdout.write(f"Uptime robot URLs: {json.dumps(monitored_urls, indent=2)}")
-
-        unmonitored_urls = []
-        for method, data in all_django_urls.items():
-            for path in data["paths"]:
-                print("---> path: ", path)
-                monitor_url = self.replace_placeholders(path)
-                matching_monitored_url = next(
-                    (url for url in monitored_urls if monitor_url == url), None
-                )
-
-                if matching_monitored_url is None:
-                    # If the path is not monitored, add it to unmonitored_urls
-                    unmonitored_urls.append(
-                        {
-                            "path": path,
-                            "method": method,
-                            "request_bodies": data["request_bodies"],
-                        }
-                    )
-                else:
-                    self.stdout.write(
-                        f"Matched: {path} ({method}) to {matching_monitored_url}"
-                    )
-                    # Remove the matched URL from monitored_urls
-                    monitored_urls.remove(matching_monitored_url)
-
-        return unmonitored_urls
-
-    def replace_placeholders(self, url_path):
-        static_replacements = {
-            "address": "0x96db2c6d93a8a12089f7a6eda5464e967308aded",
-            "scorer_id": "335",
-            "tos_type": "IST",
-            "banner_id": "1",
-            "notification_id": "1",
-            "round_id": "1",
+                            num_failures += 1
+                            num_missing_config += 1
+        return {
+            "num_failures": num_failures,
+            "num_successes": num_successes,
+            "num_missing_config": num_missing_config,
         }
-
-        def replace_match(match):
-            placeholder = match.group(1)
-            return static_replacements.get(placeholder, "placeholder-if-not-found")
-
-        return re.sub(r"{([^}]+)}", replace_match, url_path)
-
-    def create_missing_monitors(self, unmonitored_urls, base_url):
-        created_monitors = []
-
-        for url_data in unmonitored_urls:
-            print("url_data: ", url_data)
-            if "{" in url_data["path"]:
-                url_data["path"] = self.replace_placeholders(url_data["path"])
-
-            full_url = f"{base_url}{url_data['path']}"
-            friendly_name = f"[auto] {url_data['method']} {url_data['path']}"
-
-            mapped_http_method = http_method_map.get(url_data["method"].upper(), 2)
-            try:
-                result = self.create_uptime_robot_monitor(
-                    friendly_name=friendly_name,
-                    url=full_url,
-                    monitor_type=1,
-                    http_method=mapped_http_method,
-                )
-                if result.get("stat") == "ok":
-                    created_monitors.append(
-                        {
-                            "path": url_data["path"],
-                            "method": url_data["method"],
-                            "monitor_id": result.get("monitor", {}).get("id"),
-                        }
-                    )
-                    self.stdout.write(f"Created monitor for: {friendly_name}")
-                else:
-                    self.stdout.write(
-                        f"Failed to create monitor for: {friendly_name}. Error: {result.get('error')}"
-                    )
-            except Exception as e:
-                self.stdout.write(
-                    f"Error creating monitor for: {friendly_name}. Error: {str(e)}"
-                )
-
-        self.stdout.write(f"Created {len(created_monitors)} new monitors")
 
     def get_all_urls_with_methods(self):
         combined_data = {}
@@ -295,19 +186,6 @@ class Command(BaseCommand):
 
         return dict(aggregated)
 
-    def convert_django_url_to_regex(self, url: str):
-        # Have to do sub and then replace because re.sub interprets
-        # the replacement string as an invalid group reference
-
-        # Sub integers
-        url_regex = re.sub("<int:.+?>", "<int>", url).replace("<int>", "\\d+")
-        # Sub strings
-        url_regex = re.sub("<str:.+?>", "<str>", url_regex).replace("<str>", "[^/]+")
-        # Sub untyped params
-        url_regex = re.sub("<[^:]+?>", "<str>", url_regex).replace("<str>", "[^/]+")
-
-        return url_regex + "(\\?|$)"
-
     def get_uptime_robot_urls(self, base_url: str, allow_paused: bool):
         limit = 50
         offset = 0
@@ -316,7 +194,6 @@ class Command(BaseCommand):
         while True:
             data = self.uptime_robot_monitors_request(limit, offset)
 
-            print(data)
             total = data["pagination"]["total"]
             monitors.extend(data["monitors"])
 
@@ -325,20 +202,36 @@ class Command(BaseCommand):
 
             offset += limit
 
-        if base_url.endswith("/"):
-            base_url = base_url[:-1]
+        auto_monitors = [m for m in monitors if m["friendly_name"].startswith("[auto]")]
+        for m in auto_monitors:
+            print(m["id"], m["friendly_name"])
 
-        def remove_query_params(url):
-            parsed = urlparse(url)
-            return urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
+        return auto_monitors
 
-        urls = [
-            remove_query_params(monitor["url"])
-            for monitor in monitors
-            if (allow_paused or monitor["status"] != 0)
-        ]
+    def delete_monitors(self, monitors: list[dict]):
+        conn = HTTPSConnection("api.uptimerobot.com")
 
-        return [url.replace(base_url, "") for url in urls if url.startswith(base_url)]
+        for m in monitors:
+            self.stdout.write(f"Deleting monitor {m['id']} - {m['friendly_name']}")
+            payload = (
+                f"api_key={settings.UPTIME_ROBOT_API_KEY}&format=json&id={m['id']}"
+            )
+
+            headers = {
+                "content-type": "application/x-www-form-urlencoded",
+                "cache-control": "no-cache",
+            }
+
+            conn.request("POST", "/v2/deleteMonitor", payload, headers)
+
+            res = conn.getresponse()
+            data = res.read()
+            data = json.loads(data.decode("utf-8"))
+
+            if data["stat"] != "ok":
+                self.stderr.write(
+                    f"Error deleting monitor {m['id']} - {m['friendly_name']}"
+                )
 
     def uptime_robot_monitors_request(self, limit, offset):
         conn = HTTPSConnection("api.uptimerobot.com")
@@ -364,9 +257,12 @@ class Command(BaseCommand):
         monitor_type,
         http_method=None,
         custom_http_headers=None,
-        success_http_statues=[200],
+        success_http_statues=None,
         body=None,
     ):
+        if not success_http_statues:
+            success_http_statues = [200]
+
         conn = HTTPSConnection("api.uptimerobot.com")
 
         custom_http_statuses = "-".join(
@@ -409,27 +305,3 @@ class Command(BaseCommand):
         self.stdout.write(f"Create monitor: {friendly_name}")
 
         return json.loads(data.decode("utf-8"))
-
-    def get_all_urls(self, urls_file_path):
-        with open(urls_file_path) as urls_file:
-            urls_json = json.load(urls_file)
-
-        return [entry["url"] for entry in urls_json]
-
-    def filter_urls(self, urls):
-        # Remove urls that are just a path with a trailing slash, we
-        # don't use these in our api
-        filtered_urls = [url for url in urls if not re.match(r"^[^?]*/$", url)]
-
-        filtered_urls = [
-            url
-            for url in filtered_urls
-            if not any(url.startswith("/" + root + "/") for root in IGNORED_PATH_ROOTS)
-        ]
-
-        filtered_urls = [
-            url
-            for url in filtered_urls
-            if not any(url == ignored for ignored in IGNORED_URLS)
-        ]
-        return filtered_urls

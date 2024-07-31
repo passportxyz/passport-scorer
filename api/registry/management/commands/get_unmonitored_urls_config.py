@@ -15,47 +15,61 @@ def get_config(base_url: str) -> dict:
                 ("GET", "/registry/signing-message"): {
                     "url": f"{base_url}registry/signing-message",
                     "http_headers": {"X-API-Key": REGISTRY_API_KEY},
+                    "success_http_statues": [200],
                 },
                 ("GET", "/registry/gtc-stake/{address}/{round_id}"): {
-                    "url": f"{base_url}registry/gtc-stake/{REGISTRY_ADDRESS}/{REGISTRY_ROUND_ID}"
+                    "url": f"{base_url}registry/gtc-stake/{REGISTRY_ADDRESS}/{REGISTRY_ROUND_ID}",
+                    "success_http_statues": [200],
                 },
                 # requires authentication
-                ("POST", "/registry/submit-passport"): {
+                ("POST", "/registry/submit-passportdd"): {
                     "payload": {
                         "address": REGISTRY_ADDRESS,
                         "scorer_id": REGISTRY_SCORER_ID,
                     },
                     "http_headers": {"X-API-Key": REGISTRY_API_KEY},
                     "url": f"{base_url}registry/submit-passport",
+                    "success_http_statues": [200],
                 },
                 ("GET", "/registry/score/{scorer_id}/history"): {
                     "url": f"{base_url}registry/score/{REGISTRY_SCORER_ID}/history?limit=1000",
                     "http_headers": {"X-API-Key": REGISTRY_API_KEY},
+                    "success_http_statues": [200],
                 },
                 ("GET", "/registry/score/{scorer_id}/{address}"): {
                     "url": f"{base_url}registry/score/{REGISTRY_SCORER_ID}/{REGISTRY_ADDRESS}",
                     "http_headers": {"X-API-Key": REGISTRY_API_KEY},
+                    "success_http_statues": [200],
                 },
                 ("GET", "/registry/score/{scorer_id}"): {
                     "url": f"{base_url}registry/score/{REGISTRY_SCORER_ID}",
                     "http_headers": {"X-API-Key": REGISTRY_API_KEY},
+                    "success_http_statues": [200],
                 },
                 ("GET", "/registry/stamps/{address}"): {
-                    "url": f"{base_url}stamps/{REGISTRY_ADDRESS}",
+                    "url": f"{base_url}registry/stamps/{REGISTRY_ADDRESS}",
                     "http_headers": {"X-API-Key": REGISTRY_API_KEY},
+                    "success_http_statues": [200],
                 },
                 ("GET", "/registry/stamp-metadata"): {
                     "url": f"{base_url}registry/stamp-metadata",
                     "http_headers": {"X-API-Key": REGISTRY_API_KEY},
+                    "success_http_statues": [200],
                 },
             },
+        },
+        "registry_v2": {
+            "skip": True,
+            "urls": {},
         },
         # Passport Admin
         # Use custom JWT token here, and the same for any other API groups
         "ceramic-cache": {
+            "skip": True,
             "urls": {},
         },
         "passport-admin": {
+            "skip": True,
             "urls": {},
         },
     }
