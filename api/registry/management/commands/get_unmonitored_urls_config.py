@@ -9,7 +9,33 @@ CERAMIC_CACHE_JWT_TOKEN = os.environ.get("CERAMIC_CACHE_JWT_TOKEN")
 CERAMIC_CACHE_ADDRESS = os.environ.get("CERAMIC_CACHE_ADDRESS")
 
 
-stamps = []
+stamps = [
+    {
+        "provider": "GitcoinContributorStatistics#totalContributionAmountGte#10",
+    }
+]
+
+authenticate_payload = {
+    "signatures": [
+        {
+            "protected": "xxxxxx",
+            "signature": "xxxxxx",
+        }
+    ],
+    "payload": "xxxxxx",
+    "cid": [
+        1,
+        2,
+        3,
+    ],
+    "cacao": [
+        1,
+        2,
+        3,
+    ],
+    "issuer": "did:pkh:eip155:1:0x123",
+    "nonce": "123456",
+}
 
 
 def get_config(base_url: str) -> dict:
@@ -104,13 +130,6 @@ def get_config(base_url: str) -> dict:
                         "Authorization": f"Bearer {CERAMIC_CACHE_JWT_TOKEN}"
                     },
                 },
-                ("POST", "/ceramic-cache/stamps/bulk"): {
-                    "url": f"{base_url}ceramic-cache/stamps/bulk",
-                    "http_headers": {
-                        "Authorization": f"Bearer {CERAMIC_CACHE_JWT_TOKEN}"
-                    },
-                    "payload": stamps,
-                },
                 ("PATCH", "/ceramic-cache/stamps/bulk/meta/compose-db"): {
                     "url": f"{base_url}ceramic-cache/stamps/bulk/meta/compose-db",
                     "http_headers": {
@@ -127,6 +146,14 @@ def get_config(base_url: str) -> dict:
                     },
                     "payload": {"alternate_scorer_id": REGISTRY_SCORER_ID},
                 },
+                ("POST", "/ceramic-cache/stamps/bulk"): {
+                    "skip": True,  # Skipping because uptime robot api rejects creating multiple monitors on same endpoint
+                    # "url": f"{base_url}ceramic-cache/stamps/bulk",
+                    # "http_headers": {
+                    #     "Authorization": f"Bearer {CERAMIC_CACHE_JWT_TOKEN}"
+                    # },
+                    # "payload": stamps,
+                },
                 ("PATCH", "/ceramic-cache/stamps/bulk"): {
                     "skip": True,  # Skipping because uptime robot api rejects creating multiple monitors on same endpoint
                 },
@@ -134,7 +161,7 @@ def get_config(base_url: str) -> dict:
                     "skip": True,  # Skipping because uptime robot api rejects creating multiple monitors on same endpoint
                 },
                 ("POST", "/ceramic-cache/authenticate"): {
-                    "skip": True,  # Skipping because we would need to post a wallet signature here
+                    "skip": True,  # Skipping because uptime robot api rejects creating multiple monitors on same endpoint
                 },
                 ("POST", "/ceramic-cache/tos/signed-message/{tos_type}/{address}"): {
                     "skip": True,  # Skipping because we would need to post a wallet signature here

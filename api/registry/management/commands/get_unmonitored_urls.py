@@ -53,11 +53,16 @@ class Command(BaseCommand):
         if not settings.UPTIME_ROBOT_API_KEY:
             raise CommandError("UPTIME_ROBOT_API_KEY is not set")
 
-        auto_monitors = self.get_uptime_robot_urls(kwargs["base_url"], True)
+        monitors = self.get_uptime_robot_urls(kwargs["base_url"], True)
+        auto_monitors = monitors["auto_monitors"]
+        auto_check_monitors = [
+            m["friendly_name"] for m in monitors["auto_check_monitors"]
+        ]
+
         if not kwargs["dry_run"]:
             self.delete_monitors(auto_monitors)
 
-        create_monitor_status = self.get_unmonitored_urls(kwargs)
+        create_monitor_status = self.get_unmonitored_urls(kwargs, auto_check_monitors)
 
         self.stdout.write(
             f"Monitors created succesfully: {create_monitor_status['num_successes']}"
@@ -78,7 +83,7 @@ class Command(BaseCommand):
         if create_monitor_status["num_failures"] > 0:
             raise CommandError("Failed to create required monitor")
 
-    def get_unmonitored_urls(self, kwargs):
+    def get_unmonitored_urls(self, kwargs, auto_check_monitors):
         num_failures = 0
         num_successes = 0
         num_missing_config = 0
@@ -108,8 +113,18 @@ class Command(BaseCommand):
                             if endpoint_config.get("skip"):
                                 num_skipped_endpoints += 1
                                 self.stdout.write(
-                                    f"Skipping monitoring for: {http_endpoint}"
+                                    f"\nSkipping monitoring for: {http_endpoint}\n"
                                 )
+                                # Skipped endpoints needs to have a manual monitor from the auto_check list
+                                friendly_auto_check_name = (
+                                    f"[auto-check] {http_method} {path}"
+                                )
+                                if friendly_auto_check_name not in auto_check_monitors:
+                                    self.stderr.write(
+                                        f"!!! Missing monitor '{friendly_auto_check_name}': \n\t\t{http_endpoint}"
+                                    )
+                                    num_failures += 1
+
                             elif not kwargs["dry_run"]:
                                 monitor_status = self.create_uptime_robot_monitor(
                                     friendly_name=friendly_name,
@@ -219,10 +234,19 @@ class Command(BaseCommand):
             offset += limit
 
         auto_monitors = [m for m in monitors if m["friendly_name"].startswith("[auto]")]
+
+        # The auto-check monitors are the ones that are created manually
+        # but we will still check if they exist
+        auto_check_monitors = [
+            m for m in monitors if m["friendly_name"].startswith("[auto-check]")
+        ]
         for m in auto_monitors:
             print(m["id"], m["friendly_name"])
 
-        return auto_monitors
+        return {
+            "auto_monitors": auto_monitors,
+            "auto_check_monitors": auto_check_monitors,
+        }
 
     def delete_monitors(self, monitors: list[dict]):
         conn = HTTPSConnection("api.uptimerobot.com")
