@@ -163,6 +163,7 @@ def handle_add_stamps(
             address=address,
             provider=p.provider,
             stamp=p.stamp,
+            proof_value=p.stamp["proof"]["proofValue"],
             updated_at=now,
             compose_db_save_status=CeramicCache.ComposeDBSaveStatus.PENDING,
             issuance_date=p.stamp.get("issuanceDate", None),
@@ -234,6 +235,7 @@ def handle_patch_stamps(
             address=address,
             provider=p.provider,
             stamp=p.stamp,
+            proof_value=p.stamp["proof"]["proofValue"],
             updated_at=now,
             compose_db_save_status=CeramicCache.ComposeDBSaveStatus.PENDING,
             issuance_date=p.stamp.get("issuanceDate", None),
@@ -414,7 +416,10 @@ def get_stamps(request, address):
 
 def handle_get_stamps(address):
     stamps = CeramicCache.objects.filter(
-        address=address, type=CeramicCache.StampType.V1, deleted_at__isnull=True
+        address=address,
+        type=CeramicCache.StampType.V1,
+        deleted_at__isnull=True,
+        revocation__isnull=True,
     )
 
     scorer_id = settings.CERAMIC_CACHE_SCORER_ID

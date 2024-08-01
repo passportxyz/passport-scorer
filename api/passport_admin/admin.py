@@ -9,6 +9,7 @@ from scorer.scorer_admin import ScorerModelAdmin
 
 from .models import (
     DismissedBanners,
+    LastScheduledRun,
     Notification,
     NotificationStatus,
     PassportBanner,
@@ -57,3 +58,14 @@ class NotificationStatusAdmin(ScorerModelAdmin):
     list_display = ("notification", "eth_address", "is_read", "is_deleted")
     search_fields = ("notification", "eth_address", "is_read", "is_deleted")
     list_filter = ("eth_address", "is_read", "is_deleted")
+
+
+@admin.register(LastScheduledRun)
+class LastScheduledRunAdmin(admin.ModelAdmin):
+    """
+    Admin class for LastScheduledRun.
+    """
+
+    list_display = ("name", "last_run")
+    search_fields = ("name", "last_run")
+    list_filter = ("name", "last_run")

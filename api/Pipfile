@@ -58,6 +58,7 @@ pytest-bdd = "*"
 pytest-mock = "*"
 django-stubs = "*"
 pandas = "*"
+freezegun = "*"
 
 [requires]
 python_version = "3.11"
