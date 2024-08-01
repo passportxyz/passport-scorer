@@ -11,12 +11,13 @@ The scorer API module
 
 from typing import List, Optional
 
-from ceramic_cache.api.v1 import router as ceramic_cache_router_v1
 from django_ratelimit.exceptions import Ratelimited
 from ninja import NinjaAPI
 from ninja.openapi.schema import OpenAPISchema
 from ninja.operation import Operation
 from ninja.types import DictStrAny
+
+from ceramic_cache.api.v1 import router as ceramic_cache_router_v1
 from passport_admin.api import router as passport_admin_router
 from registry.api.v1 import feature_flag_router
 from registry.api.v1 import router as registry_router_v1
@@ -119,3 +120,11 @@ ceramic_cache_api_v1.add_router("", ceramic_cache_router_v1)
 
 passport_admin_api = NinjaAPI(urls_namespace="passport-admin", docs_url=None)
 passport_admin_api.add_router("", passport_admin_router)
+
+
+apis = [
+    registry_api_v1,
+    registry_api_v2,
+    ceramic_cache_api_v1,
+    passport_admin_api,
+]

@@ -10,9 +10,16 @@ on:
         description: "Environment to deploy to"
         type: string
         required: true
+      uptime-robot-monitor-dry-run:
+        type: choice
+        description: "Set to '--dry-run' to not actually create monitors"
+        default: ""
+        required: false
+        options:
+          - ""
+          - "--dry-run"
 
 jobs:
-
   test:
     runs-on: ubuntu-latest
     services:
@@ -80,17 +87,30 @@ jobs:
           IGNORE_UNMONITORED_URLS: op://DevOps/passport-scorer-api-review-env/ci/IGNORE_UNMONITORED_URLS
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
+          UPTIME_ROBOT_API_KEY: op://DevOps/uptime-robot-config/ci/UPTIME_ROBOT_API_KEY
+          REGISTRY_API_KEY: op://DevOps/uptime-robot-config/ci/REGISTRY_API_KEY
+          REGISTRY_ROUND_ID: op://DevOps/uptime-robot-config/ci/REGISTRY_ROUND_ID
+          REGISTRY_SCORER_ID: op://DevOps/uptime-robot-config/ci/REGISTRY_SCORER_ID
+          REGISTRY_ADDRESS: op://DevOps/uptime-robot-config/ci/REGISTRY_ADDRESS
+          CERAMIC_CACHE_JWT_TOKEN: op://DevOps/uptime-robot-config/ceramic-cache/JWT_TOKEN
+          CERAMIC_CACHE_ADDRESS: op://DevOps/uptime-robot-config/ceramic-cache/ADDRESS
+
       - name: URL Monitoring Check
         working-directory: ./api
         shell: bash
         env:
           CERAMIC_CACHE_SCORER_ID: ""
           SECRET_KEY: secret-test-value
-          UPTIME_ROBOT_READONLY_API_KEY: ${{ env.UPTIME_ROBOT_READONLY_API_KEY }}
-          IGNORE_UNMONITORED_URLS: ${{ env.IGNORE_UNMONITORED_URLS }}
-        run: python manage.py show_urls -f json > urls.json &&
-          python manage.py get_unmonitored_urls --urls urls.json --base-url https://api.scorer.gitcoin.co --out unmonitored.json --allow-paused True &&
-          [ -f unmonitored.json ] && [ `cat unmonitored.json | wc -m` -eq 2 ]
+          UPTIME_ROBOT_API_KEY: ${{ env.UPTIME_ROBOT_API_KEY }}
+
+          REGISTRY_API_KEY: ${{ env.REGISTRY_API_KEY }}
+          REGISTRY_ROUND_ID: ${{ env.REGISTRY_ROUND_ID }}
+          REGISTRY_SCORER_ID: ${{ env.REGISTRY_SCORER_ID }}
+          REGISTRY_ADDRESS: ${{ env.REGISTRY_ADDRESS }}
+          CERAMIC_CACHE_JWT_TOKEN: ${{ env.CERAMIC_CACHE_JWT_TOKEN }}
+          CERAMIC_CACHE_ADDRESS: ${{ env.CERAMIC_CACHE_ADDRESS }}
+
+        run: python manage.py get_unmonitored_urls --base-url https://api.scorer.gitcoin.co/ ${{ inputs.uptime-robot-monitor-dry-run }}
 
       - name: Run API unittests
         working-directory: ./api
