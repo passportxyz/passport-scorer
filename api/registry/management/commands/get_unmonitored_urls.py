@@ -309,10 +309,6 @@ class Command(BaseCommand):
             [f"{status}:1" for status in success_http_statues]
         )
 
-        # authenticate is a special case, we accept a 400 error since that is thrown if invalid signature is passed
-        if "authenticate" in url:
-            custom_http_statuses = "401:1_200:1_201:1_400:1"
-
         payload = {
             "api_key": settings.UPTIME_ROBOT_API_KEY,
             "format": "json",
