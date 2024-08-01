@@ -10,9 +10,16 @@ on:
         description: "Environment to deploy to"
         type: string
         required: true
+      uptime-robot-monitor-dry-run:
+        type: choice
+        description: "Set to '--dry-run' to not actually create monitors"
+        default: ""
+        required: false
+        options:
+          - ""
+          - "--dry-run"
 
 jobs:
-
   test:
     runs-on: ubuntu-latest
     services:
@@ -103,8 +110,7 @@ jobs:
           CERAMIC_CACHE_JWT_TOKEN: ${{ env.CERAMIC_CACHE_JWT_TOKEN }}
           CERAMIC_CACHE_ADDRESS: ${{ env.CERAMIC_CACHE_ADDRESS }}
 
-        run:
-          python manage.py get_unmonitored_urls --base-url https://api.scorer.gitcoin.co/
+        run: python manage.py get_unmonitored_urls --base-url https://api.scorer.gitcoin.co/ ${{ inputs.uptime-robot-monitor-dry-run }}
 
       - name: Run API unittests
         working-directory: ./api
