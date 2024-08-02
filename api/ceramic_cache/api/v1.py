@@ -4,10 +4,7 @@ import json
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, Type
 
-import api_logging as logging
-import tos.api
-import tos.schema
-from account.models import Account, Community, Nonce
+import requests
 from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -24,6 +21,12 @@ from ninja_jwt.authentication import InvalidToken
 # from ninja_jwt.schema import RefreshToken
 from ninja_jwt.settings import api_settings
 from ninja_jwt.tokens import RefreshToken, Token, TokenError
+
+import api_logging as logging
+import tos.api
+import tos.schema
+from account.models import Account, Community, Nonce
+from ceramic_cache.utils import get_utc_time
 from registry.api.utils import (
     is_valid_address,
 )
@@ -41,8 +44,6 @@ from registry.exceptions import (
 from registry.models import Score
 from stake.api import handle_get_gtc_stake
 from stake.schema import GetSchemaResponse
-
-from ceramic_cache.utils import get_utc_time
 
 from ..exceptions import (
     InternalServerException,
@@ -545,45 +546,38 @@ def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
             log.error("Invalid or expired nonce: '%s'", payload.nonce)
             raise FailedVerificationException(detail="Invalid nonce!")
 
-        if not validate_dag_jws_payload({"nonce": payload.nonce}, payload.payload):
-            log.error("Failed to validate nonce: '%s'", payload.nonce)
-            raise FailedVerificationException(detail="Invalid nonce or payload!")
+        res = requests.post(
+            settings.VERIFIER_URL,
+            json={
+                "signatures": payload.signatures,
+                "payload": payload.payload,
+                "cid": payload.cid,
+                "cacao": payload.cacao,
+                "issuer": payload.issuer,
+            },
+        )
+
+        if res.status_code == 200:
+            data = res.json()
+            if data.get("status") == "ok":
+                token = DbCacheToken()
+                token["did"] = payload.issuer
+                return {
+                    "access": str(token.access_token),
+                }
+
+        log.error(
+            "Failed to validate authentication payload (jws)! Response: %s\n%s",
+            res,
+            res.json(),
+        )
+        raise FailedVerificationException(
+            detail=f"Failed to authenticate request: {res.json()}"
+        )
 
     except Exception as exc:
         log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
         raise FailedVerificationException(detail="Invalid nonce or payload!") from exc
-
-    try:
-        try:
-            verify_jws(payload.dict())
-
-        except Exception as exc:
-            log.error(
-                "Failed to authenticate request (verify_jws failed): '%s'",
-                payload.dict(),
-                exc_info=True,
-            )
-            raise FailedVerificationException(
-                detail=f"Failed to authenticate request: {str(exc)}"
-            ) from exc
-
-        token = DbCacheToken()
-        token["did"] = payload.issuer
-
-        return {
-            "access": str(token.access_token),
-        }
-
-    except APIException:
-        # re-raise API exceptions
-        raise
-    except Exception as esc:
-        log.error(
-            "Failed authenticate request (verify_jws failed): '%s'",
-            payload.dict(),
-            exc_info=True,
-        )
-        raise APIException(detail=f"Failed authenticate request: {str(esc)}") from esc
 
 
 def get_detailed_score_response_for_address(
