@@ -10,14 +10,11 @@ on:
         description: "Environment to deploy to"
         type: string
         required: true
-      # uptime-robot-monitor-dry-run:
-      #   type: choice
-      #   description: "Set to '--dry-run' to not actually create monitors"
-      #   default: ""
-      #   required: false
-      #   options:
-      #     - ""
-      #     - "--dry-run"
+      uptime-robot-monitor-dry-run:
+        type: string
+        description: "Set to '--dry-run' to not actually create monitors"
+        default: ""
+        required: false
 
 jobs:
   test:
