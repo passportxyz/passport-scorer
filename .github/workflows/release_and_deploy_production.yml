@@ -64,6 +64,11 @@ jobs:
     needs: [ref, deploy-staging]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.ref.outputs.refspec }}
+          fetch-depth: 0
       - id: push-to-branch
         uses: passportxyz/gh-workflows/.github/actions/push_to_branch@v1
         with:
@@ -86,6 +91,11 @@ jobs:
     needs: [ref, deploy-production]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.ref.outputs.refspec }}
+          fetch-depth: 0
       - id: push-to-branch
         uses: passportxyz/gh-workflows/.github/actions/push_to_branch@v1
         with:
