@@ -2,6 +2,7 @@ from account.models import Community, EthAddressField
 from django.db import models
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+from enum import Enum
 
 
 class Passport(models.Model):
@@ -194,3 +195,22 @@ class GTCStakeEvent(models.Model):
                 name="gtc_staking_index_by_staker",
             ),
         ]
+
+
+class BatchRequestStatus(str, Enum):
+    PENDING = "PENDING"
+    DONE = "DONE"
+
+    def __str__(self):
+        return f"{self.value}"
+
+
+class BatchModelScoringRequest(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    s3_filename = models.CharField(max_length=100, null=False, blank=False)
+    model_list = models.CharField(max_length=100, null=False, blank=False)
+    status = models.CharField(
+        max_length=10,
+        choices=[(status.value, status) for status in BatchRequestStatus],
+        default=BatchRequestStatus.PENDING,
+    )

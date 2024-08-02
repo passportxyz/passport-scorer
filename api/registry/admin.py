@@ -1,6 +1,11 @@
 from asgiref.sync import async_to_sync
+from datetime import datetime, UTC
+import boto3
 from django.contrib import admin, messages
+from django import forms
 from registry.api.schema import SubmitPassportPayload
+from django.urls import path, reverse
+from django.shortcuts import redirect, render
 from registry.api.v1 import ahandle_submit_passport
 from registry.models import (
     Event,
@@ -9,8 +14,12 @@ from registry.models import (
     Passport,
     Score,
     Stamp,
+    BatchRequestStatus,
+    BatchModelScoringRequest,
 )
 from scorer.scorer_admin import ScorerModelAdmin
+
+s3 = boto3.client("s3")
 
 
 @admin.action(
@@ -148,3 +157,83 @@ class GTCStakeEventAdmin(ScorerModelAdmin):
         "staker",
         "event_type",
     ]
+
+
+class BatchModelScoringRequestCsvImportForm(forms.Form):
+    models = forms.CharField(
+        max_length=100,
+        required=True,
+        help_text='Example: "nft,ethereum_activity"',
+    )
+    address_list = forms.FileField(required=True)
+
+
+BULK_SCORE_REQUESTS_BUCKET_NAME = "bulk-score-requests"
+BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER = "address-lists"
+BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER = "model-score-results"
+ONE_HOUR = 60 * 60
+
+
+@admin.register(BatchModelScoringRequest)
+class BatchModelScoringRequestAdmin(ScorerModelAdmin):
+    change_list_template = "registry/batch_model_scoring_request_changelist.html"
+    list_display = ["id", "created_at"]
+    readonly_fields = [
+        field.name for field in BatchModelScoringRequest._meta.get_fields()
+    ] + ["address_list", "results"]
+
+    def address_list(self, obj):
+        object_name = f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/{obj.s3_filename}"
+        return s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": BULK_SCORE_REQUESTS_BUCKET_NAME, "Key": object_name},
+            ExpiresIn=ONE_HOUR,
+        )
+
+    def results(self, obj):
+        object_name = f"{BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER}/{obj.s3_filename}"
+        return s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": BULK_SCORE_REQUESTS_BUCKET_NAME, "Key": object_name},
+            ExpiresIn=ONE_HOUR,
+        )
+
+    def get_urls(self):
+        return [
+            path("import-csv/", self.import_csv),
+        ] + super().get_urls()
+
+    def import_csv(self, request):
+        if request.method == "POST":
+            s3 = boto3.client("s3")
+            # with open("FILE_NAME", "rb") as f:
+
+            # name after current date and time
+            filename = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+            object_name = f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/{filename}"
+
+            s3.upload_fileobj(
+                request.FILES["address_list"],
+                BULK_SCORE_REQUESTS_BUCKET_NAME,
+                object_name,
+            )
+
+            obj = BatchModelScoringRequest.objects.create(
+                model_list=request.POST.get("models"),
+                s3_filename=filename,
+                status=BatchRequestStatus.PENDING,
+            )
+
+            # self.message_user(
+            #     request,
+            #     "Imported %d addresses, skipped %d duplicates"
+            #     % (success_count, duplicate_count),
+            # )
+            return redirect(f"../{obj.pk}/change/")
+        form = BatchModelScoringRequestCsvImportForm()
+        payload = {"form": form}
+        return render(
+            request,
+            "registry/batch_model_scoring_request_csv_import_form.html",
+            payload,
+        )
