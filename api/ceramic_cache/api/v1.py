@@ -51,7 +51,7 @@ from ..exceptions import (
     TooManyStampsException,
 )
 from ..models import CeramicCache
-from ..utils import validate_dag_jws_payload, verify_jws
+from ..utils import validate_dag_jws_payload
 from .schema import (
     AccessTokenResponse,
     CacaoVerifySubmit,
@@ -546,6 +546,14 @@ def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
             log.error("Invalid or expired nonce: '%s'", payload.nonce)
             raise FailedVerificationException(detail="Invalid nonce!")
 
+        if not validate_dag_jws_payload({"nonce": payload.nonce}, payload.payload):
+            log.error("Failed to validate nonce: '%s'", payload.nonce)
+            raise FailedVerificationException(detail="Invalid nonce or payload!")
+    except Exception as exc:
+        log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
+        raise FailedVerificationException(detail="Invalid nonce or payload!") from exc
+
+    try:
         res = requests.post(
             settings.VERIFIER_URL,
             json={
@@ -571,13 +579,20 @@ def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
             res,
             res.json(),
         )
-        raise FailedVerificationException(
-            detail=f"Failed to authenticate request: {res.json()}"
-        )
+        raise FailedVerificationException(detail=f"JWS validation failed: {res.json()}")
 
-    except Exception as exc:
-        log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
-        raise FailedVerificationException(detail="Invalid nonce or payload!") from exc
+    except APIException:
+        # re-raise API exceptions
+        raise
+    except Exception as esc:
+        log.error(
+            "Failed to authenticate request (verify_jws failed): '%s'",
+            payload.dict(),
+            exc_info=True,
+        )
+        raise APIException(
+            detail=f"Failed to authenticate request: {str(esc)}"
+        ) from esc
 
 
 def get_detailed_score_response_for_address(
