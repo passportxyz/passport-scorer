@@ -8,7 +8,7 @@ on:
         required: false
 
   push:
-    branches: [main]
+    branches: [workflow-test]
 
 jobs:
   ref:
