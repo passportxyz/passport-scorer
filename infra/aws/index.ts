@@ -1670,7 +1670,7 @@ const verifier = pulumi
       privateAlbArnSuffix:
         privatprivateAlbArnSuffixeAlbHttpListenerArn as pulumi.Output<string>,
       albPriorityRule: 1011,
-      pathPatterns: ["/verify/*"],
+      pathPatterns: ["/verifier/*"],
       clusterArn: cluster.arn,
       clusterName: cluster.name,
       dockerImage: _verifierDockerImage,
