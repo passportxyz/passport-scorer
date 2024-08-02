@@ -3,9 +3,10 @@ import json
 from collections import namedtuple
 
 import pytest
-from account.models import Nonce
 from django.test import Client
 from ninja_jwt.tokens import AccessToken
+
+from account.models import Nonce
 
 pytestmark = pytest.mark.django_db
 
@@ -39,14 +40,19 @@ class TestAuthenticate:
         """
         We expect that the authenticate request:
         1. validates the payload against the nonce
-        2. makes a validation request for checkting the jws to verify_jws, and verify_jws does not throw
+        2. makes a validation request for checking the jws to th everifier returns success
 
         If both are ok, the test should succeed
         """
-        MockedRequestResponse = namedtuple("MockedRequestResponse", "status_code")
+
+        class MockedRequestResponse:
+            status_code = 200
+
+            def json(self):
+                return {"status": "ok"}
+
         with mocker.patch(
-            "ceramic_cache.api.v1.verify_jws",
-            return_value=None,
+            "ceramic_cache.api.v1.requests.post", return_value=MockedRequestResponse()
         ):
             with mocker.patch(
                 "ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True
@@ -122,14 +128,19 @@ class TestAuthenticate:
         """
         We expect that the authenticate request:
         1. validates the payload against the nonce
-        2. validates the jws with verify_jws
+        2. validates the jws with verifier
 
         The test should fail at step 2 if the validation returns anything other than 200
         """
 
+        class MockedRequestResponse:
+            status_code = 200
+
+            def json(self):
+                return {"status": "failure", "error": "something went wrong"}
+
         with mocker.patch(
-            "ceramic_cache.api.v1.verify_jws",
-            side_effect=Exception("JWS validation failed"),
+            "ceramic_cache.api.v1.requests.post", return_value=MockedRequestResponse()
         ):
             with mocker.patch(
                 "ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True
@@ -153,14 +164,19 @@ class TestAuthenticate:
         """
         We expect that the authenticate request:
         1. validates the payload against the nonce
-        2. validates the jws with verify_jws
+        2. validates the jws with the verifier
 
         The test should fail at step 2 if the validation throws
         """
 
+        class MockedRequestResponse:
+            status_code = 200
+
+            def json(self):
+                return {"status": "failure", "error": "something went wrong"}
+
         with mocker.patch(
-            "ceramic_cache.api.v1.verify_jws",
-            side_effect=Exception("this is broken"),
+            "ceramic_cache.api.v1.requests.post", return_value=MockedRequestResponse()
         ):
             with mocker.patch(
                 "ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True
@@ -177,4 +193,4 @@ class TestAuthenticate:
                 assert auth_response.status_code == 400
 
                 assert "detail" in json_data
-                assert json_data["detail"].startswith("Failed to authenticate request")
+                assert json_data["detail"].startswith("JWS validation failed")

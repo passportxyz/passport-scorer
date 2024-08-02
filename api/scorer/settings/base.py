@@ -453,3 +453,5 @@ INTERNAL_IPS = [
     "127.0.0.1",
     # ...
 ]
+
+VERIFIER_URL = env("VERIFIER_URL", default="http://localhost:8001/verifier/verify")

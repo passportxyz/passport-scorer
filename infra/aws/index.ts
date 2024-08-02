@@ -21,6 +21,7 @@ import { createScheduledTask } from "../lib/scorer/scheduledTasks";
 import { secretsManager } from "infra-libs";
 
 import * as op from "@1password/op-js";
+import { createVerifierService } from "./verifier";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -57,6 +58,7 @@ const publicDataDomain =
 
 const current = aws.getCallerIdentity({});
 const regionData = aws.getRegion({});
+
 export const dockerGtcPassportScorerImage = pulumi
   .all([current, regionData])
   .apply(
@@ -76,6 +78,13 @@ export const dockerGtcStakingIndexerImage = pulumi
   .apply(
     ([acc, region]) =>
       `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-indexer:${DOCKER_IMAGE_TAG}`
+  );
+
+export const verifierDockerImage = pulumi
+  .all([current, regionData])
+  .apply(
+    ([acc, region]) =>
+      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-verifier:${DOCKER_IMAGE_TAG}`
   );
 
 const redashDbUsername = op.read.parse(
@@ -617,6 +626,10 @@ const apiEnvironment = [
   {
     name: "ALLOWED_HOSTS",
     value: JSON.stringify([domain, "*"]),
+  },
+  {
+    name: "VERIFIER_URL",
+    value: "http://core-alb.private.gitcoin.co/verifier/verify",
   },
 ].sort(secretsManager.sortByName);
 
@@ -1478,6 +1491,10 @@ const lambdaSettings = {
       name: "SCORER_SERVER_SSM_ARN",
       value: scorerSecret.arn,
     },
+    {
+      name: "VERIFIER_URL",
+      value: "http://core-alb.private.gitcoin.co/verifier/verify",
+    },
   ].sort(secretsManager.sortByName),
   roleAttachments: httpRoleAttachments,
   role: httpLambdaRole,
@@ -1485,6 +1502,7 @@ const lambdaSettings = {
   alb: alb,
 };
 
+// Create alarms for the load balancer
 createLoadBalancerAlarms(
   "scorer-service",
   alb.arnSuffix,
@@ -1492,6 +1510,7 @@ createLoadBalancerAlarms(
   pagerdutyTopic
 );
 
+// Manage Lamba services
 buildHttpLambdaFn(
   {
     ...lambdaSettings,
@@ -1633,3 +1652,31 @@ buildQueueLambdaFn({
   role: queueLambdaRole,
   queue: rescoreQueue,
 });
+
+// VERIFIER
+const privateAlbHttpListenerArn = coreInfraStack.getOutput(
+  "privateAlbHttpListenerArn"
+);
+const privatprivateAlbArnSuffixeAlbHttpListenerArn = coreInfraStack.getOutput(
+  "privateAlbArnSuffix"
+);
+
+const verifier = pulumi
+  .all([verifierDockerImage])
+  .apply(([_verifierDockerImage]) =>
+    createVerifierService({
+      vpcId: vpcID as pulumi.Output<string>,
+      albListenerArn: privateAlbHttpListenerArn as pulumi.Output<string>,
+      privateAlbArnSuffix:
+        privatprivateAlbArnSuffixeAlbHttpListenerArn as pulumi.Output<string>,
+      albPriorityRule: 1011,
+      pathPatterns: ["/verifier/*"],
+      clusterArn: cluster.arn,
+      clusterName: cluster.name,
+      dockerImage: _verifierDockerImage,
+      vpcPrivateSubnets: vpcPrivateSubnetIds as pulumi.Output<string[]>,
+      snsTopicArn: pagerdutyTopic.arn,
+    })
+  );
+
+export const verifierTaskArn = verifier.task.arn;

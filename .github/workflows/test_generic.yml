@@ -11,13 +11,10 @@ on:
         type: string
         required: true
       uptime-robot-monitor-dry-run:
-        type: choice
+        type: string
         description: "Set to '--dry-run' to not actually create monitors"
         default: ""
         required: false
-        options:
-          - ""
-          - "--dry-run"
 
 jobs:
   test:
