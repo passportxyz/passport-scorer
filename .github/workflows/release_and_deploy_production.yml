@@ -62,6 +62,8 @@ jobs:
   deploy-interface-to-staging:
     name: Push code to staging branch
     needs: [ref, deploy-staging]
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -89,6 +91,8 @@ jobs:
   deploy-interface-to-production:
     name: Push code to branch
     needs: [ref, deploy-production]
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
