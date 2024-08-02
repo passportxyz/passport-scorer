@@ -11,12 +11,25 @@ import("dids").then((dids) => {
         const Cacao = didtools.Cacao;
         const CID = multiformats.CID;
 
-        app.post("/verify", (req, res) => {
+        app.get("/verifier/health", (req, res) => {
+          res.json({ health: "ok" });
+        });
+
+        app.post("/verifier/verify", (req, res) => {
           const jws_restored = {
             signatures: req.body.signatures,
             payload: req.body.payload,
             cid: CID.decode(new Uint8Array(req.body.cid)),
           };
+
+          if (!req.body.issuer || req.body.issuer === "") {
+            res.status(400);
+            const msg =
+              "Verification failed, 'issuer' is required in body!";
+            console.error(msg);
+            res.json({ status: "failed", error: msg });
+            return;
+          }
 
           Cacao.fromBlockBytes(new Uint8Array(req.body.cacao)).then((cacao) => {
             const did = new DID({
