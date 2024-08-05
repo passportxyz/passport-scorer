@@ -1,25 +1,41 @@
-from asgiref.sync import async_to_sync
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+
 import boto3
-from django.contrib import admin, messages
+from asgiref.sync import async_to_sync
 from django import forms
-from registry.api.schema import SubmitPassportPayload
-from django.urls import path, reverse
+from django.contrib import admin, messages
 from django.shortcuts import redirect, render
+from django.urls import path
+
+from registry.api.schema import SubmitPassportPayload
 from registry.api.v1 import ahandle_submit_passport
 from registry.models import (
+    BatchModelScoringRequest,
+    BatchRequestStatus,
     Event,
     GTCStakeEvent,
     HashScorerLink,
     Passport,
     Score,
     Stamp,
-    BatchRequestStatus,
-    BatchModelScoringRequest,
 )
 from scorer.scorer_admin import ScorerModelAdmin
+from scorer.settings import (
+    BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER,
+    BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
+    BULK_SCORE_REQUESTS_BUCKET_NAME,
+)
 
-s3 = boto3.client("s3")
+ONE_HOUR = 60 * 60
+
+_s3_client = None
+
+
+def get_s3_client():
+    global _s3_client
+    if not _s3_client:
+        _s3_client = boto3.client("s3")
+    return _s3_client
 
 
 @admin.action(
@@ -46,7 +62,7 @@ def recalculate_user_score(modeladmin, request, queryset):
 
         modeladmin.message_user(
             request,
-            f"Have succesfully rescored: {rescored_ids}",
+            f"Have successfully rescored: {rescored_ids}",
             level=messages.SUCCESS,
         )
         if failed_rescoring:
@@ -168,12 +184,6 @@ class BatchModelScoringRequestCsvImportForm(forms.Form):
     address_list = forms.FileField(required=True)
 
 
-BULK_SCORE_REQUESTS_BUCKET_NAME = "bulk-score-requests"
-BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER = "address-lists"
-BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER = "model-score-results"
-ONE_HOUR = 60 * 60
-
-
 @admin.register(BatchModelScoringRequest)
 class BatchModelScoringRequestAdmin(ScorerModelAdmin):
     change_list_template = "registry/batch_model_scoring_request_changelist.html"
@@ -184,15 +194,18 @@ class BatchModelScoringRequestAdmin(ScorerModelAdmin):
 
     def address_list(self, obj):
         object_name = f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/{obj.s3_filename}"
-        return s3.generate_presigned_url(
+        return get_s3_client().generate_presigned_url(
             "get_object",
             Params={"Bucket": BULK_SCORE_REQUESTS_BUCKET_NAME, "Key": object_name},
             ExpiresIn=ONE_HOUR,
         )
 
     def results(self, obj):
+        if obj.status != BatchRequestStatus.DONE:
+            return None
+
         object_name = f"{BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER}/{obj.s3_filename}"
-        return s3.generate_presigned_url(
+        return get_s3_client().generate_presigned_url(
             "get_object",
             Params={"Bucket": BULK_SCORE_REQUESTS_BUCKET_NAME, "Key": object_name},
             ExpiresIn=ONE_HOUR,
@@ -205,14 +218,10 @@ class BatchModelScoringRequestAdmin(ScorerModelAdmin):
 
     def import_csv(self, request):
         if request.method == "POST":
-            s3 = boto3.client("s3")
-            # with open("FILE_NAME", "rb") as f:
-
-            # name after current date and time
             filename = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
             object_name = f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/{filename}"
 
-            s3.upload_fileobj(
+            get_s3_client().upload_fileobj(
                 request.FILES["address_list"],
                 BULK_SCORE_REQUESTS_BUCKET_NAME,
                 object_name,
@@ -224,12 +233,8 @@ class BatchModelScoringRequestAdmin(ScorerModelAdmin):
                 status=BatchRequestStatus.PENDING,
             )
 
-            # self.message_user(
-            #     request,
-            #     "Imported %d addresses, skipped %d duplicates"
-            #     % (success_count, duplicate_count),
-            # )
             return redirect(f"../{obj.pk}/change/")
+
         form = BatchModelScoringRequestCsvImportForm()
         payload = {"form": form}
         return render(

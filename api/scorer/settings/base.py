@@ -454,4 +454,14 @@ INTERNAL_IPS = [
     # ...
 ]
 
+BULK_SCORE_REQUESTS_BUCKET_NAME = env(
+    "BULK_SCORE_REQUESTS_BUCKET_NAME", default="bulk-score-requests"
+)
+BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER = env(
+    "BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER", default="address-lists"
+)
+BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER = env(
+    "BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER", default="model-score-results"
+)
+
 VERIFIER_URL = env("VERIFIER_URL", default="http://localhost:8001/verifier/verify")
