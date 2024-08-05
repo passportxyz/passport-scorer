@@ -3,9 +3,10 @@ Admin for the ceramic cache app
 """
 
 from django.contrib import admin, messages
+
 from scorer.scorer_admin import ScorerModelAdmin
 
-from .models import CeramicCache
+from .models import CeramicCache, Revocation
 
 
 @admin.action(
@@ -50,9 +51,10 @@ class CeramicCacheAdmin(ScorerModelAdmin):
         "deleted_at",
         "compose_db_save_status",
         "compose_db_stream_id",
+        "proof_value",
     )
     list_filter = ("deleted_at", "compose_db_save_status")
-    search_fields = ("address__exact", "compose_db_stream_id__exact")
+    search_fields = ("address__exact", "compose_db_stream_id__exact", "proof_value")
     search_help_text = (
         "This will perform a search by 'address' and 'compose_db_stream_id'"
     )
@@ -67,3 +69,9 @@ class CeramicCacheAdmin(ScorerModelAdmin):
 class AccountAPIKeyAdmin(ScorerModelAdmin):
     list_display = ("id", "name", "prefix", "created", "expiry_date", "revoked")
     search_fields = ("id", "name", "prefix")
+
+
+@admin.register(Revocation)
+class RevocationAdmin(ScorerModelAdmin):
+    list_display = ("id", "proof_value", "ceramic_cache")
+    search_fields = ("proof_value",)

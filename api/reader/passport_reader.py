@@ -1,8 +1,9 @@
 # libs for processing the deterministic stream location
 from typing import Dict, List
 
-import api_logging as logging
 from asgiref.sync import async_to_sync
+
+import api_logging as logging
 from ceramic_cache.models import CeramicCache
 
 log = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ def get_did(address, network="1"):
 
 async def aget_passport(address: str = "") -> Dict:
     db_stamp_list = CeramicCache.objects.filter(
-        address=address, deleted_at__isnull=True
+        address=address, deleted_at__isnull=True, revocation__isnull=True
     )
 
     stamps_by_provider = dict()

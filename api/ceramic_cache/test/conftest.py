@@ -1,5 +1,6 @@
 import pytest
 from django.conf import settings
+
 from scorer.test.conftest import (
     api_key,  # noqa
     sample_address,  # noqa
@@ -28,9 +29,9 @@ def sample_providers():
 @pytest.fixture
 def sample_stamps():
     return [
-        {"stamp": 1},
-        {"stamp": 2},
-        {"stamp": 3},
+        {"stamp": 1, "proof": {"proofValue": "test1"}},
+        {"stamp": 2, "proof": {"proofValue": "test2"}},
+        {"stamp": 3, "proof": {"proofValue": "test3"}},
     ]
 
 

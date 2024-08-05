@@ -29,7 +29,7 @@ good_stamp = {
             "proofPurpose": "assertionMethod",
             "verificationMethod": "did:key:z6Mkwg65BN2xg6qicufGYR9Sxn3NWwfBxRFrKVEPrZXVAx3z#z6Mkwg65BN2xg6qicufGYR9Sxn3NWwfBxRFrKVEPrZXVAx3z",
             "created": "2023-10-18T15:45:53.706Z",
-            "jws": "iamasignature",
+            "proofValue": "iamasignature",
         },
         "expirationDate": "2024-01-16T16:45:53.705Z",
     },

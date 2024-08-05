@@ -3,9 +3,10 @@ Module for defining models for Passport Admin.
 Includes models for PassportBanner and DismissedBanners.
 """
 
-from account.models import Community, EthAddressField
 from django.conf import settings
 from django.db import models
+
+from account.models import Community, EthAddressField
 
 APPLICATION_CHOICES = [
     ("passport", "Passport"),
@@ -98,3 +99,10 @@ class NotificationStatus(models.Model):
     eth_address = EthAddressField(
         db_index=True
     )  # The account / eth address that dissmised the notification. Required to track the dismissed notifications / user in case of global notifications.
+
+
+class LastScheduledRun(models.Model):
+    name = models.CharField(
+        max_length=255, unique=True, blank=False, null=False, db_index=True
+    )
+    last_run = models.DateTimeField(blank=False, null=False)

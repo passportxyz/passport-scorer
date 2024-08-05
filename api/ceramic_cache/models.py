@@ -2,9 +2,10 @@
 
 from enum import IntEnum
 
-from account.models import EthAddressField
 from django.db import models
 from django.db.models import Q, UniqueConstraint
+
+from account.models import EthAddressField
 
 
 class CeramicCache(models.Model):
@@ -27,6 +28,10 @@ class CeramicCache(models.Model):
         blank=True,
         null=True,
         help_text="This is the timestamp that this DB record was created (it is not necessarily the stamp issuance timestamp)",
+    )
+
+    proof_value = models.CharField(
+        null=False, blank=False, max_length=256, db_index=True
     )
 
     # NOTE! auto_now is here to make tests easier, but it is not
@@ -106,3 +111,23 @@ class CeramicCacheLegacy(models.Model):
 
     class Meta:
         unique_together = ["address", "provider"]
+
+
+class Revocation(models.Model):
+    proof_value = models.CharField(
+        null=False, blank=False, max_length=256, db_index=True, unique=True
+    )
+
+    # This is to provide efficient filtering (allows use of JOIN)
+    ceramic_cache = models.OneToOneField(
+        CeramicCache,
+        on_delete=models.CASCADE,
+        related_name="revocation",
+        null=False,
+        blank=False,
+        db_index=True,
+        unique=True,
+    )
+
+    def __str__(self):
+        return f"Revocation #{self.pk}, proof_value={self.proof_value}"

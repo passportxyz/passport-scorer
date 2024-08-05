@@ -2,9 +2,10 @@ import json
 from datetime import datetime
 
 import pytest
+from django.test import Client
+
 from ceramic_cache.api.v1 import get_address_from_did
 from ceramic_cache.models import CeramicCache
-from django.test import Client
 
 pytestmark = pytest.mark.django_db
 
@@ -78,7 +79,7 @@ class TestBulkStampUpdates:
             bulk_payload.append(
                 {
                     "provider": sample_providers[i],
-                    "stamp": {"updated": True},
+                    "stamp": {"updated": True, "proof": {"proofValue": "updated"}},
                 }
             )
 
@@ -95,7 +96,7 @@ class TestBulkStampUpdates:
 
         assert len(stamps) == len(sample_providers)
         for i in range(0, len(sample_providers)):
-            assert stamps[i]["stamp"] == {"updated": True}
+            assert stamps[i]["stamp"]["updated"] == True
             assert stamps[i]["id"] is not None
 
     def test_bulk_patch(
@@ -150,7 +151,7 @@ class TestBulkStampUpdates:
             bulk_payload.append(
                 {
                     "provider": sample_providers[i],
-                    "stamp": {"updated": True},
+                    "stamp": {"updated": True, "proof": {"proofValue": "test"}},
                 }
             )
 

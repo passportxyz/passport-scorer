@@ -1443,6 +1443,22 @@ export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
     scorerSecretManagerArn: scorerSecret.arn,
   });
 
+export const coinbaseRevocationCheck = createScheduledTask({
+  name: "coinbase-revocation-check",
+  config: {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: ["python", "manage.py", "check_coinbase_revocations"].join(" "),
+    scheduleExpression: "cron(0 */6 ? * * *)", // Run the task every 6 hours
+    alertTopic: pagerdutyTopic,
+  },
+  environment: apiEnvironment,
+  secrets: apiSecrets,
+  alarmPeriodSeconds: 86400, // 24h max period
+  enableInvocationAlerts: true,
+  scorerSecretManagerArn: scorerSecret.arn,
+});
+
 const exportVals = createScoreExportBucketAndDomain(
   publicDataDomain,
   publicDataDomain,
