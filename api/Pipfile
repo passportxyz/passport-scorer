@@ -46,6 +46,7 @@ uvarint = "*"
 django-ace = "*"
 async-timeout = "*"
 aiohttp = "*"
+freezegun = "*"
 
 [dev-packages]
 black = "*"
@@ -58,7 +59,6 @@ pytest-bdd = "*"
 pytest-mock = "*"
 django-stubs = "*"
 pandas = "*"
-freezegun = "*"
 
 [requires]
 python_version = "3.11"
