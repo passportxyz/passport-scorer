@@ -103,7 +103,7 @@ export function createScorerECSService({
       image: config.dockerImageScorer,
       memory: config.memory ? config.memory : 4096,
       cpu: config.cpu ? config.cpu : 4096,
-      portMappings: [{ containerPort: 80, hostPort: 80 }],
+      portMappings: [{ containerPort: 80, hostPort: 80, protocol: "tcp" }],
       command: [
         "gunicorn",
         "-w",
@@ -575,7 +575,6 @@ type IndexerServiceParams = {
   environment: secretsManager.EnvironmentVar[];
   dockerGtcStakingIndexerImage: Input<string>;
 };
-
 
 export function createIndexerService(
   {

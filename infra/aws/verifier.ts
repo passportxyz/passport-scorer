@@ -188,6 +188,7 @@ export const createVerifierService = ({
         {
           containerPort: 80,
           hostPort: 80,
+          protocol: "tcp",
         },
       ],
       logConfiguration: {
