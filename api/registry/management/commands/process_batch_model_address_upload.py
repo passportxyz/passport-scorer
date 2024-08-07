@@ -42,7 +42,7 @@ class Command(BaseCommand):
                     bytes = BytesIO(file.read())
                     text = TextIOWrapper(bytes, encoding="utf-8")
                     csv_data = csv.reader(text)
-                    row_count = sum(1 for row in csv_data)
+                    total_rows = sum(1 for row in csv_data)
 
                     text.seek(0)
                     csv_data = csv.reader(text)
@@ -50,14 +50,19 @@ class Command(BaseCommand):
                     model_list = request.model_list
 
                     results = []
+                    processed_rows = 0
                     for batch in self.process_csv_in_batches(csv_data):
                         batch_results = await self.get_analysis(batch, model_list)
                         results.extend(batch_results)
+                        processed_rows += len(batch_results)
+                        progress = int((processed_rows / total_rows) * 100)
+                        await self.update_progress(request, progress)
 
                     await self.create_and_upload_results_csv(request.id, results)
 
                 # Update status to COMPLETED
                 request.status = BatchRequestStatus.DONE
+                request.progress = 100
                 await sync_to_async(request.save)()
 
                 self.stdout.write(
@@ -70,6 +75,11 @@ class Command(BaseCommand):
                 # Optionally, update status to ERROR
                 request.status = BatchRequestStatus.ERROR
                 await sync_to_async(request.save)()
+
+    async def update_progress(self, request, progress):
+        request.progress = progress
+        await sync_to_async(request.save)()
+        self.stdout.write(f"Updated progress for request {request.id}: {progress}%")
 
     def download_from_s3(self, s3_filename):
         try:
