@@ -144,16 +144,41 @@ const alarmConfigurations: AlarmConfigurations = {
     percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
     percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
     targetResponseTime: 2, // seconds
+    period: 60,
+    datapointsToAlarm: 3,
+    evaluationPeriods: 5,
   },
   "passport-analysis-GET-0": {
     percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
     percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
     targetResponseTime: 20, // 20 seconds - this is a slower request
+    period: 60,
+    datapointsToAlarm: 3,
+    evaluationPeriods: 5,
   },
   "cc-v1-score-POST-0": {
     percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
     percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
-    targetResponseTime: 5, // 5 seconds - this is a slower request
+    targetResponseTime: 2,
+    period: 60,
+    datapointsToAlarm: 3,
+    evaluationPeriods: 5,
+  },
+  "cc-v1-st-bulk-PATCH-0": {
+    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
+    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
+    targetResponseTime: 2,
+    period: 60,
+    datapointsToAlarm: 10,
+    evaluationPeriods: 15,
+  },
+  "submit-passport-0": {
+    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
+    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
+    targetResponseTime: 2,
+    period: 60,
+    datapointsToAlarm: 10,
+    evaluationPeriods: 15,
   },
 };
 
