@@ -1742,7 +1742,7 @@ const createdTask = createTask({
 });
 
 export const s3TriggeredECSTask = createS3InitiatedECSTask(
-  "bulk-scorer-requests-mbd-bucket",
+  "bulk-score-requests",
   cluster.arn,
   createdTask.task.taskDefinition.arn,
   vpcPrivateSubnetIds,
