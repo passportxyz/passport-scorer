@@ -5,6 +5,9 @@ import { Topic } from "@pulumi/aws/sns";
 
 export type TargetGroupAlarmsConfiguration = {
   targetResponseTime: number;
+  datapointsToAlarm: number;
+  evaluationPeriods: number;
+  period: number;
   percentHTTPCodeTarget4XX: number; // 0..1 value for target error codes
   percentHTTPCodeTarget5XX: number; // 0..1 value for target error codes
 };
@@ -18,6 +21,8 @@ export type AlarmConfigurations = {
   default: TargetGroupAlarmsConfiguration;
   "passport-analysis-GET-0": TargetGroupAlarmsConfiguration;
   "cc-v1-score-POST-0": TargetGroupAlarmsConfiguration;
+  "cc-v1-st-bulk-PATCH-0": TargetGroupAlarmsConfiguration;
+  "submit-passport-0": TargetGroupAlarmsConfiguration;
 };
 
 export function createLoadBalancerAlarms(
