@@ -22,8 +22,8 @@ import { secretsManager } from "infra-libs";
 
 import * as op from "@1password/op-js";
 import { createVerifierService } from "./verifier";
-import { createS3InitiatedECSTask } from "../lib/scorer/s3_initiated_ecs_task";
 import { BucketNotification } from "@pulumi/aws/s3";
+import { createS3InitiatedECSTask } from "../lib/scorer/s3_initiated_ecs_task";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -1726,47 +1726,12 @@ const verifier = pulumi
 
 export const verifierTaskArn = verifier.task.arn;
 
-createScheduledTask({
-  name: "frequent-allo-scorer-data-dump-6608",
-  config: {
-    ...baseScorerServiceConfig,
-    securityGroup: secgrp,
-    command: [
-      "python",
-      "manage.py",
-      "scorer_dump_data",
-      "--batch-size=1000",
-      "--database=read_replica_analytics",
-      "--config",
-      "'" +
-        JSON.stringify([
-          {
-            name: "registry.Score",
-            filter: { passport__community_id: 6608 },
-            select_related: ["passport"],
-          },
-        ]) +
-        "'",
-      `--s3-uri=s3://${publicDataDomain}/passport_scores/6608/`,
-      // "--summary-extra-args",
-      // JSON.stringify({ ACL: "public-read" }),
-    ].join(" "),
-    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-    alertTopic: pagerdutyTopic,
-  },
-  environment: apiEnvironment,
-  secrets: apiSecrets,
-  alarmPeriodSeconds: 3600, // 1h in seconds
-  enableInvocationAlerts: true,
-  scorerSecretManagerArn: scorerSecret.arn,
-});
-
-const { task: mbdTaskDefinition } = createTask({
+const createdTask = createTask({
   name: "batch-score-mbd-data",
   config: {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
-    command: ["python", "manage.py", "tbd_tbd_tbd"].join(" "),
+    command: ["python", "manage.py", "get_unmonitored_urls"].join(" "),
     // TODO Remove
     scheduleExpression: "", // Run the task every 30 min
     alertTopic: pagerdutyTopic,
@@ -1778,8 +1743,9 @@ const { task: mbdTaskDefinition } = createTask({
 
 export const s3TriggeredECSTask = createS3InitiatedECSTask(
   "bulk-scorer-requests-mbd-bucket",
-  // cluster.arn.apply((arn) => arn)),
-  mbdTaskDefinition.arn,
+  cluster.arn,
+  createdTask.task.taskDefinition.arn,
   vpcPrivateSubnetIds,
-  secgrp,
+  [secgrp.id],
+  createdTask.eventsStsAssumeRole.arn,
 );
