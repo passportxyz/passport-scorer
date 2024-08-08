@@ -27,16 +27,17 @@ class Command(BaseCommand):
 
     async def async_handle(self, *args, **options):
         pending_requests = await sync_to_async(list)(
-            BatchModelScoringRequest.objects.filter(status=BatchRequestStatus.PENDING)
+            BatchModelScoringRequest.objects.filter(
+                status=BatchRequestStatus.PENDING.value
+            )
         )
 
         for request in pending_requests:
             try:
                 self.stdout.write(f"Processing request: {request.id}")
 
-                (total_size, file) = await sync_to_async(self.download_from_s3)(
-                    request.s3_filename
-                )
+                file = await sync_to_async(self.download_from_s3)(request.s3_filename)
+
                 if file:
                     self.stdout.write(self.style.SUCCESS("Got stream, processing CSV"))
                     bytes = BytesIO(file.read())
@@ -89,7 +90,7 @@ class Command(BaseCommand):
                 Bucket=BULK_SCORE_REQUESTS_BUCKET_NAME,
                 Key=f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/{s3_filename}",
             )
-            return response["ContentLength"], response["Body"]
+            return response["Body"]
         except Exception as e:
             raise CommandError(f"Failed to download file from S3: {str(e)}")
 
