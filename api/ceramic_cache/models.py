@@ -115,7 +115,7 @@ class CeramicCacheLegacy(models.Model):
 
 class Revocation(models.Model):
     proof_value = models.CharField(
-        null=False, blank=False, max_length=256, db_index=True, unique=True
+        null=False, blank=False, max_length=256, db_index=True
     )
 
     # This is to provide efficient filtering (allows use of JOIN)
