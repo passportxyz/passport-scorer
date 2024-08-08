@@ -58,7 +58,9 @@ class Command(BaseCommand):
                         progress = int((processed_rows / total_rows) * 100)
                         await self.update_progress(request, progress)
 
-                    await self.create_and_upload_results_csv(request.id, results)
+                    await self.create_and_upload_results_csv(
+                        request.id, results, request.s3_filename
+                    )
 
                 # Update status to COMPLETED
                 request.status = BatchRequestStatus.DONE
@@ -120,7 +122,7 @@ class Command(BaseCommand):
             )
             return address, None
 
-    async def create_and_upload_results_csv(self, request_id, results):
+    async def create_and_upload_results_csv(self, request_id, results, filename):
         csv_buffer = StringIO()
         csv_writer = csv.writer(csv_buffer)
         csv_writer.writerow(["Address", "Result"])  # Header row
@@ -129,11 +131,10 @@ class Command(BaseCommand):
 
         # Upload to S3
         s3_client = get_s3_client()
-        s3_filename = f"results_{request_id}.csv"
         await sync_to_async(s3_client.put_object)(
             Bucket=BULK_SCORE_REQUESTS_BUCKET_NAME,
-            Key=f"{BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER}/{s3_filename}",
+            Key=f"{BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER}/{filename}",
             Body=csv_buffer.getvalue().encode("utf-8"),
             ContentType="text/csv",
         )
-        self.stdout.write(self.style.SUCCESS(f"Uploaded results to S3: {s3_filename}"))
+        self.stdout.write(self.style.SUCCESS(f"Uploaded results to S3: {filename}"))
