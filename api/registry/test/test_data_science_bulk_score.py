@@ -40,7 +40,7 @@ def batch_requests():
     return requests
 
 
-api_url = "/registry/v2/analysis/internal"
+api_url = "/internal/analysis/internal"
 
 
 def test_get_batch_analysis_stats_success(client, mock_s3_client, batch_requests):

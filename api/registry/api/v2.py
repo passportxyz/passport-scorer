@@ -49,8 +49,6 @@ log = logging.getLogger(__name__)
 
 router = Router()
 
-analytics_router = Router()
-
 
 @router.get(
     "/signing-message",
@@ -330,6 +328,9 @@ def get_score(request, address: str, scorer_id: int) -> DetailedScoreResponse:
     return v1.get_score(request, address, scorer_id)
 
 
+internal_router = Router()
+
+
 class DataScienceApiKey(APIKeyHeader):
     param_name = "AUTHORIZATION"
 
@@ -349,7 +350,7 @@ class BatchResponse(Schema):
     percentage_complete: int
 
 
-@router.get(
+@internal_router.get(
     "/analysis/internal",
     auth=data_science_auth,
     response={
@@ -359,7 +360,6 @@ class BatchResponse(Schema):
     },
     summary="Retrieve batch scoring status and result",
     description="Retrieve batch scoring status and result",
-    tags=["Passport Analysis"],
 )
 def get_batch_analysis_stats(request, limit: int = 10) -> list[BatchResponse]:
     requests = BatchModelScoringRequest.objects.order_by("-created_at")[:limit]
