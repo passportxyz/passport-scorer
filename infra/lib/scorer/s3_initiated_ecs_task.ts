@@ -20,6 +20,15 @@ export function createS3InitiatedECSTask(
     eventbridge: true,
   });
 
+  const folders = ["address-lists/", "model-score-results/"];
+  folders.forEach((folder) => {
+    new aws.s3.BucketObject(`${folder}`, {
+      bucket: bucket.id,
+      key: folder,
+      content: "",
+    });
+  });
+
   // Create EventBridge rule
   const rule = new aws.cloudwatch.EventRule("s3-to-ecs-rule", {
     eventPattern: JSON.stringify({
@@ -29,6 +38,11 @@ export function createS3InitiatedECSTask(
         bucket: {
           name: [bucketName],
         },
+        object: {
+          key: [{
+            prefix: "address-lists/"
+          }]
+        }
       },
     }),
   });
