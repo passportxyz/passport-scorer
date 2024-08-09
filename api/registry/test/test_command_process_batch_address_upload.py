@@ -24,8 +24,14 @@ class TestProcessBatchModelAddressUploads(TransactionTestCase):
         # Create a mock for handle_get_analysis
         mock_handle_get_analysis = AsyncMock(return_value={"score": 75})
 
-        with patch("registry.admin.get_s3_client", return_value=mock_s3_client):
-            with patch("passport.api.handle_get_analysis", mock_handle_get_analysis):
+        with patch(
+            "registry.management.commands.process_batch_model_address_upload.get_s3_client",
+            return_value=mock_s3_client,
+        ):
+            with patch(
+                "registry.management.commands.process_batch_model_address_upload.handle_get_analysis",
+                mock_handle_get_analysis,
+            ):
                 for i in range(2):
                     BatchModelScoringRequest.objects.create(
                         status=BatchRequestStatus.PENDING.value,
@@ -69,20 +75,28 @@ class TestProcessBatchModelAddressUploads(TransactionTestCase):
         )
 
     # If you comment out the following test, the first test will fail :()
-    # def test_handle_error_during_processing(self):
-    #     with patch('registry.admin.get_s3_client') as mock_get_s3_client:
-    #         mock_get_s3_client.return_value.get_object.side_effect = Exception("Test error")
+    def test_handle_error_during_processing(self):
+        with patch(
+            "registry.management.commands.process_batch_model_address_upload.get_s3_client"
+        ) as mock_get_s3_client:
+            mock_get_s3_client.return_value.get_object.side_effect = Exception(
+                "Test error"
+            )
 
-    #         # Create a pending request
-    #         BatchModelScoringRequest.objects.create(
-    #             status=BatchRequestStatus.PENDING.value,
-    #             s3_filename="test_file.csv",
-    #             model_list=["model1", "model2"]
-    #         )
+            # Create a pending request
+            BatchModelScoringRequest.objects.create(
+                status=BatchRequestStatus.PENDING.value,
+                s3_filename="test_file.csv",
+                model_list=["model1", "model2"],
+            )
 
-    #         # Call the command
-    #         call_command('process_batch_model_address_upload')
+            # Call the command
+            call_command("process_batch_model_address_upload")
 
-    #         # Refresh the request from the database
-    #         request = BatchModelScoringRequest.objects.first()
-    #         self.assertEqual(request.status, BatchRequestStatus.ERROR.value, f"Expected status ERROR, but got {request.status}")
+            # Refresh the request from the database
+            request = BatchModelScoringRequest.objects.first()
+            self.assertEqual(
+                request.status,
+                BatchRequestStatus.ERROR.value,
+                f"Expected status ERROR, but got {request.status}",
+            )
