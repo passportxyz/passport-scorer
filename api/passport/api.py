@@ -102,8 +102,11 @@ async def fetch_all(urls, payload):
 async def handle_get_analysis(
     address: str,
     model_list: str = None,
-    allow_multiple_models: bool = settings.ONLY_ONE_MODEL,
+    only_one_model=None,
 ) -> PassportAnalysisResponse:
+    only_one_model = (
+        only_one_model if only_one_model is not None else settings.ONLY_ONE_MODEL
+    )
     # Set default in case nothing was selected by the user
     if not model_list or model_list.strip() == "":
         model_list = settings.MODEL_ENDPOINTS_DEFAULT
@@ -113,7 +116,7 @@ async def handle_get_analysis(
     if not is_valid_address(address):
         raise InvalidAddressException()
 
-    if allow_multiple_models and len(models) > 1:
+    if only_one_model and len(models) > 1:
         raise BadModelNameError(
             detail="Currently, only one model name can be provided at a time"
         )
