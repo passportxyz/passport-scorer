@@ -45,7 +45,7 @@ def test_get_batch_analysis_stats_success(client, batch_requests, mocker):
     mock_s3_client.generate_presigned_url.return_value = (
         "https://example.com/presigned-url"
     )
-    with mocker.patch("registry.admin.get_s3_client", return_value=mock_s3_client):
+    with mocker.patch("registry.api.v2.get_s3_client", return_value=mock_s3_client):
         response = client.get(api_url, HTTP_AUTHORIZATION=settings.DATA_SCIENCE_API_KEY)
 
         assert response.status_code == 200
@@ -79,7 +79,7 @@ def test_get_batch_analysis_stats_with_limit(client, batch_requests, mocker):
     mock_s3_client.generate_presigned_url.return_value = (
         "https://example.com/presigned-url"
     )
-    with mocker.patch("registry.admin.get_s3_client", return_value=mock_s3_client):
+    with mocker.patch("registry.api.v2.get_s3_client", return_value=mock_s3_client):
         response = client.get(
             f"{api_url}?limit=5", HTTP_AUTHORIZATION=settings.DATA_SCIENCE_API_KEY
         )
