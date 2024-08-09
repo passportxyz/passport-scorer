@@ -1,10 +1,13 @@
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
+"""
+This module contains tests for the data science bulk score functionality.
+"""
+
+from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from django.conf import settings
 from django.test import Client
-from django.urls import reverse
 from django.utils import timezone
 
 from registry.models import BatchModelScoringRequest, BatchRequestStatus
@@ -15,12 +18,6 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def client():
     return Client()
-
-
-@pytest.fixture
-def mock_s3_client():
-    with patch("registry.admin.get_s3_client") as mock:
-        yield mock
 
 
 @pytest.fixture
@@ -43,39 +40,41 @@ def batch_requests():
 api_url = "/internal/analysis/internal"
 
 
-def test_get_batch_analysis_stats_success(client, mock_s3_client, batch_requests):
-    mock_s3_client.return_value.generate_presigned_url.return_value = (
-        "https://example.com/presigned-url"
-    )
+def test_get_batch_analysis_stats_success(client, batch_requests):
+    with patch("registry.admin.get_s3_client") as mock:
+        mock.return_value.generate_presigned_url.return_value = (
+            "https://example.com/presigned-url"
+        )
 
-    response = client.get(api_url, HTTP_AUTHORIZATION=settings.DATA_SCIENCE_API_KEY)
+        response = client.get(api_url, HTTP_AUTHORIZATION=settings.DATA_SCIENCE_API_KEY)
 
-    assert response.status_code == 200
-    data = response.json()
+        assert response.status_code == 200
+        data = response.json()
 
-    assert len(data) == 10  # Default limit
-    assert all(isinstance(item, dict) for item in data)
+        assert len(data) == 10  # Default limit
+        assert all(isinstance(item, dict) for item in data)
 
-    for item in data:
-        assert "created_at" in item
-        assert "s3_url" in item
-        assert "status" in item
-        assert "percentage_complete" in item
+        for item in data:
+            assert "created_at" in item
+            assert "s3_url" in item
+            assert "status" in item
+            assert "percentage_complete" in item
 
-    # Check if the items are ordered by created_at in descending order
-    assert all(
-        data[i]["created_at"] >= data[i + 1]["created_at"] for i in range(len(data) - 1)
-    )
+        # Check if the items are ordered by created_at in descending order
+        assert all(
+            data[i]["created_at"] >= data[i + 1]["created_at"]
+            for i in range(len(data) - 1)
+        )
 
-    # Check if DONE requests have s3_url and others don't
-    for item in data:
-        if item["status"] == BatchRequestStatus.DONE.value:
-            assert item["s3_url"] == "https://example.com/presigned-url"
-        else:
-            assert item["s3_url"] is None
+        # Check if DONE requests have s3_url and others don't
+        for item in data:
+            if item["status"] == BatchRequestStatus.DONE.value:
+                assert item["s3_url"] == "https://example.com/presigned-url"
+            else:
+                assert item["s3_url"] is None
 
 
-def test_get_batch_analysis_stats_with_limit(client, mock_s3_client, batch_requests):
+def test_get_batch_analysis_stats_with_limit(client, batch_requests):
     response = client.get(
         f"{api_url}?limit=5", HTTP_AUTHORIZATION=settings.DATA_SCIENCE_API_KEY
     )
