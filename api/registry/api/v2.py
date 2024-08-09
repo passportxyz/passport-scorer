@@ -351,7 +351,7 @@ class BatchResponse(Schema):
 
 
 @internal_router.get(
-    "/analysis/internal",
+    "/analysis",
     auth=data_science_auth,
     response={
         200: list[BatchResponse],

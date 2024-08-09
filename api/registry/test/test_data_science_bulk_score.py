@@ -37,7 +37,7 @@ def batch_requests():
     return requests
 
 
-api_url = "/internal/analysis/internal"
+api_url = "/internal/analysis"
 
 
 def test_get_batch_analysis_stats_success(client, batch_requests, mocker):
