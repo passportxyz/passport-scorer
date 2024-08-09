@@ -15,7 +15,9 @@ class TestProcessBatchModelAddressUploads(TransactionTestCase):
         mock_s3_client.get_object.return_value = {
             "ContentLength": 100,
             "Body": MagicMock(
-                read=lambda: StringIO("address1\naddress2\naddress3")
+                read=lambda: StringIO(
+                    "0xd5680a051302d427efa518238fda2c848eebe714\n0xd5680a051302d427efa518238fda2c848eebe714\n0x0636F974D29d947d4946b2091d769ec6D2d415DE"
+                )
                 .getvalue()
                 .encode()
             ),

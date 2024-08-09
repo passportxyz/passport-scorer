@@ -1,5 +1,6 @@
 import asyncio
 import csv
+import json
 from io import BytesIO, StringIO, TextIOWrapper
 from itertools import islice
 
@@ -7,6 +8,7 @@ import boto3
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
+from eth_utils.address import to_checksum_address
 from tqdm import tqdm
 
 from passport.api import fetch_all, handle_get_analysis
@@ -107,7 +109,9 @@ class Command(BaseCommand):
             address = row[0]
             if not address or address == "":
                 continue
-            task = asyncio.create_task(self.process_address(address, model_list))
+            task = asyncio.create_task(
+                self.process_address(to_checksum_address(address), model_list)
+            )
             tasks.append(task)
 
         results = await asyncio.gather(*tasks)
@@ -115,7 +119,14 @@ class Command(BaseCommand):
 
     async def process_address(self, address, model_list):
         try:
-            result = await handle_get_analysis(address, model_list, False)
+            analysis = await handle_get_analysis(address, model_list, False)
+            details_dict = {
+                "models": {
+                    model: {"score": score.score}
+                    for model, score in analysis.details.models.items()
+                }
+            }
+            result = json.dumps(details_dict)
             return address, result
         except Exception as e:
             self.stderr.write(
