@@ -1731,9 +1731,8 @@ const createdTask = createTask({
   config: {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
-    command: ["python", "manage.py", "get_unmonitored_urls"].join(" "),
-    // TODO Remove
-    scheduleExpression: "", // Run the task every 30 min
+    command: ["python", "manage.py", "process_batch_model_address_upload"].join(" "),
+    scheduleExpression: "",
     alertTopic: pagerdutyTopic,
   },
   environment: apiEnvironment,
