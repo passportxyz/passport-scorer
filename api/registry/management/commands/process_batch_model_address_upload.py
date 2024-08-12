@@ -1,6 +1,7 @@
 import asyncio
 import csv
 import json
+import time
 from io import BytesIO, StringIO, TextIOWrapper
 from itertools import islice
 
@@ -23,6 +24,8 @@ from scorer.settings import (
 
 class Command(BaseCommand):
     help = "Process batch model address uploads"
+    average_lambda_duration = 0
+    total_lambda_calls = 0
 
     def handle(self, *args, **options):
         asyncio.run(self.async_handle(*args, **options))
@@ -65,7 +68,7 @@ class Command(BaseCommand):
                         request.id, results, request.s3_filename
                     )
 
-                # Update status to COMPLETED
+                # Update status to DONE
                 request.status = BatchRequestStatus.DONE
                 request.progress = 100
                 await sync_to_async(request.save)()
@@ -96,7 +99,7 @@ class Command(BaseCommand):
         except Exception as e:
             raise CommandError(f"Failed to download file from S3: {str(e)}")
 
-    def process_csv_in_batches(self, csv_data, batch_size=5):
+    def process_csv_in_batches(self, csv_data, batch_size=20):
         while True:
             batch = list(islice(csv_data, batch_size))
             if not batch:
@@ -117,9 +120,21 @@ class Command(BaseCommand):
         results = await asyncio.gather(*tasks)
         return results
 
+    def update_average_duration(self, duration):
+        self.total_lambda_calls += 1
+        self.average_lambda_duration = (
+            self.average_lambda_duration * (self.total_lambda_calls - 1) + duration
+        ) / self.total_lambda_calls
+
     async def process_address(self, address, model_list):
         try:
+            start_time = time.time()
             analysis = await handle_get_analysis(address, model_list, False)
+            end_time = time.time()
+            duration = end_time - start_time
+
+            self.update_average_duration(duration)
+
             details_dict = {
                 "models": {
                     model: {"score": score.score}
@@ -127,12 +142,18 @@ class Command(BaseCommand):
                 }
             }
             result = json.dumps(details_dict)
+
+            self.stdout.write(f"Processed address {address}:")
+            self.stdout.write(f"  Duration: {duration:.2f} seconds")
+            self.stdout.write(
+                f"  Average Duration: {self.average_lambda_duration:.2f} seconds"
+            )
+
             return address, result
         except Exception as e:
-            self.stderr.write(
-                self.style.ERROR(f"Error processing address {address}: {str(e)}")
-            )
-            return address, None
+            error = self.style.ERROR(f"Error processing address {address}: {str(e)}")
+            self.stderr.write(error)
+            return address, error
 
     async def create_and_upload_results_csv(self, request_id, results, filename):
         csv_buffer = StringIO()
