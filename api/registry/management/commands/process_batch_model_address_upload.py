@@ -99,7 +99,7 @@ class Command(BaseCommand):
         except Exception as e:
             raise CommandError(f"Failed to download file from S3: {str(e)}")
 
-    def process_csv_in_batches(self, csv_data, batch_size=20):
+    def process_csv_in_batches(self, csv_data, batch_size=50):
         while True:
             batch = list(islice(csv_data, batch_size))
             if not batch:
