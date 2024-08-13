@@ -190,31 +190,32 @@ class TestPassportAnalysis(TestCase):
     def test_handle_get_analysis_returns_additional_data(self, mock_fetch):
         """Test handle_get_analysis returns additional data when requested."""
         analysis = async_to_sync(handle_get_analysis)(
-            "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D", "nft,polygon", False, True
+            "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D", "zksync", False, True
         )
 
-        assert analysis.details.models["polygon"].n_transactions == 10
-        assert analysis.details.models["polygon"].first_funder == "funder"
-        assert analysis.details.models["polygon"].first_funder_amount == 1000
+        assert analysis.details.models["zksync"].score == 95
+        assert analysis.details.models["zksync"].n_transactions == 10
+        assert analysis.details.models["zksync"].first_funder == "funder"
+        assert analysis.details.models["zksync"].first_funder_amount == 1000
 
     @override_settings(ONLY_ONE_MODEL=False)
     @patch("passport.api.fetch", side_effect=mock_post_response)
     def test_handle_get_analysis_does_not_return_additional_data(self, mock_fetch):
         """Test handle_get_analysis does not return additional data when not requested."""
         analysis = async_to_sync(handle_get_analysis)(
-            "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D", "nft,polygon", False
+            "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D", "nft,zksync", False
         )
         expected = PassportAnalysisResponse(
             address="0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
             details=PassportAnalysisDetails(
-                models={"nft": ScoreModel(score=85), "polygon": ScoreModel(score=0)}
+                models={"nft": ScoreModel(score=85), "zksync": ScoreModel(score=0)}
             ),
         )
 
         assert_passport_analysis_structure(analysis, expected)
 
         # Check that additional data is not present
-        for model_name in ["nft", "polygon"]:
+        for model_name in ["nft", "zksync"]:
             assert not hasattr(analysis.details.models[model_name], "n_transactions")
             assert not hasattr(analysis.details.models[model_name], "first_funder")
             assert not hasattr(
@@ -223,4 +224,4 @@ class TestPassportAnalysis(TestCase):
 
         # Check specific scores
         assert analysis.details.models["nft"].score == 85
-        assert analysis.details.models["polygon"].score == 0
+        assert analysis.details.models["zksync"].score == 95
