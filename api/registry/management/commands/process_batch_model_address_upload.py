@@ -99,7 +99,7 @@ class Command(BaseCommand):
         except Exception as e:
             raise CommandError(f"Failed to download file from S3: {str(e)}")
 
-    def process_csv_in_batches(self, csv_data, batch_size=50):
+    def process_csv_in_batches(self, csv_data, batch_size=300):
         while True:
             batch = list(islice(csv_data, batch_size))
             if not batch:
@@ -129,7 +129,7 @@ class Command(BaseCommand):
     async def process_address(self, address, model_list):
         try:
             start_time = time.time()
-            analysis = await handle_get_analysis(address, model_list, False)
+            analysis = await handle_get_analysis(address, model_list, False, True)
             end_time = time.time()
             duration = end_time - start_time
 

@@ -1,6 +1,7 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase, override_settings
@@ -8,6 +9,13 @@ from web3 import Web3
 
 from account.models import Account, AccountAPIKey
 from aws_lambdas.passport.tests.test_passport_analysis_lambda import mock_post_response
+from passport.api import (
+    PassportAnalysisDetails,
+    PassportAnalysisResponse,
+    ScoreModel,
+    fetch_all,
+    handle_get_analysis,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -166,3 +174,47 @@ class TestPassportAnalysis(TestCase):
         self.assertEqual(analysis_response.status_code, 200)
 
         assert mock_fetch.call_count == 1
+
+    @override_settings(ONLY_ONE_MODEL=False)
+    @patch("passport.api.fetch", side_effect=mock_post_response)
+    def test_handle_get_analysis_returns_additional_data(self, mock_fetch):
+        """Test handle_get_analysis returns additional data when requested."""
+        analysis = async_to_sync(handle_get_analysis)(
+            "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D", "nft,polygon", False, True
+        )
+        expected = PassportAnalysisResponse(
+            address="0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+            details=PassportAnalysisDetails(
+                models={
+                    "nft": ScoreModel(
+                        score=85,
+                        n_transactions=0,
+                        first_funder="",
+                        first_funder_amount=0,
+                    ),
+                    "polygon": ScoreModel(
+                        score=0,
+                        n_transactions=10,
+                        first_funder="funder",
+                        first_funder_amount=1000,
+                    ),
+                }
+            ),
+        )
+        assert analysis == expected
+
+    @override_settings(ONLY_ONE_MODEL=False)
+    @patch("passport.api.fetch", side_effect=mock_post_response)
+    def test_handle_get_analysis_does_not_return_additional_data(self, mock_fetch):
+        """Test handle_get_analysis returns additional data when requested."""
+        analysis = async_to_sync(handle_get_analysis)(
+            "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D", "nft,polygon", False
+        )
+        expected = PassportAnalysisResponse(
+            address="0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+            details=PassportAnalysisDetails(
+                models={"nft": ScoreModel(score=85), "polygon": ScoreModel(score=0)}
+            ),
+        )
+
+        assert analysis == expected

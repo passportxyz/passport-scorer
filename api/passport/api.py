@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import aiohttp
 from django.conf import settings
@@ -32,6 +32,13 @@ class ScoreModel(Schema):
     score: int
 
 
+class DetailedScoreModel(Schema):
+    score: int
+    n_transactions: Optional[int]
+    first_funder: Optional[str]
+    first_funder_amount: Optional[int]
+
+
 @api.exception_handler(Ratelimited)
 def service_unavailable(request, _):
     return api.create_response(
@@ -42,7 +49,7 @@ def service_unavailable(request, _):
 
 
 class PassportAnalysisDetails(Schema):
-    models: Dict[str, ScoreModel]
+    models: Dict[str, ScoreModel | DetailedScoreModel]
 
 
 class PassportAnalysisResponse(Schema):
@@ -85,8 +92,20 @@ async def get_analysis(
 
 async def fetch(session, url, data):
     headers = {"Content-Type": "application/json"}
-    async with session.post(url, data=json.dumps(data), headers=headers) as response:
-        return await response.json()
+    try:
+        async with session.post(
+            url, data=json.dumps(data), headers=headers
+        ) as response:
+            return await response.json()
+    except Exception as e:
+        log.error(f"Error fetching {url}", exc_info=True)
+        return {
+            "data": {
+                "human_probability": -1,
+                "n_transactions": -1,
+                "error": "Error fetching model response",
+            }
+        }
 
 
 async def fetch_all(urls, payload):
@@ -103,6 +122,7 @@ async def handle_get_analysis(
     address: str,
     model_list: str = None,
     only_one_model=None,
+    additional_data=False,
 ) -> PassportAnalysisResponse:
     only_one_model = (
         only_one_model if only_one_model is not None else settings.ONLY_ONE_MODEL
@@ -155,10 +175,25 @@ async def handle_get_analysis(
             details=PassportAnalysisDetails(models={}),
         )
 
-        for model, response in model_responses:
-            ret.details.models[model] = ScoreModel(
-                score=response.get("data", {}).get("human_probability", 0)
-            )
+        if additional_data:
+            for model, response in model_responses:
+                data = response.get("data", {})
+                score = data.get("human_probability", 0)
+                num_transactions = data.get("n_transactions", 0)
+                first_funder = data.get("first_funder", "")
+                first_funder_amount = data.get("first_funder_amount", 0)
+
+                ret.details.models[model] = ScoreModel(
+                    score=score,
+                    n_transactions=num_transactions,
+                    first_funder=first_funder,
+                    first_funder_amount=first_funder_amount,
+                )
+        else:
+            for model, response in model_responses:
+                data = response.get("data", {})
+                score = data.get("human_probability", 0)
+                ret.details.models[model] = ScoreModel(score=score)
 
         return ret
     except Exception:

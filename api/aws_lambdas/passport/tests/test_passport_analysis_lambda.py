@@ -43,7 +43,15 @@ def mock_post_response(session, url, data):
     for model, endpoint in settings.MODEL_ENDPOINTS.items():
         if endpoint in url:
             response_data = mock_model_responses.get(
-                model, {"data": {"human_probability": 0}}
+                model,
+                {
+                    "data": {
+                        "human_probability": 0,
+                        "n_transactions": 10,
+                        "first_funder": "funder",
+                        "first_funder_amount": 1000,
+                    }
+                },
             )
             break
     else:
