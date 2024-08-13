@@ -192,25 +192,6 @@ class TestPassportAnalysis(TestCase):
         analysis = async_to_sync(handle_get_analysis)(
             "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D", "nft,polygon", False, True
         )
-        expected = PassportAnalysisResponse(
-            address="0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
-            details=PassportAnalysisDetails(
-                models={
-                    "nft": ScoreModel(
-                        score=85,
-                        n_transactions=0,
-                        first_funder="",
-                        first_funder_amount=0,
-                    ),
-                    "polygon": ScoreModel(
-                        score=0,
-                        n_transactions=10,
-                        first_funder="funder",
-                        first_funder_amount=1000,
-                    ),
-                }
-            ),
-        )
 
         assert analysis.details.models["polygon"].n_transactions == 10
         assert analysis.details.models["polygon"].first_funder == "funder"

@@ -16,19 +16,39 @@ address = "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D"
 
 mock_model_responses = {
     "ethereum_activity": {
-        "data": {"human_probability": 75, "n_transactions": 10},
+        "data": {
+            "human_probability": 75,
+            "n_transactions": 10,
+            "first_funder": "funder",
+            "first_funder_amount": 1000,
+        },
         "metadata": {"model_name": "ethereum_activity", "version": "1.0"},
     },
     "nft": {
-        "data": {"human_probability": 85},
+        "data": {
+            "human_probability": 85,
+            "n_transactions": 10,
+            "first_funder": "funder",
+            "first_funder_amount": 1000,
+        },
         "metadata": {"model_name": "social_media", "version": "2.0"},
     },
     "zksync": {
-        "data": {"human_probability": 95, "n_transactions": 5},
+        "data": {
+            "human_probability": 95,
+            "n_transactions": 10,
+            "first_funder": "funder",
+            "first_funder_amount": 1000,
+        },
         "metadata": {"model_name": "transaction_history", "version": "1.5"},
     },
     "aggregate": {
-        "data": {"human_probability": 90},
+        "data": {
+            "human_probability": 90,
+            "n_transactions": 10,
+            "first_funder": "funder",
+            "first_funder_amount": 1000,
+        },
         "metadata": {"model_name": "aggregate", "version": "2.5"},
     },
 }
