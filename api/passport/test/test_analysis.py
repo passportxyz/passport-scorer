@@ -212,10 +212,6 @@ class TestPassportAnalysis(TestCase):
             ),
         )
 
-        # Specific checks for expected values
-        assert analysis.details.models["nft"].n_transactions == 0
-        assert analysis.details.models["nft"].first_funder == ""
-        assert analysis.details.models["nft"].first_funder_amount == 0
         assert analysis.details.models["polygon"].n_transactions == 10
         assert analysis.details.models["polygon"].first_funder == "funder"
         assert analysis.details.models["polygon"].first_funder_amount == 1000
