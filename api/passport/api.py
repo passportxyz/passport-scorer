@@ -183,7 +183,7 @@ async def handle_get_analysis(
                 first_funder = data.get("first_funder", "")
                 first_funder_amount = data.get("first_funder_amount", 0)
 
-                ret.details.models[model] = ScoreModel(
+                ret.details.models[model] = DetailedScoreModel(
                     score=score,
                     n_transactions=num_transactions,
                     first_funder=first_funder,
