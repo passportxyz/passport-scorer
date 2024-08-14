@@ -16,6 +16,7 @@ from passport.api import fetch_all, handle_get_analysis
 from registry.admin import get_s3_client
 from registry.models import BatchModelScoringRequest, BatchRequestStatus
 from scorer.settings import (
+    BULK_MODEL_SCORE_BATCH_SIZE,
     BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER,
     BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
     BULK_SCORE_REQUESTS_BUCKET_NAME,
@@ -99,7 +100,7 @@ class Command(BaseCommand):
         except Exception as e:
             raise CommandError(f"Failed to download file from S3: {str(e)}")
 
-    def process_csv_in_batches(self, csv_data, batch_size=300):
+    def process_csv_in_batches(self, csv_data, batch_size=BULK_MODEL_SCORE_BATCH_SIZE):
         while True:
             batch = list(islice(csv_data, batch_size))
             if not batch:
@@ -137,7 +138,12 @@ class Command(BaseCommand):
 
             details_dict = {
                 "models": {
-                    model: {"score": score.score}
+                    model: {
+                        "score": score.score,
+                        "num_transactions": score.num_transactions,
+                        "first_funder": score.first_funder,
+                        "first_funder_amount": score.first_funder_amount,
+                    }
                     for model, score in analysis.details.models.items()
                 }
             }

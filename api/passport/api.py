@@ -34,7 +34,7 @@ class ScoreModel(Schema):
 
 class DetailedScoreModel(Schema):
     score: int
-    n_transactions: Optional[int]
+    num_transactions: Optional[int]
     first_funder: Optional[str]
     first_funder_amount: Optional[int]
 
@@ -103,7 +103,7 @@ async def fetch(session, url, data):
             "data": {
                 "human_probability": -1,
                 "n_transactions": -1,
-                "error": "Error fetching model response",
+                "error": str(e),
             }
         }
 
@@ -185,7 +185,7 @@ async def handle_get_analysis(
 
                 ret.details.models[model] = DetailedScoreModel(
                     score=score,
-                    n_transactions=num_transactions,
+                    num_transactions=num_transactions,
                     first_funder=first_funder,
                     first_funder_amount=first_funder_amount,
                 )
