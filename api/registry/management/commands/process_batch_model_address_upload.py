@@ -137,7 +137,12 @@ class Command(BaseCommand):
 
             details_dict = {
                 "models": {
-                    model: {"score": score.score}
+                    model: {
+                        "score": score.score,
+                        "num_transactions": score.num_transactions,
+                        "first_funder": score.first_funder,
+                        "first_funder_amount": score.first_funder_amount,
+                    }
                     for model, score in analysis.details.models.items()
                 }
             }
