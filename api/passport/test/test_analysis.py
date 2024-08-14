@@ -194,7 +194,7 @@ class TestPassportAnalysis(TestCase):
         )
 
         assert analysis.details.models["zksync"].score == 95
-        assert analysis.details.models["zksync"].n_transactions == 10
+        assert analysis.details.models["zksync"].num_transactions == 10
         assert analysis.details.models["zksync"].first_funder == "funder"
         assert analysis.details.models["zksync"].first_funder_amount == 1000
 
