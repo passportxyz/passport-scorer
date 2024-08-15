@@ -4,6 +4,7 @@ import json
 import time
 from io import BytesIO, StringIO, TextIOWrapper
 from itertools import islice
+from nis import cat
 
 import boto3
 from asgiref.sync import sync_to_async
@@ -59,11 +60,24 @@ class Command(BaseCommand):
                     results = []
                     processed_rows = 0
                     for batch in self.process_csv_in_batches(csv_data):
-                        batch_results = await self.get_analysis(batch, model_list)
-                        results.extend(batch_results)
-                        processed_rows += len(batch_results)
-                        progress = int((processed_rows / total_rows) * 100)
-                        await self.update_progress(request, progress)
+                        try:
+                            batch_results = await self.get_analysis(batch, model_list)
+                            results.extend(batch_results)
+                            processed_rows += len(batch_results)
+                            progress = int((processed_rows / total_rows) * 100)
+                            await self.update_progress(request, progress)
+                            if progress % 5 == 0:
+                                await self.create_and_upload_results_csv(
+                                    request.id,
+                                    results,
+                                    f"{request.s3_filename}-partial-{progress}",
+                                )
+                        except Exception as e:
+                            self.stderr.write(
+                                self.style.ERROR(
+                                    f"Error processing batch: {str(e)} - Processed rows: {processed_rows}, Total Rows: {total_rows}"
+                                )
+                            )
 
                     await self.create_and_upload_results_csv(
                         request.id, results, request.s3_filename
@@ -113,11 +127,15 @@ class Command(BaseCommand):
             address = row[0]
             if not address or address == "":
                 continue
-            task = asyncio.create_task(
-                self.process_address(to_checksum_address(address), model_list)
-            )
-            tasks.append(task)
-
+            try:
+                task = asyncio.create_task(
+                    self.process_address(to_checksum_address(address), model_list)
+                )
+                tasks.append(task)
+            except Exception as e:
+                self.stderr.write(
+                    self.style.ERROR(f"Error getting analysis for {address}: {str(e)}")
+                )
         results = await asyncio.gather(*tasks)
         return results
 
