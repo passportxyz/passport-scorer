@@ -1,5 +1,6 @@
 from enum import Enum
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
@@ -218,3 +219,43 @@ class BatchModelScoringRequest(models.Model):
         default=BatchRequestStatus.PENDING,
     )
     progress = models.IntegerField(default=0, help_text="Progress in percentage: 0-100")
+
+
+class WeightConfiguration(models.Model):
+    version = models.CharField(max_length=50, unique=True)
+    threshold = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(1000)], default=20.0
+    )
+    active = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["active"],
+                condition=models.Q(active=True),
+                name="unique_active_weight_configuration",
+            )
+        ]
+
+    def __str__(self):
+        return f"v:{self.version}"
+
+
+class WeightConfigurationItem(models.Model):
+    weight_configuration = models.ForeignKey(
+        WeightConfiguration, on_delete=models.CASCADE, related_name="weights"
+    )
+    provider = models.CharField(max_length=100)
+    weight = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(100)]
+    )
+
+    class Meta:
+        ordering = ["provider"]
+        unique_together = ["weight_configuration", "provider"]
+
+    def __str__(self):
+        return f"{self.provider} - {self.weight}"
