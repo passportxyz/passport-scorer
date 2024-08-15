@@ -1734,6 +1734,8 @@ const createdTask = createTask({
     command: ["python", "manage.py", "process_batch_model_address_upload"].join(" "),
     scheduleExpression: "",
     alertTopic: pagerdutyTopic,
+    cpu: 2048,
+    memory: 4096,
   },
   environment: apiEnvironment,
   secrets: apiSecrets,
