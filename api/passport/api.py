@@ -36,7 +36,7 @@ class DetailedScoreModel(Schema):
     score: int
     num_transactions: Optional[int]
     first_funder: Optional[str]
-    first_funder_amount: Optional[int]
+    first_funder_amount: Optional[float]
 
 
 @api.exception_handler(Ratelimited)
