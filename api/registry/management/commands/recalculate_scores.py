@@ -1,12 +1,15 @@
 import json
 from datetime import datetime
 
-from account.models import Community
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db.models import QuerySet
+from regex import W
+
+from account.models import Community
 from registry.models import Passport, Score, Stamp
 from registry.utils import get_utc_time
+from registry.weight_models import WeightConfigurationItem
 from scorer_weighted.models import BinaryWeightedScorer, RescoreRequest, WeightedScorer
 
 
@@ -78,8 +81,7 @@ class Command(BaseCommand):
         return recalculate_scores(communities, batch_size, self.stdout)
 
     def update_scorers(self, communities: QuerySet[Community]):
-        weights = settings.GITCOIN_PASSPORT_WEIGHTS
-        threshold = settings.GITCOIN_PASSPORT_THRESHOLD
+        weights, threshold = WeightConfigurationItem.get_active_weights()
 
         filter = {"scorer_ptr__community__in": communities}
 

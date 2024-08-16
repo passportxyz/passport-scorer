@@ -23,9 +23,8 @@ from registry.models import (
     Passport,
     Score,
     Stamp,
-    WeightConfiguration,
-    WeightConfigurationItem,
 )
+from registry.weight_models import WeightConfiguration, WeightConfigurationItem
 from scorer.scorer_admin import ScorerModelAdmin
 from scorer.settings import (
     BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER,
@@ -264,6 +263,9 @@ class WeightConfigurationCsvImportForm(forms.Form):
     threshold = forms.FloatField(
         required=True, help_text="Threshold for Passport uniqueness"
     )
+    description = forms.CharField(
+        required=False, help_text="Description of the weight configuration change"
+    )
     csv_file = forms.FileField(
         required=True, help_text="Upload a CSV file with weight configuration data"
     )
@@ -272,7 +274,14 @@ class WeightConfigurationCsvImportForm(forms.Form):
 @admin.register(WeightConfiguration)
 class WeightConfigurationAdmin(admin.ModelAdmin):
     change_list_template = "registry/batch_model_scoring_request_changelist.html"
-    list_display = ("version", "threshold", "active", "created_at", "updated_at")
+    list_display = (
+        "version",
+        "threshold",
+        "description",
+        "active",
+        "created_at",
+        "updated_at",
+    )
     search_fields = ("version", "description")
     readonly_fields = ("created_at", "updated_at")
     inlines = [WeightConfigurationItemInline]
@@ -288,35 +297,36 @@ class WeightConfigurationAdmin(admin.ModelAdmin):
             if form.is_valid():
                 csv_file = request.FILES["csv_file"]
                 threshold = request.POST.get("threshold")
+                description = request.POST.get("description")
                 try:
+                    version = 0
+                    weight_config = WeightConfiguration.objects.order_by(
+                        "-created_at"
+                    ).first()
+                    if weight_config:
+                        version = int(weight_config.version) + 1
+
+                    WeightConfiguration.objects.filter(active=True).update(active=False)
+
+                    weight_config = WeightConfiguration.objects.create(
+                        threshold=threshold,
+                        version=version,
+                        active=True,
+                        description=description,
+                    )
+
                     decoded_file = csv_file.read().decode("utf-8")
                     io_string = io.StringIO(decoded_file)
-                    reader = csv.DictReader(io_string)
-
-                    version = 0
-                    try:
-                        current_version = WeightConfiguration.objects.filter(
-                            active=True
-                        ).first()
-                        if current_version:
-                            version = int(current_version.version) + 1
-                    except WeightConfiguration.DoesNotExist:
-                        print("This is the first weight configuration")
-
-                    weight_config = None
+                    reader = csv.reader(io_string)
                     for row in reader:
-                        if not weight_config:
-                            WeightConfiguration.objects.filter(active=True).exclude(
-                                version=version
-                            ).update(active=False)
-                            weight_config = WeightConfiguration.objects.create(
-                                threshold=threshold, version=version, active=True
-                            )
-                        print(row, "row")
+                        if len(row) != 2:
+                            raise ValueError(f"Invalid row format: {row}")
+
+                        provider, weight = row
                         WeightConfigurationItem.objects.create(
                             weight_configuration=weight_config,
-                            provider=row[0],
-                            weight=float(row[1]),
+                            provider=provider,
+                            weight=float(weight),
                         )
 
                     self.message_user(
