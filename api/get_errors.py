@@ -95,8 +95,10 @@ if __name__ == "__main__":
         urls = sys.argv[1:]
     else:
         urls = [
-            "https://bulk-score-requests-staging.s3.amazonaws.com/model-score-results/2024-08-19_21-49-25.csv?AWSAccessKeyId=AKIAXQB3OF2K6SL73W4R&Signature=FgkjxN4FAVrzaR7wChhaErJjmSg%3D&Expires=1724107900"
+            "https://bulk-score-requests-staging.s3.amazonaws.com/model-score-results/2024-08-19_22-25-26.csv?AWSAccessKeyId=AKIAXQB3OF2K6SL73W4R&Signature=ubFUXj%2Fsna60WYY%2Bj0dLZADEAIw%3D&Expires=1724112894"
         ]
         print("No URLs provided. Using default URL.")
 
-    process_csv_and_save_errors(urls, "combined_error_addresses-fourth-run.csv")
+    process_csv_and_save_errors(
+        urls, "combined_error_addresses-after-initial-rerun-final.csv"
+    )
