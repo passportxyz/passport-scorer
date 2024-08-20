@@ -182,12 +182,13 @@ async def handle_get_analysis(
                 num_transactions = data.get("n_transactions", 0)
                 first_funder = data.get("first_funder", "")
                 first_funder_amount = data.get("first_funder_amount", 0)
-
+                first_funder_timestamp = data.get("first_funder_timestamp", "")
                 ret.details.models[model] = DetailedScoreModel(
                     score=score,
                     num_transactions=num_transactions,
                     first_funder=first_funder,
                     first_funder_amount=first_funder_amount,
+                    first_funder_timestamp=first_funder_timestamp,
                 )
         else:
             for model, response in model_responses:
