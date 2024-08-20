@@ -37,6 +37,7 @@ class DetailedScoreModel(Schema):
     num_transactions: Optional[int]
     first_funder: Optional[str]
     first_funder_amount: Optional[float]
+    first_funder_timestamp: Optional[str]
 
 
 @api.exception_handler(Ratelimited)
