@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -22,6 +23,17 @@ class WeightConfiguration(models.Model):
                 name="unique_active_weight_configuration",
             )
         ]
+
+    @classmethod
+    def get_active_threshold(cls):
+        try:
+            active_config = cls.objects.filter(active=True).get()
+        except ObjectDoesNotExist:
+            return settings.GITCOIN_PASSPORT_THRESHOLD
+        except Exception as e:
+            raise Exception(f"Failed to load settings: {str(e)}")
+
+        return active_config.threshold
 
     def __str__(self):
         return f"v:{self.version}"
@@ -48,13 +60,11 @@ class WeightConfigurationItem(models.Model):
         try:
             active_config = WeightConfiguration.objects.filter(active=True).get()
         except ObjectDoesNotExist:
-            return {}, 0.0
+            return settings.GITCOIN_PASSPORT_WEIGHTS
         except Exception as e:
             raise Exception(f"Failed to load settings: {str(e)}")
 
         weight_items = cls.objects.filter(weight_configuration=active_config)
 
         weights = {item.provider: item.weight for item in weight_items}
-        threshold = active_config.threshold
-
-        return weights, threshold
+        return weights

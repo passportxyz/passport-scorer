@@ -9,7 +9,7 @@ from regex import W
 from account.models import Community
 from registry.models import Passport, Score, Stamp
 from registry.utils import get_utc_time
-from registry.weight_models import WeightConfigurationItem
+from registry.weight_models import WeightConfiguration, WeightConfigurationItem
 from scorer_weighted.models import BinaryWeightedScorer, RescoreRequest, WeightedScorer
 
 
@@ -81,7 +81,8 @@ class Command(BaseCommand):
         return recalculate_scores(communities, batch_size, self.stdout)
 
     def update_scorers(self, communities: QuerySet[Community]):
-        weights, threshold = WeightConfigurationItem.get_active_weights()
+        weights = WeightConfigurationItem.get_active_weights()
+        threshold = WeightConfiguration.get_active_threshold()
 
         filter = {"scorer_ptr__community__in": communities}
 
