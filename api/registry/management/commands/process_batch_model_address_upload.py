@@ -161,6 +161,7 @@ class Command(BaseCommand):
                         "num_transactions": score.num_transactions,
                         "first_funder": score.first_funder,
                         "first_funder_amount": score.first_funder_amount,
+                        "first_funder_timestamp": score.first_funder_timestamp,
                     }
                     for model, score in analysis.details.models.items()
                 }
