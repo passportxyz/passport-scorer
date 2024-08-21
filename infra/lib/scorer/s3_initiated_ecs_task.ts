@@ -7,7 +7,7 @@ export function createS3InitiatedECSTask(
   taskDefinitionArn: Output<string>,
   subnetIds: Output<any>,
   securityGroupIds: Output<string>[],
-  eventsStsAssumeRoleArn: Input<string>,
+  eventsStsAssumeRoleArn: Input<string>
 ) {
   // Create S3 bucket
   const bucket = new aws.s3.Bucket(bucketName, {
@@ -39,10 +39,12 @@ export function createS3InitiatedECSTask(
           name: [bucketName],
         },
         object: {
-          key: [{
-            prefix: "address-lists/"
-          }]
-        }
+          key: [
+            {
+              prefix: "address-lists/",
+            },
+          ],
+        },
       },
     }),
   });
@@ -62,6 +64,20 @@ export function createS3InitiatedECSTask(
         securityGroups: securityGroupIds,
       },
     },
+    input: JSON.stringify({
+      containerOverrides: [
+        {
+          name: "web", // TODO: get it dynamically
+          environment: [
+            {
+              name: "S3_BUCKET",
+              value: "$.detail.bucket.name",
+            },
+            { name: "S3_OBJECT_KEY", value: "$.detail.object.key" },
+          ],
+        },
+      ],
+    }),
   });
 
   return {
