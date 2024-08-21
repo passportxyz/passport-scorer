@@ -1,5 +1,7 @@
 """Ceramic Cache API"""
 
+import hashlib
+import hmac
 import json
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, Type
@@ -543,6 +545,22 @@ def authenticate(request, payload: CacaoVerifySubmit):
     return handle_authenticate(payload)
 
 
+def generate_access_token_response(user_did: str) -> AccessTokenResponse:
+    token = DbCacheToken()
+    token["did"] = user_did
+
+    intercom_user_hash = hmac.new(
+        bytes(settings.INTERCOM_SECRET_KEY, encoding="utf-8"),
+        bytes(user_did, encoding="utf-8"),
+        digestmod=hashlib.sha256,
+    ).hexdigest()
+
+    return AccessTokenResponse(
+        access=str(token.access_token),
+        intercom_user_hash=intercom_user_hash,
+    )
+
+
 def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
     # First validate the payload
     # This will ensure that the payload signature was made for our unique nonce
@@ -573,11 +591,7 @@ def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
         if res.status_code == 200:
             data = res.json()
             if data.get("status") == "ok":
-                token = DbCacheToken()
-                token["did"] = payload.issuer
-                return {
-                    "access": str(token.access_token),
-                }
+                return generate_access_token_response(payload.issuer)
 
         log.error(
             "Failed to validate authentication payload (jws)! Response: %s\n%s",

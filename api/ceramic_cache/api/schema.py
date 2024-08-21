@@ -3,6 +3,7 @@
 from typing import Any, Dict, List, Optional
 
 from ninja_schema import Schema
+
 from registry.api.v1 import DetailedScoreResponse
 
 from ..models import CeramicCache
@@ -46,6 +47,7 @@ class CacaoVerifySubmit(Schema):
 
 class AccessTokenResponse(Schema):
     access: str
+    intercom_user_hash: str
 
 
 class ComposeDBStatusPayload(Schema):
