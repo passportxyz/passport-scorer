@@ -1,9 +1,10 @@
 import json
 
 import pytest
+from django.conf import settings
+
 from aws_lambdas.scorer_api_passport.v1.stamps import bulk_DELETE, bulk_PATCH, bulk_POST
 from ceramic_cache.models import CeramicCache
-from django.conf import settings
 
 from .helpers import MockContext, address, good_stamp, headers
 
@@ -39,7 +40,7 @@ def test_patch(
 
     assert response["statusCode"] == 200
     assert body["stamps"][0]["provider"] == "Google"
-    assert int(body["score"]["evidence"]["rawScore"]) > 0
+    assert body["score"]["evidence"]["rawScore"] > 0
     assert body["score"]["status"] == "DONE"
     assert body["success"] is True
 
@@ -72,7 +73,7 @@ def test_delete(
 
     assert response["statusCode"] == 200
     assert len(body["stamps"]) == 0
-    assert int(body["score"]["evidence"]["rawScore"]) == 0
+    assert body["score"]["evidence"]["rawScore"] == 0
     assert body["score"]["status"] == "DONE"
     assert body["success"] is True
 
@@ -105,6 +106,6 @@ def test_post(
 
     assert response["statusCode"] == 200
     assert body["stamps"][0]["provider"] == "Google"
-    assert int(body["score"]["evidence"]["rawScore"]) > 0
+    assert body["score"]["evidence"]["rawScore"] > 0
     assert body["score"]["status"] == "DONE"
     assert body["success"] is True

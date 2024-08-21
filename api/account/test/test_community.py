@@ -3,12 +3,15 @@ from datetime import datetime, timezone
 from typing import cast
 
 import pytest
-from account.models import Account, Community
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import UserManager
 from django.db.utils import IntegrityError
 from django.test import Client, TestCase
 from ninja_jwt.schema import RefreshToken
+
+from account.models import Account, Community
+from registry.weight_models import WeightConfiguration, WeightConfigurationItem
+from scorer.settings.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
 
 # Avoids type issues in standard django models
 user_manager = cast(UserManager, get_user_model().objects)
@@ -39,6 +42,20 @@ class CommunityTestCase(TestCase):
         (self.account2, _) = Account.objects.get_or_create(
             user=self.user2, defaults={"address": "0x0"}
         )
+
+        config = WeightConfiguration.objects.create(
+            version="v1",
+            threshold=5.0,
+            active=True,
+            description="Test",
+        )
+
+        for provider, weight in GITCOIN_PASSPORT_WEIGHTS.items():
+            WeightConfigurationItem.objects.create(
+                weight_configuration=config,
+                provider=provider,
+                weight=float(weight),
+            )
 
     def test_create_community(self):
         """Test that creation of a community works and that attributes are saved correctly"""

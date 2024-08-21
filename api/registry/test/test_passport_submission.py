@@ -4,16 +4,19 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import patch
 
-from account.models import Account, AccountAPIKey, Community, Nonce
-from ceramic_cache.models import CeramicCache
+import pytest
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
 from eth_account.messages import encode_defunct
+from web3 import Web3
+
+from account.models import Account, AccountAPIKey, Community, Nonce
+from ceramic_cache.models import CeramicCache
 from registry.models import Passport, Stamp
 from registry.tasks import score_passport
 from registry.utils import get_signer, get_signing_message, verify_issuer
-from web3 import Web3
+from registry.weight_models import WeightConfiguration, WeightConfigurationItem
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -266,19 +269,11 @@ class ValidatePassportTestCase(TransactionTestCase):
             user=self.user, address=account.address
         )
 
-        # Mock the default weights for new communities that are created
-        with patch(
-            "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
-            {
-                "Google": 1,
-                "Ens": 1,
-            },
-        ):
-            self.community = Community.objects.create(
-                name="My Community",
-                description="My Community description",
-                account=self.user_account,
-            )
+        self.community = Community.objects.create(
+            name="My Community",
+            description="My Community description",
+            account=self.user_account,
+        )
 
         self.nonce = Nonce.create_nonce().nonce
         self.nonce_2 = Nonce.create_nonce().nonce
@@ -579,10 +574,10 @@ class ValidatePassportTestCase(TransactionTestCase):
             "evidence": None,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
             "expiration_date": mock_passport_expiration_date.isoformat(),
-            "score": Decimal("2.000000000"),
+            "score": Decimal("0.9329999999999999960031971113"),
             "status": "DONE",
             "error": None,
-            "stamp_scores": {"Ens": 1.0, "Google": 1.0},
+            "stamp_scores": {"Ens": 0.408, "Google": 0.525},
         }
 
         expected2ndResponse = {
@@ -590,10 +585,10 @@ class ValidatePassportTestCase(TransactionTestCase):
             "evidence": None,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
             "expiration_date": mock_passport_expiration_date.isoformat(),
-            "score": Decimal("2.000000000"),
+            "score": Decimal("0.9329999999999999960031971113"),
             "status": "DONE",
             "error": None,
-            "stamp_scores": {"Ens": 1.0, "Google": 1.0},
+            "stamp_scores": {"Ens": 0.408, "Google": 0.525},
         }
 
         # First submission

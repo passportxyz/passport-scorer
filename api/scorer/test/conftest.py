@@ -1,13 +1,14 @@
 # pylint: disable=redefined-outer-name
 import pytest
-from account.models import Account, AccountAPIKey, Community
-from ceramic_cache.api.v1 import DbCacheToken
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from ninja_jwt.schema import RefreshToken
+from web3 import Web3
+
+from account.models import Account, AccountAPIKey, Community
+from ceramic_cache.api.v1 import DbCacheToken
 from registry.models import GTCStakeEvent, Passport, Score
 from scorer_weighted.models import BinaryWeightedScorer, Scorer, WeightedScorer
-from web3 import Web3
 
 User = get_user_model()
 
@@ -83,17 +84,6 @@ def scorer_api_key_no_permissions(scorer_account):
 
 @pytest.fixture
 def scorer_community_with_binary_scorer(mocker, scorer_account):
-    mock_settings = {"FirstEthTxnProvider": 1, "Google": 1, "Ens": 1}
-    # Mock gitcoin scoring settings
-    mocker.patch(
-        "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
-        mock_settings,
-    )
-    mocker.patch(
-        "scorer_weighted.models.settings.GITCOIN_PASSPORT_THRESHOLD",
-        75,
-    )
-
     scorer = BinaryWeightedScorer.objects.create(type=Scorer.Type.WEIGHTED_BINARY)
 
     community = Community.objects.create(
@@ -113,13 +103,6 @@ def ui_scorer(scorer_community_with_binary_scorer):
 
 @pytest.fixture
 def scorer_community_with_weighted_scorer(mocker, scorer_account):
-    mock_settings = {"FirstEthTxnProvider": 1, "Google": 1, "Ens": 1}
-    # Mock gitcoin scoring settings
-    mocker.patch(
-        "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
-        mock_settings,
-    )
-
     scorer = WeightedScorer.objects.create(type=Scorer.Type.WEIGHTED)
 
     community = Community.objects.create(

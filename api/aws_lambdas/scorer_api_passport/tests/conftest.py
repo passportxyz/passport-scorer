@@ -1,4 +1,7 @@
 import pytest
+
+from registry.weight_models import WeightConfiguration, WeightConfigurationItem
+from scorer.settings.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
 from scorer.test.conftest import (
     passport_holder_addresses,
     scorer_account,

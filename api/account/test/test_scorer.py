@@ -1,11 +1,14 @@
 import json
 
 import pytest
-from account.models import Community
 from django.conf import settings
 from django.test import Client
-from scorer_weighted.models import Scorer, get_default_threshold
 from web3 import Web3
+
+from account.models import Community
+from registry.weight_models import WeightConfiguration, WeightConfigurationItem
+from scorer.settings.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
+from scorer_weighted.models import Scorer, get_default_threshold
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
