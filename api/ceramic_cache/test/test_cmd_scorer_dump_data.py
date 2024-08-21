@@ -3,15 +3,18 @@ import shutil
 from datetime import datetime
 
 import pytest
-from account.models import Community
 from django.core.management import call_command
+
+from account.models import Community
 from registry.models import Passport, Score
 from scorer_weighted.models import BinaryWeightedScorer, Scorer
 
 
 class TestGetStamps:
     @pytest.mark.django_db
-    def test_export_filtered_scored_for_scorer(self, scorer_account, mocker):
+    def test_export_filtered_scored_for_scorer(
+        self, scorer_account, mocker, weight_config
+    ):
         """Make sure that it is not possible to have duplicate stamps in the DB"""
 
         scorer = BinaryWeightedScorer.objects.create(type=Scorer.Type.WEIGHTED_BINARY)
@@ -71,7 +74,6 @@ class TestGetStamps:
             "ceramic_cache.management.commands.scorer_dump_data.boto3.client",
             return_value=MockS3(),
         ):
-
             call_command(
                 "scorer_dump_data",
                 *[],

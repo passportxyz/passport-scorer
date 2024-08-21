@@ -339,7 +339,9 @@ class TestScorePassportTestCase(TransactionTestCase):
             original_stamps = Stamp.objects.filter(passport=passport)
             assert len(original_stamps) == 3
 
-            assert (Score.objects.get(passport=passport).score) == Decimal("3")
+            assert (Score.objects.get(passport=passport).score) == Decimal(
+                "0.933000000"
+            )
 
             assert (
                 Event.objects.filter(action=Event.Action.LIFO_DEDUPLICATION).count()
@@ -353,7 +355,7 @@ class TestScorePassportTestCase(TransactionTestCase):
 
             assert (
                 Score.objects.get(passport=passport_with_duplicates).score
-            ) == Decimal("1")
+            ) == Decimal("0.525000000")
 
             passport.requires_calculation = True
             passport.save()
@@ -363,7 +365,9 @@ class TestScorePassportTestCase(TransactionTestCase):
             ):
                 score_registry_passport(self.community.pk, passport.address)
 
-            assert (Score.objects.get(passport=passport).score) == Decimal("3")
+            assert (Score.objects.get(passport=passport).score) == Decimal(
+                "0.933000000"
+            )
             assert (
                 Event.objects.filter(action=Event.Action.LIFO_DEDUPLICATION).count()
                 == 2

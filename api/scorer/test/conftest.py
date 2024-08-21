@@ -8,6 +8,8 @@ from web3 import Web3
 from account.models import Account, AccountAPIKey, Community
 from ceramic_cache.api.v1 import DbCacheToken
 from registry.models import GTCStakeEvent, Passport, Score
+from registry.weight_models import WeightConfiguration, WeightConfigurationItem
+from scorer.settings.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
 from scorer_weighted.models import BinaryWeightedScorer, Scorer, WeightedScorer
 
 User = get_user_model()
@@ -83,7 +85,26 @@ def scorer_api_key_no_permissions(scorer_account):
 
 
 @pytest.fixture
-def scorer_community_with_binary_scorer(mocker, scorer_account):
+def weight_config():
+    config = WeightConfiguration.objects.create(
+        version="v1",
+        threshold=5.0,
+        active=True,
+        description="Test",
+    )
+
+    for provider, weight in GITCOIN_PASSPORT_WEIGHTS.items():
+        WeightConfigurationItem.objects.create(
+            weight_configuration=config,
+            provider=provider,
+            weight=float(weight),
+        )
+
+    return config
+
+
+@pytest.fixture
+def scorer_community_with_binary_scorer(mocker, scorer_account, weight_config):
     scorer = BinaryWeightedScorer.objects.create(type=Scorer.Type.WEIGHTED_BINARY)
 
     community = Community.objects.create(
@@ -102,7 +123,7 @@ def ui_scorer(scorer_community_with_binary_scorer):
 
 
 @pytest.fixture
-def scorer_community_with_weighted_scorer(mocker, scorer_account):
+def scorer_community_with_weighted_scorer(mocker, scorer_account, weight_config):
     scorer = WeightedScorer.objects.create(type=Scorer.Type.WEIGHTED)
 
     community = Community.objects.create(
@@ -115,7 +136,7 @@ def scorer_community_with_weighted_scorer(mocker, scorer_account):
 
 
 @pytest.fixture
-def scorer_community(scorer_account):
+def scorer_community(scorer_account, weight_config):
     community = Community.objects.create(
         name="My Community",
         description="My Community description",
@@ -143,17 +164,7 @@ def scorer_score(scorer_passport):
 
 
 @pytest.fixture
-def scorer_community_with_gitcoin_default(mocker, scorer_account):
-    mock_settings = {
-        "Google": 1234,
-        "Ens": 1000000,
-    }
-    # Mock gitcoin scoring settings
-    mocker.patch(
-        "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
-        mock_settings,
-    )
-
+def scorer_community_with_gitcoin_default(mocker, scorer_account, weight_config):
     community = Community.objects.create(
         name="My Community",
         description="My Community description",

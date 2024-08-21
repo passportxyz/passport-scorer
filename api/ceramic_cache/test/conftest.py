@@ -13,6 +13,7 @@ from scorer.test.conftest import (
     scorer_user,  # noqa
     ui_scorer,  # noqa
     verifiable_credential,  # noqa
+    weight_config,  # noqa
 )
 
 

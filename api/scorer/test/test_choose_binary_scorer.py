@@ -6,11 +6,13 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
-from account.models import Community
 from django.test import Client
 from pytest_bdd import given, scenario, then, when
+
+from account.models import Community
 from registry.tasks import score_passport_passport
 from registry.test.test_passport_submission import mock_passport, mock_utc_timestamp
+from registry.weight_models import WeightConfiguration
 from scorer_weighted.models import BinaryWeightedScorer
 
 pytestmark = pytest.mark.django_db
@@ -50,7 +52,8 @@ def _(scorersPutResponse):
 @then("it automatically becomes the new rule in the respective community")
 def _(scorer_community_with_binary_scorer):
     scorer = Community.objects.get(id=scorer_community_with_binary_scorer.id).scorer
-    scorer.binaryweightedscorer.threshold = 1
+
+    scorer.binaryweightedscorer.threshold = 0.9
     scorer.binaryweightedscorer.save()
     assert scorer.type == "WEIGHTED_BINARY"
     assert scorer.binaryweightedscorer
@@ -119,7 +122,7 @@ def _(scoreResponse):
 def _(scoreResponse):
     """the threshold should be returned."""
     assert (
-        scoreResponse.json()["evidence"]["threshold"] == "1.00000"
+        scoreResponse.json()["evidence"]["threshold"] == "0.90000"
     )  # That is the mocked value
 
 
@@ -137,6 +140,11 @@ def test_get_score_of_000000():
 )
 def _(scorer_community_with_binary_scorer, scorer_api_key):
     """I submit a passport that yields a weighted score less than the threshold."""
+    scorer = Community.objects.get(id=scorer_community_with_binary_scorer.id).scorer
+
+    scorer.binaryweightedscorer.threshold = 75
+    scorer.binaryweightedscorer.save()
+
     with patch(
         "scorer_weighted.computation.acalculate_weighted_score",
         return_value=[
@@ -201,6 +209,11 @@ def test_get_score_of_1000000000():
 )
 def _(scorer_community_with_binary_scorer, scorer_api_key):
     """I submit a passport that yields a weighted score greater or equal than the threshold."""
+
+    scorer = Community.objects.get(id=scorer_community_with_binary_scorer.id).scorer
+
+    scorer.binaryweightedscorer.threshold = 75
+    scorer.binaryweightedscorer.save()
 
     with patch("registry.atasks.get_utc_time", return_value=mock_utc_timestamp):
         with patch(

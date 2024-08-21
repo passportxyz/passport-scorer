@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 import pytest
 from django.conf import settings
@@ -173,7 +174,7 @@ class TestRecalculatScores:
         scorer = community.get_scorer()
 
         # Check the initial threshold
-        assert scorer.threshold == 75
+        assert scorer.threshold == Decimal(20)
         assert len(scores) == 0
         call_command("recalculate_scores", *args, **opts)
 
@@ -213,7 +214,7 @@ class TestRecalculatScores:
         scorer = community.get_scorer()
 
         # Check the initial threshold
-        assert scorer.threshold == 75
+        assert scorer.threshold == 20
         assert len(scores) == 0
         call_command("recalculate_scores", *args, **opts)
 

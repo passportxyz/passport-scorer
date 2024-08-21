@@ -4,17 +4,18 @@ import json
 from decimal import Decimal
 
 import pytest
-from account.models import Nonce
 from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when
+from web3 import Web3
+
+from account.models import Nonce
 from registry.test.test_passport_submission import (
     mock_passport,
-    mock_utc_timestamp,
     mock_passport_expiration_date,
+    mock_utc_timestamp,
 )
 from registry.utils import get_signing_message
-from web3 import Web3
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -100,17 +101,18 @@ def _(scorer_community_with_gitcoin_default, submit_passport_response):
     # TODO change PROCESSING => DONE above
     returned_json = submit_passport_response.json()
     returned_json["score"] = Decimal(returned_json["score"])
+
     assert returned_json == {
         "address": scorer_community_with_gitcoin_default.account.address.lower(),
-        "score": Decimal("1001234.000000000"),
+        "score": Decimal("0.9329999999999999960031971113"),
         "status": "DONE",
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "expiration_date": mock_passport_expiration_date.isoformat(),
         "evidence": None,
         "error": None,
         "stamp_scores": {
-            "Ens": 1000000.0,
-            "Google": 1234.0,
+            "Ens": 0.408,
+            "Google": 0.525,
         },
     }
 
@@ -166,15 +168,15 @@ def _(scorer_community_with_gitcoin_default, score_response):
 
     assert score_response.json() == {
         "address": scorer_community_with_gitcoin_default.account.address.lower(),
-        "score": "1001234.000000000",
+        "score": "0.933000000",
         "status": "DONE",
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "expiration_date": mock_passport_expiration_date.isoformat(),
         "evidence": None,
         "error": None,
         "stamp_scores": {
-            "Ens": 1000000.0,
-            "Google": 1234.0,
+            "Ens": 0.408,
+            "Google": 0.525,
         },
     }
 
@@ -233,8 +235,8 @@ def _(scorer_community_with_gitcoin_default, scoring_failed_score_response):
         "evidence": None,
         "error": "something bad",
         "stamp_scores": {
-            "Ens": 1000000.0,
-            "Google": 1234.0,
+            "Ens": 0.408,
+            "Google": 0.525,
         },
     }
 
@@ -271,7 +273,7 @@ def _(scorer_community_with_gitcoin_default, score_response, mocker):
         response_data["address"]
         == scorer_community_with_gitcoin_default.account.address.lower()
     )
-    assert response_data["score"] == "1001234.000000000"
+    assert response_data["score"] == "0.933000000"
     assert response_data["status"] == "DONE"
     assert response_data["last_score_timestamp"] == mock_utc_timestamp.isoformat()
     assert response_data["evidence"] is None
@@ -342,15 +344,15 @@ def _(scorer_community_with_gitcoin_default, score_response):
     score_response_data = score_response.json()
     assert score_response_data == {
         "address": scorer_community_with_gitcoin_default.account.address.lower(),
-        "score": "1001234.000000000",
+        "score": "0.933000000",
         "status": "DONE",
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "expiration_date": mock_passport_expiration_date.isoformat(),
         "evidence": None,
         "error": None,
         "stamp_scores": {
-            "Ens": 1000000.0,
-            "Google": 1234.0,
+            "Ens": 0.408,
+            "Google": 0.525,
         },
     }
 

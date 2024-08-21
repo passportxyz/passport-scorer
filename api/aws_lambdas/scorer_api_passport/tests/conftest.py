@@ -8,6 +8,7 @@ from scorer.test.conftest import (
     scorer_api_key,
     scorer_community_with_binary_scorer,
     scorer_user,
+    weight_config,
 )
 
 from .helpers import address

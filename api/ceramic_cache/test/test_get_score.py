@@ -1,11 +1,12 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 import pytest
-from ceramic_cache.models import CeramicCache
-from registry.models import Passport, Score
 from django.test import Client
+
+from ceramic_cache.models import CeramicCache
 from registry.api.schema import DetailedScoreResponse
-from decimal import Decimal
+from registry.models import Passport, Score
 
 pytestmark = pytest.mark.django_db
 
@@ -44,7 +45,7 @@ class TestBulkStampUpdates:
                 "type": "ThresholdScoreCheck",
                 "success": False,
                 "rawScore": "0",
-                "threshold": "75.00000",
+                "threshold": "20.00000",
             },
             "error": None,
             "stamp_scores": {},

@@ -60,7 +60,7 @@ class WeightConfigurationItem(models.Model):
         try:
             active_config = WeightConfiguration.objects.filter(active=True).get()
         except ObjectDoesNotExist:
-            breakpoint()
+            print("NO ACTIVE CONFIGURATION FOUND")
             # return settings.GITCOIN_PASSPORT_WEIGHTS
         except Exception as e:
             raise Exception(f"Failed to load settings: {str(e)}")
