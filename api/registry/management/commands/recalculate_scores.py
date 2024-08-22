@@ -4,7 +4,6 @@ from datetime import datetime
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db.models import QuerySet
-from regex import W
 
 from account.models import Community
 from registry.models import Passport, Score, Stamp
