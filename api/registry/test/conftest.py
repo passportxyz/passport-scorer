@@ -1,7 +1,7 @@
 import pytest
 
 from registry.weight_models import WeightConfiguration, WeightConfigurationItem
-from scorer.settings.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
+from scorer.config.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
 
 # pylint: disable=unused-import
 from scorer.test.conftest import (
@@ -26,7 +26,7 @@ def weight_config(request):
 
     config = WeightConfiguration.objects.create(
         version="v1",
-        threshold=5.0,
+        threshold=20.0,
         active=True,
         description="Test",
     )

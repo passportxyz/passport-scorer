@@ -8,7 +8,7 @@ from django.conf import settings
 from django.db import models
 
 import api_logging as logging
-from registry.weight_models import WeightConfigurationItem
+from registry.weight_models import WeightConfiguration, WeightConfigurationItem
 
 log = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ def get_default_threshold():
     """
     This function shall provide the default threshold for the default binary scorer from the settings.
     """
-    return round(Decimal(settings.GITCOIN_PASSPORT_THRESHOLD), THRESHOLD_DECIMAL_PLACES)
+    return WeightConfiguration.get_active_threshold()
 
 
 class Scorer(models.Model):

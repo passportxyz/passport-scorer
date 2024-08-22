@@ -28,10 +28,8 @@ class WeightConfiguration(models.Model):
     def get_active_threshold(cls):
         try:
             active_config = cls.objects.filter(active=True).get()
-        except ObjectDoesNotExist:
-            return settings.GITCOIN_PASSPORT_THRESHOLD
         except Exception as e:
-            raise Exception(f"Failed to load settings: {str(e)}")
+            raise Exception(f"Failed to load active threshold: {str(e)}")
 
         return active_config.threshold
 
@@ -59,11 +57,8 @@ class WeightConfigurationItem(models.Model):
     def get_active_weights(cls):
         try:
             active_config = WeightConfiguration.objects.filter(active=True).get()
-        except ObjectDoesNotExist:
-            print("NO ACTIVE CONFIGURATION FOUND")
-            # return settings.GITCOIN_PASSPORT_WEIGHTS
         except Exception as e:
-            raise Exception(f"Failed to load settings: {str(e)}")
+            raise Exception(f"Failed to load active weights: {str(e)}")
 
         weight_items = cls.objects.filter(weight_configuration=active_config)
 

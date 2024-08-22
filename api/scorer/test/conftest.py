@@ -9,7 +9,7 @@ from account.models import Account, AccountAPIKey, Community
 from ceramic_cache.api.v1 import DbCacheToken
 from registry.models import GTCStakeEvent, Passport, Score
 from registry.weight_models import WeightConfiguration, WeightConfigurationItem
-from scorer.settings.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
+from scorer.config.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
 from scorer_weighted.models import BinaryWeightedScorer, Scorer, WeightedScorer
 
 User = get_user_model()
@@ -88,7 +88,7 @@ def scorer_api_key_no_permissions(scorer_account):
 def weight_config():
     config = WeightConfiguration.objects.create(
         version="v1",
-        threshold=5.0,
+        threshold=20.0,
         active=True,
         description="Test",
     )
