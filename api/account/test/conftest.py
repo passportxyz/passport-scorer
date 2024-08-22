@@ -1,3 +1,10 @@
+"""
+This module contains pytest fixtures and configuration for the account API tests.
+
+It sets up common test data, mocks, and other utilities used across multiple test files
+in the account API test suite.
+"""
+
 # pylint: disable=unused-import
 import pytest
 
@@ -8,23 +15,5 @@ from scorer.test.conftest import (
     scorer_account,
     scorer_community,
     scorer_user,
+    weight_config,
 )
-
-
-@pytest.fixture
-def weight_config():
-    config = WeightConfiguration.objects.create(
-        version="v1",
-        threshold=5.0,
-        active=True,
-        description="Test",
-    )
-
-    for provider, weight in GITCOIN_PASSPORT_WEIGHTS.items():
-        WeightConfigurationItem.objects.create(
-            weight_configuration=config,
-            provider=provider,
-            weight=float(weight),
-        )
-
-    return config
