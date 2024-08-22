@@ -44,8 +44,9 @@ class Command(BaseCommand):
             f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/"
         )[-1]
         self.stdout.write(f"Search request with filename: `{filename}`")
-        request = await sync_to_async(
-            BatchModelScoringRequest.objects.get(s3_filename=filename)
+
+        request = await sync_to_async(BatchModelScoringRequest.objects.get)(
+            s3_filename=filename
         )
 
         self.stdout.write(f"Found request: {request.id}")
