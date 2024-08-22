@@ -64,20 +64,29 @@ export function createS3InitiatedECSTask(
         securityGroups: securityGroupIds,
       },
     },
-    input: JSON.stringify({
-      containerOverrides: [
-        {
-          name: "web", // TODO: get it dynamically
-          environment: [
-            {
-              name: "S3_BUCKET",
-              value: "$.detail.bucket.name",
-            },
-            { name: "S3_OBJECT_KEY", value: "$.detail.object.key" },
-          ],
-        },
-      ],
-    }),
+    inputTransformer: {
+      inputPaths: {
+        bucketName: "$.detail.bucket.name",
+        objectKey: "$.detail.object.key",
+      },
+      inputTemplate: JSON.stringify({
+        containerOverrides: [
+          {
+            name: "web", // Replace with actual container name or fetch dynamically
+            environment: [
+              {
+                name: "S3_BUCKET",
+                value: "<bucketName>",
+              },
+              {
+                name: "S3_OBJECT_KEY",
+                value: "<objectKey>",
+              },
+            ],
+          },
+        ],
+      }),
+    },
   });
 
   return {
