@@ -34,8 +34,8 @@ class Command(BaseCommand):
         asyncio.run(self.async_handle(*args, **options))
 
     async def async_handle(self, *args, **options):
-        self.stdout.write(f"Received bucket name: {os.environ['S3_BUCKET']}")
-        self.stdout.write(f"Received object key : {os.environ['S3_OBJECT_KEY']}")
+        self.stdout.write(f"Received bucket name: `{os.environ['S3_BUCKET']}`")
+        self.stdout.write(f"Received object key : `{os.environ['S3_OBJECT_KEY']}`")
 
         s3_uri = f"s3://{os.environ['S3_BUCKET']}/{os.environ['S3_OBJECT_KEY']}"
 
@@ -43,10 +43,12 @@ class Command(BaseCommand):
         filename = os.environ["S3_OBJECT_KEY"].split(
             f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/"
         )[-1]
+        self.stdout.write(f"Search request with filename: `{filename}`")
         request = BatchModelScoringRequest.objects.get(s3_filename=filename)
+
         self.stdout.write(f"Found request: {request.id}")
         try:
-            self.stdout.write(f"Processing fil: {s3_uri}")
+            self.stdout.write(f"Processing file: {s3_uri}")
 
             file = await sync_to_async(self.download_from_s3)(s3_uri)
 
