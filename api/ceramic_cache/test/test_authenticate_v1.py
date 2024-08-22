@@ -1,8 +1,10 @@
 import copy
+import hashlib
+import hmac
 import json
-from collections import namedtuple
 
 import pytest
+from django.conf import settings
 from django.test import Client
 from ninja_jwt.tokens import AccessToken
 
@@ -70,9 +72,19 @@ class TestAuthenticate:
 
                 assert auth_response.status_code == 200
                 assert "access" in json_data
+                assert "intercom_user_hash" in json_data
 
                 token = AccessToken(json_data["access"])
                 assert token["did"] == payload["issuer"]
+
+                assert (
+                    json_data["intercom_user_hash"]
+                    == hmac.new(
+                        bytes(settings.INTERCOM_SECRET_KEY, encoding="utf-8"),
+                        bytes(payload["issuer"], encoding="utf-8"),
+                        digestmod=hashlib.sha256,
+                    ).hexdigest()
+                )
 
     def test_authenticate_fails_to_validate_invalid_payload(self, mocker):
         """
