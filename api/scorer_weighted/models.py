@@ -1,12 +1,14 @@
 # TODO: remove pylint skip once circular dependency removed
 # pylint: disable=import-outside-toplevel
+from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
-import api_logging as logging
 from django.conf import settings
 from django.db import models
-from datetime import datetime
+
+import api_logging as logging
+from registry.weight_models import WeightConfiguration, WeightConfigurationItem
 
 log = logging.getLogger(__name__)
 
@@ -57,14 +59,14 @@ def get_default_weights():
     This function shall provide the default weights for the default scorer.
     It will load the weights from the settings
     """
-    return settings.GITCOIN_PASSPORT_WEIGHTS
+    return WeightConfigurationItem.get_active_weights()
 
 
 def get_default_threshold():
     """
     This function shall provide the default threshold for the default binary scorer from the settings.
     """
-    return round(Decimal(settings.GITCOIN_PASSPORT_THRESHOLD), THRESHOLD_DECIMAL_PLACES)
+    return WeightConfiguration.get_active_threshold()
 
 
 class Scorer(models.Model):

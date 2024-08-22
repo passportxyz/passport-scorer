@@ -5,10 +5,12 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
-from account.models import Nonce
 from django.test import Client
 from eth_account.messages import encode_defunct
 from pytest_bdd import given, scenario, then, when
+from web3 import Web3
+
+from account.models import Nonce
 from registry.models import HashScorerLink, Passport, Stamp
 
 # from registry.tasks import score_passport
@@ -18,7 +20,6 @@ from registry.test.test_passport_submission import (
     mock_utc_timestamp,
 )
 from registry.utils import get_signing_message
-from web3 import Web3
 
 pytestmark = pytest.mark.django_db
 
@@ -120,7 +121,7 @@ def _(
     response_data = submitResponse.json()
 
     assert response_data["address"] == passport_holder_addresses[1]["address"].lower()
-    assert Decimal(response_data["score"]) == Decimal("1234.000000000")
+    assert Decimal(response_data["score"]) == Decimal("0.5250000000000000222044604925")
     assert response_data["status"] == "DONE"
     assert response_data["evidence"] is None
     assert response_data["error"] is None
@@ -159,7 +160,7 @@ def _(passport_holder_addresses, submit_passport_response):
         == passport_holder_addresses[1]["address"].lower()
     )
     assert (
-        submit_passport_response_data["score"] == "1234.000000000"
+        submit_passport_response_data["score"] == "0.525000000"
     )  # we expect a score only for the ENS stamp
     assert submit_passport_response_data["evidence"] is None
     last_score_timestamp = datetime.fromisoformat(

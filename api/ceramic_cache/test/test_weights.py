@@ -1,8 +1,10 @@
-from account.models import Community
-from scorer_weighted.models import Scorer, BinaryWeightedScorer
-from django.test import Client
-from django.conf import settings
 import pytest
+from django.conf import settings
+from django.test import Client
+
+from account.models import Community
+from registry.weight_models import WeightConfiguration, WeightConfigurationItem
+from scorer_weighted.models import BinaryWeightedScorer, Scorer
 
 pytestmark = pytest.mark.django_db  # noqa: F821
 
@@ -16,7 +18,20 @@ class TestGetWeights:
         self,
         scorer_account,
     ):
+        config = WeightConfiguration.objects.create(
+            version="v1",
+            threshold=20.0,
+            active=True,
+            description="Test",
+        )
         scorer_weights = {"provider-1": "0.5", "provider-2": "0.5"}
+        for provider, weight in scorer_weights.items():
+            WeightConfigurationItem.objects.create(
+                weight_configuration=config,
+                provider=provider,
+                weight=float(weight),
+            )
+
         scorer = BinaryWeightedScorer.objects.create(
             type=Scorer.Type.WEIGHTED_BINARY, weights=scorer_weights
         )

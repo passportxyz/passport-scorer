@@ -116,7 +116,7 @@ scorer_weights = {"provider-1": "0.5", "provider-2": "0.5"}
 
 
 @pytest.fixture
-def community(scorer_account):
+def community(scorer_account, weight_config):
     scorer = BinaryWeightedScorer.objects.create(
         type=Scorer.Type.WEIGHTED_BINARY, weights=scorer_weights
     )

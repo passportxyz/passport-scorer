@@ -1,3 +1,5 @@
+import csv
+import io
 from datetime import UTC, datetime
 
 import boto3
@@ -5,6 +7,8 @@ from asgiref.sync import async_to_sync
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
+from django.core.exceptions import ValidationError
+from django.http import HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.urls import path
 
@@ -20,6 +24,7 @@ from registry.models import (
     Score,
     Stamp,
 )
+from registry.weight_models import WeightConfiguration, WeightConfigurationItem
 from scorer.scorer_admin import ScorerModelAdmin
 from scorer.settings import (
     BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER,
@@ -247,3 +252,108 @@ class BatchModelScoringRequestAdmin(ScorerModelAdmin):
             "registry/batch_model_scoring_request_csv_import_form.html",
             payload,
         )
+
+
+class WeightConfigurationItemInline(admin.TabularInline):
+    model = WeightConfigurationItem
+    extra = 1
+
+
+class WeightConfigurationCsvImportForm(forms.Form):
+    threshold = forms.FloatField(
+        required=True, help_text="Threshold for Passport uniqueness"
+    )
+    description = forms.CharField(
+        required=False, help_text="Description of the weight configuration change"
+    )
+    csv_file = forms.FileField(
+        required=True, help_text="Upload a CSV file with weight configuration data"
+    )
+
+
+@admin.register(WeightConfiguration)
+class WeightConfigurationAdmin(admin.ModelAdmin):
+    change_list_template = "registry/batch_model_scoring_request_changelist.html"
+    list_display = (
+        "version",
+        "threshold",
+        "description",
+        "active",
+        "created_at",
+        "updated_at",
+    )
+    search_fields = ("version", "description")
+    readonly_fields = ("created_at", "updated_at")
+    inlines = [WeightConfigurationItemInline]
+
+    def get_urls(self):
+        return [
+            path("import-csv/", self.import_csv),
+        ] + super().get_urls()
+
+    def import_csv(self, request):
+        if request.method == "POST":
+            form = WeightConfigurationCsvImportForm(request.POST, request.FILES)
+            if form.is_valid():
+                csv_file = request.FILES["csv_file"]
+                threshold = request.POST.get("threshold")
+                description = request.POST.get("description")
+                try:
+                    version = 0
+                    weight_config = WeightConfiguration.objects.order_by(
+                        "-created_at"
+                    ).first()
+                    if weight_config:
+                        version = int(weight_config.version) + 1
+
+                    WeightConfiguration.objects.filter(active=True).update(active=False)
+
+                    weight_config = WeightConfiguration.objects.create(
+                        threshold=threshold,
+                        version=version,
+                        active=True,
+                        description=description,
+                    )
+
+                    decoded_file = csv_file.read().decode("utf-8")
+                    io_string = io.StringIO(decoded_file)
+                    reader = csv.reader(io_string)
+                    for row in reader:
+                        if len(row) != 2:
+                            raise ValueError(f"Invalid row format: {row}")
+
+                        provider, weight = row
+                        WeightConfigurationItem.objects.create(
+                            weight_configuration=weight_config,
+                            provider=provider,
+                            weight=float(weight),
+                        )
+
+                    self.message_user(
+                        request,
+                        f"Successfully imported WeightConfiguration: {weight_config.version}",
+                    )
+                    return redirect("..")
+                except Exception as e:
+                    self.message_user(
+                        request, f"Error importing CSV: {str(e)}", level=messages.ERROR
+                    )
+            else:
+                self.message_user(
+                    request, "Invalid form submission", level=messages.ERROR
+                )
+        else:
+            form = WeightConfigurationCsvImportForm()
+
+        context = {
+            "form": form,
+            "title": "Import Weight Configuration CSV",
+        }
+        return render(
+            request,
+            "registry/batch_model_scoring_request_csv_import_form.html",
+            context,
+        )
+
+
+admin.site.register(WeightConfigurationItem)

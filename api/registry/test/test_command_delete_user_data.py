@@ -2,17 +2,15 @@ import re
 from unittest import mock
 
 import pytest
-from ceramic_cache.models import CeramicCache, CeramicCacheLegacy
 from django.conf import settings
 from django.core.management import call_command
-from passport_admin.models import DismissedBanners, PassportBanner
 
+from ceramic_cache.models import CeramicCache, CeramicCacheLegacy
+from passport_admin.models import DismissedBanners, PassportBanner
 from registry.models import Event, HashScorerLink, Passport, Score, Stamp
 from registry.utils import get_utc_time
 
 pytestmark = pytest.mark.django_db
-
-current_weights = settings.GITCOIN_PASSPORT_WEIGHTS
 
 
 @pytest.fixture(name="user_data")

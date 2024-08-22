@@ -3,11 +3,11 @@ import json
 from copy import deepcopy
 
 import pytest
-from account.models import AccountAPIKeyAnalytics
-from registry.test.test_passport_submission import mock_passport
 
+from account.models import AccountAPIKeyAnalytics
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
 from aws_lambdas.scorer_api_passport.utils import strip_event
+from registry.test.test_passport_submission import mock_passport
 
 from ..submit_passport import _handler
 
@@ -110,14 +110,15 @@ def test_successful_authentication(
             assert body["address"] == address
             assert body["score"] == "0"
             assert body["status"] == "DONE"
+
             assert body["evidence"] == {
                 "type": "ThresholdScoreCheck",
                 "success": False,
-                "rawScore": 2,
-                "threshold": 75.0,
+                "rawScore": 0.9329999999999999,
+                "threshold": 20.0,
             }
             assert body["error"] is None
-            assert body["stamp_scores"] == {"Ens": 1.0, "Google": 1.0}
+            assert body["stamp_scores"] == {"Ens": 0.408, "Google": 0.525}
             # We just check that something != None was recorded for the last timestamp
             assert body["last_score_timestamp"] is not None
 
@@ -158,11 +159,11 @@ def test_successful_authentication_and_base64_encoded_body(
             assert body["evidence"] == {
                 "type": "ThresholdScoreCheck",
                 "success": False,
-                "rawScore": 2,
-                "threshold": 75.0,
+                "rawScore": 0.9329999999999999,
+                "threshold": 20.0,
             }
             assert body["error"] is None
-            assert body["stamp_scores"] == {"Ens": 1.0, "Google": 1.0}
+            assert body["stamp_scores"] == {"Ens": 0.408, "Google": 0.525}
             # We just check that something != None was recorded for the last timestamp
             assert body["last_score_timestamp"] is not None
 

@@ -1,18 +1,19 @@
+import copy
 import json
 import re
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import call, patch
 
-from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TransactionTestCase
+from web3 import Web3
+
+from account.models import Account, AccountAPIKey, Community
 from registry.api.v2 import SubmitPassportPayload, a_submit_passport, get_score
 from registry.models import Event, HashScorerLink, Passport, Score, Stamp
 from registry.tasks import score_passport_passport, score_registry_passport
-from web3 import Web3
-from datetime import datetime, timezone, timedelta
-import copy
 
 User = get_user_model()
 my_mnemonic = settings.TEST_MNEMONIC
@@ -106,20 +107,11 @@ class TestScorePassportTestCase(TransactionTestCase):
             account=self.user_account, name="Token for user 1"
         )
 
-        # Mock the default weights for new communities that are created
-        with patch(
-            "scorer_weighted.models.settings.GITCOIN_PASSPORT_WEIGHTS",
-            {
-                "Google": 1,
-                "Ens": 2,
-                "POAP": 4,
-            },
-        ):
-            self.community = Community.objects.create(
-                name="My Community",
-                description="My Community description",
-                account=self.user_account,
-            )
+        self.community = Community.objects.create(
+            name="My Community",
+            description="My Community description",
+            account=self.user_account,
+        )
 
         self.client = Client()
 
@@ -347,7 +339,9 @@ class TestScorePassportTestCase(TransactionTestCase):
             original_stamps = Stamp.objects.filter(passport=passport)
             assert len(original_stamps) == 3
 
-            assert (Score.objects.get(passport=passport).score) == Decimal("3")
+            assert (Score.objects.get(passport=passport).score) == Decimal(
+                "0.933000000"
+            )
 
             assert (
                 Event.objects.filter(action=Event.Action.LIFO_DEDUPLICATION).count()
@@ -361,7 +355,7 @@ class TestScorePassportTestCase(TransactionTestCase):
 
             assert (
                 Score.objects.get(passport=passport_with_duplicates).score
-            ) == Decimal("1")
+            ) == Decimal("0.525000000")
 
             passport.requires_calculation = True
             passport.save()
@@ -371,7 +365,9 @@ class TestScorePassportTestCase(TransactionTestCase):
             ):
                 score_registry_passport(self.community.pk, passport.address)
 
-            assert (Score.objects.get(passport=passport).score) == Decimal("3")
+            assert (Score.objects.get(passport=passport).score) == Decimal(
+                "0.933000000"
+            )
             assert (
                 Event.objects.filter(action=Event.Action.LIFO_DEDUPLICATION).count()
                 == 2

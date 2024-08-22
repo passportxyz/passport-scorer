@@ -6,6 +6,9 @@ from django.dispatch import receiver
 
 from account.models import Community, EthAddressField
 
+# to avoid circular import issue
+from .weight_models import WeightConfiguration, WeightConfigurationItem
+
 
 class Passport(models.Model):
     address = EthAddressField(null=True, blank=False, max_length=100, db_index=True)

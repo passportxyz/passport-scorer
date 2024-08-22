@@ -14,7 +14,9 @@ from scorer_weighted.models import BinaryWeightedScorer, Scorer
 
 class TestGetStamps:
     @pytest.mark.django_db
-    def test_export_filtered_scored_for_scorer(self, scorer_account, mocker):
+    def test_export_filtered_scored_for_scorer(
+        self, scorer_account, mocker, weight_config
+    ):
         """Make sure that it is not possible to have duplicate stamps in the DB"""
 
         scorer = BinaryWeightedScorer.objects.create(type=Scorer.Type.WEIGHTED_BINARY)

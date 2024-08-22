@@ -4,12 +4,13 @@ import json
 from decimal import Decimal
 
 import pytest
-from account.models import Community
-from account.test.test_community import mock_community_body
 from django.test import Client
 from ninja_jwt.schema import RefreshToken
 from pytest_bdd import given, scenario, then, when
 from web3 import Web3
+
+from account.models import Community
+from account.test.test_community import mock_community_body
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -32,7 +33,7 @@ def _(scorer_account, mocker):
     "I enter a name for this Community that is unique among the Community registered under my account",
     target_fixture="community_response",
 )
-def _(scorer_user):
+def _(scorer_user, weight_config):
     """I enter a name for this Community that is unique among the Community registered under my account."""
     refresh = RefreshToken.for_user(scorer_user)
     refresh["ip_address"] = "127.0.0.1"
@@ -72,4 +73,4 @@ def _():
     community = Community.objects.all()[0]
     scorer = community.scorer.binaryweightedscorer
     assert scorer.threshold == Decimal("20.00")
-    assert scorer.weights["Discord"] == "0.516"
+    assert scorer.weights["Discord"] == 0.516
