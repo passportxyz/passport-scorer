@@ -598,7 +598,12 @@ const serviceTaskRole = new aws.iam.Role("scorer-service-task-role", {
             // S3 permissions
             {
               Effect: "Allow",
-              Action: ["s3:PutObject"],
+              Action: [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:ListObjects",
+              ],
               Resource: "*",
             },
           ],

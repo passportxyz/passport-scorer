@@ -45,9 +45,12 @@ class Command(BaseCommand):
             file = await sync_to_async(self.download_from_s3)(s3_uri)
 
             # Find the request id from the filename.
-            request = BatchModelScoringRequest.objects.get(
-                s3_filename=os.environ["S3_OBJECT_KEY"]
-            )
+            filename = os.environ["S3_OBJECT_KEY"].split(
+                f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/"
+            )[-1]
+
+            request = BatchModelScoringRequest.objects.get(s3_filename=filename)
+
             if file and request:
                 self.stdout.write(self.style.SUCCESS("Got stream, processing CSV"))
                 bytes = BytesIO(file.read())
