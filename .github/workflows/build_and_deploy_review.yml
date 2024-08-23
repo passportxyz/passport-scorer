@@ -25,19 +25,19 @@ jobs:
       docker_tag: ${{ steps.ref.outputs.docker_tag }}
       refspec: ${{ steps.ref.outputs.refspec }}
 
-  # test:
-  #   name: Test
-  #   needs: [ref]
-  #   uses: ./.github/workflows/test_generic.yml
-  #   with:
-  #     refspec: ${{ needs.ref.outputs.refspec }}
-  #     environment: review
-  #     uptime-robot-monitor-dry-run: --dry-run
-  #   secrets: inherit
+  test:
+    name: Test
+    needs: [ref]
+    uses: ./.github/workflows/test_generic.yml
+    with:
+      refspec: ${{ needs.ref.outputs.refspec }}
+      environment: review
+      uptime-robot-monitor-dry-run: --dry-run
+    secrets: inherit
 
   deploy:
     name: Deploy
-    needs: [ref]
+    needs: [test, ref]
     uses: ./.github/workflows/build_and_deploy_generic.yml
     with:
       refspec: ${{ needs.ref.outputs.refspec }}
