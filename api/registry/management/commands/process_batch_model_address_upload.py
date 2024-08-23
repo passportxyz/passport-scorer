@@ -25,8 +25,7 @@ from scorer.settings import (
     BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
     BULK_SCORE_REQUESTS_BUCKET_NAME,
 )
-
-
+å
 class Command(BaseCommand):
     help = "Process batch model address uploads"
     average_lambda_duration = 0
@@ -42,7 +41,7 @@ class Command(BaseCommand):
         s3_uri = f"s3://{S3_BUCKET}/{S3_OBJECT_KEY}"
 
         # Find the request id from the filename.
-        filename = os.environ["S3_OBJECT_KEY"].split(
+        filename = S3_OBJECT_KEY.split(
             f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/"
         )[-1]
         self.stdout.write(f"Search request with filename: `{filename}`")
