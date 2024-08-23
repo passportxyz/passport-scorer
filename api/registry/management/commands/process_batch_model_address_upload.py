@@ -25,7 +25,7 @@ from scorer.settings import (
     BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
     BULK_SCORE_REQUESTS_BUCKET_NAME,
 )
-å
+
 class Command(BaseCommand):
     help = "Process batch model address uploads"
     average_lambda_duration = 0
