@@ -18,13 +18,14 @@ from passport.api import fetch_all, handle_get_analysis
 from registry.admin import get_s3_client
 from registry.models import BatchModelScoringRequest, BatchRequestStatus
 from scorer.settings import (
-    S3_BUCKET,
-    S3_OBJECT_KEY,
     BULK_MODEL_SCORE_BATCH_SIZE,
     BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER,
     BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
     BULK_SCORE_REQUESTS_BUCKET_NAME,
+    S3_BUCKET,
+    S3_OBJECT_KEY,
 )
+
 
 class Command(BaseCommand):
     help = "Process batch model address uploads"
@@ -54,7 +55,8 @@ class Command(BaseCommand):
         try:
             self.stdout.write(f"Processing file: {s3_uri}")
 
-            file = await sync_to_async(self.download_from_s3)(s3_uri)
+            # file = await sync_to_async(self.download_from_s3)(s3_uri)
+            file = await sync_to_async(self.download_from_s3)(filename)
 
             if file:
                 self.stdout.write(self.style.SUCCESS("Got stream, processing CSV"))
