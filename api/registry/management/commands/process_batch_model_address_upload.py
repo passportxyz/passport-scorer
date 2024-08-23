@@ -62,11 +62,29 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS("Got stream, processing CSV"))
                 bytes = BytesIO(file.read())
                 text = TextIOWrapper(bytes, encoding="utf-8")
-                csv_data = csv.reader(text)
-                total_rows = sum(1 for row in csv_data)
+                # csv_data = csv.reader(text)
+                # total_rows = sum(1 for row in csv_data)
 
+                # text.seek(0)
+
+                csv_data = csv.reader(text)
+
+                # Check if the first row is a header
+                first_row = next(csv_data)
+                if first_row[0].lower() == "address":
+                    # Skip the header and continue processing the CSV
+                    total_rows = sum(1 for row in csv_data)
+                else:
+                    # The first row is not a header, so include it in the processing
+                    total_rows = 1 + sum(1 for row in csv_data)  # Adding the first row already read
+
+                # Reset the reader to the start of the file or just after the header
                 text.seek(0)
                 csv_data = csv.reader(text)
+
+                # Skip the header again if it was determined to be a header
+                if first_row[0].lower() == "address":
+                    next(csv_data)
 
                 model_list = request.model_list
 
