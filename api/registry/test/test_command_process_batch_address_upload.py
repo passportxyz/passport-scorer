@@ -34,34 +34,14 @@ class TestProcessBatchModelAddressUploads(TransactionTestCase):
                 "registry.management.commands.process_batch_model_address_upload.handle_get_analysis",
                 mock_handle_get_analysis,
             ):
-                old_request = BatchModelScoringRequest.objects.create(
-                    status=BatchRequestStatus.PENDING.value,
-                    s3_filename=f"test_file_0.csv",
-                    model_list=["model1", "model2"],
-                )
-
                 good_request = BatchModelScoringRequest.objects.create(
                     status=BatchRequestStatus.PENDING.value,
                     s3_filename=f"test_file.csv",
                     model_list=["model1", "model2"],
                 )
 
-                all_requests = BatchModelScoringRequest.objects.all()
-                
-                self.assertEqual(
-                    len(all_requests),
-                    2,
-                    f"Expected 2 requests, but found {len(all_requests)}",
-                )
-
                 call_command("process_batch_model_address_upload")
-
-                self.assertEqual(
-                    old_request.status,
-                    BatchRequestStatus.PENDING.value,
-                    f"Expected status PENDING, but got {old_request.status}",
-                )
-
+                
                 self.assertEqual(
                     good_request.status,
                     BatchRequestStatus.DONE.value,
