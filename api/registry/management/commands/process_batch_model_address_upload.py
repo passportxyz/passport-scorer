@@ -18,6 +18,8 @@ from passport.api import fetch_all, handle_get_analysis
 from registry.admin import get_s3_client
 from registry.models import BatchModelScoringRequest, BatchRequestStatus
 from scorer.settings import (
+    S3_BUCKET,
+    S3_OBJECT_KEY,
     BULK_MODEL_SCORE_BATCH_SIZE,
     BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER,
     BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
@@ -34,10 +36,10 @@ class Command(BaseCommand):
         asyncio.run(self.async_handle(*args, **options))
 
     async def async_handle(self, *args, **options):
-        self.stdout.write(f"Received bucket name: `{os.environ['S3_BUCKET']}`")
-        self.stdout.write(f"Received object key : `{os.environ['S3_OBJECT_KEY']}`")
+        self.stdout.write(f"Received bucket name: `{S3_BUCKET}`")
+        self.stdout.write(f"Received object key : `{S3_OBJECT_KEY}`")
 
-        s3_uri = f"s3://{os.environ['S3_BUCKET']}/{os.environ['S3_OBJECT_KEY']}"
+        s3_uri = f"s3://{S3_BUCKET}/{S3_OBJECT_KEY}"
 
         # Find the request id from the filename.
         filename = os.environ["S3_OBJECT_KEY"].split(
