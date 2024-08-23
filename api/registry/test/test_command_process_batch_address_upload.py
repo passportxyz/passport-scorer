@@ -16,7 +16,7 @@ class TestProcessBatchModelAddressUploads(TransactionTestCase):
             "ContentLength": 100,
             "Body": MagicMock(
                 read=lambda: StringIO(
-                    "0xd5680a051302d427efa518238fda2c848eebe714\n0xd5680a051302d427efa518238fda2c848eebe714\n0x0636F974D29d947d4946b2091d769ec6D2d415DE"
+                    "Address\n0xd5680a051302d427efa518238fda2c848eebe714\n0xd5680a051302d427efa518238fda2c848eebe714\n0x0636F974D29d947d4946b2091d769ec6D2d415DE"
                 )
                 .getvalue()
                 .encode()
@@ -47,6 +47,7 @@ class TestProcessBatchModelAddressUploads(TransactionTestCase):
                 )
 
                 all_requests = BatchModelScoringRequest.objects.all()
+                
                 self.assertEqual(
                     len(all_requests),
                     2,

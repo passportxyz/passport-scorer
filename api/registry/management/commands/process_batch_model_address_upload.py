@@ -62,10 +62,6 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS("Got stream, processing CSV"))
                 bytes = BytesIO(file.read())
                 text = TextIOWrapper(bytes, encoding="utf-8")
-                # csv_data = csv.reader(text)
-                # total_rows = sum(1 for row in csv_data)
-
-                # text.seek(0)
 
                 csv_data = csv.reader(text)
 
