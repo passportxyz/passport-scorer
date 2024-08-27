@@ -465,6 +465,10 @@ BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER = env(
     "BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER", default="model-score-results"
 )
 BULK_MODEL_SCORE_BATCH_SIZE = env("BULK_MODEL_SCORE_BATCH_SIZE", default=50)
+
+S3_BUCKET = env("S3_BUCKET", default="bulk-score-requests")
+S3_OBJECT_KEY = env("S3_OBJECT_KEY", default="test_file.csv")
+
 DATA_SCIENCE_API_KEY = env("DATA_SCIENCE_API_KEY", default="abc")
 
 VERIFIER_URL = env("VERIFIER_URL", default="http://localhost:8001/verifier/verify")

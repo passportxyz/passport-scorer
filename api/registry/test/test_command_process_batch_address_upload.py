@@ -16,7 +16,7 @@ class TestProcessBatchModelAddressUploads(TransactionTestCase):
             "ContentLength": 100,
             "Body": MagicMock(
                 read=lambda: StringIO(
-                    "0xd5680a051302d427efa518238fda2c848eebe714\n0xd5680a051302d427efa518238fda2c848eebe714\n0x0636F974D29d947d4946b2091d769ec6D2d415DE"
+                    "Address\n0xd5680a051302d427efa518238fda2c848eebe714\n0xd5680a051302d427efa518238fda2c848eebe714\n0x0636F974D29d947d4946b2091d769ec6D2d415DE"
                 )
                 .getvalue()
                 .encode()
@@ -34,42 +34,33 @@ class TestProcessBatchModelAddressUploads(TransactionTestCase):
                 "registry.management.commands.process_batch_model_address_upload.handle_get_analysis",
                 mock_handle_get_analysis,
             ):
-                for i in range(2):
-                    BatchModelScoringRequest.objects.create(
-                        status=BatchRequestStatus.PENDING.value,
-                        s3_filename=f"test_file_{i}.csv",
-                        model_list=["model1", "model2"],
-                    )
-
-                all_requests = BatchModelScoringRequest.objects.all()
-                self.assertEqual(
-                    len(all_requests),
-                    2,
-                    f"Expected 2 requests, but found {len(all_requests)}",
+                good_request = BatchModelScoringRequest.objects.create(
+                    status=BatchRequestStatus.PENDING.value,
+                    s3_filename=f"test_file.csv",
+                    model_list=["model1", "model2"],
                 )
 
                 call_command("process_batch_model_address_upload")
+                
+                updated_request = BatchModelScoringRequest.objects.get(id=good_request.id)
+                self.assertEqual(
+                    updated_request.status,
+                    BatchRequestStatus.DONE.value,
+                    f"Expected status DONE, but got {good_request.status}",
+                )
+                self.assertEqual(
+                    updated_request.progress,
+                    100,
+                    f"Expected progress 100, but got {good_request.progress}",
+                )
 
-                for request in BatchModelScoringRequest.objects.all():
-                    self.assertEqual(
-                        request.status,
-                        BatchRequestStatus.DONE.value,
-                        f"Expected status DONE, but got {request.status}",
-                    )
-                    self.assertEqual(
-                        request.progress,
-                        100,
-                        f"Expected progress 100, but got {request.progress}",
-                    )
-
-                expected_calls = 6  # 2 files * 3 addresses each
+                expected_calls = 3  # 1 files * 3 addresses each
                 self.assertEqual(
                     mock_handle_get_analysis.call_count,
                     expected_calls,
                     f"Expected {expected_calls} calls to handle_get_analysis, but got {mock_handle_get_analysis.call_count}",
                 )
-
-        assert mock_s3_client.get_object.call_count > 1
+        assert mock_s3_client.get_object.call_count > 0
 
     # If you comment out the following test, the first test will fail :()
     def test_handle_error_during_processing(self):
