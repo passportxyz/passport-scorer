@@ -11,6 +11,7 @@ from django.urls import path, reverse
 from django.utils.safestring import mark_safe
 from django_ace import AceWidget
 from rest_framework_api_key.admin import APIKeyAdmin
+
 from scorer.scorer_admin import ScorerModelAdmin
 from scorer_weighted.models import Scorer
 
@@ -21,6 +22,7 @@ from .models import (
     AddressListMember,
     AllowList,
     Community,
+    CustomGithubStamp,
     Customization,
     IncludedChainId,
 )
@@ -218,11 +220,16 @@ class IncludedChainIdInline(admin.TabularInline):
     extra = 0
 
 
+class CustomGithubStampInline(admin.TabularInline):
+    model = CustomGithubStamp
+    extra = 0
+
+
 @admin.register(Customization)
 class CustomizationAdmin(ScorerModelAdmin):
     form = CustomizationForm
     raw_id_fields = ["scorer"]
-    inlines = [AllowListInline, IncludedChainIdInline]
+    inlines = [AllowListInline, CustomGithubStampInline, IncludedChainIdInline]
     fieldsets = [
         (
             None,

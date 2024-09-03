@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional, Type
 
-import api_logging as logging
 from django.conf import settings
 from django.contrib import admin
 from django.core.exceptions import ValidationError
@@ -14,6 +13,8 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.utils.deconstruct import deconstructible
 from rest_framework_api_key.models import AbstractAPIKey
+
+import api_logging as logging
 from scorer_weighted.models import BinaryWeightedScorer, Scorer, WeightedScorer
 
 from .deduplication import Rules
@@ -547,6 +548,11 @@ class Customization(models.Model):
                 allow_list.weight
             )
 
+        for custom_github_stamp in self.custom_github_stamps.all():
+            weights[
+                f"CustomGithubStamp#{custom_github_stamp.category}#{custom_github_stamp.value}"
+            ] = str(custom_github_stamp.weight)
+
         return weights
 
     async def aget_customization_dynamic_weights(self) -> dict:
@@ -554,6 +560,11 @@ class Customization(models.Model):
         async for allow_list in self.allow_lists.all():
             address_list = await AddressList.objects.aget(pk=allow_list.address_list_id)
             weights[f"AllowList#{address_list.name}"] = str(allow_list.weight)
+
+        for custom_github_stamp in self.custom_github_stamps.all():
+            weights[
+                f"CustomGithubStamp#{custom_github_stamp.category}#{custom_github_stamp.value}"
+            ] = str(custom_github_stamp.weight)
 
         return weights
 
@@ -575,6 +586,31 @@ class AllowList(models.Model):
 
     customization = models.ForeignKey(
         Customization, on_delete=models.PROTECT, related_name="allow_lists"
+    )
+
+    weight = models.DecimalField(default=0.0, max_digits=7, decimal_places=4)
+
+
+class CustomGithubStamp(models.Model):
+    class Category(models.TextChoices):
+        REPOSITORY = "repo"
+        ORGANIZATION = "org"
+
+    customization = models.ForeignKey(
+        Customization, on_delete=models.PROTECT, related_name="custom_github_stamps"
+    )
+
+    category = models.CharField(
+        max_length=4,
+        choices=Category.choices,
+        blank=False,
+    )
+
+    value = models.CharField(
+        max_length=100,
+        blank=False,
+        null=False,
+        help_text="The repository (e.g. 'passportxyz/passport-scorer') or organization name (e.g. 'passportxyz')",
     )
 
     weight = models.DecimalField(default=0.0, max_digits=7, decimal_places=4)
