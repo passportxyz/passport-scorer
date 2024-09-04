@@ -561,7 +561,7 @@ class Customization(models.Model):
             address_list = await AddressList.objects.aget(pk=allow_list.address_list_id)
             weights[f"AllowList#{address_list.name}"] = str(allow_list.weight)
 
-        for custom_github_stamp in self.custom_github_stamps.all():
+        async for custom_github_stamp in self.custom_github_stamps.all():
             weights[
                 f"CustomGithubStamp#{custom_github_stamp.category}#{custom_github_stamp.value}"
             ] = str(custom_github_stamp.weight)
