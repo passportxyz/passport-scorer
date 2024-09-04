@@ -38,14 +38,14 @@ type StackType = "review" | "staging" | "production";
 export const stack: StackType = pulumi.getStack() as StackType;
 export const region = aws.getRegion();
 const route53Zone = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE`,
+  `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE`
 );
 const route53ZoneForPublicData = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE_FOR_PUBLIC_DATA`,
+  `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE_FOR_PUBLIC_DATA`
 );
 
 const rootDomain = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/ROOT_DOMAIN`,
+  `op://DevOps/passport-scorer-${stack}-env/ci/ROOT_DOMAIN`
 );
 
 const domain =
@@ -65,60 +65,60 @@ export const dockerGtcPassportScorerImage = pulumi
   .all([current, regionData])
   .apply(
     ([acc, region]) =>
-      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-scorer:${DOCKER_IMAGE_TAG}`,
+      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-scorer:${DOCKER_IMAGE_TAG}`
   );
 
 export const dockerGtcSubmitPassportLambdaImage = pulumi
   .all([current, regionData])
   .apply(
     ([acc, region]) =>
-      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/submit-passport-lambdas:${DOCKER_IMAGE_TAG}`,
+      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/submit-passport-lambdas:${DOCKER_IMAGE_TAG}`
   );
 
 export const dockerGtcStakingIndexerImage = pulumi
   .all([current, regionData])
   .apply(
     ([acc, region]) =>
-      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-indexer:${DOCKER_IMAGE_TAG}`,
+      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-indexer:${DOCKER_IMAGE_TAG}`
   );
 
 export const verifierDockerImage = pulumi
   .all([current, regionData])
   .apply(
     ([acc, region]) =>
-      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-verifier:${DOCKER_IMAGE_TAG}`,
+      `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-verifier:${DOCKER_IMAGE_TAG}`
   );
 
 const redashDbUsername = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_USER`,
+  `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_USER`
 );
 const redashDbPassword = pulumi.secret(
   op.read.parse(
-    `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_PASSWORD`,
-  ),
+    `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_PASSWORD`
+  )
 );
 const redashDbName = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_NAME`,
+  `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_DB_NAME`
 );
 const redashSecretKey = pulumi.secret(
-  op.read.parse(
-    `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_SECRET_KEY`,
-  ),
+  op.read.parse(`op://DevOps/passport-scorer-${stack}-env/ci/REDASH_SECRET_KEY`)
 );
 const redashMailUsername = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_MAIL_USERNAME`,
+  `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_MAIL_USERNAME`
 );
 const redashMailPassword = pulumi.secret(
   op.read.parse(
-    `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_MAIL_PASSWORD`,
-  ),
+    `op://DevOps/passport-scorer-${stack}-env/ci/REDASH_MAIL_PASSWORD`
+  )
 );
 
 const pagerDutyIntegrationEndpoint = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`,
+  `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`
 );
 
-const coreInfraStack = new pulumi.StackReference(`gitcoin/core-infra/${stack}`);
+const coreInfraStack = new pulumi.StackReference(
+  `passportxyz/core-infra/${stack}`
+);
 const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
 
 const vpcID = coreInfraStack.getOutput("vpcId");
@@ -276,18 +276,18 @@ const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
         description: "allow output to any ipv4 address using any protocol",
       },
     ],
-  },
+  }
 );
 
 const scorerDbProxyEndpoint = coreInfraStack.getOutput("rdsProxyEndpoint");
 const scorerDbProxyEndpointConn = coreInfraStack.getOutput(
-  "rdsProxyConnectionUrl",
+  "rdsProxyConnectionUrl"
 );
 const readreplica0ConnectionUrl = coreInfraStack.getOutput(
-  "readreplica0ConnectionUrl",
+  "readreplica0ConnectionUrl"
 );
 const readreplicaAnalyticsConnectionUrl = coreInfraStack.getOutput(
-  "readreplicaAnalyticsConnectionUrl",
+  "readreplicaAnalyticsConnectionUrl"
 );
 
 //////////////////////////////////////////////////////////////
@@ -342,9 +342,9 @@ const accessLogsBucketPolicy = new aws.s3.BucketPolicy(
   {
     bucket: accessLogsBucket.id,
     policy: accessLogsBucketPolicyDocument.apply(
-      (accessLogsBucketPolicyDocument) => accessLogsBucketPolicyDocument.json,
+      (accessLogsBucketPolicyDocument) => accessLogsBucketPolicyDocument.json
     ),
-  },
+  }
 );
 
 const albSecGrp = new aws.ec2.SecurityGroup(`scorer-service-alb`, {
@@ -405,7 +405,7 @@ const targetGroupPassport = createTargetGroup("scorer-api-passport", vpcID);
 const targetGroupRegistry = createTargetGroup("scorer-api-reg", vpcID);
 const targetGroupRegistrySubmitPassport = createTargetGroup(
   "scorer-api-reg-sp",
-  vpcID,
+  vpcID
 );
 
 //////////////////////////////////////////////////////////////
@@ -428,7 +428,7 @@ const httpsListener = HTTPS_ALB_CERT_ARN.apply(
       tags: {
         name: "scorer-https-listener",
       },
-    }),
+    })
 );
 
 // Create a DNS record for the load balancer
@@ -516,7 +516,7 @@ const pagerdutyTopic = new aws.sns.Topic("pagerduty", {
 });
 
 const PAGERDUTY_INTEGRATION_ENDPOINT = pulumi.secret(
-  pagerDutyIntegrationEndpoint,
+  pagerDutyIntegrationEndpoint
 );
 
 const identity = aws.getCallerIdentity();
@@ -549,8 +549,8 @@ const pagerdutyTopicPolicy = new aws.sns.TopicPolicy("pagerdutyTopicPolicy", {
           },
         ],
         Version: "2008-10-17",
-      }),
-    ),
+      })
+    )
   ),
 });
 
@@ -607,7 +607,7 @@ const serviceTaskRole = new aws.iam.Role("scorer-service-task-role", {
               Resource: "*",
             },
           ],
-        }),
+        })
       ),
     },
   ],
@@ -735,7 +735,7 @@ const indexerSecrets = pulumi
         name: "DB_NAME",
         valueFrom: `${rdsSecretArn}:dbname::`,
       },
-    ].sort(secretsManager.sortByName),
+    ].sort(secretsManager.sortByName)
   );
 
 //////////////////////////////////////////////////////////////
@@ -965,7 +965,7 @@ const web = new aws.ec2.Instance("troubleshooting-instance", {
 
 export const ec2PublicIp = web.publicIp;
 export const dockrRunCmd = pulumi.secret(
-  pulumi.interpolate`docker run -it -e CERAMIC_CACHE_SCORER_ID=${CERAMIC_CACHE_SCORER_ID}  -e 'DATABASE_URL=${scorerDbProxyEndpointConn}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`,
+  pulumi.interpolate`docker run -it -e CERAMIC_CACHE_SCORER_ID=${CERAMIC_CACHE_SCORER_ID}  -e 'DATABASE_URL=${scorerDbProxyEndpointConn}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
 );
 
 ///////////////////////
@@ -1015,12 +1015,12 @@ const redashDb = new aws.rds.Instance(
     backupRetentionPeriod: 5,
     performanceInsightsEnabled: true,
   },
-  { protect: true },
+  { protect: true }
 );
 
 const dbUrl = redashDb.endpoint;
 export const redashDbUrl = pulumi.secret(
-  pulumi.interpolate`postgresql://${redashDbUsername}:${redashDbPassword}@${dbUrl}/${redashDbName}`,
+  pulumi.interpolate`postgresql://${redashDbUsername}:${redashDbPassword}@${dbUrl}/${redashDbName}`
 );
 
 const redashSecurityGroup = new aws.ec2.SecurityGroup(
@@ -1059,7 +1059,7 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
         cidrBlocks: ["0.0.0.0/0"],
       },
     ],
-  },
+  }
 );
 
 export const REDASH_HOST =
@@ -1101,10 +1101,10 @@ const redashInitScript = redashDbUrl.apply((url) =>
 
           echo "Start docker-compose ..."
           docker-compose up -d
-          `,
-      ),
-    ),
-  ),
+          `
+      )
+    )
+  )
 );
 
 const redashinstance = new aws.ec2.Instance("redashinstance", {
@@ -1193,7 +1193,7 @@ const redashHttpsListener = HTTPS_ALB_CERT_ARN.apply(
       tags: {
         name: "redash-https-listener",
       },
-    }),
+    })
 );
 
 const redashRecord = new aws.route53.Record("redash", {
@@ -1312,7 +1312,7 @@ export const dailyDataDumpTaskDefinitionParquetList = dailyDataDumpApps.map(
     });
 
     return dailyDataDumpTaskDefinitionParquet;
-  },
+  }
 );
 
 /*
@@ -1496,7 +1496,7 @@ export const coinbaseRevocationCheck = createScheduledTask({
 const exportVals = createScoreExportBucketAndDomain(
   publicDataDomain,
   publicDataDomain,
-  route53ZoneForPublicData,
+  route53ZoneForPublicData
 );
 
 createIndexerService(
@@ -1510,7 +1510,7 @@ createIndexerService(
     environment: indexerEnvironment,
     dockerGtcStakingIndexerImage,
   },
-  alarmConfigurations,
+  alarmConfigurations
 );
 
 const {
@@ -1557,7 +1557,7 @@ createLoadBalancerAlarms(
   "scorer-service",
   alb.arnSuffix,
   alarmConfigurations,
-  pagerdutyTopic,
+  pagerdutyTopic
 );
 
 // Manage Lamba services
@@ -1571,7 +1571,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["POST"],
     listenerPriority: 1001,
   },
-  alarmConfigurations,
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1584,7 +1584,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["POST"],
     listenerPriority: 1002,
   },
-  alarmConfigurations,
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1597,7 +1597,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["PATCH"],
     listenerPriority: 1003,
   },
-  alarmConfigurations,
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1612,7 +1612,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["DELETE"],
     listenerPriority: 1004,
   },
-  alarmConfigurations,
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1625,7 +1625,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["POST"],
     listenerPriority: 1005,
   },
-  alarmConfigurations,
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1638,7 +1638,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["POST"],
     listenerPriority: 1006,
   },
-  alarmConfigurations,
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1651,7 +1651,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["GET"],
     listenerPriority: 1007,
   },
-  alarmConfigurations,
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1664,7 +1664,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["GET"],
     listenerPriority: 1015,
   },
-  alarmConfigurations,
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1677,7 +1677,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["GET"],
     listenerPriority: 1010,
   },
-  alarmConfigurations,
+  alarmConfigurations
 );
 
 buildHttpLambdaFn(
@@ -1690,7 +1690,7 @@ buildHttpLambdaFn(
     httpRequestMethods: ["GET"],
     listenerPriority: 1012,
   },
-  alarmConfigurations,
+  alarmConfigurations
 );
 
 buildQueueLambdaFn({
@@ -1705,10 +1705,10 @@ buildQueueLambdaFn({
 
 // VERIFIER
 const privateAlbHttpListenerArn = coreInfraStack.getOutput(
-  "privateAlbHttpListenerArn",
+  "privateAlbHttpListenerArn"
 );
 const privatprivateAlbArnSuffixeAlbHttpListenerArn = coreInfraStack.getOutput(
-  "privateAlbArnSuffix",
+  "privateAlbArnSuffix"
 );
 
 const verifier = pulumi
@@ -1726,7 +1726,7 @@ const verifier = pulumi
       dockerImage: _verifierDockerImage,
       vpcPrivateSubnets: vpcPrivateSubnetIds as pulumi.Output<string[]>,
       snsTopicArn: pagerdutyTopic.arn,
-    }),
+    })
   );
 
 export const verifierTaskArn = verifier.task.arn;
@@ -1736,7 +1736,9 @@ const createdTask = createTask({
   config: {
     ...baseScorerServiceConfig,
     securityGroup: secgrp,
-    command: ["python", "manage.py", "process_batch_model_address_upload"].join(" "),
+    command: ["python", "manage.py", "process_batch_model_address_upload"].join(
+      " "
+    ),
     scheduleExpression: "",
     alertTopic: pagerdutyTopic,
     cpu: 2048,
@@ -1753,5 +1755,5 @@ export const s3TriggeredECSTask = createS3InitiatedECSTask(
   createdTask.task.taskDefinition.arn,
   vpcPrivateSubnetIds,
   [secgrp.id],
-  createdTask.eventsStsAssumeRole.arn,
+  createdTask.eventsStsAssumeRole.arn
 );
