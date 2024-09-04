@@ -569,14 +569,38 @@ class Customization(models.Model):
         return weights
 
 
+def hex_number_validator(value):
+    if not value.startswith("0x"):
+        raise ValidationError("Value expected to start with '0x'")
+    try:
+        int(value, 16)
+    except ValueError as e:
+        raise ValidationError("Invalid hex number") from e
+
+
 class IncludedChainId(models.Model):
-    chain_id = models.CharField(max_length=200, blank=False, null=False)
+    chain_id = models.CharField(
+        max_length=200,
+        blank=False,
+        null=False,
+        help_text="Chain ID in hex format (0x1)! You can find this on for example on: https://chainlist.org",
+        validators=[hex_number_validator],
+    )
     customization = models.ForeignKey(
         Customization, on_delete=models.CASCADE, related_name="included_chain_ids"
     )
 
     class Meta:
         unique_together = ["chain_id", "customization"]
+
+    def __str__(self):
+        int_value = " - bad hex value - "
+        try:
+            int_value = int(self.chain_id, 16)
+        except ValueError:
+            pass
+
+        return f"{self.chain_id} ({int_value})"
 
 
 class AllowList(models.Model):
