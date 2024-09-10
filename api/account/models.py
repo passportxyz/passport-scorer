@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from hashlib import sha256
 from typing import Optional, Type
 
 from django.conf import settings
@@ -552,9 +554,10 @@ class Customization(models.Model):
                 allow_list.weight
             )
 
+        # TODO
         for custom_github_stamp in self.custom_github_stamps.all():
             weights[
-                f"CustomGithubStamp#{custom_github_stamp.category}#{custom_github_stamp.value}"
+                f"DeveloperStamp#{custom_github_stamp.category}#{custom_github_stamp.value}"
             ] = str(custom_github_stamp.weight)
 
         return weights
@@ -565,9 +568,10 @@ class Customization(models.Model):
             address_list = await AddressList.objects.aget(pk=allow_list.address_list_id)
             weights[f"AllowList#{address_list.name}"] = str(allow_list.weight)
 
+        # TODO
         async for custom_github_stamp in self.custom_github_stamps.all():
             weights[
-                f"CustomGithubStamp#{custom_github_stamp.category}#{custom_github_stamp.value}"
+                f"DeveloperStamp#{custom_github_stamp.category}#{custom_github_stamp.value}"
             ] = str(custom_github_stamp.weight)
 
         return weights
@@ -619,26 +623,66 @@ class AllowList(models.Model):
     weight = models.DecimalField(default=0.0, max_digits=7, decimal_places=4)
 
 
-class CustomGithubStamp(models.Model):
-    class Category(models.TextChoices):
-        REPOSITORY = "repo"
-        ORGANIZATION = "org"
+class CustomPlatform(models.Model):
+    name = models.CharField(max_length=64, blank=False, null=False, unique=True)
+    icon_url = models.CharField(max_length=64, blank=False, null=False)
+    display_name = models.CharField(max_length=64, blank=False, null=False)
+    description = models.CharField(max_length=256, blank=False, null=False)
+    banner_heading = models.CharField(max_length=64, blank=True, null=True)
+    banner_body = models.CharField(max_length=256, blank=True, null=True)
 
-    customization = models.ForeignKey(
-        Customization, on_delete=models.PROTECT, related_name="custom_github_stamps"
+    def __str__(self):
+        return f"{self.name}"
+
+
+def validate_custom_stamp_ruleset_definition(value):
+    if "name" not in value:
+        raise ValidationError("Field `name` is required in the definition")
+    # TODO check for ruleset
+
+
+class CustomCredentialRuleset(models.Model):
+    class CredentialType(models.TextChoices):
+        DeveloperList = ("DEVEL", "Developer List")
+
+    credential_type = models.CharField(
+        max_length=5, choices=CredentialType.choices, blank=False, null=False
     )
 
-    category = models.CharField(
-        max_length=4,
-        choices=Category.choices,
-        blank=False,
-    )
+    definition = models.JSONField(null=False, blank=False)
 
-    value = models.CharField(
-        max_length=100,
-        blank=False,
-        null=False,
-        help_text="The repository (e.g. 'passportxyz/passport-scorer') or organization name (e.g. 'passportxyz')",
-    )
+    name = models.CharField(max_length=64)
+
+    provider_name = models.CharField(max_length=256, unique=True)
+
+    def save(self, *args, **kwargs):
+        validate_custom_stamp_ruleset_definition(self.definition)
+        self.name = self.definition["name"]
+        definition_hash = sha256(
+            json.dumps(self.definition, sort_keys=True).encode("utf8")
+        ).hexdigest()[0:8]
+        type_name = [
+            ct.name
+            for ct in CustomCredentialRuleset.CredentialType
+            if ct.value == self.credential_type
+        ][0]
+        self.provider_name = f"{type_name}#{self.name}#{definition_hash}"
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.provider_name}"
+
+
+class CustomCredential(models.Model):
+    customization = models.ForeignKey(Customization, on_delete=models.PROTECT)
+
+    platform = models.ForeignKey(CustomPlatform, on_delete=models.PROTECT)
+
+    ruleset = models.ForeignKey(CustomCredentialRuleset, on_delete=models.PROTECT)
 
     weight = models.DecimalField(default=0.0, max_digits=7, decimal_places=4)
+
+    display_name = models.CharField(max_length=64, blank=False, null=False)
+
+    description = models.CharField(max_length=256, blank=True, null=True)
