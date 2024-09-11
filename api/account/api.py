@@ -3,16 +3,6 @@ import string
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, cast
 
-import api_logging as logging
-from account.models import (
-    Account,
-    AccountAPIKey,
-    AddressList,
-    AddressListMember,
-    Community,
-    Nonce,
-    Customization,
-)
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
@@ -23,16 +13,26 @@ from ninja_extra import NinjaExtraAPI, status
 from ninja_extra.exceptions import APIException
 from ninja_jwt.authentication import JWTAuth
 from ninja_jwt.schema import RefreshToken
+from siwe import SiweMessage, siwe
+
+import api_logging as logging
+from account.models import (
+    Account,
+    AccountAPIKey,
+    AddressList,
+    AddressListMember,
+    Community,
+    Customization,
+    Nonce,
+)
 from scorer_weighted.models import (
     BinaryWeightedScorer,
     WeightedScorer,
     get_default_weights,
 )
-from siwe import SiweMessage, siwe
+from trusta_labs.api import CgrantsApiKey
 
 from .deduplication import Rules
-
-from trusta_labs.api import CgrantsApiKey
 
 secret_key = CgrantsApiKey()
 
@@ -656,6 +656,7 @@ def get_account_customization(request, dashboard_path: str):
                 "id": customization.scorer.id,
             },
             includedChainIds=included_chain_ids,
+            showExplanationPanel=customization.show_explanation_panel,
         )
 
     except Customization.DoesNotExist:

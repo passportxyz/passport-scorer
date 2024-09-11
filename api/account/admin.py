@@ -240,6 +240,7 @@ class CustomizationAdmin(ScorerModelAdmin):
                     "scorer_panel_text",
                     "scorer",
                     "use_custom_dashboard_panel",
+                    "show_explanation_panel",
                 ],
             },
         ),
@@ -280,7 +281,14 @@ class CustomizationAdmin(ScorerModelAdmin):
         ),
     ]
 
-    list_display = ["display", "id", "path", "use_custom_dashboard_panel", "scorer"]
+    list_display = [
+        "display",
+        "id",
+        "path",
+        "use_custom_dashboard_panel",
+        "scorer",
+        "show_explanation_panel",
+    ]
 
     @admin.display(ordering="id")
     def display(self, obj):

@@ -541,6 +541,10 @@ class Customization(models.Model):
         help_text="The info tooltip text", null=True, blank=True
     )
 
+    show_explanation_panel = models.BooleanField(
+        default=True, help_text="Toggle to show or hide the middle component"
+    )
+
     def get_customization_dynamic_weights(self) -> dict:
         weights = {}
         for allow_list in self.allow_lists.all():
