@@ -597,7 +597,7 @@ def update_community_scorers(request, community_id, payload: ScorerId):
     return {"ok": True}
 
 
-@api.get("/customization/credentials/{provider_id}", auth=None)
+@api.get("/customization/credential/{provider_id}", auth=None)
 def get_credential_definition(request, provider_id: str):
     return {
         "ruleset": get_object_or_404(

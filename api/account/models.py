@@ -664,18 +664,20 @@ class CustomPlatform(models.Model):
     name = models.CharField(
         max_length=64, blank=False, null=False, unique=True, help_text="Internal name"
     )
-    display_name = models.CharField(max_length=64, blank=False, null=False)
-    icon_url = models.CharField(
-        max_length=64, blank=False, null=False, help_text="e.g. ./assets/icon.svg"
+    display_name = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        help_text="This and all remaining fields are optional, there are defaults defined for each platform type",
     )
-    description = models.CharField(max_length=256, blank=False, null=False)
+    icon_url = models.CharField(
+        max_length=64, blank=True, null=True, help_text="e.g. ./assets/icon.svg"
+    )
+    description = models.CharField(max_length=256, blank=True, null=True)
     banner_heading = models.CharField(max_length=64, blank=True, null=True)
     banner_content = models.CharField(max_length=256, blank=True, null=True)
     banner_cta_text = models.CharField(max_length=256, blank=True, null=True)
     banner_cta_url = models.CharField(max_length=256, blank=True, null=True)
-    one_click_flow = models.BooleanField(
-        default=False, help_text="Include in one click flow"
-    )
 
     def __str__(self):
         return f"{self.name}"
