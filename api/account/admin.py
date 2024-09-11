@@ -374,13 +374,13 @@ class CustomPlatformAdmin(admin.ModelAdmin):
 
 
 @admin.register(CustomCredentialRuleset)
-class CustomStampRulesetAdmin(admin.ModelAdmin):
-    list_display = ["name", "provider_name", "credential_type"]
-    search_fields = ["name", "provider_name", "credential_type"]
+class CustomCredentialRulesetAdmin(admin.ModelAdmin):
+    list_display = ["name", "provider_id", "credential_type"]
+    search_fields = ["name", "provider_id", "credential_type"]
 
     def get_readonly_fields(self, request, obj=None):
         # This makes name read-only after creation, but editable during creation
         if obj:
-            return ["credential_type", "definition", "provider_name", "name"]
+            return ["credential_type", "definition", "provider_id", "name"]
         else:
-            return ["provider_name", "name"]
+            return ["provider_id", "name"]

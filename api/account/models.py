@@ -554,11 +554,10 @@ class Customization(models.Model):
                 allow_list.weight
             )
 
-        # TODO
-        for custom_github_stamp in self.custom_github_stamps.all():
-            weights[
-                f"DeveloperStamp#{custom_github_stamp.category}#{custom_github_stamp.value}"
-            ] = str(custom_github_stamp.weight)
+        for custom_credential in self.custom_credentials.all():
+            weights[custom_credential.ruleset.provider_id] = str(
+                custom_credential.weight
+            )
 
         return weights
 
@@ -568,13 +567,43 @@ class Customization(models.Model):
             address_list = await AddressList.objects.aget(pk=allow_list.address_list_id)
             weights[f"AllowList#{address_list.name}"] = str(allow_list.weight)
 
-        # TODO
-        async for custom_github_stamp in self.custom_github_stamps.all():
-            weights[
-                f"DeveloperStamp#{custom_github_stamp.category}#{custom_github_stamp.value}"
-            ] = str(custom_github_stamp.weight)
+        async for custom_credential in self.custom_credentials.all():
+            weights[custom_credential.ruleset.provider_id] = str(
+                custom_credential.weight
+            )
 
         return weights
+
+    def get_custom_stamps(self):
+        stamps = {}
+        for custom_credential in self.custom_credentials.all():
+            platform = custom_credential.platform
+            if platform.name not in stamps:
+                stamps[platform.name] = {
+                    "platformType": platform.platform_type,
+                    "iconUrl": platform.icon_url,
+                    "displayName": platform.display_name,
+                    "description": platform.description,
+                    "banner": {
+                        "heading": platform.banner_heading,
+                        "content": platform.banner_content,
+                        "cta": {
+                            "text": platform.banner_cta_text,
+                            "url": platform.banner_cta_url,
+                        },
+                    },
+                    "isEVM": platform.one_click_flow,
+                    "credentials": [],
+                }
+            stamps[platform.name]["credentials"].append(
+                {
+                    "providerId": custom_credential.ruleset.provider_id,
+                    "displayName": custom_credential.display_name,
+                    "description": custom_credential.description,
+                }
+            )
+
+        return stamps
 
 
 def hex_number_validator(value):
@@ -624,12 +653,29 @@ class AllowList(models.Model):
 
 
 class CustomPlatform(models.Model):
-    name = models.CharField(max_length=64, blank=False, null=False, unique=True)
-    icon_url = models.CharField(max_length=64, blank=False, null=False)
+    class PlatformType(models.TextChoices):
+        DeveloperList = ("DEVEL", "Developer List")
+
+    # Used in the frontend to determine the Platform
+    # definition and getProviderPayload to use
+    platform_type = models.CharField(
+        max_length=5, choices=PlatformType.choices, blank=False, null=False
+    )
+    name = models.CharField(
+        max_length=64, blank=False, null=False, unique=True, help_text="Internal name"
+    )
     display_name = models.CharField(max_length=64, blank=False, null=False)
+    icon_url = models.CharField(
+        max_length=64, blank=False, null=False, help_text="e.g. ./assets/icon.svg"
+    )
     description = models.CharField(max_length=256, blank=False, null=False)
     banner_heading = models.CharField(max_length=64, blank=True, null=True)
-    banner_body = models.CharField(max_length=256, blank=True, null=True)
+    banner_content = models.CharField(max_length=256, blank=True, null=True)
+    banner_cta_text = models.CharField(max_length=256, blank=True, null=True)
+    banner_cta_url = models.CharField(max_length=256, blank=True, null=True)
+    one_click_flow = models.BooleanField(
+        default=False, help_text="Include in one click flow"
+    )
 
     def __str__(self):
         return f"{self.name}"
@@ -638,7 +684,12 @@ class CustomPlatform(models.Model):
 def validate_custom_stamp_ruleset_definition(value):
     if "name" not in value:
         raise ValidationError("Field `name` is required in the definition")
-    # TODO check for ruleset
+    if re.match(r"^[a-zA-Z0-9]+$", value["name"]) is None:
+        raise ValidationError(
+            "Field `name` must be alphanumeric and not contain spaces or special characters"
+        )
+    if "condition" not in value:
+        raise ValidationError("Field `condition` is required in the definition")
 
 
 class CustomCredentialRuleset(models.Model):
@@ -649,11 +700,16 @@ class CustomCredentialRuleset(models.Model):
         max_length=5, choices=CredentialType.choices, blank=False, null=False
     )
 
-    definition = models.JSONField(null=False, blank=False)
+    definition = models.JSONField(
+        null=False, blank=False, validators=[validate_custom_stamp_ruleset_definition]
+    )
 
     name = models.CharField(max_length=64)
 
-    provider_name = models.CharField(max_length=256, unique=True)
+    provider_id = models.CharField(max_length=256, unique=True)
+
+    def clean(self):
+        validate_custom_stamp_ruleset_definition(self.definition)
 
     def save(self, *args, **kwargs):
         validate_custom_stamp_ruleset_definition(self.definition)
@@ -666,16 +722,18 @@ class CustomCredentialRuleset(models.Model):
             for ct in CustomCredentialRuleset.CredentialType
             if ct.value == self.credential_type
         ][0]
-        self.provider_name = f"{type_name}#{self.name}#{definition_hash}"
+        self.provider_id = f"{type_name}#{self.name}#{definition_hash}"
 
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.provider_name}"
+        return f"{self.provider_id}"
 
 
 class CustomCredential(models.Model):
-    customization = models.ForeignKey(Customization, on_delete=models.PROTECT)
+    customization = models.ForeignKey(
+        Customization, on_delete=models.PROTECT, related_name="custom_credentials"
+    )
 
     platform = models.ForeignKey(CustomPlatform, on_delete=models.PROTECT)
 
