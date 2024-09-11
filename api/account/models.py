@@ -676,7 +676,12 @@ class CustomPlatform(models.Model):
     description = models.CharField(max_length=256, blank=True, null=True)
     banner_heading = models.CharField(max_length=64, blank=True, null=True)
     banner_content = models.CharField(max_length=256, blank=True, null=True)
-    banner_cta_text = models.CharField(max_length=256, blank=True, null=True)
+    banner_cta_text = models.CharField(
+        max_length=256,
+        blank=True,
+        null=True,
+        help_text="If either CTA field is set, both must be set",
+    )
     banner_cta_url = models.CharField(max_length=256, blank=True, null=True)
 
     def __str__(self):
