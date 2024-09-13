@@ -13,6 +13,6 @@
     "@pulumi/awsx": "^1.0.5",
     "@pulumi/command": "^0.10.0",
     "@pulumi/pulumi": "^3.79.0",
-    "infra-libs": "https://github.com/passportxyz/infra-libs.git#2845-fleek-aws"
+    "infra-libs": "passportxyz/infra-libs#semver:^1.0.0"
   }
 }
