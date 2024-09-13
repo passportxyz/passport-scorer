@@ -568,9 +568,10 @@ class Customization(models.Model):
             weights[f"AllowList#{address_list.name}"] = str(allow_list.weight)
 
         async for custom_credential in self.custom_credentials.all():
-            weights[custom_credential.ruleset.provider_id] = str(
-                custom_credential.weight
+            rulesset = await CustomCredentialRuleset.objects.aget(
+                id=custom_credential.ruleset_id
             )
+            weights[rulesset.provider_id] = str(custom_credential.weight)
 
         return weights
 
@@ -592,7 +593,7 @@ class Customization(models.Model):
                             "url": platform.banner_cta_url,
                         },
                     },
-                    "isEVM": platform.one_click_flow,
+                    "isEVM": False,  # platform.one_click_flow,
                     "credentials": [],
                 }
             stamps[platform.name]["credentials"].append(
