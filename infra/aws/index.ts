@@ -1785,10 +1785,10 @@ const passportXyzAppEnvironment = secretsManager
     return acc;
   }, {} as Record<string, string | pulumi.Output<any>>);
 
-const domainName = `${stack}.scorer.gitcoin.co`;
-const prefix = "scorer";
+const domainName = 'scorer.gitcoin.co';
+const prefix = stack;
 const amplifyAppConfig: amplify.AmplifyAppConfig = {
-  name: `${prefix}.${domainName}`,
+  name: `${domainName}`,
   githubUrl: PASSPORT_APP_GITHUB_URL,
   githubAccessToken: PASSPORT_APP_GITHUB_ACCESS_TOKEN_FOR_AMPLIFY,
   domainName: domainName,
