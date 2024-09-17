@@ -1785,36 +1785,37 @@ const passportXyzAppEnvironment = secretsManager
     return acc;
   }, {} as Record<string, string | pulumi.Output<any>>);
 
-const domainName = 'scorer.gitcoin.co';
-const prefix = stack;
-const amplifyAppConfig: amplify.AmplifyAppConfig = {
-  name: `${domainName}`,
-  githubUrl: PASSPORT_APP_GITHUB_URL,
-  githubAccessToken: PASSPORT_APP_GITHUB_ACCESS_TOKEN_FOR_AMPLIFY,
-  domainName: domainName,
-  cloudflareDomain: CLOUDFLARE_DOMAIN,
-  cloudflareZoneId: CLOUDFLARE_ZONE_ID,
-  prefix: prefix,
-  branchName: passportBranches[stack],
-  environmentVariables: passportXyzAppEnvironment,
-  tags: { Name: `${prefix}.${domainName}` },
-  enableBasicAuth: false,
-  basicAuthUsername: "",
-  basicAuthPassword: "",
-  buildCommand: "yarn install && yarn build && yarn next export",
-  preBuildCommand: "nvm use 20.9.0",
-  artifactsBaseDirectory: "out",
-  customRules: [
-    {
-      source: "/",
-      status: "200",
-      target: "/index.html",
-    },
-  ],
-  platform: "WEB",
-  monorepoAppRoot: "interface"
-};
+  const amplifyAppInfo = coreInfraStack.getOutput("newPassportDomain").apply((domainName) => {
+    const prefix = "scorer";
+    const amplifyAppConfig: amplify.AmplifyAppConfig = {
+      name: `${domainName}`,
+      githubUrl: PASSPORT_APP_GITHUB_URL,
+      githubAccessToken: PASSPORT_APP_GITHUB_ACCESS_TOKEN_FOR_AMPLIFY,
+      domainName: domainName,
+      cloudflareDomain: CLOUDFLARE_DOMAIN,
+      cloudflareZoneId: CLOUDFLARE_ZONE_ID,
+      prefix: prefix,
+      branchName: passportBranches[stack],
+      environmentVariables: passportXyzAppEnvironment,
+      tags: { Name: `${prefix}.${domainName}` },
+      enableBasicAuth: false,
+      basicAuthUsername: "",
+      basicAuthPassword: "",
+      buildCommand: "yarn install && yarn build && yarn next export",
+      preBuildCommand: "nvm use 20.9.0",
+      artifactsBaseDirectory: "out",
+      customRules: [
+        {
+          source: "/",
+          status: "200",
+          target: "/index.html",
+        },
+      ],
+      platform: "WEB",
+      monorepoAppRoot: "interface"
+    };
 
-const amplifyAppInfo = amplify.createAmplifyApp(amplifyAppConfig);
+    return amplify.createAmplifyApp(amplifyAppConfig);
+  });
 
 export const amplifyAppHookUrl = pulumi.secret(amplifyAppInfo.webHook.url);
