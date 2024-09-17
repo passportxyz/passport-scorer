@@ -628,6 +628,7 @@ def get_account_customization(request, dashboard_path: str):
 
         return dict(
             key=customization.path,
+            partnerName=customization.partner_name,
             useCustomDashboardPanel=customization.use_custom_dashboard_panel,
             customizationTheme={
                 "colors": {
