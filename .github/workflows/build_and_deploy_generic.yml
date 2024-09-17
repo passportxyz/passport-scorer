@@ -42,7 +42,6 @@ jobs:
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           dockerfile_name: ./api/Dockerfile
           build_dir: ./api/
-          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
 
   docker-lambda:
     name: Build and push docker image for lambdas
