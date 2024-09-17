@@ -18,7 +18,7 @@ import {
   createLoadBalancerAlarms,
 } from "../lib/scorer/loadBalancer";
 import { createScheduledTask, createTask } from "../lib/scorer/scheduledTasks";
-import { secretsManager } from "infra-libs";
+import { secretsManager, amplify } from "infra-libs";
 
 import * as op from "@1password/op-js";
 import { createVerifierService } from "./verifier";
@@ -1757,3 +1757,62 @@ export const s3TriggeredECSTask = createS3InitiatedECSTask(
   [secgrp.id],
   createdTask.eventsStsAssumeRole.arn
 );
+
+const PASSPORT_APP_GITHUB_URL = "https://github.com/passportxyz/passport-scorer";
+const PASSPORT_APP_GITHUB_ACCESS_TOKEN_FOR_AMPLIFY = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-secrets/interface/PASSPORT_SCORER_GITHUB_ACCESS_TOKEN_FOR_AMPLIFY`
+);
+const CLOUDFLARE_DOMAIN = stack === "production" ? `passport.xyz` : "";
+const CLOUDFLARE_ZONE_ID = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-secrets/interface/CLOUDFLARE_ZONE_ID`
+);
+
+const passportBranches = Object({
+  review: "main",
+  staging: "staging-app",
+  production: "production-app",
+});
+
+const passportXyzAppEnvironment = secretsManager
+  .getEnvironmentVars({
+    vault: "DevOps",
+    repo: "passport-scorer",
+    env: stack,
+    section: "interface",
+  })
+  .reduce((acc, { name, value }) => {
+    acc[name] = value;
+    return acc;
+  }, {} as Record<string, string | pulumi.Output<any>>);
+
+  const amplifyAppInfo = coreInfraStack.getOutput("newPassportDomain").apply((domainName) => {
+    const prefix = "scorer";
+    const amplifyAppConfig: amplify.AmplifyAppConfig = {
+      name: `${domainName}`,
+      githubUrl: PASSPORT_APP_GITHUB_URL,
+      githubAccessToken: PASSPORT_APP_GITHUB_ACCESS_TOKEN_FOR_AMPLIFY,
+      domainName: domainName,
+      cloudflareDomain: CLOUDFLARE_DOMAIN,
+      cloudflareZoneId: CLOUDFLARE_ZONE_ID,
+      prefix: prefix,
+      branchName: passportBranches[stack],
+      environmentVariables: passportXyzAppEnvironment,
+      tags: { Name: `${prefix}.${domainName}` },
+      buildCommand: "yarn install && yarn build && yarn next export",
+      preBuildCommand: "nvm use 20.9.0",
+      artifactsBaseDirectory: "out",
+      customRules: [
+        {
+          source: "/",
+          status: "200",
+          target: "/index.html",
+        },
+      ],
+      platform: "WEB",
+      monorepoAppRoot: "interface"
+    };
+
+    return amplify.createAmplifyApp(amplifyAppConfig);
+  });
+
+export const amplifyAppHookUrl = pulumi.secret(amplifyAppInfo.webHook.url);
