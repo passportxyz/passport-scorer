@@ -451,6 +451,14 @@ class Customization(models.Model):
         SIMPLE_LINK = "Simple Link"
         ONCHAIN_PUSH = "Onchain Push"
 
+    partner_name = models.CharField(
+        max_length=100,
+        null=False,
+        blank=False,
+        default="Partner",
+        help_text="The name of the partner, e.g. Gitcoin",
+    )
+
     path = models.CharField(
         max_length=100,
         db_index=True,

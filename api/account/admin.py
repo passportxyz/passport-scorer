@@ -242,6 +242,7 @@ class CustomizationAdmin(ScorerModelAdmin):
             {
                 "fields": [
                     "path",
+                    "partner_name",
                     "scorer_panel_title",
                     "scorer_panel_text",
                     "scorer",
