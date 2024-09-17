@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from hashlib import sha256
 from typing import Optional, Type
 
 from django.conf import settings
@@ -552,10 +554,10 @@ class Customization(models.Model):
                 allow_list.weight
             )
 
-        for custom_github_stamp in self.custom_github_stamps.all():
-            weights[
-                f"CustomGithubStamp#{custom_github_stamp.category}#{custom_github_stamp.value}"
-            ] = str(custom_github_stamp.weight)
+        for custom_credential in self.custom_credentials.all():
+            weights[custom_credential.ruleset.provider_id] = str(
+                custom_credential.weight
+            )
 
         return weights
 
@@ -565,12 +567,44 @@ class Customization(models.Model):
             address_list = await AddressList.objects.aget(pk=allow_list.address_list_id)
             weights[f"AllowList#{address_list.name}"] = str(allow_list.weight)
 
-        async for custom_github_stamp in self.custom_github_stamps.all():
-            weights[
-                f"CustomGithubStamp#{custom_github_stamp.category}#{custom_github_stamp.value}"
-            ] = str(custom_github_stamp.weight)
+        async for custom_credential in self.custom_credentials.all():
+            rulesset = await CustomCredentialRuleset.objects.aget(
+                id=custom_credential.ruleset_id
+            )
+            weights[rulesset.provider_id] = str(custom_credential.weight)
 
         return weights
+
+    def get_custom_stamps(self):
+        stamps = {}
+        for custom_credential in self.custom_credentials.all():
+            platform = custom_credential.platform
+            if platform.name not in stamps:
+                stamps[platform.name] = {
+                    "platformType": platform.platform_type,
+                    "iconUrl": platform.icon_url,
+                    "displayName": platform.display_name,
+                    "description": platform.description,
+                    "banner": {
+                        "heading": platform.banner_heading,
+                        "content": platform.banner_content,
+                        "cta": {
+                            "text": platform.banner_cta_text,
+                            "url": platform.banner_cta_url,
+                        },
+                    },
+                    "isEVM": False,  # platform.one_click_flow,
+                    "credentials": [],
+                }
+            stamps[platform.name]["credentials"].append(
+                {
+                    "providerId": custom_credential.ruleset.provider_id,
+                    "displayName": custom_credential.display_name,
+                    "description": custom_credential.description,
+                }
+            )
+
+        return stamps
 
 
 def hex_number_validator(value):
@@ -619,26 +653,102 @@ class AllowList(models.Model):
     weight = models.DecimalField(default=0.0, max_digits=7, decimal_places=4)
 
 
-class CustomGithubStamp(models.Model):
-    class Category(models.TextChoices):
-        REPOSITORY = "repo"
-        ORGANIZATION = "org"
+class CustomPlatform(models.Model):
+    class PlatformType(models.TextChoices):
+        DeveloperList = ("DEVEL", "Developer List")
 
+    # Used in the frontend to determine the Platform
+    # definition and getProviderPayload to use
+    platform_type = models.CharField(
+        max_length=5, choices=PlatformType.choices, blank=False, null=False
+    )
+    name = models.CharField(
+        max_length=64, blank=False, null=False, unique=True, help_text="Internal name"
+    )
+    display_name = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        help_text="This and all remaining fields are optional, there are defaults defined for each platform type",
+    )
+    icon_url = models.CharField(
+        max_length=64, blank=True, null=True, help_text="e.g. ./assets/icon.svg"
+    )
+    description = models.CharField(max_length=256, blank=True, null=True)
+    banner_heading = models.CharField(max_length=64, blank=True, null=True)
+    banner_content = models.CharField(max_length=256, blank=True, null=True)
+    banner_cta_text = models.CharField(
+        max_length=256,
+        blank=True,
+        null=True,
+        help_text="If either CTA field is set, both must be set",
+    )
+    banner_cta_url = models.CharField(max_length=256, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.name}"
+
+
+def validate_custom_stamp_ruleset_definition(value):
+    if "name" not in value:
+        raise ValidationError("Field `name` is required in the definition")
+    if re.match(r"^[a-zA-Z0-9]+$", value["name"]) is None:
+        raise ValidationError(
+            "Field `name` must be alphanumeric and not contain spaces or special characters"
+        )
+    if "condition" not in value:
+        raise ValidationError("Field `condition` is required in the definition")
+
+
+class CustomCredentialRuleset(models.Model):
+    class CredentialType(models.TextChoices):
+        DeveloperList = ("DEVEL", "Developer List")
+
+    credential_type = models.CharField(
+        max_length=5, choices=CredentialType.choices, blank=False, null=False
+    )
+
+    definition = models.JSONField(
+        null=False, blank=False, validators=[validate_custom_stamp_ruleset_definition]
+    )
+
+    name = models.CharField(max_length=64)
+
+    provider_id = models.CharField(max_length=256, unique=True)
+
+    def clean(self):
+        validate_custom_stamp_ruleset_definition(self.definition)
+
+    def save(self, *args, **kwargs):
+        validate_custom_stamp_ruleset_definition(self.definition)
+        self.name = self.definition["name"]
+        definition_hash = sha256(
+            json.dumps(self.definition, sort_keys=True).encode("utf8")
+        ).hexdigest()[0:8]
+        type_name = [
+            ct.name
+            for ct in CustomCredentialRuleset.CredentialType
+            if ct.value == self.credential_type
+        ][0]
+        self.provider_id = f"{type_name}#{self.name}#{definition_hash}"
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.provider_id}"
+
+
+class CustomCredential(models.Model):
     customization = models.ForeignKey(
-        Customization, on_delete=models.PROTECT, related_name="custom_github_stamps"
+        Customization, on_delete=models.PROTECT, related_name="custom_credentials"
     )
 
-    category = models.CharField(
-        max_length=4,
-        choices=Category.choices,
-        blank=False,
-    )
+    platform = models.ForeignKey(CustomPlatform, on_delete=models.PROTECT)
 
-    value = models.CharField(
-        max_length=100,
-        blank=False,
-        null=False,
-        help_text="The repository (e.g. 'passportxyz/passport-scorer') or organization name (e.g. 'passportxyz')",
-    )
+    ruleset = models.ForeignKey(CustomCredentialRuleset, on_delete=models.PROTECT)
 
     weight = models.DecimalField(default=0.0, max_digits=7, decimal_places=4)
+
+    display_name = models.CharField(max_length=64, blank=False, null=False)
+
+    description = models.CharField(max_length=256, blank=True, null=True)

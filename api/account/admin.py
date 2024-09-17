@@ -22,8 +22,10 @@ from .models import (
     AddressListMember,
     AllowList,
     Community,
-    CustomGithubStamp,
+    CustomCredential,
+    CustomCredentialRuleset,
     Customization,
+    CustomPlatform,
     IncludedChainId,
 )
 
@@ -220,8 +222,8 @@ class IncludedChainIdInline(admin.TabularInline):
     extra = 0
 
 
-class CustomGithubStampInline(admin.TabularInline):
-    model = CustomGithubStamp
+class CustomCredentialInline(admin.TabularInline):
+    model = CustomCredential
     extra = 0
 
 
@@ -229,7 +231,11 @@ class CustomGithubStampInline(admin.TabularInline):
 class CustomizationAdmin(ScorerModelAdmin):
     form = CustomizationForm
     raw_id_fields = ["scorer"]
-    inlines = [AllowListInline, CustomGithubStampInline, IncludedChainIdInline]
+    inlines = [
+        AllowListInline,
+        CustomCredentialInline,
+        IncludedChainIdInline,
+    ]
     fieldsets = [
         (
             None,
@@ -359,3 +365,22 @@ class AddressListAdmin(ScorerModelAdmin):
         form = AddressListCsvImportForm()
         payload = {"form": form}
         return render(request, "account/address_list_csv_import_form.html", payload)
+
+
+@admin.register(CustomPlatform)
+class CustomPlatformAdmin(admin.ModelAdmin):
+    list_display = ["name", "display_name", "description"]
+    search_display = ["name", "display_name", "description"]
+
+
+@admin.register(CustomCredentialRuleset)
+class CustomCredentialRulesetAdmin(admin.ModelAdmin):
+    list_display = ["name", "provider_id", "credential_type"]
+    search_fields = ["name", "provider_id", "credential_type"]
+
+    def get_readonly_fields(self, request, obj=None):
+        # This makes name read-only after creation, but editable during creation
+        if obj:
+            return ["credential_type", "definition", "provider_id", "name"]
+        else:
+            return ["provider_id", "name"]
