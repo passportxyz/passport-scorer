@@ -1768,9 +1768,9 @@ const CLOUDFLARE_ZONE_ID = op.read.parse(
 );
 
 const passportBranches = Object({
-  review: "main",
-  staging: "staging-app",
-  production: "production-app",
+  review: "review-interface",
+  staging: "staging-interface",
+  production: "production-interface",
 });
 
 const passportXyzAppEnvironment = secretsManager
