@@ -22,21 +22,22 @@ import { secretsManager, amplify } from "infra-libs";
 
 import * as op from "@1password/op-js";
 import { createVerifierService } from "./verifier";
-import { BucketNotification } from "@pulumi/aws/s3";
 import { createS3InitiatedECSTask } from "../lib/scorer/s3_initiated_ecs_task";
+import {stack, defaultTags, StackType} from "../lib/tags";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
 //////////////////////////////////////////////////////////////
 // Loading environment variables
 //////////////////////////////////////////////////////////////
+
+export const region = aws.getRegion();
+
 const PROVISION_STAGING_FOR_LOADTEST =
   `${process.env["PROVISION_STAGING_FOR_LOADTEST"]}`.toLowerCase() === "true";
 export const DOCKER_IMAGE_TAG = `${process.env.DOCKER_IMAGE_TAG || ""}`;
 
-type StackType = "review" | "staging" | "production";
-export const stack: StackType = pulumi.getStack() as StackType;
-export const region = aws.getRegion();
+
 const route53Zone = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE`
 );
@@ -119,6 +120,7 @@ const pagerDutyIntegrationEndpoint = op.read.parse(
 const coreInfraStack = new pulumi.StackReference(
   `passportxyz/core-infra/${stack}`
 );
+
 const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
 
 const vpcID = coreInfraStack.getOutput("vpcId");
@@ -276,6 +278,10 @@ const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
         description: "allow output to any ipv4 address using any protocol",
       },
     ],
+    tags: {
+      ...defaultTags,
+      Name: "private-subnet-secgrp",
+    }
   }
 );
 
@@ -296,6 +302,10 @@ const readreplicaAnalyticsConnectionUrl = coreInfraStack.getOutput(
 
 const cluster = new aws.ecs.Cluster("scorer", {
   settings: [{ name: "containerInsights", value: "enabled" }],
+  tags: {
+    ...defaultTags,
+    Name: "scorer",
+  }
 });
 
 export const clusterId = cluster.id;
@@ -304,6 +314,10 @@ export const clusterId = cluster.id;
 const accessLogsBucket = new aws.s3.Bucket(`gitcoin-scorer-access-logs`, {
   acl: "private",
   forceDestroy: stack == "production" ? false : true,
+  tags: {
+    ...defaultTags,
+    Name: "gitcoin-scorer-access-logs",
+  }
 });
 
 const serviceAccount = aws.elb.getServiceAccount({});
@@ -358,6 +372,10 @@ const albSecGrp = new aws.ec2.SecurityGroup(`scorer-service-alb`, {
     { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
     { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
   ],
+  tags: {
+    ...defaultTags,
+    Name: "scorer-service-alb",
+  }
 });
 
 // Creates an ALB associated with our custom VPC.
@@ -371,7 +389,8 @@ const alb = new aws.alb.LoadBalancer(`scorer-service`, {
     enabled: true,
   },
   tags: {
-    name: "scorer-service",
+    ...defaultTags,
+    Name: "scorer-service",
   },
 });
 
@@ -391,7 +410,8 @@ const httpListener = new aws.alb.Listener("scorer-http-listener", {
     },
   ],
   tags: {
-    name: "scorer-http-listener",
+    ...defaultTags,
+    Name: "scorer-http-listener",
   },
 });
 
@@ -401,12 +421,7 @@ const httpListener = new aws.alb.Listener("scorer-http-listener", {
 
 // Target group with the port of the Docker image
 const targetGroupDefault = createTargetGroup("scorer-api-default", vpcID);
-const targetGroupPassport = createTargetGroup("scorer-api-passport", vpcID);
 const targetGroupRegistry = createTargetGroup("scorer-api-reg", vpcID);
-const targetGroupRegistrySubmitPassport = createTargetGroup(
-  "scorer-api-reg-sp",
-  vpcID
-);
 
 //////////////////////////////////////////////////////////////
 // Create the HTTPS listener, and set the default target group
@@ -426,7 +441,8 @@ const httpsListener = HTTPS_ALB_CERT_ARN.apply(
         },
       ],
       tags: {
-        name: "scorer-https-listener",
+        ...defaultTags,
+        Name: "scorer-https-listener",
       },
     })
 );
@@ -448,11 +464,19 @@ const www = new aws.route53.Record("scorer", {
 const scorerSecret = new aws.secretsmanager.Secret("scorer-secret", {
   name: "scorer-secret",
   description: "Scorer Secrets",
+  tags: {
+    ...defaultTags,
+    Name: "scorer-secret",
+  },
 });
 
 const indexerSecret = new aws.secretsmanager.Secret("indexer-secret", {
   name: "indexer-secret",
   description: "Secrets for passport-scorer indexer",
+  tags: {
+    ...defaultTags,
+    Name: "indexer-secret",
+  },
 });
 
 const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
@@ -506,13 +530,18 @@ const dpoppEcsRole = new aws.iam.Role("dpoppEcsRole", {
     "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
   ],
   tags: {
-    dpopp: "",
+    ...defaultTags,
+    Name: "dpoppEcsRole",
   },
 });
 
 const pagerdutyTopic = new aws.sns.Topic("pagerduty", {
   name: "ScorerPagerduty",
   tracingConfig: "PassThrough",
+  tags: {
+    ...defaultTags,
+    Name: "ScorerPagerduty",
+  }
 });
 
 const PAGERDUTY_INTEGRATION_ENDPOINT = pulumi.secret(
@@ -611,6 +640,10 @@ const serviceTaskRole = new aws.iam.Role("scorer-service-task-role", {
       ),
     },
   ],
+  tags:{
+    ...defaultTags,
+    Name: "scorer-service-task-role",
+  }
 });
 
 const apiEnvironment = [
@@ -744,13 +777,15 @@ const indexerSecrets = pulumi
 const serviceLogGroup = new aws.cloudwatch.LogGroup("scorer-service", {
   retentionInDays: 90,
   tags: {
-    name: `cloudwatch-loggroup-scorer-service`,
+    ...defaultTags,
+    Name: `cloudwatch-loggroup-scorer-service`,
   },
 });
 const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
   retentionInDays: 90,
   tags: {
-    name: `cloudwatch-loggroup-scorer-worker`,
+    ...defaultTags,
+    Name: `cloudwatch-loggroup-scorer-worker`,
   },
 });
 
@@ -858,7 +893,8 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
     "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
   ],
   tags: {
-    dpopp: "",
+    ...defaultTags,
+    Name: "scorer-bkgrnd-worker-role"
   },
 });
 
@@ -877,6 +913,10 @@ const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
       cidrBlocks: ["0.0.0.0/0"],
     },
   ],
+  tags: {
+    ...defaultTags,
+    Name: "gitcoin-ecs-task"
+  }
 });
 
 export const securityGroupForTaskDefinition = secgrp.id;
@@ -957,7 +997,7 @@ const web = new aws.ec2.Instance("troubleshooting-instance", {
     volumeSize: 50,
   },
   tags: {
-    name: "Passport Scorer - troubleshooting instance",
+    ...defaultTags,
     Name: "Passport Scorer - troubleshooting instance",
   },
   userData: ec2InitScript,
@@ -992,6 +1032,10 @@ const redashDbSecgrp = new aws.ec2.SecurityGroup(`redash-db`, {
     },
   ],
   name: "redash-db",
+  tags: {
+    ...defaultTags,
+    Name: `redash-db`
+  }
 });
 // This is hardcoded until redash db will be moved to core infra
 let dbSubnetGroupId = `core-rds`;
@@ -1014,6 +1058,10 @@ const redashDb = new aws.rds.Instance(
     vpcSecurityGroupIds: [redashDbSecgrp.id],
     backupRetentionPeriod: 5,
     performanceInsightsEnabled: true,
+    tags: {
+      ...defaultTags,
+      Name: `redash-db`
+    }
   },
   { protect: true }
 );
@@ -1059,6 +1107,10 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
         cidrBlocks: ["0.0.0.0/0"],
       },
     ],
+    tags: {
+      ...defaultTags,
+      Name: `redashServerSecurityGroup`
+    }
   }
 );
 
@@ -1116,7 +1168,7 @@ const redashinstance = new aws.ec2.Instance("redashinstance", {
     volumeSize: 50,
   },
   tags: {
-    name: "Redash Analytics",
+    ...defaultTags,
     Name: "Redash Analytics",
   },
   userData: redashInitScript,
@@ -1134,6 +1186,10 @@ const redashAlbSecGrp = new aws.ec2.SecurityGroup(`redash-service-alb`, {
     { protocol: "tcp", fromPort: 80, toPort: 80, cidrBlocks: ["0.0.0.0/0"] },
     { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
   ],
+  tags: {
+    ...defaultTags,
+    Name: "redash-service-alb",
+  }
 });
 
 // Creates an ALB associated with our custom VPC.
@@ -1143,7 +1199,8 @@ const redashAlb = new aws.alb.LoadBalancer(`redash-service`, {
   securityGroups: [redashAlbSecGrp.id],
   subnets: vpcPublicSubnetIds,
   tags: {
-    name: "redash-service",
+    ...defaultTags,
+    Name: "redash-service",
   },
 });
 
@@ -1163,7 +1220,8 @@ const redashHttpListener = new aws.alb.Listener("redash-http-listener", {
     },
   ],
   tags: {
-    name: "redash-http-listener",
+    ...defaultTags,
+    Name: "redash-http-listener",
   },
 });
 
@@ -1174,6 +1232,10 @@ const redashTarget = new aws.alb.TargetGroup("redash-target", {
   port: 80,
   protocol: "HTTP",
   healthCheck: { path: "/ping", unhealthyThreshold: 5 },
+  tags: {
+    ...defaultTags,
+    Name: "redash-target",
+  }
 });
 
 // Listen to traffic on port 443 & route it through the target group
@@ -1191,7 +1253,8 @@ const redashHttpsListener = HTTPS_ALB_CERT_ARN.apply(
         },
       ],
       tags: {
-        name: "redash-https-listener",
+        ...defaultTags,
+        Name: "redash-https-listener",
       },
     })
 );

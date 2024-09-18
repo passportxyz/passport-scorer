@@ -4,6 +4,7 @@ import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import { ScorerService } from "./new_service";
 import { secretsManager } from "infra-libs";
+import {defaultTags} from "../tags";
 
 export type ScheduledTaskConfig = Pick<
   ScorerService,
@@ -62,6 +63,10 @@ export function createTask({
 
   const logGroup = new aws.cloudwatch.LogGroup(logGroupName, {
     retentionInDays: 90,
+    tags: {
+      ...defaultTags,
+      Name: logGroupName,
+    },
   });
 
   const task = new awsx.ecs.FargateTaskDefinition(name, {
@@ -92,6 +97,10 @@ export function createTask({
         secrets,
       },
     },
+    tags: {
+      ...defaultTags,
+      Name: name,
+    }
   });
 
   const eventsStsAssumeRole = new aws.iam.Role(`${name}-eventsRole`, {
@@ -187,7 +196,8 @@ export function createTask({
       "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
     ],
     tags: {
-      dpopp: "",
+      ...defaultTags,
+      Name: `${name}-eventsRole`,
     },
   });
 
@@ -235,6 +245,10 @@ export function createScheduledTask({
 
   const scheduledEventRule = new aws.cloudwatch.EventRule(`rule-${name}`, {
     scheduleExpression,
+    tags: {
+      ...defaultTags,
+      Name: `rule-${name}`,
+    }
   });
 
   new aws.cloudwatch.EventTarget(`scheduled-${name}`, {
@@ -257,7 +271,7 @@ export function createScheduledTask({
     if (enableInvocationAlerts) {
       // No invocation in the given period
       const missingInvocationsAlarm = new aws.cloudwatch.MetricAlarm(
-        "MissingInvocations-" + name,
+        `MissingInvocations-${name}`,
         {
           alarmActions: [taskResources.alertTopic.arn],
           okActions: [taskResources.alertTopic.arn],
@@ -274,6 +288,10 @@ export function createScheduledTask({
           statistic: "Sum",
           threshold: 1,
           treatMissingData: "notBreaching",
+          tags:{
+            ...defaultTags,
+            Name: `MissingInvocations-${name}`,
+          }
         },
       );
     }
@@ -296,6 +314,10 @@ export function createScheduledTask({
         statistic: "Sum",
         threshold: 0,
         treatMissingData: "notBreaching",
+        tags:{
+          ...defaultTags,
+          Name: `FailedInvocations-${name}`,
+        }
       },
     );
 
@@ -354,6 +376,10 @@ export function createScheduledTask({
       threshold: 1,
       name: `UnsuccessfulRuns-${name}`,
       treatMissingData: "notBreaching",
+      tags:{
+        ...defaultTags,
+        Name: `UnsuccessfulRuns-${name}`,
+      }
     });
 
     // Cronjob error
@@ -392,6 +418,10 @@ export function createScheduledTask({
         statistic: "Sum",
         threshold: 1,
         treatMissingData: "notBreaching",
+        tags:{
+          ...defaultTags,
+          Name: `CronJobErrorMsgAlarm-${name}`,
+        }
       },
     );
   }
