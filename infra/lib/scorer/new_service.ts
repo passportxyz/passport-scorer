@@ -17,6 +17,8 @@ import {
   TargetGroupAlarmsConfiguration,
 } from "./loadBalancer";
 
+import { defaultTags } from "../tags";
+
 export type ScorerService = {
   dockerImageScorer: Input<string>;
   securityGroup: aws.ec2.SecurityGroup;
@@ -43,7 +45,9 @@ export function createTargetGroup(
   vpcId: Input<string>
 ): TargetGroup {
   return new TargetGroup(name, {
-    tags: { name: name },
+    tags: { 
+      ...defaultTags,
+      Name: name },
     port: 80,
     protocol: "HTTP",
     vpcId: vpcId,
@@ -71,7 +75,7 @@ export function createScorerECSService({
 
   if (config.httpListenerRulePaths) {
     const targetPassportRule = new ListenerRule(`lrule-${name}`, {
-      tags: { name: name },
+      tags: { ...defaultTags, Name: name },
       listenerArn: config.httpListenerArn,
       priority: config.listenerRulePriority,
       actions: [
@@ -125,7 +129,7 @@ export function createScorerECSService({
 
   const service = new awsx.ecs.FargateService(name, {
     propagateTags: "TASK_DEFINITION",
-    tags: { name: name },
+    tags: { ...defaultTags, Name: name },
     cluster: config.cluster.arn,
     desiredCount: config.desiredCount ? config.desiredCount : 1,
     networkConfiguration: {
@@ -165,7 +169,7 @@ export function createScorerECSService({
   const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
     `autoscale-target-${name}`,
     {
-      tags: { name: name },
+      tags: { ...defaultTags, Name: name },
       maxCapacity: getAutoScaleMaxCapacity(),
       minCapacity: getAutoScaleMinCapacity(),
       resourceId: interpolate`service/${config.cluster.name}/${service.service.name}`,
@@ -197,7 +201,7 @@ export function createScorerECSService({
     const runningTaskCountAlarm = new aws.cloudwatch.MetricAlarm(
       `RunningTaskCount-${name}`,
       {
-        tags: { name: `RunningTaskCount-${name}` },
+        tags: { ...defaultTags, Name: `RunningTaskCount-${name}` },
         alarmActions: [config.alertTopic.arn],
         okActions: [config.alertTopic.arn],
         comparisonOperator: "GreaterThanThreshold",
@@ -221,7 +225,7 @@ export function createScorerECSService({
     const memoryAlarm = new aws.cloudwatch.MetricAlarm(
       `MemoryUtilization-${name}`,
       {
-        tags: { name: `MemoryUtilization-${name}` },
+        tags: { ...defaultTags, Name: `MemoryUtilization-${name}` },
         alarmActions: [config.alertTopic.arn],
         okActions: [config.alertTopic.arn],
         comparisonOperator: "GreaterThanThreshold",
@@ -261,7 +265,7 @@ export function createScorerECSService({
     const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-Target-5XX-${name}`,
       {
-        tags: { name: `HTTP-Target-5XX-${name}` },
+        tags: { ...defaultTags, Name: `HTTP-Target-5XX-${name}` },
         name: `HTTP-Target-5XX-${name}`,
         alarmActions: [config.alertTopic.arn],
         okActions: [config.alertTopic.arn],
@@ -312,7 +316,7 @@ export function createScorerECSService({
     const http4xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-Target-4XX-${name}`,
       {
-        tags: { name: `HTTP-Target-4XX-${name}` },
+        tags: { ...defaultTags , Name: `HTTP-Target-4XX-${name}` },
         name: `HTTP-Target-4XX-${name}`,
         alarmActions: [config.alertTopic.arn],
         okActions: [config.alertTopic.arn],
@@ -365,7 +369,7 @@ export function createScorerECSService({
     const targetResponseTimeAlarm = new aws.cloudwatch.MetricAlarm(
       `TargetResponseTime-${name}`,
       {
-        tags: { name: `TargetResponseTime-${name}` },
+        tags: { ...defaultTags , Name: `TargetResponseTime-${name}` },
         alarmActions: [config.alertTopic.arn],
         okActions: [config.alertTopic.arn],
         comparisonOperator: "GreaterThanThreshold",
@@ -400,7 +404,7 @@ export async function createScoreExportBucketAndDomain(
     website: {
       indexDocument: "registry_score.jsonl",
     },
-    tags: { name: `s3-domain` },
+    tags: { ...defaultTags , Name: `s3-domain` },
   });
 
   new aws.s3.BucketPublicAccessBlock(
@@ -458,6 +462,7 @@ export async function createScoreExportBucketAndDomain(
     {
       domainName: domain,
       validationMethod: "DNS",
+      tags: { ...defaultTags, Name: domain },
     },
     { provider: eastRegion }
   );
@@ -539,7 +544,7 @@ export async function createScoreExportBucketAndDomain(
         ), // Per AWS, ACM certificate must be in the us-east-1 region.
         sslSupportMethod: "sni-only",
       },
-      tags: { name: "publicExportCloudFront" },
+      tags: { ...defaultTags, Name: "publicExportCloudFront"},
     },
     {}
   );
@@ -591,6 +596,7 @@ export function createIndexerService(
 ) {
   const indexerLogGroup = new aws.cloudwatch.LogGroup("scorer-indexer", {
     retentionInDays: 90,
+    tags: { ...defaultTags, Name: "scorer-indexer" },
   });
 
   new awsx.ecs.FargateService("scorer-staking-indexer", {
@@ -622,11 +628,9 @@ export function createIndexerService(
           links: [],
         },
       },
-      tags: { name: "scorer-staking-indexer" },
+      tags: { ...defaultTags, Name: "scorer-staking-indexer" },
     },
-    tags: {
-      name: "scorer-staking-indexer",
-    },
+    tags: { ...defaultTags, Name: "scorer-staking-indexer" },
   });
 
   const indexerErrorsMetric = new aws.cloudwatch.LogMetricFilter(
@@ -661,7 +665,7 @@ export function createIndexerService(
       statistic: "Sum",
       threshold: alarmThresholds.indexerErrorThreshold,
       treatMissingData: "notBreaching",
-      tags: { name: "indexerErrorsAlarm" },
+      tags: { ...defaultTags, Name: "indexerErrorsAlarm" },
     }
   );
 }
@@ -717,6 +721,7 @@ export const createSharedLambdaResources = ({
     policy: lambdaLoggingPolicyDocument.then(
       (lambdaLoggingPolicyDocument) => lambdaLoggingPolicyDocument.json
     ),
+    tags: { ...defaultTags, Name: "lambdaLoggingPolicy" },
   });
 
   const lambdaEc2Policy = new aws.iam.Policy("lambdaEc2Policy", {
@@ -725,6 +730,7 @@ export const createSharedLambdaResources = ({
     policy: lambdaEc2PolicyDocument.then(
       (lambdaEc2PolicyDocument) => lambdaEc2PolicyDocument.json
     ),
+    tags: { ...defaultTags, Name: "lambdaEc2Policy" },
   });
 
   const lambdaSecretsManagerPolicy = new aws.iam.Policy(
@@ -736,6 +742,7 @@ export const createSharedLambdaResources = ({
         (lambdaSecretsManagerPolicyDocument) =>
           lambdaSecretsManagerPolicyDocument.json
       ),
+      tags: { ...defaultTags, Name: "lambdaSecretManagerPolicy" },
     }
   );
 
@@ -756,6 +763,7 @@ export const createSharedLambdaResources = ({
 
   const httpLambdaRole = new aws.iam.Role("lambdaRole", {
     assumeRolePolicy: assumeRole.then((assumeRole) => assumeRole.json),
+    tags: { ...defaultTags, Name: "lambdaRole" },
   });
 
   const lambdaLogRoleAttachment = new aws.iam.RolePolicyAttachment(
@@ -784,6 +792,7 @@ export const createSharedLambdaResources = ({
 
   const queueLambdaRole = new aws.iam.Role("queueLambdaRole", {
     assumeRolePolicy: assumeRole.then((assumeRole) => assumeRole.json),
+    tags: { ...defaultTags, Name: "queueLambdaRole" },
   });
 
   const readSqsPolicyDocument = rescoreQueue.arn.apply((rescoreQueueArn) =>
@@ -809,6 +818,7 @@ export const createSharedLambdaResources = ({
     policy: readSqsPolicyDocument.apply(
       (readSqsPolicyDocument) => readSqsPolicyDocument.json
     ),
+    tags: { ...defaultTags, Name: "readSqsPolicy" },
   });
 
   const queueLambdaSqsRoleAttachment = new aws.iam.RolePolicyAttachment(
@@ -896,6 +906,7 @@ export function buildHttpLambdaFn(
   const lambdaTargetGroup = new aws.lb.TargetGroup(`l-${name}`, {
     name: `l-${name}`,
     targetType: "lambda",
+    tags: { ...defaultTags, Name: `l-${name}` },
   });
 
   const withLb = new aws.lambda.Permission(`withLb-${name}`, {
@@ -903,6 +914,7 @@ export function buildHttpLambdaFn(
     function: lambdaFunction.name,
     principal: "elasticloadbalancing.amazonaws.com",
     sourceArn: lambdaTargetGroup.arn,
+    
   });
 
   const lambdaTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
@@ -910,6 +922,7 @@ export function buildHttpLambdaFn(
     {
       targetGroupArn: lambdaTargetGroup.arn,
       targetId: lambdaFunction.arn,
+      
     },
     {
       dependsOn: [withLb],
@@ -933,7 +946,7 @@ export function buildHttpLambdaFn(
   }
 
   const targetPassportRule = new ListenerRule(`lrule-lambda-${name}`, {
-    tags: { name: `lrule-lambda-${name}` },
+    tags: { ...defaultTags, Name: `lrule-lambda-${name}` },
     listenerArn: httpsListener.arn,
     priority: listenerPriority,
     actions: [
@@ -967,7 +980,7 @@ export function buildHttpLambdaFn(
     const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-Target-5XX-${name}`,
       {
-        tags: { name: `HTTP-Target-5XX-${name}` },
+        tags: { ...defaultTags, Name:  `HTTP-Target-5XX-${name}` },
         name: `HTTP-Target-5XX-${name}`,
         alarmActions: [alertTopic.arn],
         okActions: [alertTopic.arn],
@@ -1018,7 +1031,7 @@ export function buildHttpLambdaFn(
     const http4xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-Target-4XX-${name}`,
       {
-        tags: { name: `HTTP-Target-4XX-${name}` },
+        tags: { ...defaultTags, Name:  `HTTP-Target-4XX-${name}` },
         name: `HTTP-Target-4XX-${name}`,
         alarmActions: [alertTopic.arn],
         okActions: [alertTopic.arn],
@@ -1067,7 +1080,7 @@ export function buildHttpLambdaFn(
     const targetResponseTimeAlarm = new aws.cloudwatch.MetricAlarm(
       `TargetResponseTime-${name}`,
       {
-        tags: { name: `TargetResponseTime-${name}` },
+        tags: { ...defaultTags, Name:  `TargetResponseTime-${name}` },
         alarmActions: [alertTopic.arn],
         okActions: [alertTopic.arn],
         comparisonOperator: "GreaterThanThreshold",
@@ -1149,7 +1162,7 @@ function buildLambdaFn({
           {}
         ),
       },
-      tags: { name: name },
+      tags: { ...defaultTags, Name: name },
     },
     {
       dependsOn: roleAttachments,
@@ -1164,7 +1177,9 @@ export const createDeadLetterQueue = ({
 }: {
   alertTopic?: Topic;
 }): aws.sqs.Queue => {
-  const deadLetterQueue = new aws.sqs.Queue("scorer-dead-letter-queue");
+  const deadLetterQueue = new aws.sqs.Queue("scorer-dead-letter-queue", {
+    tags: { ...defaultTags, Name: "scorer-dead-letter-queue" },
+  });
 
   if (alertTopic) {
     const newMessageDeadLetterQueueAlarm = new aws.cloudwatch.MetricAlarm(
@@ -1208,6 +1223,7 @@ export const createDeadLetterQueue = ({
         ],
         name: "NewMessageDeadLetterQueueAlarm",
         treatMissingData: "notBreaching",
+        tags: { ...defaultTags, Name: "NewMessageDeadLetterQueueAlarm" },
       }
     );
   }
@@ -1234,5 +1250,6 @@ export const createRescoreQueue = ({
         maxReceiveCount: 4,
       })
     ),
+    tags: { ...defaultTags, Name: "rescore-queue" },
   });
 };

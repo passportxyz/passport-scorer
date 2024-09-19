@@ -1,5 +1,6 @@
 import * as aws from "@pulumi/aws";
 import { Input, Output } from "@pulumi/pulumi";
+import {defaultTags} from "../tags";
 
 export function createS3InitiatedECSTask(
   bucketName: string,
@@ -12,6 +13,10 @@ export function createS3InitiatedECSTask(
   // Create S3 bucket
   const bucket = new aws.s3.Bucket(bucketName, {
     bucket: bucketName,
+    tags: {
+      ...defaultTags,
+      Name: bucketName,
+    },
   });
 
   // Enable S3 event notifications to EventBridge
@@ -26,6 +31,10 @@ export function createS3InitiatedECSTask(
       bucket: bucket.id,
       key: folder,
       content: "",
+      tags: {
+        ...defaultTags,
+        Name: folder,
+      }
     });
   });
 
@@ -47,6 +56,11 @@ export function createS3InitiatedECSTask(
         },
       },
     }),
+    tags: {
+      ...defaultTags,
+      Name: "s3-to-ecs-rule",
+      Scope: "MBD batch processing"
+    },
   });
 
   // Create EventBridge target

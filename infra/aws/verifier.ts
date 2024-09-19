@@ -1,14 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-
-type StackType = "review" | "staging" | "production";
-export const stack: StackType = pulumi.getStack() as StackType;
-
-const DEFAULT_TAGS = {
-  Name: "verifier",
-  Environment: "stack",
-  Project: "passport-scorer",
-};
+import {defaultTags, stack} from "../lib/tags";
 
 const serviceResources = Object({
   review: {
@@ -73,7 +65,8 @@ export const createVerifierService = ({
       "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
     ],
     tags: {
-      ...DEFAULT_TAGS,
+      ...defaultTags,
+      Name: "verifier-ecs-role",
     },
   });
 
@@ -82,7 +75,8 @@ export const createVerifierService = ({
     name: "verifier",
     retentionInDays: logsRetention[stack],
     tags: {
-      ...DEFAULT_TAGS,
+      ...defaultTags,
+      Name: "verifier",
     },
   });
 
@@ -92,7 +86,7 @@ export const createVerifierService = ({
     vpcId: vpcId,
     description: `Security Group for verifier service.`,
     tags: {
-      ...DEFAULT_TAGS,
+      ...defaultTags,
       Name: `verifier`,
     },
   });
@@ -147,7 +141,7 @@ export const createVerifierService = ({
     protocol: "HTTP",
     targetType: "ip",
     tags: {
-      ...DEFAULT_TAGS,
+      ...defaultTags,
       Name: `verifier`,
     },
   });
@@ -169,7 +163,7 @@ export const createVerifierService = ({
       },
     ],
     tags: {
-      ...DEFAULT_TAGS,
+      ...defaultTags,
       Name: `verifier-http`,
     },
   });
@@ -221,8 +215,9 @@ export const createVerifierService = ({
     networkMode: "awsvpc",
     requiresCompatibilities: ["FARGATE"],
     tags: {
-      ...DEFAULT_TAGS,
+      ...defaultTags,
       EcsService: `verifier`,
+      Name: `verifier`,
     },
   });
 
@@ -249,7 +244,7 @@ export const createVerifierService = ({
       propagateTags: "TASK_DEFINITION",
       taskDefinition: taskDefinition.arn,
       tags: {
-        ...DEFAULT_TAGS,
+        ...defaultTags,
         Name: `verifier`,
       },
     },
@@ -268,6 +263,10 @@ export const createVerifierService = ({
       resourceId: pulumi.interpolate`service/${clusterName}/${service.name}`,
       scalableDimension: "ecs:service:DesiredCount",
       serviceNamespace: "ecs",
+      tags: {
+        ...defaultTags,
+        Name: "autoscaling_target",
+      },
     }
   );
 
@@ -296,7 +295,7 @@ export const createVerifierService = ({
   const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
     `HTTP-Target-5XX-verifier`,
     {
-      tags: { name: `HTTP-Target-5XX-verifier` },
+      tags: { ...defaultTags, Name: `HTTP-Target-5XX-verifier` },
       name: `HTTP-Target-5XX-verifier`,
       alarmActions: [snsTopicArn],
       okActions: [snsTopicArn],
@@ -345,7 +344,7 @@ export const createVerifierService = ({
   const runningTaskCountAlarm = new aws.cloudwatch.MetricAlarm(
     `RunningTaskCount-verifier`,
     {
-      tags: { name: `RunningTaskCount-verifier` },
+      tags: { ...defaultTags, Name: `RunningTaskCount-verifier` },
       alarmActions: [snsTopicArn],
       okActions: [snsTopicArn],
       comparisonOperator: "GreaterThanThreshold",

@@ -2,6 +2,7 @@ import * as aws from "@pulumi/aws";
 import { Input } from "@pulumi/pulumi";
 
 import { Topic } from "@pulumi/aws/sns";
+import { defaultTags } from "../tags";
 
 export type TargetGroupAlarmsConfiguration = {
   targetResponseTime: number;
@@ -39,7 +40,7 @@ export function createLoadBalancerAlarms(
     const http5xxElbAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-ELB-5XX-${name}`,
       {
-        tags: { name: `HTTP-ELB-5XX-${name}` },
+        tags: { ...defaultTags, Name: `HTTP-ELB-5XX-${name}` },
         name: `HTTP-ELB-5XX-${name}`,
         alarmActions: [alertTopic.arn],
         okActions: [alertTopic.arn],
@@ -88,7 +89,7 @@ export function createLoadBalancerAlarms(
     const http4xxElbAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-ELB-4XX-${name}`,
       {
-        tags: { name: `HTTP-ELB-4XX-${name}` },
+        tags: { ...defaultTags, Name: `HTTP-ELB-4XX-${name}` },
         name: `HTTP-ELB-4XX-${name}`,
         alarmActions: [alertTopic.arn],
         okActions: [alertTopic.arn],
