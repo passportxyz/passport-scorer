@@ -5,6 +5,7 @@ from datetime import datetime
 from logging import getLogger
 from urllib.parse import urlparse
 
+import boto3
 import pyarrow as pa
 import pyarrow.parquet as pq
 from django.core.management.base import BaseCommand
