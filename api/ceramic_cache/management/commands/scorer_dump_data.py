@@ -11,6 +11,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.serializers.python import Serializer as PythonSerializer
 from django.db import DEFAULT_DB_ALIAS
 from tqdm import tqdm
+
 from .base_cron_cmds import BaseCronJobCmd
 
 
@@ -251,6 +252,7 @@ class Command(BaseCronJobCmd):
             default="{}",
             help="Extra args to add to the summary file upload. This can be used to set S3 permissions, see: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html. Defaults to {}.",
         )
+        # TODO: Add the cloudfront distribution id
 
     def handle_cron_job(self, *args, **options):
         self.stdout.write("Dumping DB data")
@@ -263,12 +265,14 @@ class Command(BaseCronJobCmd):
         s3_uri = options["s3_uri"]
         database = options["database"]
         summary_extra_args = json.loads(options["summary_extra_args"])
+        cloudfront_distribution_id = options["cloudfront_distribution_id"]
         self.stdout.write("-" * 40)
         self.stdout.write(f"batch_size          : {batch_size}")
         self.stdout.write(f"config              : {config}")
         self.stdout.write(f"s3_uri              : {s3_uri}")
         self.stdout.write(f"database            : {database}")
         self.stdout.write(f"summary_extra_args  : {summary_extra_args}")
+        self.stdout.write(f"cloudfront_distribution_id  : {cloudfront_distribution_id}")
         self.stdout.write("-" * 40)
 
         s3 = boto3.client(
@@ -329,6 +333,27 @@ class Command(BaseCronJobCmd):
                     model_summary["finished_at"] = datetime.datetime.now().isoformat()
                     model_summary["s3_key"] = s3_key
                     model_summary["s3_bucket_name"] = s3_bucket_name
+                    
+                    if cloudfront_distribution_id:
+                        client = boto3.client('cloudfront')
+                        paths_to_invalidate = [f"/{s3_key}"]
+                        self.stdout.write(f"Create invalidation for {s3_key} in the cloufront distribution {cloudfront_distribution_id}")
+                        response = client.create_invalidation(
+                            DistributionId=distribution_id,
+                            InvalidationBatch={
+                                'Paths': {
+                                    'Quantity': len(paths_to_invalidate),
+                                    'Items': paths_to_invalidate
+                                },
+                                'CallerReference': str(datetime.datetime.utcnow().timestamp())  # Unique reference, using timestamp
+                            }
+                        )
+                        # Verify the response
+                        if response['ResponseMetadata']['HTTPStatusCode'] == 201:
+                            invalidation_id = response['Invalidation']['Id']
+                            self.stdout.write(f"Invalidation created successfully. Invalidation ID: {invalidation_id}\n")
+                        else:
+                            self.stdout.write(f"Failed to create invalidation. HTTP Status Code: {response['ResponseMetadata']['HTTPStatusCode']}\n")
 
                     os.remove(file_name)
                 except Exception as e:

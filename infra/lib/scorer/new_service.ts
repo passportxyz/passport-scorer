@@ -494,6 +494,9 @@ export async function createScoreExportBucketAndDomain(
     }
   );
 
+  const awsManagedCacheOptimisedPolicy = aws.cloudfront.getCachePolicy({
+    name: "Managed-CachingOptimized"
+  });
   const cloudFront = new aws.cloudfront.Distribution(
     "publicExportCloudFront",
     {
@@ -517,13 +520,10 @@ export async function createScoreExportBucketAndDomain(
       defaultRootObject: "registry_score.jsonl",
       enabled: true,
       defaultCacheBehavior: {
+        cachePolicyId: (await awsManagedCacheOptimisedPolicy).id,
         targetOriginId: scoreBucket.arn.apply((arn) => arn),
         allowedMethods: ["GET", "HEAD"],
         cachedMethods: ["GET", "HEAD"],
-        forwardedValues: {
-          queryString: false,
-          cookies: { forward: "none" },
-        },
         viewerProtocolPolicy: "redirect-to-https",
       },
       customErrorResponses: [

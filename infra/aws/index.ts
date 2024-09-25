@@ -1404,9 +1404,15 @@ export const dailyScoreExportForOSO = createScheduledTask({
   scorerSecretManagerArn: scorerSecret.arn,
 });
 
+const exportVals = createScoreExportBucketAndDomain(
+  publicDataDomain,
+  publicDataDomain,
+  route53ZoneForPublicData
+);
 // The following scorer dumps the Allo scorer scores to a public S3 bucket
 // for the Allo team to easily pull the data
-export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask({
+
+export const frequentAlloScorerDataDumpTaskDefinition = exportVals.then(_exportedVals => createScheduledTask({
   name: "frequent-allo-scorer-data-dump",
   config: {
     ...baseScorerServiceConfig,
@@ -1417,6 +1423,7 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask({
       "scorer_dump_data",
       "--batch-size=1000",
       "--database=read_replica_analytics",
+      `--cloudfront_distribution_id=${_exportedVals.cloudFront.id}`,
       "--config",
       "'" +
         JSON.stringify([
@@ -1439,9 +1446,9 @@ export const frequentAlloScorerDataDumpTaskDefinition = createScheduledTask({
   alarmPeriodSeconds: 3600, // 1h in seconds
   enableInvocationAlerts: true,
   scorerSecretManagerArn: scorerSecret.arn,
-});
+}));
 
-export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
+export const frequentScorerDataDumpTaskDefinitionForScorer_335 = exportVals.then(_exportedVals =>
   createScheduledTask({
     name: "frequent-allo-scorer-data-dump-335",
     config: {
@@ -1453,6 +1460,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
         "scorer_dump_data",
         "--batch-size=1000",
         "--database=read_replica_analytics",
+        `--cloudfront_distribution_id=${_exportedVals.cloudFront.id}`,
         "--config",
         "'" +
           JSON.stringify([
@@ -1475,9 +1483,9 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_335 =
     alarmPeriodSeconds: 3600, // 1h in seconds
     enableInvocationAlerts: true,
     scorerSecretManagerArn: scorerSecret.arn,
-  });
+  }));
 
-export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
+export const frequentScorerDataDumpTaskDefinitionForScorer_6608 = exportVals.then(_exportedVals =>
   createScheduledTask({
     name: "frequent-allo-scorer-data-dump-6608",
     config: {
@@ -1489,6 +1497,7 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
         "scorer_dump_data",
         "--batch-size=1000",
         "--database=read_replica_analytics",
+        `--cloudfront_distribution_id=${_exportedVals.cloudFront.id}`,
         "--config",
         "'" +
           JSON.stringify([
@@ -1511,12 +1520,12 @@ export const frequentScorerDataDumpTaskDefinitionForScorer_6608 =
     alarmPeriodSeconds: 3600, // 1h in seconds
     enableInvocationAlerts: true,
     scorerSecretManagerArn: scorerSecret.arn,
-  });
+  }));
 
 /*
  * Dump data for the eth-model V2
  */
-export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
+export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer = exportVals.then(_exportedVals =>
   createScheduledTask({
     name: "frequent-eth-model-v2-score-dump",
     config: {
@@ -1525,8 +1534,9 @@ export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
       command: [
         "python",
         "manage.py",
-        "scorer_dump_data_model_score",
+        "scorer_dump_data_model_score", 
         `--s3-uri=s3://${publicDataDomain}/model_scores/`,
+        `--cloudfront_distribution_id=${_exportedVals.cloudFront.id}`,
         "--filename=model_scores.parquet",
         "--format=parquet",
       ].join(" "),
@@ -1538,7 +1548,7 @@ export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer =
     alarmPeriodSeconds: 3600, // 1h in seconds
     enableInvocationAlerts: true,
     scorerSecretManagerArn: scorerSecret.arn,
-  });
+  }));
 
 export const coinbaseRevocationCheck = createScheduledTask({
   name: "coinbase-revocation-check",
@@ -1555,12 +1565,6 @@ export const coinbaseRevocationCheck = createScheduledTask({
   enableInvocationAlerts: true,
   scorerSecretManagerArn: scorerSecret.arn,
 });
-
-const exportVals = createScoreExportBucketAndDomain(
-  publicDataDomain,
-  publicDataDomain,
-  route53ZoneForPublicData
-);
 
 createIndexerService(
   {
