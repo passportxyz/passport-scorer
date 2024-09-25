@@ -248,6 +248,11 @@ class Command(BaseCronJobCmd):
             'Defaults to the "default" database.',
         )
         parser.add_argument(
+            "--cloudfront_distribution_id",
+            default="",
+            help="The CloudFront distribution id to create invalidation for the uploaded files",
+        )
+        parser.add_argument(
             "--summary-extra-args",
             default="{}",
             help="Extra args to add to the summary file upload. This can be used to set S3 permissions, see: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html. Defaults to {}.",

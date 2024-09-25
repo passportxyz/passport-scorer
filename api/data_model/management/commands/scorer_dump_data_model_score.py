@@ -120,8 +120,12 @@ For example:
             help="The output format",
             default="jsonl",
         )
+        parser.add_argument(
+            "--cloudfront_distribution_id",
+            default="",
+            help="The CloudFront distribution id to create invalidation for the uploaded files",
+        )
 
-        # TODO: Add the cloudfront distribution id
 
     def handle(self, *args, **options):
         batch_size = options["batch_size"]
