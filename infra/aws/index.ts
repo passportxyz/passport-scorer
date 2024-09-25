@@ -23,7 +23,7 @@ import { secretsManager, amplify } from "infra-libs";
 import * as op from "@1password/op-js";
 import { createVerifierService } from "./verifier";
 import { createS3InitiatedECSTask } from "../lib/scorer/s3_initiated_ecs_task";
-import {stack, defaultTags, StackType} from "../lib/tags";
+import { stack, defaultTags, StackType } from "../lib/tags";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -36,7 +36,6 @@ export const region = aws.getRegion();
 const PROVISION_STAGING_FOR_LOADTEST =
   `${process.env["PROVISION_STAGING_FOR_LOADTEST"]}`.toLowerCase() === "true";
 export const DOCKER_IMAGE_TAG = `${process.env.DOCKER_IMAGE_TAG || ""}`;
-
 
 const route53Zone = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE`
@@ -281,7 +280,7 @@ const privateSubnetSecurityGroup = new aws.ec2.SecurityGroup(
     tags: {
       ...defaultTags,
       Name: "private-subnet-secgrp",
-    }
+    },
   }
 );
 
@@ -305,7 +304,7 @@ const cluster = new aws.ecs.Cluster("scorer", {
   tags: {
     ...defaultTags,
     Name: "scorer",
-  }
+  },
 });
 
 export const clusterId = cluster.id;
@@ -317,7 +316,7 @@ const accessLogsBucket = new aws.s3.Bucket(`gitcoin-scorer-access-logs`, {
   tags: {
     ...defaultTags,
     Name: "gitcoin-scorer-access-logs",
-  }
+  },
 });
 
 const serviceAccount = aws.elb.getServiceAccount({});
@@ -375,7 +374,7 @@ const albSecGrp = new aws.ec2.SecurityGroup(`scorer-service-alb`, {
   tags: {
     ...defaultTags,
     Name: "scorer-service-alb",
-  }
+  },
 });
 
 // Creates an ALB associated with our custom VPC.
@@ -541,7 +540,7 @@ const pagerdutyTopic = new aws.sns.Topic("pagerduty", {
   tags: {
     ...defaultTags,
     Name: "ScorerPagerduty",
-  }
+  },
 });
 
 const PAGERDUTY_INTEGRATION_ENDPOINT = pulumi.secret(
@@ -640,10 +639,10 @@ const serviceTaskRole = new aws.iam.Role("scorer-service-task-role", {
       ),
     },
   ],
-  tags:{
+  tags: {
     ...defaultTags,
     Name: "scorer-service-task-role",
-  }
+  },
 });
 
 const apiEnvironment = [
@@ -894,7 +893,7 @@ const workerRole = new aws.iam.Role("scorer-bkgrnd-worker-role", {
   ],
   tags: {
     ...defaultTags,
-    Name: "scorer-bkgrnd-worker-role"
+    Name: "scorer-bkgrnd-worker-role",
   },
 });
 
@@ -915,8 +914,8 @@ const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
   ],
   tags: {
     ...defaultTags,
-    Name: "gitcoin-ecs-task"
-  }
+    Name: "gitcoin-ecs-task",
+  },
 });
 
 export const securityGroupForTaskDefinition = secgrp.id;
@@ -1034,8 +1033,8 @@ const redashDbSecgrp = new aws.ec2.SecurityGroup(`redash-db`, {
   name: "redash-db",
   tags: {
     ...defaultTags,
-    Name: `redash-db`
-  }
+    Name: `redash-db`,
+  },
 });
 // This is hardcoded until redash db will be moved to core infra
 let dbSubnetGroupId = `core-rds`;
@@ -1060,8 +1059,8 @@ const redashDb = new aws.rds.Instance(
     performanceInsightsEnabled: true,
     tags: {
       ...defaultTags,
-      Name: `redash-db`
-    }
+      Name: `redash-db`,
+    },
   },
   { protect: true }
 );
@@ -1109,8 +1108,8 @@ const redashSecurityGroup = new aws.ec2.SecurityGroup(
     ],
     tags: {
       ...defaultTags,
-      Name: `redashServerSecurityGroup`
-    }
+      Name: `redashServerSecurityGroup`,
+    },
   }
 );
 
@@ -1189,7 +1188,7 @@ const redashAlbSecGrp = new aws.ec2.SecurityGroup(`redash-service-alb`, {
   tags: {
     ...defaultTags,
     Name: "redash-service-alb",
-  }
+  },
 });
 
 // Creates an ALB associated with our custom VPC.
@@ -1235,7 +1234,7 @@ const redashTarget = new aws.alb.TargetGroup("redash-target", {
   tags: {
     ...defaultTags,
     Name: "redash-target",
-  }
+  },
 });
 
 // Listen to traffic on port 443 & route it through the target group
@@ -1412,143 +1411,164 @@ const exportVals = createScoreExportBucketAndDomain(
 // The following scorer dumps the Allo scorer scores to a public S3 bucket
 // for the Allo team to easily pull the data
 
-export const frequentAlloScorerDataDumpTaskDefinition = exportVals.then(_exportedVals => createScheduledTask({
-  name: "frequent-allo-scorer-data-dump",
-  config: {
-    ...baseScorerServiceConfig,
-    securityGroup: secgrp,
-    command: [
-      "python",
-      "manage.py",
-      "scorer_dump_data",
-      "--batch-size=1000",
-      "--database=read_replica_analytics",
-      `--cloudfront_distribution_id=${_exportedVals.cloudFront.id}`,
-      "--config",
-      "'" +
-        JSON.stringify([
-          {
-            name: "registry.Score",
-            filter: { passport__community_id: 335 },
-            select_related: ["passport"],
-          },
-        ]) +
-        "'",
-      `--s3-uri=s3://${publicDataDomain}/passport_scores/`,
-      // "--summary-extra-args",
-      // JSON.stringify({ ACL: "public-read" }),
-    ].join(" "),
-    scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-    alertTopic: pagerdutyTopic,
-  },
-  environment: apiEnvironment,
-  secrets: apiSecrets,
-  alarmPeriodSeconds: 3600, // 1h in seconds
-  enableInvocationAlerts: true,
-  scorerSecretManagerArn: scorerSecret.arn,
-}));
+export const frequentAlloScorerDataDumpTaskDefinition = pulumi
+  .all([exportVals])
+  .apply(([_exportedVals]) => {
+    return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
+      createScheduledTask({
+        name: "frequent-allo-scorer-data-dump",
+        config: {
+          ...baseScorerServiceConfig,
+          securityGroup: secgrp,
+          command: [
+            "python",
+            "manage.py",
+            "scorer_dump_data",
+            "--batch-size=1000",
+            "--database=read_replica_analytics",
+            `--cloudfront_distribution_id=${cloudFrontId}`,
+            "--config",
+            "'" +
+              JSON.stringify([
+                {
+                  name: "registry.Score",
+                  filter: { passport__community_id: 335 },
+                  select_related: ["passport"],
+                },
+              ]) +
+              "'",
+            `--s3-uri=s3://${publicDataDomain}/passport_scores/`,
+            // "--summary-extra-args",
+            // JSON.stringify({ ACL: "public-read" }),
+          ].join(" "),
+          scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+          alertTopic: pagerdutyTopic,
+        },
+        environment: apiEnvironment,
+        secrets: apiSecrets,
+        alarmPeriodSeconds: 3600, // 1h in seconds
+        enableInvocationAlerts: true,
+        scorerSecretManagerArn: scorerSecret.arn,
+      });
+    });
+  });
 
-export const frequentScorerDataDumpTaskDefinitionForScorer_335 = exportVals.then(_exportedVals =>
-  createScheduledTask({
-    name: "frequent-allo-scorer-data-dump-335",
-    config: {
-      ...baseScorerServiceConfig,
-      securityGroup: secgrp,
-      command: [
-        "python",
-        "manage.py",
-        "scorer_dump_data",
-        "--batch-size=1000",
-        "--database=read_replica_analytics",
-        `--cloudfront_distribution_id=${_exportedVals.cloudFront.id}`,
-        "--config",
-        "'" +
-          JSON.stringify([
-            {
-              name: "registry.Score",
-              filter: { passport__community_id: 335 },
-              select_related: ["passport"],
-            },
-          ]) +
-          "'",
-        `--s3-uri=s3://${publicDataDomain}/passport_scores/335/`,
-        // "--summary-extra-args",
-        // JSON.stringify({ ACL: "public-read" }),
-      ].join(" "),
-      scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-      alertTopic: pagerdutyTopic,
-    },
-    environment: apiEnvironment,
-    secrets: apiSecrets,
-    alarmPeriodSeconds: 3600, // 1h in seconds
-    enableInvocationAlerts: true,
-    scorerSecretManagerArn: scorerSecret.arn,
-  }));
+export const frequentScorerDataDumpTaskDefinitionForScorer_335 = pulumi
+  .all([exportVals])
+  .apply(([_exportedVals]) => {
+    return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
+      return createScheduledTask({
+        name: "frequent-allo-scorer-data-dump-335",
+        config: {
+          ...baseScorerServiceConfig,
+          securityGroup: secgrp,
+          command: [
+            "python",
+            "manage.py",
+            "scorer_dump_data",
+            "--batch-size=1000",
+            "--database=read_replica_analytics",
+            `--cloudfront_distribution_id=${cloudFrontId}`,
+            "--config",
+            "'" +
+              JSON.stringify([
+                {
+                  name: "registry.Score",
+                  filter: { passport__community_id: 335 },
+                  select_related: ["passport"],
+                },
+              ]) +
+              "'",
+            `--s3-uri=s3://${publicDataDomain}/passport_scores/335/`,
+            // "--summary-extra-args",
+            // JSON.stringify({ ACL: "public-read" }),
+          ].join(" "),
+          scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+          alertTopic: pagerdutyTopic,
+        },
+        environment: apiEnvironment,
+        secrets: apiSecrets,
+        alarmPeriodSeconds: 3600, // 1h in seconds
+        enableInvocationAlerts: true,
+        scorerSecretManagerArn: scorerSecret.arn,
+      });
+    });
+  });
 
-export const frequentScorerDataDumpTaskDefinitionForScorer_6608 = exportVals.then(_exportedVals =>
-  createScheduledTask({
-    name: "frequent-allo-scorer-data-dump-6608",
-    config: {
-      ...baseScorerServiceConfig,
-      securityGroup: secgrp,
-      command: [
-        "python",
-        "manage.py",
-        "scorer_dump_data",
-        "--batch-size=1000",
-        "--database=read_replica_analytics",
-        `--cloudfront_distribution_id=${_exportedVals.cloudFront.id}`,
-        "--config",
-        "'" +
-          JSON.stringify([
-            {
-              name: "registry.Score",
-              filter: { passport__community_id: 6608 },
-              select_related: ["passport"],
-            },
-          ]) +
-          "'",
-        `--s3-uri=s3://${publicDataDomain}/passport_scores/6608/`,
-        // "--summary-extra-args",
-        // JSON.stringify({ ACL: "public-read" }),
-      ].join(" "),
-      scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-      alertTopic: pagerdutyTopic,
-    },
-    environment: apiEnvironment,
-    secrets: apiSecrets,
-    alarmPeriodSeconds: 3600, // 1h in seconds
-    enableInvocationAlerts: true,
-    scorerSecretManagerArn: scorerSecret.arn,
-  }));
+export const frequentScorerDataDumpTaskDefinitionForScorer_6608 = pulumi
+  .all([exportVals])
+  .apply(([_exportedVals]) => {
+    return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
+      createScheduledTask({
+        name: "frequent-allo-scorer-data-dump-6608",
+        config: {
+          ...baseScorerServiceConfig,
+          securityGroup: secgrp,
+          command: [
+            "python",
+            "manage.py",
+            "scorer_dump_data",
+            "--batch-size=1000",
+            "--database=read_replica_analytics",
+            `--cloudfront_distribution_id=${cloudFrontId}`,
+            "--config",
+            "'" +
+              JSON.stringify([
+                {
+                  name: "registry.Score",
+                  filter: { passport__community_id: 6608 },
+                  select_related: ["passport"],
+                },
+              ]) +
+              "'",
+            `--s3-uri=s3://${publicDataDomain}/passport_scores/6608/`,
+            // "--summary-extra-args",
+            // JSON.stringify({ ACL: "public-read" }),
+          ].join(" "),
+          scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+          alertTopic: pagerdutyTopic,
+        },
+        environment: apiEnvironment,
+        secrets: apiSecrets,
+        alarmPeriodSeconds: 3600, // 1h in seconds
+        enableInvocationAlerts: true,
+        scorerSecretManagerArn: scorerSecret.arn,
+      });
+    });
+  });
 
 /*
  * Dump data for the eth-model V2
  */
-export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer = exportVals.then(_exportedVals =>
-  createScheduledTask({
-    name: "frequent-eth-model-v2-score-dump",
-    config: {
-      ...baseScorerServiceConfig,
-      securityGroup: secgrp,
-      command: [
-        "python",
-        "manage.py",
-        "scorer_dump_data_model_score", 
-        `--s3-uri=s3://${publicDataDomain}/model_scores/`,
-        `--cloudfront_distribution_id=${_exportedVals.cloudFront.id}`,
-        "--filename=model_scores.parquet",
-        "--format=parquet",
-      ].join(" "),
-      scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-      alertTopic: pagerdutyTopic,
-    },
-    environment: apiEnvironment,
-    secrets: apiSecrets,
-    alarmPeriodSeconds: 3600, // 1h in seconds
-    enableInvocationAlerts: true,
-    scorerSecretManagerArn: scorerSecret.arn,
-  }));
+export const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer = pulumi
+  .all([exportVals])
+  .apply(([_exportedVals]) => {
+    return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
+      createScheduledTask({
+        name: "frequent-eth-model-v2-score-dump",
+        config: {
+          ...baseScorerServiceConfig,
+          securityGroup: secgrp,
+          command: [
+            "python",
+            "manage.py",
+            "scorer_dump_data_model_score",
+            `--s3-uri=s3://${publicDataDomain}/model_scores/`,
+            `--cloudfront_distribution_id=${cloudFrontId}`,
+            "--filename=model_scores.parquet",
+            "--format=parquet",
+          ].join(" "),
+          scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+          alertTopic: pagerdutyTopic,
+        },
+        environment: apiEnvironment,
+        secrets: apiSecrets,
+        alarmPeriodSeconds: 3600, // 1h in seconds
+        enableInvocationAlerts: true,
+        scorerSecretManagerArn: scorerSecret.arn,
+      });
+    });
+  });
 
 export const coinbaseRevocationCheck = createScheduledTask({
   name: "coinbase-revocation-check",
@@ -1825,7 +1845,8 @@ export const s3TriggeredECSTask = createS3InitiatedECSTask(
   createdTask.eventsStsAssumeRole.arn
 );
 
-const PASSPORT_APP_GITHUB_URL = "https://github.com/passportxyz/passport-scorer";
+const PASSPORT_APP_GITHUB_URL =
+  "https://github.com/passportxyz/passport-scorer";
 const PASSPORT_APP_GITHUB_ACCESS_TOKEN_FOR_AMPLIFY = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-secrets/interface/PASSPORT_SCORER_GITHUB_ACCESS_TOKEN_FOR_AMPLIFY`
 );
@@ -1852,7 +1873,9 @@ const passportXyzAppEnvironment = secretsManager
     return acc;
   }, {} as Record<string, string | pulumi.Output<any>>);
 
-  const amplifyAppInfo = coreInfraStack.getOutput("newPassportDomain").apply((domainName) => {
+const amplifyAppInfo = coreInfraStack
+  .getOutput("newPassportDomain")
+  .apply((domainName) => {
     const prefix = "scorer";
     const amplifyAppConfig: amplify.AmplifyAppConfig = {
       name: `${domainName}`,
@@ -1876,7 +1899,7 @@ const passportXyzAppEnvironment = secretsManager
         },
       ],
       platform: "WEB",
-      monorepoAppRoot: "interface"
+      monorepoAppRoot: "interface",
     };
 
     return amplify.createAmplifyApp(amplifyAppConfig);
