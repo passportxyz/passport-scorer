@@ -97,15 +97,17 @@ async def fetch(session, url, data):
         async with session.post(
             url, data=json.dumps(data), headers=headers
         ) as response:
-            return await response.json()
+            body = await response.json()
+            return {"status": response.status, "data": body.get("data")}
     except Exception as e:
         log.error(f"Error fetching {url}", exc_info=True)
         return {
+            "status": 500,
             "data": {
                 "human_probability": -1,
                 "n_transactions": -1,
                 "error": str(e),
-            }
+            },
         }
 
 
@@ -128,6 +130,7 @@ async def handle_get_analysis(
     only_one_model = (
         only_one_model if only_one_model is not None else settings.ONLY_ONE_MODEL
     )
+
     # Set default in case nothing was selected by the user
     if not model_list or model_list.strip() == "":
         model_list = settings.MODEL_ENDPOINTS_DEFAULT
@@ -165,11 +168,25 @@ async def handle_get_analysis(
         else:
             model_responses = []
 
-        if settings.AGGREGATE_MODEL_NAME in models:
+        model_responses_ok = all(
+            response["status"] == 200 for _, response in model_responses
+        )
+
+        if model_responses_ok and settings.AGGREGATE_MODEL_NAME in models:
             aggregate_response = await get_aggregate_model_response(
                 checksummed_address, model_responses
             )
             model_responses.append((settings.AGGREGATE_MODEL_NAME, aggregate_response))
+            model_responses_ok = aggregate_response["status"] == 200
+
+        if not model_responses_ok:
+            details = [
+                dict(model=model, status=response.get("status"))
+                for model, response in model_responses
+            ]
+            raise PassportAnalysisError(
+                f"Error retrieving Passport analysis: {json.dumps(details)}"
+            )
 
         ret = PassportAnalysisResponse(
             address=address,
@@ -178,7 +195,6 @@ async def handle_get_analysis(
 
         if additional_data:
             for model, response in model_responses:
-                data = response.get("data", {})
                 score = data.get("human_probability", 0)
                 num_transactions = data.get("n_transactions", 0)
                 first_funder = data.get("first_funder", "")
@@ -198,6 +214,8 @@ async def handle_get_analysis(
                 ret.details.models[model] = ScoreModel(score=score)
 
         return ret
+    except PassportAnalysisError:
+        raise
     except Exception:
         log.error("Error retrieving Passport analysis", exc_info=True)
         raise PassportAnalysisError()
