@@ -1710,7 +1710,7 @@ buildHttpLambdaFn(
     name: "cc-v1-score-GET-0",
     memorySize: 512,
     dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
-    pathPatterns: ["/ceramic-cache/score/*"],
+    pathPatterns: ["/ceramic-cache/score/0x*"],
     httpRequestMethods: ["GET"],
     listenerPriority: 1007,
   },

@@ -535,7 +535,7 @@ def calc_score_community(
     scorer_id: int,
     address: str,
 ) -> DetailedScoreResponse:
-    return get_detailed_score_response_for_address(address, scorer_id)
+    return handle_get_ui_score(address, scorer_id)
 
 
 class FailedVerificationException(APIException):
