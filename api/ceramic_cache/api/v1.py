@@ -46,6 +46,7 @@ from registry.exceptions import (
 from registry.models import Score
 from stake.api import handle_get_gtc_stake
 from stake.schema import GetSchemaResponse
+from trusta_labs.api import CgrantsApiKey
 
 from ..exceptions import (
     InternalServerException,
@@ -70,6 +71,8 @@ from .schema import (
 log = logging.getLogger(__name__)
 
 router = Router()
+
+secret_key = CgrantsApiKey()
 
 
 def get_address_from_did(did: str):
@@ -520,6 +523,19 @@ def calc_score(
     request, address: str, payload: CalcScorePayload
 ) -> DetailedScoreResponse:
     return get_detailed_score_response_for_address(address, payload.alternate_scorer_id)
+
+
+@router.get(
+    "/score/{int:scorer_id}/{str:address}",
+    response=DetailedScoreResponse,
+    auth=secret_key,
+)
+def calc_score_community(
+    request,
+    scorer_id: int,
+    address: str,
+) -> DetailedScoreResponse:
+    return get_detailed_score_response_for_address(address, scorer_id)
 
 
 class FailedVerificationException(APIException):
