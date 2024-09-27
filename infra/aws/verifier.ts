@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import {defaultTags, stack} from "../lib/tags";
+import { defaultTags, stack } from "../lib/tags";
 
 const serviceResources = Object({
   review: {
@@ -61,9 +61,7 @@ export const createVerifierService = ({
         },
       ],
     }),
-    managedPolicyArns: [
-      "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
-    ],
+    managedPolicyArns: ["arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"],
     tags: {
       ...defaultTags,
       Name: "verifier-ecs-role",
@@ -255,113 +253,101 @@ export const createVerifierService = ({
 
   // Auto Scaling
 
-  const ecsAutoScalingTarget = new aws.appautoscaling.Target(
-    "autoscaling_target",
-    {
-      maxCapacity: 10,
-      minCapacity: 1,
-      resourceId: pulumi.interpolate`service/${clusterName}/${service.name}`,
-      scalableDimension: "ecs:service:DesiredCount",
-      serviceNamespace: "ecs",
-      tags: {
-        ...defaultTags,
-        Name: "autoscaling_target",
-      },
-    }
-  );
+  const ecsAutoScalingTarget = new aws.appautoscaling.Target("autoscaling_target", {
+    maxCapacity: 10,
+    minCapacity: 1,
+    resourceId: pulumi.interpolate`service/${clusterName}/${service.name}`,
+    scalableDimension: "ecs:service:DesiredCount",
+    serviceNamespace: "ecs",
+    tags: {
+      ...defaultTags,
+      Name: "autoscaling_target",
+    },
+  });
 
-  const ecsAutoScalingPolicy = new aws.appautoscaling.Policy(
-    "autoscaling-policy",
-    {
-      policyType: "TargetTrackingScaling",
-      resourceId: ecsAutoScalingTarget.resourceId,
-      scalableDimension: ecsAutoScalingTarget.scalableDimension,
-      serviceNamespace: ecsAutoScalingTarget.serviceNamespace,
-      targetTrackingScalingPolicyConfiguration: {
-        predefinedMetricSpecification: {
-          predefinedMetricType: "ECSServiceAverageCPUUtilization",
-        },
-        targetValue: 50,
-        scaleInCooldown: 300,
-        scaleOutCooldown: 300,
+  const ecsAutoScalingPolicy = new aws.appautoscaling.Policy("autoscaling-policy", {
+    policyType: "TargetTrackingScaling",
+    resourceId: ecsAutoScalingTarget.resourceId,
+    scalableDimension: ecsAutoScalingTarget.scalableDimension,
+    serviceNamespace: ecsAutoScalingTarget.serviceNamespace,
+    targetTrackingScalingPolicyConfiguration: {
+      predefinedMetricSpecification: {
+        predefinedMetricType: "ECSServiceAverageCPUUtilization",
       },
-    }
-  );
+      targetValue: 50,
+      scaleInCooldown: 300,
+      scaleOutCooldown: 300,
+    },
+  });
 
   // Alerts
   // Send an alert on alb target  500
   const metricNamespace = "AWS/ApplicationELB";
 
-  const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
-    `HTTP-Target-5XX-verifier`,
-    {
-      tags: { ...defaultTags, Name: `HTTP-Target-5XX-verifier` },
-      name: `HTTP-Target-5XX-verifier`,
-      alarmActions: [snsTopicArn],
-      okActions: [snsTopicArn],
-      comparisonOperator: "GreaterThanThreshold",
-      datapointsToAlarm: 3,
-      evaluationPeriods: 5,
-      metricQueries: [
-        {
-          id: "m1",
-          metric: {
-            metricName: "RequestCount",
-            dimensions: {
-              LoadBalancer: privateAlbArnSuffix,
-              TargetGroup: albTargetGroup.arnSuffix,
-            },
-            namespace: metricNamespace,
-            period: 60,
-            stat: "Sum",
+  const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(`HTTP-Target-5XX-verifier`, {
+    tags: { ...defaultTags, Name: `HTTP-Target-5XX-verifier` },
+    name: `HTTP-Target-5XX-verifier`,
+    alarmActions: [snsTopicArn],
+    okActions: [snsTopicArn],
+    comparisonOperator: "GreaterThanThreshold",
+    datapointsToAlarm: 3,
+    evaluationPeriods: 5,
+    metricQueries: [
+      {
+        id: "m1",
+        metric: {
+          metricName: "RequestCount",
+          dimensions: {
+            LoadBalancer: privateAlbArnSuffix,
+            TargetGroup: albTargetGroup.arnSuffix,
           },
+          namespace: metricNamespace,
+          period: 60,
+          stat: "Sum",
         },
-        {
-          id: "m2",
-          metric: {
-            metricName: "HTTPCode_Target_5XX_Count",
-            dimensions: {
-              LoadBalancer: privateAlbArnSuffix,
-              TargetGroup: albTargetGroup.arnSuffix,
-            },
-            namespace: metricNamespace,
-            period: 60,
-            stat: "Sum",
+      },
+      {
+        id: "m2",
+        metric: {
+          metricName: "HTTPCode_Target_5XX_Count",
+          dimensions: {
+            LoadBalancer: privateAlbArnSuffix,
+            TargetGroup: albTargetGroup.arnSuffix,
           },
+          namespace: metricNamespace,
+          period: 60,
+          stat: "Sum",
         },
-        {
-          expression: "m2 / m1",
-          id: "e1",
-          label: "Percent of target 5XX errors",
-          returnData: true,
-        },
-      ],
-      threshold: 0.1,
-    }
-  );
+      },
+      {
+        expression: "m2 / m1",
+        id: "e1",
+        label: "Percent of target 5XX errors",
+        returnData: true,
+      },
+    ],
+    threshold: 0.1,
+  });
 
   // Alert on task count
-  const runningTaskCountAlarm = new aws.cloudwatch.MetricAlarm(
-    `RunningTaskCount-verifier`,
-    {
-      tags: { ...defaultTags, Name: `RunningTaskCount-verifier` },
-      alarmActions: [snsTopicArn],
-      okActions: [snsTopicArn],
-      comparisonOperator: "GreaterThanThreshold",
-      datapointsToAlarm: 1,
-      dimensions: {
-        ClusterName: clusterName,
-        ServiceName: service.name,
-      },
-      evaluationPeriods: 1,
-      metricName: "RunningTaskCount",
-      name: `RunningTaskCount-verifier`,
-      namespace: "ECS/ContainerInsights",
-      period: 300,
-      statistic: "Average",
-      threshold: 7,
-    }
-  );
+  const runningTaskCountAlarm = new aws.cloudwatch.MetricAlarm(`RunningTaskCount-verifier`, {
+    tags: { ...defaultTags, Name: `RunningTaskCount-verifier` },
+    alarmActions: [snsTopicArn],
+    okActions: [snsTopicArn],
+    comparisonOperator: "GreaterThanThreshold",
+    datapointsToAlarm: 1,
+    dimensions: {
+      ClusterName: clusterName,
+      ServiceName: service.name,
+    },
+    evaluationPeriods: 1,
+    metricName: "RunningTaskCount",
+    name: `RunningTaskCount-verifier`,
+    namespace: "ECS/ContainerInsights",
+    period: 300,
+    statistic: "Average",
+    threshold: 7,
+  });
   return {
     task: taskDefinition,
     service: service,

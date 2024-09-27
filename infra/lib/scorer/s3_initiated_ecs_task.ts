@@ -1,6 +1,6 @@
 import * as aws from "@pulumi/aws";
 import { Input, Output } from "@pulumi/pulumi";
-import {defaultTags} from "../tags";
+import { defaultTags } from "../tags";
 
 export function createS3InitiatedECSTask(
   bucketName: string,
@@ -34,7 +34,7 @@ export function createS3InitiatedECSTask(
       tags: {
         ...defaultTags,
         Name: folder,
-      }
+      },
     });
   });
 
@@ -59,7 +59,7 @@ export function createS3InitiatedECSTask(
     tags: {
       ...defaultTags,
       Name: "s3-to-ecs-rule",
-      Scope: "MBD batch processing"
+      Scope: "MBD batch processing",
     },
   });
 

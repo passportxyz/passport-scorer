@@ -4,18 +4,11 @@ import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import { ScorerService } from "./new_service";
 import { secretsManager } from "infra-libs";
-import {defaultTags} from "../tags";
+import { defaultTags } from "../tags";
 
 export type ScheduledTaskConfig = Pick<
   ScorerService,
-  | "dockerImageScorer"
-  | "executionRole"
-  | "taskRole"
-  | "cluster"
-  | "subnets"
-  | "securityGroup"
-  | "cpu"
-  | "memory"
+  "dockerImageScorer" | "executionRole" | "taskRole" | "cluster" | "subnets" | "securityGroup" | "cpu" | "memory"
 > &
   Required<Pick<ScorerService, "alertTopic">> & {
     command: string;
@@ -53,11 +46,7 @@ export function createTask({
   } = config;
 
   const commandSuccessMessage = `SUCCESS <${name}>`;
-  const commandWithTest = [
-    "/bin/bash",
-    "-c",
-    command + ` && echo "${commandSuccessMessage}"`,
-  ];
+  const commandWithTest = ["/bin/bash", "-c", command + ` && echo "${commandSuccessMessage}"`];
 
   const logGroupName = `${scheduled ? "scheduled-" : ""}${name}`;
 
@@ -100,7 +89,7 @@ export function createTask({
     tags: {
       ...defaultTags,
       Name: name,
-    }
+    },
   });
 
   const eventsStsAssumeRole = new aws.iam.Role(`${name}-eventsRole`, {
@@ -146,18 +135,17 @@ export function createTask({
       },
       {
         name: "allow_iam_secrets_access",
-        policy: all([scorerSecretManagerArn]).apply(
-          ([scorerSecretManagerArnStr]) =>
-            JSON.stringify({
-              Version: "2012-10-17",
-              Statement: [
-                {
-                  Action: ["secretsmanager:GetSecretValue"],
-                  Effect: "Allow",
-                  Resource: scorerSecretManagerArnStr,
-                },
-              ],
-            }),
+        policy: all([scorerSecretManagerArn]).apply(([scorerSecretManagerArnStr]) =>
+          JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                Action: ["secretsmanager:GetSecretValue"],
+                Effect: "Allow",
+                Resource: scorerSecretManagerArnStr,
+              },
+            ],
+          })
         ),
       },
       {
@@ -172,7 +160,7 @@ export function createTask({
                 Resource: Resource,
               },
             ],
-          }),
+          })
         ),
       },
       {
@@ -188,13 +176,11 @@ export function createTask({
                   Resource: [dpoppEcsRoleArn, weeklyDataDumpTaskRoleArn],
                 },
               ],
-            }),
+            })
         ),
       },
     ],
-    managedPolicyArns: [
-      "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
-    ],
+    managedPolicyArns: ["arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"],
     tags: {
       ...defaultTags,
       Name: `${name}-eventsRole`,
@@ -248,7 +234,7 @@ export function createScheduledTask({
     tags: {
       ...defaultTags,
       Name: `rule-${name}`,
-    }
+    },
   });
 
   new aws.cloudwatch.EventTarget(`scheduled-${name}`, {
@@ -270,56 +256,50 @@ export function createScheduledTask({
   if (alarmPeriodSeconds) {
     if (enableInvocationAlerts) {
       // No invocation in the given period
-      const missingInvocationsAlarm = new aws.cloudwatch.MetricAlarm(
-        `MissingInvocations-${name}`,
-        {
-          alarmActions: [taskResources.alertTopic.arn],
-          okActions: [taskResources.alertTopic.arn],
-          comparisonOperator: "LessThanThreshold",
-          datapointsToAlarm: 1,
-          evaluationPeriods: 1,
-          metricName: "Invocations",
-          name: "MissingInvocations-" + name,
-          namespace: "AWS/Events",
-          dimensions: {
-            RuleName: scheduledEventRule.name,
-          },
-          period: alarmPeriodSeconds,
-          statistic: "Sum",
-          threshold: 1,
-          treatMissingData: "notBreaching",
-          tags:{
-            ...defaultTags,
-            Name: `MissingInvocations-${name}`,
-          }
-        },
-      );
-    }
-    // Verify failed invocations
-    const failedInvocationsAlarm = new aws.cloudwatch.MetricAlarm(
-      `FailedInvocations-${name}`,
-      {
+      const missingInvocationsAlarm = new aws.cloudwatch.MetricAlarm(`MissingInvocations-${name}`, {
         alarmActions: [taskResources.alertTopic.arn],
         okActions: [taskResources.alertTopic.arn],
-        comparisonOperator: "GreaterThanThreshold",
+        comparisonOperator: "LessThanThreshold",
         datapointsToAlarm: 1,
         evaluationPeriods: 1,
-        metricName: "FailedInvocations",
-        name: `FailedInvocations-${name}`,
+        metricName: "Invocations",
+        name: "MissingInvocations-" + name,
         namespace: "AWS/Events",
         dimensions: {
           RuleName: scheduledEventRule.name,
         },
         period: alarmPeriodSeconds,
         statistic: "Sum",
-        threshold: 0,
+        threshold: 1,
         treatMissingData: "notBreaching",
-        tags:{
+        tags: {
           ...defaultTags,
-          Name: `FailedInvocations-${name}`,
-        }
+          Name: `MissingInvocations-${name}`,
+        },
+      });
+    }
+    // Verify failed invocations
+    const failedInvocationsAlarm = new aws.cloudwatch.MetricAlarm(`FailedInvocations-${name}`, {
+      alarmActions: [taskResources.alertTopic.arn],
+      okActions: [taskResources.alertTopic.arn],
+      comparisonOperator: "GreaterThanThreshold",
+      datapointsToAlarm: 1,
+      evaluationPeriods: 1,
+      metricName: "FailedInvocations",
+      name: `FailedInvocations-${name}`,
+      namespace: "AWS/Events",
+      dimensions: {
+        RuleName: scheduledEventRule.name,
       },
-    );
+      period: alarmPeriodSeconds,
+      statistic: "Sum",
+      threshold: 0,
+      treatMissingData: "notBreaching",
+      tags: {
+        ...defaultTags,
+        Name: `FailedInvocations-${name}`,
+      },
+    });
 
     // Missing succes Message
     const successfulRunMetricNamespace = "/scheduled-tasks/runs/success";
@@ -376,54 +356,48 @@ export function createScheduledTask({
       threshold: 1,
       name: `UnsuccessfulRuns-${name}`,
       treatMissingData: "notBreaching",
-      tags:{
+      tags: {
         ...defaultTags,
         Name: `UnsuccessfulRuns-${name}`,
-      }
+      },
     });
 
     // Cronjob error
     const cronJobErrorMetricNamespace = "/scheduled-tasks/runs/errors";
     const cronJobErrorMetricName = `CronJobErrorMsg-${name}`;
 
-    const cronJobErrorFilter = new aws.cloudwatch.LogMetricFilter(
-      cronJobErrorMetricName,
-      {
-        logGroupName: taskResources.logGroup.name,
-        metricTransformation: {
-          defaultValue: "0",
-          name: cronJobErrorMetricName,
-          namespace: cronJobErrorMetricNamespace,
-          unit: "Count",
-          value: "1",
-        },
+    const cronJobErrorFilter = new aws.cloudwatch.LogMetricFilter(cronJobErrorMetricName, {
+      logGroupName: taskResources.logGroup.name,
+      metricTransformation: {
+        defaultValue: "0",
         name: cronJobErrorMetricName,
-        pattern: '"CRONJOB ERROR:"',
-      },
-    );
-
-    const cronJobErrorAlarm = new aws.cloudwatch.MetricAlarm(
-      `CronJobErrorMsgAlarm-${name}`,
-      {
-        alarmActions: [taskResources.alertTopic.arn],
-        okActions: [taskResources.alertTopic.arn],
-        comparisonOperator: "GreaterThanOrEqualToThreshold",
-        datapointsToAlarm: 1,
-        evaluationPeriods: 1,
-        insufficientDataActions: [],
-        metricName: cronJobErrorMetricName,
-        name: `CronJobErrorMsgAlarm-${name}`,
         namespace: cronJobErrorMetricNamespace,
-        period: alarmPeriodSeconds,
-        statistic: "Sum",
-        threshold: 1,
-        treatMissingData: "notBreaching",
-        tags:{
-          ...defaultTags,
-          Name: `CronJobErrorMsgAlarm-${name}`,
-        }
+        unit: "Count",
+        value: "1",
       },
-    );
+      name: cronJobErrorMetricName,
+      pattern: '"CRONJOB ERROR:"',
+    });
+
+    const cronJobErrorAlarm = new aws.cloudwatch.MetricAlarm(`CronJobErrorMsgAlarm-${name}`, {
+      alarmActions: [taskResources.alertTopic.arn],
+      okActions: [taskResources.alertTopic.arn],
+      comparisonOperator: "GreaterThanOrEqualToThreshold",
+      datapointsToAlarm: 1,
+      evaluationPeriods: 1,
+      insufficientDataActions: [],
+      metricName: cronJobErrorMetricName,
+      name: `CronJobErrorMsgAlarm-${name}`,
+      namespace: cronJobErrorMetricNamespace,
+      period: alarmPeriodSeconds,
+      statistic: "Sum",
+      threshold: 1,
+      treatMissingData: "notBreaching",
+      tags: {
+        ...defaultTags,
+        Name: `CronJobErrorMsgAlarm-${name}`,
+      },
+    });
   }
 
   return taskResources.task.taskDefinition.id;
