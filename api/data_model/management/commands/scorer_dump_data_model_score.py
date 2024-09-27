@@ -1,9 +1,11 @@
 import json
 import traceback
 from contextlib import contextmanager
+from datetime import datetime
 from logging import getLogger
 from urllib.parse import urlparse
 
+import boto3
 import pyarrow as pa
 import pyarrow.parquet as pq
 from django.core.management.base import BaseCommand
@@ -119,6 +121,12 @@ For example:
             help="The output format",
             default="jsonl",
         )
+        parser.add_argument(
+            "--cloudfront_distribution_id",
+            default="",
+            help="The CloudFront distribution id to create invalidation for the uploaded files",
+        )
+
 
     def handle(self, *args, **options):
         batch_size = options["batch_size"]
@@ -130,6 +138,7 @@ For example:
             if options["data_model"]
             else None
         )
+        cloudfront_distribution_id = options["cloudfront_distribution_id"]
 
         extra_args = (
             json.loads(options["s3_extra_args"]) if options["s3_extra_args"] else None
@@ -162,6 +171,35 @@ For example:
             )
 
             upload_to_s3(filename, s3_folder, s3_bucket_name, extra_args)
+
+            if cloudfront_distribution_id:
+                client = boto3.client("cloudfront")
+                paths_to_invalidate = [f"/{s3_folder}/{filename}"]
+                self.stdout.write(
+                    f"Create invalidation for {s3_key} in the cloufront distribution {cloudfront_distribution_id}"
+                )
+                response = client.create_invalidation(
+                    DistributionId=distribution_id,
+                    InvalidationBatch={
+                        "Paths": {
+                            "Quantity": len(paths_to_invalidate),
+                            "Items": paths_to_invalidate,
+                        },
+                        "CallerReference": str(
+                            datetime.utcnow().timestamp()
+                        ),  # Unique reference, using timestamp
+                    },
+                )
+                # Verify the response
+                if response["ResponseMetadata"]["HTTPStatusCode"] == 201:
+                    invalidation_id = response["Invalidation"]["Id"]
+                    self.stdout.write(
+                        f"Invalidation created successfully. Invalidation ID: {invalidation_id}\n"
+                    )
+                else:
+                    self.stdout.write(
+                        f"Failed to create invalidation. HTTP Status Code: {response['ResponseMetadata']['HTTPStatusCode']}\n"
+                    )
 
             self.stdout.write(
                 self.style.SUCCESS(
