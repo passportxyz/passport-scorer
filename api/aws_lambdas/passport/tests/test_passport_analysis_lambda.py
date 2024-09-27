@@ -16,6 +16,7 @@ address = "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D"
 
 mock_model_responses = {
     "ethereum_activity": {
+        "status": 200,
         "data": {
             "human_probability": 75,
             "n_transactions": 10,
@@ -25,6 +26,7 @@ mock_model_responses = {
         "metadata": {"model_name": "ethereum_activity", "version": "1.0"},
     },
     "nft": {
+        "status": 200,
         "data": {
             "human_probability": 85,
             "n_transactions": 10,
@@ -34,6 +36,7 @@ mock_model_responses = {
         "metadata": {"model_name": "social_media", "version": "2.0"},
     },
     "zksync": {
+        "status": 200,
         "data": {
             "human_probability": 95,
             "n_transactions": 10,
@@ -43,6 +46,7 @@ mock_model_responses = {
         "metadata": {"model_name": "transaction_history", "version": "1.5"},
     },
     "aggregate": {
+        "status": 200,
         "data": {
             "human_probability": 90,
             "n_transactions": 10,
@@ -53,38 +57,60 @@ mock_model_responses = {
     },
 }
 
+import pprint
+
 
 def mock_post_response(session, url, data):
-    # Create a mock response object
-    # mock_response = Mock()
-    # mock_response.status_code = 200
-
     # Determine which model is being requested
     for model, endpoint in settings.MODEL_ENDPOINTS.items():
         if endpoint in url:
             response_data = mock_model_responses.get(
                 model,
                 {
+                    "status": 200,
                     "data": {
                         "human_probability": 0,
                         "n_transactions": 10,
                         "first_funder": "funder",
                         "first_funder_amount": 1000,
-                    }
+                    },
                 },
             )
             break
     else:
         response_data = {"error": "Unknown model"}
 
-    # Set the json method of the mock response
-    # mock_response.json = lambda: response_data
-
-    # print("*" * 40)
-    # print("mock_response: ", mock_response)
-    # print("*" * 40)
-    # return mock_response
     return response_data
+
+
+def mock_post_response_with_failure(fail_for_model):
+    def mock_response(session, url, data):
+        for model, endpoint in settings.MODEL_ENDPOINTS.items():
+            if endpoint in url:
+                response_data = mock_model_responses.get(
+                    model,
+                    {
+                        "status": 200,
+                        "data": {
+                            "human_probability": 0,
+                            "n_transactions": 10,
+                            "first_funder": "funder",
+                            "first_funder_amount": 1000,
+                        },
+                    },
+                )
+
+                # include error http status error if failure is
+                # expected to be mocked
+                if model == fail_for_model:
+                    response_data["status"] = 500
+                break
+        else:
+            response_data = {"error": "Unknown model"}
+
+        return response_data
+
+    return mock_response
 
 
 def test_successful_analysis_eth(
