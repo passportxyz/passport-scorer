@@ -137,6 +137,9 @@ def get_config(base_url: str) -> dict:
                     },
                     "payload": [],
                 },
+                ("GET", "/ceramic-cache/score/{scorer_id}/{address}"): {
+                    "skip": True,  # Skipping because uptime robot api rejects creating multiple monitors on same endpoint
+                },
                 ("POST", "/ceramic-cache/score/{address}"): {
                     # TODO: do we still use this POST API ???
                     "skip": True,  # Skipping because uptime robot api rejects creating multiple monitors on same endpoint
