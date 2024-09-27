@@ -1,5 +1,6 @@
 # pylint: disable=no-value-for-parameter
 # pyright: reportGeneralTypeIssues=false
+import copy
 import json
 
 import pytest
@@ -57,11 +58,10 @@ mock_model_responses = {
     },
 }
 
-import pprint
-
 
 def mock_post_response(session, url, data):
     # Determine which model is being requested
+
     for model, endpoint in settings.MODEL_ENDPOINTS.items():
         if endpoint in url:
             response_data = mock_model_responses.get(
@@ -87,22 +87,28 @@ def mock_post_response_with_failure(fail_for_model):
     def mock_response(session, url, data):
         for model, endpoint in settings.MODEL_ENDPOINTS.items():
             if endpoint in url:
-                response_data = mock_model_responses.get(
-                    model,
-                    {
-                        "status": 200,
-                        "data": {
-                            "human_probability": 0,
-                            "n_transactions": 10,
-                            "first_funder": "funder",
-                            "first_funder_amount": 1000,
+                response_data = dict(
+                    **mock_model_responses.get(
+                        model,
+                        {
+                            "status": 200,
+                            "data": {
+                                "human_probability": 0,
+                                "n_transactions": 10,
+                                "first_funder": "funder",
+                                "first_funder_amount": 1000,
+                            },
                         },
-                    },
+                    )
                 )
 
                 # include error http status error if failure is
                 # expected to be mocked
+                print("*" * 40)
+                print(model, fail_for_model)
+                print("*" * 40)
                 if model == fail_for_model:
+                    response_data = copy.deepcopy(response_data)
                     response_data["status"] = 500
                 break
         else:

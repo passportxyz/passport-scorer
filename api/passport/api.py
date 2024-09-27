@@ -195,6 +195,7 @@ async def handle_get_analysis(
 
         if additional_data:
             for model, response in model_responses:
+                data = response.get("data")
                 score = data.get("human_probability", 0)
                 num_transactions = data.get("n_transactions", 0)
                 first_funder = data.get("first_funder", "")
@@ -232,6 +233,20 @@ async def get_aggregate_model_response(
         "address": checksummed_address,
         "data": {},
     }
+    model_responses_ok = all(
+        response["status"] == 200 for _, response in model_responses
+    )
+
+    if not model_responses_ok:
+        # If querying at least one of the submodules resulted in an error, then throw an error
+        details = [
+            dict(model=model, status=response.get("status"))
+            for model, response in model_responses
+        ]
+
+        raise PassportAnalysisError(
+            f"Error retrieving Passport analysis: {json.dumps(details)}"
+        )
 
     for model, response in model_responses:
         data = response.get("data", {})
