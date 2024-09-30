@@ -1055,7 +1055,7 @@ const redashDb = new aws.rds.Instance(
     allocatedStorage: 20,
     maxAllocatedStorage: 30, // maxAllocatedStorage needs to be bigger than allocatedStorage
     engine: "postgres",
-    engineVersion: "13.13",
+    engineVersion: "13.15",
     instanceClass: "db.t3.micro",
     dbName: redashDbName,
     password: redashDbPassword,
