@@ -634,6 +634,14 @@ const serviceTaskRole = new aws.iam.Role("scorer-service-task-role", {
               ],
               Resource: "*",
             },
+            // CloudFront 
+            {
+              Effect: "Allow",
+              Action: [
+                "cloudfront:CreateInvalidation",
+              ],
+              Resource: "*",
+            },
           ],
         })
       ),
