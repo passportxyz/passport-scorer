@@ -257,7 +257,6 @@ class Command(BaseCronJobCmd):
             default="{}",
             help="Extra args to add to the summary file upload. This can be used to set S3 permissions, see: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html. Defaults to {}.",
         )
-        # TODO: Add the cloudfront distribution id
 
     def handle_cron_job(self, *args, **options):
         self.stdout.write("Dumping DB data")
@@ -344,7 +343,7 @@ class Command(BaseCronJobCmd):
                         paths_to_invalidate = [f"/{s3_key}"]
                         self.stdout.write(f"Create invalidation for {s3_key} in the cloufront distribution {cloudfront_distribution_id}")
                         response = client.create_invalidation(
-                            DistributionId=distribution_id,
+                            DistributionId=cloudfront_distribution_id,
                             InvalidationBatch={
                                 'Paths': {
                                     'Quantity': len(paths_to_invalidate),
