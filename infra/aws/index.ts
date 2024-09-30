@@ -1893,6 +1893,7 @@ const amplifyAppInfo = coreInfraStack
       cloudflareDomain: CLOUDFLARE_DOMAIN,
       cloudflareZoneId: CLOUDFLARE_ZONE_ID,
       prefix: prefix,
+      additional_prefix: `developer`,
       branchName: passportBranches[stack],
       environmentVariables: passportXyzAppEnvironment,
       tags: { Name: `${prefix}.${domainName}` },
