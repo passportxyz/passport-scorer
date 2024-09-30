@@ -181,7 +181,7 @@ For example:
                     f"Create invalidation for {s3_key} in the cloufront distribution {cloudfront_distribution_id}"
                 )
                 response = client.create_invalidation(
-                    DistributionId=distribution_id,
+                    DistributionId=cloudfront_distribution_id,
                     InvalidationBatch={
                         "Paths": {
                             "Quantity": len(paths_to_invalidate),
