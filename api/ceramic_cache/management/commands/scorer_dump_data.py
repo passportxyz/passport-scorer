@@ -341,7 +341,7 @@ class Command(BaseCronJobCmd):
                     if cloudfront_distribution_id:
                         client = boto3.client('cloudfront')
                         paths_to_invalidate = [f"/{s3_key}"]
-                        self.stdout.write(f"Create invalidation for {s3_key} in the cloufront distribution {cloudfront_distribution_id}")
+                        self.stdout.write(f"Create invalidation for {paths_to_invalidate} in the cloufront distribution {cloudfront_distribution_id}")
                         response = client.create_invalidation(
                             DistributionId=cloudfront_distribution_id,
                             InvalidationBatch={

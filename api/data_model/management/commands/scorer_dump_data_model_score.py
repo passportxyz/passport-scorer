@@ -174,11 +174,11 @@ For example:
 
             if cloudfront_distribution_id:
                 client = boto3.client("cloudfront")
-                s3_key = f"{s3_folder}/{filename}"
+                s3_key = f"/{s3_folder}/{filename}"
                 paths_to_invalidate = [s3_key]
 
                 self.stdout.write(
-                    f"Create invalidation for {s3_key} in the cloufront distribution {cloudfront_distribution_id}"
+                    f"Create invalidation for {paths_to_invalidate} in the cloufront distribution {cloudfront_distribution_id}"
                 )
                 response = client.create_invalidation(
                     DistributionId=cloudfront_distribution_id,
