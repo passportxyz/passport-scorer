@@ -1055,7 +1055,7 @@ const redashDb = new aws.rds.Instance(
     allocatedStorage: 20,
     maxAllocatedStorage: 30, // maxAllocatedStorage needs to be bigger than allocatedStorage
     engine: "postgres",
-    engineVersion: "13.13",
+    engineVersion: "13.15",
     instanceClass: "db.t3.micro",
     dbName: redashDbName,
     password: redashDbPassword,
@@ -1893,6 +1893,7 @@ const amplifyAppInfo = coreInfraStack
       cloudflareDomain: CLOUDFLARE_DOMAIN,
       cloudflareZoneId: CLOUDFLARE_ZONE_ID,
       prefix: prefix,
+      additional_prefix: `developer`,
       branchName: passportBranches[stack],
       environmentVariables: passportXyzAppEnvironment,
       tags: { Name: `${prefix}.${domainName}` },
