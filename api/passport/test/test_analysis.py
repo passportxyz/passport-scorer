@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from asgiref.sync import async_to_sync
@@ -8,12 +8,15 @@ from django.test import Client, TestCase, override_settings
 from web3 import Web3
 
 from account.models import Account, AccountAPIKey
-from aws_lambdas.passport.tests.test_passport_analysis_lambda import mock_post_response
+from aws_lambdas.passport.tests.test_passport_analysis_lambda import (
+    mock_post_response,
+    mock_post_response_with_failure,
+)
 from passport.api import (
     PassportAnalysisDetails,
+    PassportAnalysisError,
     PassportAnalysisResponse,
     ScoreModel,
-    fetch_all,
     handle_get_analysis,
 )
 
@@ -199,6 +202,8 @@ class TestPassportAnalysis(TestCase):
         assert analysis.details.models["zksync"].first_funder_amount == 1000
 
     @override_settings(ONLY_ONE_MODEL=False)
+    @override_settings(NFT_MODEL_ENDPOINT="http://localhost:8123/eth-nft-predict")
+    @override_settings(ZKSYNC_MODEL_ENDPOINT="http://localhost:8123/eth-zksync-predict")
     @patch("passport.api.fetch", side_effect=mock_post_response)
     def test_handle_get_analysis_does_not_return_additional_data(self, mock_fetch):
         """Test handle_get_analysis does not return additional data when not requested."""
@@ -225,3 +230,66 @@ class TestPassportAnalysis(TestCase):
         # Check specific scores
         assert analysis.details.models["nft"].score == 85
         assert analysis.details.models["zksync"].score == 95
+
+    @override_settings(ONLY_ONE_MODEL=False)
+    @override_settings(NFT_MODEL_ENDPOINT="http://localhost:8123/eth-nft-predict")
+    @override_settings(ZKSYNC_MODEL_ENDPOINT="http://localhost:8123/eth-zksync-predict")
+    @patch("passport.api.fetch", side_effect=mock_post_response_with_failure("zksync"))
+    def test_handle_get_analysis_when_one_model_fails(self, mock_fetch):
+        """Test handle_get_analysis does not return additional data when not requested."""
+
+        with pytest.raises(PassportAnalysisError) as exc_info:
+            async_to_sync(handle_get_analysis)(
+                "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D", "nft,zksync", False
+            )
+        assert '{"model": "zksync", "status": 500}' in exc_info.value.detail
+        assert '{"model": "nft", "status": 200}' in exc_info.value.detail
+
+    @override_settings(ONLY_ONE_MODEL=False)
+    @override_settings(NFT_MODEL_ENDPOINT="http://localhost:8123/eth-nft-predict")
+    @override_settings(ZKSYNC_MODEL_ENDPOINT="http://localhost:8123/eth-zksync-predict")
+    @patch("passport.api.fetch", side_effect=mock_post_response_with_failure("zksync"))
+    def test_handle_get_analysis_aggregate_when_one_model_fails(self, mock_fetch: Mock):
+        """Test handle_get_analysis does return error when fetching data for at
+        least one model fails."""
+
+        with pytest.raises(PassportAnalysisError) as exc_info:
+            async_to_sync(handle_get_analysis)(
+                "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+                "nft,zksync,aggregate",
+                False,
+            )
+        assert '{"model": "zksync", "status": 500}' in exc_info.value.detail
+        assert '{"model": "nft", "status": 200}' in exc_info.value.detail
+        assert mock_fetch.call_count == 2
+
+    @override_settings(ONLY_ONE_MODEL=False)
+    @override_settings(
+        MODEL_ENDPOINTS={
+            "ethereum_activity": "http://localhost:8123/ethereum_activity-predict",
+            "zksync": "http://localhost:8123/eth-zksync-predict",
+            "polygon": "http://localhost:8123/polygon-predict",
+            "arbitrum": "http://localhost:8123/arbitrum-predict",
+            "optimism": "http://localhost:8123/optimism-predict",
+            "aggregate": "http://localhost:8123/aggregate",
+        }
+    )
+    @patch("passport.api.fetch", side_effect=mock_post_response_with_failure("zksync"))
+    def test_handle_get_analysis_when_only_aggregate_requested_and_submodule_fails(
+        self, mock_fetch: Mock
+    ):
+        """Test handle_get_analysis returns erroor when only aggregate model is requiested,
+        and getting a submodel data fails."""
+
+        with pytest.raises(PassportAnalysisError) as exc_info:
+            async_to_sync(handle_get_analysis)(
+                "0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+                "aggregate",  # only request the aggregate model
+                False,
+            )
+        assert '{"model": "zksync", "status": 500}' in exc_info.value.detail
+        assert '{"model": "optimism", "status": 200}' in exc_info.value.detail
+        assert '{"model": "polygon", "status": 200}' in exc_info.value.detail
+        assert '{"model": "arbitrum", "status": 200}' in exc_info.value.detail
+        assert '{"model": "ethereum_activity", "status": 200}' in exc_info.value.detail
+        assert mock_fetch.call_count == 5
