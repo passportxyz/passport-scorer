@@ -195,7 +195,7 @@ async def handle_get_analysis(
 
         if additional_data:
             for model, response in model_responses:
-                data = response.get("data")
+                data = response.get("data", {})
                 score = data.get("human_probability", 0)
                 num_transactions = data.get("n_transactions", 0)
                 first_funder = data.get("first_funder", "")
