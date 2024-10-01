@@ -30,6 +30,6 @@ def generate_on_chain_expired_notifications(address, expired_chains: List[ChainS
                 notification_id=notification_id,
                 type="on_chain_expiry",
                 is_active=True,
-                content=f"Your on-chain Passport on {chain.name} has expired. Update now to maintain your active status.",
+                content=f"Your onchain Passport on {chain.name} has expired. Update now to maintain your active status.",
                 eth_address=address,
             )
