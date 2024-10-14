@@ -24,6 +24,7 @@ import * as op from "@1password/op-js";
 import { createVerifierService } from "./verifier";
 import { createS3InitiatedECSTask } from "../lib/scorer/s3_initiated_ecs_task";
 import { stack, defaultTags, StackType } from "../lib/tags";
+import { createApiDomainRecord } from "../lib/cloudflare";
 
 // The following vars are not allowed to be undefined, hence the `${...}` magic
 
@@ -634,12 +635,10 @@ const serviceTaskRole = new aws.iam.Role("scorer-service-task-role", {
               ],
               Resource: "*",
             },
-            // CloudFront 
+            // CloudFront
             {
               Effect: "Allow",
-              Action: [
-                "cloudfront:CreateInvalidation",
-              ],
+              Action: ["cloudfront:CreateInvalidation"],
               Resource: "*",
             },
           ],
@@ -1915,3 +1914,5 @@ const amplifyAppInfo = coreInfraStack
   });
 
 export const amplifyAppHookUrl = pulumi.secret(amplifyAppInfo.webHook.url);
+
+createApiDomainRecord(stack, CLOUDFLARE_ZONE_ID, alb.dnsName);
