@@ -21,11 +21,6 @@ from django.db import (
     ProgrammingError,
 )
 
-from registry.api.utils import (
-    get_analysis_api_rate_limited_msg,
-    get_passport_api_rate_limited_msg,
-)
-
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
 
@@ -87,6 +82,8 @@ from aws_lambdas.exceptions import InvalidRequest  # noqa: E402
 from registry.api.utils import (
     ApiKey,
     check_rate_limit,
+    get_analysis_api_rate_limited_msg,
+    get_passport_api_rate_limited_msg,
     save_api_key_analytics,
 )
 from registry.exceptions import (  # noqa: E402
@@ -199,7 +196,7 @@ def with_request_exception_handling(func):
                 "statusDescription": str(e),
                 "isBase64Encoded": False,
                 "headers": RESPONSE_HEADERS,
-                "body": '{"error": "' + message + '"}',
+                "body": json.dumps({"detail": message}),
             }
 
             logger.exception(
@@ -292,7 +289,7 @@ def with_api_request_exception_handling(func):
                 "statusDescription": str(e),
                 "isBase64Encoded": False,
                 "headers": RESPONSE_HEADERS,
-                "body": '{"error": "' + message + '"}',
+                "body": json.dumps({"detail": message}),
             }
             logger.exception(
                 "Error occurred with Passport API. Response: %s", json.dumps(response)
