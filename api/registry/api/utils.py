@@ -1,7 +1,5 @@
 import functools
 
-import api_logging as logging
-from account.models import Account, AccountAPIKey
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils.module_loading import import_string
@@ -16,12 +14,26 @@ from eth_utils.address import (
 from ninja.compatibility.request import get_headers
 from ninja.security import APIKeyHeader
 from ninja.security.base import SecuritySchema
+
+import api_logging as logging
+from account.models import Account, AccountAPIKey
 from registry.api.schema import SubmitPassportPayload
 from registry.atasks import asave_api_key_analytics
 from registry.exceptions import InvalidScorerIdException, Unauthorized
 from registry.tasks import save_api_key_analytics
 
 log = logging.getLogger(__name__)
+
+PASSPORT_API_RATE_LIMITING_FORM = settings.PASSPORT_API_RATE_LIMITING_FORM
+MBD_API_RATE_LIMITING_FORM = settings.MBD_API_RATE_LIMITING_FORM
+
+
+def get_passport_api_rate_limited_msg() -> str:
+    return f"You have been rate limited! Use this form to request a rate limit elevation: {PASSPORT_API_RATE_LIMITING_FORM}"
+
+
+def get_analysis_api_rate_limited_msg() -> str:
+    return f"You have been rate limited! Use this form to request a rate limit elevation: {MBD_API_RATE_LIMITING_FORM}"
 
 
 def atrack_apikey_usage(track_response=True, payload_param_name=None):

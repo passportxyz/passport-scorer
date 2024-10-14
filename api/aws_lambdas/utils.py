@@ -21,6 +21,11 @@ from django.db import (
     ProgrammingError,
 )
 
+from registry.api.utils import (
+    get_analysis_api_rate_limited_msg,
+    get_passport_api_rate_limited_msg,
+)
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
 os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
 
@@ -144,7 +149,10 @@ def format_response(ret: Any):
 
 
 def with_request_exception_handling(func):
-    @wraps(func)
+    """
+    This wrapper is meant to be used for API handler of the **internal** API, like the ceramic-cache related endpoints
+    """
+
     def wrapper(event, context, *args):
         try:
             bind_contextvars(request_id=context.aws_request_id)
@@ -157,14 +165,17 @@ def with_request_exception_handling(func):
                 status = e.status_code
                 message = str(e.detail)
             else:
+                ratelimit_msg = (
+                    get_analysis_api_rate_limited_msg()
+                    if event.get("path", "").startswith("/passport/")
+                    else get_passport_api_rate_limited_msg()
+                )
+
                 error_descriptions: Dict[Any, Tuple[int, str]] = {
                     Unauthorized: (403, "Unauthorized"),
                     InvalidToken: (403, "Invalid token"),
                     InvalidRequest: (400, "Bad request"),
-                    Ratelimited: (
-                        429,
-                        "You have been rate limited. Please try again later.",
-                    ),
+                    Ratelimited: (429, ratelimit_msg),
                     InterfaceError: (500, "DB Error: InterfaceError"),
                     DataError: (500, "DB Error: DataError"),
                     OperationalError: (500, "DB Error: OperationalError"),
@@ -245,16 +256,19 @@ def with_api_request_exception_handling(func):
                 status = e.status_code
                 message = str(e.detail)
             else:
+                ratelimit_msg = (
+                    get_analysis_api_rate_limited_msg()
+                    if event.get("path", "").startswith("/passport/")
+                    else get_passport_api_rate_limited_msg()
+                )
+
                 error_descriptions: Dict[Any, Tuple[int, str]] = {
                     Unauthorized: (403, "Unauthorized"),
                     InvalidToken: (403, "Invalid token"),
                     InvalidRequest: (400, "Bad request"),
                     InvalidAddressException: (400, "Invalid address"),
                     NotFoundApiException: (400, "Bad request"),
-                    Ratelimited: (
-                        429,
-                        "You have been rate limited. Please try again later.",
-                    ),
+                    Ratelimited: (429, ratelimit_msg),
                     InterfaceError: (500, "DB Error: InterfaceError"),
                     DataError: (500, "DB Error: DataError"),
                     OperationalError: (500, "DB Error: OperationalError"),

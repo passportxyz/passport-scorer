@@ -104,11 +104,22 @@ class TestPassportAnalysis(TestCase):
         client = Client()
 
         with patch("registry.api.utils.is_ratelimited", return_value=True):
-            response = client.get(
-                "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
-                **self.headers,
-            )
-            assert response.status_code == 429
+            with patch(
+                "registry.api.utils.MBD_API_RATE_LIMITING_FORM",
+                "https://link/to/rate/limit/form",
+            ):
+                response = client.get(
+                    "/passport/analysis/0x06e3c221011767FE816D0B8f5B16253E43e4Af7D",
+                    **self.headers,
+                )
+                assert response.status_code == 429
+
+                data = response.json()
+
+                assert (
+                    data["detail"]
+                    == "You have been rate limited! Use this form to request a rate limit elevation: https://link/to/rate/limit/form"
+                )
 
     @patch("passport.api.fetch", side_effect=mock_post_response)
     def test_checksummed_address_is_passed_on(self, mock_post):

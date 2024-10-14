@@ -1,10 +1,11 @@
 import json
 from unittest.mock import patch
 
-import api_logging as logging
 import pytest
-from account.models import AccountAPIKey, RateLimits
 from django.test import Client, override_settings
+
+import api_logging as logging
+from account.models import AccountAPIKey, RateLimits
 
 pytestmark = pytest.mark.django_db
 
@@ -139,6 +140,50 @@ def test_rate_limit_is_applied(scorer_api_key, api_path_that_requires_rate_limit
                 HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
             )
             assert response.status_code == 429
+
+
+@override_settings(RATELIMIT_ENABLE=True)
+def test_rate_limit_msg_contains_form_link(
+    scorer_api_key, api_path_that_requires_rate_limit
+):
+    """
+    Test that the error message conatins the proper form link.
+    """
+    with patch(
+        "registry.api.utils.PASSPORT_API_RATE_LIMITING_FORM",
+        "https://link/to/rate/limit/form",
+    ):
+        method, path, payload = api_path_that_requires_rate_limit
+        client = Client()
+
+        with patch("registry.api.utils.is_ratelimited", return_value=True):
+            if method == "post":
+                response = client.post(
+                    path,
+                    json.dumps(payload),
+                    **{
+                        "content_type": "application/json",
+                        "HTTP_AUTHORIZATION": f"Token {scorer_api_key}",
+                    },
+                )
+
+                data = response.json()
+                assert response.status_code == 429
+                assert (
+                    data["detail"]
+                    == "You have been rate limited! Use this form to request a rate limit elevation: https://link/to/rate/limit/form"
+                )
+            else:
+                response = client.get(
+                    path,
+                    HTTP_AUTHORIZATION=f"Token {scorer_api_key}",
+                )
+                data = response.json()
+                assert response.status_code == 429
+                assert (
+                    data["detail"]
+                    == "You have been rate limited! Use this form to request a rate limit elevation: https://link/to/rate/limit/form"
+                )
 
 
 @override_settings(RATELIMIT_ENABLE=True)
