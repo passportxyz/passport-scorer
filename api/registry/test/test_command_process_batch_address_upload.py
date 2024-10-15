@@ -4,9 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from django.core.management import call_command
 from django.test import TransactionTestCase
 
-from registry.management.commands.process_batch_model_address_upload import (
-    get_s3_client,
-)
 from registry.models import BatchModelScoringRequest, BatchRequestStatus
 
 

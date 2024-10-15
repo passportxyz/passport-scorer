@@ -170,7 +170,7 @@ def test_rate_limit_msg_contains_form_link(
                 data = response.json()
                 assert response.status_code == 429
                 assert (
-                    data["detail"]
+                    data["error"]
                     == "You have been rate limited! Use this form to request a rate limit elevation: https://link/to/rate/limit/form"
                 )
             else:
@@ -181,7 +181,7 @@ def test_rate_limit_msg_contains_form_link(
                 data = response.json()
                 assert response.status_code == 429
                 assert (
-                    data["detail"]
+                    data["error"]
                     == "You have been rate limited! Use this form to request a rate limit elevation: https://link/to/rate/limit/form"
                 )
 

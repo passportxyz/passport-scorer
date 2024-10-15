@@ -103,7 +103,7 @@ Useful links:\n
 def service_unavailable(request, _):
     return registry_api_v1.create_response(
         request,
-        {"detail": get_passport_api_rate_limited_msg()},
+        {"error": get_passport_api_rate_limited_msg()},
         status=429,
     )
 
