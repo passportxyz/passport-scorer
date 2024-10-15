@@ -3,7 +3,6 @@ This module contains tests for the data science bulk score functionality.
 """
 
 from datetime import timedelta
-from unittest.mock import patch
 
 import pytest
 from django.conf import settings
@@ -37,7 +36,7 @@ def batch_requests():
     return requests
 
 
-api_url = "/internal/analysis"
+api_url = "/passport/analysis"
 
 
 def test_get_batch_analysis_stats_success(client, batch_requests, mocker):
@@ -45,33 +44,32 @@ def test_get_batch_analysis_stats_success(client, batch_requests, mocker):
     mock_s3_client.generate_presigned_url.return_value = (
         "https://example.com/presigned-url"
     )
-    with mocker.patch("registry.api.v2.get_s3_client", return_value=mock_s3_client):
-        response = client.get(api_url, HTTP_AUTHORIZATION=settings.DATA_SCIENCE_API_KEY)
+    mocker.patch("passport.api.get_s3_client", return_value=mock_s3_client)
+    response = client.get(api_url, HTTP_AUTHORIZATION=settings.DATA_SCIENCE_API_KEY)
 
-        assert response.status_code == 200
-        data = response.json()
+    assert response.status_code == 200
+    data = response.json()
 
-        assert len(data) == 10  # Default limit
-        assert all(isinstance(item, dict) for item in data)
+    assert len(data) == 10  # Default limit
+    assert all(isinstance(item, dict) for item in data)
 
-        for item in data:
-            assert "created_at" in item
-            assert "s3_url" in item
-            assert "status" in item
-            assert "percentage_complete" in item
+    for item in data:
+        assert "created_at" in item
+        assert "s3_url" in item
+        assert "status" in item
+        assert "percentage_complete" in item
 
-        # Check if the items are ordered by created_at in descending order
-        assert all(
-            data[i]["created_at"] >= data[i + 1]["created_at"]
-            for i in range(len(data) - 1)
-        )
+    # Check if the items are ordered by created_at in descending order
+    assert all(
+        data[i]["created_at"] >= data[i + 1]["created_at"] for i in range(len(data) - 1)
+    )
 
-        # Check if DONE requests have s3_url and others don't
-        for item in data:
-            if item["status"] == BatchRequestStatus.DONE.value:
-                assert item["s3_url"] == "https://example.com/presigned-url"
-            else:
-                assert item["s3_url"] is None
+    # Check if DONE requests have s3_url and others don't
+    for item in data:
+        if item["status"] == BatchRequestStatus.DONE.value:
+            assert item["s3_url"] == "https://example.com/presigned-url"
+        else:
+            assert item["s3_url"] is None
 
 
 def test_get_batch_analysis_stats_with_limit(client, batch_requests, mocker):
@@ -79,14 +77,14 @@ def test_get_batch_analysis_stats_with_limit(client, batch_requests, mocker):
     mock_s3_client.generate_presigned_url.return_value = (
         "https://example.com/presigned-url"
     )
-    with mocker.patch("registry.api.v2.get_s3_client", return_value=mock_s3_client):
-        response = client.get(
-            f"{api_url}?limit=5", HTTP_AUTHORIZATION=settings.DATA_SCIENCE_API_KEY
-        )
+    mocker.patch("passport.api.get_s3_client", return_value=mock_s3_client)
+    response = client.get(
+        f"{api_url}?limit=5", HTTP_AUTHORIZATION=settings.DATA_SCIENCE_API_KEY
+    )
 
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 5
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 5
 
 
 def test_get_batch_analysis_stats_unauthorized(client):

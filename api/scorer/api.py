@@ -22,8 +22,6 @@ from passport_admin.api import router as passport_admin_router
 from registry.api.utils import get_passport_api_rate_limited_msg
 from registry.api.v1 import feature_flag_router
 from registry.api.v1 import router as registry_router_v1
-from registry.api.v2 import internal_router
-from registry.api.v2 import router as registry_router_v2
 
 
 ###############################################################################
@@ -83,20 +81,6 @@ The V2 (beta) API docs are available at [/v2/docs](/v2/docs)\n
 The Passport Analysis endpoint is documented at [/passport/docs](/passport/docs)
 """,
 )
-registry_api_v2 = ScorerApi(
-    urls_namespace="registry_v2",
-    title="Passport API Playground.",
-    version="2.0.0 (beta)",
-    docs_url="/v2/docs",
-    openapi_url="/v2/openapi.json",
-    description="""
-Useful links:\n
-[Developer Portal](https://scorer.gitcoin.co/)\n
-[Developer docs](https://docs.passport.gitcoin.co/)\n
-[Passport API V1 playground](/docs) -- To be retired on April 4th, 2024\n
-[Passport Analysis API playground](/passport/docs)
-""",
-)
 
 
 @registry_api_v1.exception_handler(Ratelimited)
@@ -110,8 +94,6 @@ def service_unavailable(request, _):
 
 registry_api_v1.add_router("/registry/", registry_router_v1, tags=["Passport API."])
 
-registry_api_v2.add_router("/registry/v2", registry_router_v2, tags=["Passport API."])
-
 feature_flag_api = NinjaAPI(urls_namespace="feature")
 feature_flag_api.add_router("", feature_flag_router)
 
@@ -123,13 +105,8 @@ ceramic_cache_api_v1.add_router("", ceramic_cache_router_v1)
 passport_admin_api = NinjaAPI(urls_namespace="passport-admin", docs_url=None)
 passport_admin_api.add_router("", passport_admin_router)
 
-internal_api = NinjaAPI(urls_namespace="internal", docs_url=None)
-internal_api.add_router("", internal_router)
-
-
 apis = [
     registry_api_v1,
-    registry_api_v2,
     ceramic_cache_api_v1,
     passport_admin_api,
 ]

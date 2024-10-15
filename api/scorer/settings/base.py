@@ -96,6 +96,7 @@ INSTALLED_APPS = [
     "tos",
     "django_ace",
     "data_model",
+    "v2",
 ]
 
 AUTHENTICATION_BACKENDS = [

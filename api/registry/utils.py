@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from functools import wraps
 from urllib.parse import urlencode
 
-import api_logging as logging
 import didkit
 from django.conf import settings
 from django.db.models import Q
@@ -12,9 +11,11 @@ from django.forms.models import model_to_dict
 from django.shortcuts import render
 from django.urls import reverse_lazy
 from eth_account.messages import encode_defunct
+from web3 import Web3
+
+import api_logging as logging
 from registry.exceptions import NoRequiredPermissionsException
 from registry.models import Stamp
-from web3 import Web3
 
 log = logging.getLogger(__name__)
 
@@ -185,7 +186,7 @@ def get_cursor_tokens_for_results(
 
     next_url = (
         f"""{domain}{reverse_lazy_with_query(
-            f"registry_v2:{endpoint}",
+            f"registry:{endpoint}",
             args=http_query_args,
             query_kwargs={"token": encode_cursor(**next_cursor), "limit": limit},
         )}"""
@@ -195,7 +196,7 @@ def get_cursor_tokens_for_results(
 
     prev_url = (
         f"""{domain}{reverse_lazy_with_query(
-            f"registry_v2:{endpoint}",
+            f"registry:{endpoint}",
             args=http_query_args,
             query_kwargs={"token": encode_cursor(**prev_cursor), "limit": limit},
         )}"""

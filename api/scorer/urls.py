@@ -24,15 +24,13 @@ from account.api import health
 from .api import (
     ceramic_cache_api_v1,
     feature_flag_api,
-    internal_api,
     passport_admin_api,
     registry_api_v1,
-    registry_api_v2,
 )
 
 urlpatterns = [
     path("", registry_api_v1.urls),
-    path("", registry_api_v2.urls),
+    path("v2/", include("v2.urls")),
     path("registry/feature/", feature_flag_api.urls),
     path("ceramic-cache/", ceramic_cache_api_v1.urls),
     # path("ceramic-cache/v2/", ceramic_cache_api_v2.urls),
@@ -47,7 +45,6 @@ urlpatterns = [
     path("account/", include("account.urls")),
     path("social/", include("social_django.urls", namespace="social")),
     path("passport-admin/", passport_admin_api.urls),
-    path("internal/", internal_api.urls),
     # path("__debug__/", include("debug_toolbar.urls")),
     path("trusta_labs/", include("trusta_labs.urls")),
     path("stake/", include("stake.urls")),
