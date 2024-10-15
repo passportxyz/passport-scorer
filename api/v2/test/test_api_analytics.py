@@ -17,10 +17,8 @@ my_mnemonic = settings.TEST_MNEMONIC
 
 @pytest.fixture(
     params=[
-        ("get", "/registry/signing-message"),
-        ("post", "/registry/submit-passport"),
-        ("get", "/registry/score/3"),
-        ("get", "/registry/score/3/0x0"),
+        ("get", "/v2/signing-message"),
+        ("get", "/v2/stamps/SCORER/score/ADDRESS"),
     ]
 )
 def api_path_that_requires_api_tracing(request):
@@ -33,25 +31,21 @@ def test_authentication_works_with_token(
     """
     Test that API key is accepted if it is valid token and present in the HTTP_AUTHORIZATION header
     """
-    method, path = api_path_that_requires_api_tracing
-    client = Client()
-
     account = scorer_community.account
+
+    method, path = api_path_that_requires_api_tracing
+    path = path.replace("SCORER", str(scorer_community.id)).replace(
+        "ADDRESS", account.address
+    )
+    client = Client()
 
     (_, secret) = AccountAPIKey.objects.create_key(
         account=account, name="Token for user 1"
     )
 
     if method == "post":
-        # Now we submit a duplicate hash, and expect deduplication to happen
-        submission_test_payload = {
-            "community": scorer_community.id,
-            "address": account.address,
-        }
-
         response = client.post(
             path,
-            json.dumps(submission_test_payload),
             content_type="application/json",
             HTTP_AUTHORIZATION="Token " + secret,
         )
@@ -61,7 +55,7 @@ def test_authentication_works_with_token(
             path,
             HTTP_AUTHORIZATION="Token " + secret,
         )
-    # We should not get back any unauuthorized or forbidden errors
+    # We should not get back any unauthorized or forbidden errors
     assert response.status_code != 401
     assert response.status_code != 403
 

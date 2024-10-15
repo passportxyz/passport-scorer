@@ -38,8 +38,6 @@ async def get_analysis(
 
 
 # TODO Do we keep this here?
-
-
 @api.get(
     "/models/analysis",
     auth=data_science_auth,

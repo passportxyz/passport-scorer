@@ -32,7 +32,7 @@ class SigningMessageTestCase(TransactionTestCase):
 
     def test_get_signing_message(self):
         response = self.client.get(
-            "/registry/signing-message",
+            "/v2/signing-message",
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )

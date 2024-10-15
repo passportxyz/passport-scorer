@@ -34,7 +34,7 @@ def test_rate_limit_from_db_is_applied_for_api_key(scorer_api_key):
     # 125 successfull calls, and then get a 429 error
     for _ in range(3):
         response = client.get(
-            "/registry/signing-message",
+            "/v2/signing-message",
             # HTTP_X_API_KEY must spelled exactly as this because it
             # will not be converted to HTTP_X_API_KEY by Django Test Client
             **{"HTTP_X_API_KEY": scorer_api_key},
@@ -43,7 +43,7 @@ def test_rate_limit_from_db_is_applied_for_api_key(scorer_api_key):
         assert response.status_code == 200
 
     response = client.get(
-        "/registry/signing-message",
+        "/v2/signing-message",
         # HTTP_X_API_KEY must spelled exactly as this because it
         # will not be converted to HTTP_X_API_KEY by Django Test Client
         **{"HTTP_X_API_KEY": scorer_api_key},
@@ -82,33 +82,28 @@ def test_rate_limit_from_db_is_applied_for_token(scorer_api_key):
     # The rate limit is overridden to 3 calls/30 seconds for this APIKey
     for _ in range(3):
         response = client.get(
-            "/registry/signing-message",
+            "/v2/signing-message",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
         assert response.status_code == 200
 
     response = client.get(
-        "/registry/signing-message",
+        "/v2/signing-message",
         HTTP_AUTHORIZATION="Token " + scorer_api_key,
     )
 
     assert response.status_code == 429
 
 
-# Ensure that all functions that rquire rate limiting are tested
+# Ensure that all functions that require rate limiting are tested
 @pytest.fixture(
     params=[
-        ("get", "/registry/signing-message", None),
-        (
-            "post",
-            "/registry/submit-passport",
-            {
-                "community": "1",
-                "address": "0x1234",
-            },
-        ),
-        ("get", "/registry/score/3", None),
+        ("get", "/v2/signing-message", None),
+        ("get", "/v2/stamps/1/score/0x1234", None),
+        ("get", "/v2/stamps/metadata", None),
+        ("get", "/v2/stamps/0x1234", None),
+        ("get", "/v2/models/score/0x1234", None),
     ]
 )
 def api_path_that_requires_rate_limit(request):
@@ -151,14 +146,14 @@ def test_no_rate_limit_for_none(unlimited_scorer_api_key):
     # The rate limit is overridden to 3 calls/30 seconds for this APIKey
     for _ in range(3):
         response = client.get(
-            "/registry/signing-message",
+            "/v2/signing-message",
             HTTP_AUTHORIZATION="Token " + unlimited_scorer_api_key,
         )
 
         assert response.status_code == 200
 
     response = client.get(
-        "/registry/signing-message",
+        "/v2/signing-message",
         HTTP_AUTHORIZATION="Token " + unlimited_scorer_api_key,
     )
 

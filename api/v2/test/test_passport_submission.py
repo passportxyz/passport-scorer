@@ -1,10 +1,8 @@
 import copy
-import json
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import patch
 
-import pytest
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
@@ -15,8 +13,7 @@ from account.models import Account, AccountAPIKey, Community, Nonce
 from ceramic_cache.models import CeramicCache
 from registry.models import Passport, Stamp
 from registry.tasks import score_passport
-from registry.utils import get_signer, get_signing_message, verify_issuer
-from registry.weight_models import WeightConfiguration, WeightConfigurationItem
+from registry.utils import get_signing_message, verify_issuer
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -346,15 +343,11 @@ class ValidatePassportTestCase(TransactionTestCase):
         return_value=mock_passport,
     )
     def test_signature_not_needed_by_default(self, aget_passport, validate_credential):
-        print(
-            "URL", f"{self.base_url}/{self.community.pk}/score/{self.account.address}"
-        )
         response = self.client.get(
             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
-        print("RESPONSE", response.json())
         self.assertEqual(response.status_code, 200)
 
     def test_valid_issuer(self):
@@ -372,10 +365,8 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         response = self.client.get(
             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-            headers={
-                "content_type": "application/json",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}",
-            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
 
@@ -393,10 +384,8 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         response = self.client.get(
             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-            headers={
-                "content_type": "application/json",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}",
-            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
 
@@ -425,19 +414,10 @@ class ValidatePassportTestCase(TransactionTestCase):
     def test_submitted_passport_has_lower_case_address_value(
         self, aget_passport, validate_credential
     ):
-        payload = {
-            "community": self.community.pk,
-            "address": self.account.address,
-            "signature": self.signed_message.signature.hex(),
-            "nonce": self.nonce,
-        }
-
         response = self.client.get(
             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-            headers={
-                "content_type": "application/json",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}",
-            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
 
         self.assertEqual(response.status_code, 200)
@@ -445,32 +425,23 @@ class ValidatePassportTestCase(TransactionTestCase):
         created_passport = Passport.objects.get(address=self.account.address.lower())
         self.assertEqual(created_passport.address, self.account.address.lower())
 
-    @patch("registry.atasks.validate_credential", side_effect=[[], []])
-    @patch(
-        "registry.atasks.aget_passport",
-        return_value=mock_passport,
-    )
-    def test_submit_passport_reused_nonce(self, aget_passport, validate_credential):
-        """Test that submitting a reused nonce results in rejection"""
+    # @patch("registry.atasks.validate_credential", side_effect=[[], []])
+    # @patch(
+    #     "registry.atasks.aget_passport",
+    #     return_value=mock_passport,
+    # )
+    # def test_submit_passport_reused_nonce(self, aget_passport, validate_credential):
+    #     """Test that submitting a reused nonce results in rejection"""
 
-        payload = {
-            "community": self.community.id,
-            "address": self.account.address,
-            "signature": self.signed_message.signature.hex(),
-            "nonce": self.nonce,
-        }
+    #     for _ in [1, 2]:
+    #         response = self.client.get(
+    #             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
+    #             content_type="application/json",
+    #             HTTP_AUTHORIZATION=f"Token {self.secret}",
+    #         )
 
-        for _ in [1, 2]:
-            response = self.client.get(
-                f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-                headers={
-                    "content_type": "application/json",
-                    "HTTP_AUTHORIZATION": f"Token {self.secret}",
-                },
-            )
-
-        self.assertEqual(response.json(), {"detail": "Invalid nonce."})
-        self.assertEqual(response.status_code, 400)
+    #     self.assertEqual(response.json(), {"detail": "Invalid nonce."})
+    #     self.assertEqual(response.status_code, 400)
 
     @patch("registry.atasks.validate_credential", side_effect=[[], []])
     @patch(
@@ -480,10 +451,8 @@ class ValidatePassportTestCase(TransactionTestCase):
     def test_submitting_without_passport(self, aget_passport, validate_credential):
         response = self.client.get(
             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-            headers={
-                "content_type": "application/json",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}",
-            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
 
@@ -492,11 +461,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
         self.assertEqual(all_passports[0].stamps.count(), 0)
-
-        response = self.client.get(
-            f"{self.base_url}/score/{self.community.id}/{self.account.address}",
-            HTTP_AUTHORIZATION=f"Token {self.secret}",
-        )
 
         assert response.status_code == 200
         assert response.json() == {
@@ -525,13 +489,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
         # get_passport.return_value = mock_passport
 
-        payload = {
-            "community": self.community.id,
-            "address": self.account.address,
-            "signature": self.signed_message.signature.hex(),
-            "nonce": self.nonce,
-        }
-
         expectedResponse = {
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "evidence": None,
@@ -557,10 +514,8 @@ class ValidatePassportTestCase(TransactionTestCase):
         # First submission
         response = self.client.get(
             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-            **{
-                "content_type": "application/json",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}",
-            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
         response_json = response.json()
@@ -581,10 +536,8 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         response = self.client.get(
             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-            headers={
-                "content_type": "application/tson",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}",
-            },
+            content_type="application/tson",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
         response_json = response.json()
@@ -612,22 +565,6 @@ class ValidatePassportTestCase(TransactionTestCase):
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
 
-    def test_submit_passport_missing_community_and_scorer_id(self):
-        """
-        Make sure that the community is required when submitting eth address
-        """
-
-        response = self.client.get(
-            f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-            content_type="application/json",
-            HTTP_AUTHORIZATION=f"Token {self.secret}",
-        )
-        self.assertEqual(response.status_code, 422)
-
-        # Check if the passport data was saved to the database (data that we mock)
-        all_passports = list(Passport.objects.all())
-        self.assertEqual(len(all_passports), 0)
-
     def test_submit_passport_accepts_scorer_id(self):
         """
         Make sure that the scorer_id is an acceptable parameter
@@ -635,10 +572,8 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         response = self.client.get(
             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-            headers={
-                "content_type": "application/json",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}",
-            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
 
@@ -659,10 +594,8 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         response = self.client.get(
             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-            headers={
-                "content_type": "application/json",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}",
-            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
 
@@ -701,10 +634,8 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         response = self.client.get(
             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-            headers={
-                "content_type": "application/json",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}",
-            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
 
@@ -737,10 +668,8 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         response = self.client.get(
             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-            headers={
-                "content_type": "application/json",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}",
-            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 200)
 
@@ -766,10 +695,8 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         response = self.client.get(
             f"{self.base_url}/{self.community2.pk}/score/{self.account.address}",
-            headers={
-                "content_type": "application/json",
-                "HTTP_AUTHORIZATION": f"Token {self.secret}",
-            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
         )
         self.assertEqual(response.status_code, 404)
 

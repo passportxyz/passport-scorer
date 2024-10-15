@@ -36,7 +36,7 @@ def batch_requests():
     return requests
 
 
-api_url = "/passport/analysis"
+api_url = "/passport/analysis/batch"
 
 
 def test_get_batch_analysis_stats_success(client, batch_requests, mocker):

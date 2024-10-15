@@ -10,22 +10,27 @@ pytestmark = pytest.mark.django_db
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
-my_mnemonic = settings.TEST_MNEMONIC
 
 
 @pytest.fixture(
     params=[
-        ("get", "/registry/signing-message"),
-        ("post", "/registry/submit-passport"),
-        ("get", "/registry/score/3"),
-        ("get", "/registry/score/3/0x0"),
+        ("get", "/v2/signing-message"),
+        ("get", "/v2/stamps/SCORER/score/ADDRESS"),
+        ("get", "/v2/stamps/ADDRESS"),
+        ("get", "/v2/stamps/metadata"),
     ]
 )
-def api_path_that_requires_auth(request):
-    return request.param
+def api_path_that_requires_auth(request, scorer_community):
+    method, path = request.param
+    path = path.replace("SCORER", str(scorer_community.id)).replace(
+        "ADDRESS", scorer_community.account.address
+    )
+    return (method, path)
 
 
-def test_authentication_is_required_token(api_path_that_requires_auth):
+def test_authentication_is_required_token(
+    api_path_that_requires_auth, scorer_community
+):
     """
     Test that bad api keys past in as tokens are rejected
     """
@@ -43,18 +48,16 @@ def test_authentication_is_required_token(api_path_that_requires_auth):
     assert response.status_code == 401
 
 
-def test_authentication_works_with_token(api_path_that_requires_auth, scorer_user):
+def test_authentication_works_with_token(
+    api_path_that_requires_auth, scorer_user, scorer_community
+):
     """
     Test that API key is accepted if it is valid token and present in the HTTP_AUTHORIZATION header
     """
     method, path = api_path_that_requires_auth
     client = Client()
 
-    web3_account = web3.eth.account.from_mnemonic(
-        my_mnemonic, account_path="m/44'/60'/0'/0/0"
-    )
-
-    account = Account.objects.create(user=scorer_user, address=web3_account.address)
+    account = scorer_community.account
 
     (_, secret) = AccountAPIKey.objects.create_key(
         account=account, name="Token for user 1"
@@ -91,17 +94,15 @@ def test_authentication_is_required_api_key(api_path_that_requires_auth):
     assert response.status_code == 401
 
 
-def test_authentication_works_with_api_key(api_path_that_requires_auth, scorer_user):
+def test_authentication_works_with_api_key(
+    api_path_that_requires_auth, scorer_user, scorer_community
+):
     """
     Test that API key is accepted if it is valid and present in HTTP_X-API-Key header"""
     method, path = api_path_that_requires_auth
     client = Client()
 
-    web3_account = web3.eth.account.from_mnemonic(
-        my_mnemonic, account_path="m/44'/60'/0'/0/0"
-    )
-
-    account = Account.objects.create(user=scorer_user, address=web3_account.address)
+    account = scorer_community.account
 
     (_, secret) = AccountAPIKey.objects.create_key(
         account=account, name="Token for user 1"

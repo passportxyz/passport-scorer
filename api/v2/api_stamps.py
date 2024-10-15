@@ -109,6 +109,23 @@ def get_score_history(
 
 
 @api.get(
+    "/stamps/metadata",
+    summary="Receive all Stamps available in Passport",
+    description="""**WARNING**: This endpoint is in beta and is subject to change.""",
+    auth=ApiKey(),
+    response={
+        200: List[StampDisplayResponse],
+        500: ErrorMessageResponse,
+    },
+    tags=["Stamp Analysis"],
+)
+@track_apikey_usage(track_response=False)
+def stamp_display(request) -> List[StampDisplayResponse]:
+    check_rate_limit(request)
+    return fetch_all_stamp_metadata()
+
+
+@api.get(
     "/stamps/{str:address}",
     auth=ApiKey(),
     response={
@@ -248,20 +265,3 @@ def fetch_stamp_metadata_for_provider(provider: str):
         )
 
     return metadataByProvider.get(provider)
-
-
-@api.get(
-    "/stamps/metadata",
-    summary="Receive all Stamps available in Passport",
-    description="""**WARNING**: This endpoint is in beta and is subject to change.""",
-    auth=ApiKey(),
-    response={
-        200: List[StampDisplayResponse],
-        500: ErrorMessageResponse,
-    },
-    tags=["Stamp Analysis"],
-)
-@track_apikey_usage(track_response=False)
-def stamp_display(request) -> List[StampDisplayResponse]:
-    check_rate_limit(request)
-    return fetch_all_stamp_metadata()
