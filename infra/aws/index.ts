@@ -1915,4 +1915,4 @@ const amplifyAppInfo = coreInfraStack
 
 export const amplifyAppHookUrl = pulumi.secret(amplifyAppInfo.webHook.url);
 
-createApiDomainRecord(stack, CLOUDFLARE_ZONE_ID, alb.dnsName);
+// createApiDomainRecord(stack, CLOUDFLARE_ZONE_ID, alb.dnsName);
