@@ -323,11 +323,6 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         self.assertEqual(response.status_code, 401)
 
-    @patch("registry.atasks.validate_credential", side_effect=[[], []])
-    @patch(
-        "registry.atasks.aget_passport",
-        return_value=mock_passport,
-    )
     def test_valid_issuer(self):
         valid = verify_issuer(mock_passport["stamps"][1])
         self.assertEqual(valid, True)
