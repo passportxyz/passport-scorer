@@ -75,7 +75,7 @@ def test_with_api_request_exception_handling_bad_api_key(
             ret = wrapped_func(test_event, MockContext())
 
             assert ret["statusCode"] == 401
-            assert ret["body"] == '{"detail": "Invalid API Key."}'
+            assert ret["body"] == '{"error": "Invalid API Key."}'
 
 
 def test_with_api_request_exception_handling_bad_request(
@@ -101,7 +101,7 @@ def test_with_api_request_exception_handling_bad_request(
             ret = wrapped_func(test_event, MockContext())
 
             assert ret["statusCode"] == 400
-            assert ret["body"] == '{"detail": "Bad request"}'
+            assert ret["body"] == '{"error": "Bad request"}'
 
 
 def test_with_api_request_exception_handling_unexpected_error(
@@ -129,7 +129,7 @@ def test_with_api_request_exception_handling_unexpected_error(
             ret = wrapped_func(test_event, MockContext())
 
             assert ret["statusCode"] == 500
-            assert ret["body"] == '{"detail": "An error has occurred"}'
+            assert ret["body"] == '{"error": "An error has occurred"}'
 
 
 def test_with_api_request_exception_handling_bad_event(
@@ -151,7 +151,7 @@ def test_with_api_request_exception_handling_bad_event(
             ret = wrapped_func(test_event, MockContext())
 
             assert ret["statusCode"] == 500
-            assert ret["body"] == '{"detail": "An error has occurred"}'
+            assert ret["body"] == '{"error": "An error has occurred"}'
 
 
 def test_with_api_request_exception_handling_rate_limit_msg(
@@ -186,5 +186,5 @@ def test_with_api_request_exception_handling_rate_limit_msg(
                     assert ret["statusCode"] == 429
                     assert (
                         ret["body"]
-                        == '{"detail": "You have been rate limited msg: https://link/to/rate/limit/form"}'
+                        == '{"error": "You have been rate limited msg: https://link/to/rate/limit/form"}'
                     )

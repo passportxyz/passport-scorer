@@ -49,7 +49,7 @@ class DetailedScoreModel(Schema):
 def service_unavailable(request, _):
     return api.create_response(
         request,
-        {"detail": get_analysis_api_rate_limited_msg()},
+        {"error": get_analysis_api_rate_limited_msg()},
         status=429,
     )
 

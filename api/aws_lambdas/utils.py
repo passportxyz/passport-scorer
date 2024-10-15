@@ -196,7 +196,7 @@ def with_request_exception_handling(func):
                 "statusDescription": str(e),
                 "isBase64Encoded": False,
                 "headers": RESPONSE_HEADERS,
-                "body": json.dumps({"detail": message}),
+                "body": json.dumps({"error": message}),
             }
 
             logger.exception(
@@ -289,7 +289,7 @@ def with_api_request_exception_handling(func):
                 "statusDescription": str(e),
                 "isBase64Encoded": False,
                 "headers": RESPONSE_HEADERS,
-                "body": json.dumps({"detail": message}),
+                "body": json.dumps({"error": message}),
             }
             logger.exception(
                 "Error occurred with Passport API. Response: %s", json.dumps(response)

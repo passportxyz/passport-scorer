@@ -117,7 +117,7 @@ class TestPassportAnalysis(TestCase):
                 data = response.json()
 
                 assert (
-                    data["detail"]
+                    data["error"]
                     == "You have been rate limited! Use this form to request a rate limit elevation: https://link/to/rate/limit/form"
                 )
 
