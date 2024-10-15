@@ -1,20 +1,15 @@
 import asyncio
 import csv
 import json
-import os
 import time
 from io import BytesIO, StringIO, TextIOWrapper
 from itertools import islice
-from nis import cat
 
-import boto3
 from asgiref.sync import sync_to_async
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from eth_utils.address import to_checksum_address
-from tqdm import tqdm
 
-from passport.api import fetch_all, handle_get_analysis
+from passport.api import handle_get_analysis
 from registry.admin import get_s3_client
 from registry.models import BatchModelScoringRequest, BatchRequestStatus
 from scorer.settings import (
@@ -42,9 +37,9 @@ class Command(BaseCommand):
         s3_uri = f"s3://{S3_BUCKET}/{S3_OBJECT_KEY}"
 
         # Find the request id from the filename.
-        filename = S3_OBJECT_KEY.split(
-            f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/"
-        )[-1]
+        filename = S3_OBJECT_KEY.split(f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/")[
+            -1
+        ]
         self.stdout.write(f"Search request with filename: `{filename}`")
 
         request = await sync_to_async(BatchModelScoringRequest.objects.get)(
@@ -72,7 +67,9 @@ class Command(BaseCommand):
                     total_rows = sum(1 for row in csv_data)
                 else:
                     # The first row is not a header, so include it in the processing
-                    total_rows = 1 + sum(1 for row in csv_data)  # Adding the first row already read
+                    total_rows = 1 + sum(
+                        1 for row in csv_data
+                    )  # Adding the first row already read
 
                 # Reset the reader to the start of the file or just after the header
                 text.seek(0)

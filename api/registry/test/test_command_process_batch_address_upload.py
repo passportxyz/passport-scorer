@@ -1,11 +1,12 @@
-import asyncio
 from io import StringIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from django.core.management import call_command
-from django.test import TransactionTestCase, override_settings
+from django.test import TransactionTestCase
 
+from registry.management.commands.process_batch_model_address_upload import (
+    get_s3_client,
+)
 from registry.models import BatchModelScoringRequest, BatchRequestStatus
 
 
@@ -41,8 +42,10 @@ class TestProcessBatchModelAddressUploads(TransactionTestCase):
                 )
 
                 call_command("process_batch_model_address_upload")
-                
-                updated_request = BatchModelScoringRequest.objects.get(id=good_request.id)
+
+                updated_request = BatchModelScoringRequest.objects.get(
+                    id=good_request.id
+                )
                 self.assertEqual(
                     updated_request.status,
                     BatchRequestStatus.DONE.value,
