@@ -19,6 +19,7 @@ from ninja.types import DictStrAny
 
 from ceramic_cache.api.v1 import router as ceramic_cache_router_v1
 from passport_admin.api import router as passport_admin_router
+from registry.api.utils import get_passport_api_rate_limited_msg
 from registry.api.v1 import feature_flag_router
 from registry.api.v1 import router as registry_router_v1
 from registry.api.v2 import internal_router
@@ -92,7 +93,7 @@ registry_api_v2 = ScorerApi(
 Useful links:\n
 [Developer Portal](https://scorer.gitcoin.co/)\n
 [Developer docs](https://docs.passport.gitcoin.co/)\n
-[Passport API V1 playground](/docs) -- To be retired on April 4th, 2024
+[Passport API V1 playground](/docs) -- To be retired on April 4th, 2024\n
 [Passport Analysis API playground](/passport/docs)
 """,
 )
@@ -102,7 +103,7 @@ Useful links:\n
 def service_unavailable(request, _):
     return registry_api_v1.create_response(
         request,
-        {"detail": "You have been rate limited!"},
+        {"error": get_passport_api_rate_limited_msg()},
         status=429,
     )
 

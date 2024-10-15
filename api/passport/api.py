@@ -11,7 +11,12 @@ from ninja_extra import NinjaExtraAPI
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
-from registry.api.utils import aapi_key, check_rate_limit, is_valid_address
+from registry.api.utils import (
+    aapi_key,
+    check_rate_limit,
+    get_analysis_api_rate_limited_msg,
+    is_valid_address,
+)
 from registry.exceptions import InvalidAddressException
 from scorer.settings.model_config import MODEL_AGGREGATION_NAMES
 
@@ -44,7 +49,7 @@ class DetailedScoreModel(Schema):
 def service_unavailable(request, _):
     return api.create_response(
         request,
-        {"detail": "You have been rate limited!"},
+        {"error": get_analysis_api_rate_limited_msg()},
         status=429,
     )
 
