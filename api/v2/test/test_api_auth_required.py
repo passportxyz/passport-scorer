@@ -14,7 +14,6 @@ web3.eth.account.enable_unaudited_hdwallet_features()
 
 @pytest.fixture(
     params=[
-        ("get", "/v2/signing-message"),
         ("get", "/v2/stamps/SCORER/score/ADDRESS"),
         ("get", "/v2/stamps/ADDRESS"),
         ("get", "/v2/stamps/metadata"),

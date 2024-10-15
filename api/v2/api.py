@@ -34,26 +34,5 @@ def service_unavailable(request, _):
     )
 
 
-@api.get(
-    "/signing-message",
-    auth=ApiKey(),
-    response={
-        200: SigningMessageResponse,
-        401: ErrorMessageResponse,
-        400: ErrorMessageResponse,
-    },
-    summary="Retrieve a signing message",
-    description="""Use this API to get a message to sign and a nonce to use when submitting your passport for scoring.""",
-)
-@track_apikey_usage(track_response=False)
-def signing_message(request) -> SigningMessageResponse:
-    check_rate_limit(request)
-    nonce = Nonce.create_nonce().nonce
-    return SigningMessageResponse(
-        message=get_signing_message(nonce),
-        nonce=nonce,
-    )
-
-
 from .api_models import *
 from .api_stamps import *

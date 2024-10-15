@@ -323,33 +323,11 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         self.assertEqual(response.status_code, 401)
 
-    # def test_verify_signature(self):
-    #     signer = get_signer(self.nonce, self.signed_message.signature.hex())
-    #     self.assertEqual(signer, self.account.address)
-
-    # def test_verify_signature_wrong_signature(self):
-    #     """Compare signature of account_2 against account"""
-    #     # Change the signature
-    #     signature = bytearray(self.signed_message_2.signature)
-    #     signature[0] = signature[0]
-    #     signature = bytes(signature)
-
-    #     signer = get_signer(self.nonce_2, signature)
-    #     self.assertNotEqual(signer, self.account.address)
-
     @patch("registry.atasks.validate_credential", side_effect=[[], []])
     @patch(
         "registry.atasks.aget_passport",
         return_value=mock_passport,
     )
-    def test_signature_not_needed_by_default(self, aget_passport, validate_credential):
-        response = self.client.get(
-            f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
-            content_type="application/json",
-            HTTP_AUTHORIZATION=f"Token {self.secret}",
-        )
-        self.assertEqual(response.status_code, 200)
-
     def test_valid_issuer(self):
         valid = verify_issuer(mock_passport["stamps"][1])
         self.assertEqual(valid, True)

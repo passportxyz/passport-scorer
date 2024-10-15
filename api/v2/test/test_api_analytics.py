@@ -17,7 +17,6 @@ my_mnemonic = settings.TEST_MNEMONIC
 
 @pytest.fixture(
     params=[
-        ("get", "/v2/signing-message"),
         ("get", "/v2/stamps/SCORER/score/ADDRESS"),
     ]
 )

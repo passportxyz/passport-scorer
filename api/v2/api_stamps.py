@@ -48,9 +48,6 @@ METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 log = logging.getLogger(__name__)
 
 
-# TODO do we still want to support signature verification?
-#       If so, do we accept those as query params or
-#       add a POST endpoint for this?
 @api.get(
     "/stamps/{int:scorer_id}/score/{str:address}",
     auth=aapi_key,
