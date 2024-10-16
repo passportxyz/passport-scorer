@@ -439,10 +439,10 @@ class ValidatePassportTestCase(TransactionTestCase):
         assert response.json() == {
             "address": self.account.address.lower(),
             "score": None,
-            "evidence": None,
+            "score_pass": False,
+            "threshold": "20",
             "last_score_timestamp": None,
-            "expiration_date": None,
-            "status": "ERROR",
+            "expiration_timestamp": None,
             "error": "No Passport found for this address.",
             "stamp_scores": {},
         }
@@ -464,24 +464,24 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         expectedResponse = {
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-            "evidence": None,
-            "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
-            "expiration_date": mock_passport_expiration_date.isoformat(),
             "score": Decimal("0.9329999999999999960031971113"),
-            "status": "DONE",
+            "score_pass": False,
+            "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
+            "expiration_timestamp": mock_passport_expiration_date.isoformat(),
+            "threshold": "20",
             "error": None,
-            "stamp_scores": {"Ens": 0.408, "Google": 0.525},
+            "stamp_scores": {"Ens": "0.408", "Google": "0.525"},
         }
 
         expected2ndResponse = {
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-            "evidence": None,
-            "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
-            "expiration_date": mock_passport_expiration_date.isoformat(),
             "score": Decimal("0.9329999999999999960031971113"),
-            "status": "DONE",
+            "score_pass": False,
+            "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
+            "expiration_timestamp": mock_passport_expiration_date.isoformat(),
+            "threshold": "20",
             "error": None,
-            "stamp_scores": {"Ens": 0.408, "Google": 0.525},
+            "stamp_scores": {"Ens": "0.408", "Google": "0.525"},
         }
 
         # First submission
