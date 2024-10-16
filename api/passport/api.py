@@ -7,6 +7,7 @@ from django.conf import settings
 from django_ratelimit.exceptions import Ratelimited
 from eth_utils.address import to_checksum_address
 from ninja import Schema
+from ninja.security import APIKeyHeader
 from ninja_extra import NinjaExtraAPI
 from ninja_extra.exceptions import APIException
 
@@ -17,7 +18,10 @@ from registry.api.utils import (
     get_analysis_api_rate_limited_msg,
     is_valid_address,
 )
+from registry.admin import get_s3_client
+from registry.api.utils import aapi_key, check_rate_limit, is_valid_address
 from registry.exceptions import InvalidAddressException
+from registry.models import BatchModelScoringRequest, BatchRequestStatus
 from scorer.settings.model_config import MODEL_AGGREGATION_NAMES
 
 log = logging.getLogger(__name__)
@@ -75,6 +79,62 @@ class BadModelNameError(APIException):
 class PassportAnalysisError(APIException):
     status_code = 500
     default_detail = "Error retrieving Passport analysis"
+
+
+class DataScienceApiKey(APIKeyHeader):
+    param_name = "AUTHORIZATION"
+
+    def authenticate(self, request, key):
+        if key == settings.DATA_SCIENCE_API_KEY:
+            return key
+        return None
+
+
+data_science_auth = DataScienceApiKey()
+
+
+class BatchResponse(Schema):
+    created_at: str
+    s3_url: Optional[str]
+    status: BatchRequestStatus
+    percentage_complete: int
+
+
+@api.get(
+    "/analysis/batch",
+    auth=data_science_auth,
+    response={
+        200: list[BatchResponse],
+        400: ErrorMessageResponse,
+        500: ErrorMessageResponse,
+    },
+    summary="Retrieve batch scoring status and result",
+    description="Retrieve batch scoring status and result",
+    include_in_schema=False,
+)
+def get_batch_analysis_stats(request, limit: int = 10) -> list[BatchResponse]:
+    requests = BatchModelScoringRequest.objects.order_by("-created_at")[:limit]
+    return [
+        BatchResponse(
+            created_at=req.created_at.isoformat(),
+            s3_url=(
+                get_s3_client().generate_presigned_url(
+                    "get_object",
+                    Params={
+                        "Bucket": settings.BULK_SCORE_REQUESTS_BUCKET_NAME,
+                        "Key": f"{settings.BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER}/{req.s3_filename}",
+                    },
+                    # 24 hrs
+                    ExpiresIn=60 * 60 * 24,
+                )
+                if req.status == BatchRequestStatus.DONE
+                else None
+            ),
+            status=req.status,
+            percentage_complete=req.progress,
+        )
+        for req in requests
+    ]
 
 
 @api.get(

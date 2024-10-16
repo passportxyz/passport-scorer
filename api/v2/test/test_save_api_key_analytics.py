@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import pytest
+
 from account.models import AccountAPIKey, AccountAPIKeyAnalytics
 from registry.tasks import save_api_key_analytics
 

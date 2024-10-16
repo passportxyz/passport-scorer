@@ -11,7 +11,7 @@ from django.test import Client, TransactionTestCase
 from web3 import Web3
 
 from account.models import Account, AccountAPIKey, Community
-from registry.api.v2 import SubmitPassportPayload, a_submit_passport, get_score
+from registry.api.v1 import SubmitPassportPayload, a_submit_passport, get_score
 from registry.models import Event, HashScorerLink, Passport, Score, Stamp
 from registry.tasks import score_passport_passport, score_registry_passport
 

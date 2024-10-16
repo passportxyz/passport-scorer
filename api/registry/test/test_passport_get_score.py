@@ -1,14 +1,15 @@
 import datetime
 
 import pytest
-from account.models import Account, AccountAPIKey, Community
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import Client
+from web3 import Web3
+
+from account.models import Account, AccountAPIKey, Community
 from registry.api.v1 import get_scorer_by_id
 from registry.models import Passport, Score
-from web3 import Web3
 
 User = get_user_model()
 web3 = Web3()
@@ -440,3 +441,26 @@ class TestPassportGetScore:
         )
         assert response.status_code == 200
         assert len(response.json()["items"]) == len(newer_scores)
+
+    def test_backported_get_historical_scores(
+        self,
+        scorer_api_key,
+        passport_holder_addresses,
+        scorer_community,
+        paginated_scores,
+    ):
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/score/{scorer_community.id}/history",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        response_data = response.json()
+
+        assert response.status_code == 200
+
+        items = response_data["items"]
+        assert len(items) == 10
+
+        next_url = response_data["next"]
+        assert "/registry/score/" in next_url

@@ -634,12 +634,10 @@ const serviceTaskRole = new aws.iam.Role("scorer-service-task-role", {
               ],
               Resource: "*",
             },
-            // CloudFront 
+            // CloudFront
             {
               Effect: "Allow",
-              Action: [
-                "cloudfront:CreateInvalidation",
-              ],
+              Action: ["cloudfront:CreateInvalidation"],
               Resource: "*",
             },
           ],
@@ -835,7 +833,7 @@ const scorerServiceRegistry = createScorerECSService({
   config: {
     ...baseScorerServiceConfig,
     listenerRulePriority: 3000,
-    httpListenerRulePaths: ["/registry/*"],
+    httpListenerRulePaths: ["/registry/*", "/v2/*"],
     targetGroup: targetGroupRegistry,
     memory: ecsTaskConfigurations["scorer-api-reg"][stack].memory,
     cpu: ecsTaskConfigurations["scorer-api-reg"][stack].cpu,
