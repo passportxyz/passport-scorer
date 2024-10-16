@@ -15,6 +15,7 @@ Including another URLconf
 """
 
 # from rest_framework.schemas import get_schema_view
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
@@ -30,7 +31,6 @@ from .api import (
 
 urlpatterns = [
     path("", registry_api_v1.urls),
-    path("v2/", include("v2.urls")),
     path("registry/feature/", feature_flag_api.urls),
     path("ceramic-cache/", ceramic_cache_api_v1.urls),
     # path("ceramic-cache/v2/", ceramic_cache_api_v2.urls),
@@ -50,3 +50,6 @@ urlpatterns = [
     path("stake/", include("stake.urls")),
     path("passport/", include("passport.urls")),
 ]
+
+if settings.FF_V2_API == "on":
+    urlpatterns.append(path("v2/", include("v2.urls")))

@@ -21,6 +21,11 @@ from scorer.test.conftest import (
 
 
 @pytest.fixture(autouse=True)
+def enable_v2_api(settings):
+    settings.FF_V2_API = "on"
+
+
+@pytest.fixture(autouse=True)
 def weight_config(request):
     weights_to_use = getattr(request, "param", GITCOIN_PASSPORT_WEIGHTS)
 

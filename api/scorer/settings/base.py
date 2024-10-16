@@ -482,3 +482,5 @@ MBD_API_RATE_LIMITING_FORM = env(
     "MBD_API_RATE_LIMITING_FORM",
     default="https://docs.google.com/forms/d/e/1FAIpQLSe5B7zXTUQUt_aWdqTiUhjAhz56pS49Q8meuzLSgGxYTZRwAw/viewform",
 )
+
+FF_V2_API = env("FF_V2_API", default="off")
