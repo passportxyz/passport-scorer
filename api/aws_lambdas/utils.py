@@ -220,7 +220,7 @@ def with_api_request_exception_handling(func):
         api_key_id = None
         body = None
         try:
-            # First let's bind the ocntext vars for the logger, strip the event from
+            # First let's bind the context vars for the logger, strip the event from
             # sensitive data and log the event
             bind_contextvars(request_id=context.aws_request_id)
             sensitive_data, event = strip_event(_event)
