@@ -1,6 +1,6 @@
 import json
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from django.core.management import call_command
@@ -34,7 +34,7 @@ class TestGetStamps:
             Score.objects.create(
                 passport=p,
                 score=10,
-                last_score_timestamp=datetime.now(),
+                last_score_timestamp=datetime.now(tz=timezone.utc),
                 status=Score.Status.DONE,
             )
 
@@ -53,7 +53,7 @@ class TestGetStamps:
             Score.objects.create(
                 passport=p,
                 score=10,
-                last_score_timestamp=datetime.now(),
+                last_score_timestamp=datetime.now(tz=timezone.utc),
                 status=Score.Status.DONE,
             )
 

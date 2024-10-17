@@ -5,9 +5,7 @@ import os
 import time
 from io import BytesIO, StringIO, TextIOWrapper
 from itertools import islice
-from nis import cat
 
-import boto3
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
