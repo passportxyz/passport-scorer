@@ -1786,6 +1786,19 @@ buildHttpLambdaFn(
   alarmConfigurations
 );
 
+buildHttpLambdaFn(
+  {
+    ...lambdaSettings,
+    name: "passport-v2-model-score",
+    memorySize: 256,
+    dockerCmd: ["v2.aws_lambdas.models_score_GET.handler"],
+    pathPatterns: ["/v2/models/score/*"],
+    httpRequestMethods: ["GET"],
+    listenerPriority: 1012,
+  },
+  alarmConfigurations
+);
+
 buildQueueLambdaFn({
   ...lambdaSettings,
   name: "rescore-0",
