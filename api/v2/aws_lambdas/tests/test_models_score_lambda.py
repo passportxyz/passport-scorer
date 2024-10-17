@@ -158,7 +158,8 @@ def test_successful_analysis_eth(scorer_api_key, mocker):
         "isBase64Encoded": False,
     }
     with mocker.patch("passport.api.fetch", side_effect=mock_post_response):
-        response = _handler(event, MockContext(), None, None, None)
+        # pylint: disable=no-value-for-parameter
+        response = _handler(event, MockContext())
 
     assert response is not None
     assert response["statusCode"] == 200
@@ -180,7 +181,8 @@ def test_bad_auth():
         "isBase64Encoded": False,
     }
 
-    response = _handler(event, MockContext(), None, None, None)
+    # pylint: disable=no-value-for-parameter
+    response = _handler(event, MockContext())
 
     assert response is not None
     assert response["statusCode"] == 401
@@ -199,7 +201,8 @@ def test_bad_address(scorer_api_key):
         "queryStringParameters": {},
         "isBase64Encoded": False,
     }
-    response = _handler(event, MockContext(), None, None, None)
+    # pylint: disable=no-value-for-parameter
+    response = _handler(event, MockContext())  # type: ignore
 
     assert response is not None
     assert response["statusCode"] == 400
@@ -217,8 +220,8 @@ def test_bad_model(scorer_api_key):
         "queryStringParameters": {"model": model},
         "isBase64Encoded": False,
     }
-
-    response = _handler(event, MockContext(), None, None, None)
+    # pylint: disable=no-value-for-parameter
+    response = _handler(event, MockContext())  # type: ignore
 
     assert response is not None
     assert response["statusCode"] == 400
@@ -239,7 +242,8 @@ def test_analysis_eth_unquote_model(scorer_api_key, mocker):
         "isBase64Encoded": False,
     }
     spy = mocker.spy(v2.aws_lambdas.models_score_GET, "handle_get_analysis")
-    _handler(event, MockContext(), None, None, None)
+    # pylint: disable=no-value-for-parameter
+    _handler(event, MockContext())  # type: ignore
 
     # Check that the model is unquoted properly
     spy.assert_called_with(address, "ethereum_activity, zksync")
