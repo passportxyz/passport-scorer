@@ -137,15 +137,15 @@ class TestPassportGetStamps:
         mocker,
     ):
         cache.clear()
-        with mocker.patch(
+        mocker.patch(
             "requests.get", return_value=mocker.Mock(json=lambda: mock_stamp_metadata)
-        ):
-            client = Client()
-            response = client.get(
-                f"{self.base_url}/stamps/{passport_holder_addresses[0]['address']}?include_metadata=true&limit=1",
-                HTTP_AUTHORIZATION="Token " + scorer_api_key,
-            )
-            response_data = response.json()
+        )
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/stamps/{passport_holder_addresses[0]['address']}?include_metadata=true&limit=1",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
 
         assert response.status_code == 200
         assert response_data["items"][0]["metadata"]["name"] == f"Provider9"
@@ -155,10 +155,10 @@ class TestPassportGetStamps:
         mocker,
     ):
         cache.clear()
-        with mocker.patch(
+        mocker.patch(
             "requests.get", return_value=mocker.Mock(json=lambda: mock_stamp_metadata)
-        ):
-            assert fetch_stamp_metadata_for_provider("invalid_provider") is None
+        )
+        assert fetch_stamp_metadata_for_provider("invalid_provider") is None
 
     def test_get_all_metadata(
         self,
@@ -168,15 +168,15 @@ class TestPassportGetStamps:
         mocker,
     ):
         cache.clear()
-        with mocker.patch(
+        mocker.patch(
             "requests.get", return_value=mocker.Mock(json=lambda: mock_stamp_metadata)
-        ):
-            client = Client()
-            response = client.get(
-                f"{self.base_url}/stamp-metadata",
-                HTTP_AUTHORIZATION="Token " + scorer_api_key,
-            )
-            response_data = response.json()
+        )
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/stamp-metadata",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
 
         assert response.status_code == 200
         assert response_data[0]["id"] == mock_stamp_metadata[0]["id"]
