@@ -111,14 +111,10 @@ def test_successful_authentication(
             assert body["address"] == address
             assert body["score"] == "0"
             assert body["passing_score"] == False
-            assert body["threshold"] == 20.0
+            assert body["threshold"] == "20.00000"
 
-            assert body["evidence"] == {
-                "rawScore": 0.9329999999999999,
-                "threshold": 20.0,
-            }
             assert body["error"] is None
-            assert body["stamp_scores"] == {"Ens": 0.408, "Google": 0.525}
+            assert body["stamp_scores"] == {"Ens": "0.408", "Google": "0.525"}
             # We just check that something != None was recorded for the last timestamp
             assert body["expiration_timestamp"] is not None
 
@@ -157,13 +153,9 @@ def test_successful_authentication_and_base64_encoded_body(
             assert body["address"] == address
             assert body["score"] == "0"
             assert body["passing_score"] == False
-            assert body["threshold"] == 20.0
-            assert body["evidence"] == {
-                "rawScore": 0.9329999999999999,
-                "threshold": 20.0,
-            }
+            assert body["threshold"] == "20.00000"
             assert body["error"] is None
-            assert body["stamp_scores"] == {"Ens": 0.408, "Google": 0.525}
+            assert body["stamp_scores"] == {"Ens": "0.408", "Google": "0.525"}
             # We just check that something != None was recorded for the last timestamp
             assert body["expiration_timestamp"] is not None
 
@@ -264,7 +256,7 @@ def test_successful_authentication_and_analytics_logging(
                     }
                 },
                 "httpMethod": "POST",
-                "path": "/registry/submit-passport",
+                "path": f"/v2/stamps/{scorer_community_with_binary_scorer.id}/score/{address}",
                 "queryStringParameters": {"a": "b"},
                 "headers": {
                     "content-length": "73",
@@ -295,11 +287,14 @@ def test_successful_authentication_and_analytics_logging(
             # Check for the proper analytics entry
             analytics_entry = AccountAPIKeyAnalytics.objects.order_by("-created_at")[0]
             assert analytics_entry.path == event["path"]
-            assert analytics_entry.path_segments == ["registry", "submit-passport"]
-            assert analytics_entry.payload == {
-                "address": address,
-                "community": scorer_community_with_binary_scorer.id,
-            }
+            # double check this is correct
+            assert analytics_entry.path_segments == [
+                "v2",
+                "stamps",
+                str(scorer_community_with_binary_scorer.id),
+                "score",
+                "0x6077ebc94bb5a4ac9a54f2e47d29b3ed580e5b8b",
+            ]
             assert analytics_entry.query_params == {"a": "b"}
             assert analytics_entry.headers == {  # header without api key
                 "content-length": "73",
@@ -341,7 +336,7 @@ def test_failed_authentication_and_analytics_logging(
                     }
                 },
                 "httpMethod": "POST",
-                "path": "/registry/submit-passport",
+                "path": f"/v2/stamps/{scorer_community_with_binary_scorer.id}/score/{address}",
                 "queryStringParameters": {"a": "b"},
                 "headers": {
                     "content-length": "73",
@@ -403,7 +398,7 @@ def test_bad_scorer_id_and_analytics_logging(
                     }
                 },
                 "httpMethod": "POST",
-                "path": "/registry/submit-passport",
+                "path": f"/v2/stamps/{scorer_community_with_binary_scorer.id}/score/{address}",
                 "queryStringParameters": {"a": "b"},
                 "headers": {
                     "content-length": "73",
@@ -428,12 +423,20 @@ def test_bad_scorer_id_and_analytics_logging(
             # pylint: disable=no-value-for-parameter
             response = _handler(event, MockContext())
 
+            breakpoint()
+
             assert response is not None
             assert response["statusCode"] == 404
             # Check for the proper analytics entry
             analytics_entry = AccountAPIKeyAnalytics.objects.order_by("-created_at")[0]
             assert analytics_entry.path == event["path"]
-            assert analytics_entry.path_segments == ["registry", "submit-passport"]
+            assert analytics_entry.path_segments == [
+                "v2",
+                "stamps",
+                str(scorer_community_with_binary_scorer.id),
+                "score",
+                "0x6077ebc94bb5a4ac9a54f2e47d29b3ed580e5b8b",
+            ]
             assert analytics_entry.payload == {
                 "address": address,
                 "community": 123123,
