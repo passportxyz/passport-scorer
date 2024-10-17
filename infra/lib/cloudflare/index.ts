@@ -7,6 +7,10 @@ export function createApiDomainRecord(
   albDnsName: pulumi.Input<string>
 ) {
   const name = "api-passport-xyz-record";
+
+
+  // api.review.passport.xyz
+
   const cloudflareApiRecord =
     stack === "production"
       ? new cloudflare.Record(name, {
@@ -18,5 +22,8 @@ export function createApiDomainRecord(
           comment: "Points to LB handling the backend service requests",
         })
       : "";
+
+
+
   return cloudflareApiRecord;
 }
