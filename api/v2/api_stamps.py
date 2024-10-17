@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import List
 from urllib.parse import urljoin
 
@@ -39,9 +40,11 @@ from registry.utils import (
     encode_cursor,
     reverse_lazy_with_query,
 )
-from v2.api import (
+
+from .api import (
     api,
 )
+from .schema import V2ScoreResponse
 
 METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 
@@ -52,7 +55,7 @@ log = logging.getLogger(__name__)
     "/stamps/{int:scorer_id}/score/{str:address}",
     auth=aapi_key,
     response={
-        200: DetailedScoreResponse,
+        200: V2ScoreResponse,
         401: ErrorMessageResponse,
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
@@ -64,16 +67,30 @@ A new score will be calculated based on the user's current Stamps.
     tags=["Stamp Analysis"],
 )
 @atrack_apikey_usage(track_response=True)
-async def a_submit_passport(
-    request, scorer_id: int, address: str
-) -> DetailedScoreResponse:
+async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreResponse:
     check_rate_limit(request)
     try:
         if not request.api_key.submit_passports:
             raise InvalidAPIKeyPermissions()
 
-        return await ahandle_submit_passport(
+        v1_score = await ahandle_submit_passport(
             SubmitPassportPayload(address=address, scorer_id=scorer_id), request.auth
+        )
+        threshold = v1_score.evidence.threshold if v1_score.evidence else "20"
+
+        return V2ScoreResponse(
+            address=v1_score.address,
+            score=v1_score.score,
+            passing_score=(
+                Decimal(v1_score.score) >= Decimal(threshold)
+                if v1_score.score
+                else False
+            ),
+            threshold=threshold,
+            last_score_timestamp=v1_score.last_score_timestamp,
+            expiration_timestamp=v1_score.expiration_date,
+            error=v1_score.error,
+            stamp_scores=v1_score.stamp_scores,
         )
     except APIException as e:
         raise e
