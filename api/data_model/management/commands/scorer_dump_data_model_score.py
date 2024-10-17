@@ -13,6 +13,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 
 from data_model.models import Cache
 from scorer.export_utils import (
+    AWSOverrideCredentials,
     export_data_for_model,
     get_pa_schema,
     upload_to_s3,
@@ -108,6 +109,8 @@ For example:
         )
 
         parser.add_argument("--filename", type=str, help="The output filename")
+        parser.add_argument("--s3-access-key", type=str, default="", help="The S3 access key for dedicated S3 download (like digital ocean)")
+        parser.add_argument("--s3-secret-access-key", type=str, default="", help="The S3 secret access key for dedicated S3 download (like digital ocean)")
         parser.add_argument(
             "--s3-extra-args",
             type=str,
@@ -132,6 +135,8 @@ For example:
         batch_size = options["batch_size"]
         s3_uri = options["s3_uri"]
         filename = options["filename"]
+        s3_access_key = options["s3_access_key"]
+        s3_secret_access_key = options["s3_secret_access_key"]
         format = options["format"]
         data_model_names = (
             [n.strip() for n in options["data_model"].split(",")]
@@ -170,7 +175,17 @@ For example:
                 self.style.SUCCESS(f"EXPORT - Data exported to '{filename}'")
             )
 
-            upload_to_s3(filename, s3_folder, s3_bucket_name, extra_args)
+            if s3_access_key and s3_secret_access_key:
+                aws_override_credentials = AWSOverrideCredentials(
+                    aws_access_key_id=s3_access_key,
+                    aws_secret_access_key=s3_secret_access_key,
+                    aws_endpoint_url="",
+                )
+                upload_to_s3(
+                    filename, s3_folder, s3_bucket_name, extra_args, aws_override_credentials
+                )
+            else:
+                upload_to_s3(filename, s3_folder, s3_bucket_name, extra_args)
 
             if cloudfront_distribution_id:
                 client = boto3.client("cloudfront")
