@@ -705,20 +705,10 @@ const apiEnvironment = [
     value: rescoreQueue.url,
   },
   {
-    // TODO: geri We can probably remove this
-    name: "UI_DOMAINS",
-    value: passportXyzDomainName.apply((passportXyzDomainNameStr) =>
-      JSON.stringify([
-        "scorer." + legacyDomain,
-        "www.scorer." + legacyDomain,
-        passportXyzDomainNameStr,
-      ])
-    ),
-  },
-  {
     name: "ALLOWED_HOSTS",
     value: passportXyzDomainName.apply((passportXyzDomainNameStr) =>
-      JSON.stringify([legacyDomain, passportXyzDomainNameStr])
+      // TODO: geri: investigate if using '*' here is a security risk
+      JSON.stringify([legacyDomain, passportXyzDomainNameStr, "*"])
     ),
   },
   {
@@ -1936,41 +1926,30 @@ const amplifyAppInfo = coreInfraStack
 
 export const amplifyAppHookUrl = pulumi.secret(amplifyAppInfo.webHook.url);
 
-// createApiDomainRecord(stack, CLOUDFLARE_ZONE_ID, alb.dnsName);
-
-// import * as cloudflare from "@pulumi/cloudflare";
-
-// const name = "api-passport-xyz-record";
-// const cloudflareApiRecord =
-//   stack === "production"
-//     ? new cloudflare.Record(name, {
-//         name: "api1",
-//         zoneId: CLOUDFLARE_ZONE_ID,
-//         type: "CNAME",
-//         value: alb.dnsName,
-//         allowOverwrite: true,
-//         comment: "Points to LB handling the backend service requests",
-//       })
-//     : "";
-
 // Create a DNS record for the load balancer
-// pulumi.all([passportXyzDomainName]).apply((passportXyzDomainNameStr) => {
-//   const apiDomain = `api.${passportXyzDomainNameStr}`;
-//   const apiDomainRecord = new aws.route53.Record(apiDomain, {
-//     zoneId: passportXyzHostedZoneId,
-//     name: "api",
-//     type: "CNAME",
-//     ttl: 300,
-//     records: [alb.dnsName],
-//   });
-// });
+pulumi.all([passportXyzDomainName]).apply((passportXyzDomainNameStr) => {
+  const apiDomain = `api.${passportXyzDomainNameStr}`;
+  const apiDomainRecord = new aws.route53.Record(apiDomain, {
+    zoneId: passportXyzHostedZoneId,
+    name: "api",
+    type: "CNAME",
+    ttl: 300,
+    records: [alb.dnsName],
+  });
 
-const apiDomainRecord = new aws.route53.Record(`scorer-api`, {
-  zoneId: passportXyzHostedZoneId,
-  name: "api",
-  type: "CNAME",
-  ttl: 300,
-  records: [alb.dnsName],
+  const redashDomain = `redash.${passportXyzDomainNameStr}`;
+  const redashRecord = new aws.route53.Record(redashDomain, {
+    zoneId: passportXyzHostedZoneId,
+    name: "redash",
+    type: "A",
+    aliases: [
+      {
+        name: redashAlb.dnsName,
+        zoneId: redashAlb.zoneId,
+        evaluateTargetHealth: true,
+      },
+    ],
+  });
 });
 
 const coreAlbPassportXyz = new aws.lb.ListenerCertificate(
