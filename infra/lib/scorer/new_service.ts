@@ -45,7 +45,7 @@ export function createTargetGroup(
   vpcId: Input<string>
 ): TargetGroup {
   return new TargetGroup(name, {
-    tags: { 
+    tags: {
       ...defaultTags,
       Name: name },
     port: 80,
@@ -68,7 +68,7 @@ export function createScorerECSService({
   environment: secretsManager.EnvironmentVar[];
   secrets: pulumi.Output<secretsManager.SecretRef[]>;
   loadBalancerAlarmThresholds: AlarmConfigurations;
-}): awsx.ecs.FargateService {
+}): awsx.ecs.FargateService | undefined {
   //////////////////////////////////////////////////////////////
   // Create target group and load balancer rules
   //////////////////////////////////////////////////////////////
@@ -128,6 +128,7 @@ export function createScorerECSService({
   };
 
   const service = new awsx.ecs.FargateService(name, {
+    name: name,
     propagateTags: "TASK_DEFINITION",
     tags: { ...defaultTags, Name: name },
     cluster: config.cluster.arn,
@@ -144,7 +145,7 @@ export function createScorerECSService({
       },
     ],
     taskDefinitionArgs: {
-      tags: { name: name },
+      tags: { ...defaultTags, Name: name },
       logGroup: {
         existing: config.logGroup,
       },
@@ -914,7 +915,7 @@ export function buildHttpLambdaFn(
     function: lambdaFunction.name,
     principal: "elasticloadbalancing.amazonaws.com",
     sourceArn: lambdaTargetGroup.arn,
-    
+
   });
 
   const lambdaTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
@@ -922,7 +923,7 @@ export function buildHttpLambdaFn(
     {
       targetGroupArn: lambdaTargetGroup.arn,
       targetId: lambdaFunction.arn,
-      
+
     },
     {
       dependsOn: [withLb],
