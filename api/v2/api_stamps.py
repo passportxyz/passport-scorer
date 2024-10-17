@@ -87,7 +87,7 @@ async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreRes
         return V2ScoreResponse(
             address=v1_score.address,
             score=v1_score.score,
-            score_pass=(
+            passing_score=(
                 Decimal(v1_score.score) >= Decimal(threshold)
                 if v1_score.score
                 else False
