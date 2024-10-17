@@ -31,24 +31,24 @@ def test_with_api_request_exception_handling_success(
     passport_holder_addresses,
     mocker,
 ):
-    with mocker.patch(
+    mocker.patch(
         "registry.atasks.aget_passport",
         return_value=mock_passport,
-    ):
-        with mocker.patch(
-            "registry.atasks.validate_credential", side_effect=[[], [], []]
-        ):
-            wrapped_func = with_api_request_exception_handling(func_to_test)
+    )
+    mocker.patch(
+        "registry.atasks.validate_credential", side_effect=[[], [], []]
+    )
+    wrapped_func = with_api_request_exception_handling(func_to_test)
 
-            address = passport_holder_addresses[0]["address"].lower()
-            test_event = make_test_event(
-                scorer_api_key, address, scorer_community_with_binary_scorer.id
-            )
+    address = passport_holder_addresses[0]["address"].lower()
+    test_event = make_test_event(
+        scorer_api_key, address, scorer_community_with_binary_scorer.id
+    )
 
-            ret = wrapped_func(test_event, MockContext())
+    ret = wrapped_func(test_event, MockContext())
 
-            assert ret["statusCode"] == 200
-            assert ret["body"] == '{"greet": "hello world"}'
+    assert ret["statusCode"] == 200
+    assert ret["body"] == '{"greet": "hello world"}'
 
 
 def test_with_api_request_exception_handling_bad_api_key(
@@ -57,24 +57,24 @@ def test_with_api_request_exception_handling_bad_api_key(
     passport_holder_addresses,
     mocker,
 ):
-    with mocker.patch(
+    mocker.patch(
         "registry.atasks.aget_passport",
         return_value=mock_passport,
-    ):
-        with mocker.patch(
-            "registry.atasks.validate_credential", side_effect=[[], [], []]
-        ):
-            wrapped_func = with_api_request_exception_handling(func_to_test)
+    )
+    mocker.patch(
+        "registry.atasks.validate_credential", side_effect=[[], [], []]
+    )
+    wrapped_func = with_api_request_exception_handling(func_to_test)
 
-            address = passport_holder_addresses[0]["address"].lower()
-            test_event = make_test_event(
-                scorer_api_key + "=BAD", address, scorer_community_with_binary_scorer.id
-            )
+    address = passport_holder_addresses[0]["address"].lower()
+    test_event = make_test_event(
+        scorer_api_key + "=BAD", address, scorer_community_with_binary_scorer.id
+    )
 
-            ret = wrapped_func(test_event, MockContext())
+    ret = wrapped_func(test_event, MockContext())
 
-            assert ret["statusCode"] == 401
-            assert ret["body"] == '{"error": "Invalid API Key."}'
+    assert ret["statusCode"] == 401
+    assert ret["body"] == '{"error": "Invalid API Key."}'
 
 
 def test_with_api_request_exception_handling_bad_request(
@@ -83,24 +83,24 @@ def test_with_api_request_exception_handling_bad_request(
     passport_holder_addresses,
     mocker,
 ):
-    with mocker.patch(
+    mocker.patch(
         "registry.atasks.aget_passport",
         return_value=mock_passport,
-    ):
-        with mocker.patch(
-            "registry.atasks.validate_credential", side_effect=[[], [], []]
-        ):
-            wrapped_func = with_api_request_exception_handling(func_to_test_bad_request)
+    )
+    mocker.patch(
+        "registry.atasks.validate_credential", side_effect=[[], [], []]
+    )
+    wrapped_func = with_api_request_exception_handling(func_to_test_bad_request)
 
-            address = passport_holder_addresses[0]["address"].lower()
-            test_event = make_test_event(
-                scorer_api_key, address, scorer_community_with_binary_scorer.id
-            )
+    address = passport_holder_addresses[0]["address"].lower()
+    test_event = make_test_event(
+        scorer_api_key, address, scorer_community_with_binary_scorer.id
+    )
 
-            ret = wrapped_func(test_event, MockContext())
+    ret = wrapped_func(test_event, MockContext())
 
-            assert ret["statusCode"] == 400
-            assert ret["body"] == '{"error": "Bad request"}'
+    assert ret["statusCode"] == 400
+    assert ret["body"] == '{"error": "Bad request"}'
 
 
 def test_with_api_request_exception_handling_unexpected_error(
@@ -109,45 +109,45 @@ def test_with_api_request_exception_handling_unexpected_error(
     passport_holder_addresses,
     mocker,
 ):
-    with mocker.patch(
+    mocker.patch(
         "registry.atasks.aget_passport",
         return_value=mock_passport,
-    ):
-        with mocker.patch(
+    )
+    mocker.patch(
             "registry.atasks.validate_credential", side_effect=[[], [], []]
-        ):
-            wrapped_func = with_api_request_exception_handling(
-                func_to_test_unexpected_error
-            )
+        )
+    wrapped_func = with_api_request_exception_handling(
+        func_to_test_unexpected_error
+    )
 
-            address = passport_holder_addresses[0]["address"].lower()
-            test_event = make_test_event(
-                scorer_api_key, address, scorer_community_with_binary_scorer.id
-            )
+    address = passport_holder_addresses[0]["address"].lower()
+    test_event = make_test_event(
+        scorer_api_key, address, scorer_community_with_binary_scorer.id
+    )
 
-            ret = wrapped_func(test_event, MockContext())
+    ret = wrapped_func(test_event, MockContext())
 
-            assert ret["statusCode"] == 500
-            assert ret["body"] == '{"error": "An error has occurred"}'
+    assert ret["statusCode"] == 500
+    assert ret["body"] == '{"error": "An error has occurred"}'
 
 
 def test_with_api_request_exception_handling_bad_event(
     mocker,
 ):
-    with mocker.patch(
+    mocker.patch(
         "registry.atasks.aget_passport",
         return_value=mock_passport,
-    ):
-        with mocker.patch(
-            "registry.atasks.validate_credential", side_effect=[[], [], []]
-        ):
-            wrapped_func = with_api_request_exception_handling(
-                func_to_test_unexpected_error
-            )
+    )
+    mocker.patch(
+        "registry.atasks.validate_credential", side_effect=[[], [], []]
+    )
+    wrapped_func = with_api_request_exception_handling(
+        func_to_test_unexpected_error
+    )
 
-            test_event = {"bad": "event"}
+    test_event = {"bad": "event"}
 
-            ret = wrapped_func(test_event, MockContext())
+    ret = wrapped_func(test_event, MockContext())
 
-            assert ret["statusCode"] == 500
-            assert ret["body"] == '{"error": "An error has occurred"}'
+    assert ret["statusCode"] == 500
+    assert ret["body"] == '{"error": "An error has occurred"}'
