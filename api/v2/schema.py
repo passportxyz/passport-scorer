@@ -6,7 +6,7 @@ from ninja import Schema
 class V2ScoreResponse(Schema):
     address: str
     score: Optional[str]
-    score_pass: bool
+    passing_score: bool
     last_score_timestamp: Optional[str]
     expiration_timestamp: Optional[str]
     threshold: str
