@@ -6,9 +6,11 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
+from web3 import Web3
+from urllib.parse import urlencode
+
 from registry.models import Passport, Score
 from registry.test.test_passport_get_score import TestPassportGetScore
-from web3 import Web3
 
 User = get_user_model()
 web3 = Web3()
@@ -163,7 +165,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
         middle = len(scores) // 2
         older_scores = scores[:middle]
         newer_scores = scores[middle:]
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc)
         past_time_stamp = now - datetime.timedelta(days=1)
         future_time_stamp = now + datetime.timedelta(days=1)
 
@@ -186,7 +188,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
         # Check the query when the filtered timestamp equals a score last_score_timestamp
         client = Client()
         response = client.get(
-            f"/registry/score/{scorer_community.id}?last_score_timestamp__gte={now.isoformat()}",
+            f"/registry/score/{scorer_community.id}?{urlencode(dict(last_score_timestamp__gte=now.isoformat()))}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         assert response.status_code == 200
@@ -194,7 +196,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
 
         # Check the query when the filtered timestamp does not equal a score last_score_timestamp
         response = client.get(
-            f"/registry/score/{scorer_community.id}?last_score_timestamp__gte={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
+            f"/registry/score/{scorer_community.id}?{urlencode(dict(last_score_timestamp__gte=(now - datetime.timedelta(milliseconds=1)).isoformat()))}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
@@ -212,7 +214,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
         middle = len(scores) // 2
         older_scores = scores[:middle]
         newer_scores = scores[middle:]
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc)
         past_time_stamp = now - datetime.timedelta(days=1)
         future_time_stamp = now + datetime.timedelta(days=1)
 
@@ -235,7 +237,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
         # Check the query when the filtered timestamp equals a score last_score_timestamp
         client = Client()
         response = client.get(
-            f"/registry/score/{scorer_community.id}?last_score_timestamp__gt={now.isoformat()}",
+            f"/registry/score/{scorer_community.id}?{urlencode(dict(last_score_timestamp__gt=now.isoformat()))}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         assert response.status_code == 200
@@ -243,7 +245,7 @@ class TestPassportGetScoreV2(TestPassportGetScore):
 
         # Check the query when the filtered timestamp does not equal a score last_score_timestamp
         response = client.get(
-            f"/registry/score/{scorer_community.id}?last_score_timestamp__gt={(now - datetime.timedelta(milliseconds=1)).isoformat()}",
+            f"/registry/score/{scorer_community.id}?{urlencode(dict(last_score_timestamp__gt=(now - datetime.timedelta(milliseconds=1)).isoformat()))}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         assert response.status_code == 200
