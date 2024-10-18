@@ -153,6 +153,9 @@ For example:
         self.stdout.write(f"EXPORT - batch_size  : '{batch_size}'")
         self.stdout.write(f"EXPORT - filename    : '{filename}'")
 
+
+        self.stdout.write(f"EXPORT - DEBUG LARISA : acc_key : '{s3_access_key}', s3_secret_access_key: '{s3_secret_access_key}'")
+
         parsed_uri = urlparse(s3_uri)
         s3_bucket_name = parsed_uri.netloc
         s3_folder = parsed_uri.path.strip("/")
