@@ -731,8 +731,9 @@ def stamp_display(request) -> List[StampDisplayResponse]:
     # auth=ApiKey(),
     auth=None,
     response=GtcEventsResponse,
-    summary="Retrieve GTC stake amounts from legacy staking contract",
+    summary="Deprecated:Retrieve GTC stake amounts from legacy staking contract",
     description="Get self and community GTC staking amounts based on address and round ID",
+    deprecated=True,
 )
 def get_gtc_stake_legacy(request, address: str, round_id: str) -> GtcEventsResponse:
     """
