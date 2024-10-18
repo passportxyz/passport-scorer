@@ -398,7 +398,7 @@ def test_bad_scorer_id_and_analytics_logging(
                     }
                 },
                 "httpMethod": "POST",
-                "path": f"/v2/stamps/{scorer_community_with_binary_scorer.id}/score/{address}",
+                "path": f"/v2/stamps/{123123}/score/{address}",
                 "queryStringParameters": {"a": "b"},
                 "headers": {
                     "content-length": "73",
@@ -423,8 +423,6 @@ def test_bad_scorer_id_and_analytics_logging(
             # pylint: disable=no-value-for-parameter
             response = _handler(event, MockContext())
 
-            breakpoint()
-
             assert response is not None
             assert response["statusCode"] == 404
             # Check for the proper analytics entry
@@ -433,7 +431,7 @@ def test_bad_scorer_id_and_analytics_logging(
             assert analytics_entry.path_segments == [
                 "v2",
                 "stamps",
-                str(scorer_community_with_binary_scorer.id),
+                "123123",
                 "score",
                 "0x6077ebc94bb5a4ac9a54f2e47d29b3ed580e5b8b",
             ]
