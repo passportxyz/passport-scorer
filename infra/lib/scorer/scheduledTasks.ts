@@ -34,7 +34,7 @@ export function createTask({
   name: string;
   config: ScheduledTaskConfig;
   environment: secretsManager.EnvironmentVar[];
-  secrets: pulumi.Output<secretsManager.SecretRef[]>;
+  secrets: pulumi.Output<secretsManager.SecretRef[]> | secretsManager.SecretRef[];
   scorerSecretManagerArn: Input<string>;
 }) {
   const {
@@ -225,7 +225,7 @@ export function createScheduledTask({
   name: string;
   config: ScheduledTaskConfig;
   environment: secretsManager.EnvironmentVar[];
-  secrets: pulumi.Output<secretsManager.SecretRef[]>;
+  secrets: pulumi.Output<secretsManager.SecretRef[]> | secretsManager.SecretRef[];
   alarmPeriodSeconds?: number;
   enableInvocationAlerts?: boolean;
   scorerSecretManagerArn: Input<string>;
