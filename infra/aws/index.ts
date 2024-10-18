@@ -25,8 +25,6 @@ import { createVerifierService } from "./verifier";
 import { createS3InitiatedECSTask } from "../lib/scorer/s3_initiated_ecs_task";
 import { stack, defaultTags, StackType } from "../lib/tags";
 
-// The following vars are not allowed to be undefined, hence the `${...}` magic
-
 //////////////////////////////////////////////////////////////
 // Loading environment variables
 //////////////////////////////////////////////////////////////
@@ -44,19 +42,21 @@ const route53ZoneForPublicData = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE_FOR_PUBLIC_DATA`
 );
 
-const rootDomain = op.read.parse(
+const legacyRootDomain = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/ROOT_DOMAIN`
 );
 
-const domain =
+const legacyDomain =
   stack == "production"
-    ? `api.scorer.${rootDomain}`
-    : `api.${stack}.scorer.${rootDomain}`;
+    ? `api.scorer.${legacyRootDomain}`
+    : `api.${stack}.scorer.${legacyRootDomain}`;
 
+// We only need the publicDataDomain for the legacyRootDomain
+// as we hope to be able to drop that before finalizing the mirgation to the new domain
 const publicDataDomain =
   stack == "production"
-    ? `public.scorer.${rootDomain}`
-    : `public.${stack}.scorer.${rootDomain}`;
+    ? `public.scorer.${legacyRootDomain}`
+    : `public.${stack}.scorer.${legacyRootDomain}`;
 
 const current = aws.getCallerIdentity({});
 const regionData = aws.getRegion({});
@@ -125,6 +125,14 @@ const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
 const vpcID = coreInfraStack.getOutput("vpcId");
 const vpcPrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds");
 const vpcPublicSubnetIds = coreInfraStack.getOutput("publicSubnetIds");
+
+const passportXyzDomainName = coreInfraStack.getOutput("passportXyzDomainName");
+const passportXyzHostedZoneId = coreInfraStack.getOutput(
+  "passportXyzHostedZoneId"
+);
+const passportXyzCertificateArn = coreInfraStack.getOutput(
+  "passportXyzCertificateArn"
+);
 
 const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply((values) => values[0]);
 
@@ -449,7 +457,7 @@ const httpsListener = HTTPS_ALB_CERT_ARN.apply(
 // Create a DNS record for the load balancer
 const www = new aws.route53.Record("scorer", {
   zoneId: route53Zone,
-  name: domain,
+  name: legacyDomain,
   type: "A",
   aliases: [
     {
@@ -665,7 +673,12 @@ const apiEnvironment = [
   },
   {
     name: "CSRF_TRUSTED_ORIGINS",
-    value: JSON.stringify([`https://${domain}`]),
+    value: passportXyzDomainName.apply((passportXyzDomainNameStr) =>
+      JSON.stringify([
+        `https://${legacyDomain}`,
+        `https://${passportXyzDomainNameStr}`,
+      ])
+    ),
   },
   {
     name: "CERAMIC_CACHE_CACAO_VALIDATION_URL",
@@ -692,12 +705,11 @@ const apiEnvironment = [
     value: rescoreQueue.url,
   },
   {
-    name: "UI_DOMAINS",
-    value: JSON.stringify(["scorer." + rootDomain, "www.scorer." + rootDomain]),
-  },
-  {
     name: "ALLOWED_HOSTS",
-    value: JSON.stringify([domain, "*"]),
+    value: passportXyzDomainName.apply((passportXyzDomainNameStr) =>
+      // TODO: geri: investigate if using '*' here is a security risk
+      JSON.stringify([legacyDomain, passportXyzDomainNameStr, "*"])
+    ),
   },
   {
     name: "VERIFIER_URL",
@@ -1266,7 +1278,7 @@ const redashHttpsListener = HTTPS_ALB_CERT_ARN.apply(
 
 const redashRecord = new aws.route53.Record("redash", {
   zoneId: route53Zone,
-  name: "redash." + domain,
+  name: "redash." + legacyDomain,
   type: "A",
   aliases: [
     {
@@ -1913,3 +1925,38 @@ const amplifyAppInfo = coreInfraStack
   });
 
 export const amplifyAppHookUrl = pulumi.secret(amplifyAppInfo.webHook.url);
+
+// Create a DNS record for the load balancer
+pulumi.all([passportXyzDomainName]).apply((passportXyzDomainNameStr) => {
+  const apiDomain = `api.${passportXyzDomainNameStr}`;
+  const apiDomainRecord = new aws.route53.Record(apiDomain, {
+    zoneId: passportXyzHostedZoneId,
+    name: "api",
+    type: "CNAME",
+    ttl: 300,
+    records: [alb.dnsName],
+  });
+
+  const redashDomain = `redash.${passportXyzDomainNameStr}`;
+  const redashRecord = new aws.route53.Record(redashDomain, {
+    zoneId: passportXyzHostedZoneId,
+    name: "redash",
+    type: "A",
+    aliases: [
+      {
+        name: redashAlb.dnsName,
+        zoneId: redashAlb.zoneId,
+        evaluateTargetHealth: true,
+      },
+    ],
+  });
+});
+
+const coreAlbPassportXyz = new aws.lb.ListenerCertificate(
+  "core-alb-passport-xyz",
+  {
+    listenerArn: httpsListener.arn,
+    certificateArn: passportXyzCertificateArn,
+  },
+  {}
+);
