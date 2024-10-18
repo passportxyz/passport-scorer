@@ -175,4 +175,13 @@ def get_config(base_url: str) -> dict:
             "skip": True,
             "urls": {},
         },
+        "v2": {
+            "urls": {
+                ("GET", "/v2/stamps/{scorer_id}/score/{address}"): {
+                    "url": f"{base_url}v2/stamps/{REGISTRY_SCORER_ID}/score/{REGISTRY_ADDRESS}",
+                    "http_headers": {"X-API-Key": REGISTRY_API_KEY},
+                    "success_http_statues": [200],
+                },
+            },
+        },
     }
