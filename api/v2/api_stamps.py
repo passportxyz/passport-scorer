@@ -83,10 +83,11 @@ async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreRes
             SubmitPassportPayload(address=address, scorer_id=scorer_id), request.auth
         )
         threshold = v1_score.evidence.threshold if v1_score.evidence else "20"
+        score = v1_score.evidence.rawScore if v1_score.evidence else v1_score.score
 
         return V2ScoreResponse(
             address=v1_score.address,
-            score=v1_score.score,
+            score=score,
             passing_score=(
                 Decimal(v1_score.score) >= Decimal(threshold)
                 if v1_score.score
