@@ -439,7 +439,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         assert response.json() == {
             "address": self.account.address.lower(),
             "score": None,
-            "score_pass": False,
+            "passing_score": False,
             "threshold": "20",
             "last_score_timestamp": None,
             "expiration_timestamp": None,
@@ -465,7 +465,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         expectedResponse = {
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "score": Decimal("0.9329999999999999960031971113"),
-            "score_pass": False,
+            "passing_score": False,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
             "expiration_timestamp": mock_passport_expiration_date.isoformat(),
             "threshold": "20",
@@ -476,7 +476,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         expected2ndResponse = {
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "score": Decimal("0.9329999999999999960031971113"),
-            "score_pass": False,
+            "passing_score": False,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
             "expiration_timestamp": mock_passport_expiration_date.isoformat(),
             "threshold": "20",
