@@ -14,6 +14,7 @@ from ceramic_cache.models import CeramicCache
 from registry.models import Passport, Stamp
 from registry.tasks import score_passport
 from registry.utils import get_signing_message, verify_issuer
+from scorer_weighted.models import BinaryWeightedScorer, Scorer
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -537,6 +538,41 @@ class ValidatePassportTestCase(TransactionTestCase):
         self.assertEqual(
             stamp_google.hash, google_credential["credentialSubject"]["hash"]
         )
+
+    @patch("registry.atasks.validate_credential", side_effect=[[], [], [], []])
+    @patch(
+        "registry.atasks.get_utc_time",
+        return_value=datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00"),
+    )
+    @patch(
+        "registry.atasks.aget_passport",
+        side_effect=[copy.deepcopy(mock_passport), copy.deepcopy(mock_passport)],
+    )
+    def test_submit_passport_with_binary_scorer(
+        self, _, aget_passport, validate_credential
+    ):
+        """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
+
+        expected_score = "2"
+
+        scorer = BinaryWeightedScorer.objects.create(
+            threshold=2,
+            weights={"FirstEthTxnProvider": 1, "Google": 1, "Ens": 1},
+            type=Scorer.Type.WEIGHTED_BINARY,
+        )
+
+        self.community.scorer = scorer
+        self.community.save()
+
+        # First submission
+        response = self.client.get(
+            f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+        self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        self.assertEqual(response_json["score"], expected_score)
 
     def test_submit_passport_accepts_scorer_id(self):
         """
