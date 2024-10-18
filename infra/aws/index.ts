@@ -1806,7 +1806,7 @@ buildHttpLambdaFn(
     dockerCmd: ["v2.aws_lambdas.stamp_score_GET.handler"],
     pathPatterns: ["/v2/stamps/*/score/*"],
     httpRequestMethods: ["GET"],
-    listenerPriority: 1012,
+    listenerPriority: 1013,
   },
   alarmConfigurations
 );
