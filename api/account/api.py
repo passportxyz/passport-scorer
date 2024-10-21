@@ -197,7 +197,7 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
         raise InvalidNonceException()
 
     try:
-        message: SiweMessage = SiweMessage(payload.message)
+        message: SiweMessage = SiweMessage(**payload.message)
         verifyParams = {
             "signature": payload.signature,
             # See note in /nonce function above
