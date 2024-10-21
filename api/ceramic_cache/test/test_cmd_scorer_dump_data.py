@@ -1,6 +1,6 @@
 import json
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from django.core.management import call_command
@@ -34,7 +34,7 @@ class TestGetStamps:
             Score.objects.create(
                 passport=p,
                 score=10,
-                last_score_timestamp=datetime.now(),
+                last_score_timestamp=datetime.now(tz=timezone.utc),
                 status=Score.Status.DONE,
             )
 
@@ -53,7 +53,7 @@ class TestGetStamps:
             Score.objects.create(
                 passport=p,
                 score=10,
-                last_score_timestamp=datetime.now(),
+                last_score_timestamp=datetime.now(tz=timezone.utc),
                 status=Score.Status.DONE,
             )
 
@@ -70,18 +70,18 @@ class TestGetStamps:
                 shutil.copy(file_name, copy_file_name)
                 file_names.append(copy_file_name)
 
-        with mocker.patch(
+        mocker.patch(
             "ceramic_cache.management.commands.scorer_dump_data.boto3.client",
             return_value=MockS3(),
-        ):
-            call_command(
-                "scorer_dump_data",
-                *[],
-                **{
-                    "config": f'[{{"name":"registry.Score","filter":{{"passport__community_id":{community_1.id}}},"select_related":["passport"]}}]',
-                    "s3_uri": "s3://public.scorer.gitcoin.co/passport_scores/",
-                },
-            )
+        )
+        call_command(
+            "scorer_dump_data",
+            *[],
+            **{
+                "config": f'[{{"name":"registry.Score","filter":{{"passport__community_id":{community_1.id}}},"select_related":["passport"]}}]',
+                "s3_uri": "s3://public.scorer.gitcoin.co/passport_scores/",
+            },
+        )
 
         # The data file will always be the 1st file in the list
         data_file = file_names[0]

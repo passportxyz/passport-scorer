@@ -133,8 +133,8 @@ def test_successful_analysis_eth(
         "queryStringParameters": {"model_list": "ethereum_activity"},
         "isBase64Encoded": False,
     }
-    with mocker.patch("passport.api.fetch", side_effect=mock_post_response):
-        response = _handler(event, MockContext())
+    mocker.patch("passport.api.fetch", side_effect=mock_post_response)
+    response = _handler(event, MockContext())
 
     assert response is not None
     assert response["statusCode"] == 200

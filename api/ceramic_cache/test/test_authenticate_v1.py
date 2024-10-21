@@ -53,38 +53,36 @@ class TestAuthenticate:
             def json(self):
                 return {"status": "ok"}
 
-        with mocker.patch(
+        mocker.patch(
             "ceramic_cache.api.v1.requests.post", return_value=MockedRequestResponse()
-        ):
-            with mocker.patch(
-                "ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True
-            ):
-                payload = copy.deepcopy(sample_authenticate_payload)
-                payload["nonce"] = Nonce.create_nonce().nonce
+        )
+        mocker.patch("ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True)
+        payload = copy.deepcopy(sample_authenticate_payload)
+        payload["nonce"] = Nonce.create_nonce().nonce
 
-                auth_response = client.post(
-                    f"{self.base_url}/authenticate",
-                    json.dumps(payload),
-                    content_type="application/json",
-                )
+        auth_response = client.post(
+            f"{self.base_url}/authenticate",
+            json.dumps(payload),
+            content_type="application/json",
+        )
 
-                json_data = auth_response.json()
+        json_data = auth_response.json()
 
-                assert auth_response.status_code == 200
-                assert "access" in json_data
-                assert "intercom_user_hash" in json_data
+        assert auth_response.status_code == 200
+        assert "access" in json_data
+        assert "intercom_user_hash" in json_data
 
-                token = AccessToken(json_data["access"])
-                assert token["did"] == payload["issuer"]
+        token = AccessToken(json_data["access"])
+        assert token["did"] == payload["issuer"]
 
-                assert (
-                    json_data["intercom_user_hash"]
-                    == hmac.new(
-                        bytes(settings.INTERCOM_SECRET_KEY, encoding="utf-8"),
-                        bytes(payload["issuer"], encoding="utf-8"),
-                        digestmod=hashlib.sha256,
-                    ).hexdigest()
-                )
+        assert (
+            json_data["intercom_user_hash"]
+            == hmac.new(
+                bytes(settings.INTERCOM_SECRET_KEY, encoding="utf-8"),
+                bytes(payload["issuer"], encoding="utf-8"),
+                digestmod=hashlib.sha256,
+            ).hexdigest()
+        )
 
     def test_authenticate_fails_to_validate_invalid_payload(self, mocker):
         """
@@ -94,21 +92,21 @@ class TestAuthenticate:
 
         The test should fail at step 1 as we will corupt the payload
         """
-        with mocker.patch(
+        mocker.patch(
             "ceramic_cache.api.v1.validate_dag_jws_payload", return_value=False
-        ):
-            auth_response = client.post(
-                f"{self.base_url}/authenticate",
-                json.dumps(sample_authenticate_payload),
-                content_type="application/json",
-                # **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
-            )
+        )
+        auth_response = client.post(
+            f"{self.base_url}/authenticate",
+            json.dumps(sample_authenticate_payload),
+            content_type="application/json",
+            # **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
+        )
 
-            json_data = auth_response.json()
+        json_data = auth_response.json()
 
-            assert auth_response.status_code == 400
-            assert "detail" in json_data
-            assert json_data["detail"] == "Invalid nonce or payload!"
+        assert auth_response.status_code == 400
+        assert "detail" in json_data
+        assert json_data["detail"] == "Invalid nonce or payload!"
 
     def test_authenticate_fails_when_validating_payload_throws(self, mocker):
         """
@@ -119,22 +117,22 @@ class TestAuthenticate:
         The test should fail at step 1 if the validate_dag_jws_payload throws
         """
 
-        with mocker.patch(
+        mocker.patch(
             "ceramic_cache.api.v1.validate_dag_jws_payload",
             side_effect=Exception("something bad happened"),
-        ):
-            auth_response = client.post(
-                f"{self.base_url}/authenticate",
-                json.dumps(sample_authenticate_payload),
-                content_type="application/json",
-                # **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
-            )
+        )
+        auth_response = client.post(
+            f"{self.base_url}/authenticate",
+            json.dumps(sample_authenticate_payload),
+            content_type="application/json",
+            # **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
+        )
 
-            json_data = auth_response.json()
+        json_data = auth_response.json()
 
-            assert auth_response.status_code == 400
-            assert "detail" in json_data
-            assert json_data["detail"] == "Invalid nonce or payload!"
+        assert auth_response.status_code == 400
+        assert "detail" in json_data
+        assert json_data["detail"] == "Invalid nonce or payload!"
 
     def test_authenticate_fails_when_validating_jws_fails(self, mocker):
         """
@@ -151,26 +149,24 @@ class TestAuthenticate:
             def json(self):
                 return {"status": "failure", "error": "something went wrong"}
 
-        with mocker.patch(
+        mocker.patch(
             "ceramic_cache.api.v1.requests.post", return_value=MockedRequestResponse()
-        ):
-            with mocker.patch(
-                "ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True
-            ):
-                payload = copy.deepcopy(sample_authenticate_payload)
-                payload["nonce"] = Nonce.create_nonce().nonce
-                auth_response = client.post(
-                    f"{self.base_url}/authenticate",
-                    json.dumps(payload),
-                    content_type="application/json",
-                )
+        )
+        mocker.patch("ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True)
+        payload = copy.deepcopy(sample_authenticate_payload)
+        payload["nonce"] = Nonce.create_nonce().nonce
+        auth_response = client.post(
+            f"{self.base_url}/authenticate",
+            json.dumps(payload),
+            content_type="application/json",
+        )
 
-                json_data = auth_response.json()
+        json_data = auth_response.json()
 
-                assert auth_response.status_code == 400
+        assert auth_response.status_code == 400
 
-                assert "detail" in json_data
-                assert "JWS validation failed" in json_data["detail"]
+        assert "detail" in json_data
+        assert "JWS validation failed" in json_data["detail"]
 
     def test_authenticate_fails_when_validating_jws_throws(self, mocker):
         """
@@ -187,22 +183,20 @@ class TestAuthenticate:
             def json(self):
                 return {"status": "failure", "error": "something went wrong"}
 
-        with mocker.patch(
+        mocker.patch(
             "ceramic_cache.api.v1.requests.post", return_value=MockedRequestResponse()
-        ):
-            with mocker.patch(
-                "ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True
-            ):
-                payload = copy.deepcopy(sample_authenticate_payload)
-                payload["nonce"] = Nonce.create_nonce().nonce
-                auth_response = client.post(
-                    f"{self.base_url}/authenticate",
-                    json.dumps(payload),
-                    content_type="application/json",
-                )
+        )
+        mocker.patch("ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True)
+        payload = copy.deepcopy(sample_authenticate_payload)
+        payload["nonce"] = Nonce.create_nonce().nonce
+        auth_response = client.post(
+            f"{self.base_url}/authenticate",
+            json.dumps(payload),
+            content_type="application/json",
+        )
 
-                json_data = auth_response.json()
-                assert auth_response.status_code == 400
+        json_data = auth_response.json()
+        assert auth_response.status_code == 400
 
-                assert "detail" in json_data
-                assert json_data["detail"].startswith("JWS validation failed")
+        assert "detail" in json_data
+        assert json_data["detail"].startswith("JWS validation failed")
