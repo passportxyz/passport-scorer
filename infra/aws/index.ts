@@ -1510,13 +1510,13 @@ if (stack === "production") {
         
         secrets: _apiSecrets.map(secret => {
           if (secret.name === "S3_DATA_AWS_SECRET_ACCESS_KEY") {
-            return { ...secret, value: digitalOceanAccessKey}; // Replace for data dump with digital ocean credentials
+            return { ...secret, valueFrom: digitalOceanAccessKey}; // Replace for data dump with digital ocean credentials
           }
           if (secret.name === "S3_DATA_AWS_SECRET_KEY_ID") {
-            return { ...secret, value: digitalOceanSecretAccessKey }; // Replace  for data dump with digital ocean credentials
+            return { ...secret, valueFrom: digitalOceanSecretAccessKey }; // Replace  for data dump with digital ocean credentials
           }
           return secret;
-        }),
+        }) as  secretsManager.SecretRef[],
         alarmPeriodSeconds: 3600, // 1h in seconds
         enableInvocationAlerts: true,
         scorerSecretManagerArn: scorerSecret.arn,
