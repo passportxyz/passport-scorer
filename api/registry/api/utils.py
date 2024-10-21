@@ -12,7 +12,6 @@ from eth_utils.address import (
     is_checksum_formatted_address,
     is_hex_address,
 )
-from ninja.compatibility.request import get_headers
 from ninja.security import APIKeyHeader
 from ninja.security.base import SecuritySchema
 from ninja_extra.exceptions import APIException
@@ -238,7 +237,7 @@ async def aapi_key(request):
     We might want to fix the `AccountAPIKey.objects.aget_from_key` (the async version)
     """
     param_name = "X-API-Key"
-    headers = get_headers(request)
+    headers = request.headers
     key = headers.get(param_name)
 
     if not key:

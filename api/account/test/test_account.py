@@ -59,7 +59,7 @@ class AccountTestCase(TestCase):
 
     def test_create_account_with_SIWE(self):
         """Test creation of an account wit SIWE"""
-        siwe = SiweMessage(self.siwe_data_pay)
+        siwe = SiweMessage(**self.siwe_data_pay)
         data_to_sign = siwe.prepare_message()
 
         private_key = account.key
@@ -86,7 +86,7 @@ class AccountTestCase(TestCase):
         self.assertTrue("access" in data)
 
     def test_account_address_is_lower_case(self):
-        siwe = SiweMessage(self.siwe_data_pay)
+        siwe = SiweMessage(**self.siwe_data_pay)
         data_to_sign = siwe.prepare_message()
 
         private_key = account.key
@@ -111,7 +111,7 @@ class AccountTestCase(TestCase):
         self.assertEqual(created_account.address, account.address.lower())
 
     def test_create_account_with_www_domain(self):
-        siwe = SiweMessage(self.siwe_data_pay)
+        siwe = SiweMessage(**self.siwe_data_pay)
         data_to_sign = siwe.prepare_message()
         data_to_sign = siwe.prepare_message()
 
