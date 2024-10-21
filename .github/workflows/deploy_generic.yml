@@ -40,6 +40,7 @@ jobs:
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
+          CLOUDFLARE_API_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v1
       - name: Deploy Review
@@ -54,6 +55,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
 
   deploy_confirm:
     name: Review Approval Pending
@@ -90,6 +92,7 @@ jobs:
           AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
+          CLOUDFLARE_API_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v1
       - name: Deploy Review
@@ -103,3 +106,4 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
