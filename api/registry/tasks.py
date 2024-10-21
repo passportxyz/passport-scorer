@@ -3,6 +3,8 @@ from django.conf import settings
 
 import api_logging as logging
 from account.models import AccountAPIKeyAnalytics
+from asgiref.sync import async_to_sync
+from django.conf import settings
 from registry.models import Passport, Score
 
 from .atasks import ascore_passport, sensitive_headers_data

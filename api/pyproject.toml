@@ -4,10 +4,9 @@ version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
 readme = "README.md"
-package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.11"
 django = "==4.2.6"
 markdown = "*"
 django-extensions = "*"
@@ -46,8 +45,6 @@ django-ace = "*"
 async-timeout = "*"
 aiohttp = "*"
 pyarrow = "^17.0.0"
-redis = "^5.1.1"
-multiformats = "^0.3.1.post4"
 
 
 [tool.poetry.group.dev.dependencies]
