@@ -1481,7 +1481,7 @@ if (stack === "production") {
     );
     return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
       createScheduledTask({
-        name: "frequent-allo-scorer-data-dump-cgrants",
+        name: "frequent-allo-scorer-data-dump-grants",
         config: {
           ...baseScorerServiceConfig,
           securityGroup: secgrp,
@@ -1650,7 +1650,7 @@ const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorerDigitalOcean = pulum
     );
     return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
       createScheduledTask({
-        name: "frequent-eth-model-v2-dump-cgrants",
+        name: "frequent-eth-model-v2-dump-grants",
         config: {
           ...baseScorerServiceConfig,
           securityGroup: secgrp,
