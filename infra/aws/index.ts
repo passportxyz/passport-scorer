@@ -1474,7 +1474,6 @@ if (stack === "production") {
   const frequentAlloScorerDataDumpTaskDefinitionDigitalOcean = pulumi
   .all([exportVals, apiSecrets])
   .apply(([_exportedVals, _apiSecrets]) => {
-    console.log("apiSecrets", _apiSecrets);
     const digitalOceanAccessKey =  _apiSecrets.find(secret => secret.name === "GRANTS_DIGITAL_OCEAN_ACCESS_KEY")?.valueFrom;
     const digitalOceanSecretAccessKey =  _apiSecrets.find(secret => secret.name === "GRANTS_DIGITAL_OCEAN_SECRET_ACCESS_KEY")?.valueFrom;
     const digitalOceanS3Endpoint = op.read.parse(
@@ -1482,7 +1481,7 @@ if (stack === "production") {
     );
     return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
       createScheduledTask({
-        name: "frequent-allo-scorer-data-dump-digital-cean",
+        name: "frequent-allo-scorer-data-dump-cgrants",
         config: {
           ...baseScorerServiceConfig,
           securityGroup: secgrp,
@@ -1651,7 +1650,7 @@ const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorerDigitalOcean = pulum
     );
     return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
       createScheduledTask({
-        name: "frequent-eth-model-v2-score-dump-digital-ocean",
+        name: "frequent-eth-model-v2-dump-cgrants",
         config: {
           ...baseScorerServiceConfig,
           securityGroup: secgrp,
@@ -1660,8 +1659,8 @@ const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorerDigitalOcean = pulum
             "manage.py",
             "scorer_dump_data_model_score",
             `--s3-uri=s3://${digitalOceanS3Endpoint}`,
-            `--s3_access_key=$GRANTS_DIGITAL_OCEAN_ACCESS_KEY`,
-            `--s3_secret_key=$GRANTS_DIGITAL_OCEAN_SECRET_ACCESS_KEY`,
+            `--s3-access-key=$GRANTS_DIGITAL_OCEAN_ACCESS_KEY`,
+            `--s3-secret-access-key=$GRANTS_DIGITAL_OCEAN_SECRET_ACCESS_KEY`,
             "--filename=model_scores.parquet",
             "--format=parquet",
           ].join(" "),
