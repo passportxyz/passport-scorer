@@ -321,7 +321,8 @@ async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community
     auth=common.history_endpoint["auth"],
     response=common.history_endpoint["response"],
     summary=common.history_endpoint["summary"],
-    description=common.history_endpoint["description"],
+    description="This endpoint has been deprecated in favor of the V2 version. Located here: https://api.scorer.gitcoin.co/v2/docs",
+    deprecated=True,
 )
 @track_apikey_usage(track_response=False)
 def get_score_history(

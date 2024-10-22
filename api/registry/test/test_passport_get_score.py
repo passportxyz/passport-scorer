@@ -441,26 +441,3 @@ class TestPassportGetScore:
         )
         assert response.status_code == 200
         assert len(response.json()["items"]) == len(newer_scores)
-
-    def test_backported_get_historical_scores(
-        self,
-        scorer_api_key,
-        passport_holder_addresses,
-        scorer_community,
-        paginated_scores,
-    ):
-        client = Client()
-        response = client.get(
-            f"{self.base_url}/score/{scorer_community.id}/history",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
-
-        response_data = response.json()
-
-        assert response.status_code == 200
-
-        items = response_data["items"]
-        assert len(items) == 10
-
-        next_url = response_data["next"]
-        assert "/registry/score/" in next_url

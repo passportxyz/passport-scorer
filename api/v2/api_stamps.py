@@ -101,9 +101,7 @@ def get_score_history(
     limit: int = 1000,
 ) -> CursorPaginatedHistoricalScoreResponse:
     service = "v2"
-    return common.history_endpoint["handler"](
-        request, scorer_id, address, created_at, token, limit, service
-    )
+    return common.history_endpoint["handler"](request, scorer_id, address, created_at)
 
 
 @api.get(
