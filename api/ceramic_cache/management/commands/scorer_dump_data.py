@@ -270,7 +270,7 @@ class Command(BaseCronJobCmd):
         config = options["config"]
         configured_models = json.loads(config)
         s3_uri = options["s3_uri"]
-        s3_endpoint = options.get("s3_endpoint")
+        s3_endpoint = options["s3_endpoint"]
         database = options["database"]
         summary_extra_args = json.loads(options["summary_extra_args"])
         cloudfront_distribution_id = options["cloudfront_distribution_id"]
@@ -278,6 +278,7 @@ class Command(BaseCronJobCmd):
         self.stdout.write(f"batch_size          : {batch_size}")
         self.stdout.write(f"config              : {config}")
         self.stdout.write(f"s3_uri              : {s3_uri}")
+        self.stdout.write(f"s3_endpoint              : {s3_endpoint}")
         self.stdout.write(f"database            : {database}")
         self.stdout.write(f"summary_extra_args  : {summary_extra_args}")
         self.stdout.write(f"cloudfront_distribution_id  : {cloudfront_distribution_id}")
