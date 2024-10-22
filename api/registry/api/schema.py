@@ -17,7 +17,7 @@ from pydantic import (
 )
 from typing_extensions import Self
 
-from registry.models import Event, Passport, Score
+from registry.models import Event, Score
 
 
 class SubmitPassportPayload(Schema):
@@ -96,6 +96,10 @@ class ActionEnum(str, Enum):
 class NoScoreResponse(Schema):
     address: str
     status: str
+
+
+class Passport(Schema):
+    address: str | None = None
 
 
 class DetailedScoreResponse(Schema):
