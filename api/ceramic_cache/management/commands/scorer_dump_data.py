@@ -242,7 +242,10 @@ class Command(BaseCronJobCmd):
             "--s3-uri", type=str, help="The S3 URI target location for the files"
         )
         parser.add_argument(
-            "--s3-endpoint", type=str, default="https://s3.us-west-2.amazonaws.com", help="The S3 endpoint"
+            "--s3-endpoint",
+            type=str,
+            default="https://s3.us-west-2.amazonaws.com",
+            help="The S3 endpoint",
         )
         parser.add_argument(
             "--database",
@@ -278,7 +281,7 @@ class Command(BaseCronJobCmd):
         self.stdout.write(f"batch_size          : {batch_size}")
         self.stdout.write(f"config              : {config}")
         self.stdout.write(f"s3_uri              : {s3_uri}")
-        self.stdout.write(f"s3_endpoint              : {s3_endpoint}")
+        self.stdout.write(f"s3_endpoint         : {s3_endpoint}")
         self.stdout.write(f"database            : {database}")
         self.stdout.write(f"summary_extra_args  : {summary_extra_args}")
         self.stdout.write(f"cloudfront_distribution_id  : {cloudfront_distribution_id}")
@@ -343,27 +346,35 @@ class Command(BaseCronJobCmd):
                     model_summary["finished_at"] = datetime.datetime.now().isoformat()
                     model_summary["s3_key"] = s3_key
                     model_summary["s3_bucket_name"] = s3_bucket_name
-                    
+
                     if cloudfront_distribution_id:
-                        client = boto3.client('cloudfront')
+                        client = boto3.client("cloudfront")
                         paths_to_invalidate = [f"/{s3_key}"]
-                        self.stdout.write(f"Create invalidation for {paths_to_invalidate} in the cloufront distribution {cloudfront_distribution_id}")
+                        self.stdout.write(
+                            f"Create invalidation for {paths_to_invalidate} in the cloufront distribution {cloudfront_distribution_id}"
+                        )
                         response = client.create_invalidation(
                             DistributionId=cloudfront_distribution_id,
                             InvalidationBatch={
-                                'Paths': {
-                                    'Quantity': len(paths_to_invalidate),
-                                    'Items': paths_to_invalidate
+                                "Paths": {
+                                    "Quantity": len(paths_to_invalidate),
+                                    "Items": paths_to_invalidate,
                                 },
-                                'CallerReference': str(datetime.datetime.utcnow().timestamp())  # Unique reference, using timestamp
-                            }
+                                "CallerReference": str(
+                                    datetime.datetime.utcnow().timestamp()
+                                ),  # Unique reference, using timestamp
+                            },
                         )
                         # Verify the response
-                        if response['ResponseMetadata']['HTTPStatusCode'] == 201:
-                            invalidation_id = response['Invalidation']['Id']
-                            self.stdout.write(f"Invalidation created successfully. Invalidation ID: {invalidation_id}\n")
+                        if response["ResponseMetadata"]["HTTPStatusCode"] == 201:
+                            invalidation_id = response["Invalidation"]["Id"]
+                            self.stdout.write(
+                                f"Invalidation created successfully. Invalidation ID: {invalidation_id}\n"
+                            )
                         else:
-                            self.stdout.write(f"Failed to create invalidation. HTTP Status Code: {response['ResponseMetadata']['HTTPStatusCode']}\n")
+                            self.stdout.write(
+                                f"Failed to create invalidation. HTTP Status Code: {response['ResponseMetadata']['HTTPStatusCode']}\n"
+                            )
 
                     os.remove(file_name)
                 except Exception as e:
