@@ -1470,7 +1470,7 @@ const frequentAlloScorerDataDumpTaskDefinition = pulumi
   });
 
 // Only for production
-if (stack === "production") {
+if (stack === "review") {
   const frequentAlloScorerDataDumpTaskDefinitionDigitalOcean = pulumi
   .all([exportVals, apiSecrets])
   .apply(([_exportedVals, _apiSecrets]) => {
