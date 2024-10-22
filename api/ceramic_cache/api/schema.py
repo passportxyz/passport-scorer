@@ -10,13 +10,13 @@ from ..models import CeramicCache
 
 
 class CacheStampPayload(Schema):
-    address: Optional[str]
+    address: str | None = None
     provider: str
-    stamp: Any
+    stamp: Any | None = None
 
 
 class DeleteStampPayload(Schema):
-    address: Optional[str]
+    address: str | None = None
     provider: str
 
 
@@ -51,9 +51,9 @@ class AccessTokenResponse(Schema):
 
 
 class ComposeDBStatusPayload(Schema):
-    id: str
+    id: int
     compose_db_save_status: CeramicCache.ComposeDBSaveStatus
-    compose_db_stream_id: Optional[str]
+    compose_db_stream_id: Optional[str] = None
 
 
 class ComporeDBStatusResponse(Schema):

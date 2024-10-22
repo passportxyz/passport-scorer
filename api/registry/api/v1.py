@@ -1,9 +1,15 @@
 from typing import List, Optional
 from urllib.parse import urljoin
 
-import api_logging as logging
 import django_filters
 import requests
+from django.conf import settings
+from django.core.cache import cache
+from ninja import Router
+from ninja.pagination import paginate
+from ninja_extra.exceptions import APIException
+
+import api_logging as logging
 from account.api import UnauthorizedException, create_community_for_account
 
 # --- Deduplication Modules
@@ -14,11 +20,6 @@ from account.models import (
     Rules,
 )
 from ceramic_cache.models import CeramicCache
-from django.conf import settings
-from django.core.cache import cache
-from ninja import Router
-from ninja.pagination import paginate
-from ninja_extra.exceptions import APIException
 from registry.api import common
 from registry.api.schema import (
     CursorPaginatedHistoricalScoreResponse,
@@ -735,7 +736,7 @@ def stamp_display(request) -> List[StampDisplayResponse]:
     description="Get self and community GTC staking amounts based on address and round ID",
     deprecated=True,
 )
-def get_gtc_stake_legacy(request, address: str, round_id: str) -> GtcEventsResponse:
+def get_gtc_stake_legacy(request, address: str, round_id: int) -> GtcEventsResponse:
     """
     Get GTC stake amount by address and round ID (from legacy contract)
     """

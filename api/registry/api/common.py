@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 import api_logging as logging
@@ -206,6 +206,8 @@ def get_score_history(
                     score=score.data["score"],
                     status=Score.Status.DONE,
                     last_score_timestamp=score.created_at,
+                    expiration_date=datetime.fromisoformat(score.created_at)
+                    + timedelta(days=30),
                     evidence=score.data["evidence"],
                     # below aren't currently stored in the events table, but can be
                     error=None,

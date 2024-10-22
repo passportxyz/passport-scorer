@@ -1,6 +1,8 @@
 import json
 
 import pytest
+from django.conf import settings
+
 from aws_lambdas.scorer_api_passport.v1 import (
     score_GET,
     score_POST,
@@ -8,7 +10,6 @@ from aws_lambdas.scorer_api_passport.v1 import (
     weights_GET,
 )
 from ceramic_cache.models import CeramicCache
-from django.conf import settings
 from registry.models import Passport, Score
 from registry.utils import get_utc_time
 
@@ -33,7 +34,7 @@ def test_score_get(
         status=Score.Status.DONE,
         last_score_timestamp=get_utc_time(),
         error=None,
-        stamp_scores=[],
+        stamp_scores={},
         evidence={
             "rawScore": 10,
             "type": "binary",
