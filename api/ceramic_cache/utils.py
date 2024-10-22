@@ -1,16 +1,17 @@
 import base64
 import json
+from datetime import datetime, timezone
 from hashlib import sha256
 
-import api_logging as logging
 import dag_cbor
 import uvarint
 from ecdsa import NIST256p, VerifyingKey
 from jose import jwk, jws
-from multibase import decode
 from multiformats import CID
+from multiformats.multibase import decode
 from nacl.signing import VerifyKey
-from datetime import datetime, timezone
+
+import api_logging as logging
 
 log = logging.getLogger(__name__)
 
