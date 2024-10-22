@@ -7,7 +7,7 @@ readme = "README.md"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.12"
 django = "==4.2.6"
 markdown = "*"
 django-extensions = "*"
@@ -47,6 +47,7 @@ async-timeout = "*"
 aiohttp = "*"
 pyarrow = "^17.0.0"
 redis = "^5.1.1"
+multiformats = {extras = ["full"], version = "^0.3.1.post4"}
 
 
 [tool.poetry.group.dev.dependencies]
