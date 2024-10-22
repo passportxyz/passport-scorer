@@ -1470,7 +1470,7 @@ const frequentAlloScorerDataDumpTaskDefinition = pulumi
   });
 
 // Only for production
-if (stack === "review") {
+if (stack === "production") {
   const frequentAlloScorerDataDumpTaskDefinitionDigitalOcean = pulumi
   .all([exportVals, apiSecrets])
   .apply(([_exportedVals, _apiSecrets]) => {
@@ -1641,7 +1641,7 @@ const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer = pulumi
     });
   });
 
-if (stack === "review") {
+if (stack === "production") {
 const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorerDigitalOcean = pulumi
   .all([exportVals, apiSecrets])
   .apply(([_exportedVals, _apiSecrets]) => {
