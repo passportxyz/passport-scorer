@@ -96,6 +96,12 @@ class Command(BaseCommand):
             "--s3-uri", type=str, help="The S3 URI target location for the files"
         )
         parser.add_argument(
+            "--s3-endpoint",
+            type=str,
+            default="https://s3.us-west-2.amazonaws.com",
+            help="The S3 endpoint",
+        )
+        parser.add_argument(
             "--data-model",
             type=str,
             help="""The name of the prediction data model for which to export data.
@@ -109,8 +115,18 @@ For example:
         )
 
         parser.add_argument("--filename", type=str, help="The output filename")
-        parser.add_argument("--s3-access-key", type=str, default="", help="The S3 access key for dedicated S3 download (like digital ocean)")
-        parser.add_argument("--s3-secret-access-key", type=str, default="", help="The S3 secret access key for dedicated S3 download (like digital ocean)")
+        parser.add_argument(
+            "--s3-access-key",
+            type=str,
+            default="",
+            help="The S3 access key for dedicated S3 download (like digital ocean)",
+        )
+        parser.add_argument(
+            "--s3-secret-access-key",
+            type=str,
+            default="",
+            help="The S3 secret access key for dedicated S3 download (like digital ocean)",
+        )
         parser.add_argument(
             "--s3-extra-args",
             type=str,
@@ -130,10 +146,10 @@ For example:
             help="The CloudFront distribution id to create invalidation for the uploaded files",
         )
 
-
     def handle(self, *args, **options):
         batch_size = options["batch_size"]
         s3_uri = options["s3_uri"]
+        s3_endpoint = options["s3_endpoint"]
         filename = options["filename"]
         s3_access_key = options["s3_access_key"]
         s3_secret_access_key = options["s3_secret_access_key"]
@@ -150,11 +166,9 @@ For example:
         )
 
         self.stdout.write(f"EXPORT - s3_uri      : '{s3_uri}'")
+        self.stdout.write(f"EXPORT - s3_endpoint : '{s3_endpoint}'")
         self.stdout.write(f"EXPORT - batch_size  : '{batch_size}'")
         self.stdout.write(f"EXPORT - filename    : '{filename}'")
-
-
-        self.stdout.write(f"EXPORT - DEBUG LARISA : acc_key : '{s3_access_key}', s3_secret_access_key: '{s3_secret_access_key}'")
 
         parsed_uri = urlparse(s3_uri)
         s3_bucket_name = parsed_uri.netloc
@@ -179,16 +193,23 @@ For example:
             )
 
             if s3_access_key and s3_secret_access_key:
-                aws_override_credentials = AWSOverrideCredentials(
+                s3 = boto3.client(
+                    "s3",
                     aws_access_key_id=s3_access_key,
                     aws_secret_access_key=s3_secret_access_key,
-                    aws_endpoint_url="",
-                )
-                upload_to_s3(
-                    filename, s3_folder, s3_bucket_name, extra_args, aws_override_credentials
+                    endpoint_url=s3_endpoint,
                 )
             else:
-                upload_to_s3(filename, s3_folder, s3_bucket_name, extra_args)
+                # Use default credentials
+                s3 = boto3.client("s3", endpoint_url=s3_endpoint)
+
+            s3_key = f"{s3_folder}/{filename}"
+            s3.upload_file(
+                filename,
+                s3_bucket_name,
+                s3_key,
+                ExtraArgs=extra_args,
+            )
 
             if cloudfront_distribution_id:
                 client = boto3.client("cloudfront")

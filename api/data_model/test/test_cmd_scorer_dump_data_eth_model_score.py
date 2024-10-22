@@ -91,9 +91,8 @@ class TestGetStamps:
                 updated_at=timestamp,
             )
 
-        s3_upload_mock = mocker.patch(
-            "data_model.management.commands.scorer_dump_data_model_score.upload_to_s3"
-        )
+        s3_client_mock = mocker.patch("boto3.client")
+        s3_upload_mock = s3_client_mock.return_value.upload_file
         call_command(
             "scorer_dump_data_model_score",
             *[],
@@ -172,9 +171,8 @@ class TestGetStamps:
                 updated_at=timestamp,
             )
 
-        s3_upload_mock = mocker.patch(
-            "data_model.management.commands.scorer_dump_data_model_score.upload_to_s3"
-        )
+        s3_client_mock = mocker.patch("boto3.client")
+        s3_upload_mock = s3_client_mock.return_value.upload_file
         call_command(
             "scorer_dump_data_model_score",
             *[],
@@ -274,9 +272,8 @@ class TestGetStamps:
                     )
                 )
             )
-        s3_upload_mock = mocker.patch(
-            "data_model.management.commands.scorer_dump_data_model_score.upload_to_s3"
-        )
+        s3_client_mock = mocker.patch("boto3.client")
+        s3_upload_mock = s3_client_mock.return_value.upload_file
         call_command(
             "scorer_dump_data_model_score",
             *[],

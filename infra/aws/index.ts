@@ -1470,7 +1470,7 @@ const frequentAlloScorerDataDumpTaskDefinition = pulumi
   });
 
 // Only for production
-if (stack === "production") {
+if (stack === "review") {
   const frequentAlloScorerDataDumpTaskDefinitionDigitalOcean = pulumi
   .all([exportVals, apiSecrets])
   .apply(([_exportedVals, _apiSecrets]) => {
@@ -1479,6 +1479,7 @@ if (stack === "production") {
     const digitalOceanS3Endpoint = op.read.parse(
       `op://DevOps/passport-scorer-${stack}-env/api/GRANTS_DIGITAL_OCEAN_S3_ENDPOINT`
     );
+    const digitalOceanS3Bucket = op.read.parse(`op://DevOps/passport-scorer-${stack}-env/api/GRANTS_DIGITAL_OCEAN_S3_BUCKET`);
     return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
       createScheduledTask({
         name: "frequent-allo-scorer-data-dump-grants",
@@ -1501,7 +1502,8 @@ if (stack === "production") {
                 },
               ]) +
               "'",
-            `--s3-uri=s3://${digitalOceanS3Endpoint}`,
+            `--s3-uri=s3://${digitalOceanS3Bucket}`,
+            `--s3-endpoint=https://${digitalOceanS3Endpoint}`,
           ].join(" "),
           scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
           alertTopic: pagerdutyTopic,
@@ -1639,7 +1641,7 @@ const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer = pulumi
     });
   });
 
-if (stack === "production") {
+if (stack === "review") {
 const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorerDigitalOcean = pulumi
   .all([exportVals, apiSecrets])
   .apply(([_exportedVals, _apiSecrets]) => {
@@ -1648,6 +1650,7 @@ const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorerDigitalOcean = pulum
     const digitalOceanS3Endpoint = op.read.parse(
       `op://DevOps/passport-scorer-${stack}-env/api/GRANTS_DIGITAL_OCEAN_S3_ENDPOINT`
     );
+    const digitalOceanS3Bucket = op.read.parse(`op://DevOps/passport-scorer-${stack}-env/api/GRANTS_DIGITAL_OCEAN_S3_BUCKET`);
     return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
       createScheduledTask({
         name: "frequent-eth-model-v2-dump-grants",
@@ -1658,9 +1661,10 @@ const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorerDigitalOcean = pulum
             "python",
             "manage.py",
             "scorer_dump_data_model_score",
-            `--s3-uri=s3://${digitalOceanS3Endpoint}`,
-            `--s3-access-key=$GRANTS_DIGITAL_OCEAN_ACCESS_KEY`,
-            `--s3-secret-access-key=$GRANTS_DIGITAL_OCEAN_SECRET_ACCESS_KEY`,
+            `--s3-uri=s3://${digitalOceanS3Bucket}`,
+            `--s3-endpoint=https://${digitalOceanS3Endpoint}`,
+            `--s3-access-key=$GRANTS_DIGITAL_OCEAN_ACCESS_KEY`, // Those are defined in the secrets
+            `--s3-secret-access-key=$GRANTS_DIGITAL_OCEAN_SECRET_ACCESS_KEY`, // Those are defined in the secrets
             "--filename=model_scores.parquet",
             "--format=parquet",
           ].join(" "),
