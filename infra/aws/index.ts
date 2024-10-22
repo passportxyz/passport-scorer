@@ -1511,10 +1511,10 @@ if (stack === "production") {
         environment:apiEnvironment,
         
         secrets: _apiSecrets.map(secret => {
-          if (secret.name === "S3_DATA_AWS_SECRET_ACCESS_KEY") {
+          if (secret.name === "S3_DATA_AWS_SECRET_KEY_ID") {
             return { ...secret, valueFrom: digitalOceanAccessKey}; // Replace for data dump with digital ocean credentials
           }
-          if (secret.name === "S3_DATA_AWS_SECRET_KEY_ID") {
+          if (secret.name === "S3_DATA_AWS_SECRET_ACCESS_KEY") {
             return { ...secret, valueFrom: digitalOceanSecretAccessKey }; // Replace  for data dump with digital ocean credentials
           }
           return secret;
