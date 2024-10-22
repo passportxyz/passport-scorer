@@ -12,9 +12,10 @@ from ninja import Schema
 from pydantic import (
     ConfigDict,
     Field,
-    computed_field,
     field_validator,
+    model_validator,
 )
+from typing_extensions import Self
 
 from registry.models import Event, Passport, Score
 
@@ -22,9 +23,14 @@ from registry.models import Event, Passport, Score
 class SubmitPassportPayload(Schema):
     address: str
     community: str = "Deprecated"
-    scorer_id: str = ""
+    scorer_id: str | None = ""
     signature: str = ""
     nonce: str = ""
+
+    @field_validator("community", mode="before")
+    @classmethod
+    def validate_community(cls, v: Any):
+        return str(v)
 
 
 class ScoreEvidenceResponse(Schema):
@@ -33,8 +39,8 @@ class ScoreEvidenceResponse(Schema):
 
 
 class ThresholdScoreEvidenceResponse(ScoreEvidenceResponse):
-    rawScore: Decimal
-    threshold: Decimal
+    rawScore: float
+    threshold: float
 
 
 class StatusEnum(str, Enum):
@@ -63,7 +69,7 @@ class StampCredentialResponseMetadata(Schema):
 class StampCredentialResponse(Schema):
     version: str
     credential: dict
-    metadata: Optional[StampCredentialResponseMetadata]
+    metadata: Optional[StampCredentialResponseMetadata] = None
 
 
 class CursorPaginatedStampCredentialResponse(Schema):
@@ -94,22 +100,21 @@ class NoScoreResponse(Schema):
 
 class DetailedScoreResponse(Schema):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
+    address: str | None = None
     score: Optional[str | Decimal]
     status: Optional[StatusEnum]
     last_score_timestamp: Optional[str | datetime]
     expiration_date: Optional[str | datetime]
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
-    stamp_scores: Optional[Dict]
-    passport: Optional[Passport] = Field(exclude=True)
+    stamp_scores: Optional[Dict] = {}
+    passport: Optional[Passport] = Field(exclude=True, default=None)
 
-    @computed_field
-    @property
-    def address(self) -> str:
-        if self.passport:
-            return self.passport.address
-        return " - no passport or address - "
+    @model_validator(mode="after")
+    def check_address(self) -> Self:
+        if self.passport and self.address is None:
+            self.address = self.passport.address
+        return self
 
     @field_validator("last_score_timestamp", mode="before")
     @classmethod
@@ -123,20 +128,6 @@ class DetailedScoreResponse(Schema):
     def validate_expiration_date(cls, v: Any):
         if isinstance(v, datetime):
             return v.isoformat()
-        return v
-
-    @field_validator("expiration_date", mode="before")
-    @classmethod
-    def validate_expiration_date(cls, v: Any):
-        if isinstance(v, datetime):
-            return v.isoformat()
-        return v
-
-    @field_validator("stamp_scores", mode="before")
-    @classmethod
-    def validate_expiration_date(cls, v: Any):
-        if not v:
-            return {}
         return v
 
 
@@ -216,6 +207,13 @@ class LegacyStakeSchema(Schema):
     staked: bool
     block_number: int
     tx_hash: str
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def validate_amount(cls, v: Any, values: Dict):
+        if isinstance(v, Decimal):
+            return str(v)
+        return v
 
 
 class GtcEventsResponse(Schema):

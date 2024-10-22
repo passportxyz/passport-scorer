@@ -641,7 +641,7 @@ def get_detailed_score_response_for_address(
 
     submit_passport_payload = SubmitPassportPayload(
         address=address,
-        scorer_id=scorer_id,
+        scorer_id=str(scorer_id),
     )
 
     score = async_to_sync(ahandle_submit_passport)(submit_passport_payload, account)

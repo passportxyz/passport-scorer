@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 import pytest
 from django.conf import settings

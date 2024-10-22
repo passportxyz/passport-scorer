@@ -44,8 +44,8 @@ class TestBulkStampUpdates:
             "evidence": {
                 "type": "ThresholdScoreCheck",
                 "success": False,
-                "rawScore": "0",
-                "threshold": "20.00000",
+                "rawScore": 0.0,
+                "threshold": 20.00000,
             },
             "error": None,
             "stamp_scores": {},
@@ -67,7 +67,7 @@ class TestBulkStampUpdates:
             last_score_timestamp=past_expiration_date,
             expiration_date=future_expiration_date,
             error=None,
-            stamp_scores=[],
+            stamp_scores={},
             evidence={
                 "rawScore": "10",
                 "type": "binary",
@@ -83,7 +83,7 @@ class TestBulkStampUpdates:
             last_score_timestamp=future_expiration_date.isoformat(),
             expiration_date=future_expiration_date.isoformat(),
             error=None,
-            stamp_scores=[],
+            stamp_scores={},
             evidence={
                 "rawScore": "7",
                 "type": "binary",
@@ -112,9 +112,9 @@ class TestBulkStampUpdates:
             "address": "0xc79bfbf4e4824cdb65c71f2eeb2d7f2db5da1fb8",
             "error": None,
             "evidence": {
-                "rawScore": "10",
+                "rawScore": 10.0,
                 "success": True,
-                "threshold": "5",
+                "threshold": 5.0,
                 "type": "binary",
             },
             "expiration_date": score.expiration_date.isoformat(),
@@ -142,10 +142,10 @@ class TestBulkStampUpdates:
             error=None,
             stamp_scores={},
             evidence={
-                "rawScore": "10",
+                "rawScore": 10.0,
                 "type": "binary",
                 "success": True,
-                "threshold": "5",
+                "threshold": 5.0,
             },
         )
 
@@ -158,10 +158,10 @@ class TestBulkStampUpdates:
             error=None,
             stamp_scores={},
             evidence={
-                "rawScore": "7",
+                "rawScore": 7.0,
                 "type": "binary",
                 "success": True,
-                "threshold": "5",
+                "threshold": 5.0,
             },
         )
 

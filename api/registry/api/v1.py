@@ -713,7 +713,7 @@ def stamp_display(request) -> List[StampDisplayResponse]:
     description="Get self and community GTC staking amounts based on address and round ID",
     deprecated=True,
 )
-def get_gtc_stake_legacy(request, address: str, round_id: str) -> GtcEventsResponse:
+def get_gtc_stake_legacy(request, address: str, round_id: int) -> GtcEventsResponse:
     """
     Get GTC stake amount by address and round ID (from legacy contract)
     """
