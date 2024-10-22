@@ -43,12 +43,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install pipenv
-        run: pip3 install pipenv
+      - name: Install poetry
+        run: |
+          pip3 install pipx
+          pipx ensurepath
+          pipx install poetry
 
       - name: Generate requirements.txt
         working-directory: ./api
-        run: pipenv requirements --dev > requirements.txt
+        run: poetry export -f requirements.txt -o requirements.txt
 
       - name: Install API dependencies
         working-directory: ./api
