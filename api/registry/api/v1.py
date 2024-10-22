@@ -349,7 +349,7 @@ def get_score_history(
     summary="Retrieve a Passport score for one address",
     description=f"""Use this endpoint to fetch the score for a specific address that is associated with a scorer\n
 This endpoint will return a `DetailedScoreResponse`. This endpoint will also return the status of the asynchronous operation that was initiated with a request to the `/submit-passport` API.\n
-{SCORE_TIMESTAMP_FIELD_DESCRIPTION}. This endpoint requires special permissions. Please contact us if you need access to this endpoint.\n
+{SCORE_TIMESTAMP_FIELD_DESCRIPTION}
 """,
 )
 @track_apikey_usage(track_response=False)

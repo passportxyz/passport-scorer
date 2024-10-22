@@ -86,7 +86,7 @@ def get_score_history(
             )
             return response
 
-        # Scenario 2 - Snapshot for 1 addresses and timestamp
+        # Scenario 2 - Snapshot for 1 address and timestamp
         # the user has passed in the created_at and address
         # In this case only 1 result will be returned
         if address and created_at:
