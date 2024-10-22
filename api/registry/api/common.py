@@ -33,6 +33,7 @@ def get_score_history(
     created_at: str = "",
     token: str = None,
     limit: int = 1000,
+    service: str = "registry",
 ) -> CursorPaginatedHistoricalScoreResponse:
     if not request.api_key.historical_endpoint:
         raise InvalidAPIKeyPermissions()
@@ -60,34 +61,8 @@ def get_score_history(
         else:
             created_at = None
 
-        # Scenario 2 - Snapshot for 1 addresses
-        # the user has passed in the address, but no created_at
-        # In this case only 1 result will be returned
-        if address and not created_at:
-            scores = base_query.filter(address=address).order_by("-created_at")
-
-            score_response = []
-            for score in scores:
-                score_data = DetailedScoreResponse(
-                    address=score.address,
-                    score=score.data["score"],
-                    status=Score.Status.DONE,
-                    last_score_timestamp=score.created_at.isoformat(),
-                    evidence=score.data["evidence"],
-                    # below aren't currently stored in the events table, but can be
-                    error=None,
-                    stamp_scores=None,
-                )
-
-                score_response.append(score_data)
-
-            response = CursorPaginatedHistoricalScoreResponse(
-                next=None, prev=None, items=score_response
-            )
-            return response
-
-        # Scenario 2 - Snapshot for 1 address and timestamp
-        # the user has passed in the created_at and address
+        # Snapshot for 1 address and timestamp
+        # the user has passed in the created_at
         # In this case only 1 result will be returned
         if address and created_at:
             score = (
@@ -119,61 +94,7 @@ def get_score_history(
             )
             return response
 
-        # Scenario 3 - Snapshot for all addresses
-        # the user has passed in the created_at, but no address
-        elif created_at:
-            pagination_sort_fields = ["address"]
-            filter_condition, field_ordering = get_cursor_query_condition(
-                cursor, pagination_sort_fields
-            )
-
-            field_ordering.append("-created_at")
-            query = (
-                base_query.filter(filter_condition)
-                .order_by(*field_ordering)
-                .distinct("address")
-            )
-
-            scores = list(query[:limit])
-            for score in scores:
-                score.created_at = score.created_at.isoformat()
-
-            if cursor and cursor["d"] == "prev":
-                scores.reverse()
-
-            domain = request.build_absolute_uri("/")[:-1]
-
-            page_links = get_cursor_tokens_for_results(
-                query,
-                domain,
-                scores,
-                pagination_sort_fields,
-                limit,
-                [scorer_id],
-                endpoint,
-            )
-
-            score_response = []
-            for score in scores:
-                score_data = DetailedScoreResponse(
-                    address=score.address,
-                    score=score.data["score"],
-                    status=Score.Status.DONE,
-                    last_score_timestamp=score.created_at,
-                    evidence=score.data["evidence"],
-                    # below aren't currently stored in the events table, but can be
-                    error=None,
-                    stamp_scores=None,
-                )
-
-                score_response.append(score_data)
-
-            response = CursorPaginatedHistoricalScoreResponse(
-                next=page_links["next"], prev=page_links["prev"], items=score_response
-            )
-
-            return response
-        # # Scenario 4 - Just return history ...
+        # # Paginated History
         else:
             pagination_sort_fields = ["id"]
             filter_condition, field_ordering = get_cursor_query_condition(
@@ -181,11 +102,7 @@ def get_score_history(
             )
 
             field_ordering.insert(0, "address")
-            query = (
-                base_query.filter(filter_condition)
-                .order_by(*field_ordering)
-                .distinct("address")
-            )
+            query = base_query.filter(filter_condition).order_by(*field_ordering)
 
             scores = list(query[:limit])
             for score in scores:
@@ -202,8 +119,9 @@ def get_score_history(
                 scores,
                 pagination_sort_fields,
                 limit,
-                [scorer_id],
+                [scorer_id, address],
                 endpoint,
+                service,
             )
 
             score_response = []
