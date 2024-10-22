@@ -22,6 +22,7 @@ from registry.api.schema import (
 from registry.api.utils import (
     ApiKey,
     aapi_key,
+    atrack_apikey_usage,
     check_rate_limit,
     is_valid_address,
     track_apikey_usage,

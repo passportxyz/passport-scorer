@@ -202,7 +202,7 @@ def _(scorer_api_key, scorer_community_with_gitcoin_default, mocker):
     mocker.patch("registry.atasks.validate_credential", side_effect=[[], []])
 
     payload = {
-        "scorer_id": scorer_community_with_gitcoin_default.id,
+        "scorer_id": str(scorer_community_with_gitcoin_default.id),
         "address": scorer_community_with_gitcoin_default.account.address,
     }
 
