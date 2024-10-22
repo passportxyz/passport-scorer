@@ -4,6 +4,7 @@ from decimal import Decimal
 import pytest
 from django.conf import settings
 from django.test import Client
+
 from stake.models import Stake
 
 pytestmark = pytest.mark.django_db
@@ -78,7 +79,7 @@ class TestGetStakingResults:
             "staker": sample_address.lower(),
             "chain": 11155420,
             "amount": "100000000000000000000.000000000000000000",
-            "last_updated_in_block": "10000000",
+            "last_updated_in_block": 10000000,
             "lock_time": lock_time_0.isoformat(),
             "unlock_time": unlock_time_0.isoformat(),
             "stakee": sample_address.lower(),
@@ -87,7 +88,7 @@ class TestGetStakingResults:
             "staker": sample_address.lower(),
             "chain": 11155420,
             "amount": "200000000000000000000.000000000000000000",
-            "last_updated_in_block": "10000001",
+            "last_updated_in_block": 10000001,
             "lock_time": lock_time_1.isoformat(),
             "unlock_time": unlock_time_1.isoformat(),
             "stakee": other_user_address.lower(),
@@ -96,7 +97,7 @@ class TestGetStakingResults:
             "staker": other_user_address.lower(),
             "chain": 11155420,
             "amount": "350000000000000000000.000000000000000000",
-            "last_updated_in_block": "10000002",
+            "last_updated_in_block": 10000002,
             "lock_time": lock_time_2.isoformat(),
             "unlock_time": unlock_time_2.isoformat(),
             "stakee": sample_address.lower(),
@@ -105,7 +106,7 @@ class TestGetStakingResults:
             "staker": other_user_address.lower(),
             "chain": 1,
             "amount": "475000000000000000000.000000000000000000",
-            "last_updated_in_block": "10000002",
+            "last_updated_in_block": 10000002,
             "lock_time": lock_time_3.isoformat(),
             "unlock_time": unlock_time_3.isoformat(),
             "stakee": sample_address.lower(),
@@ -135,7 +136,7 @@ class TestGetStakingResults:
             "staker": sample_address.lower(),
             "chain": 11155420,
             "amount": "100000000000000000000.000000000000000000",
-            "last_updated_in_block": "10000000",
+            "last_updated_in_block": 10000000,
             "lock_time": lock_time_0.isoformat(),
             "unlock_time": unlock_time_0.isoformat(),
             "stakee": sample_address.lower(),
@@ -144,7 +145,7 @@ class TestGetStakingResults:
             "staker": sample_address.lower(),
             "chain": 11155420,
             "amount": "200000000000000000000.000000000000000000",
-            "last_updated_in_block": "10000001",
+            "last_updated_in_block": 10000001,
             "lock_time": lock_time_1.isoformat(),
             "unlock_time": unlock_time_1.isoformat(),
             "stakee": other_user_address.lower(),
@@ -153,7 +154,7 @@ class TestGetStakingResults:
             "staker": other_user_address.lower(),
             "chain": 11155420,
             "amount": "350000000000000000000.000000000000000000",
-            "last_updated_in_block": "10000002",
+            "last_updated_in_block": 10000002,
             "lock_time": lock_time_2.isoformat(),
             "unlock_time": unlock_time_2.isoformat(),
             "stakee": sample_address.lower(),
@@ -162,7 +163,7 @@ class TestGetStakingResults:
             "staker": other_user_address.lower(),
             "chain": 1,
             "amount": "475000000000000000000.000000000000000000",
-            "last_updated_in_block": "10000002",
+            "last_updated_in_block": 10000002,
             "lock_time": lock_time_3.isoformat(),
             "unlock_time": unlock_time_3.isoformat(),
             "stakee": sample_address.lower(),

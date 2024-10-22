@@ -19,6 +19,7 @@ from registry.api.schema import (
 from registry.api.utils import (
     ApiKey,
     aapi_key,
+    atrack_apikey_usage,
     check_rate_limit,
     is_valid_address,
     track_apikey_usage,
@@ -41,7 +42,6 @@ from registry.utils import (
 from v2.api import (
     api,
 )
-from decimal import Decimal
 
 METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 
@@ -63,7 +63,7 @@ A new score will be calculated based on the user's current Stamps.
 """,
     tags=["Stamp Analysis"],
 )
-# @atrack_apikey_usage(track_response=True)
+@atrack_apikey_usage(track_response=True)
 async def a_submit_passport(
     request, scorer_id: int, address: str
 ) -> DetailedScoreResponse:

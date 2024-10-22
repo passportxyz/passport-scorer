@@ -690,7 +690,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "address": self.account.address,
             "signature": self.signed_message.signature.hex(),
             "nonce": self.nonce,
-            "scorer_id": self.community.pk,
+            "scorer_id": str(self.community.pk),
         }
 
         response = self.client.post(
