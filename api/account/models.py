@@ -270,6 +270,7 @@ class AccountAPIKey(AbstractAPIKey):
     submit_passports = models.BooleanField(default=True)
     read_scores = models.BooleanField(default=True)
     create_scorers = models.BooleanField(default=False)
+    historical_endpoint = models.BooleanField(default=False)
 
     @admin.display(description="Rate Limit")
     def rate_limit_display(self):

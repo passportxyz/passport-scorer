@@ -11,7 +11,11 @@ from registry.api.schema import (
     ErrorMessageResponse,
 )
 from registry.api.utils import ApiKey, check_rate_limit, with_read_db
-from registry.exceptions import InvalidLimitException, api_get_object_or_404
+from registry.exceptions import (
+    InvalidAPIKeyPermissions,
+    InvalidLimitException,
+    api_get_object_or_404,
+)
 from registry.models import Event, Score
 from registry.utils import (
     decode_cursor,
@@ -30,6 +34,9 @@ def get_score_history(
     token: str = None,
     limit: int = 1000,
 ) -> CursorPaginatedHistoricalScoreResponse:
+    if not request.api_key.historical_endpoint:
+        raise InvalidAPIKeyPermissions()
+
     check_rate_limit(request)
 
     if limit > 1000:
@@ -246,6 +253,9 @@ The response will include a list of historical scores based on scorer ID and tim
 If a specific address is provided, then the list will be of max length 1.\n
 \n
 Note: results will be sorted descending by `["created_at", "id"]`
+\n
+\n
+To access this endpoint, you must submit your use case and be approved by the Passport team. To do so, please fill out the following form, making sure to provide a detailed description of your use case. The Passport team typically reviews and responds to form responses within 48 hours. <a href="https://forms.gle/4GyicBfhtHW29eEu8" target="_blank">https://forms.gle/4GyicBfhtHW29eEu8</a>
     """,
     "handler": get_score_history,
 }

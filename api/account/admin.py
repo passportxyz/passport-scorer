@@ -158,7 +158,13 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
 
 
 class APIKeyPermissionsAdmin(ScorerModelAdmin):
-    list_display = ("id", "submit_passports", "read_scores", "create_scorers")
+    list_display = (
+        "id",
+        "submit_passports",
+        "read_scores",
+        "create_scorers",
+        "historical_endpoint",
+    )
 
 
 svg_widget = AceWidget(
