@@ -242,6 +242,9 @@ class Command(BaseCronJobCmd):
             "--s3-uri", type=str, help="The S3 URI target location for the files"
         )
         parser.add_argument(
+            "--s3-endpoint", type=str, default="https://s3.us-west-2.amazonaws.com", help="The S3 endpoint"
+        )
+        parser.add_argument(
             "--database",
             default=DEFAULT_DB_ALIAS,
             help="Nominates a specific database to dump fixtures from. "
@@ -267,6 +270,7 @@ class Command(BaseCronJobCmd):
         config = options["config"]
         configured_models = json.loads(config)
         s3_uri = options["s3_uri"]
+        s3_endpoint = options.get("s3_endpoint")
         database = options["database"]
         summary_extra_args = json.loads(options["summary_extra_args"])
         cloudfront_distribution_id = options["cloudfront_distribution_id"]
@@ -281,6 +285,7 @@ class Command(BaseCronJobCmd):
 
         s3 = boto3.client(
             "s3",
+            endpoint_url=s3_endpoint,
             aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
             aws_secret_access_key=settings.S3_DATA_AWS_SECRET_ACCESS_KEY,
         )

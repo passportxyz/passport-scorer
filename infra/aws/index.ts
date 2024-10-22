@@ -1479,6 +1479,7 @@ if (stack === "production") {
     const digitalOceanS3Endpoint = op.read.parse(
       `op://DevOps/passport-scorer-${stack}-env/api/GRANTS_DIGITAL_OCEAN_S3_ENDPOINT`
     );
+    const digitalOceanS3Bucket = op.read.parse(`op://DevOps/passport-scorer-${stack}-env/api/GRANTS_DIGITAL_OCEAN_S3_BUCKET`);
     return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
       createScheduledTask({
         name: "frequent-allo-scorer-data-dump-grants",
@@ -1501,7 +1502,8 @@ if (stack === "production") {
                 },
               ]) +
               "'",
-            `--s3-uri=s3://${digitalOceanS3Endpoint}`,
+            `--s3-uri=s3://${digitalOceanS3Bucket}`,
+            `--s3-endpoint=${digitalOceanS3Endpoint}`,
           ].join(" "),
           scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
           alertTopic: pagerdutyTopic,
