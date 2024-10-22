@@ -23,6 +23,7 @@ from registry.api.schema import (
 from registry.api.utils import (
     ApiKey,
     aapi_key,
+    atrack_apikey_usage,
     check_rate_limit,
     is_valid_address,
     track_apikey_usage,
@@ -50,7 +51,6 @@ from registry.utils import (
 from v2.api import (
     api,
 )
-from decimal import Decimal
 
 METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 
@@ -71,7 +71,7 @@ log = logging.getLogger(__name__)
     description="""This is the primary endpoint that integrators should use. This endpoint will return the latest score and Stamp data for a single address.<br /><br /><a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
     tags=["Stamp API"],
 )
-# @atrack_apikey_usage(track_response=True)
+@atrack_apikey_usage(track_response=True)
 async def a_submit_passport(
     request, scorer_id: int, address: str
 ) -> DetailedScoreResponse:
