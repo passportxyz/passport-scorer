@@ -73,8 +73,10 @@ async def a_submit_passport(
             raise InvalidAPIKeyPermissions()
 
         return await ahandle_submit_passport(
-            SubmitPassportPayload(address=address, scorer_id=scorer_id), request.auth
+            SubmitPassportPayload(address=address, scorer_id=str(scorer_id)),
+            request.auth,
         )
+
     except APIException as e:
         raise e
     except Exception as e:

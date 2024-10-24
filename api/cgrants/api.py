@@ -3,9 +3,9 @@
 This file re-iplements the API endpoints from the original cgrants API: https://github.com/gitcoinco/web/blob/master/app/grants/views_api_vc.py
 
 """
+
 from enum import Enum
 
-import api_logging as logging
 from django.conf import settings
 from django.db.models import Count, Q, Sum
 from django.http import JsonResponse
@@ -13,6 +13,9 @@ from ninja.security import APIKeyHeader
 from ninja_extra import NinjaExtraAPI
 from ninja_schema import Schema
 from ninja_schema.orm.utils.converter import Decimal
+from pydantic import Field
+
+import api_logging as logging
 from registry.api.v1 import is_valid_address
 from registry.exceptions import InvalidAddressException
 
@@ -44,17 +47,17 @@ cg_api_key = CgrantsApiKey()
 
 
 class ContributorStatistics(Schema):
-    num_grants_contribute_to = int
-    num_rounds_contribute_to = int
-    total_contribution_amount = int
-    num_gr14_contributions = int
+    num_grants_contribute_to: int = Field()
+    num_rounds_contribute_to: int = Field()
+    total_contribution_amount: int = Field()
+    num_gr14_contributions: int = Field()
 
 
 class GranteeStatistics(Schema):
-    num_owned_grants = int
-    num_grant_contributors = int
-    num_grants_in_eco_and_cause_rounds = int
-    total_contribution_amount = int
+    num_owned_grants: int = Field()
+    num_grant_contributors: int = Field()
+    num_grants_in_eco_and_cause_rounds: int = Field()
+    total_contribution_amount: int = Field()
 
 
 class IdentifierType(Enum):

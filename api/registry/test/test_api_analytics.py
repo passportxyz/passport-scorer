@@ -45,7 +45,7 @@ def test_authentication_works_with_token(
     if method == "post":
         # Now we submit a duplicate hash, and expect deduplication to happen
         submission_test_payload = {
-            "community": scorer_community.id,
+            "community": str(scorer_community.id),
             "address": account.address,
         }
 
@@ -61,7 +61,8 @@ def test_authentication_works_with_token(
             path,
             HTTP_AUTHORIZATION="Token " + secret,
         )
-    # We should not get back any unauuthorized or forbidden errors
+
+    # We should not get back any unauthorized or forbidden errors
     assert response.status_code != 401
     assert response.status_code != 403
 
