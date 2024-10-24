@@ -2,13 +2,14 @@ import copy
 from datetime import datetime, timezone
 from typing import Dict
 
+from django.conf import settings
+from ninja_extra.exceptions import APIException
+
 import api_logging as logging
 from account.deduplication.lifo import alifo
 
 # --- Deduplication Modules
 from account.models import AccountAPIKeyAnalytics, Community, Rules
-from django.conf import settings
-from ninja_extra.exceptions import APIException
 from reader.passport_reader import aget_passport, get_did
 from registry.exceptions import NoPassportException
 from registry.models import Passport, Score, Stamp
@@ -39,6 +40,7 @@ async def asave_api_key_analytics(
     response,
     response_skipped,
     error,
+    status_code,
 ):
     try:
         if settings.FF_API_ANALYTICS == "on":
@@ -57,6 +59,7 @@ async def asave_api_key_analytics(
                 response=response,
                 response_skipped=response_skipped,
                 error=error,
+                status_code=status_code,
             )
 
     except Exception as e:

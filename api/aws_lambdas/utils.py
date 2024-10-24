@@ -310,6 +310,7 @@ def with_api_request_exception_handling(func):
                     response=response.get("body"),
                     response_skipped=False,
                     error=error_msg,
+                    status_code=response.get("statusCode"),
                 )
         except Exception as e:
             logger.exception(f"Failed to store analytics: {e}")
