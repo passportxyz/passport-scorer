@@ -53,10 +53,8 @@ def _handler_get_score(event, _context, request, user_account, body):
 
     score = async_to_sync(ahandle_submit_passport)(
         SubmitPassportPayload(
-            {
-                "scorer_id": scorer_id,
-                "address": address,
-            }
+            scorer_id=scorer_id,
+            address=address,
         ),
         user_account,
     )
