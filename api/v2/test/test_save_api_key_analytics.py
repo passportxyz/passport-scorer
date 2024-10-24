@@ -25,6 +25,7 @@ class TestSaveApiKeyAnalytics:
             {"response": "reponse content"},
             response_skipped=False,
             error="big problem",
+            status_code=200,
         )
 
         obj = AccountAPIKeyAnalytics.objects.get(path=path, api_key_id=model.pk)

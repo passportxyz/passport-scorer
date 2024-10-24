@@ -332,6 +332,9 @@ class AccountAPIKeyAnalytics(models.Model):
         db_index=True,
     )
     error = models.TextField(help_text="Error that occured", null=True, db_index=True)
+    status_code = models.IntegerField(
+        help_text="HTTP status code of the response", null=True, db_index=True
+    )
 
 
 def get_default_community_scorer():
