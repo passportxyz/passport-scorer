@@ -103,8 +103,6 @@ def test_successful_authentication(
     assert response is not None
     body = json.loads(response["body"])
 
-    print("===============")
-    print(body)
     assert body["address"] == address
     assert body["score"] == "0"
     assert body["status"] == "DONE"
@@ -257,7 +255,7 @@ def test_successful_authentication_and_analytics_logging(
             }
         },
         "httpMethod": "POST",
-        "path": "/registry/submit-passport",
+        "path": f"/v2/stamps/{scorer_community_with_binary_scorer.id}/score/{address}",
         "queryStringParameters": {"a": "b"},
         "headers": {
             "content-length": "73",
@@ -270,12 +268,7 @@ def test_successful_authentication_and_analytics_logging(
             "x-forwarded-port": "443",
             "x-forwarded-proto": "https",
         },
-        "body": json.dumps(
-            {
-                "address": address,
-                "community": scorer_community_with_binary_scorer.id,
-            }
-        ),
+        "body": "",
         "isBase64Encoded": False,
     }
 
@@ -287,11 +280,14 @@ def test_successful_authentication_and_analytics_logging(
     # Check for the proper analytics entry
     analytics_entry = AccountAPIKeyAnalytics.objects.order_by("-created_at")[0]
     assert analytics_entry.path == event["path"]
-    assert analytics_entry.path_segments == ["registry", "submit-passport"]
-    assert analytics_entry.payload == {
-        "address": address,
-        "community": scorer_community_with_binary_scorer.id,
-    }
+    assert analytics_entry.path_segments == [
+        "v2",
+        "stamps",
+        str(scorer_community_with_binary_scorer.id),
+        "score",
+        address,
+    ]
+    assert analytics_entry.payload == {}
     assert analytics_entry.query_params == {"a": "b"}
     assert analytics_entry.headers == {  # header without api key
         "content-length": "73",
@@ -331,7 +327,7 @@ def test_failed_authentication_and_analytics_logging(
             }
         },
         "httpMethod": "POST",
-        "path": "/registry/submit-passport",
+        "path": f"/v2/stamps/{scorer_community_with_binary_scorer.id}/score/{address}",
         "queryStringParameters": {"a": "b"},
         "headers": {
             "content-length": "73",
@@ -344,12 +340,7 @@ def test_failed_authentication_and_analytics_logging(
             "x-forwarded-port": "443",
             "x-forwarded-proto": "https",
         },
-        "body": json.dumps(
-            {
-                "address": address,
-                "community": scorer_community_with_binary_scorer.id,
-            }
-        ),
+        "body": "",
         "isBase64Encoded": False,
     }
 
@@ -390,7 +381,7 @@ def test_bad_scorer_id_and_analytics_logging(
             }
         },
         "httpMethod": "POST",
-        "path": "/registry/submit-passport",
+        "path": f"/v2/stamps/123123/score/{address}",
         "queryStringParameters": {"a": "b"},
         "headers": {
             "content-length": "73",
@@ -403,12 +394,7 @@ def test_bad_scorer_id_and_analytics_logging(
             "x-forwarded-port": "443",
             "x-forwarded-proto": "https",
         },
-        "body": json.dumps(
-            {
-                "address": address,
-                "community": 123123,
-            }
-        ),
+        "body": "",
         "isBase64Encoded": False,
     }
 
@@ -419,11 +405,8 @@ def test_bad_scorer_id_and_analytics_logging(
     # Check for the proper analytics entry
     analytics_entry = AccountAPIKeyAnalytics.objects.order_by("-created_at")[0]
     assert analytics_entry.path == event["path"]
-    assert analytics_entry.path_segments == ["registry", "submit-passport"]
-    assert analytics_entry.payload == {
-        "address": address,
-        "community": 123123,
-    }
+    assert analytics_entry.path_segments == ["v2", "stamps", "123123", "score", address]
+    assert analytics_entry.payload == {}
     assert analytics_entry.query_params == {"a": "b"}
     assert analytics_entry.headers == {  # header without api key
         "content-length": "73",
