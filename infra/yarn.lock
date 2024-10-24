@@ -497,7 +497,26 @@
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
   integrity sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==
 
-"@pulumi/aws@^6.0.2":
+"@pulumi/archive@^0.2.2":
+  version "0.2.2"
+  resolved "https://registry.yarnpkg.com/@pulumi/archive/-/archive-0.2.2.tgz#91af090c10ced5512edef76fbce4638a5ef2db8e"
+  integrity sha512-/3F+XwEGEvb5Fi6LN4k7rZ5Uio3AnDQglTGeIJ6CqyyLeyZ7lt0c2ALyyiftFDl4/97W6gIjjADCRqIRinbJqQ==
+  dependencies:
+    "@pulumi/pulumi" "^3.136.0"
+
+"@pulumi/aws@^5.35.0":
+  version "5.43.0"
+  resolved "https://registry.yarnpkg.com/@pulumi/aws/-/aws-5.43.0.tgz#673bbdd3e5547522ebc80fdcb29c6cb9b07b5dea"
+  integrity sha512-ZWI+QvEaFy27wUW8j8EVadgvl6u3926AAgpghflSPxF/9mG5XoDy0rqkRZOgO13ZJinC1qkQDzoMz0ACgmwTiw==
+  dependencies:
+    "@pulumi/pulumi" "^3.0.0"
+    aws-sdk "^2.0.0"
+    builtin-modules "3.0.0"
+    mime "^2.0.0"
+    read-package-tree "^5.2.1"
+    resolve "^1.7.1"
+
+"@pulumi/aws@^6.0.2", "@pulumi/aws@^6.45.0":
   version "6.51.1"
   resolved "https://registry.yarnpkg.com/@pulumi/aws/-/aws-6.51.1.tgz#070120cee76fd3b55d865868e658ac0db861391b"
   integrity sha512-rsOcRkt5/yDUs8e1QohowNEwM1OHf0eRyD/vp2n0w6TBoKZUzPpIwPic8LF3ysWfa2GmB2ylxQ+lSQ5813Ut0w==
@@ -567,7 +586,7 @@
     tmp "^0.2.1"
     upath "^1.1.0"
 
-"@pulumi/pulumi@^3.126.0", "@pulumi/pulumi@^3.136.0":
+"@pulumi/pulumi@^3.136.0":
   version "3.137.0"
   resolved "https://registry.yarnpkg.com/@pulumi/pulumi/-/pulumi-3.137.0.tgz#670636d20eb85880854a49623947d6ea23099742"
   integrity sha512-YgvcPKxuE3X1Yi93W2qZuM43nELT1FEvz7J5IK1hAJPo+v9m2oAh5Vag1lNDPjM0+y7WDfFe0ODI+2way3quRw==
@@ -1299,7 +1318,15 @@ indent-string@^4.0.0:
   resolved "https://registry.yarnpkg.com/indent-string/-/indent-string-4.0.0.tgz#624f8f4497d619b2d9768531d58f4122854d7251"
   integrity sha512-EdDDZu4A2OyIK7Lr/2zG+w5jmbuk1DVBnEwREQvBzspBJkCEbRa8GxU1lghYcaGJCnRWibjDXlq779X1/y5xwg==
 
-infra-libs@passportxyz/infra-libs#1.3.0:
+inflight@^1.0.4:
+  version "1.0.6"
+  resolved "https://registry.yarnpkg.com/inflight/-/inflight-1.0.6.tgz#49bd6331d7d02d0c09bc910a1075ba8165b56df9"
+  integrity sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==
+  dependencies:
+    once "^1.3.0"
+    wrappy "1"
+
+"infra-libs@passportxyz/infra-libs#semver:1.3.0":
   version "1.0.0"
   resolved "https://codeload.github.com/passportxyz/infra-libs/tar.gz/ec106f542b49a15a826639bef7bfbff0dc9da86b"
   dependencies:

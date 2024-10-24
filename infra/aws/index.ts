@@ -25,8 +25,7 @@ import * as op from "@1password/op-js";
 import { createVerifierService } from "./verifier";
 import { createS3InitiatedECSTask } from "../lib/scorer/s3_initiated_ecs_task";
 import { stack, defaultTags, StackType } from "../lib/tags";
-import { createV2Api } from "../lib/v2/index";
-
+import { createTestLambda } from "../lib/v2/test";
 //////////////////////////////////////////////////////////////
 // Loading environment variables
 //////////////////////////////////////////////////////////////
@@ -2137,28 +2136,8 @@ const coreAlbPassportXyz = new aws.lb.ListenerCertificate(
   {}
 );
 
-if (stack === "production") {
-  const coreAlbPassportXyzApi = new aws.lb.ListenerCertificate(
-    "core-alb-passport-xyz-api",
-    {
-      listenerArn: httpsListener.arn,
-      certificateArn: noStackPassportXyzCertificateArn,
-    },
-    {}
-  );
-}
-
-createV2Api({
-  httpsListener,
-  dockerLambdaImage: dockerGtcSubmitPassportLambdaImage,
-  ceramicCacheScorerId: CERAMIC_CACHE_SCORER_ID,
-  alarmConfigurations: alarmConfigurations,
-  httpLambdaRole: httpLambdaRole,
-  alb: alb,
-  httpRoleAttachments: httpRoleAttachments,
-  pagerdutyTopic: pagerdutyTopic,
-  privateSubnetSecurityGroup: privateSubnetSecurityGroup,
-  scorerSecret: scorerSecret,
-  vpcPrivateSubnetIds: vpcPrivateSubnetIds,
-  targetGroupRegistry: targetGroupRegistry,
+createTestLambda({
+  name: "test-lambda",
+  snsAlertsTopicArn: pagerdutyTopic.arn,
+  httpsListener: httpsListener,
 });
