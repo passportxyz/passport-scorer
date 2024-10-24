@@ -1,8 +1,9 @@
-import api_logging as logging
-from account.models import AccountAPIKeyAnalytics
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from django.conf import settings
+
+import api_logging as logging
+from account.models import AccountAPIKeyAnalytics
 from registry.models import Passport, Score
 
 from .atasks import ascore_passport, sensitive_headers_data
@@ -21,6 +22,7 @@ def save_api_key_analytics(
     response,
     response_skipped,
     error,
+    status_code,
 ):
     try:
         if settings.FF_API_ANALYTICS == "on":
@@ -39,6 +41,7 @@ def save_api_key_analytics(
                 response=response,
                 response_skipped=response_skipped,
                 error=error,
+                status_code=status_code,
             )
 
     except Exception as e:
