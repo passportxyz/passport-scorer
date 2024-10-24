@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
     tags=["Model Analysis"],
 )
 async def get_analysis(
-    request, address: str, model_list: str = ""
+    request, address: str, model: str = ""
 ) -> PassportAnalysisResponse:
     check_rate_limit(request)
-    return await handle_get_analysis(address, model_list)
+    return await handle_get_analysis(address, model)
