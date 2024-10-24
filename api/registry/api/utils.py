@@ -62,6 +62,7 @@ def atrack_apikey_usage(track_response=True, payload_param_name=None):
                     status_code = 429
                     error = e
                 else:
+                    status_code = 500
                     error = e
 
             try:
@@ -115,6 +116,7 @@ def track_apikey_usage(track_response=True, payload_param_name=None):
                     status_code = 429
                     error = e
                 else:
+                    status_code = 500
                     error = e
 
             try:
