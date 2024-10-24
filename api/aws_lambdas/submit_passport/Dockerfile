@@ -1,6 +1,6 @@
 
 # https://pipenv.pypa.io/en/latest/basics/#pipenv-and-docker-containers
-FROM --platform=linux/amd64 public.ecr.aws/lambda/python:3.11 AS base
+FROM --platform=linux/amd64 public.ecr.aws/lambda/python:3.12 AS base
 
 
 #########################################################
