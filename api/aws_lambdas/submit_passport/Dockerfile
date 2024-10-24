@@ -9,16 +9,19 @@ FROM --platform=linux/amd64 public.ecr.aws/lambda/python:3.11 AS base
 FROM base AS builder
 
 RUN  pip install --upgrade pip && \
-    pip install pipenv
+    pip install --user pipx && \
+    /root/.local/bin/pipx ensurepath && \
+    /root/.local/bin/pipx install poetry
 
 # Tell pipenv to create venv in the current directory
-ENV PIPENV_VENV_IN_PROJECT=1
+ENV POETRY_VIRTUALENVS_IN_PROJECT=1
 
-ADD Pipfile.lock /usr/src/
+ADD poetry.lock /usr/src/
+ADD pyproject.toml /usr/src/
 
 WORKDIR /usr/src
 
-RUN pipenv requirements > requirements.txt
+RUN poetry export -f requirements.txt -o requirements.txt
 
 #########################################################
 # Runtime
