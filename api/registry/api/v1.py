@@ -20,9 +20,7 @@ from account.models import (
     Rules,
 )
 from ceramic_cache.models import CeramicCache
-from registry.api import common
 from registry.api.schema import (
-    CursorPaginatedHistoricalScoreResponse,
     CursorPaginatedStampCredentialResponse,
     DetailedScoreResponse,
     ErrorMessageResponse,
@@ -314,28 +312,6 @@ async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community
                 exc_info=True,
             )
             raise NotFoundApiException("No scorer matches the given criteria.") from exc
-
-
-@router.get(
-    common.history_endpoint["url"],
-    auth=common.history_endpoint["auth"],
-    response=common.history_endpoint["response"],
-    summary=common.history_endpoint["summary"],
-    description="This endpoint has been deprecated in favor of the V2 version. Located here: https://api.scorer.gitcoin.co/v2/docs",
-    deprecated=True,
-)
-@track_apikey_usage(track_response=False)
-def get_score_history(
-    request,
-    scorer_id: int,
-    address: Optional[str] = None,
-    created_at: str = "",
-    token: str = None,
-    limit: int = 1000,
-) -> CursorPaginatedHistoricalScoreResponse:
-    return common.history_endpoint["handler"](
-        request, scorer_id, address, created_at, token, limit
-    )
 
 
 @router.get(
