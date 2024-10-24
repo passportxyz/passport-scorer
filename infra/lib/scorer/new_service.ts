@@ -47,7 +47,8 @@ export function createTargetGroup(
   return new TargetGroup(name, {
     tags: {
       ...defaultTags,
-      Name: name },
+      Name: name,
+    },
     port: 80,
     protocol: "HTTP",
     vpcId: vpcId,
@@ -317,7 +318,7 @@ export function createScorerECSService({
     const http4xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-Target-4XX-${name}`,
       {
-        tags: { ...defaultTags , Name: `HTTP-Target-4XX-${name}` },
+        tags: { ...defaultTags, Name: `HTTP-Target-4XX-${name}` },
         name: `HTTP-Target-4XX-${name}`,
         alarmActions: [config.alertTopic.arn],
         okActions: [config.alertTopic.arn],
@@ -370,7 +371,7 @@ export function createScorerECSService({
     const targetResponseTimeAlarm = new aws.cloudwatch.MetricAlarm(
       `TargetResponseTime-${name}`,
       {
-        tags: { ...defaultTags , Name: `TargetResponseTime-${name}` },
+        tags: { ...defaultTags, Name: `TargetResponseTime-${name}` },
         alarmActions: [config.alertTopic.arn],
         okActions: [config.alertTopic.arn],
         comparisonOperator: "GreaterThanThreshold",
@@ -405,7 +406,7 @@ export async function createScoreExportBucketAndDomain(
     website: {
       indexDocument: "registry_score.jsonl",
     },
-    tags: { ...defaultTags , Name: `s3-domain` },
+    tags: { ...defaultTags, Name: `s3-domain` },
   });
 
   new aws.s3.BucketPublicAccessBlock(
@@ -496,7 +497,7 @@ export async function createScoreExportBucketAndDomain(
   );
 
   const awsManagedCacheOptimisedPolicy = aws.cloudfront.getCachePolicy({
-    name: "Managed-CachingOptimized"
+    name: "Managed-CachingOptimized",
   });
   const cloudFront = new aws.cloudfront.Distribution(
     "publicExportCloudFront",
@@ -545,7 +546,7 @@ export async function createScoreExportBucketAndDomain(
         ), // Per AWS, ACM certificate must be in the us-east-1 region.
         sslSupportMethod: "sni-only",
       },
-      tags: { ...defaultTags, Name: "publicExportCloudFront"},
+      tags: { ...defaultTags, Name: "publicExportCloudFront" },
     },
     {}
   );
@@ -915,7 +916,6 @@ export function buildHttpLambdaFn(
     function: lambdaFunction.name,
     principal: "elasticloadbalancing.amazonaws.com",
     sourceArn: lambdaTargetGroup.arn,
-
   });
 
   const lambdaTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
@@ -923,7 +923,6 @@ export function buildHttpLambdaFn(
     {
       targetGroupArn: lambdaTargetGroup.arn,
       targetId: lambdaFunction.arn,
-
     },
     {
       dependsOn: [withLb],
@@ -981,7 +980,7 @@ export function buildHttpLambdaFn(
     const http5xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-Target-5XX-${name}`,
       {
-        tags: { ...defaultTags, Name:  `HTTP-Target-5XX-${name}` },
+        tags: { ...defaultTags, Name: `HTTP-Target-5XX-${name}` },
         name: `HTTP-Target-5XX-${name}`,
         alarmActions: [alertTopic.arn],
         okActions: [alertTopic.arn],
@@ -1032,7 +1031,7 @@ export function buildHttpLambdaFn(
     const http4xxTargetAlarm = new aws.cloudwatch.MetricAlarm(
       `HTTP-Target-4XX-${name}`,
       {
-        tags: { ...defaultTags, Name:  `HTTP-Target-4XX-${name}` },
+        tags: { ...defaultTags, Name: `HTTP-Target-4XX-${name}` },
         name: `HTTP-Target-4XX-${name}`,
         alarmActions: [alertTopic.arn],
         okActions: [alertTopic.arn],
@@ -1081,7 +1080,7 @@ export function buildHttpLambdaFn(
     const targetResponseTimeAlarm = new aws.cloudwatch.MetricAlarm(
       `TargetResponseTime-${name}`,
       {
-        tags: { ...defaultTags, Name:  `TargetResponseTime-${name}` },
+        tags: { ...defaultTags, Name: `TargetResponseTime-${name}` },
         alarmActions: [alertTopic.arn],
         okActions: [alertTopic.arn],
         comparisonOperator: "GreaterThanThreshold",
