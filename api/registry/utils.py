@@ -156,7 +156,14 @@ def get_utc_time():
 
 
 def get_cursor_tokens_for_results(
-    base_query, domain, scores, sort_fields, limit, http_query_args, endpoint
+    base_query,
+    domain,
+    scores,
+    sort_fields,
+    limit,
+    http_query_args,
+    endpoint,
+    service: str = "registry",
 ):
     prev_url = None
     next_url = None
@@ -185,18 +192,14 @@ def get_cursor_tokens_for_results(
         has_prev_scores = base_query.filter(prev_filter_cond).exists()
 
     next_url = (
-        f"""{domain}{reverse_lazy_with_query(
-            f"registry:{endpoint}",
-            args=http_query_args,
-            query_kwargs={"token": encode_cursor(**next_cursor), "limit": limit},
-        )}"""
+        f"""{domain}{reverse_lazy_with_query( f"{service}:{endpoint}", args=http_query_args, query_kwargs={"token": encode_cursor(**next_cursor), "limit": limit}, )}"""
         if has_more_scores
         else None
     )
 
     prev_url = (
         f"""{domain}{reverse_lazy_with_query(
-            f"registry:{endpoint}",
+            f"{service}:{endpoint}",
             args=http_query_args,
             query_kwargs={"token": encode_cursor(**prev_cursor), "limit": limit},
         )}"""
@@ -232,7 +235,7 @@ def get_cursor_query_condition(cursor, sort_fields):
     is_next = cursor["d"] == "next"
     filter_condition = Q()
 
-    if is_next:
+    if not is_next:
         for i in range(len(sort_fields)):
             condition_for_or = Q()
             for j in range(i + 1):
@@ -265,6 +268,6 @@ def get_cursor_query_condition(cursor, sort_fields):
 
             filter_condition |= condition_for_or
 
-    field_ordering = [f"{'-' if not is_next else ''}{field}" for field in sort_fields]
+    field_ordering = [f"{'-' if is_next else ''}{field}" for field in sort_fields]
 
     return (filter_condition, field_ordering)

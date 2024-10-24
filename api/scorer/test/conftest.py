@@ -69,6 +69,7 @@ def scorer_api_key(scorer_account):
         name="Token for user 1",
         rate_limit="3/30seconds",
         analysis_rate_limit="3/30seconds",
+        historical_endpoint=True,
     )
     return secret
 
@@ -80,6 +81,7 @@ def scorer_api_key_no_permissions(scorer_account):
         name="Token for user 1",
         rate_limit="3/30seconds",
         read_scores=False,
+        historical_endpoint=False,
     )
     return secret
 

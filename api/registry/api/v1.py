@@ -1,9 +1,15 @@
 from typing import List, Optional
 from urllib.parse import urljoin
 
-import api_logging as logging
 import django_filters
 import requests
+from django.conf import settings
+from django.core.cache import cache
+from ninja import Router
+from ninja.pagination import paginate
+from ninja_extra.exceptions import APIException
+
+import api_logging as logging
 from account.api import UnauthorizedException, create_community_for_account
 
 # --- Deduplication Modules
@@ -14,14 +20,7 @@ from account.models import (
     Rules,
 )
 from ceramic_cache.models import CeramicCache
-from django.conf import settings
-from django.core.cache import cache
-from ninja import Router
-from ninja.pagination import paginate
-from ninja_extra.exceptions import APIException
-from registry.api import common
 from registry.api.schema import (
-    CursorPaginatedHistoricalScoreResponse,
     CursorPaginatedStampCredentialResponse,
     DetailedScoreResponse,
     ErrorMessageResponse,
@@ -313,27 +312,6 @@ async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community
                 exc_info=True,
             )
             raise NotFoundApiException("No scorer matches the given criteria.") from exc
-
-
-@router.get(
-    common.history_endpoint["url"],
-    auth=common.history_endpoint["auth"],
-    response=common.history_endpoint["response"],
-    summary=common.history_endpoint["summary"],
-    description=common.history_endpoint["description"],
-)
-@track_apikey_usage(track_response=False)
-def get_score_history(
-    request,
-    scorer_id: int,
-    address: Optional[str] = None,
-    created_at: str = "",
-    token: str = None,
-    limit: int = 1000,
-) -> CursorPaginatedHistoricalScoreResponse:
-    return common.history_endpoint["handler"](
-        request, scorer_id, address, created_at, token, limit
-    )
 
 
 @router.get(
