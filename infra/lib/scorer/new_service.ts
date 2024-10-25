@@ -884,8 +884,9 @@ export function buildHttpLambdaFn(
   args: BuildLambdaFnBaseParams & {
     httpsListener: Output<Listener>;
     listenerPriority: number;
-    pathPatterns: string[];
-    httpRequestMethods?: string[];
+    httpListenerRulePaths?: Input<
+      Input<aws.types.input.lb.ListenerRuleCondition>[]
+    >;
   },
   loadBalancerAlarmThresholds: AlarmConfigurations
 ) {
@@ -894,8 +895,7 @@ export function buildHttpLambdaFn(
   const {
     httpsListener,
     listenerPriority,
-    pathPatterns,
-    httpRequestMethods,
+    httpListenerRulePaths,
     name,
     alertTopic,
     alb,
@@ -925,22 +925,6 @@ export function buildHttpLambdaFn(
     }
   );
 
-  const conditions: any = [
-    {
-      pathPattern: {
-        values: pathPatterns,
-      },
-    },
-  ];
-
-  if (httpRequestMethods) {
-    conditions.push({
-      httpRequestMethod: {
-        values: httpRequestMethods,
-      },
-    });
-  }
-
   const targetPassportRule = new ListenerRule(`lrule-lambda-${name}`, {
     tags: { ...defaultTags, Name: `lrule-lambda-${name}` },
     listenerArn: httpsListener.arn,
@@ -951,7 +935,7 @@ export function buildHttpLambdaFn(
         targetGroupArn: lambdaTargetGroup.arn,
       },
     ],
-    conditions,
+    conditions: httpListenerRulePaths || [],
   });
 
   if (alertTopic) {

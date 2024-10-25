@@ -83,22 +83,65 @@ export function createV2Api({
     alertTopic: pagerdutyTopic,
     alb: alb,
   };
-  // Manage Lamba services
+
   buildHttpLambdaFn(
     {
       ...lambdaSettings,
-      name: "v2-get-score",
-      memorySize: 1024,
-      dockerCmd: [
-        "aws_lambdas.submit_passport.submit_passport.handler_get_score",
+      name: "passport-v2-model-score",
+      memorySize: 256,
+      dockerCmd: ["v2.aws_lambdas.models_score_GET.handler"],
+      httpListenerRulePaths: [
+        {
+          hostHeader: {
+            values: ["*.passport.xyz"],
+          },
+        },
+        {
+          pathPattern: {
+            values: ["/v2/models/score/*"],
+          },
+        },
+        {
+          httpRequestMethod: {
+            values: ["GET"],
+          },
+        },
       ],
-      pathPatterns: ["/v2/stamps/*/score/*"],
-      listenerPriority: 2020,
+      listenerPriority: 2021,
     },
     alarmConfigurations
   );
-  const targetPassportRule = new ListenerRule(`lrule-v2`, {
-    tags: { ...defaultTags, Name: "lrule-v2" },
+
+  buildHttpLambdaFn(
+    {
+      ...lambdaSettings,
+      name: "passport-v2-stamp-score",
+      memorySize: 256,
+      dockerCmd: ["v2.aws_lambdas.stamp_score_GET.handler"],
+      httpListenerRulePaths: [
+        {
+          hostHeader: {
+            values: ["*.passport.xyz"],
+          },
+        },
+        {
+          pathPattern: {
+            values: ["/v2/stamps/*/score/*"],
+          },
+        },
+        {
+          httpRequestMethod: {
+            values: ["GET"],
+          },
+        },
+      ],
+      listenerPriority: 2022,
+    },
+    alarmConfigurations
+  );
+
+  const targetPassportRule = new ListenerRule(`passport-v2-lrule`, {
+    tags: { ...defaultTags, Name: "passport-v2-lrule" },
     listenerArn: httpsListener.arn,
     priority: 2060,
     actions: [
@@ -123,7 +166,7 @@ export function createV2Api({
   const targetOnlyPassportDomainRule = new ListenerRule(`lrule-no-gitcoin-v2`, {
     tags: { ...defaultTags, Name: `lrule-no-gitcoin-v2` },
     listenerArn: httpsListener.arn,
-    priority: 2100,
+    priority: 2000,
     actions: [
       {
         type: "fixed-response",
@@ -137,6 +180,11 @@ export function createV2Api({
       },
     ],
     conditions: [
+      {
+        hostHeader: {
+          values: ["*.gitcoin.co"],
+        },
+      },
       {
         pathPattern: {
           values: ["/v2/*"],
