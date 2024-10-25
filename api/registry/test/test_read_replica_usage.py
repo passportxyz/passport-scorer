@@ -1,9 +1,11 @@
 from unittest.mock import Mock, patch
 
 import pytest
+from django.test import Client
+
 import registry.api.v1
 from account.models import Community
-from django.test import Client
+from registry.models import Passport
 
 pytestmark = pytest.mark.django_db
 
@@ -18,9 +20,48 @@ class TestPassportGetScore:
             "registry.api.v1.ScoreFilter",
             return_value=Mock(
                 qs=[
-                    {"passport": "1", "address": "0x1"},
-                    {"passport": "2", "address": "0x2"},
-                    {"passport": "3", "address": "0x3"},
+                    {
+                        "passport": Passport(address="0x1"),
+                        "score": 0.1,
+                        "status": "PROCESSING",
+                        "last_score_timestamp": "2024-01-01",
+                        "expiration_date": "2024-01-01",
+                        "error": "none",
+                        "evidence": {
+                            "type": "sss",
+                            "success": True,
+                            "rawScore": 12.0,
+                            "threshold": 20.0,
+                        },
+                    },
+                    {
+                        "passport": Passport(address="0x2"),
+                        "score": 0.1,
+                        "status": "PROCESSING",
+                        "last_score_timestamp": "2024-01-01",
+                        "expiration_date": "2024-01-01",
+                        "error": "none",
+                        "evidence": {
+                            "type": "sss",
+                            "success": True,
+                            "rawScore": 12.0,
+                            "threshold": 20.0,
+                        },
+                    },
+                    {
+                        "passport": Passport(address="0x3"),
+                        "score": 0.1,
+                        "status": "PROCESSING",
+                        "last_score_timestamp": "2024-01-01",
+                        "expiration_date": "2024-01-01",
+                        "error": "none",
+                        "evidence": {
+                            "type": "sss",
+                            "success": True,
+                            "rawScore": 12.0,
+                            "threshold": 20.0,
+                        },
+                    },
                 ],
             ),
         ):
@@ -55,9 +96,48 @@ class TestPassportGetScore:
             "registry.api.v1.ScoreFilter",
             return_value=Mock(
                 qs=[
-                    {"passport": "1", "address": "0x1"},
-                    {"passport": "2", "address": "0x2"},
-                    {"passport": "3", "address": "0x3"},
+                    {
+                        "passport": Passport(address="0x1"),
+                        "score": 0.1,
+                        "status": "PROCESSING",
+                        "last_score_timestamp": "2024-01-01",
+                        "expiration_date": "2024-01-01",
+                        "error": "none",
+                        "evidence": {
+                            "type": "sss",
+                            "success": True,
+                            "rawScore": 12.0,
+                            "threshold": 20.0,
+                        },
+                    },
+                    {
+                        "passport": Passport(address="0x2"),
+                        "score": 0.1,
+                        "status": "PROCESSING",
+                        "last_score_timestamp": "2024-01-01",
+                        "expiration_date": "2024-01-01",
+                        "error": "none",
+                        "evidence": {
+                            "type": "sss",
+                            "success": True,
+                            "rawScore": 12.0,
+                            "threshold": 20.0,
+                        },
+                    },
+                    {
+                        "passport": Passport(address="0x3"),
+                        "score": 0.1,
+                        "status": "PROCESSING",
+                        "last_score_timestamp": "2024-01-01",
+                        "expiration_date": "2024-01-01",
+                        "error": "none",
+                        "evidence": {
+                            "type": "sss",
+                            "success": True,
+                            "rawScore": 12.0,
+                            "threshold": 20.0,
+                        },
+                    },
                 ],
             ),
         ):

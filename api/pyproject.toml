@@ -1,3 +1,73 @@
+[tool.poetry]
+name = "passport-api"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+django = "==4.2.6"
+markdown = "*"
+django-extensions = "*"
+didkit = "*"
+uvicorn = "*"
+gunicorn = "*"
+whitenoise = "*"
+pyyaml = "*"
+uritemplate = "*"
+django-cors-headers = "*"
+django-environ = "*"
+django-ninja = "*"
+django-ninja-jwt = "*"
+django-ninja-extra = "*"
+web3 = "*"
+siwe = "*"
+psycopg2-binary = "*"
+djangorestframework-api-key = "==2.*"
+requests = "*"
+social-auth-app-django = "*"
+dag-cbor = "*"
+django-ratelimit = "*"
+ninja_schema = "*"
+structlog = "*"
+django-structlog = "*"
+django-ipware = "*"
+django-debug-toolbar = "*"
+django-filter = "*"
+boto3 = "*"
+tqdm = "*"
+requests-toolbelt = "*"
+pynacl = "*"
+python-jose = "*"
+uvarint = "*"
+django-ace = "*"
+async-timeout = "*"
+aiohttp = "*"
+pyarrow = "^17.0.0"
+redis = "^5.1.1"
+multiformats = "^0.3.1.post4"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "*"
+pre-commit = "*"
+pylint = "*"
+pylint-django = "*"
+coverage = "*"
+pytest-django = "*"
+pytest-bdd = "*"
+pytest-mock = "*"
+django-stubs = "*"
+pandas = "*"
+faker = "*"
+freezegun = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.ruff.lint]
 fixable = ["ALL"]
 select = [

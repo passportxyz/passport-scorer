@@ -24,6 +24,7 @@ import * as op from "@1password/op-js";
 import { createVerifierService } from "./verifier";
 import { createS3InitiatedECSTask } from "../lib/scorer/s3_initiated_ecs_task";
 import { stack, defaultTags, StackType } from "../lib/tags";
+import { createV2Api } from "../lib/v2/index";
 
 //////////////////////////////////////////////////////////////
 // Loading environment variables
@@ -845,7 +846,14 @@ const scorerServiceRegistry = createScorerECSService({
   config: {
     ...baseScorerServiceConfig,
     listenerRulePriority: 3000,
-    httpListenerRulePaths: ["/registry/*", "/v2/*"],
+    httpListenerRulePaths: [
+      {
+        pathPattern: {
+          values: ["/registry/*"],
+        },
+      },
+    ],
+
     targetGroup: targetGroupRegistry,
     memory: ecsTaskConfigurations["scorer-api-reg"][stack].memory,
     cpu: ecsTaskConfigurations["scorer-api-reg"][stack].cpu,
@@ -1777,7 +1785,7 @@ buildHttpLambdaFn(
     name: "submit-passport-0",
     memorySize: 1024,
     dockerCmd: ["aws_lambdas.submit_passport.submit_passport.handler"],
-    pathPatterns: ["/registry/submit-passport", "/registry/v2/submit-passport"],
+    pathPatterns: ["/registry/submit-passport"],
     httpRequestMethods: ["POST"],
     listenerPriority: 1001,
   },
@@ -2091,3 +2099,18 @@ const coreAlbPassportXyz = new aws.lb.ListenerCertificate(
   },
   {}
 );
+
+createV2Api({
+  httpsListener,
+  dockerLambdaImage: dockerGtcSubmitPassportLambdaImage,
+  ceramicCacheScorerId: CERAMIC_CACHE_SCORER_ID,
+  alarmConfigurations: alarmConfigurations,
+  httpLambdaRole: httpLambdaRole,
+  alb: alb,
+  httpRoleAttachments: httpRoleAttachments,
+  pagerdutyTopic: pagerdutyTopic,
+  privateSubnetSecurityGroup: privateSubnetSecurityGroup,
+  scorerSecret: scorerSecret,
+  vpcPrivateSubnetIds: vpcPrivateSubnetIds,
+  targetGroupRegistry: targetGroupRegistry,
+});

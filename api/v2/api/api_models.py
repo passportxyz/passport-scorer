@@ -5,12 +5,13 @@ from passport.api import (
     handle_get_analysis,
 )
 from registry.api.utils import aapi_key, check_rate_limit
-from v2.api import api
+
+from .router import api_router
 
 log = logging.getLogger(__name__)
 
 
-@api.get(
+@api_router.get(
     "/models/score/{address}",
     auth=aapi_key,
     response={

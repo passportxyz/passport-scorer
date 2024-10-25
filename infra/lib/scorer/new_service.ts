@@ -28,7 +28,9 @@ export type ScorerService = {
   logGroup: LogGroup;
   subnets: Input<Input<string>[]>;
   httpListenerArn: Input<string>;
-  httpListenerRulePaths?: Input<Input<string>[]>;
+  httpListenerRulePaths?: Input<
+    Input<aws.types.input.lb.ListenerRuleCondition>[]
+  >;
   listenerRulePriority?: Input<number>;
   targetGroup: TargetGroup;
   autoScaleMaxCapacity?: number;
@@ -85,13 +87,7 @@ export function createScorerECSService({
           targetGroupArn: config.targetGroup.arn,
         },
       ],
-      conditions: [
-        {
-          pathPattern: {
-            values: config.httpListenerRulePaths,
-          },
-        },
-      ],
+      conditions: config.httpListenerRulePaths,
     });
   }
 

@@ -111,7 +111,7 @@ def test_successful_authentication(
             assert body["address"] == address
             assert body["score"] == "0"
             assert body["passing_score"] == False
-            assert body["threshold"] == "20.00000"
+            assert body["threshold"] == "20.0"
 
             assert body["error"] is None
             assert body["stamp_scores"] == {"Ens": "0.408", "Google": "0.525"}
@@ -153,7 +153,7 @@ def test_successful_authentication_and_base64_encoded_body(
             assert body["address"] == address
             assert body["score"] == "0"
             assert body["passing_score"] == False
-            assert body["threshold"] == "20.00000"
+            assert body["threshold"] == "20.0"
             assert body["error"] is None
             assert body["stamp_scores"] == {"Ens": "0.408", "Google": "0.525"}
             # We just check that something != None was recorded for the last timestamp

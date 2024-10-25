@@ -18,11 +18,18 @@ from registry.utils import (
     get_signing_message,
 )
 
+from .api_models import *
+from .api_stamps import *
+from .router import api_router
+
 api = NinjaExtraAPI(
     urls_namespace="v2",
     title="Passport API V2",
     description="Endpoints to retrieve Passport scores, Stamps, analysis, and metadata.",
 )
+
+
+api.add_router("", api_router)
 
 
 @api.exception_handler(Ratelimited)
@@ -32,7 +39,3 @@ def service_unavailable(request, _):
         {"detail": "You have been rate limited!"},
         status=429,
     )
-
-
-from .api_models import *
-from .api_stamps import *

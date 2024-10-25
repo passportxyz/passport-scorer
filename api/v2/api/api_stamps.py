@@ -11,7 +11,6 @@ import api_logging as logging
 from account.models import Community
 from ceramic_cache.models import CeramicCache
 from registry.api.schema import (
-    CursorPaginatedHistoricalScoreResponse,
     CursorPaginatedStampCredentialResponse,
     DetailedScoreResponse,
     ErrorMessageResponse,
@@ -46,18 +45,16 @@ from registry.utils import (
     encode_cursor,
     reverse_lazy_with_query,
 )
+from v2.schema import V2ScoreResponse
 
-from .api import (
-    api,
-)
-from .schema import V2ScoreResponse
+from .router import api_router
 
 METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 
 log = logging.getLogger(__name__)
 
 
-@api.get(
+@api_router.get(
     "/stamps/{int:scorer_id}/score/{str:address}",
     auth=aapi_key,
     response={
@@ -80,7 +77,8 @@ async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreRes
             raise InvalidAPIKeyPermissions()
 
         v1_score = await ahandle_submit_passport(
-            SubmitPassportPayload(address=address, scorer_id=scorer_id), request.auth
+            SubmitPassportPayload(address=address, scorer_id=str(scorer_id)),
+            request.auth,
         )
         threshold = v1_score.evidence.threshold if v1_score.evidence else "20"
         score = v1_score.evidence.rawScore if v1_score.evidence else v1_score.score
@@ -106,7 +104,7 @@ async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreRes
         raise InternalServerErrorException("Unexpected error while submitting passport")
 
 
-@api.get(
+@api_router.get(
     "/stamps/{int:scorer_id}/score/{str:address}/history",
     auth=ApiKey(),
     response={
@@ -149,7 +147,7 @@ def get_score_history(
             community__id=community.id, action=Event.Action.SCORE_UPDATE
         )
 
-        score = (
+        score_event = (
             base_query.filter(
                 address=address, created_at__lte=datetime.fromisoformat(created_at)
             )
@@ -157,17 +155,19 @@ def get_score_history(
             .first()
         )
 
-        if not score:
+        if not score_event:
             return NoScoreResponse(
                 address=address, status=f"No Score Found for {address} at {created_at}"
             )
 
+        # TODO: geri this is not correct, we need to review the return structure and value here
         return DetailedScoreResponse(
             address=address,
-            score=score.data["score"],
+            score=score_event.data["score"],
             status=Score.Status.DONE,
-            last_score_timestamp=score.created_at.isoformat(),
-            evidence=score.data["evidence"],
+            last_score_timestamp=score_event.data["created_at"],
+            expiration_date=score_event.data["expiration_date"],
+            evidence=score_event.data["evidence"],
             error=None,
             stamp_scores=None,
         )
@@ -181,7 +181,7 @@ def get_score_history(
         raise e
 
 
-@api.get(
+@api_router.get(
     "/stamps/metadata",
     summary="Receive all Stamps available in Passport",
     description="""**WARNING**: This endpoint is in beta and is subject to change.""",
@@ -198,7 +198,7 @@ def stamp_display(request) -> List[StampDisplayResponse]:
     return fetch_all_stamp_metadata()
 
 
-@api.get(
+@api_router.get(
     "/stamps/{str:address}",
     auth=ApiKey(),
     response={

@@ -63,34 +63,31 @@ def _(scorer_community_with_binary_scorer):
 @when("I choose to score a passport", target_fixture="scoreResponse")
 def score_response(scorer_community_with_binary_scorer, scorer_api_key):
     """I choose to score a passport."""
-    with patch("registry.tasks.score_passport_passport.delay"):
-        with patch("registry.atasks.aget_passport", return_value=mock_passport):
-            with patch("registry.atasks.validate_credential", side_effect=[[], []]):
-                client = Client()
-                submitResponse = client.post(
-                    "/registry/submit-passport",
-                    json.dumps(
-                        {
-                            "community": scorer_community_with_binary_scorer.id,
-                            "address": "0x71Ad3e3057Ca74967239C66ca6D3A9C2A43a58fC",
-                        }
-                    ),
-                    content_type="application/json",
-                    HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
-                )
+    with patch("registry.atasks.aget_passport", return_value=mock_passport):
+        with patch("registry.atasks.validate_credential", side_effect=[[], []]):
+            client = Client()
+            submitResponse = client.post(
+                "/registry/submit-passport",
+                json.dumps(
+                    {
+                        "community": scorer_community_with_binary_scorer.id,
+                        "address": "0x71Ad3e3057Ca74967239C66ca6D3A9C2A43a58fC",
+                    }
+                ),
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
+            )
 
-                response = submitResponse.json()
-                # read the score ...
-                assert response["status"] == "DONE"
-                assert (
-                    response["address"] == "0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc"
-                )
-                assert Decimal(response["score"]) == Decimal("1.000000000")
-                return client.get(
-                    f"/registry/score/{scorer_community_with_binary_scorer.id}/0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc",
-                    content_type="application/json",
-                    HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
-                )
+            response = submitResponse.json()
+            # read the score ...
+            assert response["status"] == "DONE"
+            assert response["address"] == "0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc"
+            assert Decimal(response["score"]) == Decimal("1.000000000")
+            return client.get(
+                f"/registry/score/{scorer_community_with_binary_scorer.id}/0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc",
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {scorer_api_key}",
+            )
 
 
 @then("the binary score should be returned")
@@ -122,7 +119,7 @@ def _(scoreResponse):
 def _(scoreResponse):
     """the threshold should be returned."""
     assert (
-        scoreResponse.json()["evidence"]["threshold"] == "0.90000"
+        scoreResponse.json()["evidence"]["threshold"] == 0.9
     )  # That is the mocked value
 
 
@@ -255,9 +252,9 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                         == mock_utc_timestamp.isoformat()
                     )
                     assert submit_response_data["evidence"] == {
-                        "rawScore": "90",
+                        "rawScore": 90.0,
                         "success": True,
-                        "threshold": "75.00000",
+                        "threshold": 75.0,
                         "type": "ThresholdScoreCheck",
                     }
                     assert submit_response_data["error"] is None
@@ -280,9 +277,9 @@ def _(scoreResponseFor1):
     assert score_response_data["status"] == "DONE"
     assert score_response_data["last_score_timestamp"] == mock_utc_timestamp.isoformat()
     assert score_response_data["evidence"] == {
-        "rawScore": "90",
+        "rawScore": 90.0,
         "success": True,
-        "threshold": "75.00000",
+        "threshold": 75.0,
         "type": "ThresholdScoreCheck",
     }
     assert score_response_data["error"] is None

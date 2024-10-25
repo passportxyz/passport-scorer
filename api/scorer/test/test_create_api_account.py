@@ -7,7 +7,6 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pytest
-from account.models import Account, Nonce
 from django.conf import settings
 from django.test import Client
 from eth_account.messages import encode_defunct
@@ -15,6 +14,8 @@ from pytest_bdd import given, scenario, then, when
 from siwe import SiweMessage
 from web3 import Web3
 from web3.auto import w3
+
+from account.models import Account, Nonce
 
 pytestmark = pytest.mark.django_db
 
@@ -69,7 +70,7 @@ def _():
     siwe_data_pay["chain_id"] = siwe_data_pay["chainId"]
     siwe_data_pay["issued_at"] = siwe_data_pay["issuedAt"]
 
-    siwe = SiweMessage(siwe_data_pay)
+    siwe = SiweMessage(**siwe_data_pay)
     data_to_sign = siwe.prepare_message()
 
     private_key = account.key
@@ -115,7 +116,7 @@ def test_invalid_nonce_useage():
     target_fixture="badNonceVerifyPayload",
 )
 def _(mocker):
-    """that I have an expired nonce""",
+    ("""that I have an expired nonce""",)
 
     account = web3.eth.account.from_mnemonic(
         my_mnemonic, account_path="m/44'/60'/0'/0/0"
@@ -149,7 +150,7 @@ def _(mocker):
     siwe_data_pay["chain_id"] = siwe_data_pay["chainId"]
     siwe_data_pay["issued_at"] = siwe_data_pay["issuedAt"]
 
-    siwe = SiweMessage(siwe_data_pay)
+    siwe = SiweMessage(**siwe_data_pay)
     data_to_sign = siwe.prepare_message()
 
     private_key = account.key

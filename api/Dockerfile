@@ -1,5 +1,5 @@
 # https://pipenv.pypa.io/en/latest/basics/#pipenv-and-docker-containers
-FROM --platform=linux/amd64 docker.io/python:3.11 AS base
+FROM --platform=linux/amd64 docker.io/python:3.12 AS base
 
 RUN apt update && \
     apt install -y python3-dev libpq-dev
@@ -11,12 +11,15 @@ RUN apt update && \
 FROM base AS builder
 
 RUN  pip install --upgrade pip && \
-    pip install --user pipenv
+    pip install --user pipx && \
+    /root/.local/bin/pipx ensurepath && \
+    /root/.local/bin/pipx install poetry
 
 # Tell pipenv to create venv in the current directory
-ENV PIPENV_VENV_IN_PROJECT=1
+ENV POETRY_VIRTUALENVS_IN_PROJECT=1
 
-ADD Pipfile.lock /usr/src/
+ADD poetry.lock /usr/src/
+ADD pyproject.toml /usr/src/
 
 WORKDIR /usr/src
 
@@ -26,10 +29,7 @@ WORKDIR /usr/src
 # you need to have pycurl build dependencies libcurl4-gnutls-dev and libcurl3-gnutls
 # In the runtime container you need only libcurl3-gnutls
 
-# RUN apt install -y libcurl3-gnutls libcurl4-gnutls-dev
-# RUN /root/.local/bin/pipenv lock
-
-RUN /root/.local/bin/pipenv sync
+RUN /root/.local/bin/poetry install
 RUN /usr/src/.venv/bin/python -c "import django; print(django.__version__)"
 
 
