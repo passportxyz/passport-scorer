@@ -1785,8 +1785,18 @@ buildHttpLambdaFn(
     name: "submit-passport-0",
     memorySize: 1024,
     dockerCmd: ["aws_lambdas.submit_passport.submit_passport.handler"],
-    pathPatterns: ["/registry/submit-passport"],
-    httpRequestMethods: ["POST"],
+    httpListenerRulePaths: [
+      {
+        pathPattern: {
+          values: ["/registry/submit-passport"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["POST"],
+        },
+      },
+    ],
     listenerPriority: 1001,
   },
   alarmConfigurations
@@ -1798,8 +1808,18 @@ buildHttpLambdaFn(
     name: "cc-v1-st-bulk-POST-0",
     memorySize: 512,
     dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
-    pathPatterns: ["/ceramic-cache/stamps/bulk"],
-    httpRequestMethods: ["POST"],
+    httpListenerRulePaths: [
+      {
+        pathPattern: {
+          values: ["/ceramic-cache/stamps/bulk"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["POST"],
+        },
+      },
+    ],
     listenerPriority: 1002,
   },
   alarmConfigurations
@@ -1811,8 +1831,18 @@ buildHttpLambdaFn(
     name: "cc-v1-st-bulk-PATCH-0",
     memorySize: 512,
     dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_PATCH.handler"],
-    pathPatterns: ["/ceramic-cache/stamps/bulk"],
-    httpRequestMethods: ["PATCH"],
+    httpListenerRulePaths: [
+      {
+        pathPattern: {
+          values: ["/ceramic-cache/stamps/bulk"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["PATCH"],
+        },
+      },
+    ],
     listenerPriority: 1003,
   },
   alarmConfigurations
@@ -1826,8 +1856,18 @@ buildHttpLambdaFn(
     dockerCmd: [
       "aws_lambdas.scorer_api_passport.v1.stamps.bulk_DELETE.handler",
     ],
-    pathPatterns: ["/ceramic-cache/stamps/bulk"],
-    httpRequestMethods: ["DELETE"],
+    httpListenerRulePaths: [
+      {
+        pathPattern: {
+          values: ["/ceramic-cache/stamps/bulk"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["DELETE"],
+        },
+      },
+    ],
     listenerPriority: 1004,
   },
   alarmConfigurations
@@ -1839,8 +1879,18 @@ buildHttpLambdaFn(
     name: "cc-auhenticate-0",
     memorySize: 512,
     dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
-    pathPatterns: ["/ceramic-cache/authenticate"],
-    httpRequestMethods: ["POST"],
+    httpListenerRulePaths: [
+      {
+        pathPattern: {
+          values: ["/ceramic-cache/authenticate"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["POST"],
+        },
+      },
+    ],
     listenerPriority: 1005,
   },
   alarmConfigurations
@@ -1852,8 +1902,18 @@ buildHttpLambdaFn(
     name: "cc-v1-score-POST-0",
     memorySize: 512,
     dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
-    pathPatterns: ["/ceramic-cache/score/*"],
-    httpRequestMethods: ["POST"],
+    httpListenerRulePaths: [
+      {
+        pathPattern: {
+          values: ["/ceramic-cache/score/*"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["POST"],
+        },
+      },
+    ],
     listenerPriority: 1006,
   },
   alarmConfigurations
@@ -1865,8 +1925,18 @@ buildHttpLambdaFn(
     name: "cc-v1-score-GET-0",
     memorySize: 512,
     dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
-    pathPatterns: ["/ceramic-cache/score/0x*"],
-    httpRequestMethods: ["GET"],
+    httpListenerRulePaths: [
+      {
+        pathPattern: {
+          values: ["/ceramic-cache/score/0x*"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["GET"],
+        },
+      },
+    ],
     listenerPriority: 1007,
   },
   alarmConfigurations
@@ -1878,8 +1948,18 @@ buildHttpLambdaFn(
     name: "cc-weights-GET-0",
     memorySize: 512,
     dockerCmd: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
-    pathPatterns: ["/ceramic-cache/weights"],
-    httpRequestMethods: ["GET"],
+    httpListenerRulePaths: [
+      {
+        pathPattern: {
+          values: ["/ceramic-cache/weights"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["GET"],
+        },
+      },
+    ],
     listenerPriority: 1015,
   },
   alarmConfigurations
@@ -1891,8 +1971,18 @@ buildHttpLambdaFn(
     name: "cc-v1-st-GET-0",
     memorySize: 512,
     dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamp_GET.handler"],
-    pathPatterns: ["/ceramic-cache/stamp"],
-    httpRequestMethods: ["GET"],
+    httpListenerRulePaths: [
+      {
+        pathPattern: {
+          values: ["/ceramic-cache/stamp"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["GET"],
+        },
+      },
+    ],
     listenerPriority: 1010,
   },
   alarmConfigurations
@@ -1904,35 +1994,19 @@ buildHttpLambdaFn(
     name: "passport-analysis-GET-0",
     memorySize: 256,
     dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],
-    pathPatterns: ["/passport/analysis/*"],
-    httpRequestMethods: ["GET"],
+    httpListenerRulePaths: [
+      {
+        pathPattern: {
+          values: ["/passport/analysis/*"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["GET"],
+        },
+      },
+    ],
     listenerPriority: 1012,
-  },
-  alarmConfigurations
-);
-
-buildHttpLambdaFn(
-  {
-    ...lambdaSettings,
-    name: "passport-v2-model-score",
-    memorySize: 256,
-    dockerCmd: ["v2.aws_lambdas.models_score_GET.handler"],
-    pathPatterns: ["/v2/models/score/*"],
-    httpRequestMethods: ["GET"],
-    listenerPriority: 1012,
-  },
-  alarmConfigurations
-);
-
-buildHttpLambdaFn(
-  {
-    ...lambdaSettings,
-    name: "passport-stamp-score-GET-0",
-    memorySize: 256,
-    dockerCmd: ["v2.aws_lambdas.stamp_score_GET.handler"],
-    pathPatterns: ["/v2/stamps/*/score/*"],
-    httpRequestMethods: ["GET"],
-    listenerPriority: 1013,
   },
   alarmConfigurations
 );
