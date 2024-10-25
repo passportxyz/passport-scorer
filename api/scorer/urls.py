@@ -49,6 +49,7 @@ urlpatterns = [
     path("trusta_labs/", include("trusta_labs.urls")),
     path("stake/", include("stake.urls")),
     path("passport/", include("passport.urls")),
+    path("internal/", include("internal.urls")),
 ]
 
 if settings.FF_V2_API == "on":
