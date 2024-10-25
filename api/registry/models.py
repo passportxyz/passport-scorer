@@ -1,5 +1,7 @@
+import json
 from enum import Enum
 
+from django.core import serializers
 from django.db import models
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
@@ -92,14 +94,18 @@ def score_updated(sender, instance, **kwargs):
     if instance.status != Score.Status.DONE:
         return instance
 
+    json_score = {}
+    try:
+        serialized_score = serializers.serialize("json", [instance])
+        json_score = json.loads(serialized_score)[0]
+    except:
+        json_score["error"] = "Error serializing score"
+
     Event.objects.create(
         action=Event.Action.SCORE_UPDATE,
         address=instance.passport.address,
         community=instance.passport.community,
-        data={
-            "score": float(instance.score) if instance.score is not None else 0,
-            "evidence": instance.evidence,
-        },
+        data=json_score,
     )
 
     return instance
