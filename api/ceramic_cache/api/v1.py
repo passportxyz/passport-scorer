@@ -381,12 +381,12 @@ class InvalidScorerConfiguration(APIException):
     default_detail = "Unable to retrieve configured scorer!"
 
 
-@router.get("weights", response=Dict[str, str])
+@router.get("weights", response=Dict[str, float])
 def get_scorer_weights(request):
     return handle_get_scorer_weights()
 
 
-def handle_get_scorer_weights(community_id=None) -> Dict[str, str]:
+def handle_get_scorer_weights(community_id=None) -> Dict[str, float]:
     if not community_id:
         community_id = settings.CERAMIC_CACHE_SCORER_ID
 
