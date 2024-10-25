@@ -167,8 +167,8 @@ const alarmConfigurations: AlarmConfigurations = {
     percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
     targetResponseTime: 20, // 20 seconds - this is a slower request
     period: 60,
-    datapointsToAlarm: 3,
-    evaluationPeriods: 5,
+    datapointsToAlarm: 8,
+    evaluationPeriods: 10,
   },
   "cc-v1-score-POST-0": {
     percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
