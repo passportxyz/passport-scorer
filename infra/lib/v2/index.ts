@@ -24,8 +24,6 @@ export function createV2Api({
   alb,
   alarmConfigurations,
   targetGroupRegistry,
-  passportXyzDomainName,
-  coreInfraStack,
 }: {
   httpsListener: pulumi.Output<aws.alb.Listener>;
   dockerLambdaImage: pulumi.Output<string>;
@@ -39,113 +37,111 @@ export function createV2Api({
   alb: aws.alb.LoadBalancer;
   alarmConfigurations: AlarmConfigurations;
   targetGroupRegistry: TargetGroup;
-  passportXyzDomainName: string;
-  coreInfraStack: string;
 }) {
-    const apiEnvironment = [
-      ...secretsManager.getEnvironmentVars({
-        vault: "DevOps",
-        repo: "passport-scorer",
-        env: stack,
-        section: "api",
-      }),
+  const apiEnvironment = [
+    ...secretsManager.getEnvironmentVars({
+      vault: "DevOps",
+      repo: "passport-scorer",
+      env: stack,
+      section: "api",
+    }),
+    {
+      name: "DEBUG",
+      value: "off",
+    },
+    {
+      name: "LOGGING_STRATEGY",
+      value: "structlog_json",
+    },
+  ].sort(secretsManager.sortByName);
+  const lambdaSettings = {
+    httpsListener,
+    imageUri: dockerLambdaImage,
+    privateSubnetSecurityGroup,
+    vpcPrivateSubnetIds,
+    environment: [
+      ...apiEnvironment,
       {
-        name: "DEBUG",
-        value: "off",
+        name: "FF_API_ANALYTICS",
+        value: "on",
       },
       {
-        name: "LOGGING_STRATEGY",
-        value: "structlog_json",
+        name: "CERAMIC_CACHE_SCORER_ID",
+        value: `${ceramicCacheScorerId}`,
       },
-    ].sort(secretsManager.sortByName);
-    const lambdaSettings = {
-      httpsListener,
-      imageUri: dockerLambdaImage,
-      privateSubnetSecurityGroup,
-      vpcPrivateSubnetIds,
-      environment: [
-        ...apiEnvironment,
-        {
-          name: "FF_API_ANALYTICS",
-          value: "on",
-        },
-        {
-          name: "CERAMIC_CACHE_SCORER_ID",
-          value: `${ceramicCacheScorerId}`,
-        },
-        {
-          name: "SCORER_SERVER_SSM_ARN",
-          value: scorerSecret.arn,
-        },
-        {
-          name: "VERIFIER_URL",
-          value: "http://core-alb.private.gitcoin.co/verifier/verify",
-        },
-      ].sort(secretsManager.sortByName),
-      roleAttachments: httpRoleAttachments,
-      role: httpLambdaRole,
-      alertTopic: pagerdutyTopic,
-      alb: alb,
-    };
-    // Manage Lamba services
-    buildHttpLambdaFn(
       {
-        ...lambdaSettings,
-        name: "v2-get-score",
-        memorySize: 1024,
-        dockerCmd: [
-          "aws_lambdas.submit_passport.submit_passport.handler_get_score",
-        ],
-        pathPatterns: ["/v2/stamps/*/score/*"],
-        listenerPriority: 2020,
+        name: "SCORER_SERVER_SSM_ARN",
+        value: scorerSecret.arn,
       },
-      alarmConfigurations
-    );
-    const targetPassportRule = new ListenerRule(`lrule-v2`, {
-      tags: { ...defaultTags, Name: "lrule-v2" },
-      listenerArn: httpsListener.arn,
-      priority: 2060,
-      actions: [
-        {
-          type: "forward",
-          targetGroupArn: targetGroupRegistry.arn,
-        },
+      {
+        name: "VERIFIER_URL",
+        value: "http://core-alb.private.gitcoin.co/verifier/verify",
+      },
+    ].sort(secretsManager.sortByName),
+    roleAttachments: httpRoleAttachments,
+    role: httpLambdaRole,
+    alertTopic: pagerdutyTopic,
+    alb: alb,
+  };
+  // Manage Lamba services
+  buildHttpLambdaFn(
+    {
+      ...lambdaSettings,
+      name: "v2-get-score",
+      memorySize: 1024,
+      dockerCmd: [
+        "aws_lambdas.submit_passport.submit_passport.handler_get_score",
       ],
-      conditions: [
-        {
-          hostHeader: {
-            values: ["*.passport.xyz"],
-          },
+      pathPatterns: ["/v2/stamps/*/score/*"],
+      listenerPriority: 2020,
+    },
+    alarmConfigurations
+  );
+  const targetPassportRule = new ListenerRule(`lrule-v2`, {
+    tags: { ...defaultTags, Name: "lrule-v2" },
+    listenerArn: httpsListener.arn,
+    priority: 2060,
+    actions: [
+      {
+        type: "forward",
+        targetGroupArn: targetGroupRegistry.arn,
+      },
+    ],
+    conditions: [
+      {
+        hostHeader: {
+          values: ["*.passport.xyz"],
         },
-        {
-          pathPattern: {
-            values: ["/v2/*"],
-          },
+      },
+      {
+        pathPattern: {
+          values: ["/v2/*"],
         },
-      ],
-    });
-    const targetOnlyPassportDomainRule = new ListenerRule(`lrule-no-gitcoin-v2`, {
-      tags: { ...defaultTags, Name: `lrule-no-gitcoin-v2` },
-      listenerArn: httpsListener.arn,
-      priority: 2100,
-      actions: [
-        {
-          type: "fixed-response",
-          fixedResponse: {
-            contentType: "application/json",
-            messageBody: JSON.stringify({
-              msg: "This service is not available for requests to the `*.gitcoin.co` domain",
-            }),
-            statusCode: "400",
-          },
+      },
+    ],
+  });
+  const targetOnlyPassportDomainRule = new ListenerRule(`lrule-no-gitcoin-v2`, {
+    tags: { ...defaultTags, Name: `lrule-no-gitcoin-v2` },
+    listenerArn: httpsListener.arn,
+    priority: 2100,
+    actions: [
+      {
+        type: "fixed-response",
+        fixedResponse: {
+          contentType: "application/json",
+          messageBody: JSON.stringify({
+            msg: "This service is not available for requests to the `*.gitcoin.co` domain",
+          }),
+          statusCode: "400",
         },
-      ],
-      conditions: [
-        {
-          pathPattern: {
-            values: ["/v2/*"],
-          },
+      },
+    ],
+    conditions: [
+      {
+        pathPattern: {
+          values: ["/v2/*"],
         },
-      ],
-    });
+      },
+    ],
+  });
 }
