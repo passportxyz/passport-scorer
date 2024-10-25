@@ -3,13 +3,14 @@ import json
 from copy import deepcopy
 from datetime import datetime
 
-from account.models import Account
 from django.conf import settings
 from django.test import Client, TestCase
 from eth_account.messages import encode_defunct
 from siwe import SiweMessage
 from web3 import Web3
 from web3.auto import w3
+
+from account.models import Account
 
 my_mnemonic = settings.TEST_MNEMONIC
 

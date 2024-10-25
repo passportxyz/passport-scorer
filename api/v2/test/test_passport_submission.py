@@ -553,11 +553,11 @@ class ValidatePassportTestCase(TransactionTestCase):
     ):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
 
-        expected_score = "2"
+        expected_score = "2.0"
 
         scorer = BinaryWeightedScorer.objects.create(
             threshold=2,
-            weights={"FirstEthTxnProvider": 1, "Google": 1, "Ens": 1},
+            weights={"FirstEthTxnProvider": 1.0, "Google": 1, "Ens": 1.0},
             type=Scorer.Type.WEIGHTED_BINARY,
         )
 

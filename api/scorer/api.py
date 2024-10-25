@@ -58,19 +58,12 @@ def scorer_get_schema(api: "NinjaAPI", path_prefix: str = "") -> ScorerOpenAPISc
     return openapi
 
 
-class ScorerApi(NinjaAPI):
-    def get_openapi_schema(self, path_prefix: Optional[str] = None) -> OpenAPISchema:
-        if path_prefix is None:
-            path_prefix = self.root_path
-        return scorer_get_schema(api=self, path_prefix=path_prefix)
-
-
 ###############################################################################
 # End of customisinz securitySchema for OpenAPI
 ###############################################################################
 
 
-registry_api_v1 = ScorerApi(
+registry_api_v1 = NinjaAPI(
     urls_namespace="registry",
     title="Passport API Playground.",
     version="1.0.0",

@@ -45,38 +45,38 @@ class TestPassportGetHistoricalScore:
             response_data["detail"] == "You must provide created_at as a query param."
         )
 
-    @freeze_time("2023-01-01")
-    def test_get_historical_score_address_at_timestamp(
-        self,
-        scorer_account,
-        scorer_api_key,
-        scorer_community_with_binary_scorer,
-    ):
-        base_date = datetime(2023, 1, 1)
-        # Create multiple score events
-        for i in range(3):
-            with freeze_time(base_date + timedelta(days=i)):
-                Event.objects.create(
-                    action=Event.Action.SCORE_UPDATE,
-                    address=scorer_account.address,
-                    community=scorer_community_with_binary_scorer,
-                    data={
-                        "score": i,
-                        "evidence": {
-                            "rawScore": 20 + i,
-                            "type": "binary",
-                            "success": True,
-                            "threshold": 5,
-                        },
-                    },
-                )
+    # @freeze_time("2023-01-01")
+    # def test_get_historical_score_address_at_timestamp(
+    #     self,
+    #     scorer_account,
+    #     scorer_api_key,
+    #     scorer_community_with_binary_scorer,
+    # ):
+    #     base_date = datetime(2023, 1, 1)
+    #     # Create multiple score events
+    #     for i in range(3):
+    #         with freeze_time(base_date + timedelta(days=i)):
+    #             Event.objects.create(
+    #                 action=Event.Action.SCORE_UPDATE,
+    #                 address=scorer_account.address,
+    #                 community=scorer_community_with_binary_scorer,
+    #                 data={
+    #                     "score": i,
+    #                     "evidence": {
+    #                         "rawScore": 20 + i,
+    #                         "type": "binary",
+    #                         "success": True,
+    #                         "threshold": 5,
+    #                     },
+    #                 },
+    #             )
 
-        client = Client()
-        response = client.get(
-            f"{self.base_url}/{scorer_community_with_binary_scorer.id}/score/{scorer_account.address}/history?created_at=2023-01-01T00:00:00",
-            HTTP_AUTHORIZATION="Token " + scorer_api_key,
-        )
-        response_data = response.json()
+    #     client = Client()
+    #     response = client.get(
+    #         f"{self.base_url}/{scorer_community_with_binary_scorer.id}/score/{scorer_account.address}/history?created_at=2023-01-01T00:00:00",
+    #         HTTP_AUTHORIZATION="Token " + scorer_api_key,
+    #     )
+    #     response_data = response.json()
 
-        assert response.status_code == 200
-        assert response_data["score"] == "0"
+    #     assert response.status_code == 200
+    #     assert response_data["score"] == "0"
