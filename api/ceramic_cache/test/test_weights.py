@@ -24,7 +24,7 @@ class TestGetWeights:
             active=True,
             description="Test",
         )
-        scorer_weights = {"provider-1": "0.5", "provider-2": "0.5"}
+        scorer_weights = {"provider-1": 0.5, "provider-2": 0.5}
         for provider, weight in scorer_weights.items():
             WeightConfigurationItem.objects.create(
                 weight_configuration=config,
