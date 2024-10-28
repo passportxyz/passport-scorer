@@ -145,11 +145,6 @@ def extract_score_data(event_data: Dict[str, Any]) -> Dict[str, Any]:
     return event_data
 
 
-class CreatedAtParam(Schema):
-    created_at: str = ""
-    description: str = "Required* timestamp to get score history for a specific date. Format: YYYY-MM-DD"
-
-
 @api_router.get(
     "/stamps/{int:scorer_id}/score/{str:address}/history",
     auth=ApiKey(),
@@ -213,8 +208,6 @@ def get_score_history(
             score = score_data["evidence"]["rawScore"]
         else:
             score = score_data.get("score", "0")
-
-        breakpoint()
 
         return V2ScoreResponse(
             address=address,
