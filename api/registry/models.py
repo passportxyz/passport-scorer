@@ -89,17 +89,23 @@ class Score(models.Model):
         return f"Score #{self.id}, score={self.score}, last_score_timestamp={self.last_score_timestamp}, status={self.status}, error={self.error}, evidence={self.evidence}, passport_id={self.passport_id}"
 
 
+def serialize_score(score: Score):
+    json_score = {}
+    try:
+        serialized_score = serializers.serialize("json", [score])
+        json_score = json.loads(serialized_score)[0]
+    except:
+        json_score["error"] = "Error serializing score"
+
+    return json_score
+
+
 @receiver(pre_save, sender=Score)
 def score_updated(sender, instance, **kwargs):
     if instance.status != Score.Status.DONE:
         return instance
 
-    json_score = {}
-    try:
-        serialized_score = serializers.serialize("json", [instance])
-        json_score = json.loads(serialized_score)[0]
-    except:
-        json_score["error"] = "Error serializing score"
+    json_score = serialize_score(instance)
 
     Event.objects.create(
         action=Event.Action.SCORE_UPDATE,
