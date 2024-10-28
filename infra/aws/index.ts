@@ -1,5 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
+import * as cloudflare from "@pulumi/cloudflare";
 
 import {
   ScorerService,
@@ -115,6 +116,11 @@ const redashMailPassword = pulumi.secret(
 
 const pagerDutyIntegrationEndpoint = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`
+);
+
+// TODO: remove this once the noStackPassportXyzCertificateArn can be read from the core infra
+const noStackPassportXyzCertificateArn = op.read.parse(
+  `op://DevOps/passport-scorer-${stack}-env/ci/PASSPORT_XYZ_CERTIFICATE_ARN`
 );
 
 const coreInfraStack = new pulumi.StackReference(
@@ -2150,6 +2156,19 @@ pulumi.all([passportXyzDomainName]).apply((passportXyzDomainNameStr) => {
     records: [alb.dnsName],
   });
 
+  // CloudFlare Record
+  const cloudflareApiRecord =
+    stack === "production"
+      ? new cloudflare.Record(`api-passport-xyz-record`, {
+          name: `api`,
+          zoneId: CLOUDFLARE_ZONE_ID,
+          type: "CNAME",
+          content: alb.dnsName,
+          allowOverwrite: true,
+          comment: `Points to API service running on AWS ECS task`,
+        })
+      : "";
+
   const redashDomain = `redash.${passportXyzDomainNameStr}`;
   const redashRecord = new aws.route53.Record(redashDomain, {
     zoneId: passportXyzHostedZoneId,
@@ -2173,6 +2192,17 @@ const coreAlbPassportXyz = new aws.lb.ListenerCertificate(
   },
   {}
 );
+
+if (stack === "production") {
+  const coreAlbPassportXyzApi = new aws.lb.ListenerCertificate(
+    "core-alb-passport-xyz-api",
+    {
+      listenerArn: httpsListener.arn,
+      certificateArn: noStackPassportXyzCertificateArn,
+    },
+    {}
+  );
+}
 
 createV2Api({
   httpsListener,

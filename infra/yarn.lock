@@ -509,12 +509,22 @@
     read-package-tree "^5.2.1"
     resolve "^1.7.1"
 
-"@pulumi/aws@^6.0.2", "@pulumi/aws@^6.45.0":
+"@pulumi/aws@^6.0.2":
   version "6.51.1"
   resolved "https://registry.yarnpkg.com/@pulumi/aws/-/aws-6.51.1.tgz#070120cee76fd3b55d865868e658ac0db861391b"
   integrity sha512-rsOcRkt5/yDUs8e1QohowNEwM1OHf0eRyD/vp2n0w6TBoKZUzPpIwPic8LF3ysWfa2GmB2ylxQ+lSQ5813Ut0w==
   dependencies:
     "@pulumi/pulumi" "^3.0.0"
+    builtin-modules "3.0.0"
+    mime "^2.0.0"
+    resolve "^1.7.1"
+
+"@pulumi/aws@^6.45.0":
+  version "6.56.1"
+  resolved "https://registry.yarnpkg.com/@pulumi/aws/-/aws-6.56.1.tgz#528692aff97ecc554fad68872d6a5699ff4cbec3"
+  integrity sha512-fnYs39xUPjT0cipdl28Eiw7B5ZLlHyXBd8lV7dOedKCrrfDLr/nwsh6FMPgj5nUDklR3RAzMFPUW37gMaznPoA==
+  dependencies:
+    "@pulumi/pulumi" "^3.136.0"
     builtin-modules "3.0.0"
     mime "^2.0.0"
     resolve "^1.7.1"
@@ -530,12 +540,12 @@
     "@types/aws-lambda" "^8.10.23"
     mime "^2.0.0"
 
-"@pulumi/cloudflare@^5.38.0":
-  version "5.38.0"
-  resolved "https://registry.yarnpkg.com/@pulumi/cloudflare/-/cloudflare-5.38.0.tgz#91e2d9b46af648675bbc56bce8a9c719ff900d9a"
-  integrity sha512-dClqItv2ybF2FTgXDI09eKVfVo6J6GKJukeH9Wel9YNoyaZRdEyb1nsY98H0T/T8wQZwug3VcgSlJIZazHnP8w==
+"@pulumi/cloudflare@^5.38.0", "@pulumi/cloudflare@^5.41.0":
+  version "5.41.0"
+  resolved "https://registry.yarnpkg.com/@pulumi/cloudflare/-/cloudflare-5.41.0.tgz#47b81b97032d9578d9aef74a8270a9faa8e55e17"
+  integrity sha512-tquPVxxYZTiMgOmAPu2AIs1ndrf+GlztdWECScNzrllr5LUMHmbd2ZpifGQWh3GXqBwxPsWO1WoRIasLxKXJ/Q==
   dependencies:
-    "@pulumi/pulumi" "^3.0.0"
+    "@pulumi/pulumi" "^3.136.0"
 
 "@pulumi/command@^0.10.0":
   version "0.10.0"
@@ -552,10 +562,46 @@
     "@pulumi/pulumi" "^3.0.0"
     semver "^5.4.0"
 
-"@pulumi/pulumi@^3.0.0", "@pulumi/pulumi@^3.126.0", "@pulumi/pulumi@^3.79.0":
+"@pulumi/pulumi@^3.0.0", "@pulumi/pulumi@^3.79.0":
   version "3.132.0"
   resolved "https://registry.yarnpkg.com/@pulumi/pulumi/-/pulumi-3.132.0.tgz#d1cf60037c3fa1cd343b7b3a3cb97a2291747f9a"
   integrity sha512-ntsEo17gALvRdkfKMFrf7EEWrfPHPuRHG/96ziVSItYHofwMLtMk2f7BoRqOSYq3B08wHRkz6J15IUrT9l9wuQ==
+  dependencies:
+    "@grpc/grpc-js" "^1.10.1"
+    "@logdna/tail-file" "^2.0.6"
+    "@npmcli/arborist" "^7.3.1"
+    "@opentelemetry/api" "^1.9"
+    "@opentelemetry/exporter-zipkin" "^1.25"
+    "@opentelemetry/instrumentation" "^0.52"
+    "@opentelemetry/instrumentation-grpc" "^0.52"
+    "@opentelemetry/resources" "^1.25"
+    "@opentelemetry/sdk-trace-base" "^1.25"
+    "@opentelemetry/sdk-trace-node" "^1.25"
+    "@opentelemetry/semantic-conventions" "^1.25"
+    "@pulumi/query" "^0.3.0"
+    "@types/google-protobuf" "^3.15.5"
+    "@types/semver" "^7.5.6"
+    "@types/tmp" "^0.2.6"
+    execa "^5.1.0"
+    fdir "^6.1.1"
+    google-protobuf "^3.5.0"
+    got "^11.8.6"
+    ini "^2.0.0"
+    js-yaml "^3.14.0"
+    minimist "^1.2.6"
+    normalize-package-data "^6.0.0"
+    picomatch "^3.0.1"
+    pkg-dir "^7.0.0"
+    require-from-string "^2.0.1"
+    semver "^7.5.2"
+    source-map-support "^0.5.6"
+    tmp "^0.2.1"
+    upath "^1.1.0"
+
+"@pulumi/pulumi@^3.126.0", "@pulumi/pulumi@^3.136.0":
+  version "3.137.0"
+  resolved "https://registry.yarnpkg.com/@pulumi/pulumi/-/pulumi-3.137.0.tgz#670636d20eb85880854a49623947d6ea23099742"
+  integrity sha512-YgvcPKxuE3X1Yi93W2qZuM43nELT1FEvz7J5IK1hAJPo+v9m2oAh5Vag1lNDPjM0+y7WDfFe0ODI+2way3quRw==
   dependencies:
     "@grpc/grpc-js" "^1.10.1"
     "@logdna/tail-file" "^2.0.6"
@@ -1673,9 +1719,9 @@ inflight@^1.0.4:
     once "^1.3.0"
     wrappy "1"
 
-"infra-libs@passportxyz/infra-libs#semver:1.2.1":
+infra-libs@passportxyz/infra-libs#1.3.0:
   version "1.0.0"
-  resolved "https://codeload.github.com/passportxyz/infra-libs/tar.gz/8170b9d4286cad3ad0809c252f65fc0d36776dae"
+  resolved "https://codeload.github.com/passportxyz/infra-libs/tar.gz/ec106f542b49a15a826639bef7bfbff0dc9da86b"
   dependencies:
     "@1password/op-js" "^0.1.13"
     "@pulumi/aws" "^6.45.0"
