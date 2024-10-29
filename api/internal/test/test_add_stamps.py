@@ -110,7 +110,7 @@ class TestAddStampsEndpoint:
             client.post(
                 f"/internal/stamps/{invalid_address}",
                 json=valid_payload,
-                headers={"HTTP_AUTHORIZATION": settings.INTERNAL_API_KEY},
+                headers={"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
             )
 
     def test_empty_stamps_list(self, client, valid_address):
@@ -120,7 +120,7 @@ class TestAddStampsEndpoint:
         response = client.post(
             f"/internal/stamps/{valid_address}",
             json=payload,
-            headers={"HTTP_AUTHORIZATION": settings.INTERNAL_API_KEY},
+            headers={"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
         )
         assert response.status_code == 400
         assert "stamps list cannot be empty" in response.json()["detail"]
@@ -143,7 +143,7 @@ class TestAddStampsEndpoint:
         response = client.post(
             f"/internal/stamps/{valid_address}",
             json=invalid_payload,
-            headers={"HTTP_AUTHORIZATION": settings.INTERNAL_API_KEY},
+            headers={"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
         )
         assert response.status_code == 422  # Validation error
 
@@ -162,7 +162,7 @@ class TestAddStampsEndpoint:
         response = client.post(
             f"/internal/stamps/{valid_address}",
             json=valid_payload,
-            headers={"HTTP_AUTHORIZATION": settings.INTERNAL_API_KEY},
+            headers={"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
         )
 
         assert response.status_code == 201
@@ -206,7 +206,7 @@ class TestAddStampsEndpoint:
         response = client.post(
             f"/internal/stamps/{valid_address}",
             json=valid_payload,
-            headers={"HTTP_AUTHORIZATION": settings.INTERNAL_API_KEY},
+            headers={"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
         )
 
         assert response.status_code == 500

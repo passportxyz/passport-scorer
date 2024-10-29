@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, List
 
 from django.conf import settings
 from ninja import Router, Schema
@@ -20,7 +20,7 @@ from registry.api.utils import (
 from registry.exceptions import (
     InvalidAddressException,
 )
-from v2.schema import V2ScoreResponse
+from trusta_labs.api import CgrantsApiKey
 
 from .schema.eip712 import VerifiableEip712Credential
 
@@ -38,32 +38,28 @@ api.add_router("", api_router)
 log = logging.getLogger(__name__)
 
 
-class InternalApiKey(APIKeyHeader):
-    param_name = "AUTHORIZATION"
-
-    def authenticate(self, request, key):
-        if key == settings.INTERNAL_API_KEY:
-            return key
-        return None
+internal_api_key = CgrantsApiKey()
 
 
 class AddStampsPayload(Schema):
     scorer_id: int
-    stamps: List[VerifiableEip712Credential]
+    stamps: List[Any]
 
 
 @api_router.post(
     "/stamps/{str:address}",
-    auth=InternalApiKey(),
+    auth=internal_api_key,
     response={
-        201: GetStampsWithScoreResponse,
+        200: GetStampsWithScoreResponse,
         401: ErrorMessageResponse,
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
     },
     summary="Add Stamps and get the new score",
 )
-def add_stamps(request, address: str, payload: AddStampsPayload) -> V2ScoreResponse:
+def add_stamps(
+    request, address: str, payload: AddStampsPayload
+) -> GetStampsWithScoreResponse:
     address_lower = address.lower()
     if not is_valid_address(address_lower):
         raise InvalidAddressException()
@@ -71,8 +67,8 @@ def add_stamps(request, address: str, payload: AddStampsPayload) -> V2ScoreRespo
     cacheStampPayloads = [
         CacheStampPayload(
             address=address_lower,
-            provider=stamp.credentialSubject.provider,
-            stamp=stamp.dict(),
+            provider=stamp.get("credentialSubject", {}).get("provider"),
+            stamp=stamp,
         )
         for stamp in payload.stamps
     ]

@@ -471,8 +471,6 @@ S3_OBJECT_KEY = env("S3_OBJECT_KEY", default="test_file.csv")
 
 DATA_SCIENCE_API_KEY = env("DATA_SCIENCE_API_KEY", default="abc")
 
-INTERNAL_API_KEY = env("INTERNAL_API_KEY", default="abc")
-
 VERIFIER_URL = env("VERIFIER_URL", default="http://localhost:8001/verifier/verify")
 
 PASSPORT_API_RATE_LIMITING_FORM = env(

@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Dict, List, Optional
 
 from ninja import Field, Schema
@@ -35,7 +34,7 @@ class Proof(Schema):
     proofPurpose: str
     proofValue: str
     verificationMethod: str
-    created: datetime
+    created: str
     eip712Domain: ProofDomain
 
 
@@ -44,6 +43,6 @@ class VerifiableEip712Credential(Schema):
     type: List[str]
     credentialSubject: CredentialSubject
     issuer: str
-    issuanceDate: datetime
-    expirationDate: datetime
+    issuanceDate: str
+    expirationDate: str
     proof: Proof
