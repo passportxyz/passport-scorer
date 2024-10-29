@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import datetime, time
 from decimal import Decimal
-from typing import List
+from typing import Any, Dict, List
 from urllib.parse import urljoin
 
 from django.conf import settings
 from django.core.cache import cache
+from ninja import Schema
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
@@ -32,7 +33,8 @@ from registry.api.v1 import (
     fetch_all_stamp_metadata,
 )
 from registry.exceptions import (
-    CreatedAtIsRequired,
+    CreatedAtIsRequiredException,
+    CreatedAtMalFormedException,
     InternalServerErrorException,
     InvalidAddressException,
     InvalidAPIKeyPermissions,
@@ -104,11 +106,50 @@ async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreRes
         raise InternalServerErrorException("Unexpected error while submitting passport")
 
 
+def process_date_parameter(date_str: str) -> datetime:
+    """
+    Convert a date string (YYYY-MM-DD) to a datetime object set to the end of that day.
+
+    Args:
+        date_str: String in format 'YYYY-MM-DD'
+
+    Returns:
+        datetime: Datetime object set to 23:59:59 of the given date
+
+    Raises:
+        ValueError: If date string is not in correct format
+    """
+    try:
+        # Parse the date string
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        # Set time to end of day (23:59:59)
+        return datetime.combine(date_obj.date(), time(23, 59, 59))
+    except Exception:
+        raise CreatedAtMalFormedException()
+
+
+def extract_score_data(event_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract score data from either the legacy or new data structure.
+
+    Args:
+        event_data: Dictionary containing score event data
+
+    Returns:
+        Dictionary with normalized score data
+    """
+    # Handle legacy format (with 'fields' key)
+    if "fields" in event_data:
+        return event_data["fields"]
+    # Handle new format (direct score data)
+    return event_data
+
+
 @api_router.get(
     "/stamps/{int:scorer_id}/score/{str:address}/history",
     auth=ApiKey(),
     response={
-        200: DetailedScoreResponse | NoScoreResponse,
+        200: V2ScoreResponse | NoScoreResponse,
         401: ErrorMessageResponse,
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
@@ -122,7 +163,6 @@ This endpoint will return a `DetailedScoreResponse` if a score exists at the pas
 \n
 To access this endpoint, you must submit your use case and be approved by the Passport team. To do so, please fill out the following form, making sure to provide a detailed description of your use case. The Passport team typically reviews and responds to form responses within 48 hours. <a href="https://forms.gle/4GyicBfhtHW29eEu8" target="_blank">https://forms.gle/4GyicBfhtHW29eEu8</a>
     """,
-    include_in_schema=False,
     tags=["Stamp Analysis"],
 )
 @track_apikey_usage(track_response=False)
@@ -130,27 +170,23 @@ def get_score_history(
     request,
     scorer_id: int,
     address: str,
-    created_at: str = "",
+    created_at: str,
 ):
     if not request.api_key.historical_endpoint:
         raise InvalidAPIKeyPermissions()
-
     if not created_at:
-        raise CreatedAtIsRequired()
+        raise CreatedAtIsRequiredException()
 
     check_rate_limit(request)
-
     community = api_get_object_or_404(Community, id=scorer_id, account=request.auth)
 
     try:
+        end_of_day = process_date_parameter(created_at)
         base_query = with_read_db(Event).filter(
             community__id=community.id, action=Event.Action.SCORE_UPDATE
         )
-
         score_event = (
-            base_query.filter(
-                address=address, created_at__lte=datetime.fromisoformat(created_at)
-            )
+            base_query.filter(address=address, created_at__lte=end_of_day)
             .order_by("-created_at")
             .first()
         )
@@ -160,16 +196,28 @@ def get_score_history(
                 address=address, status=f"No Score Found for {address} at {created_at}"
             )
 
-        # TODO: geri this is not correct, we need to review the return structure and value here
-        return DetailedScoreResponse(
+        # Extract and normalize score data from either format
+        score_data = extract_score_data(score_event.data)
+
+        # Get evidence data, defaulting to empty dict if not present
+        evidence = score_data.get("evidence", {})
+        threshold = evidence.get("threshold", "0")
+
+        # Handle score extraction for both formats
+        if "evidence" in score_data and "rawScore" in score_data["evidence"]:
+            score = score_data["evidence"]["rawScore"]
+        else:
+            score = score_data.get("score", "0")
+
+        return V2ScoreResponse(
             address=address,
-            score=score_event.data["score"],
-            status=Score.Status.DONE,
-            last_score_timestamp=score_event.data["created_at"],
-            expiration_date=score_event.data["expiration_date"],
-            evidence=score_event.data["evidence"],
-            error=None,
-            stamp_scores=None,
+            score=score,
+            passing_score=(Decimal(score) >= Decimal(threshold) if score else False),
+            threshold=threshold,
+            last_score_timestamp=score_data.get("last_score_timestamp"),
+            expiration_timestamp=score_data.get("expiration_date"),
+            error=score_data.get("error"),
+            stamp_scores=score_data.get("stamp_scores"),
         )
 
     except Exception as e:
