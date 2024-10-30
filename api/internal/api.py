@@ -1,8 +1,6 @@
 from typing import Any, List
 
-from django.conf import settings
 from ninja import Router, Schema
-from ninja.security import APIKeyHeader
 from ninja_extra import NinjaExtraAPI
 
 import api_logging as logging
@@ -21,8 +19,6 @@ from registry.exceptions import (
     InvalidAddressException,
 )
 from trusta_labs.api import CgrantsApiKey
-
-from .schema.eip712 import VerifiableEip712Credential
 
 api_router = Router()
 
