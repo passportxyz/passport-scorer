@@ -32,7 +32,7 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "IdenaState#Newbie": "6.028",
     "IdenaState#Verified": "2.029",
     "Lens": "0.93",
-    "Linkedin": "0",
+    "Linkedin":"1.531",
     "LinkedinV2": "1.531",
     "NFT": "1.032",
     "NFTScore#50": "10.033",

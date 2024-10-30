@@ -56,6 +56,7 @@ providers = [
     "Lens",
     "Discord",
     "Linkedin",
+    "LinkedinV2",
     "Coinbase",
     "GuildMember",
     "GuildAdmin",

@@ -46,7 +46,15 @@ def calculate_weighted_score(
         scored_providers = []
         earned_points = {}
         earliest_expiration_date = None
+
+        has_linkedin = await Stamp.objects.filter(
+            passport_id=passport_id, provider="Linkedin"
+        ).aexists()
+
         for stamp in Stamp.objects.filter(passport_id=passport_id):
+            # Skip 'LinkedinV2' if 'Linkedin' exists
+            if stamp.provider == "LinkedinV2" and has_linkedin:
+                continue
             if stamp.provider not in scored_providers:
                 weight = Decimal(weights.get(stamp.provider, 0))
                 sum_of_weights += weight
@@ -95,7 +103,15 @@ def recalculate_weighted_score(
         scored_providers = []
         earned_points = {}
         earliest_expiration_date = None
+
+        # Pre-check for the presence of 'Linkedin' in the stamp list
+        has_linkedin = any(stamp.provider == "Linkedin" for stamp in stamp_list)
+
         for stamp in stamp_list:
+            # Skip 'LinkedinV2' if 'Linkedin' is in the list
+            if stamp.provider == "LinkedinV2" and has_linkedin:
+                continue
+
             if stamp.provider not in scored_providers:
                 weight = Decimal(weights.get(stamp.provider, 0))
                 sum_of_weights += weight
@@ -159,7 +175,16 @@ async def acalculate_weighted_score(
         scored_providers = []
         earned_points = {}
         earliest_expiration_date = None
+
+        has_linkedin = await Stamp.objects.filter(
+            passport_id=passport_id, provider="Linkedin"
+        ).aexists()
+
         async for stamp in Stamp.objects.filter(passport_id=passport_id):
+            # Skip 'LinkedinV2' if 'Linkedin' exists
+            if stamp.provider == "LinkedinV2" and has_linkedin:
+                continue
+
             if stamp.provider not in scored_providers:
                 weight = Decimal(weights.get(stamp.provider, 0))
                 sum_of_weights += weight
