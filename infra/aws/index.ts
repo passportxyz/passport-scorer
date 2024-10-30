@@ -705,7 +705,7 @@ const apiEnvironment = [
   },
   {
     name: "PASSPORT_PUBLIC_URL",
-    value: "https://passport.gitcoin.co/",
+    value: "https://app.passport.xyz/",
   },
   {
     name: "RESCORE_QUEUE_URL",
