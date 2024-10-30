@@ -47,7 +47,7 @@ def calculate_weighted_score(
         earned_points = {}
         earliest_expiration_date = None
 
-        has_linkedin = await Stamp.objects.filter(
+        has_linkedin = Stamp.objects.filter(
             passport_id=passport_id, provider="Linkedin"
         ).aexists()
 
