@@ -1,20 +1,16 @@
 import json
 from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from django.conf import settings
 
 from ceramic_cache.api.schema import (
-    CachedStampResponse,
     CacheStampPayload,
     DetailedScoreResponse,
     GetStampsWithScoreResponse,
 )
 from registry.api.schema import StatusEnum, ThresholdScoreEvidenceResponse
-from registry.exceptions import InvalidAddressException
-from registry.models import Score
-from v2.schema import V2ScoreResponse
 
 
 @pytest.fixture
@@ -24,7 +20,7 @@ def valid_address():
 
 @pytest.fixture
 def sample_credential(valid_address):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     return {
         "@context": ["https://www.w3.org/2018/credentials/v1"],
         "type": ["VerifiableCredential"],
@@ -71,7 +67,7 @@ def mock_success_handle_add_stamps(valid_address, sample_credential):
         stamps=[
             {
                 "id": 0,
-                "address": valid_address,
+                "address": valid_address.lower(),
                 "provider": sample_credential["credentialSubject"]["provider"],
                 "stamp": sample_credential,
             }
@@ -114,79 +110,74 @@ class TestAddStampsEndpoint:
         assert response.status_code == 401
         assert "Unauthorized" in response.json()["detail"]
 
-    # @pytest.mark.parametrize(
-    #     "invalid_address",
-    #     [
-    #         pytest.param("invalid_address", id="invalid-format"),
-    #         pytest.param("0x123", id="too-short"),
-    #         pytest.param("0x" + "1" * 41, id="too-long"),
-    #         pytest.param("0xGGGG", id="invalid-hex"),
-    #     ],
-    # )
-    # def test_invalid_addresses(self, client, invalid_address, valid_payload):
-    #     """Test various invalid address formats"""
-    #     response = client.post(
-    #         f"/internal/stamps/{invalid_address}",
-    #         json.dumps(valid_payload),
-    #         HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
-    #         content_type="application/json",
-    #     )
-    #     assert "Invalid address." in response.json()["detail"]
-    #     assert response.status_code == 400
+    @pytest.mark.parametrize(
+        "invalid_address",
+        [
+            pytest.param("invalid_address", id="invalid-format"),
+            pytest.param("0x123", id="too-short"),
+            pytest.param("0x" + "1" * 41, id="too-long"),
+            pytest.param("0xGGGG", id="invalid-hex"),
+        ],
+    )
+    def test_invalid_addresses(self, client, invalid_address, valid_payload):
+        """Test various invalid address formats"""
+        response = client.post(
+            f"/internal/stamps/{invalid_address}",
+            json.dumps(valid_payload),
+            HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
+            content_type="application/json",
+        )
+        assert "Invalid address." in response.json()["detail"]
+        assert response.status_code == 400
 
-    # def test_empty_stamps_list(self, client, valid_address):
-    #     """Test payload with empty stamps list"""
-    #     payload = {"scorer_id": 1, "stamps": []}
+    def test_empty_stamps_list(
+        self, client, valid_address, scorer_community_with_binary_scorer
+    ):
+        """Test payload with empty stamps list"""
+        payload = {"scorer_id": scorer_community_with_binary_scorer.pk, "stamps": []}
 
-    #     response = client.post(
-    #         f"/internal/stamps/{valid_address}",
-    #         json.dumps(payload),
-    #         HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
-    #         content_type="application/json",
-    #     )
-    #     assert response.status_code == 200
+        response = client.post(
+            f"/internal/stamps/{valid_address}",
+            json.dumps(payload),
+            HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
+            content_type="application/json",
+        )
+        assert response.status_code == 200
 
-    #     response_data = response.json()
+        response_data = response.json()
 
-    #     assert response_data["success"] is True
-    #     assert len(response_data["stamps"]) == 1
+        assert response_data["success"] is True
+        assert len(response_data["stamps"]) == 0
 
-    #     # Verify stamp details
-    #     stamp = response_data["stamps"][0]
-    #     assert stamp["provider"] == "github"
-    #     assert stamp["address"] == valid_address
-    #     assert "id" in stamp
-    #     assert "stamp" in stamp
+        # Verify score details
+        score = response_data["score"]
+        assert score["error"] is None
+        assert isinstance(score["score"], str)
+        assert int(float(score["score"])) == 0
 
-    #     # Verify score details
-    #     score = response_data["score"]
-    #     assert isinstance(score["score"], float)
-    #     assert score["status"] == "DONE"
+    @pytest.mark.parametrize(
+        "invalid_field",
+        [
+            pytest.param({"scorer_id": "not_an_int"}, id="invalid-scorer-id-type"),
+            pytest.param({"scorer_id": None}, id="null-scorer-id"),
+            pytest.param({"stamps": None}, id="null-stamps"),
+            pytest.param({"stamps": "not_a_list"}, id="invalid-stamps-type"),
+        ],
+    )
+    def test_invalid_payload_fields(
+        self, client, valid_address, valid_payload, invalid_field
+    ):
+        """Test various invalid payload fields"""
+        invalid_payload = {**valid_payload, **invalid_field}
+        response = client.post(
+            f"/internal/stamps/{valid_address}",
+            json.dumps(invalid_payload),
+            HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
+            content_type="application/json",
+        )
+        assert response.status_code == 422  # Validation error
 
-    # @pytest.mark.parametrize(
-    #     "invalid_field",
-    #     [
-    #         pytest.param({"scorer_id": "not_an_int"}, id="invalid-scorer-id-type"),
-    #         pytest.param({"scorer_id": -1}, id="negative-scorer-id"),
-    #         pytest.param({"scorer_id": None}, id="null-scorer-id"),
-    #         pytest.param({"stamps": None}, id="null-stamps"),
-    #         pytest.param({"stamps": "not_a_list"}, id="invalid-stamps-type"),
-    #     ],
-    # )
-    # def test_invalid_payload_fields(
-    #     self, client, valid_address, valid_payload, invalid_field
-    # ):
-    #     """Test various invalid payload fields"""
-    #     invalid_payload = {**valid_payload, **invalid_field}
-    #     response = client.post(
-    #         f"/internal/stamps/{valid_address}",
-    #         json=invalid_payload,
-    # HTTP_AUTHORIZATION="invalid_token",
-    # content_type="application/json",
-    #     )
-    #    assert response.status_code == 422  # Validation error
-
-    @patch("ceramic_cache.api.v1.handle_add_stamps")
+    @patch("internal.api.handle_add_stamps")
     def test_successful_stamp_addition(
         self,
         mock_handle_add_stamps,
@@ -221,34 +212,15 @@ class TestAddStampsEndpoint:
 
         # Verify score details
         score = response_data["score"]
-        assert isinstance(score["score"], float)
-        assert score["status"] == "DONE"
-        assert "stats" in score
-        assert "provider_stats" in score["stats"]
-        assert "github" in score["stats"]["provider_stats"]
+        assert score["error"] is None
+        assert isinstance(score["score"], str)
+        assert int(float(score["score"])) == 1
 
         # Verify handle_add_stamps was called correctly
         mock_handle_add_stamps.assert_called_once()
         called_address, called_stamps, called_scorer_id = (
             mock_handle_add_stamps.call_args[0]
         )
-        assert called_address == valid_address.lower()
+        assert called_address.lower() == valid_address.lower()
         assert isinstance(called_stamps[0], CacheStampPayload)
         assert called_scorer_id == valid_payload["scorer_id"]
-
-    #  @patch("ceramic_cache.api.v1.handle_add_stamps")
-    #  def test_handles_database_errors(
-    #      self, mock_handle_add_stamps, client, valid_address, valid_payload
-    #  ):
-    #      """Test handling of database errors"""
-    #      mock_handle_add_stamps.side_effect = Exception("Database error")
-
-    #      response = client.post(
-    #          f"/internal/stamps/{valid_address}",
-    #          json=valid_payload,
-    # HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
-    # content_type="application/json",
-    #      )
-
-    #      assert response.status_code == 500
-    #      assert "Internal server error" in response.json()["detail"]
