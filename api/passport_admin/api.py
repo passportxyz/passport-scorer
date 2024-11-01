@@ -1,12 +1,12 @@
 from typing import List, Optional
 
-from account.models import Community
-from ceramic_cache.api.v1 import JWTDidAuth
 from django.db.models import OuterRef, Q, Subquery, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from ninja import Router
 
+from account.models import Community
+from ceramic_cache.api.v1 import JWTDidAuth
 from passport_admin.notification_generators.deduplication_events import (
     generate_deduplication_notifications,
 )
@@ -183,6 +183,45 @@ def get_notifications(request, payload: NotificationPayload):
         return NotificationResponse(items=all_notifications).dict()
 
     except Notification.DoesNotExist:
+        return {
+            "status": "failed",
+        }
+
+
+@router.delete(
+    "/notifications",
+    response={200: GenericResponse},
+    auth=JWTDidAuth(),
+)
+def delete_all_notifications(request):
+    """
+    Delete all notifications for the authenticated user
+    """
+    try:
+        address = get_address(request.auth.did)
+
+        notifications = Notification.objects.filter(
+            Q(is_active=True) & Q(eth_address=address)
+        )
+
+        # Mark all notifications as deleted for this user
+        for notification in notifications:
+            notification_status, created = NotificationStatus.objects.get_or_create(
+                eth_address=address,
+                notification=notification,
+                defaults={"is_deleted": True},
+            )
+            if not created:
+                notification_status.is_deleted = True
+                notification_status.save()
+
+            notification.is_active = False
+
+        return {
+            "status": "success",
+        }
+
+    except Exception:
         return {
             "status": "failed",
         }

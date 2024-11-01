@@ -1,3 +1,4 @@
+# pylint: disable=redefined-outer-name
 """
 This module contains unit tests for the notifications functionality in the passport_admin app.
 """
@@ -33,6 +34,15 @@ def sample_token(sample_address):
     token = DbCacheToken()
     token["token_type"] = "access"
     token["did"] = f"did:pkh:eip155:1:{sample_address.lower()}"
+
+    return str(token)
+
+
+@pytest.fixture
+def sample_bad_token(sample_address):
+    token = DbCacheToken()
+    token["token_type"] = "access"
+    token["did"] = f"did:pkh:eip155:bad-did"
 
     return str(token)
 
@@ -790,6 +800,38 @@ class TestNotifications:
         received_items = sorted(res["items"], key=lambda x: x["notification_id"])
         assert expected_response == received_items
 
+    def test_delete_all_notifications_success(
+        self, sample_token, sample_address, custom_notifications, community
+    ):
+        """Test successful deletion of all active notifications for a user"""
+        response = client.delete(
+            "/passport-admin/notifications",
+            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
+        )
+
+        assert response.json() == {"status": "success"}
+
+        notification_statuses = NotificationStatus.objects.filter(
+            eth_address=sample_address,
+            is_deleted=True,
+        )
+
+        notification_statuses = NotificationStatus.objects.filter(
+            eth_address=sample_address
+        )
+
+        assert notification_statuses.count() == 4
+
+    def test_delete_all_notifications_error(self, sample_bad_token):
+        """Test error handling in delete all notifications endpoint"""
+
+        response = client.delete(
+            "/passport-admin/notifications",
+            HTTP_AUTHORIZATION=f"Bearer {sample_bad_token}",
+        )
+
+        assert response.json() == {"status": "failed"}
+
     def test_no_old_deduplication_events(self, sample_token, sample_address, community):
         """
         Test that no deduplication notifications are generated for events older than 30 days
@@ -874,7 +916,7 @@ class TestNotifications:
 
         assert res["items"][-1]["created_at"] == oldest_created_at
 
-    def test_ndeduplication_events_are_returned_for_signed_in_user(
+    def test_deduplication_events_are_returned_for_signed_in_user(
         self, sample_token, sample_address, community
     ):
         """
