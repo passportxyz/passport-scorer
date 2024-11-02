@@ -32,6 +32,11 @@ class SubmitPassportPayload(Schema):
     def validate_community(cls, v: Any):
         return str(v)
 
+    @field_validator("scorer_id", mode="before")
+    @classmethod
+    def validate_scorer_id(cls, v: Any):
+        return str(v)
+
 
 class ScoreEvidenceResponse(Schema):
     type: str
