@@ -146,7 +146,7 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
 
 
 def handle_add_stamps(
-    address, payload: List[CacheStampPayload]
+    address, payload: List[CacheStampPayload], alternate_scorer_id: Optional[int] = None
 ) -> GetStampsWithScoreResponse:
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
         raise TooManyStampsException()
@@ -194,7 +194,9 @@ def handle_add_stamps(
             )
             for stamp in updated_passport_state
         ],
-        score=get_detailed_score_response_for_address(address),
+        score=get_detailed_score_response_for_address(
+            address, alternate_scorer_id=alternate_scorer_id
+        ),
     )
 
 
