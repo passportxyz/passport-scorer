@@ -118,11 +118,6 @@ const pagerDutyIntegrationEndpoint = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`
 );
 
-// TODO: remove this once the noStackPassportXyzCertificateArn can be read from the core infra
-const noStackPassportXyzCertificateArn = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/PASSPORT_XYZ_CERTIFICATE_ARN`
-);
-
 const coreInfraStack = new pulumi.StackReference(
   `passportxyz/core-infra/${stack}`
 );
@@ -133,12 +128,18 @@ const vpcID = coreInfraStack.getOutput("vpcId");
 const vpcPrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds");
 const vpcPublicSubnetIds = coreInfraStack.getOutput("publicSubnetIds");
 
-const passportXyzDomainName = coreInfraStack.getOutput("passportXyzDomainName");
+const passportXyzDomainName = coreInfraStack.getOutput(
+  "PASSPORT_XYZ_ENV_DOMAIN_NAME"
+);
 const passportXyzHostedZoneId = coreInfraStack.getOutput(
-  "passportXyzHostedZoneId"
+  "ENV_PASSPORT_XYZ_ZONE_ID"
 );
 const passportXyzCertificateArn = coreInfraStack.getOutput(
-  "passportXyzCertificateArn"
+  "ENV_PASSPORT_XYZ_CERTIFICATE_ARN"
+);
+
+const noStackPassportXyzCertificateArn = coreInfraStack.getOutput(
+  "PASSPORT_XYZ_CERTIFICATE_ARN"
 );
 
 const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply((values) => values[0]);
@@ -440,7 +441,9 @@ const targetGroupRegistry = createTargetGroup("scorer-api-reg", vpcID);
 //////////////////////////////////////////////////////////////
 // Create the HTTPS listener, and set the default target group
 //////////////////////////////////////////////////////////////
-const HTTPS_ALB_CERT_ARN = coreInfraStack.getOutput("API_CERTIFICATE_ARN");
+const HTTPS_ALB_CERT_ARN = coreInfraStack.getOutput(
+  "GITCOIN_SCORER_API_CERTIFICATE_ARN"
+);
 const httpsListener = HTTPS_ALB_CERT_ARN.apply(
   (certificate) =>
     new aws.alb.Listener("scorer-https-listener", {
