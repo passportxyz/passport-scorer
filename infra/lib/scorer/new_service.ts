@@ -1,6 +1,5 @@
 import { LogGroup } from "@pulumi/aws/cloudwatch/logGroup";
 import { Role } from "@pulumi/aws/iam/role";
-import * as awsx from "@pulumi/awsx";
 import { Input, Output, interpolate } from "@pulumi/pulumi";
 import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 import * as aws from "@pulumi/aws";
@@ -71,7 +70,7 @@ export function createScorerECSService({
   environment: secretsManager.EnvironmentVar[];
   secrets: pulumi.Output<secretsManager.SecretRef[]>;
   loadBalancerAlarmThresholds: AlarmConfigurations;
-}): awsx.ecs.FargateService | undefined {
+}): aws.ecs.Service | undefined {
   //////////////////////////////////////////////////////////////
   // Create target group and load balancer rules
   //////////////////////////////////////////////////////////////
@@ -95,65 +94,85 @@ export function createScorerECSService({
   // Create the task definition and the service
   //////////////////////////////////////////////////////////////
 
-  const containers: Record<
-    string,
-    awsx.types.input.ecs.TaskDefinitionContainerDefinitionArgs
-  > = {
-    scorer: {
-      name: "scorer",
-      image: config.dockerImageScorer,
-      memory: config.memory ? config.memory : 4096,
-      cpu: config.cpu ? config.cpu : 4096,
-      portMappings: [{ containerPort: 80, hostPort: 80, protocol: "tcp" }],
-      command: [
-        "gunicorn",
-        "-w",
-        "4",
-        "-k",
-        "uvicorn.workers.UvicornWorker",
-        "scorer.asgi:application",
-        "-b",
-        "0.0.0.0:80",
-      ],
-      links: [],
-      linuxParameters: {
-        initProcessEnabled: true,
-      },
-      environment,
+  const containerDefinitions = pulumi
+    .all([
+      config.dockerImageScorer,
       secrets,
-    },
-  };
+      environment,
+      config.logGroup.name,
+      aws.config.region,
+    ])
+    .apply(
+      ([scorerImage, secrets, environment, logGroupName, logGroupRegion]) => {
+        return JSON.stringify([
+          {
+            name: "scorer",
+            image: scorerImage,
+            memory: config.memory ? config.memory : 4096,
+            cpu: config.cpu ? config.cpu : 4096,
+            portMappings: [
+              { containerPort: 80, hostPort: 80, protocol: "tcp" },
+            ],
+            command: [
+              "gunicorn",
+              "-w",
+              "4",
+              "-k",
+              "uvicorn.workers.UvicornWorker",
+              "scorer.asgi:application",
+              "-b",
+              "0.0.0.0:80",
+            ],
+            linuxParameters: {
+              initProcessEnabled: true,
+            },
+            environment,
+            secrets,
+            logConfiguration: {
+              logDriver: "awslogs",
+              options: {
+                "awslogs-group": logGroupName,
+                "awslogs-region": logGroupRegion,
+                "awslogs-stream-prefix": name,
+              },
+            },
+          },
+        ]);
+      }
+    );
 
-  const service = new awsx.ecs.FargateService(name, {
-    name: name,
-    propagateTags: "TASK_DEFINITION",
+  const taskDefinition = new aws.ecs.TaskDefinition(name, {
+    family: name,
+    cpu: String(config.cpu ? config.cpu : 4096),
+    memory: String(config.memory ? config.memory : 4096),
+    networkMode: "awsvpc",
+    requiresCompatibilities: ["FARGATE"],
+    executionRoleArn: config.executionRole.arn,
+    taskRoleArn: config.taskRole.arn,
+    containerDefinitions,
     tags: { ...defaultTags, Name: name },
+  });
+
+  const service = new aws.ecs.Service(name, {
+    name: name,
     cluster: config.cluster.arn,
+    taskDefinition: taskDefinition.arn,
     desiredCount: config.desiredCount ? config.desiredCount : 1,
+    launchType: "FARGATE",
+    propagateTags: "TASK_DEFINITION",
     networkConfiguration: {
       subnets: config.subnets,
       securityGroups: [config.securityGroup.id],
+      assignPublicIp: false,
     },
     loadBalancers: [
       {
+        targetGroupArn: config.targetGroup.arn,
         containerName: "scorer",
         containerPort: 80,
-        targetGroupArn: config.targetGroup.arn,
       },
     ],
-    taskDefinitionArgs: {
-      tags: { ...defaultTags, Name: name },
-      logGroup: {
-        existing: config.logGroup,
-      },
-      executionRole: {
-        roleArn: config.executionRole.arn,
-      },
-      taskRole: {
-        roleArn: config.taskRole.arn,
-      },
-      containers,
-    },
+    tags: { ...defaultTags, Name: name },
   });
 
   function getAutoScaleMinCapacity() {
@@ -170,7 +189,7 @@ export function createScorerECSService({
       tags: { ...defaultTags, Name: name },
       maxCapacity: getAutoScaleMaxCapacity(),
       minCapacity: getAutoScaleMinCapacity(),
-      resourceId: interpolate`service/${config.cluster.name}/${service.service.name}`,
+      resourceId: interpolate`service/${config.cluster.name}/${service.name}`,
       scalableDimension: "ecs:service:DesiredCount",
       serviceNamespace: "ecs",
     }
@@ -206,7 +225,7 @@ export function createScorerECSService({
         datapointsToAlarm: 1,
         dimensions: {
           ClusterName: config.cluster.name,
-          ServiceName: service.service.name,
+          ServiceName: service.name,
         },
         evaluationPeriods: 1,
         metricName: "RunningTaskCount",
@@ -230,7 +249,7 @@ export function createScorerECSService({
         datapointsToAlarm: 1,
         dimensions: {
           ClusterName: config.cluster.name,
-          ServiceName: service.service.name,
+          ServiceName: service.name,
         },
         evaluationPeriods: 1,
         metricName: "MemoryUtilization",
@@ -576,7 +595,7 @@ type IndexerServiceParams = {
   alertTopic: aws.sns.Topic;
   secretReferences: pulumi.Output<secretsManager.SecretRef[]>;
   environment: secretsManager.EnvironmentVar[];
-  dockerGtcStakingIndexerImage: Input<string>;
+  indexerImage: Input<string>;
 };
 
 export function createIndexerService(
@@ -588,7 +607,7 @@ export function createIndexerService(
     alertTopic,
     secretReferences,
     environment,
-    dockerGtcStakingIndexerImage,
+    indexerImage,
   }: IndexerServiceParams,
   alarmThresholds: AlarmConfigurations
 ) {
@@ -597,36 +616,58 @@ export function createIndexerService(
     tags: { ...defaultTags, Name: "scorer-indexer" },
   });
 
-  new awsx.ecs.FargateService("scorer-staking-indexer", {
-    propagateTags: "TASK_DEFINITION",
-    cluster: cluster.arn,
-    desiredCount: 1,
-    networkConfiguration: {
-      subnets: privateSubnetIds,
-      securityGroups: [privateSubnetSecurityGroup.id],
-    },
-    taskDefinitionArgs: {
-      logGroup: {
-        existing: indexerLogGroup,
-      },
-      executionRole: {
-        roleArn: workerRole.arn,
-      },
-      containers: {
-        worker1: {
+  const containerDefinitions = pulumi
+    .all([
+      indexerImage,
+      secretReferences,
+      environment,
+      indexerLogGroup.name,
+      aws.config.region,
+    ])
+    .apply(([indexerImage, secrets, environment, logGroupName, region]) => {
+      return JSON.stringify([
+        {
           name: "indexer-process",
           memory: 1024,
           cpu: 512,
-          image: dockerGtcStakingIndexerImage,
-          // command: ["cargo", "run"],
+          image: indexerImage,
           portMappings: [],
-          secrets: secretReferences,
+          secrets,
           environment,
-          dependsOn: [],
-          links: [],
+          logConfiguration: {
+            logDriver: "awslogs",
+            options: {
+              "awslogs-group": logGroupName,
+              "awslogs-region": region,
+              "awslogs-stream-prefix": "scorer-staking-indexer",
+            },
+          },
         },
-      },
-      tags: { ...defaultTags, Name: "scorer-staking-indexer" },
+      ]);
+    });
+
+  const taskDefinition = new aws.ecs.TaskDefinition("scorer-staking-indexer", {
+    family: "scorer-staking-indexer",
+    cpu: "512",
+    memory: "1024",
+    networkMode: "awsvpc",
+    requiresCompatibilities: ["FARGATE"],
+    executionRoleArn: workerRole.arn,
+    containerDefinitions,
+    tags: { ...defaultTags, Name: "scorer-staking-indexer" },
+  });
+
+  const service = new aws.ecs.Service("scorer-staking-indexer", {
+    name: "scorer-staking-indexer",
+    cluster: cluster.arn,
+    taskDefinition: taskDefinition.arn,
+    desiredCount: 1,
+    launchType: "FARGATE",
+    propagateTags: "TASK_DEFINITION",
+    networkConfiguration: {
+      subnets: privateSubnetIds,
+      securityGroups: [privateSubnetSecurityGroup.id],
+      assignPublicIp: false,
     },
     tags: { ...defaultTags, Name: "scorer-staking-indexer" },
   });

@@ -1663,7 +1663,7 @@ createIndexerService(
     alertTopic: pagerdutyTopic,
     secretReferences: indexerSecrets,
     environment: indexerEnvironment,
-    dockerGtcStakingIndexerImage,
+    indexerImage: dockerGtcStakingIndexerImage,
   },
   alarmConfigurations
 );
