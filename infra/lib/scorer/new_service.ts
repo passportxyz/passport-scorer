@@ -627,7 +627,7 @@ export function createIndexerService(
     .apply(([indexerImage, secrets, environment, logGroupName, region]) => {
       return JSON.stringify([
         {
-          name: "indexer-process",
+          name: "indexer-process-1",
           memory: 1024,
           cpu: 512,
           image: indexerImage,
@@ -639,26 +639,29 @@ export function createIndexerService(
             options: {
               "awslogs-group": logGroupName,
               "awslogs-region": region,
-              "awslogs-stream-prefix": "scorer-staking-indexer",
+              "awslogs-stream-prefix": "scorer-staking-indexer-1",
             },
           },
         },
       ]);
     });
 
-  const taskDefinition = new aws.ecs.TaskDefinition("scorer-staking-indexer", {
-    family: "scorer-staking-indexer",
-    cpu: "512",
-    memory: "1024",
-    networkMode: "awsvpc",
-    requiresCompatibilities: ["FARGATE"],
-    executionRoleArn: workerRole.arn,
-    containerDefinitions,
-    tags: { ...defaultTags, Name: "scorer-staking-indexer" },
-  });
+  const taskDefinition = new aws.ecs.TaskDefinition(
+    "scorer-staking-indexer-1",
+    {
+      family: "scorer-staking-indexer-1",
+      cpu: "512",
+      memory: "1024",
+      networkMode: "awsvpc",
+      requiresCompatibilities: ["FARGATE"],
+      executionRoleArn: workerRole.arn,
+      containerDefinitions,
+      tags: { ...defaultTags, Name: "scorer-staking-indexer-1" },
+    }
+  );
 
-  const service = new aws.ecs.Service("scorer-staking-indexer", {
-    name: "scorer-staking-indexer",
+  const service = new aws.ecs.Service("scorer-staking-indexer-1", {
+    name: "scorer-staking-indexer-1",
     cluster: cluster.arn,
     taskDefinition: taskDefinition.arn,
     desiredCount: 1,
