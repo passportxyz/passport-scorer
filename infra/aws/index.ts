@@ -171,7 +171,7 @@ const alarmConfigurations: AlarmConfigurations = {
   "passport-analysis-GET-0": {
     percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
     percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
-    targetResponseTime: 20, // 20 seconds - this is a slower request
+    targetResponseTime: 30, // 30 seconds - this is a slower request
     period: 60,
     datapointsToAlarm: 8,
     evaluationPeriods: 10,
