@@ -118,11 +118,6 @@ const pagerDutyIntegrationEndpoint = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`
 );
 
-// TODO: remove this once the noStackPassportXyzCertificateArn can be read from the core infra
-const noStackPassportXyzCertificateArn = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/PASSPORT_XYZ_CERTIFICATE_ARN`
-);
-
 const coreInfraStack = new pulumi.StackReference(
   `passportxyz/core-infra/${stack}`
 );
@@ -133,11 +128,17 @@ const vpcID = coreInfraStack.getOutput("vpcId");
 const vpcPrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds");
 const vpcPublicSubnetIds = coreInfraStack.getOutput("publicSubnetIds");
 
-const passportXyzDomainName = coreInfraStack.getOutput("passportXyzDomainName");
+const passportXyzDomainName = coreInfraStack.getOutput(
+  "passportXyzEnvDomainName"
+);
 const passportXyzHostedZoneId = coreInfraStack.getOutput(
-  "passportXyzHostedZoneId"
+  "envPassportXyzZoneId"
 );
 const passportXyzCertificateArn = coreInfraStack.getOutput(
+  "envPassportXyzCertificateArn"
+);
+
+const noStackPassportXyzCertificateArn = coreInfraStack.getOutput(
   "passportXyzCertificateArn"
 );
 
@@ -440,8 +441,10 @@ const targetGroupRegistry = createTargetGroup("scorer-api-reg", vpcID);
 //////////////////////////////////////////////////////////////
 // Create the HTTPS listener, and set the default target group
 //////////////////////////////////////////////////////////////
-const HTTPS_ALB_CERT_ARN = coreInfraStack.getOutput("API_CERTIFICATE_ARN");
-const httpsListener = HTTPS_ALB_CERT_ARN.apply(
+const httpsAlbCertArn = coreInfraStack.getOutput(
+  "gitcoinScorerApiCertificateArn"
+);
+const httpsListener = httpsAlbCertArn.apply(
   (certificate) =>
     new aws.alb.Listener("scorer-https-listener", {
       loadBalancerArn: alb.arn,
@@ -1270,7 +1273,7 @@ const redashTarget = new aws.alb.TargetGroup("redash-target", {
 });
 
 // Listen to traffic on port 443 & route it through the target group
-const redashHttpsListener = HTTPS_ALB_CERT_ARN.apply(
+const redashHttpsListener = httpsAlbCertArn.apply(
   (certificate) =>
     new aws.alb.Listener("redash-https-listener", {
       loadBalancerArn: redashAlb.arn,
