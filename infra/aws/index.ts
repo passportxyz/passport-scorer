@@ -955,93 +955,6 @@ const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
 
 export const securityGroupForTaskDefinition = secgrp.id;
 
-//////////////////////////////////////////////////////////////
-// Set up EC2 instance
-//      - it is intended to be used for troubleshooting
-//////////////////////////////////////////////////////////////
-
-const ubuntu = aws.ec2.getAmi({
-  mostRecent: true,
-  filters: [
-    {
-      name: "name",
-      values: ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"],
-    },
-    {
-      name: "virtualization-type",
-      values: ["hvm"],
-    },
-  ],
-  owners: ["099720109477"],
-});
-
-// Script to install docker in ec2 instance
-const ec2InitScript = `#!/bin/bash
-
-# Installing docker in ubuntu
-# Instructions taken from here: https://docs.docker.com/engine/install/ubuntu/
-
-mkdir /var/log/gitcoin
-echo $(date) "Starting installation of docker" >> /var/log/gitcoin/init.log
-apt-get remove docker docker-engine docker.io containerd runc
-
-apt-get update
-
-apt-get install -y \
-  ca-certificates \
-  curl \
-  gnupg \
-  lsb-release
-
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-
-echo \
-"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-$(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-apt-get update
-apt-get install -y docker-ce docker-ce-cli containerd.io awscli
-mkdir /var/log/gitcoin
-echo $(date) "Finished installation of docker" >> /var/log/gitcoin/init.log
-
-echo $(date) "Installing postgresql client" >> /var/log/gitcoin/init.log
-# Install postgresql client, instructions from here: https://www.postgresql.org/download/linux/ubuntu/
-# Create the file repository configuration:
-sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-
-# Import the repository signing key:
-wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-
-# Update the package lists:
-apt-get update
-
-# Install the latest version of PostgreSQL.
-# If you want a specific version, use 'postgresql-12' or similar instead of 'postgresql':
-apt-get -y install postgresql-client-13
-
-`;
-
-const web = new aws.ec2.Instance("troubleshooting-instance", {
-  ami: ubuntu.then((ubuntu) => ubuntu.id),
-  associatePublicIpAddress: true,
-  instanceType: "t3.medium",
-  subnetId: vpcPublicSubnetId1,
-  vpcSecurityGroupIds: [secgrp.id],
-  rootBlockDevice: {
-    volumeSize: 50,
-  },
-  tags: {
-    ...defaultTags,
-    Name: "Passport Scorer - troubleshooting instance",
-  },
-  userData: ec2InitScript,
-});
-
-export const ec2PublicIp = web.publicIp;
-export const dockrRunCmd = pulumi.secret(
-  pulumi.interpolate`docker run -it -e CERAMIC_CACHE_SCORER_ID=${CERAMIC_CACHE_SCORER_ID}  -e 'DATABASE_URL=${scorerDbProxyEndpointConn}' -e 'CELERY_BROKER_URL=${redisCacheOpsConnectionUrl}' '${dockerGtcPassportScorerImage}' bash`
-);
-
 ///////////////////////
 // Redash instance
 ///////////////////////
@@ -1192,6 +1105,21 @@ const redashInitScript = redashDbUrl.apply((url) =>
     )
   )
 );
+
+const ubuntu = aws.ec2.getAmi({
+  mostRecent: true,
+  filters: [
+    {
+      name: "name",
+      values: ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"],
+    },
+    {
+      name: "virtualization-type",
+      values: ["hvm"],
+    },
+  ],
+  owners: ["099720109477"],
+});
 
 const redashinstance = new aws.ec2.Instance("redashinstance", {
   ami: ubuntu.then((ubuntu: { id: any }) => ubuntu.id),
