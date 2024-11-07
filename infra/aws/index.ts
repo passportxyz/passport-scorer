@@ -129,17 +129,17 @@ const vpcPrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds");
 const vpcPublicSubnetIds = coreInfraStack.getOutput("publicSubnetIds");
 
 const passportXyzDomainName = coreInfraStack.getOutput(
-  "PASSPORT_XYZ_ENV_DOMAIN_NAME"
+  "passportXyzEnvDomainName"
 );
 const passportXyzHostedZoneId = coreInfraStack.getOutput(
-  "ENV_PASSPORT_XYZ_ZONE_ID"
+  "envPassportXyzZoneId"
 );
 const passportXyzCertificateArn = coreInfraStack.getOutput(
-  "ENV_PASSPORT_XYZ_CERTIFICATE_ARN"
+  "envPassportXyzCertificateArn"
 );
 
 const noStackPassportXyzCertificateArn = coreInfraStack.getOutput(
-  "PASSPORT_XYZ_CERTIFICATE_ARN"
+  "passportXyzCertificateArn"
 );
 
 const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply((values) => values[0]);
