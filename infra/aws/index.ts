@@ -441,10 +441,10 @@ const targetGroupRegistry = createTargetGroup("scorer-api-reg", vpcID);
 //////////////////////////////////////////////////////////////
 // Create the HTTPS listener, and set the default target group
 //////////////////////////////////////////////////////////////
-const HTTPS_ALB_CERT_ARN = coreInfraStack.getOutput(
-  "GITCOIN_SCORER_API_CERTIFICATE_ARN"
+const httpsAlbCertArn = coreInfraStack.getOutput(
+  "gitcoinScorerApiCertificateArn"
 );
-const httpsListener = HTTPS_ALB_CERT_ARN.apply(
+const httpsListener = httpsAlbCertArn.apply(
   (certificate) =>
     new aws.alb.Listener("scorer-https-listener", {
       loadBalancerArn: alb.arn,
@@ -1273,7 +1273,7 @@ const redashTarget = new aws.alb.TargetGroup("redash-target", {
 });
 
 // Listen to traffic on port 443 & route it through the target group
-const redashHttpsListener = HTTPS_ALB_CERT_ARN.apply(
+const redashHttpsListener = httpsAlbCertArn.apply(
   (certificate) =>
     new aws.alb.Listener("redash-https-listener", {
       loadBalancerArn: redashAlb.arn,
