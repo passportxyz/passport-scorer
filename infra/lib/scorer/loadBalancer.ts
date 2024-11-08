@@ -24,6 +24,7 @@ export type AlarmConfigurations = {
   "cc-v1-score-POST-0": TargetGroupAlarmsConfiguration;
   "cc-v1-st-bulk-PATCH-0": TargetGroupAlarmsConfiguration;
   "submit-passport-0": TargetGroupAlarmsConfiguration;
+  "cc-v1-st-bulk-DELETE-0": TargetGroupAlarmsConfiguration;
 };
 
 export function createLoadBalancerAlarms(

@@ -201,6 +201,14 @@ const alarmConfigurations: AlarmConfigurations = {
     datapointsToAlarm: 10,
     evaluationPeriods: 15,
   },
+  "cc-v1-st-bulk-DELETE-0": {
+    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
+    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
+    targetResponseTime: 2,
+    period: 60,
+    datapointsToAlarm: 10,
+    evaluationPeriods: 15,
+  },
 };
 
 const CERAMIC_CACHE_SCORER_ID = CERAMIC_CACHE_SCORER_ID_CONFG[stack];
