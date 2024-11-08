@@ -229,7 +229,7 @@ def delete_all_notifications(request):
                         eth_address=address,
                         notification=notification,
                         is_deleted=True,
-                        is_read=False,  # or whatever default value you want
+                        is_read=True,
                     )
                 )
 
