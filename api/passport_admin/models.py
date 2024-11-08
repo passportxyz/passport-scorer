@@ -72,15 +72,15 @@ class Notification(models.Model):
     type = models.CharField(
         max_length=50, choices=NOTIFICATION_TYPES, default="custom", db_index=True
     )
-    is_active = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=False, db_index=True)
 
     link = models.CharField(max_length=255, null=True, blank=True)
     link_text = models.CharField(max_length=255, null=True, blank=True)
     content = models.TextField()
-    created_at = models.DateField(auto_now_add=True)
-    expires_at = models.DateField(null=True, blank=True)
+    created_at = models.DateField(auto_now_add=True, db_index=True)
+    expires_at = models.DateField(null=True, blank=True, db_index=True)
     eth_address = EthAddressField(
-        null=True, blank=True
+        null=True, blank=True, db_index=True
     )  # account/ eth address for which the notification is created. If null then it is a global notification wgich will be shown to all users.
     community = models.ForeignKey(
         Community,
@@ -92,9 +92,9 @@ class Notification(models.Model):
 
 class NotificationStatus(models.Model):
     notification = models.ForeignKey(Notification, on_delete=models.CASCADE)
-    is_read = models.BooleanField(default=False)
+    is_read = models.BooleanField(default=False, db_index=True)
     is_deleted = models.BooleanField(
-        default=False
+        default=False, db_index=True
     )  # is dismissed => should not longer be shown to the user
     eth_address = EthAddressField(
         db_index=True
