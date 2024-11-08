@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+from django.db import IntegrityError
 from django.db.models import OuterRef, Q, Subquery, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -200,28 +201,55 @@ def delete_all_notifications(request):
     try:
         address = get_address(request.auth.did)
 
+        # Get all relevant notifications
         notifications = Notification.objects.filter(
             Q(is_active=True) & Q(eth_address=address)
         )
 
-        # Mark all notifications as deleted for this user
+        # Get existing notification statuses
+        existing_statuses = NotificationStatus.objects.filter(
+            notification__in=notifications, eth_address=address
+        )
+
+        # Create a set of existing notification IDs for quick lookup
+        existing_notification_ids = set(
+            existing_statuses.values_list("notification_id", flat=True)
+        )
+
+        # Prepare lists for bulk operations
+        statuses_to_create = []
+        notification_ids_to_update = []
+
         for notification in notifications:
-            notification_status, created = NotificationStatus.objects.get_or_create(
-                eth_address=address,
-                notification=notification,
-                defaults={"is_deleted": True},
-            )
-            if not created:
-                notification_status.is_deleted = True
-                notification_status.save()
+            if notification.pk in existing_notification_ids:
+                notification_ids_to_update.append(notification.pk)
+            else:
+                statuses_to_create.append(
+                    NotificationStatus(
+                        eth_address=address,
+                        notification=notification,
+                        is_deleted=True,
+                        is_read=False,  # or whatever default value you want
+                    )
+                )
 
-            notification.is_active = False
+        # Bulk create new status records
+        if statuses_to_create:
+            NotificationStatus.objects.bulk_create(statuses_to_create)
 
-        return {
-            "status": "success",
-        }
+        # Bulk update existing status records
+        if notification_ids_to_update:
+            NotificationStatus.objects.filter(
+                notification_id__in=notification_ids_to_update, eth_address=address
+            ).update(is_deleted=True)
 
-    except Exception:
+        # Update notifications to inactive
+        notifications.update(is_active=False)
+
+        return {"status": "success"}
+
+    except Exception as e:
+        print(e)
         return {
             "status": "failed",
         }
@@ -245,9 +273,14 @@ def dismiss_notification(request, notification_id: str, payload: DismissPayload)
                 "status": "Failed! Bad dismissal type.",
             }
 
-        notification_status, created = NotificationStatus.objects.get_or_create(
-            eth_address=address, notification=notification
-        )
+        try:
+            notification_status, created = NotificationStatus.objects.get_or_create(
+                eth_address=address, notification=notification
+            )
+        except IntegrityError:
+            notification_status = NotificationStatus.objects.get(
+                eth_address=address, notification=notification
+            )
 
         if payload.dismissal_type == "read":
             if not notification_status.is_read:
