@@ -2007,7 +2007,7 @@ const createdTask = createTask({
 export const s3TriggeredECSTask = createS3InitiatedECSTask(
   `bulk-score-requests-${stack}`,
   cluster.arn,
-  createdTask.task.taskDefinition.arn,
+  createdTask.task.arn,
   vpcPrivateSubnetIds,
   [secgrp.id],
   createdTask.eventsStsAssumeRole.arn

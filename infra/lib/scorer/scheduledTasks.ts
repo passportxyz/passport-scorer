@@ -1,10 +1,9 @@
-import * as awsx from "@pulumi/awsx";
 import { all, Input } from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import { ScorerService } from "./new_service";
 import { secretsManager } from "infra-libs";
-import {defaultTags} from "../tags";
+import { defaultTags } from "../tags";
 
 export type ScheduledTaskConfig = Pick<
   ScorerService,
@@ -34,7 +33,9 @@ export function createTask({
   name: string;
   config: ScheduledTaskConfig;
   environment: secretsManager.EnvironmentVar[];
-  secrets: pulumi.Output<secretsManager.SecretRef[]> | secretsManager.SecretRef[];
+  secrets:
+    | pulumi.Output<secretsManager.SecretRef[]>
+    | secretsManager.SecretRef[];
   scorerSecretManagerArn: Input<string>;
 }) {
   const {
@@ -69,38 +70,59 @@ export function createTask({
     },
   });
 
-  const task = new awsx.ecs.FargateTaskDefinition(name, {
-    executionRole: {
-      roleArn: executionRole.arn,
-    },
-    taskRole: {
-      roleArn: taskRole.arn,
-    },
+  const task = new aws.ecs.TaskDefinition(`${name}-1`, {
+    family: `${name}-1`,
+    cpu: (cpu ? cpu : 256).toString(),
+    memory: (memory ? memory : 2048).toString(),
+    networkMode: "awsvpc",
+    requiresCompatibilities: ["FARGATE"],
+    executionRoleArn: executionRole.arn,
+    taskRoleArn: taskRole.arn,
     ephemeralStorage: ephemeralStorageSizeInGiB
       ? {
           sizeInGib: ephemeralStorageSizeInGiB,
         }
       : undefined,
-    logGroup: {
-      existing: {
-        arn: logGroup.arn,
-      },
-    },
-    containers: {
-      web: {
-        name: `${name}-container`,
-        image: dockerImageScorer,
-        cpu: cpu ? cpu : 256,
-        memory: memory ? memory : 2048,
-        command: commandWithTest,
+    containerDefinitions: pulumi
+      .all([
         environment,
         secrets,
-      },
-    },
+        dockerImageScorer,
+        logGroup.name,
+        aws.config.region,
+      ])
+      .apply(([env, secs, image, logGroupName, logGroupRegion]) =>
+        JSON.stringify([
+          {
+            name: `${name}-container`,
+            image,
+            cpu: cpu ? cpu : 256,
+            memory: memory ? memory : 2048,
+            command: commandWithTest,
+            essential: true,
+            environment: env.map((e) => ({
+              name: e.name,
+              value: e.value,
+            })),
+            secrets: secs.map((s) => ({
+              name: s.name,
+              valueFrom: s.valueFrom,
+            })),
+            logConfiguration: {
+              logDriver: "awslogs",
+              options: {
+                "awslogs-group": logGroupName,
+                "awslogs-region": logGroupRegion,
+                "awslogs-stream-prefix": name,
+              },
+            },
+          },
+        ])
+      ),
     tags: {
       ...defaultTags,
       Name: name,
-    }
+    },
   });
 
   const eventsStsAssumeRole = new aws.iam.Role(`${name}-eventsRole`, {
@@ -157,12 +179,12 @@ export function createTask({
                   Resource: scorerSecretManagerArnStr,
                 },
               ],
-            }),
+            })
         ),
       },
       {
         name: "allow_run_task",
-        policy: task.taskDefinition.arn.apply((Resource) =>
+        policy: task.arn.apply((Resource) =>
           JSON.stringify({
             Version: "2012-10-17",
             Statement: [
@@ -172,12 +194,12 @@ export function createTask({
                 Resource: Resource,
               },
             ],
-          }),
+          })
         ),
       },
       {
         name: "allow_pass_role",
-        policy: all([executionRole.arn, task.taskDefinition.taskRoleArn]).apply(
+        policy: all([executionRole.arn, task.taskRoleArn]).apply(
           ([dpoppEcsRoleArn, weeklyDataDumpTaskRoleArn]) =>
             JSON.stringify({
               Version: "2012-10-17",
@@ -188,7 +210,7 @@ export function createTask({
                   Resource: [dpoppEcsRoleArn, weeklyDataDumpTaskRoleArn],
                 },
               ],
-            }),
+            })
         ),
       },
     ],
@@ -225,7 +247,9 @@ export function createScheduledTask({
   name: string;
   config: ScheduledTaskConfig;
   environment: secretsManager.EnvironmentVar[];
-  secrets: pulumi.Output<secretsManager.SecretRef[]> | secretsManager.SecretRef[];
+  secrets:
+    | pulumi.Output<secretsManager.SecretRef[]>
+    | secretsManager.SecretRef[];
   alarmPeriodSeconds?: number;
   enableInvocationAlerts?: boolean;
   scorerSecretManagerArn: Input<string>;
@@ -248,7 +272,7 @@ export function createScheduledTask({
     tags: {
       ...defaultTags,
       Name: `rule-${name}`,
-    }
+    },
   });
 
   new aws.cloudwatch.EventTarget(`scheduled-${name}`, {
@@ -257,7 +281,7 @@ export function createScheduledTask({
     roleArn: taskResources.eventsStsAssumeRole.arn,
     ecsTarget: {
       taskCount: 1,
-      taskDefinitionArn: taskResources.task.taskDefinition.arn,
+      taskDefinitionArn: taskResources.task.arn,
       launchType: "FARGATE",
       networkConfiguration: {
         assignPublicIp: false,
@@ -288,11 +312,11 @@ export function createScheduledTask({
           statistic: "Sum",
           threshold: 1,
           treatMissingData: "notBreaching",
-          tags:{
+          tags: {
             ...defaultTags,
             Name: `MissingInvocations-${name}`,
-          }
-        },
+          },
+        }
       );
     }
     // Verify failed invocations
@@ -314,11 +338,11 @@ export function createScheduledTask({
         statistic: "Sum",
         threshold: 0,
         treatMissingData: "notBreaching",
-        tags:{
+        tags: {
           ...defaultTags,
           Name: `FailedInvocations-${name}`,
-        }
-      },
+        },
+      }
     );
 
     // Missing succes Message
@@ -376,10 +400,10 @@ export function createScheduledTask({
       threshold: 1,
       name: `UnsuccessfulRuns-${name}`,
       treatMissingData: "notBreaching",
-      tags:{
+      tags: {
         ...defaultTags,
         Name: `UnsuccessfulRuns-${name}`,
-      }
+      },
     });
 
     // Cronjob error
@@ -399,7 +423,7 @@ export function createScheduledTask({
         },
         name: cronJobErrorMetricName,
         pattern: '"CRONJOB ERROR:"',
-      },
+      }
     );
 
     const cronJobErrorAlarm = new aws.cloudwatch.MetricAlarm(
@@ -418,13 +442,13 @@ export function createScheduledTask({
         statistic: "Sum",
         threshold: 1,
         treatMissingData: "notBreaching",
-        tags:{
+        tags: {
           ...defaultTags,
           Name: `CronJobErrorMsgAlarm-${name}`,
-        }
-      },
+        },
+      }
     );
   }
 
-  return taskResources.task.taskDefinition.id;
+  return taskResources.task.id;
 }
