@@ -774,6 +774,10 @@ const indexerEnvironment = [
     name: "DB_PORT",
     value: String(5432),
   },
+  {
+    name: "CERT_FILE",
+    value: "./ca-certificates/global-bundle.pem",
+  },
 ].sort(secretsManager.sortByName);
 
 const indexerSecrets = pulumi

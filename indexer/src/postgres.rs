@@ -23,8 +23,6 @@ pub struct PostgresClient {
 
 impl PostgresClient {
     pub async fn new() -> Result<Self, Error> {
-        println!("New DB connection");
-
         let mut pg_config = tokio_postgres::Config::new();
 
         pg_config
@@ -40,24 +38,40 @@ impl PostgresClient {
             recycling_method: RecyclingMethod::Fast,
         };
 
-        let cert_file = File::open(ca_cert).unwrap();
-        let mut buf = BufReader::new(cert_file);
-        let mut root_store: rustls::RootCertStore = rustls::RootCertStore::empty();
-        for cert in rustls_pemfile::certs(&mut buf) {
-            root_store.add(cert.unwrap()).unwrap();
+        println!("cert_file: {}", ca_cert);
+        let mgr: Option<Manager>;
+
+        if ca_cert != "" {
+            println!("Using TLS");
+
+            let cert_file = File::open(ca_cert).unwrap();
+
+            let mut buf = BufReader::new(cert_file);
+            let mut root_store: rustls::RootCertStore = rustls::RootCertStore::empty();
+            for cert in rustls_pemfile::certs(&mut buf) {
+                root_store.add(cert.unwrap()).unwrap();
+            }
+
+            let tls_config = RustlsClientConfig::builder()
+                .with_root_certificates(root_store)
+                .with_no_client_auth();
+
+            let tls = MakeRustlsConnect::new(tls_config);
+
+            mgr = Some(Manager::from_config(pg_config, tls, mgr_config));
+        } else {
+            println!("Using NoTls");
+            mgr = Some(Manager::from_config(pg_config, NoTls, mgr_config));
         }
 
-        let tls_config = RustlsClientConfig::builder()
-            .with_root_certificates(root_store)
-            .with_no_client_auth();
+        let pool = Pool::builder(mgr.unwrap()).max_size(16).build().unwrap();
 
-        let tls = MakeRustlsConnect::new(tls_config);
+        let ret = Self { pool };
+        let start_block = ret.get_requested_start_block(10).await.unwrap();
 
-        let mgr = Manager::from_config(pg_config, NoTls, mgr_config);
+        println!("Start block: {}", start_block);
 
-        let pool = Pool::builder(mgr).max_size(16).build().unwrap();
-
-        Ok(Self { pool })
+        Ok(ret)
     }
 
     // This function is for legacy staking contract events
