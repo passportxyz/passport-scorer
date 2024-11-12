@@ -206,8 +206,8 @@ const alarmConfigurations: AlarmConfigurations = {
     percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
     targetResponseTime: 2,
     period: 60,
-    datapointsToAlarm: 10,
-    evaluationPeriods: 15,
+    datapointsToAlarm: 7,
+    evaluationPeriods: 10,
   },
 };
 
