@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
-
+const ethers = require("ethers");
+const caip = require("caip");
 const app = express();
 
 import("dids").then((dids) => {
@@ -24,14 +25,41 @@ import("dids").then((dids) => {
 
           if (!req.body.issuer || req.body.issuer === "") {
             res.status(400);
-            const msg =
-              "Verification failed, 'issuer' is required in body!";
+            const msg = "Verification failed, 'issuer' is required in body!";
             console.error(msg);
             res.json({ status: "failed", error: msg });
             return;
           }
 
           Cacao.fromBlockBytes(new Uint8Array(req.body.cacao)).then((cacao) => {
+            const recoveredAddress = ethers
+              .verifyMessage(
+                didtools.SiweMessage.fromCacao(cacao).toMessage(),
+                cacao.s.s
+              )
+              .toLowerCase();
+            const recoveredAddresses = [recoveredAddress];
+            if (
+              Date.parse(cacao.p.iat) <= didtools.LEGACY_CHAIN_ID_REORG_DATE
+            ) {
+              const legacyChainIdRecoveredAddress = ethers
+                .verifyMessage(
+                  didtools.asLegacyChainIdString(
+                    didtools.SiweMessage.fromCacao(cacao),
+                    "Ethereum"
+                  ),
+                  cacao.s.s
+                )
+                .toLowerCase();
+              recoveredAddresses.push(legacyChainIdRecoveredAddress);
+            }
+            const issuerAddress = caip.AccountId.parse(
+              cacao.p.iss.replace("did:pkh:", "")
+            ).address.toLowerCase();
+
+            console.log(`Recovered addresses: ${recoveredAddresses}`);
+            console.log(`Issuer address: ${issuerAddress}`);
+
             const did = new DID({
               resolver: KeyResolver.getResolver(),
             });
@@ -47,7 +75,7 @@ import("dids").then((dids) => {
               })
               .catch((error) => {
                 res.status(400);
-                console.error("Verification failed:", error);
+                console.error("Verification failed :( - ", error);
                 res.json({ status: "failed", error: error.toString() });
               });
           });
