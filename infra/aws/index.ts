@@ -219,12 +219,12 @@ type EcsTaskConfigurationType = {
   desiredCount: number;
 };
 
-type EcsServiceNameType = "scorer-api-default" | "scorer-api-reg";
+type EcsServiceNameType = "scorer-api-default-1" | "scorer-api-reg-1";
 const ecsTaskConfigurations: Record<
   EcsServiceNameType,
   Record<StackType, EcsTaskConfigurationType>
 > = {
-  "scorer-api-default": {
+  "scorer-api-default-1": {
     review: {
       memory: 1024,
       cpu: 512,
@@ -241,7 +241,7 @@ const ecsTaskConfigurations: Record<
       desiredCount: 2,
     },
   },
-  "scorer-api-reg": {
+  "scorer-api-reg-1": {
     review: {
       memory: 1024,
       cpu: 512,
@@ -263,10 +263,10 @@ const ecsTaskConfigurations: Record<
 if (PROVISION_STAGING_FOR_LOADTEST) {
   // If we are provisioning for staging we want to have the same sizing as for production
   // So we copy over the production values to the staging values in ecsTaskConfigurations
-  ecsTaskConfigurations["scorer-api-default"]["staging"] =
-    ecsTaskConfigurations["scorer-api-default"]["production"];
-  ecsTaskConfigurations["scorer-api-reg"]["staging"] =
-    ecsTaskConfigurations["scorer-api-reg"]["production"];
+  ecsTaskConfigurations["scorer-api-default-1"]["staging"] =
+    ecsTaskConfigurations["scorer-api-default-1"]["production"];
+  ecsTaskConfigurations["scorer-api-reg-1"]["staging"] =
+    ecsTaskConfigurations["scorer-api-reg-1"]["production"];
 }
 
 // This matches the default security group that awsx previously created when creating the Cluster.
@@ -844,14 +844,14 @@ const baseScorerServiceConfig: ScorerService = {
 };
 
 const scorerServiceDefault = createScorerECSService({
-  name: "scorer-api-default",
+  name: "scorer-api-default-1",
   config: {
     ...baseScorerServiceConfig,
     targetGroup: targetGroupDefault,
-    memory: ecsTaskConfigurations["scorer-api-default"][stack].memory,
-    cpu: ecsTaskConfigurations["scorer-api-default"][stack].cpu,
+    memory: ecsTaskConfigurations["scorer-api-default-1"][stack].memory,
+    cpu: ecsTaskConfigurations["scorer-api-default-1"][stack].cpu,
     desiredCount:
-      ecsTaskConfigurations["scorer-api-default"][stack].desiredCount,
+      ecsTaskConfigurations["scorer-api-default-1"][stack].desiredCount,
   },
   environment: apiEnvironment,
   secrets: apiSecrets,
@@ -859,7 +859,7 @@ const scorerServiceDefault = createScorerECSService({
 });
 
 const scorerServiceRegistry = createScorerECSService({
-  name: "scorer-api-reg",
+  name: "scorer-api-reg-1",
   config: {
     ...baseScorerServiceConfig,
     listenerRulePriority: 3000,
@@ -872,9 +872,9 @@ const scorerServiceRegistry = createScorerECSService({
     ],
 
     targetGroup: targetGroupRegistry,
-    memory: ecsTaskConfigurations["scorer-api-reg"][stack].memory,
-    cpu: ecsTaskConfigurations["scorer-api-reg"][stack].cpu,
-    desiredCount: ecsTaskConfigurations["scorer-api-reg"][stack].desiredCount,
+    memory: ecsTaskConfigurations["scorer-api-reg-1"][stack].memory,
+    cpu: ecsTaskConfigurations["scorer-api-reg-1"][stack].cpu,
+    desiredCount: ecsTaskConfigurations["scorer-api-reg-1"][stack].desiredCount,
   },
   environment: apiEnvironment,
   secrets: apiSecrets,
@@ -1003,7 +1003,7 @@ const redashDb = new aws.rds.Instance(
     allocatedStorage: 20,
     maxAllocatedStorage: 30, // maxAllocatedStorage needs to be bigger than allocatedStorage
     engine: "postgres",
-    engineVersion: "13.15",
+    engineVersion: stack === "review" ? "16.3" : "13.15",
     instanceClass: "db.t3.micro",
     dbName: redashDbName,
     password: redashDbPassword,
@@ -1671,7 +1671,7 @@ createIndexerService(
     alertTopic: pagerdutyTopic,
     secretReferences: indexerSecrets,
     environment: indexerEnvironment,
-    dockerGtcStakingIndexerImage,
+    indexerImage: dockerGtcStakingIndexerImage,
   },
   alarmConfigurations
 );
@@ -2015,7 +2015,7 @@ const createdTask = createTask({
 export const s3TriggeredECSTask = createS3InitiatedECSTask(
   `bulk-score-requests-${stack}`,
   cluster.arn,
-  createdTask.task.taskDefinition.arn,
+  createdTask.task.arn,
   vpcPrivateSubnetIds,
   [secgrp.id],
   createdTask.eventsStsAssumeRole.arn
