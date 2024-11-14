@@ -57,7 +57,7 @@ log = logging.getLogger(__name__)
 
 
 @api_router.get(
-    "/stamps/{int:scorer_id}/score/{str:address}",
+    "/stamps/{scorer_id}/score/{address}",
     auth=aapi_key,
     response={
         200: V2ScoreResponse,
@@ -65,11 +65,10 @@ log = logging.getLogger(__name__)
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
     },
-    summary="Retrieve a Passport score for an address",
-    description=f"""Use this endpoint to fetch the score for a specific address and scorer\n
-A new score will be calculated based on the user's current Stamps.
-""",
-    tags=["Stamp Analysis"],
+    operation_id="v2_api_api_stamps_a_submit_passport",
+    summary="Retrieve Stamp-based unique humanity score for a specified address",
+    description="""This is the primary endpoint that integrators should use. This endpoint will return the latest score and Stamp data for a single address.<br /><br /><a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
+    tags=["Stamp API"],
 )
 @atrack_apikey_usage(track_response=True)
 async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreResponse:
@@ -146,7 +145,7 @@ def extract_score_data(event_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @api_router.get(
-    "/stamps/{int:scorer_id}/score/{str:address}/history",
+    "/stamps/{scorer_id}/score/{address}/history",
     auth=ApiKey(),
     response={
         200: V2ScoreResponse | NoScoreResponse,
@@ -154,16 +153,10 @@ def extract_score_data(event_data: Dict[str, Any]) -> Dict[str, Any]:
         400: ErrorMessageResponse,
         404: ErrorMessageResponse,
     },
-    summary="Get score history based on timestamp and optional address that is associated with a scorer",
-    description="""
-Use this endpoint to get a historical Passport score based on
-timestamp.\n
-This endpoint will return a `DetailedScoreResponse` if a score exists at the passed in timestamp.\n
-\n
-\n
-To access this endpoint, you must submit your use case and be approved by the Passport team. To do so, please fill out the following form, making sure to provide a detailed description of your use case. The Passport team typically reviews and responds to form responses within 48 hours. <a href="https://forms.gle/4GyicBfhtHW29eEu8" target="_blank">https://forms.gle/4GyicBfhtHW29eEu8</a>
-    """,
-    tags=["Stamp Analysis"],
+    operation_id="v2_api_api_stamps_get_score_history",
+    summary="Retrieve historical Stamp-based unique humanity score for a specified address",
+    description="""This endpoint will return the historical score and Stamp data for a single address at a specified time. **Note:** To access this endpoint, you must submit your use case and be approved by the Passport team. To do so, please fill out the following form, making sure to provide a detailed description of your use case. The Passport team typically reviews and responds to form responses within 48 hours.<br /><br />[Request access](https://forms.gle/4GyicBfhtHW29eEu8)<br /><br /><a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
+    tags=["Stamp API"],
 )
 @track_apikey_usage(track_response=False)
 def get_score_history(
@@ -232,13 +225,14 @@ def get_score_history(
 @api_router.get(
     "/stamps/metadata",
     summary="Receive all Stamps available in Passport",
-    description="""**WARNING**: This endpoint is in beta and is subject to change.""",
+    description="""<a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
     auth=ApiKey(),
     response={
         200: List[StampDisplayResponse],
         500: ErrorMessageResponse,
     },
-    tags=["Stamp Analysis"],
+    operation_id="v2_api_api_stamps_stamp_display",
+    tags=["Stamp API"],
 )
 @track_apikey_usage(track_response=False)
 def stamp_display(request) -> List[StampDisplayResponse]:
@@ -254,14 +248,11 @@ def stamp_display(request) -> List[StampDisplayResponse]:
         400: ErrorMessageResponse,
         401: ErrorMessageResponse,
     },
-    summary="Receive Stamps verified by submitted Passports",
-    description="""Use this endpoint to fetch the passport for a specific address\n
-This endpoint will return a `CursorPaginatedStampCredentialResponse`.\n
-**WARNING**: The **include_metadata** feature is in beta, the metadata response format may change in the future.\n
-""",
-    # This prevents returning {metadata: None} in the response
+    operation_id="v2_api_api_stamps_get_passport_stamps",
+    summary="Retrieve the Stamps that a specified account has verified.",
+    description="""Use this endpoint to retrieve the Stamps verified by a specified address.<br /><br />This endpoint will return a `CursorPaginatedStampCredentialResponse`.<br /><br /><a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
     exclude_unset=True,
-    tags=["Stamp Analysis"],
+    tags=["Stamp API"],
 )
 @track_apikey_usage(track_response=False)
 def get_passport_stamps(

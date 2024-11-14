@@ -24,8 +24,9 @@ from .router import api_router
 
 api = NinjaExtraAPI(
     urls_namespace="v2",
-    title="Passport API V2",
-    description="Endpoints to retrieve Passport scores, Stamps, analysis, and metadata.",
+    title="Passport Developer Platform",
+    description="The Passport Developer Platform's endpoints enable you to retrieve Passport scores, Stamps, analysis, and metadata.",
+    version="2.0.0",
 )
 
 
