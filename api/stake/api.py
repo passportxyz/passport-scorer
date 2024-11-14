@@ -1,12 +1,13 @@
 from typing import List
 
-import api_logging as logging
 from django.db.models import Q
 from ninja_extra import NinjaExtraAPI
+
+import api_logging as logging
 from registry.api.utils import is_valid_address, with_read_db
 from registry.exceptions import InvalidAddressException, StakingRequestError
 from stake.models import Stake
-from stake.schema import ErrorMessageResponse, StakeSchema, GetSchemaResponse
+from stake.schema import ErrorMessageResponse, GetSchemaResponse, StakeSchema
 from trusta_labs.api import CgrantsApiKey
 
 secret_key = CgrantsApiKey()
