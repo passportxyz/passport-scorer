@@ -21,15 +21,6 @@ services:
 
     command: uvicorn scorer.asgi:application --reload --host 0.0.0.0 --port 8002
 
-  worker:
-    build: api
-    volumes:
-      - ./api:/app
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-
-    command: celery -A scorer worker -Q score_passport_passport,score_registry_passport -l DEBUG
-
   interface:
     build:
       context: ./interface
