@@ -5,8 +5,11 @@ use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use ethers::types::H160;
 use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
+use rustls::ClientConfig as RustlsClientConfig;
 use std::str::FromStr;
+use std::{fs::File, io::BufReader};
 use tokio_postgres::{Error, NoTls};
+use tokio_postgres_rustls::MakeRustlsConnect;
 
 use crate::{
     utils::{get_code_for_stake_event_type, get_env, StakeAmountOperation, StakeEventType},
@@ -29,14 +32,46 @@ impl PostgresClient {
             .host(&get_env("DB_HOST"))
             .port(get_env("DB_PORT").parse::<u16>().unwrap());
 
+        let ca_cert = get_env("CERT_FILE");
+
         let mgr_config = ManagerConfig {
             recycling_method: RecyclingMethod::Fast,
         };
-        let mgr = Manager::from_config(pg_config, NoTls, mgr_config);
 
-        let pool = Pool::builder(mgr).max_size(16).build().unwrap();
+        println!("cert_file: {}", ca_cert);
+        let mgr: Option<Manager>;
 
-        Ok(Self { pool })
+        if ca_cert != "" {
+            println!("Using TLS");
+
+            let cert_file = File::open(ca_cert).unwrap();
+
+            let mut buf = BufReader::new(cert_file);
+            let mut root_store: rustls::RootCertStore = rustls::RootCertStore::empty();
+            for cert in rustls_pemfile::certs(&mut buf) {
+                root_store.add(cert.unwrap()).unwrap();
+            }
+
+            let tls_config = RustlsClientConfig::builder()
+                .with_root_certificates(root_store)
+                .with_no_client_auth();
+
+            let tls = MakeRustlsConnect::new(tls_config);
+
+            mgr = Some(Manager::from_config(pg_config, tls, mgr_config));
+        } else {
+            println!("Using NoTls");
+            mgr = Some(Manager::from_config(pg_config, NoTls, mgr_config));
+        }
+
+        let pool = Pool::builder(mgr.unwrap()).max_size(16).build().unwrap();
+
+        let ret = Self { pool };
+        let start_block = ret.get_requested_start_block(10).await.unwrap();
+
+        println!("Start block: {}", start_block);
+
+        Ok(ret)
     }
 
     // This function is for legacy staking contract events
@@ -147,7 +182,10 @@ impl PostgresClient {
                 // rollback transaction
                 client.execute("ROLLBACK", &[]).await?;
                 // continue if duplicate key error
-                if format!("{:?}", e).contains(&format!("Key (tx_hash, chain, stakee)=({}, {}, {}) already exists.", tx_hash, chain_id, stakee)) {
+                if format!("{:?}", e).contains(&format!(
+                    "Key (tx_hash, chain, stakee)=({}, {}, {}) already exists.",
+                    tx_hash, chain_id, stakee
+                )) {
                     return Ok(());
                 }
                 return Err(e);
@@ -225,7 +263,10 @@ impl PostgresClient {
                 // rollback transaction
                 client.execute("ROLLBACK", &[]).await?;
                 // continue if duplicate key error
-                if format!("{:?}", e).contains(&format!("Key (tx_hash, chain, stakee)=({}, {}, {}) already exists.", tx_hash, chain_id, stakee)) {
+                if format!("{:?}", e).contains(&format!(
+                    "Key (tx_hash, chain, stakee)=({}, {}, {}) already exists.",
+                    tx_hash, chain_id, stakee
+                )) {
                     return Ok(());
                 }
                 return Err(e);
@@ -290,10 +331,7 @@ impl PostgresClient {
         }
     }
 
-    pub async fn get_latest_block(
-        &self,
-        chain_id: u32
-    ) -> Result<u64, Error> {
+    pub async fn get_latest_block(&self, chain_id: u32) -> Result<u64, Error> {
         let chain_id: i32 = chain_id as i32;
         let client = self.pool.get().await.unwrap();
         let latest_block_rows = client
