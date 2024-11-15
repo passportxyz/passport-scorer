@@ -38,7 +38,7 @@ authenticate_payload = {
 }
 
 
-def get_config(base_url: str) -> dict:
+def get_config(base_url: str, base_url_xyz: str) -> dict:
     return {
         # Public API
         "registry": {
@@ -178,7 +178,27 @@ def get_config(base_url: str) -> dict:
         "v2": {
             "urls": {
                 ("GET", "/v2/stamps/{scorer_id}/score/{address}"): {
-                    "url": f"{base_url}v2/stamps/{REGISTRY_SCORER_ID}/score/{REGISTRY_ADDRESS}",
+                    "url": f"{base_url_xyz}v2/stamps/{REGISTRY_SCORER_ID}/score/{REGISTRY_ADDRESS}",
+                    "http_headers": {"X-API-Key": REGISTRY_API_KEY},
+                    "success_http_statues": [200],
+                },
+                ("GET", "/v2/stamps/{scorer_id}/score/{address}/history"): {
+                    "url": f"{base_url_xyz}v2/stamps/{REGISTRY_SCORER_ID}/score/{REGISTRY_ADDRESS}/history",
+                    "http_headers": {"X-API-Key": REGISTRY_API_KEY},
+                    "success_http_statues": [200],
+                },
+                ("GET", "/v2/stamps/{address}"): {
+                    "url": f"{base_url_xyz}v2/stamps/{REGISTRY_ADDRESS}",
+                    "http_headers": {"X-API-Key": REGISTRY_API_KEY},
+                    "success_http_statues": [200],
+                },
+                ("GET", "/v2/stamps/metadata"): {
+                    "url": f"{base_url_xyz}v2/metadata",
+                    "http_headers": {"X-API-Key": REGISTRY_API_KEY},
+                    "success_http_statues": [200],
+                },
+                ("GET", "/v2/models/score/{address}"): {
+                    "url": f"{base_url_xyz}v2/models/score/{REGISTRY_ADDRESS}",
                     "http_headers": {"X-API-Key": REGISTRY_API_KEY},
                     "success_http_statues": [200],
                 },

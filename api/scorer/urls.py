@@ -15,25 +15,19 @@ Including another URLconf
 """
 
 # from rest_framework.schemas import get_schema_view
-from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
 from account.api import health
+from scorer.api import apis as api_list
 
 from .api import (
-    ceramic_cache_api_v1,
     feature_flag_api,
-    passport_admin_api,
-    registry_api_v1,
 )
 
 urlpatterns = [
-    path("", registry_api_v1.urls),
     path("registry/feature/", feature_flag_api.urls),
-    path("ceramic-cache/", ceramic_cache_api_v1.urls),
-    # path("ceramic-cache/v2/", ceramic_cache_api_v2.urls),
     path("cgrants/", include("cgrants.urls")),
     path("health/", health, {}, "health-check"),
     path(
@@ -44,13 +38,10 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("account/", include("account.urls")),
     path("social/", include("social_django.urls", namespace="social")),
-    path("passport-admin/", passport_admin_api.urls),
-    # path("__debug__/", include("debug_toolbar.urls")),
     path("trusta_labs/", include("trusta_labs.urls")),
     path("stake/", include("stake.urls")),
     path("passport/", include("passport.urls")),
     path("internal/", include("internal.urls")),
 ]
 
-if settings.FF_V2_API == "on":
-    urlpatterns.append(path("v2/", include("v2.urls")))
+urlpatterns += [path("", api.urls) for api in api_list]

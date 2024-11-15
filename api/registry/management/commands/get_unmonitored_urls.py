@@ -37,6 +37,12 @@ class Command(BaseCommand):
             required=True,
         )
         parser.add_argument(
+            "--base-url-xyz",
+            type=str,
+            help="Base URL for the XYZ host (uptime robot URLs will be filtered using this)",
+            required=True,
+        )
+        parser.add_argument(
             "--allow-paused",
             type=bool,
             help="Allow paused monitors to be considered monitored (default: False)",
@@ -89,7 +95,7 @@ class Command(BaseCommand):
         num_missing_config = 0
         num_skipped_namespaces = 0
         num_skipped_endpoints = 0
-        config = get_config(kwargs["base_url"])
+        config = get_config(kwargs["base_url"], kwargs["base_url_xyz"])
         for api in apis:
             openapi = OpenAPISchema(api=api, path_prefix="")
             paths = openapi.get("paths", {})
