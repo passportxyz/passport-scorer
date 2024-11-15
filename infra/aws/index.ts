@@ -776,7 +776,7 @@ const indexerEnvironment = [
   },
   {
     name: "CERT_FILE",
-    value: "./ca-certificates/global-bundle.pem",
+    value: "./ca-certificates/all.pem",
   },
 ].sort(secretsManager.sortByName);
 
