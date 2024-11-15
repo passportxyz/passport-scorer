@@ -100,38 +100,38 @@ def get_config(base_url: str, base_url_xyz: str) -> dict:
             "urls": {
                 # No auth required
                 ("GET", "/ceramic-cache/stamp"): {
-                    "url": f"{base_url}ceramic-cache/stamp?address={CERAMIC_CACHE_ADDRESS}",
+                    "url": f"{base_url_xyz}ceramic-cache/stamp?address={CERAMIC_CACHE_ADDRESS}",
                 },
                 ("GET", "/ceramic-cache/weights"): {
-                    "url": f"{base_url}ceramic-cache/weights",
+                    "url": f"{base_url_xyz}ceramic-cache/weights",
                 },
                 # Auth required
                 ("GET", "/ceramic-cache/stake/gtc"): {
-                    "url": f"{base_url}ceramic-cache/stake/gtc",
+                    "url": f"{base_url_xyz}ceramic-cache/stake/gtc",
                     "http_headers": {
                         "Authorization": f"Bearer {CERAMIC_CACHE_JWT_TOKEN}"
                     },
                 },
                 ("GET", "/ceramic-cache/score/{address}"): {
-                    "url": f"{base_url}ceramic-cache/score/{CERAMIC_CACHE_ADDRESS}",
+                    "url": f"{base_url_xyz}ceramic-cache/score/{CERAMIC_CACHE_ADDRESS}",
                     "http_headers": {
                         "Authorization": f"Bearer {CERAMIC_CACHE_JWT_TOKEN}"
                     },
                 },
                 ("GET", "/ceramic-cache/tos/accepted/{tos_type}/{address}"): {
-                    "url": f"{base_url}ceramic-cache/tos/accepted/ISI/{CERAMIC_CACHE_ADDRESS}",
+                    "url": f"{base_url_xyz}ceramic-cache/tos/accepted/ISI/{CERAMIC_CACHE_ADDRESS}",
                     "http_headers": {
                         "Authorization": f"Bearer {CERAMIC_CACHE_JWT_TOKEN}"
                     },
                 },
                 ("GET", "/ceramic-cache/tos/message-to-sign/{tos_type}/{address}"): {
-                    "url": f"{base_url}ceramic-cache/tos/message-to-sign/IST/{CERAMIC_CACHE_ADDRESS}",
+                    "url": f"{base_url_xyz}ceramic-cache/tos/message-to-sign/IST/{CERAMIC_CACHE_ADDRESS}",
                     "http_headers": {
                         "Authorization": f"Bearer {CERAMIC_CACHE_JWT_TOKEN}"
                     },
                 },
                 ("PATCH", "/ceramic-cache/stamps/bulk/meta/compose-db"): {
-                    "url": f"{base_url}ceramic-cache/stamps/bulk/meta/compose-db",
+                    "url": f"{base_url_xyz}ceramic-cache/stamps/bulk/meta/compose-db",
                     "http_headers": {
                         "Authorization": f"Bearer {CERAMIC_CACHE_JWT_TOKEN}"
                     },
@@ -143,7 +143,7 @@ def get_config(base_url: str, base_url_xyz: str) -> dict:
                 ("POST", "/ceramic-cache/score/{address}"): {
                     # TODO: do we still use this POST API ???
                     "skip": True,  # Skipping because uptime robot api rejects creating multiple monitors on same endpoint
-                    "url": f"{base_url}ceramic-cache/score/{CERAMIC_CACHE_ADDRESS}",
+                    "url": f"{base_url_xyz}ceramic-cache/score/{CERAMIC_CACHE_ADDRESS}",
                     "http_headers": {
                         "Authorization": f"Bearer {CERAMIC_CACHE_JWT_TOKEN}"
                     },
@@ -151,7 +151,7 @@ def get_config(base_url: str, base_url_xyz: str) -> dict:
                 },
                 ("POST", "/ceramic-cache/stamps/bulk"): {
                     "skip": True,  # Skipping because uptime robot api rejects creating multiple monitors on same endpoint
-                    # "url": f"{base_url}ceramic-cache/stamps/bulk",
+                    # "url": f"{base_url_xyz}ceramic-cache/stamps/bulk",
                     # "http_headers": {
                     #     "Authorization": f"Bearer {CERAMIC_CACHE_JWT_TOKEN}"
                     # },
@@ -193,7 +193,7 @@ def get_config(base_url: str, base_url_xyz: str) -> dict:
                     "success_http_statues": [200],
                 },
                 ("GET", "/v2/stamps/metadata"): {
-                    "url": f"{base_url_xyz}v2/metadata",
+                    "url": f"{base_url_xyz}v2/stamps/metadata",
                     "http_headers": {"X-API-Key": REGISTRY_API_KEY},
                     "success_http_statues": [200],
                 },
