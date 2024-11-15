@@ -135,9 +135,41 @@ export function createV2Api({
           },
         },
       ],
-      listenerPriority: 2022,
+      listenerPriority: 2023,
     },
     alarmConfigurations
+  );
+
+  const targetPassportRuleHistory = new ListenerRule(
+    `passport-v2-lrule-history`,
+    {
+      tags: { ...defaultTags, Name: "passport-v2-lrule-history" },
+      listenerArn: httpsListener.arn,
+      priority: 2022,
+      actions: [
+        {
+          type: "forward",
+          targetGroupArn: targetGroupRegistry.arn,
+        },
+      ],
+      conditions: [
+        {
+          hostHeader: {
+            values: ["*.passport.xyz"],
+          },
+        },
+        {
+          pathPattern: {
+            values: ["/v2/stamps/*/score/*/history"],
+          },
+        },
+        {
+          httpRequestMethod: {
+            values: ["GET"],
+          },
+        },
+      ],
+    }
   );
 
   const targetPassportRule = new ListenerRule(`passport-v2-lrule`, {
