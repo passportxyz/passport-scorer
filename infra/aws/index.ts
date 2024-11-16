@@ -1288,7 +1288,7 @@ const frequentAlloScorerDataDumpTaskDefinition = pulumi
               "'",
             `--s3-uri=s3://${publicDataDomain}/passport_scores/`,
           ].join(" "),
-          scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
+          scheduleExpression: "cron(0 12 ? * * *)", // Run the task every 30 min
           alertTopic: pagerdutyTopic,
         },
         environment: apiEnvironment,
