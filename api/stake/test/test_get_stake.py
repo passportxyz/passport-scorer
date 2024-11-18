@@ -177,3 +177,59 @@ class TestGetStakingResults:
         )
 
         assert response.status_code == 401
+
+    def test_serialising_scientific_decimals(
+        self, mocker, sample_token, sample_address
+    ):
+        client = Client()
+
+        class QueryMock:
+            def filter(self, *args, **kwargs):
+                return [
+                    Stake.objects.create(
+                        chain="1",
+                        staker=sample_address.lower(),
+                        stakee=sample_address.lower(),
+                        current_amount=Decimal("0E-18"),
+                        last_updated_in_block=Decimal("10000000"),
+                        unlock_time=unlock_time_0,
+                        lock_time=lock_time_0,
+                    ),
+                    Stake.objects.create(
+                        chain="1",
+                        staker=sample_address.lower(),
+                        stakee=other_user_address.lower(),
+                        current_amount=Decimal("2.0e+0"),
+                        last_updated_in_block=Decimal("10000001"),
+                        unlock_time=unlock_time_1,
+                        lock_time=lock_time_1,
+                    ),
+                ]
+
+        mocker.patch("stake.api.with_read_db", side_effect=[QueryMock()])
+        response = client.get(
+            "/ceramic-cache/stake/gtc",
+            HTTP_AUTHORIZATION="Bearer " + sample_token,
+        )
+
+        response_data = response.json()["items"]
+        assert len(response_data) == 2
+
+        assert response_data[0] == {
+            "staker": sample_address.lower(),
+            "chain": 1,
+            "amount": "0.000000000000000000",
+            "last_updated_in_block": 10000000,
+            "lock_time": lock_time_0.isoformat(),
+            "unlock_time": unlock_time_0.isoformat(),
+            "stakee": sample_address.lower(),
+        }
+        assert response_data[1] == {
+            "staker": sample_address.lower(),
+            "chain": 1,
+            "amount": "2.000000000000000000",
+            "last_updated_in_block": 10000001,
+            "lock_time": lock_time_1.isoformat(),
+            "unlock_time": unlock_time_1.isoformat(),
+            "stakee": other_user_address.lower(),
+        }
