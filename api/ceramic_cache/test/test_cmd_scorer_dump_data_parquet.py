@@ -135,16 +135,14 @@ class TestScorerDumpDataParquet:
         assert len(score_df) == 5
 
     @pytest.mark.django_db
-    def test_export_specific_models(self, scorer_account, mocker):
-        """Test exporting specific models"""
-
+    def test_export_specific_models(self, scorer_account, mocker, capsys):
+        """Test exporting specific models with stdout verification"""
         WeightConfiguration.objects.create(
             version="v1",
             threshold=2,
             active=True,
             description="Test weight configuration",
         )
-        # Create test data
         scorer = BinaryWeightedScorer.objects.create(type=Scorer.Type.WEIGHTED_BINARY)
         community = Community.objects.create(
             name="Community 1",
@@ -153,7 +151,6 @@ class TestScorerDumpDataParquet:
             scorer=scorer,
         )
 
-        # Mock S3 upload
         mocked_upload_to_s3_calls = []
 
         def mocked_upload_to_s3(output_file, s3_folder, s3_bucket_name, extra_args):
@@ -177,17 +174,18 @@ class TestScorerDumpDataParquet:
         call_command(
             "scorer_dump_data_parquet",
             **{
-                "models": "account.community",
+                "models": "account_community,registry_score",
                 "s3_uri": "s3://test-bucket/exports/",
+                "apps": "registry,account",
             },
         )
 
         # Verify only community data was exported
-        assert len(mocked_upload_to_s3_calls) == 1
-        assert "community" in mocked_upload_to_s3_calls[0]["file_path"]
+        assert len(mocked_upload_to_s3_calls) == 2
+        assert "registry_score" in mocked_upload_to_s3_calls[0]["file_path"]
 
         community_table = pq.read_table(
-            f"cpy_{mocked_upload_to_s3_calls[0]['file_path']}"
+            f"cpy_{mocked_upload_to_s3_calls[1]['file_path']}"
         )
         community_df = community_table.to_pandas()
         assert len(community_df) == 1
