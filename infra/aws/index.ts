@@ -1267,25 +1267,11 @@ const frequentAlloScorerDataDumpTaskDefinition = pulumi
           command: [
             "python",
             "manage.py",
-            "scorer_dump_data",
+            "scorer_dump_data_parquet",
             "--batch-size=1000",
             "--database=read_replica_analytics",
-            `--cloudfront_distribution_id=${cloudFrontId}`,
-            "--config",
-            "'" +
-              JSON.stringify([
-                {
-                  name: "registry.Score",
-                  filter: { passport__community_id: 335 },
-                  select_related: ["passport"],
-                },
-                {
-                  name: "registry.Passport",
-                  filter: { passport__community_id: 335 },
-                  select_related: ["stamps"],
-                },
-              ]) +
-              "'",
+            "--apps=registry",
+            "--models=registry_passport,registry_score",
             `--s3-uri=s3://${publicDataDomain}/passport_scores/`,
           ].join(" "),
           scheduleExpression: "cron(0 12 ? * * *)", // Run the task every 30 min
