@@ -88,18 +88,10 @@ class Command(BaseCronJobCmd):
         model_filter = {}
         if models_to_export:
             for model_spec in models_to_export:
-                if "." in model_spec:
-                    # Handle app_name.model_name format
-                    app_name, model_name = model_spec.split(".")
-                    if app_name not in model_filter:
-                        model_filter[app_name] = set()
-                    model_filter[app_name].add(model_name)
-                else:
-                    # Handle table name format - we'll check against db_table later
-                    model_filter["__table_names__"] = model_filter.get(
-                        "__table_names__", set()
-                    )
-                    model_filter["__table_names__"].add(model_spec)
+                model_filter["__table_names__"] = model_filter.get(
+                    "__table_names__", set()
+                )
+                model_filter["__table_names__"].add(model_spec)
         # Process each app
         for app_name in apps_to_export or {
             app for app in model_filter.keys() if app != "__table_names__"
