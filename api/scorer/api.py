@@ -11,6 +11,7 @@ The scorer API module
 
 from typing import List, Optional
 
+from django.conf import settings
 from django_ratelimit.exceptions import Ratelimited
 from ninja import NinjaAPI
 from ninja.openapi.schema import OpenAPISchema
@@ -22,6 +23,7 @@ from passport_admin.api import router as passport_admin_router
 from registry.api.utils import get_passport_api_rate_limited_msg
 from registry.api.v1 import feature_flag_router
 from registry.api.v1 import router as registry_router_v1
+from v2.api import api as registry_api_v2
 
 
 ###############################################################################
@@ -92,14 +94,19 @@ feature_flag_api.add_router("", feature_flag_router)
 
 
 ceramic_cache_api_v1 = NinjaAPI(urls_namespace="ceramic-cache", docs_url=None)
-ceramic_cache_api_v1.add_router("", ceramic_cache_router_v1)
+ceramic_cache_api_v1.add_router("/ceramic-cache", ceramic_cache_router_v1)
 
 
 passport_admin_api = NinjaAPI(urls_namespace="passport-admin", docs_url=None)
-passport_admin_api.add_router("", passport_admin_router)
+passport_admin_api.add_router("/passport-admin", passport_admin_router)
+
 
 apis = [
     registry_api_v1,
     ceramic_cache_api_v1,
     passport_admin_api,
 ]
+
+
+if settings.FF_V2_API == "on":
+    apis.append(registry_api_v2)

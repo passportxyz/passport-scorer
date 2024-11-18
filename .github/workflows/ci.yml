@@ -114,7 +114,7 @@ jobs:
           CERAMIC_CACHE_ADDRESS: ${{ env.CERAMIC_CACHE_ADDRESS }}
 
         run:
-          python manage.py get_unmonitored_urls --base-url https://api.scorer.gitcoin.co/
+          python manage.py get_unmonitored_urls --base-url https://api.scorer.gitcoin.co/ --base-url-xyz https://api.passport.xyz/
 
   ui-test:
     runs-on: ubuntu-latest

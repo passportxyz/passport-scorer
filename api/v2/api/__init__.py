@@ -2,22 +2,6 @@
 from django_ratelimit.exceptions import Ratelimited
 from ninja_extra import NinjaExtraAPI
 
-from account.models import (
-    Nonce,
-)
-from registry.api.schema import (
-    ErrorMessageResponse,
-    SigningMessageResponse,
-)
-from registry.api.utils import (
-    ApiKey,
-    check_rate_limit,
-    track_apikey_usage,
-)
-from registry.utils import (
-    get_signing_message,
-)
-
 from .api_models import *
 from .api_stamps import *
 from .router import api_router
@@ -27,10 +11,12 @@ api = NinjaExtraAPI(
     title="Passport Developer Platform",
     description="The Passport Developer Platform's endpoints enable you to retrieve Passport scores, Stamps, analysis, and metadata.",
     version="2.0.0",
+    docs_url="/v2/docs",
+    openapi_url="/v2/openapi.json",
 )
 
 
-api.add_router("", api_router)
+api.add_router("/v2", api_router)
 
 
 @api.exception_handler(Ratelimited)
