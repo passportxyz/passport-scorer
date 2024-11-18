@@ -196,11 +196,11 @@ def get_score_history(
         score_data = extract_score_data(score_event.data)
 
         # Get evidence data, defaulting to empty dict if not present
-        evidence = score_data.get("evidence", {})
+        evidence = score_data.get("evidence", {}) or {}
         threshold = evidence.get("threshold", "0")
 
         # Handle score extraction for both formats
-        if "evidence" in score_data and "rawScore" in score_data["evidence"]:
+        if "evidence" in score_data and "rawScore" in evidence:
             score = score_data["evidence"]["rawScore"]
         else:
             score = score_data.get("score", "0")

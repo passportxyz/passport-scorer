@@ -168,6 +168,36 @@ class TestPassportGetHistoricalScore:
         assert response_data["expiration_timestamp"] is None
         assert response_data["stamp_scores"] is None
 
+    @freeze_time("2023-01-01")
+    def test_get_historical_score_ne_evidence(
+        self,
+        scorer_account,
+        scorer_api_key,
+        scorer_community_with_binary_scorer,
+    ):
+        # Create score event with minimal data
+        Event.objects.create(
+            action=Event.Action.SCORE_UPDATE,
+            address=scorer_account.address,
+            community=scorer_community_with_binary_scorer,
+            data={"score": 78.762, "evidence": None},
+        )
+
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/{scorer_community_with_binary_scorer.id}/score/{scorer_account.address}/history?created_at=2023-01-01",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        assert response.status_code == 200
+        assert response_data["score"] == "78.762"
+        assert response_data["threshold"] == "0"
+        assert response_data["passing_score"] is True
+        assert response_data["last_score_timestamp"] is None
+        assert response_data["expiration_timestamp"] is None
+        assert response_data["stamp_scores"] is None
+
     def test_get_historical_score_no_score_found(
         self,
         scorer_account,
