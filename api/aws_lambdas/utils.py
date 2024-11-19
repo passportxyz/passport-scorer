@@ -35,7 +35,7 @@ os.environ.setdefault("CERAMIC_CACHE_SCORER_ID", "1")
 
 def load_secrets():
     ssm_srn = os.environ["SCORER_SERVER_SSM_ARN"]
-
+    print("Loading secrets from SSM: ", ssm_srn)
     # Create a Secrets Manager client
     session = boto3.session.Session()
     client = session.client(service_name="secretsmanager")
