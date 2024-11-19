@@ -4,6 +4,9 @@ from io import StringIO
 from django.conf import settings
 from django.core.management import call_command
 
+# pylint: disable=unused-import
+import aws_lambdas.utils
+
 
 # pylint: disable=unused-argument
 def handler(event, context):
@@ -12,7 +15,7 @@ def handler(event, context):
     """
     # Set the settings module if not already set
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "scorer.settings")
-    settings.configure()  # Necessary for Lambda environments
+    settings.configure()
 
     try:
         output = StringIO()
