@@ -1255,12 +1255,12 @@ const exportVals = createScoreExportBucketAndDomain(
 // The following scorer dumps the Allo scorer scores to a public S3 bucket
 // for the Allo team to easily pull the data
 // This will be removed after the confirmation that the new exports are working properly.
-const frequentAlloScorerDataDumpTaskDefinition = pulumi
+const dataScienceRegistryDataDump = pulumi
   .all([exportVals])
   .apply(([_exportedVals]) => {
     return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
       createScheduledTask({
-        name: "frequent-allo-scorer-data-dump",
+        name: "data-science-registry-data-dump",
         config: {
           ...baseScorerServiceConfig,
           securityGroup: secgrp,
@@ -1285,6 +1285,32 @@ const frequentAlloScorerDataDumpTaskDefinition = pulumi
       });
     });
   });
+
+/*
+ * Exporting score data for OSO
+ */
+export const dailyScoreExportForOSO = createScheduledTask({
+  name: "daily-score-export-for-oso",
+  config: {
+    ...baseScorerServiceConfig,
+    securityGroup: secgrp,
+    command: [
+      "python",
+      "manage.py",
+      "scorer_dump_data_parquet_for_oso",
+      "--s3-uri=s3://oso-dataset-transfer-bucket/passport/",
+      "--filename=scores.parquet",
+      "--database=read_replica_analytics",
+    ].join(" "),
+    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
+    alertTopic: pagerdutyTopic,
+  },
+  environment: apiEnvironment,
+  secrets: apiSecrets,
+  alarmPeriodSeconds: 86400, // 24h max period
+  enableInvocationAlerts: false,
+  scorerSecretManagerArn: scorerSecret.arn,
+});
 
 export const coinbaseRevocationCheck = createScheduledTask({
   name: "coinbase-revocation-check",
