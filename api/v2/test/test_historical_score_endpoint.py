@@ -168,6 +168,36 @@ class TestPassportGetHistoricalScore:
         assert response_data["expiration_timestamp"] is None
         assert response_data["stamp_scores"] is None
 
+    @freeze_time("2023-01-01")
+    def test_get_historical_score_ne_evidence(
+        self,
+        scorer_account,
+        scorer_api_key,
+        scorer_community_with_binary_scorer,
+    ):
+        # Create score event with minimal data
+        Event.objects.create(
+            action=Event.Action.SCORE_UPDATE,
+            address=scorer_account.address,
+            community=scorer_community_with_binary_scorer,
+            data={"score": 78.762, "evidence": None},
+        )
+
+        client = Client()
+        response = client.get(
+            f"{self.base_url}/{scorer_community_with_binary_scorer.id}/score/{scorer_account.address}/history?created_at=2023-01-01",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+        response_data = response.json()
+
+        assert response.status_code == 200
+        assert response_data["score"] == "78.762"
+        assert response_data["threshold"] == "0"
+        assert response_data["passing_score"] is True
+        assert response_data["last_score_timestamp"] is None
+        assert response_data["expiration_timestamp"] is None
+        assert response_data["stamp_scores"] is None
+
     def test_get_historical_score_no_score_found(
         self,
         scorer_account,
@@ -200,4 +230,34 @@ class TestPassportGetHistoricalScore:
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 200
+        assert (
+            response.json()["status"]
+            == "No Score Found for 0xB81C935D01e734b3D8bb233F5c4E1D72DBC30f6c at invalid-date"
+        )
+
+    def test_get_historical_score_valid_iso_date(
+        self,
+        scorer_account,
+        scorer_api_key,
+        scorer_community_with_binary_scorer,
+    ):
+        client = Client()
+        # Test various valid ISO 8601 date formats
+        valid_dates = [
+            "2023-01-01",
+            "2023-01-01T00:00:00Z",
+            "2023-01-01T00:00:00+00:00",
+            "2023-01-01T12:34:56.789Z",
+        ]
+
+        for date in valid_dates:
+            response = client.get(
+                f"{self.base_url}/{scorer_community_with_binary_scorer.id}/score/{scorer_account.address}/history?created_at={date}",
+                HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            )
+
+            assert response.status_code == 200
+            response_data = response.json()
+            assert response_data["address"] == scorer_account.address
+            assert "No Score Found for" in response_data["status"]

@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import Any, Dict, List
 from urllib.parse import urljoin
 
+import django_filters
 from django.conf import settings
 from django.core.cache import cache
 from ninja import Schema
@@ -105,28 +106,6 @@ async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreRes
         raise InternalServerErrorException("Unexpected error while submitting passport")
 
 
-def process_date_parameter(date_str: str) -> datetime:
-    """
-    Convert a date string (YYYY-MM-DD) to a datetime object set to the end of that day.
-
-    Args:
-        date_str: String in format 'YYYY-MM-DD'
-
-    Returns:
-        datetime: Datetime object set to 23:59:59 of the given date
-
-    Raises:
-        ValueError: If date string is not in correct format
-    """
-    try:
-        # Parse the date string
-        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-        # Set time to end of day (23:59:59)
-        return datetime.combine(date_obj.date(), time(23, 59, 59))
-    except Exception:
-        raise CreatedAtMalFormedException()
-
-
 def extract_score_data(event_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract score data from either the legacy or new data structure.
@@ -142,6 +121,21 @@ def extract_score_data(event_data: Dict[str, Any]) -> Dict[str, Any]:
         return event_data["fields"]
     # Handle new format (direct score data)
     return event_data
+
+
+class EventFilter(django_filters.FilterSet):
+    created_at__lte = django_filters.IsoDateTimeFilter(
+        field_name="created_at", lookup_expr="lte"
+    )
+    address = django_filters.CharFilter(field_name="address")
+    community__id = django_filters.NumberFilter(field_name="community__id")
+    action = django_filters.ChoiceFilter(
+        choices=Event.Action.choices, field_name="action"
+    )
+
+    class Meta:
+        model = Event
+        fields = ["created_at", "address", "community__id", "action"]
 
 
 @api_router.get(
@@ -174,15 +168,17 @@ def get_score_history(
     community = api_get_object_or_404(Community, id=scorer_id, account=request.auth)
 
     try:
-        end_of_day = process_date_parameter(created_at)
-        base_query = with_read_db(Event).filter(
-            community__id=community.id, action=Event.Action.SCORE_UPDATE
+        filterset = EventFilter(
+            data={
+                "community__id": community.id,
+                "action": Event.Action.SCORE_UPDATE,
+                "address": address,
+                "created_at__lte": created_at,
+            },
+            queryset=with_read_db(Event),
         )
-        score_event = (
-            base_query.filter(address=address, created_at__lte=end_of_day)
-            .order_by("-created_at")
-            .first()
-        )
+
+        score_event = filterset.qs.order_by("-created_at").first()
 
         if not score_event:
             return NoScoreResponse(
@@ -193,11 +189,11 @@ def get_score_history(
         score_data = extract_score_data(score_event.data)
 
         # Get evidence data, defaulting to empty dict if not present
-        evidence = score_data.get("evidence", {})
+        evidence = score_data.get("evidence") or {}
         threshold = evidence.get("threshold", "0")
 
         # Handle score extraction for both formats
-        if "evidence" in score_data and "rawScore" in score_data["evidence"]:
+        if "evidence" in score_data and "rawScore" in evidence:
             score = score_data["evidence"]["rawScore"]
         else:
             score = score_data.get("score", "0")
