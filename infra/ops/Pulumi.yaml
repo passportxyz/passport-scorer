@@ -1,0 +1,7 @@
+name: ops
+runtime: nodejs
+description: A project to manage ops tools
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: typescript

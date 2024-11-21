@@ -57,6 +57,27 @@ def load_secrets():
 if "SCORER_SERVER_SSM_ARN" in os.environ:
     load_secrets()
 
+if "CORE_SECRET_ARN" in os.environ:
+    core_secret_arn = os.environ["CORE_SECRET_ARN"]
+    print("Loading secrets from SSM: ", core_secret_arn)
+    # Create a Secrets Manager client
+    session = boto3.session.Session()
+    client = session.client(service_name="secretsmanager")
+
+    try:
+        get_secret_value_response = client.get_secret_value(SecretId=core_secret_arn)
+    except ClientError as e:
+        print(f"Error occurred while loading secret value: {e}")
+        print_exc()
+        raise e
+    secrets = json.loads(get_secret_value_response["SecretString"])
+    db_user = secrets["username"]
+    db_password = secrets["password"]
+    db_host = secrets["host"]
+    db_name = secrets["dbname"]
+    db_url = f"psql://{db_user}:{db_password}@{db_host}/{db_name}"
+    os.environ["DATABASE_URL"] = db_url
+
 ###########################################################
 # END: Loading secrets from secrets manager
 ###########################################################
