@@ -119,6 +119,7 @@ jobs:
           build_dir: ./verifier/
 
   check_migrations:
+    needs: [docker-lambda]
     name: Run showmigrations
     runs-on: ubuntu-latest
     steps:
