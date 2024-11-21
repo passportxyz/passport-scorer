@@ -22,6 +22,7 @@ const { lambdaFunction, lambdaFunctionUrl } = pulumi
       [_rdsSecretArn],
       {
         CORE_SECRET_ARN: _rdsSecretArn,
+        SECRET_KEY: "1234",
       }
     );
   });
