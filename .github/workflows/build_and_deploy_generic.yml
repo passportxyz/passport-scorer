@@ -176,9 +176,9 @@ jobs:
           pip install requests requests-aws4auth
       - name: Run showmigrations (call lambda function)
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-west-2
           LAMBDA_FUNCTION_URL: ${{ env.LAMBDA_FUNCTION_URL }}
         run: |
           python infra/scripts/ops/lambda_call.py
