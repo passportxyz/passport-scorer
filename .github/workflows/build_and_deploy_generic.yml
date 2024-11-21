@@ -152,7 +152,7 @@ jobs:
           # TODO: this should be a different name in a different project ???
           stack-name: passportxyz/ops/${{ inputs.environment }}
           command: up
-          work-dir: /infra/ops
+          work-dir: ./infra/ops
         env:
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
