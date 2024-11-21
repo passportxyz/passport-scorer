@@ -12,7 +12,6 @@ const { lambdaFunction, lambdaFunctionUrl } = pulumi
   .all([coreVpcId, corePrivateSubnetIds, awsAccNo, rdsSecretArn])
   .apply(([vpcId, subnetIds, _awsAccNo, _rdsSecretArn]) => {
     const dockerImageUri = `${_awsAccNo}.dkr.ecr.us-west-2.amazonaws.com/submit-passport-lambdas:${dockerImageTag}`;
-    console.log("_rdsSecretArn", _rdsSecretArn);
     return createLambdaFunction(
       "showmigrations",
       "Run showmigrations cmd",

@@ -158,7 +158,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
           PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
           AWS_REGION: us-west-2
-          DOCKER_TAG: ${{ inputs.docker_tag }}
+          DOCKER_IMAGE_TAG: ${{ inputs.docker_tag }}
       - name: Get Lambda Function URL
         run: |
           echo "Extracting Lambda Function URL..."
