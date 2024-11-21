@@ -226,7 +226,7 @@ jobs:
 
   deploy_confirm:
     name: Review Approval Pending
-    needs: [deploy_preview]
+    needs: [check_migrations, deploy_preview]
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
