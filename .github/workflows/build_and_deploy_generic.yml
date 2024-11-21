@@ -144,12 +144,13 @@ jobs:
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v1
+
       - name: Setup pulumi for showmigrations
         uses: pulumi/actions@v4
         id: pulumi-up
         with:
           # TODO: this should be a different name in a different project ???
-          stack: passportxyz/ops/${{ inputs.environment }}
+          stack-name: passportxyz/ops/${{ inputs.environment }}
           command: up
           work-dir: /infra/ops
         env:
