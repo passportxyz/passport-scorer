@@ -20,7 +20,7 @@ def main():
         )
 
     # Create AWS4Auth instance for request signing
-    auth = AWS4Auth(aws_access_key, aws_secret_key, aws_region, "execute-api")
+    auth = AWS4Auth(aws_access_key, aws_secret_key, aws_region, "lambda")
 
     # Make the GET request to the Lambda Function URL
     response = requests.get(url, auth=auth)
