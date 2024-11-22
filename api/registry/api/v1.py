@@ -20,7 +20,6 @@ from account.models import (
     Rules,
 )
 from ceramic_cache.models import CeramicCache
-from registry.api import common
 from registry.api.schema import (
     CursorPaginatedStampCredentialResponse,
     DetailedScoreResponse,

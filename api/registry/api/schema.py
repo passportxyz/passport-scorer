@@ -10,7 +10,7 @@ from typing import (
 
 # todo
 from ninja import Schema
-from pydantic import ConfigDict, Field, computed_field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
 from registry.models import Event, Score
@@ -92,6 +92,11 @@ class ActionEnum(str, Enum):
     lifo_deduplication = Event.Action.LIFO_DEDUPLICATION
     trustalab_score = Event.Action.TRUSTALAB_SCORE
     score_update = Event.Action.SCORE_UPDATE
+
+
+class NoScoreResponse(Schema):
+    address: str
+    status: str
 
 
 class Passport(Schema):
