@@ -53,7 +53,7 @@ from ..exceptions import (
     InvalidDeleteCacheRequestException,
     TooManyStampsException,
 )
-from ..models import CeramicCache
+from ..models import Ban, CeramicCache
 from ..utils import validate_dag_jws_payload
 from .schema import (
     AccessTokenResponse,
@@ -61,8 +61,10 @@ from .schema import (
     CachedStampResponse,
     CacheStampPayload,
     CalcScorePayload,
+    CheckBanResult,
     ComporeDBStatusResponse,
     ComposeDBStatusPayload,
+    Credential,
     DeleteStampPayload,
     GetStampResponse,
     GetStampsWithScoreResponse,
@@ -705,3 +707,56 @@ def accept_tos(
     request, tos_type: str, address: str, payload: tos.schema.TosSigned
 ) -> None:
     tos.api.accept_tos(payload)
+
+
+class InvalidBanQueryException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Address and/or hashes must be provided"
+
+
+@router.post("/check-bans", response=List[Ban], auth=JWTDidAuth())
+def check_bans(request, payload: List[Credential]) -> List[CheckBanResult]:
+    """
+    Check for active bans matching the given address and/or hashes.
+    Returns list of relevant active bans.
+    """
+    unique_addresses = set([c.address for c in payload])
+
+    if len(unique_addresses) < 1:
+        raise InvalidBanQueryException("Must provide valid credential(s)")
+
+    if len(unique_addresses) > 1:
+        raise InvalidBanQueryException(
+            "All credentials must be issued to the same address"
+        )
+
+    address = list(unique_addresses)[0]
+
+    hashes = list(
+        set([c.credentialSubject.hash for c in payload if c.credentialSubject.hash])
+    )
+
+    try:
+        bans = Ban.get_bans(address=address, hashes=hashes)
+
+        credential_ban_results = [
+            Ban.check_credential_bans(
+                bans, address, c.credentialSubject.hash, c.credentialSubject.provider
+            )
+            for c in payload
+        ]
+
+        return [
+            CheckBanResult(
+                credential_id=c.id,
+                is_banned=is_banned,
+                ban_type=ban_type,
+                end_time=ban.end_time if ban else None,
+                reason=ban.reason if ban else None,
+            )
+            for c, (is_banned, ban_type, ban) in zip(payload, credential_ban_results)
+        ]
+
+    except Exception as e:
+        log.error("Failed to check bans", exc_info=True)
+        raise InternalServerException("Failed to check bans") from e

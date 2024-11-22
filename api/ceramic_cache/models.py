@@ -150,11 +150,7 @@ class Ban(models.Model):
     @classmethod
     def get_bans(cls, *, address: str, hashes: list[str]) -> list["Ban"]:
         """
-        Efficiently fetch all bans that could affect the given address and hashes in one query.
-
-        Args:
-            address: The ethereum address to check
-            hashes: List of hashes
+        Fetch all bans that could affect the given address and/or hashes in one query.
 
         Returns:
             List of relevant Ban objects
@@ -178,7 +174,7 @@ class Ban(models.Model):
         Args:
             bans: List of Ban objects from get_bans()
             address: The address to check
-            hash: The credential hash to Check
+            hash: The credential hash to check
             provider: The provider of the credential
 
         Returns:
