@@ -82,3 +82,12 @@ class CheckBanResult(Schema):
     end_time: datetime | None = None
     ban_type: BanType | None = None
     reason: str | None = None
+
+
+class RevocationCheckPayload(Schema):
+    proof_values: List[str]
+
+
+class RevocationCheckResponse(Schema):
+    proof_value: str
+    is_revoked: bool

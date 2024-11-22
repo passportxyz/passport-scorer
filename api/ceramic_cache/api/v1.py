@@ -54,7 +54,7 @@ from ..exceptions import (
     InvalidDeleteCacheRequestException,
     TooManyStampsException,
 )
-from ..models import Ban, CeramicCache
+from ..models import Ban, CeramicCache, Revocation
 from ..utils import validate_dag_jws_payload
 from .schema import (
     AccessTokenResponse,
@@ -69,6 +69,8 @@ from .schema import (
     DeleteStampPayload,
     GetStampResponse,
     GetStampsWithScoreResponse,
+    RevocationCheckPayload,
+    RevocationCheckResponse,
 )
 
 log = logging.getLogger(__name__)
@@ -753,6 +755,44 @@ def check_bans(request, payload: List[Credential]) -> List[CheckBanResult]:
             for c, (is_banned, ban_type, ban) in zip(payload, credential_ban_results)
         ]
 
+    except APIException:
+        # re-raise API exceptions
+        raise
     except Exception as e:
         log.error("Failed to check bans", exc_info=True)
         raise InternalServerException("Failed to check bans") from e
+
+
+@router.post("/check-revocations", response=List[RevocationCheckResponse], auth=None)
+def check_revocations(
+    request, payload: RevocationCheckPayload
+) -> List[RevocationCheckResponse]:
+    """
+    Check if stamps with given proof values have been revoked.
+    Returns revocation status for each proof value.
+    """
+    if len(payload.proof_values) > settings.MAX_BULK_CACHE_SIZE:
+        raise TooManyStampsException()
+
+    try:
+        # Query for revocations matching any of the proof values
+        revoked_proof_values = set(
+            Revocation.objects.filter(proof_value__in=payload.proof_values).values_list(
+                "proof_value", flat=True
+            )
+        )
+
+        # Return status for each requested proof value
+        return [
+            RevocationCheckResponse(
+                proof_value=proof_value, is_revoked=proof_value in revoked_proof_values
+            )
+            for proof_value in payload.proof_values
+        ]
+
+    except APIException:
+        # re-raise API exceptions
+        raise
+    except Exception as e:
+        log.error("Failed to check revocations", exc_info=True)
+        raise InternalServerException("Failed to check revocations") from e
