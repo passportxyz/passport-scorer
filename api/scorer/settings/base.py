@@ -75,19 +75,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django_extensions",
     "rest_framework_api_key",
     "registry",
     "scorer_apu",
     "scorer_weighted",
     "stake",
     "ceramic_cache",
-    "corsheaders",
     "account",
     "ninja_extra",
-    "social_django",
     "passport_admin",
-    # "debug_toolbar",
     "cgrants",
     "django_filters",
     "trusta_labs",
@@ -97,6 +93,14 @@ INSTALLED_APPS = [
     "v2",
     "internal",
 ]
+
+IS_SERVER = False
+if IS_SERVER:
+    INSTALLED_APPS += [
+        "django_extensions",
+        "corsheaders",
+        "social_django",
+    ]
 
 AUTHENTICATION_BACKENDS = [
     "social_core.backends.google.GoogleOAuth2",
