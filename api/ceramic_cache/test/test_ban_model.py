@@ -57,101 +57,124 @@ class TestBanModel:
             ban.save()
 
     @pytest.mark.django_db
-    class TestCheckBan:
-        def test_no_ban_exists(self, sample_address, sample_hash):
-            """Test when no ban exists"""
-            is_banned, message = Ban.check_ban(
-                provider="github", hash=sample_hash, address=sample_address
-            )
-            assert not is_banned
-            assert message == ""
+    class TestBanQueries:
+        def test_get_bans_no_bans_exist(self, sample_address):
+            """Test when no bans exist"""
+            bans = Ban.get_bans(address=sample_address, hashes=["hash1", "hash2"])
+            assert len(bans) == 0
 
-        def test_hash_ban(self, sample_address, sample_hash):
-            """Test ban by credential hash"""
-            Ban.objects.create(hash=sample_hash)
-            is_banned, message = Ban.check_ban(
-                provider="github", hash=sample_hash, address=sample_address
-            )
-            assert is_banned
-            assert "credential hash banned" in message
-
-        def test_provider_specific_ban(self, sample_address, sample_hash):
-            """Test ban by address for specific provider"""
-            Ban.objects.create(address=sample_address, provider="github")
-            is_banned, message = Ban.check_ban(
-                provider="github", hash=sample_hash, address=sample_address
-            )
-            assert is_banned
-            assert "address banned for github" in message
-
-        def test_provider_specific_ban_only_applies_to_provider(
-            self, sample_address, sample_hash
-        ):
-            """Test ban by address for specific provider"""
-            Ban.objects.create(address=sample_address, provider="github")
-            is_banned, message = Ban.check_ban(
-                provider="not_github", hash=sample_hash, address=sample_address
-            )
-            assert not is_banned
-
-        def test_address_ban(self, sample_address, sample_hash):
-            """Test ban by address for all providers"""
-            Ban.objects.create(address=sample_address)
-            is_banned, message = Ban.check_ban(
-                provider="github", hash=sample_hash, address=sample_address
-            )
-            assert is_banned
-            assert "address banned" in message
-            assert "for github" not in message
-
-        def test_temporary_ban_active(self, sample_address, sample_hash, future_date):
-            """Test temporary ban that's still active"""
-            Ban.objects.create(address=sample_address, end_time=future_date)
-            is_banned, message = Ban.check_ban(
-                provider="github", hash=sample_hash, address=sample_address
-            )
-            assert is_banned
-            assert "days remaining" in message
-
-        def test_temporary_ban_expired(self, sample_address, sample_hash, past_date):
-            """Test temporary ban that has expired"""
-            Ban.objects.create(address=sample_address, end_time=past_date)
-            is_banned, message = Ban.check_ban(
-                provider="github", hash=sample_hash, address=sample_address
-            )
-            assert not is_banned
-            assert message == ""
-
-        def test_ban_with_reason(self, sample_address, sample_hash):
-            """Test ban message includes reason when provided"""
-            reason = "Very, very bad"
-            Ban.objects.create(address=sample_address, reason=reason)
-            is_banned, message = Ban.check_ban(
-                provider="github", hash=sample_hash, address=sample_address
-            )
-            assert is_banned
-            assert reason in message
-
-        def test_indefinite_ban_message(self, sample_address, sample_hash):
-            """Test message for indefinite ban (no end_time)"""
-            Ban.objects.create(address=sample_address)
-            is_banned, message = Ban.check_ban(
-                provider="github", hash=sample_hash, address=sample_address
-            )
-            assert is_banned
-            assert "Banned indefinitely" in message
-
-        def test_multiple_bans_exists(self, sample_address, sample_hash):
-            """Test when multiple bans exist, any active ban triggers banned status"""
-            # Create expired ban
-            Ban.objects.create(
+        def test_get_bans_returns_all_relevant_bans(self, sample_address):
+            """Test that get_bans returns all relevant bans in one query"""
+            # Create various types of bans
+            hash_ban = Ban.objects.create(hash="hash1")
+            address_ban = Ban.objects.create(address=sample_address)
+            provider_ban = Ban.objects.create(address=sample_address, provider="github")
+            expired_ban = Ban.objects.create(
                 address=sample_address, end_time=timezone.now() - timedelta(days=1)
             )
-            # Create active ban
-            Ban.objects.create(hash=sample_hash)
 
-            is_banned, message = Ban.check_ban(
-                provider="github", hash=sample_hash, address=sample_address
+            # Query for bans
+            bans = Ban.get_bans(address=sample_address, hashes=["hash1", "hash2"])
+
+            # Should return hash ban, address ban, and provider ban (not expired ban)
+            assert len(bans) == 3
+            assert hash_ban in bans
+            assert address_ban in bans
+            assert provider_ban in bans
+            assert expired_ban not in bans
+
+        def test_check_credential_bans_hash_ban(self, sample_address):
+            """Test checking a credential against a hash ban"""
+            ban = Ban.objects.create(hash="hash1")
+            bans = [ban]
+
+            is_banned, ban_type, ban_obj = Ban.check_credential_bans(
+                bans, sample_address, "hash1", "github"
+            )
+
+            assert is_banned
+            assert ban_type == "hash"
+            assert ban_obj == ban
+
+        def test_check_credential_bans_provider_ban(self, sample_address):
+            """Test checking a credential against a provider-specific ban"""
+            ban = Ban.objects.create(address=sample_address, provider="github")
+            bans = [ban]
+
+            print("BAN", ban.__dict__)
+
+            is_banned, ban_type, ban_obj = Ban.check_credential_bans(
+                bans, sample_address, "hash1", "github"
+            )
+
+            assert is_banned
+            assert ban_type == "single_stamp"
+            assert ban_obj == ban
+
+        def test_check_credential_bans_account_ban(self, sample_address):
+            """Test checking a credential against an account-wide ban"""
+            ban = Ban.objects.create(address=sample_address)
+            bans = [ban]
+
+            is_banned, ban_type, ban_obj = Ban.check_credential_bans(
+                bans, sample_address, "hash1", "github"
+            )
+
+            assert is_banned
+            assert ban_type == "account"
+            assert ban_obj == ban
+
+        def test_check_credential_bans_no_match(self, sample_address):
+            """Test checking a credential against non-matching bans"""
+            ban = Ban.objects.create(address="0x123different")
+            bans = [ban]
+
+            is_banned, ban_type, ban_obj = Ban.check_credential_bans(
+                bans, sample_address, "hash1", "github"
+            )
+
+            assert not is_banned
+            assert ban_type is None
+            assert ban_obj is None
+
+        def test_check_credential_bans_multiple_bans(self, sample_address):
+            """Test that most specific ban type is returned when multiple apply"""
+            hash_ban = Ban.objects.create(hash="hash1")
+            address_ban = Ban.objects.create(address=sample_address)
+            provider_ban = Ban.objects.create(address=sample_address, provider="github")
+            bans = [address_ban, provider_ban, hash_ban]
+
+            # Account ban should take precedence
+            is_banned, ban_type, ban_obj = Ban.check_credential_bans(
+                bans, sample_address, "hash1", "github"
             )
             assert is_banned
-            assert "credential hash banned" in message
+            assert ban_type == "account"
+            assert ban_obj == address_ban
+
+        def test_bulk_credential_check_workflow(self, sample_address):
+            """Test the complete workflow of checking multiple credentials"""
+            # Create some bans
+            Ban.objects.create(hash="hash1")
+            Ban.objects.create(address=sample_address, provider="github")
+
+            # Get all bans in one query
+            bans = Ban.get_bans(
+                address=sample_address, hashes=["hash1", "hash2", "hash3"]
+            )
+
+            # Check multiple credentials
+            credentials = [
+                ("hash1", "twitter"),  # should be banned by hash
+                ("hash2", "github"),  # should be banned by provider
+                ("hash3", "twitter"),  # should not be banned
+            ]
+
+            results = []
+            for hash, provider in credentials:
+                is_banned, ban_type, ban = Ban.check_credential_bans(
+                    bans, sample_address, hash, provider
+                )
+                results.append((is_banned, ban_type))
+
+            assert results == [(True, "hash"), (True, "single_stamp"), (False, None)]

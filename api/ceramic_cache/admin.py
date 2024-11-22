@@ -110,11 +110,11 @@ class BanAdmin(admin.ModelAdmin):
     def get_ban_description(self, obj):
         parts = []
         if obj.hash:
-            parts.append(f"Hash={obj.hash}")
+            parts.append(f"hash={obj.hash}")
         if obj.address:
-            parts.append(f"Address={obj.address}")
+            parts.append(f"address={obj.address}")
         if obj.provider:
-            parts.append(f"Provider={obj.provider}")
+            parts.append(f"provider={obj.provider}")
         return "Ban if: " + " AND ".join(parts)
 
     @admin.display(boolean=True)

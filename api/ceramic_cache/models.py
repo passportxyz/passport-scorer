@@ -1,6 +1,7 @@
 """Ceramic Cache Models"""
 
 from enum import IntEnum
+from typing import Literal
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -135,6 +136,9 @@ class Revocation(models.Model):
         return f"Revocation #{self.pk}, proof_value={self.proof_value}"
 
 
+type BanType = Literal["account"] | Literal["hash"] | Literal["single_stamp"]
+
+
 class Ban(models.Model):
     provider = models.CharField(default="", max_length=256, db_index=True, blank=True)
     hash = models.CharField(default="", max_length=100, db_index=True, blank=True)
@@ -144,45 +148,60 @@ class Ban(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     @classmethod
-    def check_ban(cls, *, provider: str, hash: str, address: str) -> tuple[bool, str]:
+    def get_bans(cls, *, address: str, hashes: list[str]) -> list["Ban"]:
         """
-        Check if there is an active ban that matches the given credential.
-        Returns a tuple of (is_banned, message).
+        Efficiently fetch all bans that could affect the given address and hashes in one query.
+
+        Args:
+            address: The ethereum address to check
+            hashes: List of hashes
+
+        Returns:
+            List of relevant Ban objects
+        """
+        now = timezone.now()
+
+        return list(
+            cls.objects.filter(
+                Q(end_time__isnull=True) | Q(end_time__gt=now),
+                Q(hash__in=hashes) | Q(address__iexact=address),
+            ).select_related()
+        )
+
+    @staticmethod
+    def check_credential_bans(
+        bans: list["Ban"], address: str, hash: str, provider: str
+    ) -> tuple[bool, BanType | None, "Ban | None"]:
+        """
+        Check if a specific credential is banned based on a pre-fetched list of bans.
+
+        Args:
+            bans: List of Ban objects from get_bans()
+            address: The address to check
+            hash: The credential hash to Check
+            provider: The provider of the credential
+
+        Returns:
+            Tuple of (is_banned, ban_type, ban_object)
         """
         parsed_address = address.lower()
-        now = timezone.now()
-        active_ban = cls.objects.filter(
-            Q(end_time__isnull=True) | Q(end_time__gt=now),
-            Q(hash=hash)  # specific credential ban
-            | Q(address=parsed_address, provider="")  # all credentials for address
-            | Q(
-                address=parsed_address, provider=provider
-            ),  # specific provider for address
-        ).first()
 
-        if not active_ban:
-            return False, ""
+        for ban in bans:
+            parsed_ban_address = ban.address.lower()
 
-        # Build detailed message
-        if active_ban.end_time:
-            time_remaining = active_ban.end_time - now
-            days = time_remaining.days
-            message = f"Banned until {active_ban.end_time.strftime('%Y-%m-%d')} ({days} days remaining)"
-        else:
-            message = "Banned indefinitely"
+            # Check account-wide ban first
+            if parsed_ban_address == parsed_address and not ban.provider:
+                return True, "account", ban
 
-        if active_ban.reason:
-            message += f". Reason: {active_ban.reason}"
+            # Check hash ban
+            if ban.hash == hash:
+                return True, "hash", ban
 
-        # Add context about what triggered the ban
-        if active_ban.hash == hash:
-            message += " (credential hash banned)"
-        elif active_ban.address == parsed_address and active_ban.provider == provider:
-            message += f" (address banned for {provider})"
-        elif active_ban.address == parsed_address:
-            message += " (address banned)"
+            # Check address + provider ban
+            if parsed_ban_address == parsed_address and ban.provider == provider:
+                return True, "single_stamp", ban
 
-        return True, message
+        return False, None, None
 
     def clean(self):
         super().clean()
