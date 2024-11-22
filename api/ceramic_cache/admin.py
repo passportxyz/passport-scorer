@@ -92,8 +92,8 @@ class BanForm(ModelForm):
             "hash": "Specific credential hash to ban",
             "address": "Address to ban",
             "provider": "Provider (e.g. CoinbaseDualVerification) to ban - must be used with address",
-            "end_time": "Leave blank for permanent ban",
-            "reason": "Optional",
+            "end_time": "Leave blank for indefinite ban",
+            "reason": "(Optional) THIS WILL BE PUBLICLY VISIBLE",
         }
 
 

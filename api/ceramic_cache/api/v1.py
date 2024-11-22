@@ -50,6 +50,7 @@ from trusta_labs.api import CgrantsApiKey
 
 from ..exceptions import (
     InternalServerException,
+    InvalidBanQueryException,
     InvalidDeleteCacheRequestException,
     TooManyStampsException,
 )
@@ -709,18 +710,13 @@ def accept_tos(
     tos.api.accept_tos(payload)
 
 
-class InvalidBanQueryException(APIException):
-    status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Address and/or hashes must be provided"
-
-
-@router.post("/check-bans", response=List[Ban], auth=JWTDidAuth())
+@router.post("/check-bans", response=List[CheckBanResult], auth=secret_key)
 def check_bans(request, payload: List[Credential]) -> List[CheckBanResult]:
     """
     Check for active bans matching the given address and/or hashes.
     Returns list of relevant active bans.
     """
-    unique_addresses = set([c.address for c in payload])
+    unique_addresses = set([c.credentialSubject.address for c in payload])
 
     if len(unique_addresses) < 1:
         raise InvalidBanQueryException("Must provide valid credential(s)")
@@ -740,7 +736,7 @@ def check_bans(request, payload: List[Credential]) -> List[CheckBanResult]:
         bans = Ban.get_bans(address=address, hashes=hashes)
 
         credential_ban_results = [
-            Ban.check_credential_bans(
+            Ban.check_bans_for(
                 bans, address, c.credentialSubject.hash, c.credentialSubject.provider
             )
             for c in payload

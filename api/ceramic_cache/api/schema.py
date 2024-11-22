@@ -1,5 +1,6 @@
 """Ceramic Cache API Schema"""
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from ninja_schema import Schema
@@ -78,6 +79,6 @@ class Credential(Schema):
 class CheckBanResult(Schema):
     credential_id: str
     is_banned: bool
-    end_time: str | None = None
+    end_time: datetime | None = None
     ban_type: BanType | None = None
     reason: str | None = None

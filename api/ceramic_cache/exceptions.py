@@ -22,3 +22,8 @@ class TooManyStampsException(APIException):
 class InternalServerException(APIException):
     status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
     default_detail = "An internal server error has occurred."
+
+
+class InvalidBanQueryException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Address and/or hashes must be provided"

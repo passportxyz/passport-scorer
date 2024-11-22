@@ -165,7 +165,7 @@ class Ban(models.Model):
         )
 
     @staticmethod
-    def check_credential_bans(
+    def check_bans_for(
         bans: list["Ban"], address: str, hash: str, provider: str
     ) -> tuple[bool, BanType | None, "Ban | None"]:
         """

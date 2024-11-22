@@ -88,7 +88,7 @@ class TestBanModel:
             ban = Ban.objects.create(hash="hash1")
             bans = [ban]
 
-            is_banned, ban_type, ban_obj = Ban.check_credential_bans(
+            is_banned, ban_type, ban_obj = Ban.check_bans_for(
                 bans, sample_address, "hash1", "github"
             )
 
@@ -103,7 +103,7 @@ class TestBanModel:
 
             print("BAN", ban.__dict__)
 
-            is_banned, ban_type, ban_obj = Ban.check_credential_bans(
+            is_banned, ban_type, ban_obj = Ban.check_bans_for(
                 bans, sample_address, "hash1", "github"
             )
 
@@ -116,7 +116,7 @@ class TestBanModel:
             ban = Ban.objects.create(address=sample_address)
             bans = [ban]
 
-            is_banned, ban_type, ban_obj = Ban.check_credential_bans(
+            is_banned, ban_type, ban_obj = Ban.check_bans_for(
                 bans, sample_address, "hash1", "github"
             )
 
@@ -129,7 +129,7 @@ class TestBanModel:
             ban = Ban.objects.create(address="0x123different")
             bans = [ban]
 
-            is_banned, ban_type, ban_obj = Ban.check_credential_bans(
+            is_banned, ban_type, ban_obj = Ban.check_bans_for(
                 bans, sample_address, "hash1", "github"
             )
 
@@ -145,7 +145,7 @@ class TestBanModel:
             bans = [address_ban, provider_ban, hash_ban]
 
             # Account ban should take precedence
-            is_banned, ban_type, ban_obj = Ban.check_credential_bans(
+            is_banned, ban_type, ban_obj = Ban.check_bans_for(
                 bans, sample_address, "hash1", "github"
             )
             assert is_banned
@@ -172,7 +172,7 @@ class TestBanModel:
 
             results = []
             for hash, provider in credentials:
-                is_banned, ban_type, ban = Ban.check_credential_bans(
+                is_banned, ban_type, _ = Ban.check_bans_for(
                     bans, sample_address, hash, provider
                 )
                 results.append((is_banned, ban_type))
