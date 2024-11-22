@@ -1,4 +1,4 @@
-name: ops
+name: passport-scorer-ops
 runtime: nodejs
 description: A project to manage ops tools
 config:

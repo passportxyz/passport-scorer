@@ -150,8 +150,7 @@ jobs:
         uses: pulumi/actions@v4
         id: pulumi-up
         with:
-          # TODO: this should be a different name in a different project ???
-          stack-name: passportxyz/ops/${{ inputs.environment }}
+          stack-name: passportxyz/passport-scorer-ops/${{ inputs.environment }}
           command: up
           work-dir: ./infra/ops
         env:
@@ -163,7 +162,7 @@ jobs:
       - name: Get Lambda Function URL
         run: |
           echo "Extracting Lambda Function URL..."
-          URL=$(pulumi stack output lambdaUrl --stack passportxyz/ops/${{ inputs.environment }})
+          URL=$(pulumi stack output lambdaUrl --stack passportxyz/passport-scorer-ops/${{ inputs.environment }})
           echo "LAMBDA_FUNCTION_URL=$URL" >> $GITHUB_ENV
         id: get-lambda-url
       - uses: actions/setup-python@v4
