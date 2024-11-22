@@ -103,11 +103,15 @@ export function createTestLambda(config: {
     },
   });
 
-  const bucketObject = new aws.s3.BucketObject("test-3.zip", {
-    bucket: bucket.id, // reference to the bucket we created above
-    source: "test.zip", // Pulumi Asset representing the files
-    sourceHash: lambda.then((lambda) => lambda.outputBase64sha256),
-  }, {dependsOn: [pythonDeps]});
+  const bucketObject = new aws.s3.BucketObject(
+    "test-3.zip",
+    {
+      bucket: bucket.id, // reference to the bucket we created above
+      source: "test.zip", // Pulumi Asset representing the files
+      sourceHash: lambda.then((lambda) => lambda.outputBase64sha256),
+    },
+    { dependsOn: [pythonDeps] }
+  );
 
   const lambdaLayer = new aws.lambda.LayerVersion(
     "lambda_layer",
@@ -123,8 +127,9 @@ export function createTestLambda(config: {
 
   const lambdaCode = archive.getFile({
     type: "zip",
-    sourceFile: "../lib/v2/lambda.py",
+    sourceDir: "../../api",
     outputPath: "lambda_function_payload.zip",
+    excludes: ["**/__pycache__"],
   });
 
   const lambdaName = `${config.name}-incremental-exports`;
@@ -132,7 +137,7 @@ export function createTestLambda(config: {
     code: new pulumi.asset.FileArchive("lambda_function_payload.zip"),
     name: lambdaName,
     role: exportLambdaRole.arn,
-    handler: "lambda.lambda_handler",
+    handler: "lambda_test.lambda.lambda_handler",
     sourceCodeHash: lambda.then((lambda) => lambda.outputBase64sha256),
     runtime: aws.lambda.Runtime.Python3d12,
     environment: {
@@ -146,32 +151,32 @@ export function createTestLambda(config: {
     layers: [lambdaLayer.arn],
   });
 
-  const scheduledEventRuleName = `${config.name}-rule`;
-  const scheduledEventRule = new aws.cloudwatch.EventRule(
-    scheduledEventRuleName,
-    {
-      scheduleExpression: "cron(30 0 ? * * *)", // Trigger this 30 minutes after midnight UTC
-      tags: {
-        ...defaultTags,
-        Name: scheduledEventRuleName,
-      },
-    }
-  );
+  // const scheduledEventRuleName = `${config.name}-rule`;
+  // const scheduledEventRule = new aws.cloudwatch.EventRule(
+  //   scheduledEventRuleName,
+  //   {
+  //     scheduleExpression: "cron(30 0 ? * * *)", // Trigger this 30 minutes after midnight UTC
+  //     tags: {
+  //       ...defaultTags,
+  //       Name: scheduledEventRuleName,
+  //     },
+  //   }
+  // );
 
   // Granting EventBridge the necessary permissions to trigger the Lambda function.
-  new aws.lambda.Permission(`${config.name}-permission`, {
-    action: "lambda:InvokeFunction",
-    function: exportLambda,
-    principal: "events.amazonaws.com",
-    sourceArn: scheduledEventRule.arn,
-  });
+  // new aws.lambda.Permission(`${config.name}-permission`, {
+  //   action: "lambda:InvokeFunction",
+  //   function: exportLambda,
+  //   principal: "events.amazonaws.com",
+  //   sourceArn: scheduledEventRule.arn,
+  // });
 
   // Target the rule to the lambda
-  const scheduledEventTargetName = `${config.name}-target`;
-  new aws.cloudwatch.EventTarget(scheduledEventTargetName, {
-    rule: scheduledEventRule.name,
-    arn: exportLambda.arn,
-  });
+  // const scheduledEventTargetName = `${config.name}-target`;
+  // new aws.cloudwatch.EventTarget(scheduledEventTargetName, {
+  //   rule: scheduledEventRule.name,
+  //   arn: exportLambda.arn,
+  // });
 
   // Create alarm to monitor lambda errors
   const metricAlarmName = `${config.name}-lambda-errors`;
@@ -223,6 +228,11 @@ export function createTestLambda(config: {
     {
       pathPattern: {
         values: ["/test"],
+      },
+    },
+    {
+      httpRequestMethod: {
+        values: ["POST"],
       },
     },
   ];
