@@ -94,8 +94,11 @@ INSTALLED_APPS = [
     "internal",
 ]
 
-IS_SERVER = False
-if IS_SERVER:
+# When initialized from a lambda, make sure to set LAMBDA_ONLY_APPS to True
+# to avoid including non-essential apps
+LAMBDA_ONLY_APPS = env.bool("LAMBDA_ONLY_APPS", default=False)
+
+if not LAMBDA_ONLY_APPS:
     INSTALLED_APPS += [
         "django_extensions",
         "corsheaders",

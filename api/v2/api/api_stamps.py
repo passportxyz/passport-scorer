@@ -6,7 +6,6 @@ from urllib.parse import urljoin
 import django_filters
 from django.conf import settings
 from django.core.cache import cache
-from ninja import Schema
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
@@ -48,9 +47,9 @@ from registry.utils import (
     encode_cursor,
     reverse_lazy_with_query,
 )
-from v2.api import (
-    api,
-)
+from v2.schema import V2ScoreResponse
+
+from .router import api_router
 
 METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 
@@ -72,19 +71,33 @@ log = logging.getLogger(__name__)
     tags=["Stamp API"],
 )
 @atrack_apikey_usage(track_response=True)
-async def a_submit_passport(
-    request, scorer_id: int, address: str
-) -> DetailedScoreResponse:
+async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreResponse:
     check_rate_limit(request)
     try:
         if not request.api_key.submit_passports:
             raise InvalidAPIKeyPermissions()
 
-        return await ahandle_submit_passport(
+        v1_score = await ahandle_submit_passport(
             SubmitPassportPayload(address=address, scorer_id=str(scorer_id)),
             request.auth,
         )
+        threshold = v1_score.evidence.threshold if v1_score.evidence else "20"
+        score = v1_score.evidence.rawScore if v1_score.evidence else v1_score.score
 
+        return V2ScoreResponse(
+            address=v1_score.address,
+            score=score,
+            passing_score=(
+                Decimal(v1_score.score) >= Decimal(threshold)
+                if v1_score.score
+                else False
+            ),
+            threshold=threshold,
+            last_score_timestamp=v1_score.last_score_timestamp,
+            expiration_timestamp=v1_score.expiration_date,
+            error=v1_score.error,
+            stamp_scores=v1_score.stamp_scores,
+        )
     except APIException as e:
         raise e
     except Exception as e:
