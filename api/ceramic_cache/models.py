@@ -2,8 +2,10 @@
 
 from enum import IntEnum
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, UniqueConstraint
+from django.utils import timezone
 
 from account.models import EthAddressField
 
@@ -131,3 +133,68 @@ class Revocation(models.Model):
 
     def __str__(self):
         return f"Revocation #{self.pk}, proof_value={self.proof_value}"
+
+
+class Ban(models.Model):
+    provider = models.CharField(default="", max_length=256, db_index=True, blank=True)
+    hash = models.CharField(default="", max_length=100, db_index=True, blank=True)
+    address = EthAddressField(default="", db_index=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    reason = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @classmethod
+    def check_ban(cls, *, provider: str, hash: str, address: str) -> tuple[bool, str]:
+        """
+        Check if there is an active ban that matches the given credential.
+        Returns a tuple of (is_banned, message).
+        """
+        parsed_address = address.lower()
+        now = timezone.now()
+        active_ban = cls.objects.filter(
+            Q(end_time__isnull=True) | Q(end_time__gt=now),
+            Q(hash=hash)  # specific credential ban
+            | Q(address=parsed_address, provider="")  # all credentials for address
+            | Q(
+                address=parsed_address, provider=provider
+            ),  # specific provider for address
+        ).first()
+
+        if not active_ban:
+            return False, ""
+
+        # Build detailed message
+        if active_ban.end_time:
+            time_remaining = active_ban.end_time - now
+            days = time_remaining.days
+            message = f"Banned until {active_ban.end_time.strftime('%Y-%m-%d')} ({days} days remaining)"
+        else:
+            message = "Banned indefinitely"
+
+        if active_ban.reason:
+            message += f". Reason: {active_ban.reason}"
+
+        # Add context about what triggered the ban
+        if active_ban.hash == hash:
+            message += " (credential hash banned)"
+        elif active_ban.address == parsed_address and active_ban.provider == provider:
+            message += f" (address banned for {provider})"
+        elif active_ban.address == parsed_address:
+            message += " (address banned)"
+
+        return True, message
+
+    def clean(self):
+        super().clean()
+        if not any(
+            [
+                self.hash,  # hash only is valid
+                self.address,  # address only is valid
+                (self.address and self.provider),  # address + type is valid
+            ]
+        ):
+            raise ValidationError("Invalid ban. See `Wielding the Ban Hammer`.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

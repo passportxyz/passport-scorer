@@ -2,11 +2,14 @@
 Admin for the ceramic cache app
 """
 
+from django import forms
 from django.contrib import admin, messages
+from django.forms import ModelForm
+from django.utils import timezone
 
 from scorer.scorer_admin import ScorerModelAdmin
 
-from .models import CeramicCache, Revocation
+from .models import Ban, CeramicCache, Revocation
 
 
 @admin.action(
@@ -75,3 +78,47 @@ class AccountAPIKeyAdmin(ScorerModelAdmin):
 class RevocationAdmin(ScorerModelAdmin):
     list_display = ("id", "proof_value", "ceramic_cache")
     search_fields = ("proof_value",)
+
+
+class BanForm(ModelForm):
+    class Meta:
+        model = Ban
+        fields = ["hash", "address", "provider", "end_time", "reason"]
+        widgets = {
+            "end_time": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "reason": forms.Textarea(attrs={"rows": 3}),
+        }
+        help_texts = {
+            "hash": "Specific credential hash to ban",
+            "address": "Address to ban",
+            "provider": "Provider (e.g. CoinbaseDualVerification) to ban - must be used with address",
+            "end_time": "Leave blank for permanent ban",
+            "reason": "Optional",
+        }
+
+
+@admin.register(Ban)
+class BanAdmin(admin.ModelAdmin):
+    form = BanForm
+    list_display = ["get_ban_description", "is_active", "created_at"]
+    change_form_template = "ban/change_form.html"
+    list_filter = ["created_at", "end_time"]
+    search_fields = ["address", "hash", "provider", "reason"]
+    readonly_fields = ["created_at"]
+
+    @admin.display(description="Ban Condition")
+    def get_ban_description(self, obj):
+        parts = []
+        if obj.hash:
+            parts.append(f"Hash={obj.hash}")
+        if obj.address:
+            parts.append(f"Address={obj.address}")
+        if obj.provider:
+            parts.append(f"Provider={obj.provider}")
+        return "Ban if: " + " AND ".join(parts)
+
+    @admin.display(boolean=True)
+    def is_active(self, obj):
+        if not obj.end_time:
+            return True
+        return obj.end_time > timezone.now()
