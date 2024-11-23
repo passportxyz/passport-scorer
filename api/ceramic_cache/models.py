@@ -146,6 +146,9 @@ class Ban(models.Model):
     end_time = models.DateTimeField(null=True, blank=True)
     reason = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    last_run_revoke_matching = models.DateTimeField(
+        null=True, blank=True, help_text="Last time revoke_matching_credentials was run"
+    )
 
     @classmethod
     def get_bans(cls, *, address: str, hashes: list[str]) -> list["Ban"]:
@@ -213,3 +216,28 @@ class Ban(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+    def revoke_matching_credentials(self):
+        """
+        Revoke all matching credentials.
+        """
+        filters = [
+            f
+            for f in [
+                Q(provider=self.provider) if self.provider else None,
+                Q(address=self.address) if self.address else None,
+                Q(stamp__credentialSubject__hash=self.hash) if self.hash else None,
+                Q(deleted_at__isnull=True, revocation__isnull=True),
+            ]
+            if f is not None
+        ]
+
+        stamps = CeramicCache.objects.filter(*filters)
+
+        for stamp in stamps:
+            Revocation.objects.create(
+                proof_value=stamp.proof_value, ceramic_cache=stamp
+            )
+
+        self.last_run_revoke_matching = timezone.now()
+        self.save()

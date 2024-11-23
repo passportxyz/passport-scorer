@@ -97,14 +97,52 @@ class BanForm(ModelForm):
         }
 
 
+@admin.action(description="Revoke matching credentials for selected bans")
+def revoke_matching_credentials_action(modeladmin, request, queryset):
+    success_count = 0
+    error_count = 0
+
+    for ban in queryset:
+        try:
+            ban.revoke_matching_credentials()
+            success_count += 1
+        except Exception as e:
+            error_count += 1
+            modeladmin.message_user(
+                request,
+                f"Error processing ban {ban.pk}: {str(e)}",
+                level=messages.ERROR,
+            )
+
+    if success_count:
+        modeladmin.message_user(
+            request,
+            f"Successfully processed {success_count} ban(s)",
+            level=messages.SUCCESS,
+        )
+
+    if error_count:
+        modeladmin.message_user(
+            request,
+            f"Failed to process {error_count} ban(s). See errors above.",
+            level=messages.WARNING,
+        )
+
+
 @admin.register(Ban)
 class BanAdmin(admin.ModelAdmin):
     form = BanForm
-    list_display = ["get_ban_description", "is_active", "created_at"]
+    list_display = [
+        "get_ban_description",
+        "is_active",
+        "created_at",
+        "matching_revoked",
+    ]
+    actions = [revoke_matching_credentials_action]
     change_form_template = "ban/change_form.html"
     list_filter = ["created_at", "end_time"]
     search_fields = ["address", "hash", "provider", "reason"]
-    readonly_fields = ["created_at"]
+    readonly_fields = ["created_at", "last_run_revoke_matching"]
 
     @admin.display(description="Ban Condition")
     def get_ban_description(self, obj):
@@ -122,3 +160,7 @@ class BanAdmin(admin.ModelAdmin):
         if not obj.end_time:
             return True
         return obj.end_time > timezone.now()
+
+    @admin.display(boolean=True)
+    def matching_revoked(self, obj):
+        return obj.last_run_revoke_matching is not None

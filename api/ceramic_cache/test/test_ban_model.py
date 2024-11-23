@@ -4,7 +4,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from ceramic_cache.models import Ban
+from ceramic_cache.models import Ban, CeramicCache, Revocation
 
 
 @pytest.fixture
@@ -29,6 +29,34 @@ def past_date():
 
 @pytest.mark.django_db
 class TestBanModel:
+    @pytest.fixture
+    def sample_stamp(self, sample_address):
+        """Create a sample stamp"""
+        return CeramicCache.objects.create(
+            address=sample_address,
+            provider="github",
+            proof_value="proof1",
+            stamp={"credentialSubject": {"hash": "hash1", "provider": "github"}},
+        )
+
+    @pytest.fixture
+    def sample_stamps(self, sample_address):
+        """Create multiple sample stamps"""
+        stamps = []
+        providers = ["github", "twitter", "discord"]
+        hashes = ["hash1", "hash2", "hash3"]
+
+        for i, (provider, hash) in enumerate(zip(providers, hashes)):
+            stamps.append(
+                CeramicCache.objects.create(
+                    address=sample_address,
+                    provider=provider,
+                    proof_value=f"proof{i+1}",
+                    stamp={"credentialSubject": {"hash": hash, "provider": provider}},
+                )
+            )
+        return stamps
+
     def test_create_ban_with_hash_only(self, sample_hash):
         """Test creating a ban with only a hash is valid"""
         ban = Ban(hash=sample_hash)
@@ -178,3 +206,80 @@ class TestBanModel:
                 results.append((is_banned, ban_type))
 
             assert results == [(True, "hash"), (True, "single_stamp"), (False, None)]
+
+        def test_revoke_matching_by_hash(self, sample_stamps):
+            """Test revoking credentials by hash"""
+            ban = Ban.objects.create(hash="hash1")
+            ban.revoke_matching_credentials()
+
+            # Only the stamp with hash1 should be revoked
+            assert Revocation.objects.count() == 1
+            revocation = Revocation.objects.first()
+            assert revocation.proof_value == "proof1"
+            assert ban.last_run_revoke_matching is not None
+
+        def test_revoke_matching_by_address(self, sample_stamps, sample_address):
+            """Test revoking all credentials for an address"""
+            ban = Ban.objects.create(address=sample_address)
+            ban.revoke_matching_credentials()
+
+            # All stamps for the address should be revoked
+            assert Revocation.objects.count() == 3
+            assert set(r.proof_value for r in Revocation.objects.all()) == {
+                "proof1",
+                "proof2",
+                "proof3",
+            }
+
+        def test_revoke_matching_by_provider(self, sample_stamps, sample_address):
+            """Test revoking credentials by provider"""
+            ban = Ban.objects.create(address=sample_address, provider="github")
+            ban.revoke_matching_credentials()
+
+            # Only github stamps should be revoked
+            assert Revocation.objects.count() == 1
+            revocation = Revocation.objects.first()
+            assert revocation.ceramic_cache.provider == "github"
+
+        def test_revoke_matching_already_revoked(self, sample_stamp):
+            """Test attempting to revoke already revoked credentials"""
+            # Create initial revocation
+            Revocation.objects.create(
+                proof_value=sample_stamp.proof_value, ceramic_cache=sample_stamp
+            )
+
+            ban = Ban.objects.create(hash="hash1")
+            ban.revoke_matching_credentials()
+
+            # Should still only be one revocation
+            assert Revocation.objects.count() == 1
+
+        def test_revoke_matching_deleted_stamps(self, sample_stamp):
+            """Test that deleted stamps are not revoked"""
+            sample_stamp.deleted_at = timezone.now()
+            sample_stamp.save()
+
+            ban = Ban.objects.create(hash="hash1")
+            ban.revoke_matching_credentials()
+
+            assert Revocation.objects.count() == 0
+
+        def test_revoke_matching_updates_timestamp(self, sample_stamp):
+            """Test that last_run_revoke_matching is updated"""
+            ban = Ban.objects.create(hash="hash1")
+            assert ban.last_run_revoke_matching is None
+
+            ban.revoke_matching_credentials()
+            ban.refresh_from_db()
+
+            assert ban.last_run_revoke_matching is not None
+            assert ban.last_run_revoke_matching > ban.created_at
+
+        def test_revoke_matching_no_matches(self):
+            """Test revoking when no stamps match"""
+            ban = Ban.objects.create(hash="nonexistent")
+            ban.revoke_matching_credentials()
+
+            assert Revocation.objects.count() == 0
+            ban.refresh_from_db()
+            assert ban.last_run_revoke_matching is not None
