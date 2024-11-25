@@ -1,16 +1,54 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as archive from "@pulumi/archive";
 import * as aws from "@pulumi/aws";
-import { defaultTags } from "../tags";
 import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 import { Listener } from "@pulumi/aws/alb";
 import { local } from "@pulumi/command";
+import { secretsManager } from "infra-libs";
+import { stack, defaultTags } from "../tags";
 
 export function createTestLambda(config: {
   name: string;
   snsAlertsTopicArn: pulumi.Input<string>;
   httpsListener: pulumi.Output<Listener>;
+  ceramicCacheScorerId: number;
+  scorerSecret: aws.secretsmanager.Secret;
+  privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
+  vpcPrivateSubnetIds: pulumi.Output<any>;
 }) {
+  const apiLambdaEnvironment = [
+    ...secretsManager.getEnvironmentVars({
+      vault: "DevOps",
+      repo: "passport-scorer",
+      env: stack,
+      section: "api",
+    }),
+    {
+      name: "DEBUG",
+      value: "off",
+    },
+    {
+      name: "LOGGING_STRATEGY",
+      value: "structlog_json",
+    },
+    {
+      name: "FF_API_ANALYTICS",
+      value: "on",
+    },
+    {
+      name: "CERAMIC_CACHE_SCORER_ID",
+      value: `${config.ceramicCacheScorerId}`,
+    },
+    {
+      name: "SCORER_SERVER_SSM_ARN",
+      value: config.scorerSecret.arn,
+    },
+    {
+      name: "VERIFIER_URL",
+      value: "http://core-alb.private.gitcoin.co/verifier/verify",
+    },
+  ].sort(secretsManager.sortByName);
+
   const lambdaLoggingPolicyDocument = aws.iam.getPolicyDocument({
     statements: [
       {
@@ -25,6 +63,32 @@ export function createTestLambda(config: {
     ],
   });
 
+  const lambdaEc2PolicyDocument = aws.iam.getPolicyDocument({
+    statements: [
+      {
+        effect: "Allow",
+        actions: [
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:CreateNetworkInterface",
+          "ec2:DeleteNetworkInterface",
+          "ec2:DescribeInstances",
+          "ec2:AttachNetworkInterface",
+        ],
+        resources: ["*"],
+      },
+    ],
+  });
+
+  const lambdaSecretsManagerPolicyDocument = aws.iam.getPolicyDocument({
+    statements: [
+      {
+        effect: "Allow",
+        actions: ["secretsmanager:GetSecretValue"],
+        resources: ["arn:aws:secretsmanager:*:*:*"],
+      },
+    ],
+  });
+
   const lambdaLoggingPolicy = new aws.iam.Policy(
     `${config.name}-logging-policy`,
     {
@@ -34,6 +98,28 @@ export function createTestLambda(config: {
         (lambdaLoggingPolicyDocument) => lambdaLoggingPolicyDocument.json
       ),
       tags: { ...defaultTags, Name: `${config.name}-logging-policy` },
+    }
+  );
+
+  const lambdaEc2Policy = new aws.iam.Policy(`${config.name}-ec2-policy`, {
+    path: "/",
+    description: "IAM policy for interfacing with EC2 network",
+    policy: lambdaEc2PolicyDocument.then(
+      (lambdaEc2PolicyDocument) => lambdaEc2PolicyDocument.json
+    ),
+    tags: { ...defaultTags, Name: `${config.name}-ec2-policy` },
+  });
+
+  const lambdaSecretsManagerPolicy = new aws.iam.Policy(
+    `${config.name}-secret-manager-policy`,
+    {
+      path: "/",
+      description: "IAM policy for interfacing with SecretManager network",
+      policy: lambdaSecretsManagerPolicyDocument.then(
+        (lambdaSecretsManagerPolicyDocument) =>
+          lambdaSecretsManagerPolicyDocument.json
+      ),
+      tags: { ...defaultTags, Name: `${config.name}-secret-manager-policy` },
     }
   );
 
@@ -66,6 +152,22 @@ export function createTestLambda(config: {
     {
       role: exportLambdaRole.name,
       policyArn: lambdaLoggingPolicy.arn,
+    }
+  );
+
+  const lambdaEc2RoleAttachment = new aws.iam.RolePolicyAttachment(
+    `${config.name}-ec2-role-attachment`,
+    {
+      role: exportLambdaRole.name,
+      policyArn: lambdaEc2Policy.arn,
+    }
+  );
+
+  const lambdaSecretsManagerRoleAttachment = new aws.iam.RolePolicyAttachment(
+    `${config.name}-secret-manager-role-attachment`,
+    {
+      role: exportLambdaRole.name,
+      policyArn: lambdaSecretsManagerPolicy.arn,
     }
   );
 
@@ -134,6 +236,11 @@ export function createTestLambda(config: {
 
   const lambdaName = `${config.name}-incremental-exports`;
   const exportLambda = new aws.lambda.Function(lambdaName, {
+    vpcConfig: {
+      // vpcId: vpc.vpcId,
+      securityGroupIds: [config.privateSubnetSecurityGroup.id],
+      subnetIds: config.vpcPrivateSubnetIds,
+    },
     code: new pulumi.asset.FileArchive("lambda_function_payload.zip"),
     name: lambdaName,
     role: exportLambdaRole.arn,
@@ -141,14 +248,24 @@ export function createTestLambda(config: {
     sourceCodeHash: lambda.then((lambda) => lambda.outputBase64sha256),
     runtime: aws.lambda.Runtime.Python3d12,
     environment: {
-      variables: {},
+      variables: apiLambdaEnvironment.reduce(
+        (
+          acc: { [key: string]: pulumi.Input<string> },
+          e: { name: string; value: pulumi.Input<string> }
+        ) => {
+          acc[e.name] = e.value;
+          return acc;
+        },
+        {}
+      ),
     },
     memorySize: 128,
+    timeout: 60,
+    layers: [lambdaLayer.arn],
     tags: {
       ...defaultTags,
       Name: lambdaName,
     },
-    layers: [lambdaLayer.arn],
   });
 
   // const scheduledEventRuleName = `${config.name}-rule`;

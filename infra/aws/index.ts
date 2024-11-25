@@ -2167,4 +2167,8 @@ createTestLambda({
   name: "test-lambda",
   snsAlertsTopicArn: pagerdutyTopic.arn,
   httpsListener: httpsListener,
+  ceramicCacheScorerId: CERAMIC_CACHE_SCORER_ID,
+  scorerSecret: scorerSecret,
+  privateSubnetSecurityGroup: privateSubnetSecurityGroup,
+  vpcPrivateSubnetIds: vpcPrivateSubnetIds,
 });

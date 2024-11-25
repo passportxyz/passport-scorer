@@ -14,3 +14,4 @@ postgres_db_passport_data
 
 .DS_Store
 infra/lib/v2/layer/
+**/.next/
