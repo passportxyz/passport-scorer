@@ -118,6 +118,70 @@ jobs:
           dockerfile_name: ./verifier/Dockerfile
           build_dir: ./verifier/
 
+  check_migrations:
+    needs: [docker-lambda]
+    name: Run showmigrations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.refspec }}
+          fetch-depth: 0
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v1
+      - name: Configure 1Password Service Account
+        uses: 1password/load-secrets-action/configure@v1
+        with:
+          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+      - name: Load secret
+        id: op-load-secret
+        uses: 1password/load-secrets-action@v1
+        with:
+          export-env: true
+        env:
+          AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
+          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
+      - name: Prepare to Deploy to AWS
+        uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v1
+
+      - name: Setup pulumi for showmigrations
+        uses: pulumi/actions@v4
+        id: pulumi-up
+        with:
+          stack-name: passportxyz/passport-scorer-ops/${{ inputs.environment }}
+          command: up
+          work-dir: ./infra/ops
+        env:
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
+          AWS_REGION: us-west-2
+          DOCKER_IMAGE_TAG: ${{ inputs.docker_tag }}
+      - name: Get Lambda Function URL
+        run: |
+          echo "Extracting Lambda Function URL..."
+          URL=$(pulumi stack output lambdaUrl --stack passportxyz/passport-scorer-ops/${{ inputs.environment }})
+          echo "LAMBDA_FUNCTION_URL=$URL" >> $GITHUB_ENV
+        id: get-lambda-url
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests requests-aws4auth
+      - name: Run showmigrations (call lambda function)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-west-2
+          LAMBDA_FUNCTION_URL: ${{ env.LAMBDA_FUNCTION_URL }}
+        run: |
+          python infra/scripts/ops/lambda_call.py
+
   deploy_preview:
     name: Preview - Deploying AWS Infra
     runs-on: ubuntu-latest
@@ -161,7 +225,7 @@ jobs:
 
   deploy_confirm:
     name: Review Approval Pending
-    needs: [deploy_preview]
+    needs: [check_migrations, deploy_preview]
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
