@@ -1458,12 +1458,14 @@ if (stack === "production") {
                 "--batch-size=1000",
                 "--database=read_replica_analytics",
                 "--config",
-                "'" +
+                "--extra-args " +
+                  "'" +
                   JSON.stringify([
                     {
                       name: "registry.Score",
                       filter: { passport__community_id: 335 },
                       select_related: ["passport"],
+                      ACL: "public-read",
                     },
                   ]) +
                   "'",
