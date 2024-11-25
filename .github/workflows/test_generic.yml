@@ -64,7 +64,7 @@ jobs:
 
       - name: Generate requirements.txt
         working-directory: ./api
-        run: poetry export -f requirements.txt -o requirements.txt --with dev
+        run: poetry export -f requirements.txt -o requirements.txt --with dev,server
 
       - name: Install API dependencies
         working-directory: ./api
