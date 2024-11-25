@@ -1464,6 +1464,7 @@ if (stack === "production") {
                       name: "registry.Score",
                       filter: { passport__community_id: 335 },
                       select_related: ["passport"],
+                      "extra-args": { ACL: "public-read" },
                     },
                   ]) +
                   "'",

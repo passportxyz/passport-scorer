@@ -8,6 +8,7 @@ from typing import (
     Optional,
 )
 
+# todo
 from ninja import Schema
 from pydantic import (
     ConfigDict,
