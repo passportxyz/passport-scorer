@@ -26,7 +26,7 @@ import { createVerifierService } from "./verifier";
 import { createS3InitiatedECSTask } from "../lib/scorer/s3_initiated_ecs_task";
 import { stack, defaultTags, StackType } from "../lib/tags";
 import { createV2Api } from "../lib/v2/index";
-import { createTestLambda } from "../lib/v2/test";
+import { createEmbedLambda } from "../lib/embed";
 //////////////////////////////////////////////////////////////
 // Loading environment variables
 //////////////////////////////////////////////////////////////
@@ -2163,8 +2163,8 @@ createV2Api({
   targetGroupRegistry: targetGroupRegistry,
 });
 
-createTestLambda({
-  name: "test-lambda",
+const o = createEmbedLambda({
+  name: "embed",
   snsAlertsTopicArn: pagerdutyTopic.arn,
   httpsListener: httpsListener,
   ceramicCacheScorerId: CERAMIC_CACHE_SCORER_ID,

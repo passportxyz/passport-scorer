@@ -112,9 +112,6 @@ def _handler(event, _context, body):
     this handler will be called via a private load balancer in our VPC
     """
 
-    print("body:", body)
-
-    # TODO: enable read from DB
     # TODO: example of interacting with redis
     stamps = list(CeramicCache.objects.all()[:3])
 

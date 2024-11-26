@@ -3,11 +3,11 @@ import * as archive from "@pulumi/archive";
 import * as aws from "@pulumi/aws";
 import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 import { Listener } from "@pulumi/aws/alb";
-import { local } from "@pulumi/command";
+import * as command from "@pulumi/command";
 import { secretsManager } from "infra-libs";
 import { stack, defaultTags } from "../tags";
 
-export function createTestLambda(config: {
+export function createEmbedLambda(config: {
   name: string;
   snsAlertsTopicArn: pulumi.Input<string>;
   httpsListener: pulumi.Output<Listener>;
@@ -138,7 +138,7 @@ export function createTestLambda(config: {
     ],
   });
 
-  const exportLambdaRole = new aws.iam.Role(`${config.name}`, {
+  const lambdaRole = new aws.iam.Role(`${config.name}`, {
     name: config.name,
     assumeRolePolicy: assumeRole.then((assumeRole) => assumeRole.json),
     tags: {
@@ -150,7 +150,7 @@ export function createTestLambda(config: {
   const lambdaLogRoleAttachment = new aws.iam.RolePolicyAttachment(
     `${config.name}-log-role-attachment`,
     {
-      role: exportLambdaRole.name,
+      role: lambdaRole.name,
       policyArn: lambdaLoggingPolicy.arn,
     }
   );
@@ -158,7 +158,7 @@ export function createTestLambda(config: {
   const lambdaEc2RoleAttachment = new aws.iam.RolePolicyAttachment(
     `${config.name}-ec2-role-attachment`,
     {
-      role: exportLambdaRole.name,
+      role: lambdaRole.name,
       policyArn: lambdaEc2Policy.arn,
     }
   );
@@ -166,67 +166,116 @@ export function createTestLambda(config: {
   const lambdaSecretsManagerRoleAttachment = new aws.iam.RolePolicyAttachment(
     `${config.name}-secret-manager-role-attachment`,
     {
-      role: exportLambdaRole.name,
+      role: lambdaRole.name,
       policyArn: lambdaSecretsManagerPolicy.arn,
     }
   );
 
-  const pythonDeps = new local.Command("install-python-deps", {
-    create:
-      "poetry export -f requirements.txt -o requirements.txt && pip install \
+  const cmd =
+    "cd ../../api && poetry export -f requirements.txt -o requirements.txt && poetry run pip install \
     --platform manylinux2014_x86_64 \
-    --target=../infra/lib/v2/layer/python/lib/python3.12/site-packages/ \
+    --target=../infra/aws/python/lib/python3.12/site-packages/ \
     --implementation cp \
     --only-binary=:all: --upgrade \
-    -r requirements.txt",
-    dir: "../../api",
+    -r requirements.txt";
+
+  const poetryLock = archive.getFile({
+    type: "zip",
+    outputPath: "__pythonDeps.zip",
+    sourceFile: "../../api/poetry.lock",
   });
 
-  const lambda = archive.getFile({
+  const layerFolder = new command.local.Command("lambda-python-dependencies", {
+    create: cmd,
+    update: cmd,
+    archivePaths: ["python/**", "!**__pycache__**"],
+    triggers: [poetryLock.then((pLock) => pLock.outputBase64sha256)],
+  });
+
+  // const output = pythonDeps.stdout;
+
+  // The layer will contain all the dependencies we have installed
+  const lambdaArchive = archive.getFile({
     type: "zip",
     outputPath: "test.zip",
-    sourceDir: "../lib/v2/layer",
+    sourceDir: "./__layer",
     excludes: ["**/__pycache__"],
   });
+  // const layerArchive = new pulumi.asset.FileArchive("../../api/layer.zip");
 
-  // Create an AWS S3 Bucket to host files
-  //   const bucket = new aws.s3.Bucket("my-bucket", {
-  //     acl: "private",
-  //   });
-  const dataExportsBucketName = "passport-lambda-code-bucket-123";
-  const bucket = new aws.s3.Bucket(dataExportsBucketName, {
-    bucket: dataExportsBucketName,
+  // TODO: create this bucket externally
+  const codeBucketName = `${config.name}-code-bucket-123`;
+  const bucket = new aws.s3.Bucket(codeBucketName, {
+    bucket: codeBucketName,
     versioning: {
       enabled: true,
     },
     tags: {
       ...defaultTags,
-      Name: dataExportsBucketName,
+      Name: codeBucketName,
     },
   });
 
+  const layerBucketObjectName = `${config.name}-layer-code.zip`;
+
+  // The layer will contain all the dependencies we have installed
   const bucketObject = new aws.s3.BucketObject(
-    "test-3.zip",
+    layerBucketObjectName,
     {
       bucket: bucket.id, // reference to the bucket we created above
-      source: "test.zip", // Pulumi Asset representing the files
-      sourceHash: lambda.then((lambda) => lambda.outputBase64sha256),
+      // sourceHash: layerFolder.archive.apply(a)  => accessLogsBucket.o),
+      source: layerFolder.archive,
+      sourceHash: poetryLock.then((pLock) => pLock.outputBase64sha256),
+      // source: "test.zip",
+      // sourceHash: lambdaArchive.then((pLock) => pLock.outputBase64sha256),
+      tags: {
+        ...defaultTags,
+        Name: layerBucketObjectName,
+      },
     },
-    { dependsOn: [pythonDeps] }
+    { dependsOn: [layerFolder] }
   );
 
+  // The layer will contain all the dependencies we have installed
+  // const bucketObject = new aws.s3.BucketObject(
+  //   layerBucketObjectName,
+  //   {
+  //     bucket: bucket.id, // reference to the bucket we created above
+  //     source: layerArchive,
+  //     // sourceHash: layerArchive.((layerArchive) => archive.outputBase64sha256),
+  //     tags: {
+  //       ...defaultTags,
+  //       Name: layerBucketObjectName,
+  //     },
+  //   },
+  //   { dependsOn: [pythonDeps] }
+  // );
+
+  // const bucketTestObject = new aws.s3.BucketObject(
+  //   "test-4.zip",
+  //   {
+  //     bucket: bucket.id, // reference to the bucket we created above
+  //     // source: "test.zip", // Pulumi Asset representing the files
+  //     source: pythonDeps.archive,
+  //     // sourceHash: pythonDeps.archive.apply(a => a.),
+  //   },
+  //   { dependsOn: [pythonDeps] }
+  // );
+
+  const layerName = `passport-${stack}-scorer-python-deps`;
   const lambdaLayer = new aws.lambda.LayerVersion(
-    "lambda_layer",
+    layerName,
     {
       s3Bucket: bucket.id,
       s3Key: bucketObject.id,
       s3ObjectVersion: bucketObject.versionId,
-      layerName: "lambda_layer_name_1",
+      layerName: layerName,
       compatibleRuntimes: [aws.lambda.Runtime.Python3d12],
     },
     { dependsOn: [bucketObject] }
   );
 
+  // The lambda will contain our own code (everything from the `api` folder for now)
   const lambdaCode = archive.getFile({
     type: "zip",
     sourceDir: "../../api",
@@ -234,66 +283,44 @@ export function createTestLambda(config: {
     excludes: ["**/__pycache__"],
   });
 
-  const lambdaName = `${config.name}-incremental-exports`;
-  const exportLambda = new aws.lambda.Function(lambdaName, {
-    vpcConfig: {
-      // vpcId: vpc.vpcId,
-      securityGroupIds: [config.privateSubnetSecurityGroup.id],
-      subnetIds: config.vpcPrivateSubnetIds,
+  const lambdaName = `${config.name}-lambda`;
+  const lambda = new aws.lambda.Function(
+    lambdaName,
+    {
+      name: lambdaName,
+      vpcConfig: {
+        // vpcId: vpc.vpcId,
+        securityGroupIds: [config.privateSubnetSecurityGroup.id],
+        subnetIds: config.vpcPrivateSubnetIds,
+      },
+      code: new pulumi.asset.FileArchive("lambda_function_payload.zip"),
+      role: lambdaRole.arn,
+      handler: "embed.lambda.lambda_handler", // TODO: change this
+      // TODO: check if we need the hash here, given that we have it in the layer
+      sourceCodeHash: lambdaCode.then((archive) => archive.outputBase64sha256),
+      runtime: aws.lambda.Runtime.Python3d12,
+      environment: {
+        variables: apiLambdaEnvironment.reduce(
+          (
+            acc: { [key: string]: pulumi.Input<string> },
+            e: { name: string; value: pulumi.Input<string> }
+          ) => {
+            acc[e.name] = e.value;
+            return acc;
+          },
+          {}
+        ),
+      },
+      memorySize: 128,
+      timeout: 60,
+      layers: [lambdaLayer.arn],
+      tags: {
+        ...defaultTags,
+        Name: lambdaName,
+      },
     },
-    code: new pulumi.asset.FileArchive("lambda_function_payload.zip"),
-    name: lambdaName,
-    role: exportLambdaRole.arn,
-    handler: "lambda_test.lambda.lambda_handler",
-    sourceCodeHash: lambda.then((lambda) => lambda.outputBase64sha256),
-    runtime: aws.lambda.Runtime.Python3d12,
-    environment: {
-      variables: apiLambdaEnvironment.reduce(
-        (
-          acc: { [key: string]: pulumi.Input<string> },
-          e: { name: string; value: pulumi.Input<string> }
-        ) => {
-          acc[e.name] = e.value;
-          return acc;
-        },
-        {}
-      ),
-    },
-    memorySize: 128,
-    timeout: 60,
-    layers: [lambdaLayer.arn],
-    tags: {
-      ...defaultTags,
-      Name: lambdaName,
-    },
-  });
-
-  // const scheduledEventRuleName = `${config.name}-rule`;
-  // const scheduledEventRule = new aws.cloudwatch.EventRule(
-  //   scheduledEventRuleName,
-  //   {
-  //     scheduleExpression: "cron(30 0 ? * * *)", // Trigger this 30 minutes after midnight UTC
-  //     tags: {
-  //       ...defaultTags,
-  //       Name: scheduledEventRuleName,
-  //     },
-  //   }
-  // );
-
-  // Granting EventBridge the necessary permissions to trigger the Lambda function.
-  // new aws.lambda.Permission(`${config.name}-permission`, {
-  //   action: "lambda:InvokeFunction",
-  //   function: exportLambda,
-  //   principal: "events.amazonaws.com",
-  //   sourceArn: scheduledEventRule.arn,
-  // });
-
-  // Target the rule to the lambda
-  // const scheduledEventTargetName = `${config.name}-target`;
-  // new aws.cloudwatch.EventTarget(scheduledEventTargetName, {
-  //   rule: scheduledEventRule.name,
-  //   arn: exportLambda.arn,
-  // });
+    {}
+  );
 
   // Create alarm to monitor lambda errors
   const metricAlarmName = `${config.name}-lambda-errors`;
@@ -318,23 +345,26 @@ export function createTestLambda(config: {
   });
 
   ///////////////////////////////////////////////////////////////////////////
-  const lambdaTargetGroup = new aws.lb.TargetGroup(`l-${config.name}`, {
-    name: `l-${config.name}`,
-    targetType: "lambda",
-    tags: { ...defaultTags, Name: `l-${config.name}` },
-  });
+  const lambdaTargetGroup = new aws.lb.TargetGroup(
+    `${config.name}-lambda-target-group`,
+    {
+      name: `${config.name}-lambda-target-group`,
+      targetType: "lambda",
+      tags: { ...defaultTags, Name: `${config.name}-lambda` },
+    }
+  );
 
-  const withLb = new aws.lambda.Permission(`withLb-${config.name}`, {
+  const withLb = new aws.lambda.Permission(`${config.name}-lambda-permission`, {
     action: "lambda:InvokeFunction",
-    function: exportLambda.name,
+    function: lambda.name,
     principal: "elasticloadbalancing.amazonaws.com",
     sourceArn: lambdaTargetGroup.arn,
   });
   const lambdaTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
-    `lambdaTargetGroupAttachment-${config.name}`,
+    `${config.name}-lambda-target-group-attachment`,
     {
       targetGroupArn: lambdaTargetGroup.arn,
-      targetId: exportLambda.arn,
+      targetId: lambda.arn,
     },
     {
       dependsOn: [withLb],
@@ -354,16 +384,8 @@ export function createTestLambda(config: {
     },
   ];
 
-  //   if (httpRequestMethods) {
-  //     conditions.push({
-  //       httpRequestMethod: {
-  //         values: httpRequestMethods,
-  //       },
-  //     });
-  //   }
-
-  const targetPassportRule = new ListenerRule(`lrule-lambda-${config.name}`, {
-    tags: { ...defaultTags, Name: `lrule-lambda-${config.name}` },
+  const targetPassportRule = new ListenerRule(`${config.name}-rule-lambda`, {
+    tags: { ...defaultTags, Name: `${config.name}-rule-lambda` },
     listenerArn: config.httpsListener.arn,
     priority: 12345,
     actions: [
