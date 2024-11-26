@@ -1,6 +1,5 @@
 import pytest
 from django.conf import settings
-from django.urls import reverse
 
 from ceramic_cache.models import CeramicCache, Revocation
 
@@ -19,8 +18,7 @@ def sample_stamp():
 
 @pytest.fixture
 def revocation_url():
-    """Get the URL for the revocation endpoint"""
-    return "/ceramic-cache/check-revocations"
+    return "/internal/check-revocations"
 
 
 @pytest.mark.django_db
@@ -31,6 +29,7 @@ class TestCheckRevocationsEndpoint:
             revocation_url,
             data={"proof_values": ["proof1", "proof2"]},
             content_type="application/json",
+            HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
 
         assert response.status_code == 200
@@ -48,6 +47,7 @@ class TestCheckRevocationsEndpoint:
             revocation_url,
             data={"proof_values": ["proof1", "proof2"]},
             content_type="application/json",
+            HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
 
         assert response.status_code == 200
@@ -62,7 +62,10 @@ class TestCheckRevocationsEndpoint:
     def test_empty_proof_values(self, client, revocation_url):
         """Test with empty proof values list"""
         response = client.post(
-            revocation_url, data={"proof_values": []}, content_type="application/json"
+            revocation_url,
+            data={"proof_values": []},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
 
         assert response.status_code == 200
@@ -79,6 +82,7 @@ class TestCheckRevocationsEndpoint:
             revocation_url,
             data={"proof_values": too_many_proofs},
             content_type="application/json",
+            HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
 
         assert response.status_code == 422
@@ -93,6 +97,7 @@ class TestCheckRevocationsEndpoint:
             revocation_url,
             data={"proof_values": ["proof1", "proof1"]},
             content_type="application/json",
+            HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
 
         assert response.status_code == 200
@@ -107,6 +112,7 @@ class TestCheckRevocationsEndpoint:
             revocation_url,
             data={"wrong_field": ["proof1"]},
             content_type="application/json",
+            HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
 
         assert response.status_code == 422  # Validation error
@@ -133,6 +139,7 @@ class TestCheckRevocationsEndpoint:
             revocation_url,
             data={"proof_values": ["proof0", "proof1", "proof2"]},
             content_type="application/json",
+            HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
 
         assert response.status_code == 200

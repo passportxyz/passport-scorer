@@ -3,10 +3,9 @@ from datetime import timedelta
 import pytest
 from django.conf import settings
 from django.utils import timezone
-from ninja_jwt.tokens import RefreshToken
 
-from ceramic_cache.api.schema import Credential, CredentialSubject
 from ceramic_cache.models import Ban
+from internal.schema import Credential, CredentialSubject
 
 
 @pytest.fixture
@@ -20,7 +19,7 @@ def sample_credentials():
     """Create sample credentials for testing"""
     return [
         Credential(
-            id="1",
+            credential_id="1",
             credentialSubject=CredentialSubject(
                 hash="hash1",
                 provider="github",
@@ -28,7 +27,7 @@ def sample_credentials():
             ),
         ),
         Credential(
-            id="2",
+            credential_id="2",
             credentialSubject=CredentialSubject(
                 hash="hash2",
                 provider="twitter",
@@ -43,7 +42,7 @@ class TestCheckBansEndpoint:
     def test_check_bans_no_bans(self, client, auth_headers, sample_credentials):
         """Test when no bans exist"""
         response = client.post(
-            "/ceramic-cache/check-bans",
+            "/internal/check-bans",
             data=[c.dict() for c in sample_credentials],
             content_type="application/json",
             **auth_headers,
@@ -60,7 +59,7 @@ class TestCheckBansEndpoint:
         Ban.objects.create(hash="hash1")
 
         response = client.post(
-            "/ceramic-cache/check-bans",
+            "/internal/check-bans",
             data=[c.dict() for c in sample_credentials],
             content_type="application/json",
             **auth_headers,
@@ -78,7 +77,7 @@ class TestCheckBansEndpoint:
         Ban.objects.create(address="0x1234567890123456789012345678901234567890")
 
         response = client.post(
-            "/ceramic-cache/check-bans",
+            "/internal/check-bans",
             data=[c.dict() for c in sample_credentials],
             content_type="application/json",
             **auth_headers,
@@ -99,7 +98,7 @@ class TestCheckBansEndpoint:
         )
 
         response = client.post(
-            "/ceramic-cache/check-bans",
+            "/internal/check-bans",
             data=[c.dict() for c in sample_credentials],
             content_type="application/json",
             **auth_headers,
@@ -118,7 +117,7 @@ class TestCheckBansEndpoint:
         Ban.objects.create(hash="hash1", end_time=future_date, reason="Temporary ban")
 
         response = client.post(
-            "/ceramic-cache/check-bans",
+            "/internal/check-bans",
             data=[c.dict() for c in sample_credentials],
             content_type="application/json",
             **auth_headers,
@@ -138,7 +137,7 @@ class TestCheckBansEndpoint:
         Ban.objects.create(hash="hash1", end_time=past_date)
 
         response = client.post(
-            "/ceramic-cache/check-bans",
+            "/internal/check-bans",
             data=[c.dict() for c in sample_credentials],
             content_type="application/json",
             **auth_headers,
@@ -152,7 +151,7 @@ class TestCheckBansEndpoint:
         """Test error when credentials have different addresses"""
         credentials = [
             Credential(
-                id="1",
+                credential_id="1",
                 credentialSubject=CredentialSubject(
                     hash="hash1",
                     provider="github",
@@ -160,7 +159,7 @@ class TestCheckBansEndpoint:
                 ),
             ),
             Credential(
-                id="2",
+                credential_id="2",
                 credentialSubject=CredentialSubject(
                     hash="hash2",
                     provider="twitter",
@@ -170,7 +169,7 @@ class TestCheckBansEndpoint:
         ]
 
         response = client.post(
-            "/ceramic-cache/check-bans",
+            "/internal/check-bans",
             data=[c.dict() for c in credentials],
             content_type="application/json",
             **auth_headers,
@@ -185,7 +184,7 @@ class TestCheckBansEndpoint:
     def test_check_bans_no_credentials(self, client, auth_headers):
         """Test error when no credentials provided"""
         response = client.post(
-            "/ceramic-cache/check-bans",
+            "/internal/check-bans",
             data=[],
             content_type="application/json",
             **auth_headers,
@@ -197,7 +196,7 @@ class TestCheckBansEndpoint:
     def test_check_bans_unauthorized(self, client, sample_credentials):
         """Test unauthorized access"""
         response = client.post(
-            "/ceramic-cache/check-bans",
+            "/internal/check-bans",
             data=[c.dict() for c in sample_credentials],
             content_type="application/json",
         )

@@ -1,13 +1,12 @@
 """Ceramic Cache API Schema"""
 
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from ninja_schema import Schema
 
 from registry.api.v1 import DetailedScoreResponse
 
-from ..models import BanType, CeramicCache
+from ..models import CeramicCache
 
 
 class CacheStampPayload(Schema):
@@ -63,31 +62,3 @@ class ComporeDBStatusResponse(Schema):
 
 class CalcScorePayload(Schema):
     alternate_scorer_id: Optional[int]
-
-
-class CredentialSubject(Schema):
-    hash: Optional[str]
-    provider: Optional[str]
-    address: Optional[str]
-
-
-class Credential(Schema):
-    id: str
-    credentialSubject: CredentialSubject
-
-
-class CheckBanResult(Schema):
-    credential_id: str
-    is_banned: bool
-    end_time: datetime | None = None
-    ban_type: BanType | None = None
-    reason: str | None = None
-
-
-class RevocationCheckPayload(Schema):
-    proof_values: List[str]
-
-
-class RevocationCheckResponse(Schema):
-    proof_value: str
-    is_revoked: bool
