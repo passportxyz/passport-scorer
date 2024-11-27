@@ -19,19 +19,17 @@ def sample_credentials():
     """Create sample credentials for testing"""
     return [
         Credential(
-            credential_id="1",
             credentialSubject=CredentialSubject(
                 hash="hash1",
                 provider="github",
-                address="0x1234567890123456789012345678901234567890",
+                id="did:pkh:eip155:1:0x1234567890123456789012345678901234567890",
             ),
         ),
         Credential(
-            credential_id="2",
             credentialSubject=CredentialSubject(
                 hash="hash2",
                 provider="twitter",
-                address="0x1234567890123456789012345678901234567890",
+                id="did:pkh:eip155:1:0x1234567890123456789012345678901234567890",
             ),
         ),
     ]
@@ -151,19 +149,17 @@ class TestCheckBansEndpoint:
         """Test error when credentials have different addresses"""
         credentials = [
             Credential(
-                credential_id="1",
                 credentialSubject=CredentialSubject(
                     hash="hash1",
                     provider="github",
-                    address="0x1111111111111111111111111111111111111111",
+                    id="did:pkh:eip155:1:0x1111111111111111111111111111111111111111",
                 ),
             ),
             Credential(
-                credential_id="2",
                 credentialSubject=CredentialSubject(
                     hash="hash2",
                     provider="twitter",
-                    address="0x2222222222222222222222222222222222222222",
+                    id="did:pkh:eip155:1:0x2222222222222222222222222222222222222222",
                 ),
             ),
         ]

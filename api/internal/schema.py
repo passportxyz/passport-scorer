@@ -11,16 +11,15 @@ from ceramic_cache.models import BanType
 class CredentialSubject(Schema):
     hash: Optional[str]
     provider: Optional[str]
-    address: Optional[str]
+    id: Optional[str]
 
 
 class Credential(Schema):
-    credential_id: str
     credentialSubject: CredentialSubject
 
 
 class CheckBanResult(Schema):
-    credential_id: str
+    hash: str
     is_banned: bool
     end_time: datetime | None = None
     ban_type: BanType | None = None

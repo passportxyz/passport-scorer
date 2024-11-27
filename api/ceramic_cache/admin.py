@@ -85,7 +85,6 @@ class BanForm(ModelForm):
         model = Ban
         fields = ["hash", "address", "provider", "end_time", "reason"]
         widgets = {
-            "end_time": forms.DateTimeInput(attrs={"type": "datetime-local"}),
             "reason": forms.Textarea(attrs={"rows": 3}),
         }
         help_texts = {
@@ -135,8 +134,9 @@ class BanAdmin(admin.ModelAdmin):
     list_display = [
         "get_ban_description",
         "is_active",
-        "created_at",
+        "end_time",
         "matching_revoked",
+        "created_at",
     ]
     actions = [revoke_matching_credentials_action]
     change_form_template = "ban/change_form.html"

@@ -90,17 +90,17 @@ def check_bans(request, payload: List[Credential]) -> List[CheckBanResult]:
     Check for active bans matching the given address and/or hashes.
     Returns list of relevant active bans.
     """
-    unique_addresses = set([c.credentialSubject.address for c in payload])
+    unique_ids = list(set([c.credentialSubject.id for c in payload]))
 
-    if len(unique_addresses) < 1:
+    if len(unique_ids) < 1:
         raise InvalidBanQueryException("Must provide valid credential(s)")
 
-    if len(unique_addresses) > 1:
+    if len(unique_ids) > 1:
         raise InvalidBanQueryException(
             "All credentials must be issued to the same address"
         )
 
-    address = list(unique_addresses)[0]
+    address = unique_ids[0].split(":")[-1]
 
     hashes = list(
         set([c.credentialSubject.hash for c in payload if c.credentialSubject.hash])
@@ -118,7 +118,7 @@ def check_bans(request, payload: List[Credential]) -> List[CheckBanResult]:
 
         return [
             CheckBanResult(
-                credential_id=c.credential_id,
+                hash=c.credentialSubject.hash,
                 is_banned=is_banned,
                 ban_type=ban_type,
                 end_time=ban.end_time if ban else None,

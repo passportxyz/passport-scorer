@@ -28,8 +28,15 @@
     </li>
   </ol>
   <p>
-    <strong>Note:</strong> To ban multiple independent fields (e.g., to ban all credentials
-    matching either an address OR a hash), create separate ban records.
+    <strong>Note:</strong> The form will reject an invalid configuration
   </p>
+  <p>
+    <strong>Note:</strong> To ban multiple independent fields (e.g., to ban all credentials
+    matching either an address OR a hash), create separate ban records
+  </p>
+  <h2 style="font-weight: 600;">Revoke Matching Credentials</h2>
+  After creating a Ban, on the Ban list view page, you can use the
+  <i>Revoke Matching Credentials for selected ban(s)</i> action to revoke
+  all existing credentials that that match the selected ban(s)
 </div>
 {{ block.super }} {% endblock %}
