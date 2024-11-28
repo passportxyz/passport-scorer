@@ -62,7 +62,7 @@ export function createPythonLambdaLayer(config: {
       layerName: layerName,
       compatibleRuntimes: [aws.lambda.Runtime.Python3d12],
       sourceCodeHash: poetryLock.then((pLock) => pLock.outputBase64sha256),
-      skipDestroy: true,
+      skipDestroy: true
     },
     { dependsOn: [bucketObject] }
   );
