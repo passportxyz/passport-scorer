@@ -2,12 +2,15 @@ import * as pulumi from "@pulumi/pulumi";
 import * as archive from "@pulumi/archive";
 import * as aws from "@pulumi/aws";
 import * as command from "@pulumi/command";
-import { stack, defaultTags } from "../tags";
+import { defaultTags } from "../../lib/tags";
 
 export function createPythonLambdaLayer(config: {
   name: string;
   bucketId: pulumi.Input<string>;
 }): aws.lambda.LayerVersion {
+  // The working dir will be `infra/aws`
+  // The `poetry / python` commands need to be executed from within `../../api`, hence the `cd`
+  // Output for the python deps will be the `infra/aws/python` folder, I was not able to get the `archivePaths` work from another location for unknown reasons
   const cmd =
     "cd ../../api && poetry export -f requirements.txt -o requirements.txt && poetry run pip install \
     --platform manylinux2014_x86_64 \

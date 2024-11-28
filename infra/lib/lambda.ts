@@ -23,7 +23,6 @@ export function createLambdaFunction(
             Service: "lambda.amazonaws.com",
           },
           Effect: "Allow",
-          // Sid: `${functionArgs.name(n => n.replace("-", ""))}LambdaAssumeRole`,
         },
       ],
     }),
@@ -55,9 +54,7 @@ export function createLambdaFunction(
     }
   );
 
-  // TODO: function accepts a list of additional policies to attach to the role .
-  // if (vpcId) {
-  // add VPC required permissions
+  // All our lambdas need to run within the VPC
   const vpcPolicy = new aws.iam.Policy(`${functionArgs.name}-vpc-policy`, {
     name: `${functionArgs.name}-vpc-policy`,
     policy: JSON.stringify({
@@ -83,7 +80,6 @@ export function createLambdaFunction(
       role: lambdaRole.name,
     }
   );
-  // }
 
   // Manage secrets manager
   if (secretManagerArns.length > 0) {

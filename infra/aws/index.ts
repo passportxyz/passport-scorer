@@ -25,9 +25,9 @@ import * as op from "@1password/op-js";
 import { createVerifierService } from "./verifier";
 import { createS3InitiatedECSTask } from "../lib/scorer/s3_initiated_ecs_task";
 import { stack, defaultTags, StackType } from "../lib/tags";
-import { createV2Api } from "../lib/v2/index";
-import { createEmbedLambda } from "../lib/embed";
-import { createPythonLambdaLayer } from "../lib/layer";
+import { createV2Api } from "./v2/index";
+import { createEmbedLambda } from "./embed";
+import { createPythonLambdaLayer } from "./layer";
 
 //////////////////////////////////////////////////////////////
 // Loading environment variables

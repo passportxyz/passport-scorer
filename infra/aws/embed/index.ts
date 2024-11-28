@@ -4,8 +4,9 @@ import * as aws from "@pulumi/aws";
 import { ListenerRule } from "@pulumi/aws/lb";
 import { Listener } from "@pulumi/aws/alb";
 import { secretsManager } from "infra-libs";
-import { stack, defaultTags } from "../tags";
-import { createLambdaFunction } from "../../ops/lambda";
+import { defaultTags, stack } from "../../lib/tags";
+
+import { createLambdaFunction } from "../../lib/lambda";
 
 export function createEmbedLambda(config: {
   name: string;
@@ -102,15 +103,15 @@ export function createEmbedLambda(config: {
     alarmActions: [config.snsAlertsTopicArn],
     okActions: [config.snsAlertsTopicArn],
     comparisonOperator: "GreaterThanOrEqualToThreshold",
-    datapointsToAlarm: 1,
     dimensions: {
       FunctionName: lambdaName,
     },
-    evaluationPeriods: 24,
+    datapointsToAlarm: 3,
+    evaluationPeriods: 5,
     metricName: "Errors",
     name: metricAlarmName,
     namespace: "AWS/Lambda",
-    period: 60 * 60, // 1 hours
+    period: 60, // 1 min
     unit: "Seconds",
     statistic: "SampleCount",
     treatMissingData: "notBreaching",
@@ -147,7 +148,7 @@ export function createEmbedLambda(config: {
   const conditions: any = [
     {
       pathPattern: {
-        values: ["/test"],
+        values: ["/embed"],
       },
     },
     {
@@ -160,7 +161,7 @@ export function createEmbedLambda(config: {
   const targetPassportRule = new ListenerRule(`${config.name}-rule-lambda`, {
     tags: { ...defaultTags, Name: `${config.name}-rule-lambda` },
     listenerArn: config.httpsListener.arn,
-    priority: 12345,
+    priority: 2100,
     actions: [
       {
         type: "forward",

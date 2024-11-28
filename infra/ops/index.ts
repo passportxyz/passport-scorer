@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import { createLambdaFunction } from "./lambda";
+import { createLambdaFunction } from "../lib/lambda";
 
 export const stack = pulumi.getStack(); // values : review, staging & production
 
