@@ -39,7 +39,6 @@ export function createPythonLambdaLayer(config: {
     layerBucketObjectName,
     {
       bucket: config.bucketId,
-      // sourceHash: layerFolder.archive.apply(a)  => accessLogsBucket.o),
       source: layerFolder.archive,
       sourceHash: poetryLock.then((pLock) => pLock.outputBase64sha256),
       tags: {
@@ -59,6 +58,8 @@ export function createPythonLambdaLayer(config: {
       s3ObjectVersion: bucketObject.versionId,
       layerName: layerName,
       compatibleRuntimes: [aws.lambda.Runtime.Python3d12],
+      sourceCodeHash: poetryLock.then((pLock) => pLock.outputBase64sha256),
+      skipDestroy: true,
     },
     { dependsOn: [bucketObject] }
   );

@@ -60,6 +60,7 @@ pyarrow = "^18.0.0"
 tqdm = "^4.67.0"
 django-ipware = "^7.0.1"
 whitenoise = "^6.8.2"
+gunicorn = "^23.0.0"
 
 [build-system]
 requires = ["poetry-core"]
