@@ -158,7 +158,7 @@ class Ban(models.Model):
     ]
 
     type = models.CharField(
-        max_length=20, choices=BAN_TYPE_CHOICES, null=True, blank=True, default=None
+        max_length=20, choices=BAN_TYPE_CHOICES, null=False, blank=False, default=None
     )
     provider = models.CharField(default="", max_length=256, db_index=True, blank=True)
     hash = models.CharField(default="", max_length=100, db_index=True, blank=True)
@@ -217,21 +217,34 @@ class Ban(models.Model):
             parsed_ban_address = ban.address.lower()
 
             # Check account-wide ban first
-            if parsed_ban_address == parsed_address and not ban.provider:
+            if (
+                ban.type == "account"
+                and parsed_ban_address == parsed_address
+                and not ban.provider
+            ):
                 return True, "account", ban
 
             # Check hash ban
-            if ban.hash == stamp_hash:
+            if ban.type == "hash" and ban.hash == stamp_hash:
                 return True, "hash", ban
 
             # Check address + provider ban
-            if parsed_ban_address == parsed_address and ban.provider == provider:
+            if (
+                ban.type == "single_stamp"
+                and parsed_ban_address == parsed_address
+                and ban.provider == provider
+            ):
                 return True, "single_stamp", ban
 
         return False, None, None
 
     def clean(self):
         super().clean()
+
+        if self.type not in ("account", "hash", "single_stamp"):
+            raise ValidationError(
+                f"Invalid value in ban.type: '{self.type}'. See `Wielding the Ban Hammer`."
+            )
 
         if self.type == "account" and not (
             # Account ban (ETH address)
@@ -258,6 +271,7 @@ class Ban(models.Model):
             )
 
     def save(self, *args, **kwargs):
+        # For details on model validation see https://docs.djangoproject.com/en/5.1/ref/models/instances/#validating-objects
         self.full_clean()
         super().save(*args, **kwargs)
 

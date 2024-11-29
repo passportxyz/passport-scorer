@@ -54,7 +54,7 @@ class TestCheckBansEndpoint:
 
     def test_check_bans_hash_ban(self, client, auth_headers, sample_credentials):
         """Test when a credential hash is banned"""
-        Ban.objects.create(hash="hash1")
+        Ban.objects.create(type="hash", hash="hash1")
 
         response = client.post(
             "/internal/check-bans",
@@ -72,7 +72,9 @@ class TestCheckBansEndpoint:
 
     def test_check_bans_address_ban(self, client, auth_headers, sample_credentials):
         """Test when an address is banned"""
-        Ban.objects.create(address="0x1234567890123456789012345678901234567890")
+        Ban.objects.create(
+            type="account", address="0x1234567890123456789012345678901234567890"
+        )
 
         response = client.post(
             "/internal/check-bans",
@@ -92,7 +94,9 @@ class TestCheckBansEndpoint:
     ):
         """Test when a specific provider is banned for an address"""
         Ban.objects.create(
-            address="0x1234567890123456789012345678901234567890", provider="github"
+            type="single_stamp",
+            address="0x1234567890123456789012345678901234567890",
+            provider="github",
         )
 
         response = client.post(
@@ -112,7 +116,9 @@ class TestCheckBansEndpoint:
     def test_check_bans_temporary_ban(self, client, auth_headers, sample_credentials):
         """Test temporary ban with end_time"""
         future_date = timezone.now() + timedelta(days=1)
-        Ban.objects.create(hash="hash1", end_time=future_date, reason="Temporary ban")
+        Ban.objects.create(
+            type="hash", hash="hash1", end_time=future_date, reason="Temporary ban"
+        )
 
         response = client.post(
             "/internal/check-bans",
@@ -132,7 +138,7 @@ class TestCheckBansEndpoint:
     def test_check_bans_expired_ban(self, client, auth_headers, sample_credentials):
         """Test expired ban should not affect credentials"""
         past_date = timezone.now() - timedelta(days=1)
-        Ban.objects.create(hash="hash1", end_time=past_date)
+        Ban.objects.create(type="hash", hash="hash1", end_time=past_date)
 
         response = client.post(
             "/internal/check-bans",

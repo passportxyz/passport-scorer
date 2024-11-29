@@ -59,21 +59,21 @@ class TestBanModel:
 
     def test_create_ban_with_hash_only(self, sample_hash):
         """Test creating a ban with only a hash is valid"""
-        ban = Ban(hash=sample_hash)
+        ban = Ban(type="hash", hash=sample_hash)
         ban.save()
         assert Ban.objects.count() == 1
         assert Ban.objects.first().hash == sample_hash
 
     def test_create_ban_with_address_only(self, sample_address):
         """Test creating a ban with only an address is valid"""
-        ban = Ban(address=sample_address)
+        ban = Ban(type="account", address=sample_address)
         ban.save()
         assert Ban.objects.count() == 1
         assert Ban.objects.first().address == sample_address.lower()
 
     def test_create_ban_with_address_and_provider(self, sample_address):
         """Test creating a ban with address and provider is valid"""
-        ban = Ban(address=sample_address, provider="github")
+        ban = Ban(type="single_stamp", address=sample_address, provider="github")
         ban.save()
         assert Ban.objects.count() == 1
         assert Ban.objects.first().provider == "github"
@@ -83,6 +83,51 @@ class TestBanModel:
         ban = Ban()
         with pytest.raises(ValidationError):
             ban.save()
+
+    def test_use_invalid_ban_type_raises_error(self):
+        """Test creating a ban without valid ban type raises ValidationError"""
+        ban = Ban(type="dummy")
+        with pytest.raises(
+            ValidationError,
+            match="Invalid value in ban.type: 'dummy'. See `Wielding the Ban Hammer`.",
+        ):
+            ban.save()
+
+    def test_use_invalid_ban_with_type_hash_raises_error(self):
+        """Test creating a hash ban with invalid hash raises ValidationError"""
+        ban = Ban(type="hash")
+        with pytest.raises(
+            ValidationError,
+            match="Invalid ban for type 'hash'. See `Wielding the Ban Hammer`.",
+        ):
+            ban.save()
+
+    def test_use_invalid_ban_with_type_account_raises_error(self):
+        """Test creating a hash ban with invalid account raises ValidationError"""
+        ban = Ban(type="account")
+        with pytest.raises(
+            ValidationError,
+            match="Invalid ban for type 'account'. See `Wielding the Ban Hammer`.",
+        ):
+            ban.save()
+
+    def test_use_invalid_ban_with_type_single_stamp_raises_error(self, sample_address):
+        """Test creating a hash ban with invalid single_stamp raises ValidationError"""
+        with pytest.raises(
+            ValidationError,
+            match="Invalid ban for type 'single_stamp'. See `Wielding the Ban Hammer`.",
+        ):
+            Ban(type="single_stamp").save()
+        with pytest.raises(
+            ValidationError,
+            match="Invalid ban for type 'single_stamp'. See `Wielding the Ban Hammer`.",
+        ):
+            Ban(type="single_stamp", address=sample_address).save()
+        with pytest.raises(
+            ValidationError,
+            match="Invalid ban for type 'single_stamp'. See `Wielding the Ban Hammer`.",
+        ):
+            Ban(type="single_stamp", provider="Dummy").save()
 
     @pytest.mark.django_db
     class TestBanQueries:
@@ -94,11 +139,15 @@ class TestBanModel:
         def test_get_bans_returns_all_relevant_bans(self, sample_address):
             """Test that get_bans returns all relevant bans in one query"""
             # Create various types of bans
-            hash_ban = Ban.objects.create(hash="hash1")
-            address_ban = Ban.objects.create(address=sample_address)
-            provider_ban = Ban.objects.create(address=sample_address, provider="github")
+            hash_ban = Ban.objects.create(type="hash", hash="hash1")
+            address_ban = Ban.objects.create(type="account", address=sample_address)
+            provider_ban = Ban.objects.create(
+                type="single_stamp", address=sample_address, provider="github"
+            )
             expired_ban = Ban.objects.create(
-                address=sample_address, end_time=timezone.now() - timedelta(days=1)
+                type="account",
+                address=sample_address,
+                end_time=timezone.now() - timedelta(days=1),
             )
 
             # Query for bans
@@ -113,7 +162,7 @@ class TestBanModel:
 
         def test_check_credential_bans_hash_ban(self, sample_address):
             """Test checking a credential against a hash ban"""
-            ban = Ban.objects.create(hash="hash1")
+            ban = Ban.objects.create(type="hash", hash="hash1")
             bans = [ban]
 
             is_banned, ban_type, ban_obj = Ban.check_bans_for(
@@ -126,10 +175,10 @@ class TestBanModel:
 
         def test_check_credential_bans_provider_ban(self, sample_address):
             """Test checking a credential against a provider-specific ban"""
-            ban = Ban.objects.create(address=sample_address, provider="github")
+            ban = Ban.objects.create(
+                type="single_stamp", address=sample_address, provider="github"
+            )
             bans = [ban]
-
-            print("BAN", ban.__dict__)
 
             is_banned, ban_type, ban_obj = Ban.check_bans_for(
                 bans, sample_address, "hash1", "github"
@@ -141,7 +190,7 @@ class TestBanModel:
 
         def test_check_credential_bans_account_ban(self, sample_address):
             """Test checking a credential against an account-wide ban"""
-            ban = Ban.objects.create(address=sample_address)
+            ban = Ban.objects.create(type="account", address=sample_address)
             bans = [ban]
 
             is_banned, ban_type, ban_obj = Ban.check_bans_for(
@@ -154,7 +203,7 @@ class TestBanModel:
 
         def test_check_credential_bans_no_match(self, sample_address):
             """Test checking a credential against non-matching bans"""
-            ban = Ban.objects.create(address="0x123different")
+            ban = Ban.objects.create(type="account", address="0x123different")
             bans = [ban]
 
             is_banned, ban_type, ban_obj = Ban.check_bans_for(
@@ -167,9 +216,11 @@ class TestBanModel:
 
         def test_check_credential_bans_multiple_bans(self, sample_address):
             """Test that most specific ban type is returned when multiple apply"""
-            hash_ban = Ban.objects.create(hash="hash1")
-            address_ban = Ban.objects.create(address=sample_address)
-            provider_ban = Ban.objects.create(address=sample_address, provider="github")
+            hash_ban = Ban.objects.create(type="hash", hash="hash1")
+            address_ban = Ban.objects.create(type="account", address=sample_address)
+            provider_ban = Ban.objects.create(
+                type="single_stamp", address=sample_address, provider="github"
+            )
             bans = [address_ban, provider_ban, hash_ban]
 
             # Account ban should take precedence
@@ -183,8 +234,10 @@ class TestBanModel:
         def test_bulk_credential_check_workflow(self, sample_address):
             """Test the complete workflow of checking multiple credentials"""
             # Create some bans
-            Ban.objects.create(hash="hash1")
-            Ban.objects.create(address=sample_address, provider="github")
+            Ban.objects.create(type="hash", hash="hash1")
+            Ban.objects.create(
+                type="single_stamp", address=sample_address, provider="github"
+            )
 
             # Get all bans in one query
             bans = Ban.get_bans(
@@ -209,7 +262,7 @@ class TestBanModel:
 
         def test_revoke_matching_by_hash(self, sample_stamps):
             """Test revoking credentials by hash"""
-            ban = Ban.objects.create(hash="hash1")
+            ban = Ban.objects.create(type="hash", hash="hash1")
             ban.revoke_matching_credentials()
 
             # Only the stamp with hash1 should be revoked
@@ -220,7 +273,7 @@ class TestBanModel:
 
         def test_revoke_matching_by_address(self, sample_stamps, sample_address):
             """Test revoking all credentials for an address"""
-            ban = Ban.objects.create(address=sample_address)
+            ban = Ban.objects.create(type="account", address=sample_address)
             ban.revoke_matching_credentials()
 
             # All stamps for the address should be revoked
@@ -233,7 +286,9 @@ class TestBanModel:
 
         def test_revoke_matching_by_provider(self, sample_stamps, sample_address):
             """Test revoking credentials by provider"""
-            ban = Ban.objects.create(address=sample_address, provider="github")
+            ban = Ban.objects.create(
+                type="single_stamp", address=sample_address, provider="github"
+            )
             ban.revoke_matching_credentials()
 
             # Only github stamps should be revoked
@@ -248,7 +303,7 @@ class TestBanModel:
                 proof_value=sample_stamp.proof_value, ceramic_cache=sample_stamp
             )
 
-            ban = Ban.objects.create(hash="hash1")
+            ban = Ban.objects.create(type="hash", hash="hash1")
             ban.revoke_matching_credentials()
 
             # Should still only be one revocation
@@ -259,14 +314,14 @@ class TestBanModel:
             sample_stamp.deleted_at = timezone.now()
             sample_stamp.save()
 
-            ban = Ban.objects.create(hash="hash1")
+            ban = Ban.objects.create(type="hash", hash="hash1")
             ban.revoke_matching_credentials()
 
             assert Revocation.objects.count() == 0
 
         def test_revoke_matching_updates_timestamp(self, sample_stamp):
             """Test that last_run_revoke_matching is updated"""
-            ban = Ban.objects.create(hash="hash1")
+            ban = Ban.objects.create(type="hash", hash="hash1")
             assert ban.last_run_revoke_matching is None
 
             ban.revoke_matching_credentials()
@@ -277,7 +332,7 @@ class TestBanModel:
 
         def test_revoke_matching_no_matches(self):
             """Test revoking when no stamps match"""
-            ban = Ban.objects.create(hash="nonexistent")
+            ban = Ban.objects.create(type="hash", hash="nonexistent")
             ban.revoke_matching_credentials()
 
             assert Revocation.objects.count() == 0
