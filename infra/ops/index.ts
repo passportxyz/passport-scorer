@@ -36,6 +36,8 @@ const { lambdaFunction, lambdaFunctionUrl } = pulumi
           SECRET_KEY: "1234",
         },
       },
+      memorySize: 128,
+      timeout: 120,
     });
   });
 export const lambdaUrl = lambdaFunctionUrl.functionUrl.apply((url) => url);
