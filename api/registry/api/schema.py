@@ -143,6 +143,13 @@ class DetailedScoreResponse(Schema):
             return {}
         return v
 
+    @field_validator("stamps", mode="before")
+    @classmethod
+    def validate_stamps(cls, v: Any):
+        if v is None:
+            return {}
+        return v
+
 
 class HistoricalScoreData(Schema):
     score: float
