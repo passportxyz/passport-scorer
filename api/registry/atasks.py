@@ -88,7 +88,10 @@ async def aload_passport_data(address: str) -> Dict:
 
 
 async def acalculate_score(
-    passport: Passport, community_id: int, score: Score, clashing_stamps: list[dict]
+    passport: Passport,
+    community_id: int,
+    score: Score,
+    clashing_stamps: list[dict] = [],
 ):
     log.debug("Scoring")
     user_community = await Community.objects.aget(pk=community_id)
