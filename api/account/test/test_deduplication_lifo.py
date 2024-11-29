@@ -1,13 +1,14 @@
 from unittest import mock
 
-from account.deduplication import Rules
-from account.deduplication.lifo import HashScorerLinkIntegrityError, alifo
-from account.models import Account, Community
 from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TransactionTestCase
 from ninja_jwt.schema import RefreshToken
+
+from account.deduplication import Rules
+from account.deduplication.lifo import HashScorerLinkIntegrityError, alifo
+from account.models import Account, Community
 from registry.models import HashScorerLink, Passport, Stamp
 from scorer_weighted.models import Scorer, WeightedScorer
 
@@ -83,7 +84,7 @@ class LifoDeduplicationTestCase(TransactionTestCase):
             credential=credential,
         )
 
-        deduped_passport, _ = await alifo(
+        deduped_passport, _, _ = await alifo(
             passport1.community, {"stamps": [credential]}, passport1.address
         )
 
@@ -121,7 +122,7 @@ class LifoDeduplicationTestCase(TransactionTestCase):
             credential=credential,
         )
 
-        deduped_passport, _ = await alifo(
+        deduped_passport, _, _ = await alifo(
             passport1.community, {"stamps": [credential]}, passport1.address
         )
 
@@ -140,7 +141,7 @@ class LifoDeduplicationTestCase(TransactionTestCase):
         )
 
         # We test deduplication of the 1st passport (for example user submits the same passport again)
-        deduped_passport, _ = await alifo(
+        deduped_passport, _, _ = await alifo(
             passport.community, {"stamps": [credential]}, passport.address
         )
 
@@ -157,7 +158,7 @@ class LifoDeduplicationTestCase(TransactionTestCase):
 
         # We test deduplication of another passport with different address but
         # with the same stamp
-        deduped_passport, _ = await alifo(
+        deduped_passport, _, _ = await alifo(
             passport.community, {"stamps": [credential]}, "0xaddress_2"
         )
 
