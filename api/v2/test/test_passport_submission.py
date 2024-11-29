@@ -445,7 +445,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "last_score_timestamp": None,
             "expiration_timestamp": None,
             "error": "No Passport found for this address.",
-            "stamp_scores": {},
+            "stamps": {},
         }
 
     @patch("registry.atasks.validate_credential", side_effect=[[], [], [], []])
@@ -471,7 +471,10 @@ class ValidatePassportTestCase(TransactionTestCase):
             "expiration_timestamp": mock_passport_expiration_date.isoformat(),
             "threshold": "20.00000",
             "error": None,
-            "stamp_scores": {"Ens": "0.408", "Google": "0.525"},
+            "stamps": {
+                "Ens": {"dedup": False, "expiration_date": None, "score": 0.408},
+                "Google": {"dedup": False, "expiration_date": None, "score": 0.525},
+            },
         }
 
         expected2ndResponse = {
@@ -482,7 +485,10 @@ class ValidatePassportTestCase(TransactionTestCase):
             "expiration_timestamp": mock_passport_expiration_date.isoformat(),
             "threshold": "20.00000",
             "error": None,
-            "stamp_scores": {"Ens": "0.408", "Google": "0.525"},
+            "stamps": {
+                "Ens": {"dedup": False, "expiration_date": None, "score": 0.408},
+                "Google": {"dedup": False, "expiration_date": None, "score": 0.525},
+            },
         }
 
         # First submission
