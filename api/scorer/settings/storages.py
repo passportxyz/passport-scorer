@@ -9,4 +9,7 @@ if AWS_STORAGE_BUCKET_NAME:
         "default": {
             "BACKEND": "storages.backends.s3.S3Storage",
         },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
     }
