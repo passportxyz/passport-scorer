@@ -1,9 +1,9 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import { buildHttpLambdaFn } from "../scorer/new_service";
+import { buildHttpLambdaFn } from "../../lib/scorer/new_service";
 import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 
-import { stack, defaultTags } from "../tags";
+import { stack, defaultTags } from "../../lib/tags";
 import { secretsManager } from "infra-libs";
 import { AlarmConfigurations } from "../../lib/scorer/loadBalancer";
 

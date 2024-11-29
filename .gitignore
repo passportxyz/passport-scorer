@@ -13,3 +13,5 @@ postgres_db_data
 postgres_db_passport_data
 
 .DS_Store
+**/.next/
+infra/aws/python

@@ -10,12 +10,7 @@ from typing import (
 
 # todo
 from ninja import Schema
-from pydantic import (
-    ConfigDict,
-    Field,
-    field_validator,
-    model_validator,
-)
+from pydantic import ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
 from registry.models import Event, Score

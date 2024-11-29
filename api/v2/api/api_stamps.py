@@ -6,7 +6,6 @@ from urllib.parse import urljoin
 import django_filters
 from django.conf import settings
 from django.core.cache import cache
-from ninja import Schema
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging

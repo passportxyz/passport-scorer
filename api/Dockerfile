@@ -29,7 +29,7 @@ WORKDIR /usr/src
 # you need to have pycurl build dependencies libcurl4-gnutls-dev and libcurl3-gnutls
 # In the runtime container you need only libcurl3-gnutls
 
-RUN /root/.local/bin/poetry install
+RUN /root/.local/bin/poetry install --with server --without dev
 RUN /usr/src/.venv/bin/python -c "import django; print(django.__version__)"
 
 
