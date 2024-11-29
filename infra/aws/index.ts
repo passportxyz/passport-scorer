@@ -143,7 +143,12 @@ const passportXyzCertificateArn = coreInfraStack.getOutput(
 const noStackPassportXyzCertificateArn = coreInfraStack.getOutput(
   "passportXyzCertificateArn"
 );
+
 const codeBucketId = coreInfraStack.getOutput("codeBucketId");
+
+const passportAdminBucketName = coreInfraStack.getOutput(
+  "passportAdminBucketName"
+);
 
 const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply((values) => values[0]);
 
@@ -740,6 +745,10 @@ const apiEnvironment = [
   {
     name: "VERIFIER_URL",
     value: "http://core-alb.private.gitcoin.co/verifier/verify",
+  },
+  {
+    name: "AWS_STORAGE_BUCKET_NAME",
+    value: passportAdminBucketName,
   },
 ].sort(secretsManager.sortByName);
 
