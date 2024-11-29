@@ -12,7 +12,6 @@ from account.models import Community, Nonce
 from ceramic_cache.models import CeramicCache
 from registry.api.schema import (
     CursorPaginatedStampCredentialResponse,
-    DetailedScoreResponseV2,
     ErrorMessageResponse,
     NoScoreResponse,
     StampDisplayResponse,
@@ -52,6 +51,7 @@ from registry.utils import (
 )
 from scorer_weighted.models import Scorer
 from v2.schema import V2ScoreResponse
+from v2.schema import DetailedScoreResponseV2, V2ScoreResponse
 
 from ..exceptions import ScoreDoesNotExist
 from .router import api_router
