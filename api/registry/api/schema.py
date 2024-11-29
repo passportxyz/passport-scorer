@@ -113,6 +113,7 @@ class DetailedScoreResponse(Schema):
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
     stamp_scores: Optional[Dict] = {}
+    stamps: Optional[Dict] = {}
     passport: Optional[Passport] = Field(exclude=True, default=None)
 
     @model_validator(mode="after")
