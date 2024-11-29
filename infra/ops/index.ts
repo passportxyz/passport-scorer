@@ -30,10 +30,6 @@ const { lambdaFunction, lambdaFunctionUrl } = pulumi
       packageType: "Image",
       imageUri: dockerImageUri,
       imageConfig: { commands: dockerCmd },
-      vpcConfig: {
-        securityGroupIds: [],
-        subnetIds,
-      },
       environment: {
         variables: {
           CORE_SECRET_ARN: _rdsSecretArn,
