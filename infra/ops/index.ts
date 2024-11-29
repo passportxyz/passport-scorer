@@ -32,7 +32,6 @@ const { lambdaFunction, lambdaFunctionUrl } = pulumi
       imageConfig: { commands: dockerCmd },
       vpcConfig: {
         securityGroupIds: [],
-        vpcId,
         subnetIds,
       },
       environment: {
