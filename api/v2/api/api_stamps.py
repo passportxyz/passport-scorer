@@ -8,10 +8,11 @@ from django.core.cache import cache
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
-from account.models import Community
+from account.models import Community, Nonce
 from ceramic_cache.models import CeramicCache
 from registry.api.schema import (
     CursorPaginatedStampCredentialResponse,
+    DetailedScoreResponseV2,
     ErrorMessageResponse,
     NoScoreResponse,
     StampDisplayResponse,
@@ -21,6 +22,8 @@ from registry.api.utils import (
     aapi_key,
     atrack_apikey_usage,
     check_rate_limit,
+    community_requires_signature,
+    get_scorer_id,
     is_valid_address,
     track_apikey_usage,
     with_read_db,
@@ -36,12 +39,15 @@ from registry.exceptions import (
     InvalidAddressException,
     InvalidAPIKeyPermissions,
     InvalidLimitException,
+    InvalidNonceException,
+    InvalidSignerException,
     api_get_object_or_404,
 )
 from registry.models import Event, Passport, Score
 from registry.utils import (
     decode_cursor,
     encode_cursor,
+    get_signer,
     reverse_lazy_with_query,
 )
 from scorer_weighted.models import Scorer

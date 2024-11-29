@@ -112,7 +112,14 @@ class TestPassportGetHistoricalScore:
                         "threshold": "100.00000",
                     },
                     "passport": 15,
-                    "stamp_scores": {"github": 10, "twitter": 15},
+                    "stamps": {
+                        "github": {
+                            "score": 1,
+                            "dedup": False,
+                            "expiration_date": "2024-11-21T22:09:10.687Z",
+                        },
+                        "twitter": {"score": 0, "dedup": True, "expiration_date": None},
+                    },
                     "expiration_date": "2024-11-21T22:09:10.687Z",
                     "last_score_timestamp": "2024-10-25T19:16:14.023Z",
                 },
@@ -132,7 +139,14 @@ class TestPassportGetHistoricalScore:
         assert response_data["passing_score"] is False
         assert response_data["last_score_timestamp"] == "2024-10-25T19:16:14.023Z"
         assert response_data["expiration_timestamp"] == "2024-11-21T22:09:10.687Z"
-        assert response_data["stamp_scores"] == {"github": "10", "twitter": "15"}
+        assert response_data["stamps"] == {
+            "github": {
+                "score": 1,
+                "dedup": False,
+                "expiration_date": "2024-11-21T22:09:10.687Z",
+            },
+            "twitter": {"score": 0, "dedup": True, "expiration_date": None},
+        }
 
     @freeze_time("2023-01-01")
     def test_get_historical_score_missing_fields(
@@ -166,7 +180,7 @@ class TestPassportGetHistoricalScore:
         assert response_data["passing_score"] is True
         assert response_data["last_score_timestamp"] is None
         assert response_data["expiration_timestamp"] is None
-        assert response_data["stamp_scores"] is None
+        assert response_data["stamps"] is None
 
     @freeze_time("2023-01-01")
     def test_get_historical_score_ne_evidence(
@@ -196,7 +210,7 @@ class TestPassportGetHistoricalScore:
         assert response_data["passing_score"] is True
         assert response_data["last_score_timestamp"] is None
         assert response_data["expiration_timestamp"] is None
-        assert response_data["stamp_scores"] is None
+        assert response_data["stamps"] is None
 
     def test_get_historical_score_no_score_found(
         self,
