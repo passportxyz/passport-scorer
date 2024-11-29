@@ -191,6 +191,14 @@ jobs:
         with:
           ref: ${{ inputs.refspec }}
           fetch-depth: 0
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+      - name: Install poetry
+        run: |
+          pip3 install pipx
+          pipx ensurepath
+          pipx install poetry
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
       - name: Configure 1Password Service Account
