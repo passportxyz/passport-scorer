@@ -113,7 +113,6 @@ class DetailedScoreResponse(Schema):
     evidence: Optional[ThresholdScoreEvidenceResponse]
     error: Optional[str]
     stamp_scores: Optional[Dict] = {}
-    stamps: Optional[Dict] = {}
     passport: Optional[Passport] = Field(exclude=True, default=None)
 
     @model_validator(mode="after")
@@ -141,6 +140,39 @@ class DetailedScoreResponse(Schema):
     def validate_stamp_scores(cls, v: Any):
         if v is None:
             return {}
+        return v
+
+
+class DetailedScoreResponseV2(Schema):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    address: str | None = None
+    score: Optional[str | Decimal]
+    status: Optional[StatusEnum]
+    last_score_timestamp: Optional[str | datetime]
+    expiration_date: Optional[str | datetime]
+    evidence: Optional[ThresholdScoreEvidenceResponse]
+    error: Optional[str]
+    stamps: Optional[Dict] = {}
+    passport: Optional[Passport] = Field(exclude=True, default=None)
+
+    @model_validator(mode="after")
+    def check_address(self) -> Self:
+        if self.passport and self.address is None:
+            self.address = self.passport.address
+        return self
+
+    @field_validator("last_score_timestamp", mode="before")
+    @classmethod
+    def validate_last_score_timestamp(cls, v: Any, values: Dict):
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return v
+
+    @field_validator("expiration_date", mode="before")
+    @classmethod
+    def validate_expiration_date(cls, v: Any):
+        if isinstance(v, datetime):
+            return v.isoformat()
         return v
 
     @field_validator("stamps", mode="before")
