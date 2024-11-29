@@ -80,6 +80,7 @@ class Score(models.Model):
     error = models.TextField(null=True, blank=True)
     evidence = models.JSONField(null=True, blank=True)
     stamp_scores = models.JSONField(null=True, blank=True)
+    stamps = models.JSONField(null=True, blank=True)
 
     expiration_date = models.DateTimeField(
         default=None, null=True, blank=True, db_index=True

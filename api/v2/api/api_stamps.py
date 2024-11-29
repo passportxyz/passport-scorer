@@ -234,7 +234,6 @@ def get_score_history(
             score = score_data["evidence"]["rawScore"]
         else:
             score = score_data.get("score", "0")
-
         return V2ScoreResponse(
             address=address,
             score=score,
@@ -243,7 +242,7 @@ def get_score_history(
             last_score_timestamp=score_data.get("last_score_timestamp"),
             expiration_timestamp=score_data.get("expiration_date"),
             error=score_data.get("error"),
-            stamp_scores=score_data.get("stamp_scores"),
+            stamps=score_data.get("stamps"),
         )
 
     except Exception as e:
