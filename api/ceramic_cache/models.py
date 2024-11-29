@@ -139,15 +139,43 @@ class Revocation(models.Model):
 type BanType = Literal["account"] | Literal["hash"] | Literal["single_stamp"]
 
 
+class BanList(models.Model):
+    name = models.CharField(
+        default="", max_length=256, db_index=True, null=True, blank=True
+    )
+    description = models.TextField(default="", null=True, blank=True)
+    csv_file = models.FileField(max_length=1024, null=False, blank=False)
+
+    def __str__(self):
+        return f"#{self.id} {self.name if self.name else ' - no name - '}"
+
+
 class Ban(models.Model):
+    BAN_TYPE_CHOICES = [
+        ("account", "Account"),
+        ("hash", "Hash"),
+        ("single_stamp", "SingleStamps"),
+    ]
+
+    type = models.CharField(
+        max_length=20, choices=BAN_TYPE_CHOICES, null=True, blank=True, default=None
+    )
     provider = models.CharField(default="", max_length=256, db_index=True, blank=True)
     hash = models.CharField(default="", max_length=100, db_index=True, blank=True)
     address = EthAddressField(default="", db_index=True, blank=True)
-    end_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True, db_index=True)
     reason = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     last_run_revoke_matching = models.DateTimeField(
         null=True, blank=True, help_text="Last time revoke_matching_credentials was run"
+    )
+    ban_list = models.ForeignKey(
+        BanList,
+        help_text="If set, this ban was created as part of a larger ban list",
+        on_delete=models.PROTECT,
+        default=None,
+        blank=True,
+        null=True,
     )
 
     @classmethod
@@ -169,7 +197,7 @@ class Ban(models.Model):
 
     @staticmethod
     def check_bans_for(
-        bans: list["Ban"], address: str, hash: str, provider: str
+        bans: list["Ban"], address: str, stamp_hash: str, provider: str
     ) -> tuple[bool, BanType | None, "Ban | None"]:
         """
         Check if a specific credential is banned based on a pre-fetched list of bans.
@@ -193,7 +221,7 @@ class Ban(models.Model):
                 return True, "account", ban
 
             # Check hash ban
-            if ban.hash == hash:
+            if ban.hash == stamp_hash:
                 return True, "hash", ban
 
             # Check address + provider ban
@@ -204,14 +232,30 @@ class Ban(models.Model):
 
     def clean(self):
         super().clean()
-        if not any(
-            [
-                self.hash,  # hash only is valid
-                self.address,  # address only is valid
-                (self.address and self.provider),  # address + type is valid
-            ]
+
+        if self.type == "account" and not (
+            # Account ban (ETH address)
+            self.address and not self.hash and not self.provider
         ):
-            raise ValidationError("Invalid ban. See `Wielding the Ban Hammer`.")
+            raise ValidationError(
+                "Invalid ban for type 'account'. See `Wielding the Ban Hammer`."
+            )
+
+        if self.type == "hash" and not (
+            # Account ban (ETH address)
+            self.hash and not self.address and not self.provider
+        ):
+            raise ValidationError(
+                "Invalid ban for type 'hash'. See `Wielding the Ban Hammer`."
+            )
+
+        if self.type == "single_stamp" and not (
+            # Account ban (ETH address)
+            self.address and self.provider and not self.hash
+        ):
+            raise ValidationError(
+                "Invalid ban for type 'single_stamp'. See `Wielding the Ban Hammer`."
+            )
 
     def save(self, *args, **kwargs):
         self.full_clean()

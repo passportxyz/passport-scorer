@@ -2,14 +2,20 @@
 Admin for the ceramic cache app
 """
 
+import csv
+from datetime import datetime
+from io import StringIO
+from typing import Optional
+
 from django import forms
 from django.contrib import admin, messages
+from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from django.utils import timezone
 
 from scorer.scorer_admin import ScorerModelAdmin
 
-from .models import Ban, CeramicCache, Revocation
+from .models import Ban, BanList, CeramicCache, Revocation
 
 
 @admin.action(
@@ -28,7 +34,7 @@ def undelete_selected_stamps(modeladmin, request, queryset):
             else:
                 failed_to_undelete.append(c.id)
 
-        except Exception as e:
+        except Exception:
             failed_to_undelete.append(c.id)
 
     modeladmin.message_user(
@@ -132,6 +138,8 @@ def revoke_matching_credentials_action(modeladmin, request, queryset):
 class BanAdmin(admin.ModelAdmin):
     form = BanForm
     list_display = [
+        "type",
+        "ban_list",
         "get_ban_description",
         "is_active",
         "end_time",
@@ -140,7 +148,7 @@ class BanAdmin(admin.ModelAdmin):
     ]
     actions = [revoke_matching_credentials_action]
     change_form_template = "ban/change_form.html"
-    list_filter = ["created_at", "end_time"]
+    list_filter = ["created_at", "end_time", "ban_list"]
     search_fields = ["address", "hash", "provider", "reason"]
     readonly_fields = ["created_at", "last_run_revoke_matching"]
 
@@ -164,3 +172,76 @@ class BanAdmin(admin.ModelAdmin):
     @admin.display(boolean=True)
     def matching_revoked(self, obj):
         return obj.last_run_revoke_matching is not None
+
+
+def get_isodatetime_or_none(value) -> Optional[datetime]:
+    return datetime.fromisoformat(value) if value != "null" else None
+
+
+class BanListForm(forms.ModelForm):
+    class Meta:
+        model = BanList
+        fields = "__all__"
+
+    def clean_csv_file(self):
+        """
+        Validate the content of the CSV file
+        """
+        csv_file = self.cleaned_data["csv_file"]
+        csv_data = csv_file.read().decode("utf-8")
+
+        csv_reader = csv.DictReader(StringIO(csv_data))
+        line = 0
+        for ban_item in csv_reader:
+            line += 1
+            try:
+                db_ban_item = Ban(
+                    type=ban_item["type"],
+                    provider=ban_item["provider"],
+                    hash=ban_item["hash"],
+                    end_time=get_isodatetime_or_none(ban_item["end_time"]),
+                    address=ban_item["address"],
+                )
+                # This will run all validators on the fields in Ban see: https://docs.djangoproject.com/en/5.1/ref/models/instances/#validating-objects
+                db_ban_item.full_clean()
+
+            except ValueError as e:
+                raise ValidationError(f"Failed to validate line {line}, {e}") from e
+            except ValidationError as e:
+                raise ValidationError(f"Failed to validate line {line}, {e}") from e
+            except Exception as e:
+                raise ValidationError(
+                    f"Failed to validate line {line} (unknown error), {e}"
+                ) from e
+        return csv_file
+
+
+@admin.register(BanList)
+class BanListAdmin(admin.ModelAdmin):
+    form = BanListForm
+    list_display = [
+        "name",
+        "description",
+        "csv_file",
+    ]
+
+    def csv_file_url(self, obj: BanList):
+        return obj.csv_file.url
+
+    def save_model(self, request, obj: BanList, form, change):
+        super().save_model(request, obj, form, change)
+
+        # If saving any of the objects below fails, we expect to roll back
+        csv_reader = csv.DictReader(obj.csv_file.open("rt"))
+        ban_item_list = []
+        for ban_item in csv_reader:
+            db_ban_item = Ban(
+                type=ban_item["type"],
+                provider=ban_item["provider"],
+                hash=ban_item["hash"],
+                end_time=get_isodatetime_or_none(ban_item["end_time"]),
+                address=ban_item["address"],
+                ban_list=obj,
+            )
+            ban_item_list.append(db_ban_item)
+        Ban.objects.bulk_create(ban_item_list, batch_size=1000)
