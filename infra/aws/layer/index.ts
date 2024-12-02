@@ -60,6 +60,11 @@ export function createPythonLambdaLayer(config: {
     { cwd: "../../api" }
   )
     .then(() =>
+      runCommand("rm", ["-Rf", "__lambda__"], {
+        cwd: "../..",
+      })
+    )
+    .then(() =>
       runCommand(
         "poetry",
         [
@@ -69,7 +74,7 @@ export function createPythonLambdaLayer(config: {
           "install",
           "--platform",
           "manylinux2014_x86_64",
-          "--target=__lambda__/python/lib/python3.12/site-packages/",
+          "--target=../__lambda__/python/lib/python3.12/site-packages/",
           "--implementation",
           "cp",
           "--only-binary=:all:",
@@ -97,29 +102,31 @@ export function createPythonLambdaLayer(config: {
           "+",
         ],
         {
-          cwd: "../../api",
+          cwd: "../..",
         }
       )
     )
+    .then(() => runCommand("rm", ["-Rf", expectedArchivePath], {}))
     .then(() =>
-      runCommand("zip", ["-q", "-r", expectedArchivePath, "lib"], {
-        cwd: "../../api/__lambda__/python",
+      // See https://docs.aws.amazon.com/lambda/latest/dg/packaging-layers.html
+      // for the expected folder structure
+      runCommand("zip", ["-q", "-r", `../${layerBucketObjectName}`, "python"], {
+        cwd: "../../__lambda__",
       })
     )
-    .then(() =>
-      runCommand("rm", ["-Rf", "__lamnbda__"], {
-        cwd: "../../api",
-      })
-    )
-    .then(
-      () => new pulumi.asset.FileArchive(`../../api/${layerBucketObjectName}`)
-    );
+    .then(() => new pulumi.asset.FileArchive(expectedArchivePath));
 
   const poetryLock = archive.getFile({
     type: "zip",
     outputPath: "__pythonDeps.zip",
     sourceFile: "../../api/poetry.lock",
   });
+
+  // const pythonDepsArchiv1 = archive.getFile({
+  //   type: "zip",
+  //   outputPath: "__pythonDeps1.zip",
+  //   sourceDir: "../../__lambda__/python",
+  // });
 
   // The layer will contain all the dependencies we have installed
   const bucketObject = new aws.s3.BucketObject(

@@ -2185,15 +2185,15 @@ const pythonLambdaLayer = createPythonLambdaLayer({
   bucketId: codeBucketId,
 });
 
-// const embedLambda = createEmbedLambda({
-//   name: "embed",
-//   vpcId: vpcID,
-//   snsAlertsTopicArn: pagerdutyTopic.arn,
-//   httpsListener: httpsListener,
-//   ceramicCacheScorerId: CERAMIC_CACHE_SCORER_ID,
-//   scorerSecret: scorerSecret,
-//   privateSubnetSecurityGroup: privateSubnetSecurityGroup,
-//   vpcPrivateSubnetIds: vpcPrivateSubnetIds,
-//   lambdaLayerArn: pythonLambdaLayer.arn,
-//   bucketId: codeBucketId,
-// });
+const embedLambda = createEmbedLambda({
+  name: "embed",
+  vpcId: vpcID,
+  snsAlertsTopicArn: pagerdutyTopic.arn,
+  httpsListener: httpsListener,
+  ceramicCacheScorerId: CERAMIC_CACHE_SCORER_ID,
+  scorerSecret: scorerSecret,
+  privateSubnetSecurityGroup: privateSubnetSecurityGroup,
+  vpcPrivateSubnetIds: vpcPrivateSubnetIds,
+  lambdaLayerArn: pythonLambdaLayer.arn,
+  bucketId: codeBucketId,
+});
