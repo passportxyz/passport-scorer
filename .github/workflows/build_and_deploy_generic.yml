@@ -199,6 +199,16 @@ jobs:
           pip3 install pipx
           pipx ensurepath
           pipx install poetry
+          pipx inject poetry poetry-plugin-export
+      - name: Make Python Dependencies Archive
+        working-directory: api
+        run: |
+          poetry export -f requirements.txt -o requirements.txt
+          poetry run pip install --platform manylinux2014_x86_64 --target=__lambda__/python/lib/python3.12/site-packages/ --implementation cp --only-binary=:all: --upgrade -r requirements.txt
+          cd __lambda__/python
+          zip -r ../../python-layer-code.zip lib
+          cd ../..
+          rm -Rf __lambda__
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
       - name: Configure 1Password Service Account
@@ -268,6 +278,16 @@ jobs:
           pip3 install pipx
           pipx ensurepath
           pipx install poetry
+          pipx inject poetry poetry-plugin-export
+      - name: Make Python Dependencies Archive
+        working-directory: api
+        run: |
+          poetry export -f requirements.txt -o requirements.txt
+          poetry run pip install --platform manylinux2014_x86_64 --target=__lambda__/python/lib/python3.12/site-packages/ --implementation cp --only-binary=:all: --upgrade -r requirements.txt
+          cd __lambda__/python
+          zip -r ../../python-layer-code.zip lib
+          cd ../..
+          rm -Rf __lambda__
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
       - name: Configure 1Password Service Account

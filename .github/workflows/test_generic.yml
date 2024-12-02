@@ -61,6 +61,7 @@ jobs:
           pip3 install pipx
           pipx ensurepath
           pipx install poetry
+          pipx inject poetry poetry-plugin-export
 
       - name: Generate requirements.txt
         working-directory: ./api

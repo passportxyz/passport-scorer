@@ -2180,10 +2180,10 @@ createV2Api({
   targetGroupRegistry: targetGroupRegistry,
 });
 
-// const pythonLambdaLayer = createPythonLambdaLayer({
-//   name: "python",
-//   bucketId: codeBucketId,
-// });
+const pythonLambdaLayer = createPythonLambdaLayer({
+  name: "python",
+  bucketId: codeBucketId,
+});
 
 // const embedLambda = createEmbedLambda({
 //   name: "embed",

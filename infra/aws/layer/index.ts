@@ -3,6 +3,30 @@ import * as archive from "@pulumi/archive";
 import * as aws from "@pulumi/aws";
 import * as command from "@pulumi/command";
 import { defaultTags } from "../../lib/tags";
+import { existsSync, statSync } from "fs";
+import { spawn } from "child_process";
+
+function runCommand(
+  command: string,
+  args: string[],
+  options: Record<string, any>
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const cmd = spawn(command, args, { stdio: "inherit", ...options });
+
+    cmd.on("error", (error) => {
+      reject(`Failed to start process: ${error.message}`);
+    });
+
+    cmd.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(`Process exited with code: ${code}`);
+      }
+    });
+  });
+}
 
 export function createPythonLambdaLayer(config: {
   name: string;
@@ -11,13 +35,85 @@ export function createPythonLambdaLayer(config: {
   // The working dir will be `infra/aws`
   // The `poetry / python` commands need to be executed from within `../../api`, hence the `cd`
   // Output for the python deps will be the `infra/aws/python` folder, I was not able to get the `archivePaths` work from another location for unknown reasons
-  const cmd =
-    "cd ../../api && poetry export -f requirements.txt -o requirements.txt && poetry run pip install \
-    --platform manylinux2014_x86_64 \
-    --target=../infra/aws/python/lib/python3.12/site-packages/ \
-    --implementation cp \
-    --only-binary=:all: --upgrade \
-    -r requirements.txt";
+
+  const layerBucketObjectName = `${config.name}-layer-code.zip`;
+  const expectedArchivePath = `../../${layerBucketObjectName}`;
+
+  function checkIfFileExists(filePath: string): boolean {
+    if (existsSync(filePath)) {
+      return statSync(filePath).isFile(); // Check if it's a file
+    }
+    return false; // File does not exist
+  }
+
+  // Example usage:
+  const filePath = "./path/to/file.txt";
+  if (checkIfFileExists(filePath)) {
+    console.log("The file exists!");
+  } else {
+    console.log("The file does not exist.");
+  }
+
+  const pythonDepsArchive = runCommand(
+    "poetry",
+    ["export", "-f", "requirements.txt", "-o", "requirements.txt"],
+    { cwd: "../../api" }
+  )
+    .then(() =>
+      runCommand(
+        "poetry",
+        [
+          "run",
+          "pip",
+          "-q",
+          "install",
+          "--platform",
+          "manylinux2014_x86_64",
+          "--target=__lambda__/python/lib/python3.12/site-packages/",
+          "--implementation",
+          "cp",
+          "--only-binary=:all:",
+          "--upgrade",
+          "-r",
+          "requirements.txt",
+        ],
+        { cwd: "../../api" }
+      )
+    )
+
+    .then(() =>
+      runCommand(
+        "find",
+        [
+          "__lambda__",
+          "-type",
+          "d",
+          "-name",
+          "__pycache__",
+          "-exec",
+          "rm",
+          "-rf",
+          "{}",
+          "+",
+        ],
+        {
+          cwd: "../../api",
+        }
+      )
+    )
+    .then(() =>
+      runCommand("zip", ["-q", "-r", expectedArchivePath, "lib"], {
+        cwd: "../../api/__lambda__/python",
+      })
+    )
+    .then(() =>
+      runCommand("rm", ["-Rf", "__lamnbda__"], {
+        cwd: "../../api",
+      })
+    )
+    .then(
+      () => new pulumi.asset.FileArchive(`../../api/${layerBucketObjectName}`)
+    );
 
   const poetryLock = archive.getFile({
     type: "zip",
@@ -25,31 +121,19 @@ export function createPythonLambdaLayer(config: {
     sourceFile: "../../api/poetry.lock",
   });
 
-  const layerFolder = new command.local.Command(
-    `${config.name}-layer-dependencies`,
-    {
-      create: cmd,
-      update: cmd,
-      archivePaths: ["python/**", "!**__pycache__**"],
-      triggers: [poetryLock.then((pLock) => pLock.outputBase64sha256)],
-    }
-  );
-
-  const layerBucketObjectName = `${config.name}-layer-code.zip`;
-
   // The layer will contain all the dependencies we have installed
   const bucketObject = new aws.s3.BucketObject(
     layerBucketObjectName,
     {
       bucket: config.bucketId,
-      source: layerFolder.archive,
+      source: pythonDepsArchive,
       sourceHash: poetryLock.then((pLock) => pLock.outputBase64sha256),
       tags: {
         ...defaultTags,
         Name: layerBucketObjectName,
       },
     },
-    { dependsOn: [layerFolder] }
+    { dependsOn: [] }
   );
 
   const layerName = `${config.name}-python-deps`;
@@ -62,7 +146,7 @@ export function createPythonLambdaLayer(config: {
       layerName: layerName,
       compatibleRuntimes: [aws.lambda.Runtime.Python3d12],
       sourceCodeHash: poetryLock.then((pLock) => pLock.outputBase64sha256),
-      skipDestroy: true
+      skipDestroy: true,
     },
     { dependsOn: [bucketObject] }
   );
