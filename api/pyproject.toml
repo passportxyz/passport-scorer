@@ -32,8 +32,9 @@ django-ace = "*"
 async-timeout = "*"
 aiohttp = "*"
 redis = "^5.1.1"
-multiformats = {version = "^0.3.1.post4"}
 siwe = "^4.4.0"
+multiformats = "^0.3.1.post4"
+django-storages = "^1.14.4"
 
 
 [tool.poetry.group.dev.dependencies]

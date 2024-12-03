@@ -7,3 +7,4 @@ from .ninja_jwt import *
 from .ratelimit import *
 from .registry import *
 from .s3 import *
+from .storages import *

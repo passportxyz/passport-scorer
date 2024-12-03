@@ -180,7 +180,10 @@ def handle_add_stamps(
     CeramicCache.objects.bulk_create(new_stamp_objects)
 
     updated_passport_state = CeramicCache.objects.filter(
-        address=address, type=CeramicCache.StampType.V1, deleted_at__isnull=True
+        address=address,
+        type=CeramicCache.StampType.V1,
+        deleted_at__isnull=True,
+        revocation__isnull=True,
     )
 
     return GetStampsWithScoreResponse(
@@ -256,7 +259,10 @@ def handle_patch_stamps(
         CeramicCache.objects.bulk_create(new_stamp_objects)
 
     updated_passport_state = CeramicCache.objects.filter(
-        address=address, type=CeramicCache.StampType.V1, deleted_at__isnull=True
+        address=address,
+        type=CeramicCache.StampType.V1,
+        deleted_at__isnull=True,
+        revocation__isnull=True,
     )
 
     return GetStampsWithScoreResponse(
@@ -360,7 +366,7 @@ def handle_delete_stamps(
     stamps.update(deleted_at=now, updated_at=now)
 
     updated_passport_state = CeramicCache.objects.filter(
-        address=address, deleted_at__isnull=True
+        address=address, deleted_at__isnull=True, revocation__isnull=True
     )
 
     return GetStampsWithScoreResponse(

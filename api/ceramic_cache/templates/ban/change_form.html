@@ -1,0 +1,41 @@
+{% extends "admin/change_form.html" %} {% load i18n %} {% block content %}
+<div
+  style="
+    margin: 20px 0;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  "
+>
+  <h1 style="font-weight: 600;">Wielding the Ban Hammer</h1>
+  <p><strong>ALL</strong> field conditions must be met for a ban to apply.</p>
+  <p>Ban Types:</p>
+  <ol>
+    <li>
+      <strong>Ban a Specific Credential</strong> <br />Fill in: Hash only
+      <br />Example: Ban credential hash "0x123..." regardless of which address
+      holds it
+    </li>
+    <li>
+      <strong>Ban All Activity from an Address</strong> <br />Fill in: Address
+      only <br />Example: Ban address "0xabc..." from using any stamps
+    </li>
+    <li>
+      <strong>Ban Specific Provider for an Address</strong> <br />Fill in: Both
+      Address and Provider <br />Example: Ban address "0xabc..." from using only
+      the CoinbaseDualVerification stamp
+    </li>
+  </ol>
+  <p>
+    <strong>Note:</strong> The form will reject an invalid configuration
+  </p>
+  <p>
+    <strong>Note:</strong> To ban multiple independent fields (e.g., to ban all credentials
+    matching either an address OR a hash), create separate ban records
+  </p>
+  <h2 style="font-weight: 600;">Revoke Matching Credentials</h2>
+  After creating a Ban, on the Ban list view page, you can use the
+  <i>Revoke Matching Credentials for selected ban(s)</i> action to revoke
+  all existing credentials that that match the selected ban(s)
+</div>
+{{ block.super }} {% endblock %}

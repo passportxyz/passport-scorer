@@ -30,17 +30,14 @@ const { lambdaFunction, lambdaFunctionUrl } = pulumi
       packageType: "Image",
       imageUri: dockerImageUri,
       imageConfig: { commands: dockerCmd },
-      vpcConfig: {
-        securityGroupIds: [],
-        vpcId,
-        subnetIds,
-      },
       environment: {
         variables: {
           CORE_SECRET_ARN: _rdsSecretArn,
           SECRET_KEY: "1234",
         },
       },
+      memorySize: 128,
+      timeout: 120,
     });
   });
 export const lambdaUrl = lambdaFunctionUrl.functionUrl.apply((url) => url);

@@ -21,7 +21,7 @@ ADD pyproject.toml /usr/src/
 
 WORKDIR /usr/src
 
-RUN /root/.local/bin/poetry export -f requirements.txt -o requirements.txt
+RUN /root/.local/bin/poetry export --with server --without dev -f requirements.txt -o requirements.txt
 
 #########################################################
 # Runtime

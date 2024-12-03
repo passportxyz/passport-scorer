@@ -28,7 +28,10 @@ def main():
     # Print the response
     print("Response Status Code:", response.status_code)
     print("Response Body:", response.text)
+    return response.status_code
 
 
 if __name__ == "__main__":
-    main()
+    status_code = main()
+    if status_code != 200:
+        exit(1)
