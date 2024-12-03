@@ -15,7 +15,7 @@ from django.utils import timezone
 
 from scorer.scorer_admin import ScorerModelAdmin
 
-from .models import Ban, BanList, CeramicCache, Revocation
+from .models import Ban, BanList, CeramicCache, Revocation, RevocationList
 
 
 @admin.action(
@@ -82,8 +82,77 @@ class AccountAPIKeyAdmin(ScorerModelAdmin):
 
 @admin.register(Revocation)
 class RevocationAdmin(ScorerModelAdmin):
-    list_display = ("id", "proof_value", "ceramic_cache")
+    list_display = ("id", "proof_value", "ceramic_cache", "revocation_list")
     search_fields = ("proof_value",)
+    list_filter = ["revocation_list"]
+
+
+class RevocationListForm(forms.ModelForm):
+    class Meta:
+        model = RevocationList
+        fields = "__all__"
+
+    def clean_csv_file(self):
+        """
+        Validate the content of the CSV file
+        """
+        csv_file = self.cleaned_data["csv_file"]
+        csv_data = csv_file.read().decode("utf-8")
+
+        csv_reader = csv.DictReader(StringIO(csv_data))
+        line = 0
+        for revocation_item in csv_reader:
+            line += 1
+            try:
+                # In this case we'll only validate that the proof_values provided indicate valid (existing) stamps
+                proof_value = revocation_item["proof_value"]
+                if not CeramicCache.objects.filter(
+                    proof_value=revocation_item["proof_value"]
+                ).exists():
+                    raise ValidationError(
+                        f"Unable to find stamp for proof_value '{proof_value}'"
+                    )
+            except ValueError as e:
+                raise ValidationError(f"Failed to validate line {line}, {e}") from e
+            except ValidationError as e:
+                raise ValidationError(f"Failed to validate line {line}, {e}") from e
+            except Exception as e:
+                raise ValidationError(
+                    f"Failed to validate line {line} (unknown error), {e}"
+                ) from e
+        return csv_file
+
+
+@admin.register(RevocationList)
+class RevocationListAdmin(admin.ModelAdmin):
+    form = RevocationListForm
+    list_display = [
+        "name",
+        "description",
+        "csv_file",
+    ]
+
+    def csv_file_url(self, obj: RevocationList):
+        return obj.csv_file.url
+
+    def save_model(self, request, obj: RevocationList, form, change):
+        super().save_model(request, obj, form, change)
+
+        # If saving any of the objects below fails, we expect to roll back
+        csv_reader = csv.DictReader(obj.csv_file.open("rt"))
+        revocation_item_list = []
+        ceramic_cache_list = []
+        for revocation_item in csv_reader:
+            proof_value = revocation_item["proof_value"]
+            ceramic_cache = CeramicCache.objects.get(proof_value=proof_value)
+            db_revocation_item = Revocation(
+                proof_value=proof_value,
+                ceramic_cache=ceramic_cache,
+                revocation_list=obj,
+            )
+            revocation_item_list.append(db_revocation_item)
+            ceramic_cache_list.append(ceramic_cache)
+        Revocation.objects.bulk_create(revocation_item_list, batch_size=1000)
 
 
 class BanForm(ModelForm):

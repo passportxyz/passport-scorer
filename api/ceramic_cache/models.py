@@ -99,6 +99,9 @@ class CeramicCache(models.Model):
             ),
         ]
 
+    def __str__(self):
+        return f"#{self.id} {self.address} / {self.provider}"
+
 
 class StampExports(models.Model):
     last_export_ts = models.DateTimeField(auto_now_add=True)
@@ -114,6 +117,19 @@ class CeramicCacheLegacy(models.Model):
 
     class Meta:
         unique_together = ["address", "provider"]
+
+
+class RevocationList(models.Model):
+    name = models.CharField(
+        default="", max_length=256, db_index=True, null=True, blank=True
+    )
+    description = models.TextField(default="", null=True, blank=True)
+    csv_file = models.FileField(
+        max_length=1024, null=False, blank=False, upload_to="revocation_list"
+    )
+
+    def __str__(self):
+        return f"#{self.id} {self.name if self.name else ' - no name - '}"
 
 
 class Revocation(models.Model):
@@ -132,6 +148,16 @@ class Revocation(models.Model):
         unique=True,
     )
 
+    revocation_list = models.ForeignKey(
+        RevocationList,
+        on_delete=models.PROTECT,
+        related_name="revocation_list",
+        null=True,
+        blank=True,
+        db_index=True,
+        default=None,
+    )
+
     def __str__(self):
         return f"Revocation #{self.pk}, proof_value={self.proof_value}"
 
@@ -144,7 +170,9 @@ class BanList(models.Model):
         default="", max_length=256, db_index=True, null=True, blank=True
     )
     description = models.TextField(default="", null=True, blank=True)
-    csv_file = models.FileField(max_length=1024, null=False, blank=False)
+    csv_file = models.FileField(
+        max_length=1024, null=False, blank=False, upload_to="ban_list"
+    )
 
     def __str__(self):
         return f"#{self.id} {self.name if self.name else ' - no name - '}"
