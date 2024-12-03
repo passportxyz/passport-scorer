@@ -6,7 +6,6 @@ from decimal import Decimal
 
 from asgiref.sync import async_to_sync
 from django.db import close_old_connections
-from numpy import add
 
 from aws_lambdas.utils import (
     with_api_request_exception_handling,
