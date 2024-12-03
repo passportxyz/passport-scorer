@@ -743,6 +743,42 @@ class ValidatePassportTestCase(TransactionTestCase):
             },
         )
 
+    @patch("registry.atasks.validate_credential", side_effect=[[], [], [], []])
+    @patch(
+        "registry.atasks.get_utc_time",
+        return_value=datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00"),
+    )
+    @patch(
+        "registry.atasks.aget_passport",
+        side_effect=[copy.deepcopy(mock_passport), copy.deepcopy(mock_passport)],
+    )
+    def test_submit_passport_with_non_binary_scorer(
+        self, _, aget_passport, validate_credential
+    ):
+        """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
+
+        expected_score = "22.0"
+
+        scorer = WeightedScorer.objects.create(
+            weights={"FirstEthTxnProvider": 11.0, "Google": 11, "Ens": 11.0},
+            type=Scorer.Type.WEIGHTED,
+        )
+        self.community.scorer = scorer
+        self.community.save()
+
+        # First submission
+        response = self.client.get(
+            f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+        self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        from pprint import pformat
+
+        print("response_json", pformat(response_json))
+        self.assertEqual(response_json["score"], expected_score)
+
     def test_submit_passport_accepts_scorer_id(self):
         """
         Make sure that the scorer_id is an acceptable parameter
