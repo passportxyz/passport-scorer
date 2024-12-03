@@ -141,7 +141,6 @@ class RevocationListAdmin(admin.ModelAdmin):
         # If saving any of the objects below fails, we expect to roll back
         csv_reader = csv.DictReader(obj.csv_file.open("rt"))
         revocation_item_list = []
-        ceramic_cache_list = []
         for revocation_item in csv_reader:
             proof_value = revocation_item["proof_value"]
             ceramic_cache = CeramicCache.objects.get(proof_value=proof_value)
@@ -151,7 +150,6 @@ class RevocationListAdmin(admin.ModelAdmin):
                 revocation_list=obj,
             )
             revocation_item_list.append(db_revocation_item)
-            ceramic_cache_list.append(ceramic_cache)
         Revocation.objects.bulk_create(revocation_item_list, batch_size=1000)
 
 
@@ -244,7 +242,7 @@ class BanAdmin(admin.ModelAdmin):
 
 
 def get_isodatetime_or_none(value) -> Optional[datetime]:
-    return datetime.fromisoformat(value) if value != "null" else None
+    return datetime.fromisoformat(value) if value != "null" and value != "" else None
 
 
 class BanListForm(forms.ModelForm):
