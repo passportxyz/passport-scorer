@@ -83,6 +83,7 @@ class AccountAPIKeyAdmin(ScorerModelAdmin):
 @admin.register(Revocation)
 class RevocationAdmin(ScorerModelAdmin):
     list_display = ("id", "proof_value", "ceramic_cache", "revocation_list")
+    raw_id_fields = ["ceramic_cache", "revocation_list"]
     search_fields = ("proof_value",)
     list_filter = ["revocation_list"]
 
@@ -156,16 +157,9 @@ class RevocationListAdmin(admin.ModelAdmin):
 class BanForm(ModelForm):
     class Meta:
         model = Ban
-        fields = ["hash", "address", "provider", "end_time", "reason"]
+        fields = ["type", "hash", "address", "provider", "end_time", "reason"]
         widgets = {
             "reason": forms.Textarea(attrs={"rows": 3}),
-        }
-        help_texts = {
-            "hash": "Specific credential hash to ban",
-            "address": "Address to ban",
-            "provider": "Provider (e.g. CoinbaseDualVerification) to ban - must be used with address",
-            "end_time": "Leave blank for indefinite ban",
-            "reason": "(Optional) THIS WILL BE PUBLICLY VISIBLE",
         }
 
 
