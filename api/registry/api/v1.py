@@ -287,9 +287,18 @@ def get_scorer_by_id(scorer_id: int | str, account: Account) -> Community:
             external_scorer_id=scorer_id, account=account
         )
     except Exception:
-        return api_get_object_or_404(
-            with_read_db(Community), id=scorer_id, account=account
-        )
+        try:
+            return api_get_object_or_404(
+                with_read_db(Community), id=scorer_id, account=account
+            )
+        except Exception as exc:
+            log.error(
+                "Error when getting score by internal or external ID (aget_scorer_by_id): scorer_id/external_scorer_id=%s, account='%s'",
+                scorer_id,
+                account,
+                exc_info=True,
+            )
+            raise NotFoundApiException("No scorer matches the given criteria.") from exc
 
 
 async def aget_scorer_by_id(scorer_id: int | str, account: Account) -> Community:
