@@ -200,11 +200,29 @@ class Ban(models.Model):
     type = models.CharField(
         max_length=20, choices=BAN_TYPE_CHOICES, null=False, blank=False, default=None
     )
-    provider = models.CharField(default="", max_length=256, db_index=True, blank=True)
-    hash = models.CharField(default="", max_length=100, db_index=True, blank=True)
-    address = EthAddressField(default="", db_index=True, blank=True)
-    end_time = models.DateTimeField(null=True, blank=True, db_index=True)
-    reason = models.TextField(null=True, blank=True)
+    provider = models.CharField(
+        default="",
+        max_length=256,
+        db_index=True,
+        blank=True,
+        help_text="Provider (e.g. CoinbaseDualVerification) to ban - must be used with address",
+    )
+    hash = models.CharField(
+        default="",
+        max_length=100,
+        db_index=True,
+        blank=True,
+        help_text="Specific credential hash to ban",
+    )
+    address = EthAddressField(
+        default="", db_index=True, blank=True, help_text="Address to ban"
+    )
+    end_time = models.DateTimeField(
+        null=True, blank=True, db_index=True, help_text="Leave blank for indefinite ban"
+    )
+    reason = models.TextField(
+        null=True, blank=True, help_text="(Optional) THIS WILL BE PUBLICLY VISIBLE"
+    )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     last_run_revoke_matching = models.DateTimeField(
         null=True, blank=True, help_text="Last time revoke_matching_credentials was run"
