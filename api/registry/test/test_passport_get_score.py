@@ -1,4 +1,5 @@
 import datetime
+from urllib.parse import urlencode
 
 import pytest
 from django.conf import settings
@@ -6,7 +7,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import Client
 from web3 import Web3
-from urllib.parse import urlencode
 
 from account.models import Account, AccountAPIKey, Community
 from registry.api.v1 import get_scorer_by_id
@@ -187,7 +187,7 @@ class TestPassportGetScore:
         )
         # assert response.status_code == 404
         assert response.json() == {
-            "detail": "No Community matches the given query.",
+            "detail": "No scorer matches the given criteria.",
         }
 
     def test_get_single_score_for_address_in_path(
@@ -237,7 +237,7 @@ class TestPassportGetScore:
         )
 
         assert response.status_code == 404
-        assert response.json() == {"detail": "No Community matches the given query."}
+        assert response.json() == {"detail": "No scorer matches the given criteria."}
 
     def test_limit_greater_than_1000_throws_an_error(
         self, scorer_community, passport_holder_addresses, scorer_api_key
@@ -310,7 +310,7 @@ class TestPassportGetScore:
         )
 
         assert response.status_code == 404
-        assert response.json() == {"detail": "No Community matches the given query."}
+        assert response.json() == {"detail": "No scorer matches the given criteria."}
 
     def test_get_scorer_by_id(self, scorer_account):
         scorer = Community.objects.create(
@@ -340,7 +340,7 @@ class TestPassportGetScore:
         try:
             get_scorer_by_id(999, scorer_account)
         except Exception as e:
-            assert str(e) == "No Community matches the given query."
+            assert str(e) == "No scorer matches the given criteria."
 
         try:
             get_scorer_by_id("scorer1", scorer_account)
