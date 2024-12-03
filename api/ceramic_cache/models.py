@@ -125,7 +125,12 @@ class RevocationList(models.Model):
     )
     description = models.TextField(default="", null=True, blank=True)
     csv_file = models.FileField(
-        max_length=1024, null=False, blank=False, upload_to="revocation_list"
+        max_length=1024,
+        null=False,
+        blank=False,
+        upload_to="revocation_list",
+        help_text="""CSV file for stamps to revoke. The CSV need sto have at least one column named
+        `proof_value` to identify which stamp to revoke. Other columns are ignored.""",
     )
 
     def __str__(self):
@@ -171,7 +176,14 @@ class BanList(models.Model):
     )
     description = models.TextField(default="", null=True, blank=True)
     csv_file = models.FileField(
-        max_length=1024, null=False, blank=False, upload_to="ban_list"
+        max_length=1024,
+        null=False,
+        blank=False,
+        upload_to="ban_list",
+        help_text="""CSV file for stamps to revoke. The CSV need sto have at least the following columns
+        `type`, `provider`, `hash`, `address`, `end_time` (if empty of `null` will be considered null) to
+        identify the ban. If a value is not relevant for a prticular ban, it can be left empty.
+        Other columns are ignored.""",
     )
 
     def __str__(self):
