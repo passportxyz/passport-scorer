@@ -378,7 +378,6 @@ def test_failed_authentication_and_analytics_logging(
 
 def test_bad_scorer_id_and_analytics_logging(
     scorer_api_key,
-    scorer_community_with_binary_scorer,
     passport_holder_addresses,
     mocker,
 ):
