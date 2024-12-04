@@ -218,7 +218,9 @@ def get_score_history(
         score_event = filterset.qs.order_by("-created_at").first()
 
         if not score_event:
-            raise ScoreDoesNotExist(address, f"No Score Found for {address} at {created_at}")
+            raise ScoreDoesNotExist(
+                address, f"No Score Found for {address} at {created_at}"
+            )
 
         # Extract and normalize score data from either format
         score_data = extract_score_data(score_event.data)

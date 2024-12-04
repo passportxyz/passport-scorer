@@ -752,12 +752,62 @@ class ValidatePassportTestCase(TransactionTestCase):
         "registry.atasks.aget_passport",
         side_effect=[copy.deepcopy(mock_passport), copy.deepcopy(mock_passport)],
     )
-    def test_submit_passport_with_non_binary_scorer(
+    def test_submit_passport_with_binary_scorer_below_threshold(
+        self, aget_passport, get_utc_time, validate_credential
+    ):
+        """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
+
+        expected_score = "2"
+
+        scorer = BinaryWeightedScorer.objects.create(
+            threshold=20,
+            weights={"FirstEthTxnProvider": 1.0, "Google": 1, "Ens": 1.0},
+            type=Scorer.Type.WEIGHTED_BINARY,
+        )
+
+        self.community.scorer = scorer
+        self.community.save()
+        expiration_date_list = [
+            datetime.fromisoformat(s["credential"]["expirationDate"])
+            for s in mock_passport["stamps"]
+        ]
+        # First submission
+        response = self.client.get(
+            f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+        self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        self.assertEqual(
+            response_json,
+            {
+                "score": expected_score,
+                "passing_score": False,
+                "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
+                "error": None,
+                "expiration_timestamp": min(expiration_date_list).isoformat(),
+                "last_score_timestamp": get_utc_time().isoformat(),
+                "stamp_scores": {"Ens": "1.0", "Google": "1.0"},
+                "threshold": "20.00000",
+            },
+        )
+
+    @patch("registry.atasks.validate_credential", side_effect=[[], [], [], []])
+    @patch(
+        "registry.atasks.get_utc_time",
+        return_value=datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00"),
+    )
+    @patch(
+        "registry.atasks.aget_passport",
+        side_effect=[copy.deepcopy(mock_passport), copy.deepcopy(mock_passport)],
+    )
+    def test_submit_passport_with_non_binary_scorer_above_threshold(
         self, _, aget_passport, validate_credential
     ):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
 
-        expected_score = "22.0"
+        expected_score = "22"
 
         scorer = WeightedScorer.objects.create(
             weights={"FirstEthTxnProvider": 11.0, "Google": 11, "Ens": 11.0},
@@ -774,10 +824,42 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
         response_json = response.json()
-        from pprint import pformat
-
-        print("response_json", pformat(response_json))
         self.assertEqual(response_json["score"], expected_score)
+        self.assertEqual(response_json["passing_score"], True)
+
+    @patch("registry.atasks.validate_credential", side_effect=[[], [], [], []])
+    @patch(
+        "registry.atasks.get_utc_time",
+        return_value=datetime.fromisoformat("2023-01-11T16:35:23.938006+00:00"),
+    )
+    @patch(
+        "registry.atasks.aget_passport",
+        side_effect=[copy.deepcopy(mock_passport), copy.deepcopy(mock_passport)],
+    )
+    def test_submit_passport_with_non_binary_scorer_below_threshold(
+        self, _, aget_passport, validate_credential
+    ):
+        """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
+
+        expected_score = "2"
+
+        scorer = WeightedScorer.objects.create(
+            weights={"FirstEthTxnProvider": 1.0, "Google": 1.0, "Ens": 1.0},
+            type=Scorer.Type.WEIGHTED,
+        )
+        self.community.scorer = scorer
+        self.community.save()
+
+        # First submission
+        response = self.client.get(
+            f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+        self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        self.assertEqual(response_json["score"], expected_score)
+        self.assertEqual(response_json["passing_score"], False)
 
     def test_submit_passport_accepts_scorer_id(self):
         """
