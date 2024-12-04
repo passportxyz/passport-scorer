@@ -119,7 +119,7 @@ async def acalculate_score(
 
         # Construct the stamps dictionary
         stamps[stamp_name] = {
-            "score": stamp_score,
+            "score": str(stamp_score),
             "dedup": matching_stamp is not None,
             "expiration_date": matching_stamp["credential"]["expirationDate"]
             if matching_stamp
