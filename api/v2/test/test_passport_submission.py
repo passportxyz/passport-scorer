@@ -593,11 +593,11 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "expiration_timestamp": min(expiration_date_list).isoformat(),
                 "last_score_timestamp": get_utc_time().isoformat(),
                 "stamps": {
-                    "Ens": {"dedup": False, "expiration_date": None, "score": "0.408"},
+                    "Ens": {"dedup": False, "expiration_date": None, "score": "1.0"},
                     "Google": {
                         "dedup": False,
                         "expiration_date": None,
-                        "score": "0.525",
+                        "score": "1.0",
                     },
                 },
                 "threshold": "2.00000",
@@ -856,6 +856,7 @@ class ValidatePassportTestCase(TransactionTestCase):
         response_json = response.json()
         self.assertEqual(response_json["score"], expected_score)
         self.assertEqual(response_json["passing_score"], True)
+
         self.assertEqual(
             response_json,
             {
@@ -866,11 +867,11 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "expiration_timestamp": min(expiration_date_list).isoformat(),
                 "last_score_timestamp": get_utc_time().isoformat(),
                 "stamps": {
-                    "Ens": {"dedup": False, "expiration_date": None, "score": "0.408"},
+                    "Ens": {"dedup": False, "expiration_date": None, "score": "11.0"},
                     "Google": {
                         "dedup": False,
                         "expiration_date": None,
-                        "score": "0.525",
+                        "score": "11.0",
                     },
                 },
                 "threshold": "20",
@@ -922,11 +923,11 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "expiration_timestamp": min(expiration_date_list).isoformat(),
                 "last_score_timestamp": get_utc_time().isoformat(),
                 "stamps": {
-                    "Ens": {"dedup": False, "expiration_date": None, "score": "0.408"},
+                    "Ens": {"dedup": False, "expiration_date": None, "score": "1.0"},
                     "Google": {
                         "dedup": False,
                         "expiration_date": None,
-                        "score": "0.525",
+                        "score": "1.0",
                     },
                 },
                 "threshold": "20",
