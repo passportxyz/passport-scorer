@@ -472,8 +472,8 @@ class ValidatePassportTestCase(TransactionTestCase):
             "threshold": "20.00000",
             "error": None,
             "stamps": {
-                "Ens": {"dedup": False, "expiration_date": None, "score": 0.408},
-                "Google": {"dedup": False, "expiration_date": None, "score": 0.525},
+                "Ens": {"dedup": False, "expiration_date": None, "score": "0.408"},
+                "Google": {"dedup": False, "expiration_date": None, "score": "0.525"},
             },
         }
 
@@ -486,8 +486,8 @@ class ValidatePassportTestCase(TransactionTestCase):
             "threshold": "20.00000",
             "error": None,
             "stamps": {
-                "Ens": {"dedup": False, "expiration_date": None, "score": 0.408},
-                "Google": {"dedup": False, "expiration_date": None, "score": 0.525},
+                "Ens": {"dedup": False, "expiration_date": None, "score": "0.408"},
+                "Google": {"dedup": False, "expiration_date": None, "score": "0.525"},
             },
         }
 
@@ -592,7 +592,14 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "error": None,
                 "expiration_timestamp": min(expiration_date_list).isoformat(),
                 "last_score_timestamp": get_utc_time().isoformat(),
-                "stamp_scores": {"Ens": "1.0", "Google": "1.0"},
+                "stamps": {
+                    "Ens": {"dedup": False, "expiration_date": None, "score": "0.408"},
+                    "Google": {
+                        "dedup": False,
+                        "expiration_date": None,
+                        "score": "0.525",
+                    },
+                },
                 "threshold": "2.00000",
             },
         )
@@ -794,7 +801,18 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "error": None,
                 "expiration_timestamp": min(expiration_date_list).isoformat(),
                 "last_score_timestamp": get_utc_time().isoformat(),
-                "stamp_scores": {"Ens": "1.0", "Google": "1.0"},
+                "stamps": {
+                    "Ens": {
+                        "score": "1.0",
+                        "dedup": False,
+                        "expiration_date": None,
+                    },
+                    "Google": {
+                        "score": "1.0",
+                        "dedup": False,
+                        "expiration_date": None,
+                    },
+                },
                 "threshold": "20.00000",
             },
         )
@@ -847,7 +865,14 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "error": None,
                 "expiration_timestamp": min(expiration_date_list).isoformat(),
                 "last_score_timestamp": get_utc_time().isoformat(),
-                "stamp_scores": {"Ens": "11.0", "Google": "11.0"},
+                "stamps": {
+                    "Ens": {"dedup": False, "expiration_date": None, "score": "0.408"},
+                    "Google": {
+                        "dedup": False,
+                        "expiration_date": None,
+                        "score": "0.525",
+                    },
+                },
                 "threshold": "20",
             },
         )
