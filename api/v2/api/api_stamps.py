@@ -1,4 +1,3 @@
-from datetime import datetime, time
 from decimal import Decimal
 from typing import Any, Dict, List
 from urllib.parse import urljoin
@@ -13,11 +12,9 @@ from account.models import Community
 from ceramic_cache.models import CeramicCache
 from registry.api.schema import (
     CursorPaginatedStampCredentialResponse,
-    DetailedScoreResponse,
     ErrorMessageResponse,
     NoScoreResponse,
     StampDisplayResponse,
-    SubmitPassportPayload,
 )
 from registry.api.utils import (
     ApiKey,
@@ -29,24 +26,25 @@ from registry.api.utils import (
     with_read_db,
 )
 from registry.api.v1 import (
-    ahandle_submit_passport,
+    aget_scorer_by_id,
     fetch_all_stamp_metadata,
 )
+from registry.atasks import ascore_passport
 from registry.exceptions import (
     CreatedAtIsRequiredException,
-    CreatedAtMalFormedException,
     InternalServerErrorException,
     InvalidAddressException,
     InvalidAPIKeyPermissions,
     InvalidLimitException,
     api_get_object_or_404,
 )
-from registry.models import Event, Score
+from registry.models import Event, Passport, Score
 from registry.utils import (
     decode_cursor,
     encode_cursor,
     reverse_lazy_with_query,
 )
+from scorer_weighted.models import Scorer
 from v2.schema import V2ScoreResponse
 
 from .router import api_router
@@ -54,6 +52,64 @@ from .router import api_router
 METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 
 log = logging.getLogger(__name__)
+
+
+async def handle_scoring(address: str, scorer_id: str, user_account):
+    address_lower = address.lower()
+
+    if not is_valid_address(address_lower):
+        raise InvalidAddressException()
+
+    # Get community object
+    user_community = await aget_scorer_by_id(scorer_id, user_account)
+
+    scorer = await user_community.aget_scorer()
+    scorer_type = scorer.type
+
+    # Create an empty passport instance, only needed to be able to create a pending Score
+    # The passport will be updated by the score_passport task
+    db_passport, _ = await Passport.objects.aupdate_or_create(
+        address=address_lower,
+        community=user_community,
+    )
+
+    score, _ = await Score.objects.select_related("passport").aget_or_create(
+        passport=db_passport,
+        defaults=dict(score=None, status=Score.Status.PROCESSING),
+    )
+
+    await ascore_passport(user_community, db_passport, address_lower, score)
+    await score.asave()
+
+    raw_score = 0
+    threshold = 20
+
+    if scorer_type == Scorer.Type.WEIGHTED:
+        raw_score = score.score
+    elif score.evidence and "rawScore":
+        raw_score = score.evidence.get("rawScore")
+        threshold = score.evidence.get("threshold")
+
+    if raw_score is None:
+        raw_score = 0
+
+    if threshold is None:
+        threshold = 0
+
+    return V2ScoreResponse(
+        address=address_lower,
+        score=raw_score,
+        passing_score=(Decimal(raw_score) >= Decimal(threshold)),
+        threshold=threshold,
+        last_score_timestamp=score.last_score_timestamp.isoformat()
+        if score.last_score_timestamp
+        else None,
+        expiration_timestamp=score.expiration_date.isoformat()
+        if score.expiration_date
+        else None,
+        error=score.error,
+        stamp_scores=score.stamp_scores if score.stamp_scores is not None else {},
+    )
 
 
 @api_router.get(
@@ -74,35 +130,14 @@ log = logging.getLogger(__name__)
 async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreResponse:
     check_rate_limit(request)
     try:
-        if not request.api_key.submit_passports:
-            raise InvalidAPIKeyPermissions()
-
-        v1_score = await ahandle_submit_passport(
-            SubmitPassportPayload(address=address, scorer_id=str(scorer_id)),
-            request.auth,
-        )
-        threshold = v1_score.evidence.threshold if v1_score.evidence else "20"
-        score = v1_score.evidence.rawScore if v1_score.evidence else v1_score.score
-
-        return V2ScoreResponse(
-            address=v1_score.address,
-            score=score,
-            passing_score=(
-                Decimal(v1_score.score) >= Decimal(threshold)
-                if v1_score.score
-                else False
-            ),
-            threshold=threshold,
-            last_score_timestamp=v1_score.last_score_timestamp,
-            expiration_timestamp=v1_score.expiration_date,
-            error=v1_score.error,
-            stamp_scores=v1_score.stamp_scores,
-        )
+        return await handle_scoring(address, str(scorer_id), request.auth)
     except APIException as e:
         raise e
     except Exception as e:
         log.exception("Error submitting passport: %s", e)
-        raise InternalServerErrorException("Unexpected error while submitting passport")
+        raise InternalServerErrorException(
+            "Unexpected error while submitting passport"
+        ) from e
 
 
 def extract_score_data(event_data: Dict[str, Any]) -> Dict[str, Any]:
