@@ -8,7 +8,7 @@ from django.core.cache import cache
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
-from account.models import Community, Nonce
+from account.models import Account, Community, Nonce
 from ceramic_cache.models import CeramicCache
 from registry.api.schema import (
     CursorPaginatedStampCredentialResponse,
@@ -72,6 +72,39 @@ async def handle_scoring(address: str, scorer_id: str, user_account):
 
     scorer = await user_community.aget_scorer()
     scorer_type = scorer.type
+    await ascore_passport(user_community, db_passport, payload.address, score)
+    await score.asave()
+    return DetailedScoreResponseV2.from_orm(score)
+
+
+async def a_get_score(
+    payload: SubmitPassportPayload, account: Account
+) -> DetailedScoreResponseV2:
+    address_lower = payload.address.lower()
+    if not is_valid_address(address_lower):
+        raise InvalidAddressException()
+
+    try:
+        scorer_id = get_scorer_id(payload)
+    except Exception as e:
+        raise e
+
+    # Get community object
+    user_community = await aget_scorer_by_id(scorer_id, account)
+
+    # Verify the signer
+    if payload.signature or community_requires_signature(user_community):
+        if get_signer(payload.nonce, payload.signature).lower() != address_lower:
+            raise InvalidSignerException()
+
+        # Verify nonce
+        if not await Nonce.ause_nonce(payload.nonce):
+            log.error(
+                "Invalid nonce %s for address %s",
+                payload.nonce,
+                payload.address,
+            )
+            raise InvalidNonceException()
 
     # Create an empty passport instance, only needed to be able to create a pending Score
     # The passport will be updated by the score_passport task

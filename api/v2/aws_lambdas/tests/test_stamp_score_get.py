@@ -114,7 +114,10 @@ def test_successful_authentication(
             assert body["threshold"] == "20.00000"
 
             assert body["error"] is None
-            assert body["stamp_scores"] == {"Ens": "0.408", "Google": "0.525"}
+            assert body["stamps"] == {
+                "Ens": {"score": "0.408", "dedup": False, "expiration_date": None},
+                "Google": {"score": "0.525", "dedup": False, "expiration_date": None},
+            }
             # We just check that something != None was recorded for the last timestamp
             assert body["expiration_timestamp"] is not None
 
