@@ -21,8 +21,6 @@ from registry.api.utils import (
     aapi_key,
     atrack_apikey_usage,
     check_rate_limit,
-    community_requires_signature,
-    get_scorer_id,
     is_valid_address,
     track_apikey_usage,
     with_read_db,
@@ -38,19 +36,16 @@ from registry.exceptions import (
     InvalidAddressException,
     InvalidAPIKeyPermissions,
     InvalidLimitException,
-    InvalidNonceException,
-    InvalidSignerException,
     api_get_object_or_404,
 )
 from registry.models import Event, Passport, Score
 from registry.utils import (
     decode_cursor,
     encode_cursor,
-    get_signer,
     reverse_lazy_with_query,
 )
 from scorer_weighted.models import Scorer
-from v2.schema import DetailedScoreResponseV2, V2ScoreResponse
+from v2.schema import V2ScoreResponse
 
 from ..exceptions import ScoreDoesNotExist
 from .router import api_router
@@ -114,7 +109,7 @@ async def handle_scoring(address: str, scorer_id: str, user_account):
             score.expiration_date.isoformat() if score.expiration_date else None
         ),
         error=score.error,
-        stamp_scores=score.stamp_scores if score.stamp_scores is not None else {},
+        stamps=score.stamps if score.stamps is not None else {},
     )
 
 
