@@ -50,7 +50,6 @@ from registry.utils import (
     reverse_lazy_with_query,
 )
 from scorer_weighted.models import Scorer
-from v2.schema import V2ScoreResponse
 from v2.schema import DetailedScoreResponseV2, V2ScoreResponse
 
 from ..exceptions import ScoreDoesNotExist
@@ -63,48 +62,13 @@ log = logging.getLogger(__name__)
 
 async def handle_scoring(address: str, scorer_id: str, user_account):
     address_lower = address.lower()
-
     if not is_valid_address(address_lower):
         raise InvalidAddressException()
-
     # Get community object
     user_community = await aget_scorer_by_id(scorer_id, user_account)
 
     scorer = await user_community.aget_scorer()
     scorer_type = scorer.type
-    await ascore_passport(user_community, db_passport, payload.address, score)
-    await score.asave()
-    return DetailedScoreResponseV2.from_orm(score)
-
-
-async def a_get_score(
-    payload: SubmitPassportPayload, account: Account
-) -> DetailedScoreResponseV2:
-    address_lower = payload.address.lower()
-    if not is_valid_address(address_lower):
-        raise InvalidAddressException()
-
-    try:
-        scorer_id = get_scorer_id(payload)
-    except Exception as e:
-        raise e
-
-    # Get community object
-    user_community = await aget_scorer_by_id(scorer_id, account)
-
-    # Verify the signer
-    if payload.signature or community_requires_signature(user_community):
-        if get_signer(payload.nonce, payload.signature).lower() != address_lower:
-            raise InvalidSignerException()
-
-        # Verify nonce
-        if not await Nonce.ause_nonce(payload.nonce):
-            log.error(
-                "Invalid nonce %s for address %s",
-                payload.nonce,
-                payload.address,
-            )
-            raise InvalidNonceException()
 
     # Create an empty passport instance, only needed to be able to create a pending Score
     # The passport will be updated by the score_passport task
