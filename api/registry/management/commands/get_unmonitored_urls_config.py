@@ -183,7 +183,7 @@ def get_config(base_url: str, base_url_xyz: str) -> dict:
                     "success_http_statues": [200],
                 },
                 ("GET", "/v2/stamps/{scorer_id}/score/{address}/history"): {
-                    "url": f"{base_url_xyz}v2/stamps/{REGISTRY_SCORER_ID}/score/{REGISTRY_ADDRESS}/history",
+                    "url": f"{base_url_xyz}v2/stamps/{REGISTRY_SCORER_ID}/score/{REGISTRY_ADDRESS}/history?created_at=2024-12-01",
                     "http_headers": {"X-API-Key": REGISTRY_API_KEY},
                     "success_http_statues": [200],
                 },
