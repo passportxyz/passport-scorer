@@ -109,7 +109,7 @@ def test_successful_authentication(
             body = json.loads(response["body"])
 
             assert body["address"] == address
-            assert body["score"] == "0.9329999999999999960031971113"
+            assert body["score"] == "0.93300"
             assert body["passing_score"] == False
             assert body["threshold"] == "20.00000"
 
@@ -151,9 +151,7 @@ def test_successful_authentication_and_base64_encoded_body(
             body = json.loads(response["body"])
 
             assert body["address"] == address
-            assert (
-                body["score"] == "0.9329999999999999960031971113"
-            )  # TODO: how many decimals?
+            assert body["score"] == "0.93300"
             assert body["passing_score"] == False
             assert body["threshold"] == "20.00000"
             assert body["error"] is None
