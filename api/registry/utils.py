@@ -141,13 +141,24 @@ def permissions_required(permission_classes):
 
 
 def encode_cursor(**kwargs) -> str:
-    encoded_bytes = base64.urlsafe_b64encode(json.dumps(dict(**kwargs)).encode("utf-8"))
+    encoded_bytes = base64.urlsafe_b64encode(
+        json.dumps(dict(**kwargs)).encode("utf-8")
+        # Remove the "=" padding ...
+    ).rstrip(b"=")
     return encoded_bytes
+
+
+BASE64_PADDING = "===="
 
 
 def decode_cursor(token: str) -> dict:
     if token:
-        return json.loads(base64.urlsafe_b64decode(token).decode("utf-8"))
+        return json.loads(
+            base64.urlsafe_b64decode(
+                # We add back the "=" padding ...
+                token + BASE64_PADDING[: -(len(token) % 4)]
+            ).decode("utf-8")
+        )
     return {}
 
 

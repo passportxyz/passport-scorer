@@ -222,6 +222,22 @@ const alarmConfigurations: AlarmConfigurations = {
     datapointsToAlarm: 7,
     evaluationPeriods: 10,
   },
+  "passport-v2-stamp-score": {
+    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
+    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
+    targetResponseTime: 5,
+    period: 60,
+    datapointsToAlarm: 7,
+    evaluationPeriods: 10,
+  },
+  "passport-v2-model-score": {
+    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
+    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
+    targetResponseTime: 5,
+    period: 60,
+    datapointsToAlarm: 7,
+    evaluationPeriods: 10,
+  },
 };
 
 const CERAMIC_CACHE_SCORER_ID = CERAMIC_CACHE_SCORER_ID_CONFG[stack];

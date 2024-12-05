@@ -2,6 +2,7 @@ from decimal import Decimal
 from typing import Dict, Optional
 
 from ninja import Schema
+from pydantic import field_serializer
 
 
 class V2ScoreResponse(Schema):
@@ -13,3 +14,11 @@ class V2ScoreResponse(Schema):
     threshold: Decimal
     error: Optional[str]
     stamp_scores: Optional[Dict[str, Decimal]]
+
+    @field_serializer("score")
+    def serialize_score(self, score: Decimal, _info):
+        return format(score, ".5f")
+
+    @field_serializer("threshold")
+    def serialize_threshold(self, threshold: Decimal, _info):
+        return format(threshold, ".5f")

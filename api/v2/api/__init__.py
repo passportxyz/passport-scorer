@@ -2,6 +2,7 @@
 from django_ratelimit.exceptions import Ratelimited
 from ninja_extra import NinjaExtraAPI
 
+from ..exceptions import ScoreDoesNotExist
 from .api_models import *
 from .api_stamps import *
 from .router import api_router
@@ -25,4 +26,13 @@ def service_unavailable(request, _):
         request,
         {"detail": "You have been rate limited!"},
         status=429,
+    )
+
+
+@api.exception_handler(ScoreDoesNotExist)
+def score_not_found(request, exc):
+    return api.create_response(
+        request,
+        {"detail": exc.detail, "address": exc.address},
+        status=exc.status_code
     )
