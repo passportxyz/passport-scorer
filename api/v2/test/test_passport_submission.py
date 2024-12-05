@@ -439,9 +439,9 @@ class ValidatePassportTestCase(TransactionTestCase):
         assert response.status_code == 200
         assert response.json() == {
             "address": self.account.address.lower(),
-            "score": "0",
+            "score": "0.00000",
             "passing_score": False,
-            "threshold": "20",
+            "threshold": "20.00000",
             "last_score_timestamp": None,
             "expiration_timestamp": None,
             "error": "No Passport found for this address.",
@@ -465,22 +465,22 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         expectedResponse = {
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-            "score": Decimal("0.9329999999999999960031971113"),
+            "score": Decimal("0.93300"),
             "passing_score": False,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
             "expiration_timestamp": mock_passport_expiration_date.isoformat(),
-            "threshold": "20",
+            "threshold": "20.00000",
             "error": None,
             "stamp_scores": {"Ens": "0.408", "Google": "0.525"},
         }
 
         expected2ndResponse = {
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-            "score": Decimal("0.9329999999999999960031971113"),
+            "score": Decimal("0.93300"),
             "passing_score": False,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
             "expiration_timestamp": mock_passport_expiration_date.isoformat(),
-            "threshold": "20",
+            "threshold": "20.00000",
             "error": None,
             "stamp_scores": {"Ens": "0.408", "Google": "0.525"},
         }
@@ -553,7 +553,7 @@ class ValidatePassportTestCase(TransactionTestCase):
     ):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
 
-        expected_score = "2"
+        expected_score = "2.00000"
 
         scorer = BinaryWeightedScorer.objects.create(
             threshold=2,
@@ -605,7 +605,7 @@ class ValidatePassportTestCase(TransactionTestCase):
     ):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
 
-        expected_score = "2"
+        expected_score = "2.00000"
 
         scorer = BinaryWeightedScorer.objects.create(
             threshold=20,
@@ -657,7 +657,7 @@ class ValidatePassportTestCase(TransactionTestCase):
     ):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
 
-        expected_score = "22"
+        expected_score = "22.00000"
 
         scorer = WeightedScorer.objects.create(
             weights={"FirstEthTxnProvider": 11.0, "Google": 11, "Ens": 11.0},
@@ -690,7 +690,7 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "expiration_timestamp": min(expiration_date_list).isoformat(),
                 "last_score_timestamp": get_utc_time().isoformat(),
                 "stamp_scores": {"Ens": "11.0", "Google": "11.0"},
-                "threshold": "20",
+                "threshold": "20.00000",
             },
         )
 
@@ -708,7 +708,7 @@ class ValidatePassportTestCase(TransactionTestCase):
     ):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
 
-        expected_score = "2"
+        expected_score = "2.00000"
 
         scorer = WeightedScorer.objects.create(
             weights={"FirstEthTxnProvider": 1.0, "Google": 1.0, "Ens": 1.0},
@@ -739,7 +739,7 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "expiration_timestamp": min(expiration_date_list).isoformat(),
                 "last_score_timestamp": get_utc_time().isoformat(),
                 "stamp_scores": {"Ens": "1.0", "Google": "1.0"},
-                "threshold": "20",
+                "threshold": "20.00000",
             },
         )
 
