@@ -211,10 +211,10 @@ class TestPassportGetHistoricalScore:
         )
         response_data = response.json()
 
-        assert response.status_code == 200
+        assert response.status_code == 404
         assert response_data["address"] == scorer_account.address
         assert (
-            response_data["status"]
+            response_data["detail"]
             == f"No Score Found for {scorer_account.address} at 2023-01-01"
         )
 
@@ -230,9 +230,9 @@ class TestPassportGetHistoricalScore:
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 404
         assert (
-            response.json()["status"]
+            response.json()["detail"]
             == "No Score Found for 0xB81C935D01e734b3D8bb233F5c4E1D72DBC30f6c at invalid-date"
         )
 
@@ -257,7 +257,7 @@ class TestPassportGetHistoricalScore:
                 HTTP_AUTHORIZATION="Token " + scorer_api_key,
             )
 
-            assert response.status_code == 200
+            assert response.status_code == 404
             response_data = response.json()
             assert response_data["address"] == scorer_account.address
-            assert "No Score Found for" in response_data["status"]
+            assert "No Score Found for" in response_data["detail"]

@@ -47,6 +47,7 @@ from registry.utils import (
 from scorer_weighted.models import Scorer
 from v2.schema import V2ScoreResponse
 
+from ..exceptions import ScoreDoesNotExist
 from .router import api_router
 
 METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
@@ -101,12 +102,14 @@ async def handle_scoring(address: str, scorer_id: str, user_account):
         score=raw_score,
         passing_score=(Decimal(raw_score) >= Decimal(threshold)),
         threshold=threshold,
-        last_score_timestamp=score.last_score_timestamp.isoformat()
-        if score.last_score_timestamp
-        else None,
-        expiration_timestamp=score.expiration_date.isoformat()
-        if score.expiration_date
-        else None,
+        last_score_timestamp=(
+            score.last_score_timestamp.isoformat()
+            if score.last_score_timestamp
+            else None
+        ),
+        expiration_timestamp=(
+            score.expiration_date.isoformat() if score.expiration_date else None
+        ),
         error=score.error,
         stamp_scores=score.stamp_scores if score.stamp_scores is not None else {},
     )
@@ -176,10 +179,10 @@ class EventFilter(django_filters.FilterSet):
     "/stamps/{scorer_id}/score/{address}/history",
     auth=ApiKey(),
     response={
-        200: V2ScoreResponse | NoScoreResponse,
+        200: V2ScoreResponse,
         401: ErrorMessageResponse,
         400: ErrorMessageResponse,
-        404: ErrorMessageResponse,
+        404: ErrorMessageResponse | NoScoreResponse,
     },
     operation_id="v2_api_api_stamps_get_score_history",
     summary="Retrieve historical Stamp-based unique humanity score for a specified address",
@@ -215,9 +218,7 @@ def get_score_history(
         score_event = filterset.qs.order_by("-created_at").first()
 
         if not score_event:
-            return NoScoreResponse(
-                address=address, status=f"No Score Found for {address} at {created_at}"
-            )
+            raise ScoreDoesNotExist(address, f"No Score Found for {address} at {created_at}")
 
         # Extract and normalize score data from either format
         score_data = extract_score_data(score_event.data)
