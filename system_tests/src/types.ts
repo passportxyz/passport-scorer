@@ -1,10 +1,6 @@
 import type { AxiosResponse } from 'axios';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
-export type AuthStrategyOptions = {
-  name: string;
-};
-
 export interface AuthStrategy {
   name: string;
   applyAuth(options: TestRequestOptionsNoAuth): Promise<TestRequestOptionsNoAuth>;

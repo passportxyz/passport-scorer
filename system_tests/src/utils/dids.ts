@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto';
 import { DIDSession } from 'did-session';
 import { Wallet, providers } from 'ethers';
 import { AccountId } from 'caip';

@@ -1,4 +1,8 @@
-import { AuthStrategyOptions, AuthStrategy, TestRequestOptionsNoAuth } from '../../types';
+import { AuthStrategy, TestRequestOptionsNoAuth } from '../../types';
+
+type AuthStrategyOptions = {
+  name: string;
+};
 
 export abstract class BaseAuthStrategy implements AuthStrategy {
   name: string;

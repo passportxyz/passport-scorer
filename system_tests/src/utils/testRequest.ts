@@ -8,7 +8,7 @@ import { TestRequestOptions, TestRequestOptionsNoAuth, TestResponse } from '../t
  * @returns Promise resolving to the response with request metadata
  * @throws Error if the request fails or authentication fails
  */
-export async function testRequest<T = any>(options: TestRequestOptions): Promise<TestResponse<T>> {
+export async function testRequest<T>(options: TestRequestOptions): Promise<TestResponse<T>> {
   try {
     // Start with the base options
     let requestOptions: TestRequestOptionsNoAuth = {
@@ -44,7 +44,7 @@ export async function testRequest<T = any>(options: TestRequestOptions): Promise
       // For GET requests, convert payload to query parameters
       ...(requestOptions.payload &&
         requestOptions.method === 'GET' && {
-          params: convertToQueryParams(requestOptions.payload),
+          params: requestOptions.payload,
         }),
       validateStatus: () => true, // Don't throw on any status code
     };
@@ -88,19 +88,4 @@ const normalizeHeaders = (headers: Record<string, string> = {}): Record<string, 
   }
 
   return normalized;
-};
-
-/**
- * Converts payload for GET requests to query parameters.
- * @param payload Request payload
- * @returns Query parameters object
- */
-const convertToQueryParams = (payload: Record<string, any> = {}): Record<string, any> => {
-  return Object.entries(payload).reduce(
-    (params, [key, value]) => {
-      params[key] = value;
-      return params;
-    },
-    {} as Record<string, any>
-  );
 };

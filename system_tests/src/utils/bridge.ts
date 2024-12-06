@@ -1,4 +1,4 @@
-// @ts-nocheck
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use strict';
 
 import { EventEmitter } from 'events';
@@ -66,38 +66,38 @@ export class Eip1193Bridge extends EventEmitter {
         return ethers.utils.hexValue(result.chainId);
       }
       case 'eth_getBalance': {
-        const result = await this.provider.getBalance(params[0], params[1]);
+        const result = await this.provider.getBalance(params?.[0], params?.[1]);
         return result.toHexString();
       }
       case 'eth_getStorageAt': {
-        return this.provider.getStorageAt(params[0], params[1], params[2]);
+        return this.provider.getStorageAt(params?.[0], params?.[1], params?.[2]);
       }
       case 'eth_getTransactionCount': {
-        const result = await this.provider.getTransactionCount(params[0], params[1]);
+        const result = await this.provider.getTransactionCount(params?.[0], params?.[1]);
         return ethers.utils.hexValue(result);
       }
       case 'eth_getBlockTransactionCountByHash':
       case 'eth_getBlockTransactionCountByNumber': {
-        const result = await this.provider.getBlock(params[0]);
+        const result = await this.provider.getBlock(params?.[0]);
         return ethers.utils.hexValue(result.transactions.length);
       }
       case 'eth_getCode': {
-        const result = await this.provider.getCode(params[0], params[1]);
+        const result = await this.provider.getCode(params?.[0], params?.[1]);
         return result;
       }
       case 'eth_sendRawTransaction': {
-        return await this.provider.sendTransaction(params[0]);
+        return await this.provider.sendTransaction(params?.[0]);
       }
       case 'eth_call': {
-        const req = ethers.providers.JsonRpcProvider.hexlifyTransaction(params[0]);
-        return await this.provider.call(req, params[1]);
+        const req = ethers.providers.JsonRpcProvider.hexlifyTransaction(params?.[0]);
+        return await this.provider.call(req, params?.[1]);
       }
       case 'estimateGas': {
-        if (params[1] && params[1] !== 'latest') {
+        if (params?.[1] && params?.[1] !== 'latest') {
           throwUnsupported('estimateGas does not support blockTag');
         }
 
-        const req = ethers.providers.JsonRpcProvider.hexlifyTransaction(params[0]);
+        const req = ethers.providers.JsonRpcProvider.hexlifyTransaction(params?.[0]);
         const result = await this.provider.estimateGas(req);
         return result.toHexString();
       }
@@ -105,17 +105,17 @@ export class Eip1193Bridge extends EventEmitter {
       // @TODO: Transform? No uncles?
       case 'eth_getBlockByHash':
       case 'eth_getBlockByNumber': {
-        if (params[1]) {
+        if (params?.[1]) {
           return await this.provider.getBlockWithTransactions(params[0]);
         } else {
-          return await this.provider.getBlock(params[0]);
+          return await this.provider.getBlock(params?.[0]);
         }
       }
       case 'eth_getTransactionByHash': {
-        return await this.provider.getTransaction(params[0]);
+        return await this.provider.getTransaction(params?.[0]);
       }
       case 'eth_getTransactionReceipt': {
-        return await this.provider.getTransactionReceipt(params[0]);
+        return await this.provider.getTransactionReceipt(params?.[0]);
       }
 
       case 'personal_sign': {
@@ -124,17 +124,17 @@ export class Eip1193Bridge extends EventEmitter {
         }
 
         const address = await this.signer.getAddress();
-        if (address !== ethers.utils.getAddress(params[1])) {
+        if (address !== ethers.utils.getAddress(params?.[1])) {
           logger.throwArgumentError(
             'account mismatch or account not found',
             'params[1]',
-            params[1]
+            params?.[1]
           );
         }
 
         // See https://stackoverflow.com/questions/73221136/creating-a-transaction-message-for-eth-sign
 
-        return this.signer.signMessage(ethers.utils.arrayify(params[0]));
+        return this.signer.signMessage(ethers.utils.arrayify(params?.[0]));
       }
       case 'eth_sign': {
         if (!this.signer) {
@@ -142,15 +142,15 @@ export class Eip1193Bridge extends EventEmitter {
         }
 
         const address = await this.signer.getAddress();
-        if (address !== ethers.utils.getAddress(params[0])) {
+        if (address !== ethers.utils.getAddress(params?.[0])) {
           logger.throwArgumentError(
             'account mismatch or account not found',
             'params[0]',
-            params[0]
+            params?.[0]
           );
         }
 
-        return this.signer.signMessage(ethers.utils.arrayify(params[1]));
+        return this.signer.signMessage(ethers.utils.arrayify(params?.[1]));
       }
 
       case 'eth_sendTransaction': {
@@ -158,7 +158,7 @@ export class Eip1193Bridge extends EventEmitter {
           return throwUnsupported('eth_sendTransaction requires an account');
         }
 
-        const req = ethers.providers.JsonRpcProvider.hexlifyTransaction(params[0]);
+        const req = ethers.providers.JsonRpcProvider.hexlifyTransaction(params?.[0]);
         const tx = await this.signer.sendTransaction(req);
         return tx.hash;
       }
