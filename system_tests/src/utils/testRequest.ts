@@ -4,6 +4,7 @@ import { TestRequestOptions, TestRequestOptionsNoAuth, TestResponse } from '../t
 /**
  * Makes an HTTP request with optional authentication and returns the response
  * @param options Request options including URL, method, headers, payload, and authentication function
+ * @dev Note that payload is automatically translated to query parameters for GET requests
  * @returns Promise resolving to the response with request metadata
  * @throws Error if the request fails or authentication fails
  */

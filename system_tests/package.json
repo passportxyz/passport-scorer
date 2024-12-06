@@ -12,11 +12,15 @@
   },
   "dependencies": {
     "@didtools/cacao": "^3.0.1",
+    "@didtools/pkh-ethereum": "^0.6.0",
     "axios": "^1.7.9",
+    "did-session": "^4.0.0",
     "dids": "^5.0.3",
     "dotenv": "^16.4.7",
+    "ethers": "^5.0.0",
     "key-did-provider-ed25519": "^4.0.2",
     "key-did-resolver": "^4.0.0",
+    "pkh-did-resolver": "^2.0.0",
     "uint8arrays": "^5.1.0"
   },
   "devDependencies": {

@@ -9,6 +9,8 @@ export interface TestRequestOptionsNoAuth {
   payload?: Record<string, any>;
 }
 
+// Accepts requestOptions and returns modified requestOptions with authentication added
+// (i.e. adding a simple key to a header, or doing several complex requests to generate a token)
 export type Authenticate = (options: TestRequestOptionsNoAuth) => Promise<TestRequestOptionsNoAuth>;
 
 export interface TestRequestOptions extends TestRequestOptionsNoAuth {

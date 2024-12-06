@@ -1,22 +1,39 @@
 import { randomBytes } from 'crypto';
-import { DID } from 'dids';
-import { Ed25519Provider } from 'key-did-provider-ed25519';
-import KeyResolver from 'key-did-resolver';
+import { DIDSession } from 'did-session';
+import { Wallet, providers } from 'ethers';
+import { AccountId } from 'caip';
+import { EthereumNodeAuth } from '@didtools/pkh-ethereum';
+import { Eip1193Bridge } from './bridge';
 
 // Helper function to create a new DID for testing
-export const createTestDID = async () => {
-  const seedBytes = randomBytes(32);
-  const provider = new Ed25519Provider(seedBytes);
-  const did = new DID({
-    provider,
-    resolver: KeyResolver.getResolver(),
-  });
-  await did.authenticate();
+export const createTestDIDSession = async () => {
+  // create ethers wallet
+  const provider = new providers.AlchemyProvider('mainnet', process.env.ALCHEMY_API_KEY);
+  const wallet = new Wallet('0x' + randomBytes(32).toString('hex'), provider);
 
-  const seed = Buffer.from(seedBytes).toString('hex');
+  const address = wallet.address;
+
+  const accountId = new AccountId({
+    chainId: 'eip155:1',
+    address,
+  });
+
+  const eip1193Provider = new Eip1193Bridge(wallet, provider);
+
+  const authMethod = await EthereumNodeAuth.getAuthMethod(
+    eip1193Provider,
+    accountId,
+    'system-test'
+  );
+
+  const session = await DIDSession.authorize(authMethod, {
+    resources: ['ceramic://*'],
+    domain: 'system-test',
+  });
 
   return {
-    did,
-    seed,
+    session,
+    address,
+    did: session.did,
   };
 };

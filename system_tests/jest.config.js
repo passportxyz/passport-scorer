@@ -12,9 +12,12 @@ module.exports = {
     '^@ipld/dag-cbor(.*)$': '<rootDir>/node_modules/@ipld/dag-cbor/dist/index.min.js',
   },
   extensionsToTreatAsEsm: ['.ts'],
-  transformIgnorePatterns: [],
+  transformIgnorePatterns: [
+    '(^|/)node_modules/(?!(@didtools|codeco|uint8arrays|multiformats|did-session|key-did-provider-ed25519|rpc-utils|key-did-resolver|dids|dag-jose-utils)/)',
+  ],
   transform: {
-    'node_modules/.*.js$': 'babel-jest',
-    'src/.*.ts$': 'ts-jest',
+    '(^|/)node_modules/(@didtools|codeco|uint8arrays|multiformats|did-session|key-did-provider-ed25519|rpc-utils|key-did-resolver|dids|dag-jose-utils)/.*.js$':
+      'babel-jest',
+    '(^|/)src/.*.ts$': 'ts-jest',
   },
 };

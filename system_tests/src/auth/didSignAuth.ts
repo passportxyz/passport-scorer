@@ -1,7 +1,7 @@
 import axios, { isAxiosError } from 'axios';
 import { DID } from 'dids';
 import { Cacao } from '@didtools/cacao';
-import { Authenticate, TestRequestOptionsNoAuth } from '../../types';
+import { Authenticate, TestRequestOptionsNoAuth } from '../types';
 
 interface DidSignAuthConfig {
   did: DID;
@@ -30,8 +30,6 @@ export const didSignAuth = ({ did }: DidSignAuthConfig): Authenticate => {
 };
 
 const getAccessToken = async (did: DID) => {
-  console.log('Getting access token for did:', did.parent);
-
   // Get nonce from Scorer API
   let nonce: string;
 
@@ -98,22 +96,3 @@ const createSignedPayload = async (did: DID, data: any) => {
     issuer,
   };
 };
-
-// Usage example:
-/*
-// Create a test DID
-const { did, seed } = await createTestDID();
-console.log('Created DID with seed:', seed);
-
-const authStrategy = didSignAuth({ 
-  did,
-  ceramicCacheEndpoint: 'https://custom.endpoint',
-  retryAttempts: 3
-});
-
-const requestOptions = await authStrategy({
-  url: 'https://api.example.com/endpoint',
-  method: 'POST',
-  payload: { ... }
-});
-*/

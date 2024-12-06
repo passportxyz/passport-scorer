@@ -1,7 +1,8 @@
-import { didSignAuth } from '../auth/strategies/didSignAuth';
+import { didSignAuth } from '../auth/didSignAuth';
 import { Authenticate } from '../types';
-import { createTestDID } from '../utils/dids';
+import { createTestDIDSession } from '../utils/dids';
 import { testRequest } from '../utils/testRequest';
+import { generateStamps } from '../generate';
 
 const url = (subpath: string) => process.env.SCORER_API_BASE_URL + '/ceramic-cache/' + subpath;
 
@@ -9,7 +10,7 @@ describe('Ceramic Cache UI', () => {
   let authenticate: Authenticate;
 
   beforeAll(async () => {
-    const { did } = await createTestDID();
+    const { did } = await createTestDIDSession();
     authenticate = didSignAuth({ did });
   });
 
@@ -18,19 +19,7 @@ describe('Ceramic Cache UI', () => {
       url: url('stamps/bulk'),
       method: 'PATCH',
       authenticate,
-      payload: [
-        {
-          provider: 'Lens',
-          stamp: {
-            address: '0x85ff01cff157199527528788ec4ea6336615c989',
-            provider: 'Lens',
-            issuer: 'did:ethr:0xd6f8d6ca86aa01e551a311d670a0d1bd8577e5fb',
-            issuanceDate: '2024-08-01T10:15:26.579Z',
-            expirationDate: '2024-10-30T10:15:26.579Z',
-            proof: { proofValue: 'abc123' },
-          },
-        },
-      ],
+      payload: generateStamps(1),
     });
 
     expect(response.status).toBe(200);
