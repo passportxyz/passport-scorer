@@ -1,33 +1,36 @@
 import axios, { isAxiosError } from 'axios';
 import { DID } from 'dids';
 import { Cacao } from '@didtools/cacao';
-import { Authenticate, TestRequestOptionsNoAuth } from '../types';
+import { TestRequestOptionsNoAuth } from '../../types';
+import { BaseAuthStrategy } from './strategy';
 
 interface DidSignAuthConfig {
   did: DID;
-  ceramicCacheEndpoint?: string;
-  retryAttempts?: number;
 }
 
-export const didSignAuth = ({ did }: DidSignAuthConfig): Authenticate => {
-  // Cache accessToken after first retrieval
-  let accessToken: string;
+export class DidSignAuth extends BaseAuthStrategy {
+  did: DID;
+  accessToken?: string;
 
-  return async (options: TestRequestOptionsNoAuth): Promise<TestRequestOptionsNoAuth> => {
-    if (!accessToken) {
-      accessToken = await getAccessToken(did);
+  constructor({ did }: DidSignAuthConfig) {
+    super({ name: 'did-sign-auth' });
+    this.did = did;
+  }
+
+  async applyAuth(options: TestRequestOptionsNoAuth): Promise<TestRequestOptionsNoAuth> {
+    if (!this.accessToken) {
+      this.accessToken = await getAccessToken(this.did);
     }
 
-    // Add to Authorization header
     return {
       ...options,
       headers: {
         ...options.headers,
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${this.accessToken}`,
       },
     };
-  };
-};
+  }
+}
 
 const getAccessToken = async (did: DID) => {
   // Get nonce from Scorer API

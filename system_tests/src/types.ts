@@ -1,6 +1,15 @@
 import type { AxiosResponse } from 'axios';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
+export type AuthStrategyOptions = {
+  name: string;
+};
+
+export interface AuthStrategy {
+  name: string;
+  applyAuth(options: TestRequestOptionsNoAuth): Promise<TestRequestOptionsNoAuth>;
+}
+
 export interface TestRequestOptionsNoAuth {
   url: string;
   method: HttpMethod;
@@ -9,12 +18,8 @@ export interface TestRequestOptionsNoAuth {
   payload?: Record<string, any>;
 }
 
-// Accepts requestOptions and returns modified requestOptions with authentication added
-// (i.e. adding a simple key to a header, or doing several complex requests to generate a token)
-export type Authenticate = (options: TestRequestOptionsNoAuth) => Promise<TestRequestOptionsNoAuth>;
-
 export interface TestRequestOptions extends TestRequestOptionsNoAuth {
-  authenticate?: Authenticate;
+  authStrategy?: AuthStrategy;
 }
 
 export interface TestResponse<T = any> extends Omit<AxiosResponse<T>, 'config'> {

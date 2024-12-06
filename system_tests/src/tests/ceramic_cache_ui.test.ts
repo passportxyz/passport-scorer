@@ -1,5 +1,5 @@
-import { didSignAuth } from '../auth/didSignAuth';
-import { Authenticate } from '../types';
+import { DidSignAuth } from '../auth/strategies';
+import { AuthStrategy } from '../types';
 import { createTestDIDSession } from '../utils/dids';
 import { testRequest } from '../utils/testRequest';
 import { generateStamps } from '../generate';
@@ -7,18 +7,18 @@ import { generateStamps } from '../generate';
 const url = (subpath: string) => process.env.SCORER_API_BASE_URL + '/ceramic-cache/' + subpath;
 
 describe('Ceramic Cache UI', () => {
-  let authenticate: Authenticate;
+  let authStrategy: AuthStrategy;
 
   beforeAll(async () => {
     const { did } = await createTestDIDSession();
-    authenticate = didSignAuth({ did });
+    authStrategy = new DidSignAuth({ did });
   });
 
   it('PATCH stamps/bulk', async () => {
     const response = await testRequest({
       url: url('stamps/bulk'),
       method: 'PATCH',
-      authenticate,
+      authStrategy,
       payload: generateStamps(1),
     });
 
@@ -37,7 +37,7 @@ describe('Ceramic Cache UI', () => {
     const patchResponse = await testRequest({
       url: url('stamps/bulk'),
       method: 'PATCH',
-      authenticate,
+      authStrategy,
       payload: stamps,
     });
 
@@ -46,7 +46,7 @@ describe('Ceramic Cache UI', () => {
     const deleteResponse = await testRequest({
       url: url('stamps/bulk'),
       method: 'DELETE',
-      authenticate,
+      authStrategy,
       payload: stampsToDelete,
     });
 

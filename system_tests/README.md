@@ -1,13 +1,14 @@
-# API Testing Framework
+# 🚀 API Testing Framework
 
-A modular TypeScript-based API testing framework for validating API endpoints
-using Jest.
+An API uptime & validity testing suite built with TypeScript and Jest!
 
-## Features
+## ✨ Features
 
-- Dynamic API testing with a unified request interface
-- Modular authentication strategies
-- Jest-based response validation
+## 🛠️ Setup
+- 🔄 Dynamic API testing with a unified request interface
+- 🔐 Modular authentication strategies
+- ✅ Jest-based response validation
+- 🎯 Type-safe and developer-friendly
 
 ## Setup
 

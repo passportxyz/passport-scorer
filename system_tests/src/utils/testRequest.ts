@@ -18,10 +18,10 @@ export async function testRequest<T = any>(options: TestRequestOptions): Promise
       payload: options.payload,
     };
 
-    // Apply authentication if provided
-    if (options.authenticate) {
+    // Apply authStrategy if provided
+    if (options.authStrategy) {
       try {
-        requestOptions = await options.authenticate(requestOptions);
+        requestOptions = await options.authStrategy.applyAuth(requestOptions);
       } catch (authError) {
         throw new Error(
           `Authentication failed for ${options.url} (${options.method}): ${
