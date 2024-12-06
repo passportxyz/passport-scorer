@@ -5,6 +5,7 @@ module.exports = {
   testMatch: ['**/*.test.ts'],
   reporters: ['default', '<rootDir>/jest/DBLoggerReporter.js'],
   setupFiles: ['dotenv/config'],
+  setupFilesAfterEnv: ['<rootDir>/jest/setupAfterEnv.js'],
   moduleFileExtensions: ['ts', 'js', 'json', 'node'],
   moduleNameMapper: {
     '^uint8arrays(.*)$': '<rootDir>/node_modules/uint8arrays/dist/src$1',

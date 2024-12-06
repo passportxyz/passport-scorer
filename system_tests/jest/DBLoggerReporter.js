@@ -1,6 +1,6 @@
 async function writeTestResultToDB(testResult) {
   // TODO
-  console.log('Pretend writing test result to DB:', testResult);
+  console.log('Pretend writing test result to DB:', testResult.testName);
 }
 
 class DBLoggerReporter {
@@ -12,7 +12,12 @@ class DBLoggerReporter {
         category: ancestorTitles,
         testName: title,
         status,
-        error: failureMessages.join('\n') || null,
+        error:
+          failureMessages.join('\n').replace(
+            // Strip terminal color codes
+            /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
+            ''
+          ) || null,
         timestamp: new Date(),
       });
     }

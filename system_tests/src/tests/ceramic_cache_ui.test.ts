@@ -14,24 +14,52 @@ describe('Ceramic Cache UI', () => {
     authStrategy = new DidSignAuth({ did });
   });
 
-  it('PATCH stamps/bulk', async () => {
+  it('POST stamps/bulk', async () => {
     const response = await testRequest({
       url: url('stamps/bulk'),
-      method: 'PATCH',
+      method: 'POST',
       authStrategy,
       payload: generateStamps(1),
     });
 
-    expect(response.status).toBe(200);
+    expect(response).toHaveStatus(201);
+  });
+
+  it('PATCH stamps/bulk', async () => {
+    const stamps = generateStamps(3);
+
+    // Add a couple stamps
+    const addResponse = await testRequest({
+      url: url('stamps/bulk'),
+      method: 'PATCH',
+      authStrategy,
+      payload: stamps.slice(0, 2),
+    });
+
+    expect(addResponse).toHaveStatus(200);
+
+    // Add one, remove one
+    const mixedResponse = await testRequest<{ success: boolean; stamps: unknown[] }>({
+      url: url('stamps/bulk'),
+      method: 'PATCH',
+      authStrategy,
+      payload: [
+        stamps[2], // Add new stamp
+        { provider: stamps[0].provider }, // Remove existing stamp
+      ],
+    });
+
+    expect(mixedResponse).toHaveStatus(200);
+
+    const data = mixedResponse.data;
+
+    expect(data.success).toBe(true);
+    expect(data.stamps.length).toBe(2);
   });
 
   it('DELETE stamps/bulk', async () => {
     const stamps = generateStamps(1);
-    const stampsToDelete = stamps.map((stamp) => {
-      return {
-        provider: stamp.provider,
-      };
-    });
+    const stampsToDelete = stamps.map(({ provider }) => ({ provider }));
 
     // We need to create a stamp first
     const patchResponse = await testRequest({
@@ -41,7 +69,7 @@ describe('Ceramic Cache UI', () => {
       payload: stamps,
     });
 
-    expect(patchResponse.status).toBe(200);
+    expect(patchResponse).toHaveStatus(200);
 
     const deleteResponse = await testRequest({
       url: url('stamps/bulk'),
@@ -50,7 +78,6 @@ describe('Ceramic Cache UI', () => {
       payload: stampsToDelete,
     });
 
-    // console.log("")
-    expect(deleteResponse.status).toBe(200);
+    expect(deleteResponse).toHaveStatus(200);
   });
 });
