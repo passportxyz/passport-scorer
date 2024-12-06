@@ -14,7 +14,7 @@ describe('Ceramic Cache UI', () => {
     authenticate = didSignAuth({ did });
   });
 
-  it('should PATCH stamps', async () => {
+  it('PATCH stamps/bulk', async () => {
     const response = await testRequest({
       url: url('stamps/bulk'),
       method: 'PATCH',
@@ -23,5 +23,34 @@ describe('Ceramic Cache UI', () => {
     });
 
     expect(response.status).toBe(200);
+  });
+
+  it('DELETE stamps/bulk', async () => {
+    const stamps = generateStamps(1);
+    const stampsToDelete = stamps.map((stamp) => {
+      return {
+        provider: stamp.provider,
+      };
+    });
+
+    // We need to create a stamp first
+    const patchResponse = await testRequest({
+      url: url('stamps/bulk'),
+      method: 'PATCH',
+      authenticate,
+      payload: stamps,
+    });
+
+    expect(patchResponse.status).toBe(200);
+
+    const deleteResponse = await testRequest({
+      url: url('stamps/bulk'),
+      method: 'DELETE',
+      authenticate,
+      payload: stampsToDelete,
+    });
+
+    // console.log("")
+    expect(deleteResponse.status).toBe(200);
   });
 });
