@@ -1,10 +1,11 @@
 """Tos Models"""
 
-from account.models import EthAddressField, EthSignature, Nonce, NonceField
 from django.db import models
 from django.db.models import Q, UniqueConstraint
 from eth_account import Account
 from eth_account.messages import encode_defunct
+
+from account.models import EthAddressField, EthSignature, Nonce, NonceField
 
 
 class Tos(models.Model):
@@ -49,9 +50,12 @@ class Tos(models.Model):
                 signature=signature,
             )
 
-            TosAcceptanceProof(
-                address=address, signature=signature, nonce=nonce, tos=tos
-            ).save()
+            TosAcceptanceProof.objects.get_or_create(
+                address=address,
+                tos=tos,
+                defaults={"nonce": nonce, "signature": signature},
+            )
+
             return True
         return False
 

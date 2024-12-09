@@ -3,17 +3,18 @@ import { AuthStrategy } from '../types';
 import { testRequest } from '../utils/testRequest';
 import { generateStamps } from '../generate';
 import { PassportUIUser } from '../users';
+import { Signer } from 'ethers';
 
 const url = (subpath: string) => process.env.SCORER_API_BASE_URL + '/ceramic-cache/' + subpath;
 
 describe('Ceramic Cache DID', () => {
   let authStrategy: AuthStrategy;
   let address: string;
-  let scorerId: string;
+  let signer: Signer;
 
   beforeAll(async () => {
     let did;
-    ({ did, address, scorerId } = await PassportUIUser.get());
+    ({ did, address, signer } = await PassportUIUser.get());
     authStrategy = new DidSignAuth({ did });
   });
 
@@ -84,109 +85,92 @@ describe('Ceramic Cache DID', () => {
     expect(deleteResponse).toHaveStatus(200);
   });
 
-  // it('GET /score/{address}', async () => {
-  //   const response = await testRequest({
-  //     url: url(`score/${address}`),
-  //     method: 'GET',
-  //     authStrategy,
-  //   });
-
-  //   expect(response).toHaveStatus(200);
-  // });
-
-  // it('POST /score/{address}', async () => {
-  //   const response = await testRequest({
-  //     url: url(`score/${address}`),
-  //     method: 'POST',
-  //     authStrategy,
-  //     payload: {
-  //       alternate_scorer_id: 1,
-  //     },
-  //   });
-
-  //   expect(response).toHaveStatus(200);
-  // });
-
-  // it('GET /score/{scorer_id}/{address}', async () => {
-  //   const response = await testRequest({
-  //     url: url(`score/${scorerId}/${address}`),
-  //     method: 'GET',
-  //     authStrategy: secretKeyAuthStrategy,
-  //   });
-
-  //   expect(response).toHaveStatus(200);
-  // });
-
-  // it('GET /stake/gtc', async () => {
-  //   const response = await testRequest({
-  //     url: url('stake/gtc'),
-  //     method: 'GET',
-  //     authStrategy,
-  //   });
-
-  //   expect(response).toHaveStatus(200);
-  //   expect(response.data).toHaveProperty('items');
-  // });
-
-  // it('GET /tos/accepted/{tos_type}/{address}', async () => {
-  //   const response = await testRequest({
-  //     url: url(`tos/accepted/${testTosType}/${address}`),
-  //     method: 'GET',
-  //     authStrategy,
-  //   });
-
-  //   expect(response).toHaveStatus(200);
-  // });
-
-  // it('GET /tos/message-to-sign/{tos_type}/{address}', async () => {
-  //   const response = await testRequest({
-  //     url: url(`tos/message-to-sign/${testTosType}/${address}`),
-  //     method: 'GET',
-  //     authStrategy,
-  //   });
-
-  //   expect(response).toHaveStatus(200);
-  // });
-
-  // it('POST /tos/signed-message/{tos_type}/{address}', async () => {
-  //   const response = await testRequest({
-  //     url: url(`tos/signed-message/${testTosType}/${address}`),
-  //     method: 'POST',
-  //     authStrategy,
-  //     payload: {
-  //       signedMessage: 'test-signed-message',
-  //     },
-  //   });
-
-  //   expect(response).toHaveStatus(200);
-  // });
-});
-
-describe('Ceramic Cache Public', () => {
-  let address: string;
-
-  beforeAll(async () => {
-    ({ address } = await PassportUIUser.get());
-  });
-
-  it('GET /weights', async () => {
+  it('GET /score/{address}', async () => {
     const response = await testRequest({
-      url: url('weights'),
+      url: url(`score/${address}`),
       method: 'GET',
+      authStrategy,
     });
 
     expect(response).toHaveStatus(200);
-    expect(response.data).toEqual(expect.any(Object));
   });
 
-  it('GET /stamp', async () => {
-    const response = await testRequest<{ success: boolean; stamps: unknown[] }>({
-      url: url(`stamp?address=${address}`),
-      method: 'GET',
+  it('POST /score/{address}', async () => {
+    const response = await testRequest({
+      url: url(`score/${address}`),
+      method: 'POST',
+      authStrategy,
+      payload: {
+        alternate_scorer_id: process.env.TEST_API_SCORER_ID,
+      },
     });
 
     expect(response).toHaveStatus(200);
-    expect(response.data.success).toBe(true);
-    expect(Array.isArray(response.data.stamps)).toBe(true);
+  });
+
+  it('GET /stake/gtc', async () => {
+    const response = await testRequest({
+      url: url('stake/gtc'),
+      method: 'GET',
+      authStrategy,
+    });
+
+    expect(response).toHaveStatus(200);
+    expect(response.data).toHaveProperty('items');
+  });
+
+  it('GET /tos/accepted/{tos_type}/{address}', async () => {
+    const response = await testRequest({
+      url: url(`tos/accepted/IST/${address}`),
+      method: 'GET',
+      authStrategy,
+    });
+
+    expect(response).toHaveStatus(200);
+  });
+
+  it('GET /tos/message-to-sign/{tos_type}/{address}', async () => {
+    const response = await testRequest({
+      url: url(`tos/message-to-sign/IST/${address}`),
+      method: 'GET',
+      authStrategy,
+    });
+
+    expect(response).toHaveStatus(200);
+    expect(response.data).toMatchObject({
+      text: expect.any(String),
+      nonce: expect.any(String),
+    });
+  });
+
+  it('POST /tos/signed-message/{tos_type}/{address}', async () => {
+    const messageResponse = await testRequest<{ text: string; nonce: string }>({
+      url: url(`tos/message-to-sign/IST/${address}`),
+      method: 'GET',
+      authStrategy,
+    });
+
+    expect(messageResponse).toHaveStatus(200);
+    expect(messageResponse.data).toMatchObject({
+      text: expect.any(String),
+      nonce: expect.any(String),
+    });
+
+    const { text, nonce } = messageResponse.data;
+
+    const signature = await signer.signMessage(text);
+
+    const verificationResponse = await testRequest<{}>({
+      url: url(`tos/signed-message/IST/${address}`),
+      method: 'POST',
+      authStrategy,
+      payload: {
+        nonce,
+        signature,
+        tos_type: 'IST',
+      },
+    });
+
+    expect(verificationResponse).toHaveStatus(200);
   });
 });

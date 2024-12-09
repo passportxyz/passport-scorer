@@ -1,7 +1,6 @@
 // User classes should define data that describes a "user" of one particular API,
 // for example a PassportUIUser class that defines a user of the Passport UI API
-// (i.e. someone with a particular address, using the UI with a particular scorer,
-// logged in with a DID session)
+// (i.e. someone with a particular address and DID)
 
 // Supports any future requirements for all User types, like an ID
 interface User {}
