@@ -915,7 +915,7 @@ class ValidatePassportTestCase(TransactionTestCase):
     ):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
 
-        expected_score = "22"
+        expected_score = "22.00000"
 
         scorer = WeightedScorer.objects.create(
             weights={"FirstEthTxnProvider": 11.0, "Google": 11, "Ens": 11.0},
@@ -951,7 +951,7 @@ class ValidatePassportTestCase(TransactionTestCase):
                     "score": "11.0",
                 },
             },
-            "threshold": "20",
+            "threshold": "20.00000",
         }
 
         # First submission
@@ -981,7 +981,7 @@ class ValidatePassportTestCase(TransactionTestCase):
     ):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
 
-        expected_score = "2"
+        expected_score = "2.00000"
 
         scorer = WeightedScorer.objects.create(
             weights={"FirstEthTxnProvider": 1.0, "Google": 1.0, "Ens": 1.0},
@@ -999,29 +999,27 @@ class ValidatePassportTestCase(TransactionTestCase):
                 stamp["credential"]["expirationDate"]
             )
 
-        expected_result = (
-            {
-                "score": expected_score,
-                "passing_score": False,
-                "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-                "error": None,
-                "expiration_timestamp": min(expiration_date_list).isoformat(),
-                "last_score_timestamp": get_utc_time().isoformat(),
-                "stamps": {
-                    "Ens": {
-                        "dedup": False,
-                        "expiration_date": expiration_date_map["Ens"].isoformat(),
-                        "score": "1.0",
-                    },
-                    "Google": {
-                        "dedup": False,
-                        "expiration_date": expiration_date_map["Google"].isoformat(),
-                        "score": "1.0",
-                    },
+        expected_result = {
+            "score": expected_score,
+            "passing_score": False,
+            "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
+            "error": None,
+            "expiration_timestamp": min(expiration_date_list).isoformat(),
+            "last_score_timestamp": get_utc_time().isoformat(),
+            "stamps": {
+                "Ens": {
+                    "dedup": False,
+                    "expiration_date": expiration_date_map["Ens"].isoformat(),
+                    "score": "1.0",
                 },
-                "threshold": "20",
+                "Google": {
+                    "dedup": False,
+                    "expiration_date": expiration_date_map["Google"].isoformat(),
+                    "score": "1.0",
+                },
             },
-        )
+            "threshold": "20.00000",
+        }
         # First submission
         response = self.client.get(
             f"{self.base_url}/{self.community.pk}/score/{self.account.address}",
