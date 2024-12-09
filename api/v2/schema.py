@@ -18,7 +18,7 @@ class V2ScoreResponse(Schema):
     expiration_timestamp: Optional[str]
     threshold: Decimal
     error: Optional[str]
-    stamp_scores: Optional[Dict[str, Decimal]]
+    stamps: Optional[Dict[str, Decimal]]
 
     @field_serializer("score")
     def serialize_score(self, score: Decimal, _info):
