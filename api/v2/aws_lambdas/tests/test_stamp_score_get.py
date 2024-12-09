@@ -1,6 +1,7 @@
 import base64
 import json
 from copy import deepcopy
+from datetime import datetime
 
 import pytest
 
@@ -120,7 +121,9 @@ def test_successful_authentication(
                     "dedup": False,
                     "expiration_date": next(
                         (
-                            stamp["credential"]["expirationDate"].isoformat()
+                            datetime.fromisoformat(
+                                stamp["credential"]["expirationDate"]
+                            ).isoformat()
                             for stamp in mock_passport["stamps"]
                             if stamp["provider"] == "Ens"
                         ),
@@ -132,7 +135,9 @@ def test_successful_authentication(
                     "dedup": False,
                     "expiration_date": next(
                         (
-                            stamp["credential"]["expirationDate"].isoformat()
+                            datetime.fromisoformat(
+                                stamp["credential"]["expirationDate"]
+                            ).isoformat()
                             for stamp in mock_passport["stamps"]
                             if stamp["provider"] == "Google"
                         ),
@@ -186,7 +191,9 @@ def test_successful_authentication_and_base64_encoded_body(
                     "dedup": False,
                     "expiration_date": next(
                         (
-                            stamp["credential"]["expirationDate"].isoformat()
+                            datetime.fromisoformat(
+                                stamp["credential"]["expirationDate"]
+                            ).isoformat()
                             for stamp in mock_passport["stamps"]
                             if stamp["provider"] == "Ens"
                         ),
@@ -198,7 +205,9 @@ def test_successful_authentication_and_base64_encoded_body(
                     "dedup": False,
                     "expiration_date": next(
                         (
-                            stamp["credential"]["expirationDate"].isoformat()
+                            datetime.fromisoformat(
+                                stamp["credential"]["expirationDate"]
+                            ).isoformat()
                             for stamp in mock_passport["stamps"]
                             if stamp["provider"] == "Google"
                         ),
