@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from math import e
 from typing import Dict, List
 
 import api_logging as logging
@@ -46,6 +47,7 @@ def calculate_weighted_score(
         scored_providers = []
         earned_points = {}
         earliest_expiration_date = None
+        expiration_dates = {}
         for stamp in Stamp.objects.filter(passport_id=passport_id):
             if stamp.provider not in scored_providers:
                 weight = Decimal(weights.get(stamp.provider, 0))
@@ -55,6 +57,7 @@ def calculate_weighted_score(
                 expiration_date = datetime.fromisoformat(
                     stamp.credential["expirationDate"]
                 )
+                expiration_dates[stamp.provider] = expiration_date
                 # Compute the earliest expiration date for the stamps used to calculate the score
                 # as this will be the expiration date of the score
                 if (
@@ -69,6 +72,7 @@ def calculate_weighted_score(
                 "sum_of_weights": sum_of_weights,
                 "earned_points": earned_points,
                 "expiration_date": earliest_expiration_date,
+                "expiration_dates": expiration_dates,
             }
         )
     return ret
@@ -95,6 +99,7 @@ def recalculate_weighted_score(
         scored_providers = []
         earned_points = {}
         earliest_expiration_date = None
+        expiration_dates = {}
         for stamp in stamp_list:
             if stamp.provider not in scored_providers:
                 weight = Decimal(weights.get(stamp.provider, 0))
@@ -104,6 +109,7 @@ def recalculate_weighted_score(
                 expiration_date = datetime.fromisoformat(
                     stamp.credential["expirationDate"]
                 )
+                expiration_dates[stamp.provider] = expiration_date
                 # Compute the earliest expiration date for the stamps used to calculate the score
                 # as this will be the expiration date of the score
                 if (
@@ -118,6 +124,7 @@ def recalculate_weighted_score(
                 "sum_of_weights": sum_of_weights,
                 "earned_points": earned_points,
                 "expiration_date": earliest_expiration_date,
+                "expiration_dates": expiration_dates,
             }
         )
     return ret
