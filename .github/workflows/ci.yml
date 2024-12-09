@@ -113,6 +113,7 @@ jobs:
           REGISTRY_ADDRESS: ${{ env.REGISTRY_ADDRESS }}
           CERAMIC_CACHE_JWT_TOKEN: ${{ env.CERAMIC_CACHE_JWT_TOKEN }}
           CERAMIC_CACHE_ADDRESS: ${{ env.CERAMIC_CACHE_ADDRESS }}
+          FF_V2_API: on
 
         run:
           python manage.py get_unmonitored_urls --base-url https://api.scorer.gitcoin.co/ --base-url-xyz https://api.passport.xyz/

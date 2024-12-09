@@ -79,7 +79,7 @@ class TestPassportGetHistoricalScore:
         response_data = response.json()
 
         assert response.status_code == 200
-        assert response_data["score"] == "309.5190000000000054014570595"
+        assert response_data["score"] == "309.51900"
         assert response_data["threshold"] == "100.00000"
         assert response_data["passing_score"] is True
         assert response_data["last_score_timestamp"] == None
@@ -108,7 +108,7 @@ class TestPassportGetHistoricalScore:
                     "evidence": {
                         "type": "ThresholdScoreCheck",
                         "success": False,
-                        "rawScore": "5.459000000000000019095836024",
+                        "rawScore": "5.45900",
                         "threshold": "100.00000",
                     },
                     "passport": 15,
@@ -127,7 +127,7 @@ class TestPassportGetHistoricalScore:
         response_data = response.json()
 
         assert response.status_code == 200
-        assert response_data["score"] == "5.459000000000000019095836024"
+        assert response_data["score"] == "5.45900"
         assert response_data["threshold"] == "100.00000"
         assert response_data["passing_score"] is False
         assert response_data["last_score_timestamp"] == "2024-10-25T19:16:14.023Z"
@@ -161,8 +161,8 @@ class TestPassportGetHistoricalScore:
         response_data = response.json()
 
         assert response.status_code == 200
-        assert response_data["score"] == "15"
-        assert response_data["threshold"] == "0"
+        assert response_data["score"] == "15.00000"
+        assert response_data["threshold"] == "0.00000"
         assert response_data["passing_score"] is True
         assert response_data["last_score_timestamp"] is None
         assert response_data["expiration_timestamp"] is None
@@ -191,8 +191,8 @@ class TestPassportGetHistoricalScore:
         response_data = response.json()
 
         assert response.status_code == 200
-        assert response_data["score"] == "78.762"
-        assert response_data["threshold"] == "0"
+        assert response_data["score"] == "78.76200"
+        assert response_data["threshold"] == "0.00000"
         assert response_data["passing_score"] is True
         assert response_data["last_score_timestamp"] is None
         assert response_data["expiration_timestamp"] is None
@@ -211,10 +211,10 @@ class TestPassportGetHistoricalScore:
         )
         response_data = response.json()
 
-        assert response.status_code == 200
+        assert response.status_code == 404
         assert response_data["address"] == scorer_account.address
         assert (
-            response_data["status"]
+            response_data["detail"]
             == f"No Score Found for {scorer_account.address} at 2023-01-01"
         )
 
@@ -230,9 +230,9 @@ class TestPassportGetHistoricalScore:
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 404
         assert (
-            response.json()["status"]
+            response.json()["detail"]
             == "No Score Found for 0xB81C935D01e734b3D8bb233F5c4E1D72DBC30f6c at invalid-date"
         )
 
@@ -257,7 +257,7 @@ class TestPassportGetHistoricalScore:
                 HTTP_AUTHORIZATION="Token " + scorer_api_key,
             )
 
-            assert response.status_code == 200
+            assert response.status_code == 404
             response_data = response.json()
             assert response_data["address"] == scorer_account.address
-            assert "No Score Found for" in response_data["status"]
+            assert "No Score Found for" in response_data["detail"]
