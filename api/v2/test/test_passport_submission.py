@@ -713,7 +713,7 @@ class ValidatePassportTestCase(TransactionTestCase):
     ):
         """Verify that submitting the same address multiple times only registers each stamp once, and gives back the same score"""
 
-        expected_score = "22"
+        expected_score = "22.000"
 
         scorer = WeightedScorer.objects.create(
             weights={"FirstEthTxnProvider": 11.0, "Google": 11, "Ens": 11.0},
@@ -807,7 +807,30 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "error": None,
                 "expiration_timestamp": min(expiration_date_list).isoformat(),
                 "last_score_timestamp": get_utc_time().isoformat(),
-                "stamp_scores": {"Ens": "1.0", "Google": "1.0"},
+                "stamps": {
+                    "Ens": {
+                        "dedup": False,
+                        "expiration_date": next(
+                            datetime.fromisoformat(
+                                stamp["credential"]["expirationDate"]
+                            ).isoformat()
+                            for stamp in mock_passport["stamps"]
+                            if stamp["provider"] == "Ens"
+                        ),
+                        "score": "1.0",
+                    },
+                    "Google": {
+                        "dedup": False,
+                        "expiration_date": next(
+                            datetime.fromisoformat(
+                                stamp["credential"]["expirationDate"]
+                            ).isoformat()
+                            for stamp in mock_passport["stamps"]
+                            if stamp["provider"] == "Google"
+                        ),
+                        "score": "1.0",
+                    },
+                },
                 "threshold": "20.00000",
             },
         )
