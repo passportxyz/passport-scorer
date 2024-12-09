@@ -149,6 +149,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                 "sum_of_weights": Decimal("70"),
                 "earned_points": {},
                 "expiration_date": datetime.now(timezone.utc),
+                "expiration_dates": {},
             }
         ],
     ):
@@ -220,6 +221,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                     "sum_of_weights": Decimal("90"),
                     "earned_points": {},
                     "expiration_date": datetime.now(timezone.utc),
+                    "expiration_dates": {},
                 }
             ],
         ):
