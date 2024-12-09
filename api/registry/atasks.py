@@ -130,7 +130,7 @@ async def acalculate_score(
         provider_name = c_stamp["provider"]
         if provider_name not in stamps:
             stamps[provider_name] = {
-                "score": 0,  # Default score for stamps not in stamp_scores
+                "score": "0",  # Default score for stamps not in stamp_scores
                 "dedup": True,
                 "expiration_date": c_stamp["credential"]["expirationDate"],
             }
