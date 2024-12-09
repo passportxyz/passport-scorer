@@ -109,10 +109,6 @@ class TestApiGetStampsDedupFlagTestCase:
             },
         )
 
-        # ....
-        #  --------- when get wallet B  => mock get passport (same hash for deduplication )
-        # presence of hash scorer link produces the value of dedup flag
-
         response = client.get(
             f"{self.base_url}/{comunity.pk}/score/{wallet_a}",
             HTTP_AUTHORIZATION="Token " + api_key,
@@ -120,7 +116,7 @@ class TestApiGetStampsDedupFlagTestCase:
         response_data = response.json()
         print("response_data 123123", response_data)
         assert response.status_code == 200
-        assert response_data["error"] == None
+        assert response_data["error"] is None
         assert int(response_data["score"]) > 0
         assert response_data["stamps"] == {
             sample_provider: {
