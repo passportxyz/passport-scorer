@@ -1,5 +1,10 @@
+from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Optional
+from typing import (
+    Any,
+    Dict,
+    Optional,
+)
 
 from ninja import Schema
 from pydantic import field_serializer
@@ -13,7 +18,7 @@ class V2ScoreResponse(Schema):
     expiration_timestamp: Optional[str]
     threshold: Decimal
     error: Optional[str]
-    stamp_scores: Optional[Dict[str, Decimal]]
+    stamps: Optional[Dict[str, Dict]]
 
     @field_serializer("score")
     def serialize_score(self, score: Decimal, _info):

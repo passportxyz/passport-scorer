@@ -1,6 +1,7 @@
 import base64
 import json
 from copy import deepcopy
+from datetime import datetime
 
 import pytest
 
@@ -114,7 +115,36 @@ def test_successful_authentication(
             assert body["threshold"] == "20.00000"
 
             assert body["error"] is None
-            assert body["stamp_scores"] == {"Ens": "0.408", "Google": "0.525"}
+            assert body["stamps"] == {
+                "Ens": {
+                    "score": "0.408",
+                    "dedup": False,
+                    "expiration_date": next(
+                        (
+                            datetime.fromisoformat(
+                                stamp["credential"]["expirationDate"]
+                            ).isoformat()
+                            for stamp in mock_passport["stamps"]
+                            if stamp["provider"] == "Ens"
+                        ),
+                        None,
+                    ),
+                },
+                "Google": {
+                    "score": "0.525",
+                    "dedup": False,
+                    "expiration_date": next(
+                        (
+                            datetime.fromisoformat(
+                                stamp["credential"]["expirationDate"]
+                            ).isoformat()
+                            for stamp in mock_passport["stamps"]
+                            if stamp["provider"] == "Google"
+                        ),
+                        None,
+                    ),
+                },
+            }
             # We just check that something != None was recorded for the last timestamp
             assert body["expiration_timestamp"] is not None
 
@@ -155,7 +185,36 @@ def test_successful_authentication_and_base64_encoded_body(
             assert body["passing_score"] == False
             assert body["threshold"] == "20.00000"
             assert body["error"] is None
-            assert body["stamp_scores"] == {"Ens": "0.408", "Google": "0.525"}
+            assert body["stamps"] == {
+                "Ens": {
+                    "score": "0.408",
+                    "dedup": False,
+                    "expiration_date": next(
+                        (
+                            datetime.fromisoformat(
+                                stamp["credential"]["expirationDate"]
+                            ).isoformat()
+                            for stamp in mock_passport["stamps"]
+                            if stamp["provider"] == "Ens"
+                        ),
+                        None,
+                    ),
+                },
+                "Google": {
+                    "score": "0.525",
+                    "dedup": False,
+                    "expiration_date": next(
+                        (
+                            datetime.fromisoformat(
+                                stamp["credential"]["expirationDate"]
+                            ).isoformat()
+                            for stamp in mock_passport["stamps"]
+                            if stamp["provider"] == "Google"
+                        ),
+                        None,
+                    ),
+                },
+            }
             # We just check that something != None was recorded for the last timestamp
             assert body["expiration_timestamp"] is not None
 
@@ -375,7 +434,6 @@ def test_failed_authentication_and_analytics_logging(
 
 def test_bad_scorer_id_and_analytics_logging(
     scorer_api_key,
-    scorer_community_with_binary_scorer,
     passport_holder_addresses,
     mocker,
 ):
