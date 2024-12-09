@@ -159,8 +159,30 @@ def test_successful_authentication_and_base64_encoded_body(
             assert body["threshold"] == "20.00000"
             assert body["error"] is None
             assert body["stamps"] == {
-                "Ens": {"score": "0.408", "dedup": False, "expiration_date": None},
-                "Google": {"score": "0.525", "dedup": False, "expiration_date": None},
+                "Ens": {
+                    "score": "0.408",
+                    "dedup": False,
+                    "expiration_date": next(
+                        (
+                            stamp["credential"]["expirationDate"]
+                            for stamp in mock_passport["stamps"]
+                            if stamp["provider"] == "Ens"
+                        ),
+                        None,
+                    ),
+                },
+                "Google": {
+                    "score": "0.525",
+                    "dedup": False,
+                    "expiration_date": next(
+                        (
+                            stamp["credential"]["expirationDate"]
+                            for stamp in mock_passport["stamps"]
+                            if stamp["provider"] == "Google"
+                        ),
+                        None,
+                    ),
+                },
             }
             # We just check that something != None was recorded for the last timestamp
             assert body["expiration_timestamp"] is not None
