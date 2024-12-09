@@ -1,11 +1,11 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List
 
 import api_logging as logging
+from account.models import Customization
 from registry.models import Stamp
 from scorer_weighted.models import WeightedScorer
-from account.models import Customization
-from datetime import datetime
 
 log = logging.getLogger(__name__)
 
@@ -158,6 +158,7 @@ async def acalculate_weighted_score(
         sum_of_weights: Decimal = Decimal(0)
         scored_providers = []
         earned_points = {}
+        expiration_dates = {}
         earliest_expiration_date = None
         async for stamp in Stamp.objects.filter(passport_id=passport_id):
             if stamp.provider not in scored_providers:
@@ -168,6 +169,7 @@ async def acalculate_weighted_score(
                 expiration_date = datetime.fromisoformat(
                     stamp.credential["expirationDate"]
                 )
+                expiration_dates[stamp.provider] = expiration_date
                 # Compute the earliest expiration date for the stamps used to calculate the score
                 # as this will be the expiration date of the score
                 if (
@@ -183,6 +185,7 @@ async def acalculate_weighted_score(
                 "sum_of_weights": sum_of_weights,
                 "earned_points": earned_points,
                 "expiration_date": earliest_expiration_date,
+                "expiration_dates": expiration_dates,
             }
         )
     return ret

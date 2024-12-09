@@ -44,11 +44,13 @@ class ScoreData:
         evidence: Optional[List[ThresholdScoreEvidence]],
         points: dict,
         expiration_date: datetime,
+        expiration_dates: dict,
     ):
         self.score = score
         self.evidence = evidence
         self.stamp_scores = points
         self.expiration_date = expiration_date
+        self.expiration_dates = expiration_dates
 
     def __repr__(self):
         return f"ScoreData(score={self.score}, evidence={self.evidence})"
@@ -145,6 +147,7 @@ class WeightedScorer(Scorer):
                 evidence=None,
                 points=s["earned_points"],
                 expiration_date=s["expiration_date"],
+                expiration_dates=s["expiration_dates"],
             )
             for s in scores
         ]
@@ -253,6 +256,7 @@ class BinaryWeightedScorer(Scorer):
                     ],
                     points=rawScore["earned_points"],
                     expiration_date=rawScore["expiration_date"],
+                    expiration_dates=rawScore["expiration_dates"],
                 ),
                 rawScores,
                 binaryScores,

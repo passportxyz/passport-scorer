@@ -123,18 +123,17 @@ async def acalculate_score(
             "dedup": matching_stamp is not None,
             "expiration_date": matching_stamp["credential"]["expirationDate"]
             if matching_stamp
-            else None,
+            else scoreData.expiration_dates[stamp_name].isoformat(),
         }
     # Add stamps present in clashing_stamps but not in stamp_scores
-    for stamp in clashing_stamps:
-        provider_name = stamp["provider"]
+    for c_stamp in clashing_stamps:
+        provider_name = c_stamp["provider"]
         if provider_name not in stamps:
             stamps[provider_name] = {
                 "score": 0,  # Default score for stamps not in stamp_scores
                 "dedup": True,
-                "expiration_date": stamp["credential"]["expirationDate"],
+                "expiration_date": c_stamp["credential"]["expirationDate"],
             }
-
     score.stamps = stamps
     log.info("Calculated score: %s", score)
 
