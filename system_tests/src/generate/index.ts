@@ -27,3 +27,5 @@ const generateProviders = (count: number) => {
 
   return providers.slice(0, count);
 };
+
+export const generatePassportAddress = () => '0x85ff01cff157199527528788ec4ea6336615c989';
