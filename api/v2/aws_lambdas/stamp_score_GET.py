@@ -5,7 +5,6 @@ This module provides a handler to manage API requests in AWS Lambda.
 from asgiref.sync import async_to_sync
 from django.db import close_old_connections
 
-from account.models import Nonce
 from aws_lambdas.utils import (
     with_api_request_exception_handling,
 )
