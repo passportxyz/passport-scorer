@@ -476,12 +476,12 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "Ens": {
                     "dedup": False,
                     "expiration_date": mock_passport_expiration_date.isoformat(),
-                    "score": "0.408",
+                    "score": "0.40800",
                 },
                 "Google": {
                     "dedup": False,
                     "expiration_date": mock_passport_expiration_date.isoformat(),
-                    "score": "0.525",
+                    "score": "0.52500",
                 },
             },
         }
@@ -498,12 +498,12 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "Ens": {
                     "dedup": False,
                     "expiration_date": mock_passport_expiration_date.isoformat(),
-                    "score": "0.408",
+                    "score": "0.40800",
                 },
                 "Google": {
                     "dedup": False,
                     "expiration_date": mock_passport_expiration_date.isoformat(),
-                    "score": "0.525",
+                    "score": "0.52500",
                 },
             },
         }
@@ -609,12 +609,12 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "Ens": {
                     "dedup": False,
                     "expiration_date": expiration_date_map["Ens"].isoformat(),
-                    "score": "1.0",
+                    "score": "1.00000",
                 },
                 "Google": {
                     "dedup": False,
                     "expiration_date": expiration_date_map["Google"].isoformat(),
-                    "score": "1.0",
+                    "score": "1.00000",
                 },
             },
             "threshold": "2.00000",
@@ -798,41 +798,42 @@ class ValidatePassportTestCase(TransactionTestCase):
         )
         self.assertEqual(response.status_code, 200)
         response_json = response.json()
+        expected_response = {
+            "score": expected_score,
+            "passing_score": False,
+            "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
+            "error": None,
+            "expiration_timestamp": min(expiration_date_list).isoformat(),
+            "last_score_timestamp": get_utc_time().isoformat(),
+            "stamps": {
+                "Ens": {
+                    "dedup": False,
+                    "expiration_date": next(
+                        datetime.fromisoformat(
+                            stamp["credential"]["expirationDate"]
+                        ).isoformat()
+                        for stamp in mock_passport["stamps"]
+                        if stamp["provider"] == "Ens"
+                    ),
+                    "score": "1.00000",
+                },
+                "Google": {
+                    "dedup": False,
+                    "expiration_date": next(
+                        datetime.fromisoformat(
+                            stamp["credential"]["expirationDate"]
+                        ).isoformat()
+                        for stamp in mock_passport["stamps"]
+                        if stamp["provider"] == "Google"
+                    ),
+                    "score": "1.00000",
+                },
+            },
+            "threshold": "20.00000",
+        }
         self.assertEqual(
             response_json,
-            {
-                "score": expected_score,
-                "passing_score": False,
-                "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-                "error": None,
-                "expiration_timestamp": min(expiration_date_list).isoformat(),
-                "last_score_timestamp": get_utc_time().isoformat(),
-                "stamps": {
-                    "Ens": {
-                        "dedup": False,
-                        "expiration_date": next(
-                            datetime.fromisoformat(
-                                stamp["credential"]["expirationDate"]
-                            ).isoformat()
-                            for stamp in mock_passport["stamps"]
-                            if stamp["provider"] == "Ens"
-                        ),
-                        "score": "1.0",
-                    },
-                    "Google": {
-                        "dedup": False,
-                        "expiration_date": next(
-                            datetime.fromisoformat(
-                                stamp["credential"]["expirationDate"]
-                            ).isoformat()
-                            for stamp in mock_passport["stamps"]
-                            if stamp["provider"] == "Google"
-                        ),
-                        "score": "1.0",
-                    },
-                },
-                "threshold": "20.00000",
-            },
+            expected_response,
         )
 
     @patch("registry.atasks.validate_credential", side_effect=[[], [], [], []])
@@ -877,12 +878,12 @@ class ValidatePassportTestCase(TransactionTestCase):
             "last_score_timestamp": get_utc_time().isoformat(),
             "stamps": {
                 "Ens": {
-                    "score": "1.0",
+                    "score": "1.00000",
                     "dedup": False,
                     "expiration_date": expiration_date_map["Ens"].isoformat(),
                 },
                 "Google": {
-                    "score": "1.0",
+                    "score": "1.00000",
                     "dedup": False,
                     "expiration_date": expiration_date_map["Google"].isoformat(),
                 },
@@ -943,12 +944,12 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "Ens": {
                     "dedup": False,
                     "expiration_date": expiration_date_map["Ens"].isoformat(),
-                    "score": "11.0",
+                    "score": "11.00000",
                 },
                 "Google": {
                     "dedup": False,
                     "expiration_date": expiration_date_map["Google"].isoformat(),
-                    "score": "11.0",
+                    "score": "11.00000",
                 },
             },
             "threshold": "20.00000",
@@ -1010,12 +1011,12 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "Ens": {
                     "dedup": False,
                     "expiration_date": expiration_date_map["Ens"].isoformat(),
-                    "score": "1.0",
+                    "score": "1.00000",
                 },
                 "Google": {
                     "dedup": False,
                     "expiration_date": expiration_date_map["Google"].isoformat(),
-                    "score": "1.0",
+                    "score": "1.00000",
                 },
             },
             "threshold": "20.00000",
