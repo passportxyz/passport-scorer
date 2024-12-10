@@ -112,10 +112,7 @@ async def acalculate_score(
     stamps = {}
     for stamp_name, stamp_score in scoreData.stamp_scores.items():
         # Find if the stamp_name matches any provider in clashing_stamps
-        matching_stamp = next(
-            (stamp for stamp in clashing_stamps if stamp_name == stamp["provider"]),
-            None,
-        )
+        matching_stamp = clashing_stamps.get(stamp_name, None)
 
         # Construct the stamps dictionary
         stamps[stamp_name] = {
@@ -125,15 +122,7 @@ async def acalculate_score(
             if matching_stamp
             else scoreData.stamp_expiration_dates[stamp_name].isoformat(),
         }
-    # Add stamps present in clashing_stamps but not in stamp_scores
-    for c_stamp in clashing_stamps:
-        provider_name = c_stamp["provider"]
-        if provider_name not in stamps:
-            stamps[provider_name] = {
-                "score": "0",  # Default score for stamps not in stamp_scores
-                "dedup": True,
-                "expiration_date": c_stamp["credential"]["expirationDate"],
-            }
+
     score.stamps = stamps
     log.info("Calculated score: %s", score)
 

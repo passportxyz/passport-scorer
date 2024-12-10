@@ -67,7 +67,7 @@ async def arun_lifo_dedup(
 
         hash_links_to_create = []
         hash_links_to_update = []
-        clashing_stamps = []
+        clashing_stamps = {}
 
         for stamp in lifo_passport["stamps"]:
             hash = stamp["credential"]["credentialSubject"]["hash"]
@@ -105,7 +105,9 @@ async def arun_lifo_dedup(
                         )
                     )
             else:
-                clashing_stamps.append(stamp)
+                clashing_stamps[
+                    stamp["credential"]["credentialSubject"]["provider"]
+                ] = stamp
 
         await save_hash_links(
             hash_links_to_create, hash_links_to_update, address, community
@@ -126,7 +128,7 @@ async def arun_lifo_dedup(
                         },
                         community=community,
                     )
-                    for stamp in clashing_stamps
+                    for _, stamp in clashing_stamps.items()
                 ]
             )
     return (deduped_passport, None, clashing_stamps)
