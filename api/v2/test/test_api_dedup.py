@@ -1,5 +1,6 @@
 import copy
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from re import M
 from unittest.mock import patch
 
@@ -9,11 +10,8 @@ from django.contrib.auth.models import User
 from django.test import Client
 from web3 import Web3
 
-from account.models import Account, AccountAPIKey, Community
 from ceramic_cache.models import CeramicCache
-from registry.weight_models import WeightConfiguration, WeightConfigurationItem
 from scorer.config.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
-from scorer_weighted.models import BinaryWeightedScorer, Scorer, WeightedScorer
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -142,7 +140,7 @@ class TestApiGetStampsDedupFlagTestCase:
         assert response_data["error"] is None
         assert response_data["stamps"] == {
             sample_provider: {
-                "score": GITCOIN_PASSPORT_WEIGHTS[sample_provider],
+                "score": f"{Decimal(GITCOIN_PASSPORT_WEIGHTS[sample_provider]):.5f}",
                 "dedup": False,
                 "expiration_date": days_later,
             }
@@ -199,16 +197,21 @@ class TestApiGetStampsDedupFlagTestCase:
                 },
             },
         )
-        response = client.get(
+
+        response_wallet_a = client.get(
             f"{self.base_url}/{scorer_community.pk}/score/{wallet_a}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
-        response_data = response.json()
-        assert response.status_code == 200
-        assert response_data["error"] is None
-        assert response_data["stamps"] == {
+        response_data_wallet_a = response_wallet_a.json()
+        assert response_wallet_a.status_code == 200
+        assert response_data_wallet_a["error"] is None
+        assert (
+            response_data_wallet_a["score"]
+            == f"{Decimal(GITCOIN_PASSPORT_WEIGHTS[sample_provider]):.5f}"
+        )
+        assert response_data_wallet_a["stamps"] == {
             sample_provider: {
-                "score": GITCOIN_PASSPORT_WEIGHTS[sample_provider],
+                "score": f"{Decimal(GITCOIN_PASSPORT_WEIGHTS[sample_provider]):.5f}",
                 "dedup": False,
                 "expiration_date": days_later,
             }
@@ -244,30 +247,36 @@ class TestApiGetStampsDedupFlagTestCase:
             },
         )
 
-        response = client.get(
+        response_wallet_b = client.get(
             f"{self.base_url}/{scorer_community.pk}/score/{wallet_b}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
-        response_data = response.json()
-        assert response.status_code == 200
-        assert response_data["error"] is None
-        assert response_data["stamps"] == {
+        response_data_wallet_b = response_wallet_b.json()
+        assert response_wallet_b.status_code == 200
+        assert response_data_wallet_b["error"] is None
+        assert response_data_wallet_b["score"] == "0.00000"
+
+        assert response_data_wallet_b["stamps"] == {
             sample_provider: {
-                "score": "0",
+                "score": "0.00000",
                 "dedup": True,
                 "expiration_date": days_later,
             }
         }
-        response = client.get(
+        response_wallet_a_again = client.get(
             f"{self.base_url}/{scorer_community.pk}/score/{wallet_a}",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
-        response_data = response.json()
-        assert response.status_code == 200
-        assert response_data["error"] is None
-        assert response_data["stamps"] == {
+        response_data_wallet_a_again = response_wallet_a_again.json()
+        assert response_wallet_a_again.status_code == 200
+        assert response_data_wallet_a_again["error"] is None
+        assert (
+            response_data_wallet_a_again["score"]
+            == f"{Decimal(GITCOIN_PASSPORT_WEIGHTS[sample_provider]):.5f}"
+        )
+        assert response_data_wallet_a_again["stamps"] == {
             sample_provider: {
-                "score": GITCOIN_PASSPORT_WEIGHTS[sample_provider],
+                "score": f"{Decimal(GITCOIN_PASSPORT_WEIGHTS[sample_provider]):.5f}",
                 "dedup": False,
                 "expiration_date": days_later,
             }
