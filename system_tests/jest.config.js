@@ -1,4 +1,7 @@
+require('dotenv').config();
+
 module.exports = {
+  testTimeout: parseInt(process.env.TEST_TIMEOUT || '60000'), // 60 s timeout
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],

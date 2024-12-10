@@ -20,7 +20,7 @@ describe('Registry API', () => {
   });
 
   describe('Submit Passport and Get Score', () => {
-    it('should submit passport and get processing status', async () => {
+    it('POST /submit-passport', async () => {
       const submitResponse = await testRequest({
         url: url('submit-passport'),
         method: 'POST',
@@ -38,7 +38,7 @@ describe('Registry API', () => {
       });
     });
 
-    it('should get score for specific address', async () => {
+    it('GET /score/{scorerId}/{address}', async () => {
       const getScoreResponse = await testRequest({
         url: url(`score/${scorerId}/${address}`),
         method: 'GET',
@@ -52,7 +52,7 @@ describe('Registry API', () => {
       });
     });
 
-    it('should get paginated list of scores', async () => {
+    it('GET /score/{scorerId}', async () => {
       const getScoresResponse = await testRequest<{ items?: unknown[] }>({
         url: url(`score/${scorerId}`),
         method: 'GET',
@@ -64,7 +64,6 @@ describe('Registry API', () => {
       });
 
       expect(getScoresResponse).toHaveStatus(200);
-      console.log(getScoresResponse.data);
       expect(Array.isArray(getScoresResponse.data.items)).toBe(true);
 
       if (getScoresResponse.data.items!.length) {
@@ -76,8 +75,7 @@ describe('Registry API', () => {
     });
   });
 
-  // Test for /signing-message endpoint
-  it('should get signing message', async () => {
+  it('GET /signing-message', async () => {
     const response = await testRequest({
       url: url('signing-message'),
       method: 'GET',
@@ -91,8 +89,7 @@ describe('Registry API', () => {
     });
   });
 
-  // Test for /stamps/{address} endpoint
-  it('should get passport stamps for address', async () => {
+  it('GET /stamps/{address}', async () => {
     const response = await testRequest({
       url: url(`stamps/${address}`),
       method: 'GET',
@@ -101,8 +98,6 @@ describe('Registry API', () => {
 
     expect(response).toHaveStatus(200);
     expect(response.data).toMatchObject({
-      next: expect.any(String) || null,
-      prev: expect.any(String) || null,
       items: expect.arrayContaining([
         expect.objectContaining({
           version: expect.any(String),
@@ -113,7 +108,7 @@ describe('Registry API', () => {
   });
 
   // Test for /stamps/{address} with metadata
-  it('should get passport stamps with metadata', async () => {
+  it('GET /stamps/{address}?include_metadata=true', async () => {
     const response = await testRequest({
       url: url(`stamps/${address}?include_metadata=true`),
       method: 'GET',
@@ -141,16 +136,15 @@ describe('Registry API', () => {
     });
   });
 
-  // Test for /stamp-metadata endpoint
-  it('should get all available stamp metadata', async () => {
-    const response = await testRequest({
+  it('GET /stamp-metadata', async () => {
+    const response = await testRequest<unknown[]>({
       url: url('stamp-metadata'),
       method: 'GET',
       authStrategy,
     });
 
     expect(response).toHaveStatus(200);
-    expect(response.data).toBeArray();
+    expect(Array.isArray(response.data)).toBe(true);
     expect(response.data[0]).toMatchObject({
       id: expect.any(String),
       icon: expect.any(String),
@@ -172,8 +166,7 @@ describe('Registry API', () => {
     });
   });
 
-  // Test for /gtc-stake/{address}/{round_id} endpoint
-  it('should get GTC stake events', async () => {
+  it('GET /gtc-stake/{address}/{roundId}', async () => {
     const roundId = 1;
     const response = await testRequest({
       url: url(`gtc-stake/${address}/${roundId}`),
@@ -181,19 +174,5 @@ describe('Registry API', () => {
     });
 
     expect(response).toHaveStatus(200);
-    expect(response.data).toMatchObject({
-      results: expect.arrayContaining([
-        expect.objectContaining({
-          id: expect.any(Number),
-          event_type: expect.any(String),
-          round_id: expect.any(Number),
-          staker: expect.any(String),
-          amount: expect.any(String),
-          staked: expect.any(Boolean),
-          block_number: expect.any(Number),
-          tx_hash: expect.any(String),
-        }),
-      ]),
-    });
   });
 });

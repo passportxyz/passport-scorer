@@ -18,7 +18,7 @@ describe('Ceramic Cache DID', () => {
     authStrategy = new DidSignAuth({ did });
   });
 
-  it('POST stamps/bulk', async () => {
+  it('POST /stamps/bulk', async () => {
     const response = await testRequest({
       url: url('stamps/bulk'),
       method: 'POST',
@@ -29,7 +29,7 @@ describe('Ceramic Cache DID', () => {
     expect(response).toHaveStatus(201);
   });
 
-  it('PATCH stamps/bulk', async () => {
+  it('PATCH /stamps/bulk', async () => {
     const stamps = generateStamps(3);
 
     // Add a couple stamps
@@ -61,7 +61,7 @@ describe('Ceramic Cache DID', () => {
     expect(data.stamps.length).toBe(2);
   });
 
-  it('DELETE stamps/bulk', async () => {
+  it('DELETE /stamps/bulk', async () => {
     const stamps = generateStamps(1);
     const stampsToDelete = stamps.map(({ provider }) => ({ provider }));
 
