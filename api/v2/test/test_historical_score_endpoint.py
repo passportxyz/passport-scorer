@@ -114,11 +114,15 @@ class TestPassportGetHistoricalScore:
                     "passport": 15,
                     "stamps": {
                         "github": {
-                            "score": 1,
+                            "score": "1.00000",
                             "dedup": False,
                             "expiration_date": "2024-11-21T22:09:10.687Z",
                         },
-                        "twitter": {"score": 0, "dedup": True, "expiration_date": None},
+                        "twitter": {
+                            "score": "0.00000",
+                            "dedup": True,
+                            "expiration_date": None,
+                        },
                     },
                     "expiration_date": "2024-11-21T22:09:10.687Z",
                     "last_score_timestamp": "2024-10-25T19:16:14.023Z",
@@ -132,7 +136,7 @@ class TestPassportGetHistoricalScore:
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
         )
         response_data = response.json()
-
+        print("LARISA response_data", response_data)
         assert response.status_code == 200
         assert response_data["score"] == "5.45900"
         assert response_data["threshold"] == "100.00000"
@@ -141,11 +145,11 @@ class TestPassportGetHistoricalScore:
         assert response_data["expiration_timestamp"] == "2024-11-21T22:09:10.687Z"
         assert response_data["stamps"] == {
             "github": {
-                "score": 1,
+                "score": "1.00000",
                 "dedup": False,
                 "expiration_date": "2024-11-21T22:09:10.687Z",
             },
-            "twitter": {"score": 0, "dedup": True, "expiration_date": None},
+            "twitter": {"score": "0.00000", "dedup": True, "expiration_date": None},
         }
 
     @freeze_time("2023-01-01")

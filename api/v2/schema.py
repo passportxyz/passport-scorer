@@ -11,7 +11,7 @@ from pydantic import field_serializer
 class V2StampScoreResponse(Schema):
     score: str
     dedup: bool
-    expiration_date: str
+    expiration_date: Optional[str]
 
 
 class V2ScoreResponse(Schema):
