@@ -1,10 +1,11 @@
 import copy
 from typing import Tuple
 
-import api_logging as logging
-from account.models import Community
 from django.conf import settings
 from django.db import IntegrityError
+
+import api_logging as logging
+from account.models import Community
 from registry.models import Event, HashScorerLink, Stamp
 from registry.utils import get_utc_time
 
@@ -66,7 +67,7 @@ async def arun_lifo_dedup(
 
         hash_links_to_create = []
         hash_links_to_update = []
-        clashing_stamps = []
+        clashing_stamps = {}
 
         for stamp in lifo_passport["stamps"]:
             hash = stamp["credential"]["credentialSubject"]["hash"]
@@ -104,7 +105,9 @@ async def arun_lifo_dedup(
                         )
                     )
             else:
-                clashing_stamps.append(stamp)
+                clashing_stamps[
+                    stamp["credential"]["credentialSubject"]["provider"]
+                ] = stamp
 
         await save_hash_links(
             hash_links_to_create, hash_links_to_update, address, community
@@ -125,11 +128,10 @@ async def arun_lifo_dedup(
                         },
                         community=community,
                     )
-                    for stamp in clashing_stamps
+                    for _, stamp in clashing_stamps.items()
                 ]
             )
-
-    return (deduped_passport, None)
+    return (deduped_passport, None, clashing_stamps)
 
 
 async def save_hash_links(

@@ -44,11 +44,13 @@ class ScoreData:
         evidence: Optional[List[ThresholdScoreEvidence]],
         points: dict,
         expiration_date: datetime,
+        stamp_expiration_dates: dict,
     ):
         self.score = score
         self.evidence = evidence
         self.stamp_scores = points
         self.expiration_date = expiration_date
+        self.stamp_expiration_dates = stamp_expiration_dates
 
     def __repr__(self):
         return f"ScoreData(score={self.score}, evidence={self.evidence})"
@@ -105,7 +107,11 @@ class WeightedScorer(Scorer):
 
         return [
             ScoreData(
-                score=s["sum_of_weights"], evidence=None, points=s["earned_points"]
+                score=s["sum_of_weights"],
+                evidence=None,
+                points=s["earned_points"],
+                expiration_date=s["expiration_date"],
+                stamp_expiration_dates=s["stamp_expiration_dates"],
             )
             for s in calculate_weighted_score(self, passport_ids, community_id)
         ]
@@ -125,6 +131,7 @@ class WeightedScorer(Scorer):
                 evidence=None,
                 points=s["earned_points"],
                 expiration_date=s["expiration_date"],
+                stamp_expiration_dates=s["stamp_expiration_dates"],
             )
             for s in recalculate_weighted_score(
                 self, passport_ids, stamps, community_id
@@ -145,6 +152,7 @@ class WeightedScorer(Scorer):
                 evidence=None,
                 points=s["earned_points"],
                 expiration_date=s["expiration_date"],
+                stamp_expiration_dates=s["stamp_expiration_dates"],
             )
             for s in scores
         ]
@@ -187,6 +195,7 @@ class BinaryWeightedScorer(Scorer):
                     ],
                     points=rawScore["earned_points"],
                     expiration_date=rawScore["expiration_date"],
+                    stamp_expiration_dates=rawScore["stamp_expiration_dates"],
                 ),
                 rawScores,
                 binaryScores,
@@ -221,6 +230,7 @@ class BinaryWeightedScorer(Scorer):
                     ],
                     points=rawScore["earned_points"],
                     expiration_date=rawScore["expiration_date"],
+                    stamp_expiration_dates=rawScore["stamp_expiration_dates"],
                 ),
                 rawScores,
                 binaryScores,
@@ -253,6 +263,7 @@ class BinaryWeightedScorer(Scorer):
                     ],
                     points=rawScore["earned_points"],
                     expiration_date=rawScore["expiration_date"],
+                    stamp_expiration_dates=rawScore["stamp_expiration_dates"],
                 ),
                 rawScores,
                 binaryScores,

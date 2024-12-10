@@ -95,6 +95,7 @@ class TestGetStamps:
             "error",
             "evidence",
             "stamp_scores",
+            "stamps",
             "id",
         }
         expected_passport_keys = {"address", "community", "requires_calculation"}

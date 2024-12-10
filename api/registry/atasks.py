@@ -1,5 +1,6 @@
 import copy
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Dict
 
 from django.conf import settings
@@ -87,7 +88,12 @@ async def aload_passport_data(address: str) -> Dict:
     return passport_data
 
 
-async def acalculate_score(passport: Passport, community_id: int, score: Score):
+async def acalculate_score(
+    passport: Passport,
+    community_id: int,
+    score: Score,
+    clashing_stamps: list[dict] = [],
+):
     log.debug("Scoring")
     user_community = await Community.objects.aget(pk=community_id)
 
@@ -104,6 +110,29 @@ async def acalculate_score(passport: Passport, community_id: int, score: Score):
     score.error = None
     score.stamp_scores = scoreData.stamp_scores
     score.expiration_date = scoreData.expiration_date
+    stamps = {}
+    for stamp_name, stamp_score in scoreData.stamp_scores.items():
+        # Find if the stamp_name matches any provider in clashing_stamps
+        matching_stamp = clashing_stamps.get(stamp_name, None)
+
+        # Construct the stamps dictionary
+        stamps[stamp_name] = {
+            "score": f"{Decimal(stamp_score):.5f}",
+            "dedup": matching_stamp is not None,
+            "expiration_date": matching_stamp["credential"]["expirationDate"]
+            if matching_stamp
+            else scoreData.stamp_expiration_dates[stamp_name].isoformat(),
+        }
+    # Add stamps present in clashing_stamps but not in stamp_scores
+    for c_povider, c_stamp in clashing_stamps.items():
+        # This returns to the user the information of the deduplicated stamp stamps
+        if c_povider not in stamps:
+            stamps[c_povider] = {
+                "score": "0.00000",  # Score is 0 for deduplicated stamps
+                "dedup": True,
+                "expiration_date": c_stamp["credential"]["expirationDate"],
+            }
+    score.stamps = stamps
     log.info("Calculated score: %s", score)
 
 
@@ -126,7 +155,7 @@ async def aprocess_deduplication(passport, community, passport_data, score: Scor
     if not method:
         raise Exception("Invalid rule")
 
-    deduplicated_passport, affected_passports = await method(
+    deduplicated_passport, affected_passports, clashing_stamps = await method(
         community, passport_data, passport.address
     )
 
@@ -151,7 +180,7 @@ async def aprocess_deduplication(passport, community, passport_data, score: Scor
     #         await acalculate_score(passport, passport.community_id, affected_score)
     #         await affected_score.asave()
 
-    return deduplicated_passport
+    return (deduplicated_passport, clashing_stamps)
 
 
 async def avalidate_credentials(passport: Passport, passport_data) -> dict:
@@ -223,12 +252,12 @@ async def ascore_passport(
     try:
         passport_data = await aload_passport_data(address)
         validated_passport_data = await avalidate_credentials(passport, passport_data)
-        deduped_passport_data = await aprocess_deduplication(
+        (deduped_passport_data, clashing_stamps) = await aprocess_deduplication(
             passport, community, validated_passport_data, score
         )
         await asave_stamps(passport, deduped_passport_data)
         await aremove_stale_stamps_from_db(passport, deduped_passport_data)
-        await acalculate_score(passport, community.pk, score)
+        await acalculate_score(passport, community.pk, score, clashing_stamps)
 
     except APIException as e:
         log.error(

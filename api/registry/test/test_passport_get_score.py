@@ -1,4 +1,5 @@
 import datetime
+from urllib.parse import urlencode
 
 import pytest
 from django.conf import settings
@@ -6,7 +7,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import Client
 from web3 import Web3
-from urllib.parse import urlencode
 
 from account.models import Account, AccountAPIKey, Community
 from registry.api.v1 import get_scorer_by_id

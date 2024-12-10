@@ -8,7 +8,7 @@ from django.core.cache import cache
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
-from account.models import Community
+from account.models import Account, Community, Nonce
 from ceramic_cache.models import CeramicCache
 from registry.api.schema import (
     CursorPaginatedStampCredentialResponse,
@@ -57,10 +57,8 @@ log = logging.getLogger(__name__)
 
 async def handle_scoring(address: str, scorer_id: str, user_account):
     address_lower = address.lower()
-
     if not is_valid_address(address_lower):
         raise InvalidAddressException()
-
     # Get community object
     user_community = await aget_scorer_by_id(scorer_id, user_account)
 
@@ -111,7 +109,7 @@ async def handle_scoring(address: str, scorer_id: str, user_account):
             score.expiration_date.isoformat() if score.expiration_date else None
         ),
         error=score.error,
-        stamp_scores=score.stamp_scores if score.stamp_scores is not None else {},
+        stamps=score.stamps if score.stamps is not None else {},
     )
 
 
@@ -218,7 +216,9 @@ def get_score_history(
         score_event = filterset.qs.order_by("-created_at").first()
 
         if not score_event:
-            raise ScoreDoesNotExist(address, f"No Score Found for {address} at {created_at}")
+            raise ScoreDoesNotExist(
+                address, f"No Score Found for {address} at {created_at}"
+            )
 
         # Extract and normalize score data from either format
         score_data = extract_score_data(score_event.data)
@@ -232,7 +232,6 @@ def get_score_history(
             score = score_data["evidence"]["rawScore"]
         else:
             score = score_data.get("score", "0")
-
         return V2ScoreResponse(
             address=address,
             score=score,
@@ -241,7 +240,7 @@ def get_score_history(
             last_score_timestamp=score_data.get("last_score_timestamp"),
             expiration_timestamp=score_data.get("expiration_date"),
             error=score_data.get("error"),
-            stamp_scores=score_data.get("stamp_scores"),
+            stamps=score_data.get("stamps"),
         )
 
     except Exception as e:
