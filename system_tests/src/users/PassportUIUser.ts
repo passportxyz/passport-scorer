@@ -18,7 +18,7 @@ export class PassportUIUser extends BaseUser {
     const { did } = await createTestDIDSession({ wallet, provider });
 
     this.did = did;
-    this.address = wallet.address;
+    this.address = wallet.address.toLowerCase();
     this.signer = wallet;
   }
 }

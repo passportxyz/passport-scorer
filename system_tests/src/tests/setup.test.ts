@@ -7,6 +7,7 @@ describe('Test Environment', () => {
       'TEST_SCORER_API_KEY',
       'TEST_UI_SCORER_ID',
       'TEST_INTERNAL_API_SECRET',
+      'IAM_BASE_URL',
     ];
     const missingEnvVars = envVars.filter((envVarName) => !process.env[envVarName]);
     expect(missingEnvVars).toEqual([]);

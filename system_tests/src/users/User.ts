@@ -3,6 +3,7 @@
 // (i.e. someone with a particular address and DID)
 
 // Supports any future requirements for all User types, like an ID
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface User {}
 
 // Facilitates a generic User class, as well as a

@@ -160,7 +160,7 @@ describe('Ceramic Cache DID', () => {
 
     const signature = await signer.signMessage(text);
 
-    const verificationResponse = await testRequest<{}>({
+    const verificationResponse = await testRequest({
       url: url(`tos/signed-message/IST/${address}`),
       method: 'POST',
       authStrategy,
