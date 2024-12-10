@@ -1,5 +1,6 @@
 import copy
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Dict
 
 from django.conf import settings
@@ -116,7 +117,7 @@ async def acalculate_score(
 
         # Construct the stamps dictionary
         stamps[stamp_name] = {
-            "score": str(stamp_score),
+            "score": f"{Decimal(stamp_score):.5f}",
             "dedup": matching_stamp is not None,
             "expiration_date": matching_stamp["credential"]["expirationDate"]
             if matching_stamp
@@ -127,7 +128,7 @@ async def acalculate_score(
         # This returns to the user the information of the deduplicated stamp stamps
         if c_povider not in stamps:
             stamps[c_povider] = {
-                "score": "0",  # Score is 0 for deduplicated stamps
+                "score": "0.00000",  # Score is 0 for deduplicated stamps
                 "dedup": True,
                 "expiration_date": c_stamp["credential"]["expirationDate"],
             }
