@@ -122,7 +122,15 @@ async def acalculate_score(
             if matching_stamp
             else scoreData.stamp_expiration_dates[stamp_name].isoformat(),
         }
-
+    # Add stamps present in clashing_stamps but not in stamp_scores
+    for c_povider, c_stamp in clashing_stamps.items():
+        # This returns to the user the information of the deduplicated stamp stamps
+        if c_povider not in stamps:
+            stamps[c_povider] = {
+                "score": "0",  # Score is 0 for deduplicated stamps
+                "dedup": True,
+                "expiration_date": c_stamp["credential"]["expirationDate"],
+            }
     score.stamps = stamps
     log.info("Calculated score: %s", score)
 
