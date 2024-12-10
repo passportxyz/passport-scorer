@@ -18,8 +18,19 @@ export const generateStamps = (count: number) => {
   return Array.from({ length: count }, (_, i) => generateStamp({ provider: providers[i] }));
 };
 
+const evmProviders = ['ETHScore#50', 'ETHScore#75', 'ETHScore#90'];
+const nonEVMProviders = ['Lens', 'Google'];
+
+export const generateEVMProviders = (count: number) => {
+  if (count > evmProviders.length) {
+    throw new Error('Not enough providers to generate');
+  }
+
+  return evmProviders.slice(0, count);
+};
+
 const generateProviders = (count: number) => {
-  const providers = ['Lens', 'Google', 'ETHScore#50', 'ETHScore#75', 'ETHScore#90'];
+  const providers = [...nonEVMProviders, ...evmProviders];
 
   if (count > providers.length) {
     throw new Error('Not enough providers to generate');

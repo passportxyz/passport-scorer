@@ -12,13 +12,23 @@ export class PassportUIUser extends BaseUser {
   declare signer: Signer;
 
   async init() {
-    const provider = new providers.AlchemyProvider('mainnet', process.env.ALCHEMY_API_KEY);
     const wallet = new Wallet(testPrivateKey);
+    await this.initFromWallet(wallet);
+  }
+
+  private async initFromWallet(wallet: Wallet) {
+    const provider = new providers.AlchemyProvider('mainnet', process.env.ALCHEMY_API_KEY);
 
     const { did } = await createTestDIDSession({ wallet, provider });
 
     this.did = did;
     this.address = wallet.address.toLowerCase();
     this.signer = wallet;
+  }
+
+  static async createFromWallet(wallet: Wallet) {
+    const user = new PassportUIUser();
+    await user.initFromWallet(wallet);
+    return user;
   }
 }
