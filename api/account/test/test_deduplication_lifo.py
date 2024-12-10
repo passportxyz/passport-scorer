@@ -84,13 +84,13 @@ class LifoDeduplicationTestCase(TransactionTestCase):
             credential=credential,
         )
 
-        deduped_passport, _, _ = await alifo(
+        deduped_passport, _, clashing_stamps = await alifo(
             passport1.community, {"stamps": [credential]}, passport1.address
         )
-
         # We expect the passport not to be deduped, as the duplicate hash is
         # contained in a different community
         self.assertEqual(len(deduped_passport["stamps"]), 1)
+        self.assertEqual(clashing_stamps, {})
 
     @async_to_sync
     async def test_lifo_no_deduplicate_same_passport_address_across_cummunities(self):
@@ -122,13 +122,14 @@ class LifoDeduplicationTestCase(TransactionTestCase):
             credential=credential,
         )
 
-        deduped_passport, _, _ = await alifo(
+        deduped_passport, _, clashing_stamps = await alifo(
             passport1.community, {"stamps": [credential]}, passport1.address
         )
 
         # We expect the passport not to be deduped, as the duplicate hash is
         # contained in a different community
         self.assertEqual(len(deduped_passport["stamps"]), 1)
+        self.assertEqual(clashing_stamps, {})
 
     @async_to_sync
     async def test_lifo_deduplicate(self):
@@ -141,10 +142,9 @@ class LifoDeduplicationTestCase(TransactionTestCase):
         )
 
         # We test deduplication of the 1st passport (for example user submits the same passport again)
-        deduped_passport, _, _ = await alifo(
+        deduped_passport, _, clashing_stamps = await alifo(
             passport.community, {"stamps": [credential]}, passport.address
         )
-
         stamp = deduped_passport["stamps"][0]
         await Stamp.objects.acreate(
             passport=passport,
@@ -155,16 +155,22 @@ class LifoDeduplicationTestCase(TransactionTestCase):
 
         # We expect the passport to not be deduped, as it is the same owner
         self.assertEqual(len(deduped_passport["stamps"]), 1)
-
+        self.assertEqual(clashing_stamps, {})
         # We test deduplication of another passport with different address but
         # with the same stamp
-        deduped_passport, _, _ = await alifo(
+        deduped_passport, _, clashing_stamps = await alifo(
             passport.community, {"stamps": [credential]}, "0xaddress_2"
         )
 
         # We expect the passport to be deduped, and the return copy shall contain
         # no stamps
         self.assertEqual(len(deduped_passport["stamps"]), 0)
+        self.assertEqual(
+            clashing_stamps,
+            {
+                "test_provider": credential,
+            },
+        )
 
     def test_retry_on_clash(self):
         """
