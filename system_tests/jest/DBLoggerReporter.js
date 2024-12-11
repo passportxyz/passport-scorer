@@ -1,5 +1,58 @@
-async function writeTestResultToDB(_testResult) {
-  // TODO
+const { Pool } = require('pg');
+
+class SystemTestResultWriter {
+  constructor(connectionString) {
+    this.pool = new Pool({
+      connectionString,
+      max: 2, // max number of clients in the pool
+      idleTimeoutMillis: 30000,
+    });
+  }
+
+  async writeTestResult(testResult) {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const query = `
+                INSERT INTO passport_admin_systemtestresult
+                (name, category, success, error, timestamp)
+                VALUES ($1, $2, $3, $4, $5)
+            `;
+
+      const values = [
+        testResult.testName,
+        JSON.stringify(testResult.category), // Convert array to JSON
+        testResult.status === 'passed', // Convert to boolean
+        testResult.error || null, // Handle undefined
+        testResult.timestamp,
+      ];
+
+      await client.query(query, values);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async close() {
+    await this.pool.end();
+  }
+}
+
+async function writeTestResultToDB(testResult) {
+  const writer = new SystemTestResultWriter(process.env.DB_CONNECTION_STRING);
+  try {
+    await writer.writeTestResult(testResult);
+  } catch (error) {
+    console.error('Error writing test result to DB:', error);
+  } finally {
+    await writer.close();
+  }
 }
 
 const TERMINAL_COLOR_CODE_REGEX =

@@ -98,7 +98,7 @@ class NotificationStatus(models.Model):
     )  # is dismissed => should not longer be shown to the user
     eth_address = EthAddressField(
         db_index=True
-    )  # The account / eth address that dissmised the notification. Required to track the dismissed notifications / user in case of global notifications.
+    )  # The account / eth address that dismissed the notification. Required to track the dismissed notifications / user in case of global notifications.
 
 
 class LastScheduledRun(models.Model):
@@ -106,3 +106,12 @@ class LastScheduledRun(models.Model):
         max_length=255, unique=True, blank=False, null=False, db_index=True
     )
     last_run = models.DateTimeField(blank=False, null=False)
+
+
+# This table is written to directly (i.e. with pg) by the system tests
+class SystemTestResult(models.Model):
+    name = models.CharField(max_length=255, blank=False, null=False, db_index=True)
+    category = models.JSONField(default=list)
+    success = models.BooleanField(default=False)
+    error = models.TextField(blank=True, null=True)
+    timestamp = models.DateTimeField(db_index=True)
