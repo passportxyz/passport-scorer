@@ -44,32 +44,35 @@ class SystemTestResultWriter {
   }
 }
 
-async function writeTestResultToDB(testResult) {
-  const writer = new SystemTestResultWriter(process.env.DB_CONNECTION_STRING);
-  try {
-    await writer.writeTestResult(testResult);
-  } catch (error) {
-    console.error('Error writing test result to DB:', error);
-  } finally {
-    await writer.close();
-  }
-}
-
 const TERMINAL_COLOR_CODE_REGEX =
   /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
 
 class DBLoggerReporter {
+  getWriter() {
+    if (!this.writer) {
+      this.writer = new SystemTestResultWriter(process.env.DB_CONNECTION_STRING);
+    }
+    return this.writer;
+  }
+
   async onTestResult(_test, testResult) {
+    const writer = this.getWriter();
     const { testResults } = testResult;
     for (const result of testResults) {
       const { title, status, failureMessages, ancestorTitles } = result;
-      await writeTestResultToDB({
+      await writer.writeTestResult({
         category: ancestorTitles,
         testName: title,
         status,
         error: failureMessages.join('\n').replace(TERMINAL_COLOR_CODE_REGEX, '') || null,
         timestamp: new Date(),
       });
+    }
+  }
+
+  async onRunComplete() {
+    if (this.writer) {
+      await this.writer.close();
     }
   }
 }

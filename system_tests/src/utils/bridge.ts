@@ -5,19 +5,8 @@ import { EventEmitter } from 'events';
 
 import { ethers } from 'ethers';
 
-// import { version } from "./_version";
-
 const version = '1.2.3';
 const logger = new ethers.utils.Logger(version);
-/*
-function getBlockTag(tag) {
-    if (tag == null) { return "latest"; }
-    if (tag === "earliest" || tag === "latest" || tag === "pending") {
-        return tag;
-    }
-    return ethers.utils.hexValue(tag)
-}
-*/
 
 export class Eip1193Bridge extends EventEmitter {
   readonly signer: ethers.Signer;

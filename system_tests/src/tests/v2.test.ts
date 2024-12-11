@@ -6,7 +6,7 @@ import { RegistryAPIUser } from '../users';
 
 const url = (subpath: string) => process.env.SCORER_API_BASE_URL + '/v2/' + subpath;
 
-describe('Registry API', () => {
+describe('V2 API', () => {
   let authStrategy: AuthStrategy;
   let address: string;
   let scorerId: string;
