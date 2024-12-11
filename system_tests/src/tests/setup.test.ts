@@ -9,6 +9,7 @@ describe('Test Environment', () => {
       'TEST_INTERNAL_API_SECRET',
       'IAM_BASE_URL',
       'NFT_HOLDER_PRIVATE_KEY',
+      'DOMAIN',
     ];
     const missingEnvVars = envVars.filter((envVarName) => !process.env[envVarName]);
     expect(missingEnvVars).toEqual([]);
