@@ -8,6 +8,7 @@ if AWS_STORAGE_BUCKET_NAME:
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {"file_overwrite": False},
         },
         "staticfiles": {
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
