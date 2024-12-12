@@ -4,18 +4,27 @@ import { Input } from "@pulumi/pulumi";
 import { Topic } from "@pulumi/aws/sns";
 import { defaultTags } from "../tags";
 
-export type TargetGroupAlarmsConfiguration = {
-  targetResponseTime: number;
+type AlarmConfiguration = {
+  threshold: number;
   datapointsToAlarm: number;
   evaluationPeriods: number;
   period: number;
-  percentHTTPCodeTarget4XX: number; // 0..1 value for target error codes
-  percentHTTPCodeTarget5XX: number; // 0..1 value for target error codes
+};
+
+type BurstAndSustainAlarmConfiguration = {
+  burst: AlarmConfiguration;
+  sustain: AlarmConfiguration;
+};
+
+export type TargetGroupAlarmsConfiguration = {
+  targetResponseTime: BurstAndSustainAlarmConfiguration;
+  percentHTTPCodeTarget4XX: BurstAndSustainAlarmConfiguration;
+  percentHTTPCodeTarget5XX: BurstAndSustainAlarmConfiguration;
 };
 
 export type AlarmConfigurations = {
-  percentHTTPCodeELB4XX: number; // 0..1 value for ELB error codes
-  percentHTTPCodeELB5XX: number; // 0..1 value for ELB error codes
+  percentHTTPCodeELB4XX: BurstAndSustainAlarmConfiguration;
+  percentHTTPCodeELB5XX: BurstAndSustainAlarmConfiguration;
   indexerErrorThreshold: number; // threshold for indexer logged errors
   indexerErrorPeriod: number; // period for reporting indexer logged errors
 
@@ -40,98 +49,118 @@ export function createLoadBalancerAlarms(
     /*
      * Alarm for monitoring ELB 5XX errors
      */
-    const http5xxElbAlarm = new aws.cloudwatch.MetricAlarm(
-      `HTTP-ELB-5XX-${name}`,
+    [
       {
-        tags: { ...defaultTags, Name: `HTTP-ELB-5XX-${name}` },
-        name: `HTTP-ELB-5XX-${name}`,
-        alarmActions: [alertTopic.arn],
-        okActions: [alertTopic.arn],
-        comparisonOperator: "GreaterThanThreshold",
-        datapointsToAlarm: 3,
-        evaluationPeriods: 5,
-        metricQueries: [
-          {
-            id: "m1",
-            metric: {
-              metricName: "RequestCount",
-              dimensions: {
-                LoadBalancer: albArnSuffix,
+        name: `HTTP-ELB-5XX-${name}-burst`,
+        ...loadBalancerAlarmThresholds.percentHTTPCodeELB5XX.burst,
+      },
+      {
+        name: `HTTP-ELB-5XX-${name}-sustain`,
+        ...loadBalancerAlarmThresholds.percentHTTPCodeELB5XX.sustain,
+      },
+    ].forEach(
+      ({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
+        new aws.cloudwatch.MetricAlarm(name, {
+          tags: { ...defaultTags, Name: name },
+          name,
+          alarmActions: [alertTopic.arn],
+          okActions: [alertTopic.arn],
+          comparisonOperator: "GreaterThanThreshold",
+          datapointsToAlarm,
+          evaluationPeriods,
+          metricQueries: [
+            {
+              id: "m1",
+              metric: {
+                metricName: "RequestCount",
+                dimensions: {
+                  LoadBalancer: albArnSuffix,
+                },
+                namespace: metricNamespace,
+                period,
+                stat: "Sum",
               },
-              namespace: metricNamespace,
-              period: 60,
-              stat: "Sum",
             },
-          },
-          {
-            id: "m2",
-            metric: {
-              metricName: "HTTPCode_ELB_5XX_Count",
-              dimensions: {
-                LoadBalancer: albArnSuffix,
+            {
+              id: "m2",
+              metric: {
+                metricName: "HTTPCode_ELB_5XX_Count",
+                dimensions: {
+                  LoadBalancer: albArnSuffix,
+                },
+                namespace: metricNamespace,
+                period,
+                stat: "Sum",
               },
-              namespace: metricNamespace,
-              period: 60,
-              stat: "Sum",
             },
-          },
-          {
-            expression: "m2 / m1",
-            id: "e1",
-            label: "Percent of elb 5XX errors",
-            returnData: true,
-          },
-        ],
-        threshold: loadBalancerAlarmThresholds.percentHTTPCodeELB5XX,
+            {
+              expression: "m2 / m1",
+              id: "e1",
+              label: "Percent of elb 5XX errors",
+              returnData: true,
+            },
+          ],
+          threshold,
+        });
       }
     );
 
     /*
      * Alarm for monitoring ELB 4XX errors
      */
-    const http4xxElbAlarm = new aws.cloudwatch.MetricAlarm(
-      `HTTP-ELB-4XX-${name}`,
+    [
       {
-        tags: { ...defaultTags, Name: `HTTP-ELB-4XX-${name}` },
-        name: `HTTP-ELB-4XX-${name}`,
-        alarmActions: [alertTopic.arn],
-        okActions: [alertTopic.arn],
-        comparisonOperator: "GreaterThanThreshold",
-        datapointsToAlarm: 3,
-        evaluationPeriods: 5,
-        metricQueries: [
-          {
-            id: "m1",
-            metric: {
-              metricName: "RequestCount",
-              dimensions: {
-                LoadBalancer: albArnSuffix,
+        name: `HTTP-ELB-4XX-${name}-burst`,
+        ...loadBalancerAlarmThresholds.percentHTTPCodeELB4XX.burst,
+      },
+      {
+        name: `HTTP-ELB-4XX-${name}-sustain`,
+        ...loadBalancerAlarmThresholds.percentHTTPCodeELB4XX.sustain,
+      },
+    ].forEach(
+      ({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
+        new aws.cloudwatch.MetricAlarm(name, {
+          tags: { ...defaultTags, Name: name },
+          name,
+          alarmActions: [alertTopic.arn],
+          okActions: [alertTopic.arn],
+          comparisonOperator: "GreaterThanThreshold",
+          datapointsToAlarm,
+          evaluationPeriods,
+          metricQueries: [
+            {
+              id: "m1",
+              metric: {
+                metricName: "RequestCount",
+                dimensions: {
+                  LoadBalancer: albArnSuffix,
+                },
+                namespace: metricNamespace,
+                period,
+                stat: "Sum",
               },
-              namespace: metricNamespace,
-              period: 900, // 15 minutes
-              stat: "Sum",
             },
-          },
-          {
-            id: "m2",
-            metric: {
-              metricName: "HTTPCode_ELB_4XX_Count",
-              dimensions: {
-                LoadBalancer: albArnSuffix,
+            {
+              id: "m2",
+              metric: {
+                metricName: "HTTPCode_ELB_4XX_Count",
+                dimensions: {
+                  LoadBalancer: albArnSuffix,
+                },
+                namespace: metricNamespace,
+                period,
+                stat: "Sum",
               },
-              namespace: metricNamespace,
-              period: 900, // 15 minutes
-              stat: "Sum",
             },
-          },
-          {
-            expression: "m2 / m1",
-            id: "e1",
-            label: "Percent of elb 4XX errors",
-            returnData: true,
-          },
-        ],
-        threshold: loadBalancerAlarmThresholds.percentHTTPCodeELB4XX,
+            {
+              expression: "m2 / m1",
+              id: "e1",
+              label: "Percent of elb 4XX errors",
+              returnData: true,
+            },
+          ],
+          threshold,
+        });
       }
     );
   }

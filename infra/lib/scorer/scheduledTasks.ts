@@ -366,8 +366,8 @@ export function createScheduledTask({
       alarmActions: [taskResources.alertTopic.arn],
       okActions: [taskResources.alertTopic.arn],
       comparisonOperator: "GreaterThanThreshold",
-      datapointsToAlarm: 1,
-      evaluationPeriods: 1,
+      datapointsToAlarm: 2,
+      evaluationPeriods: 2,
       metricQueries: [
         {
           id: "m1",

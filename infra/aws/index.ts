@@ -17,6 +17,7 @@ import {
 import {
   AlarmConfigurations,
   createLoadBalancerAlarms,
+  TargetGroupAlarmsConfiguration,
 } from "../lib/scorer/loadBalancer";
 import { createScheduledTask, createTask } from "../lib/scorer/scheduledTasks";
 import { secretsManager, amplify } from "infra-libs";
@@ -168,75 +169,144 @@ const CERAMIC_CACHE_SCORER_ID_CONFG = Object({
   production: 335,
 });
 
+const alarm5xx = {
+  burst: {
+    threshold: 0.2,
+    datapointsToAlarm: 3,
+    evaluationPeriods: 5,
+    period: 60,
+  },
+  sustain: {
+    threshold: 0.01,
+    datapointsToAlarm: 3,
+    evaluationPeriods: 4,
+    period: 600,
+  },
+};
+
+const alarm4xx = {
+  burst: {
+    threshold: 0.85,
+    datapointsToAlarm: 4,
+    evaluationPeriods: 5,
+    period: 60,
+  },
+  sustain: {
+    threshold: 0.5,
+    datapointsToAlarm: 3,
+    evaluationPeriods: 4,
+    period: 600,
+  },
+};
+
+const alarmResponseTime = {
+  burst: {
+    threshold: 20,
+    datapointsToAlarm: 3,
+    evaluationPeriods: 5,
+    period: 60,
+  },
+  sustain: {
+    threshold: 2,
+    datapointsToAlarm: 3,
+    evaluationPeriods: 4,
+    period: 600,
+  },
+};
+
+const defaultTargetAlarmConfiguration: TargetGroupAlarmsConfiguration = {
+  percentHTTPCodeTarget5XX: alarm5xx,
+  percentHTTPCodeTarget4XX: alarm4xx,
+  targetResponseTime: alarmResponseTime,
+};
+
 const alarmConfigurations: AlarmConfigurations = {
-  percentHTTPCodeELB4XX: 0.5, // 0..1 value for ELB error codes
-  percentHTTPCodeELB5XX: 0.01, // 0..1 value for ELB error codes
+  percentHTTPCodeELB4XX: {
+    ...alarm4xx,
+    burst: {
+      threshold: 0.95,
+      datapointsToAlarm: 3,
+      evaluationPeriods: 5,
+      period: 300,
+    },
+  },
+  percentHTTPCodeELB5XX: alarm5xx,
   indexerErrorThreshold: 2, // threshold for indexer logged errors
   indexerErrorPeriod: 1800, // period for indexer logged errors, set to 30 min for now
 
-  default: {
-    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
-    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
-    targetResponseTime: 2, // seconds
-    period: 60,
-    datapointsToAlarm: 3,
-    evaluationPeriods: 5,
-  },
+  default: defaultTargetAlarmConfiguration,
   "passport-analysis-GET-0": {
-    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
-    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
-    targetResponseTime: 30, // 30 seconds - this is a slower request
-    period: 60,
-    datapointsToAlarm: 8,
-    evaluationPeriods: 10,
+    ...defaultTargetAlarmConfiguration,
+    targetResponseTime: {
+      burst: {
+        ...alarmResponseTime.burst,
+        threshold: 50,
+        datapointsToAlarm: 8,
+        evaluationPeriods: 10,
+      },
+      sustain: {
+        ...alarmResponseTime.sustain,
+        threshold: 30,
+      },
+    },
   },
   "cc-v1-score-POST-0": {
-    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
-    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
-    targetResponseTime: 2,
-    period: 60,
-    datapointsToAlarm: 3,
-    evaluationPeriods: 5,
+    ...defaultTargetAlarmConfiguration,
   },
   "cc-v1-st-bulk-PATCH-0": {
-    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
-    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
-    targetResponseTime: 2,
-    period: 60,
-    datapointsToAlarm: 10,
-    evaluationPeriods: 15,
+    ...defaultTargetAlarmConfiguration,
+    targetResponseTime: {
+      ...alarmResponseTime,
+      burst: {
+        ...alarmResponseTime.burst,
+        datapointsToAlarm: 10,
+        evaluationPeriods: 15,
+      },
+    },
   },
   "submit-passport-0": {
-    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
-    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
-    targetResponseTime: 2,
-    period: 60,
-    datapointsToAlarm: 10,
-    evaluationPeriods: 15,
+    ...defaultTargetAlarmConfiguration,
+    targetResponseTime: {
+      ...alarmResponseTime,
+      burst: {
+        ...alarmResponseTime.burst,
+        datapointsToAlarm: 10,
+        evaluationPeriods: 15,
+      },
+    },
   },
   "cc-v1-st-bulk-DELETE-0": {
-    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
-    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
-    targetResponseTime: 2,
-    period: 60,
-    datapointsToAlarm: 7,
-    evaluationPeriods: 10,
+    ...defaultTargetAlarmConfiguration,
+    targetResponseTime: {
+      ...alarmResponseTime,
+      burst: {
+        ...alarmResponseTime.burst,
+        datapointsToAlarm: 7,
+        evaluationPeriods: 10,
+      },
+    },
   },
   "passport-v2-stamp-score": {
-    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
-    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
-    targetResponseTime: 5,
-    period: 60,
-    datapointsToAlarm: 7,
-    evaluationPeriods: 10,
+    ...defaultTargetAlarmConfiguration,
+    targetResponseTime: {
+      ...alarmResponseTime,
+      burst: {
+        ...alarmResponseTime.burst,
+        datapointsToAlarm: 7,
+        evaluationPeriods: 10,
+      },
+    },
   },
   "passport-v2-model-score": {
-    percentHTTPCodeTarget4XX: 0.5, // 0..1 value for target error codes
-    percentHTTPCodeTarget5XX: 0.01, // 0..1 value for target error codes
-    targetResponseTime: 5,
-    period: 60,
-    datapointsToAlarm: 7,
-    evaluationPeriods: 10,
+    ...defaultTargetAlarmConfiguration,
+    targetResponseTime: {
+      ...alarmResponseTime,
+      burst: {
+        ...alarmResponseTime.burst,
+        datapointsToAlarm: 7,
+        evaluationPeriods: 10,
+      },
+    },
   },
 };
 
