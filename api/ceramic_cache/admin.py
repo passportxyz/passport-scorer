@@ -98,7 +98,8 @@ class RevocationListForm(forms.ModelForm):
         Validate the content of the CSV file
         """
         csv_file = self.cleaned_data["csv_file"]
-        csv_data = csv_file.read().decode("utf-8")
+        # using 'utf-8-sig' will also handle the case where the file is saved with a BOM (byte order mark - \ufeff)
+        csv_data = csv_file.read().decode("utf-8-sig")
 
         csv_reader = csv.DictReader(StringIO(csv_data))
         line = 0
@@ -140,7 +141,9 @@ class RevocationListAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
         # If saving any of the objects below fails, we expect to roll back
-        csv_reader = csv.DictReader(obj.csv_file.open("rt"))
+        # using 'utf-8-sig' will also handle the case where the file is saved with a BOM (byte order mark - \ufeff)
+        csv_data = obj.csv_file.open("rb").read().decode("utf-8-sig")
+        csv_reader = csv.DictReader(StringIO(csv_data))
         revocation_item_list = []
         for revocation_item in csv_reader:
             proof_value = revocation_item["proof_value"]
@@ -249,7 +252,8 @@ class BanListForm(forms.ModelForm):
         Validate the content of the CSV file
         """
         csv_file = self.cleaned_data["csv_file"]
-        csv_data = csv_file.read().decode("utf-8")
+        # using 'utf-8-sig' will also handle the case where the file is saved with a BOM (byte order mark - \ufeff)
+        csv_data = csv_file.read().decode("utf-8-sig")
 
         csv_reader = csv.DictReader(StringIO(csv_data))
         line = 0
@@ -267,12 +271,16 @@ class BanListForm(forms.ModelForm):
                 db_ban_item.full_clean()
 
             except ValueError as e:
-                raise ValidationError(f"Failed to validate line {line}, {e}") from e
+                raise ValidationError(
+                    f"Failed to validate line {line}, {e}.\nDetected {len(ban_item)} columns: '{[c for c in ban_item.keys()]}' in uploaded CSV file"
+                ) from e
             except ValidationError as e:
-                raise ValidationError(f"Failed to validate line {line}, {e}") from e
+                raise ValidationError(
+                    f"Failed to validate line {line}, {e}.\nDetected {len(ban_item)} columns: '{[c for c in ban_item.keys()]}' in uploaded CSV file"
+                ) from e
             except Exception as e:
                 raise ValidationError(
-                    f"Failed to validate line {line} (unknown error), {e}"
+                    f"Failed to validate line {line} (unknown error), {e}.\nDetected {len(ban_item)} columns: '{[c for c in ban_item.keys()]}' in uploaded CSV file"
                 ) from e
         return csv_file
 
@@ -293,7 +301,9 @@ class BanListAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
         # If saving any of the objects below fails, we expect to roll back
-        csv_reader = csv.DictReader(obj.csv_file.open("rt"))
+        # using 'utf-8-sig' will also handle the case where the file is saved with a BOM (byte order mark - \ufeff)
+        csv_data = obj.csv_file.open("rb").read().decode("utf-8-sig")
+        csv_reader = csv.DictReader(StringIO(csv_data))
         ban_item_list = []
         for ban_item in csv_reader:
             db_ban_item = Ban(
