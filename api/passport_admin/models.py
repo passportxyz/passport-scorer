@@ -108,6 +108,11 @@ class LastScheduledRun(models.Model):
     last_run = models.DateTimeField(blank=False, null=False)
 
 
+class SystemTestRun(models.Model):
+    # Just need an ID field for now
+    pass
+
+
 # This table is written to directly (i.e. with pg) by the system tests
 class SystemTestResult(models.Model):
     name = models.CharField(max_length=255, blank=False, null=False, db_index=True)
@@ -115,3 +120,6 @@ class SystemTestResult(models.Model):
     success = models.BooleanField(default=False)
     error = models.TextField(blank=True, null=True)
     timestamp = models.DateTimeField(db_index=True)
+    run = models.ForeignKey(
+        SystemTestRun, on_delete=models.PROTECT, related_name="results"
+    )
