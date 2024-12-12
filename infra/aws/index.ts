@@ -1671,6 +1671,8 @@ if (stack === "production") {
                   `--s3-secret-access-key=$GRANTS_DIGITAL_OCEAN_SECRET_ACCESS_KEY`, // Those are defined in the secrets
                   "--filename=model_scores.parquet",
                   "--format=parquet",
+                  "--s3-extra-args",
+                  "'" + JSON.stringify([{ ACL: "public-read" }]) + "'",
                 ].join(" "),
                 scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
                 alertTopic: pagerdutyTopic,
