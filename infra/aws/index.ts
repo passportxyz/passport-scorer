@@ -1672,7 +1672,7 @@ if (stack === "production") {
                   "--filename=model_scores.parquet",
                   "--format=parquet",
                   "--s3-extra-args",
-                  "'" + JSON.stringify([{ ACL: "public-read" }]) + "'",
+                  "'" + JSON.stringify({ ACL: "public-read" }) + "'",
                 ].join(" "),
                 scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
                 alertTopic: pagerdutyTopic,
