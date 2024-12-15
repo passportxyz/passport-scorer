@@ -9,9 +9,10 @@ os.environ["LAMBDA_ONLY_APPS"] = "True"
 
 import json
 import logging
-from typing import Any, Dict, Tuple
+import re
+from typing import Any, Dict, List, Tuple
 
-from django.db import close_old_connections
+from ninja import Schema
 from structlog.contextvars import bind_contextvars  # noqa: E402
 
 from aws_lambdas.exceptions import InvalidRequest
@@ -26,11 +27,22 @@ from aws_lambdas.utils import (
     NotSupportedError,
     OperationalError,
     ProgrammingError,
-    Ratelimited,
     Unauthorized,
     parse_body,
 )
+
+""" Load the django apps after the aws_lambdas.utils """
+from django.db import close_old_connections
+
+from ceramic_cache.api.schema import CacheStampPayload
+from ceramic_cache.api.v1 import handle_add_stamps
 from ceramic_cache.models import CeramicCache
+from registry.api.utils import (
+    is_valid_address,
+)
+from registry.exceptions import (
+    InvalidAddressException,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +114,25 @@ def with_embed_request_exception_handling(func):
     return wrapper
 
 
+class AddStampsPayload(Schema):
+    scorer_id: int
+    stamps: List[Any]
+
+
+# Define the pattern
+pattern = r"/([^/]+)/?$"
+
+
+def get_address(value: str) -> str:
+    match = re.search(pattern, value)
+    if match:
+        product_id = match.group(1)
+        print(f"Extracted product_id: {product_id}")
+        return product_id
+    else:
+        raise ValueError("Invalid path. Expecting values like: '/some/path/<address>/'")
+
+
 @with_embed_request_exception_handling
 def _handler(event, _context, body):
     """
@@ -112,13 +143,29 @@ def _handler(event, _context, body):
     this handler will be called via a private load balancer in our VPC
     """
 
-    # TODO: example of interacting with redis
-    stamps = list(CeramicCache.objects.all()[:3])
+    add_stamps_payload = AddStampsPayload(**body)
+    _address = get_address(event["path"])
+    address_lower = _address.lower()
+    if not is_valid_address(address_lower):
+        raise InvalidAddressException()
+
+    add_stamps_response = handle_add_stamps(
+        address_lower,
+        [
+            CacheStampPayload(
+                address=address_lower,
+                provider=s.get("credentialSubject", {}).get("provider"),
+                stamp=s,
+            )
+            for s in add_stamps_payload.stamps
+        ],
+        add_stamps_payload.scorer_id,
+    )
 
     return {
         "statusCode": 200,
         "headers": {"Content-Type": "application/json"},
-        "body": json.dumps({"stamp_count": len(stamps)}),
+        "body": add_stamps_response.model_dump_json(),
     }
 
 

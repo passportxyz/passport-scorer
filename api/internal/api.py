@@ -54,6 +54,7 @@ class AddStampsPayload(Schema):
     stamps: List[Any]
 
 
+# TODO: this has been moved to embed app
 @api_router.post(
     "/stamps/{str:address}",
     auth=internal_api_key,
