@@ -7,13 +7,14 @@ import os
 # This will make sure that non-essential django apps will not be loaded
 os.environ["LAMBDA_ONLY_APPS"] = "True"
 
+# pylint: disable=wrong-import-position
 import json
 import logging
 import re
 from typing import Any, Dict, List, Tuple
 
 from ninja import Schema
-from structlog.contextvars import bind_contextvars  # noqa: E402
+from structlog.contextvars import bind_contextvars
 
 from aws_lambdas.exceptions import InvalidRequest
 from aws_lambdas.utils import (
@@ -31,18 +32,19 @@ from aws_lambdas.utils import (
     parse_body,
 )
 
-""" Load the django apps after the aws_lambdas.utils """
+""" Load the django apps after the aws_lambdas.utils """  # pylint: disable=pointless-string-statement
 from django.db import close_old_connections
 
 from ceramic_cache.api.schema import CacheStampPayload
 from ceramic_cache.api.v1 import handle_add_stamps
-from ceramic_cache.models import CeramicCache
 from registry.api.utils import (
     is_valid_address,
 )
 from registry.exceptions import (
     InvalidAddressException,
 )
+
+# pylint: enable=wrong-import-position
 
 logger = logging.getLogger(__name__)
 
