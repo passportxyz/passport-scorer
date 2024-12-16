@@ -7,8 +7,6 @@ from asgiref.sync import async_to_sync
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
-from django.core.exceptions import ValidationError
-from django.http import HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.urls import path
 

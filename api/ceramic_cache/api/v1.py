@@ -29,6 +29,7 @@ import tos.api
 import tos.schema
 from account.models import Account, Community, Nonce
 from ceramic_cache.utils import get_utc_time
+from reader.passport_reader import filter_conflicting_stamps
 from registry.api.utils import (
     is_valid_address,
 )
@@ -179,11 +180,15 @@ def handle_add_stamps(
 
     CeramicCache.objects.bulk_create(new_stamp_objects)
 
-    updated_passport_state = CeramicCache.objects.filter(
-        address=address,
-        type=CeramicCache.StampType.V1,
-        deleted_at__isnull=True,
-        revocation__isnull=True,
+    updated_passport_state = filter_conflicting_stamps(
+        list(
+            CeramicCache.objects.filter(
+                address=address,
+                type=CeramicCache.StampType.V1,
+                deleted_at__isnull=True,
+                revocation__isnull=True,
+            )
+        )
     )
 
     return GetStampsWithScoreResponse(
@@ -258,11 +263,15 @@ def handle_patch_stamps(
     if new_stamp_objects:
         CeramicCache.objects.bulk_create(new_stamp_objects)
 
-    updated_passport_state = CeramicCache.objects.filter(
-        address=address,
-        type=CeramicCache.StampType.V1,
-        deleted_at__isnull=True,
-        revocation__isnull=True,
+    updated_passport_state = filter_conflicting_stamps(
+        list(
+            CeramicCache.objects.filter(
+                address=address,
+                type=CeramicCache.StampType.V1,
+                deleted_at__isnull=True,
+                revocation__isnull=True,
+            )
+        )
     )
 
     return GetStampsWithScoreResponse(
@@ -365,8 +374,12 @@ def handle_delete_stamps(
     now = get_utc_time()
     stamps.update(deleted_at=now, updated_at=now)
 
-    updated_passport_state = CeramicCache.objects.filter(
-        address=address, deleted_at__isnull=True, revocation__isnull=True
+    updated_passport_state = filter_conflicting_stamps(
+        list(
+            CeramicCache.objects.filter(
+                address=address, deleted_at__isnull=True, revocation__isnull=True
+            )
+        )
     )
 
     return GetStampsWithScoreResponse(
@@ -428,11 +441,15 @@ def get_stamps(request, address):
 
 
 def handle_get_stamps(address):
-    stamps = CeramicCache.objects.filter(
-        address=address,
-        type=CeramicCache.StampType.V1,
-        deleted_at__isnull=True,
-        revocation__isnull=True,
+    stamps = filter_conflicting_stamps(
+        list(
+            CeramicCache.objects.filter(
+                address=address,
+                type=CeramicCache.StampType.V1,
+                deleted_at__isnull=True,
+                revocation__isnull=True,
+            )
+        )
     )
 
     scorer_id = settings.CERAMIC_CACHE_SCORER_ID
