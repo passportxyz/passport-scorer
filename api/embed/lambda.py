@@ -29,12 +29,14 @@ from aws_lambdas.utils import (
     ProgrammingError,
     Unauthorized,
     parse_body,
+    strip_event,
 )
 
 """ Load the django apps after the aws_lambdas.utils """  # pylint: disable=pointless-string-statement
 from django.db import close_old_connections
 from ninja import Schema
 
+from account.models import Account, AccountAPIKey, AccountAPIKeyAnalytics
 from ceramic_cache.api.schema import CacheStampPayload
 from ceramic_cache.api.v1 import handle_add_stamps
 from registry.api.utils import (
@@ -43,6 +45,8 @@ from registry.api.utils import (
 from registry.exceptions import (
     InvalidAddressException,
 )
+
+from .api import AccountAPIKeySchema, AddStampsPayload
 
 # pylint: enable=wrong-import-position
 
@@ -55,15 +59,17 @@ def with_embed_request_exception_handling(func):
 
     """
 
-    def wrapper(event, context, *args):
+    def wrapper(_event, context, *args):
         try:
             bind_contextvars(request_id=context.aws_request_id)
+            sensitive_data, event = strip_event(_event)
+
             logger.info("Received event: %s", event)
 
             # Parse the body and call the function
             body = parse_body(event)
 
-            return func(event, context, body)
+            return func(event, context, body, sensitive_data)
         except Exception as e:
             if isinstance(e, APIException):
                 status = e.status_code
@@ -115,11 +121,6 @@ def with_embed_request_exception_handling(func):
     return wrapper
 
 
-class AddStampsPayload(Schema):
-    scorer_id: int
-    stamps: List[Any]
-
-
 # Define the pattern
 pattern = r"/([^/]+)/?$"
 
@@ -135,7 +136,7 @@ def get_address(value: str) -> str:
 
 
 @with_embed_request_exception_handling
-def _handler(event, _context, body):
+def _handler_save_stamps(event, _context, body, _sensitive_date):
     """
     Request handler implementation.
 
@@ -170,6 +171,23 @@ def _handler(event, _context, body):
     }
 
 
-def lambda_handler(*args, **kwargs):
+def lambda_handler_save_stamps(*args, **kwargs):
     close_old_connections()
-    return _handler(*args, **kwargs)
+    return _handler_save_stamps(*args, **kwargs)
+
+
+@with_embed_request_exception_handling
+def _handler_get_rate_limit(_event, _context, body, sensitive_date):
+    # TODO: raise 404 if key does not exist
+    api_key = AccountAPIKey.objects.get_from_key(sensitive_date["x-api-key"])
+
+    return {
+        "statusCode": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": AccountAPIKeySchema.from_orm(api_key).model_dump_json(),
+    }
+
+
+def lambda_handler_get_rate_limit(*args, **kwargs):
+    close_old_connections()
+    return _handler_get_rate_limit(*args, **kwargs)

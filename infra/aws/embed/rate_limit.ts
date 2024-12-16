@@ -8,7 +8,7 @@ import { defaultTags, stack } from "../../lib/tags";
 
 import { createLambdaFunction } from "../../lib/lambda";
 
-export function createEmbedLambda(config: {
+export function createEmbedLambdaRateLimit(config: {
   name: string;
   snsAlertsTopicArn: pulumi.Input<string>;
   httpsListener: pulumi.Output<Listener>;
@@ -68,10 +68,10 @@ export function createEmbedLambda(config: {
     config.vpcPrivateSubnetIds,
     {
       name: lambdaName,
-      description: "Handle requests related to the embed API",
+      description: "Retreive the rate limit for an API key",
       code: new pulumi.asset.FileArchive("lambda_function_payload.zip"),
       // role: lambdaRole.arn,
-      handler: "embed.lambda.lambda_handler_save_stamps", // TODO: change this
+      handler: "embed.lambda.lambda_handler_get_rate_limit", // TODO: change this
       sourceCodeHash: lambdaCode.then((archive) => archive.outputBase64sha256),
       runtime: aws.lambda.Runtime.Python3d12,
       environment: {
@@ -148,12 +148,12 @@ export function createEmbedLambda(config: {
   const conditions: any = [
     {
       pathPattern: {
-        values: ["/embed/stamps/*"],
+        values: ["/embed/validate-api-key"],
       },
     },
     {
       httpRequestMethod: {
-        values: ["POST"],
+        values: ["GET"],
       },
     },
   ];
@@ -161,7 +161,7 @@ export function createEmbedLambda(config: {
   const targetPassportRule = new ListenerRule(`${config.name}-rule-lambda`, {
     tags: { ...defaultTags, Name: `${config.name}-rule-lambda` },
     listenerArn: config.httpsListener.arn,
-    priority: 2100,
+    priority: 2101,
     actions: [
       {
         type: "forward",
