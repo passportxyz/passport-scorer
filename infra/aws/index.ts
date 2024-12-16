@@ -26,8 +26,7 @@ import { createVerifierService } from "./verifier";
 import { createS3InitiatedECSTask } from "../lib/scorer/s3_initiated_ecs_task";
 import { stack, defaultTags, StackType } from "../lib/tags";
 import { createV2Api } from "./v2/index";
-import { createEmbedLambda } from "./embed";
-import { createEmbedLambdaRateLimit } from "./embed/rate_limit";
+import { createEmbedLambdaFunctions } from "./embed";
 import { createPythonLambdaLayer } from "./layer";
 
 //////////////////////////////////////////////////////////////
@@ -2204,24 +2203,13 @@ const pythonLambdaLayer = createPythonLambdaLayer({
   bucketId: codeBucketId,
 });
 
-const embedLambda = createEmbedLambda({
-  name: "embed",
-  vpcId: vpcID,
-  snsAlertsTopicArn: pagerdutyTopic.arn,
-  httpsListener: httpsListener,
-  ceramicCacheScorerId: CERAMIC_CACHE_SCORER_ID,
-  scorerSecret: scorerSecret,
-  privateSubnetSecurityGroup: privateSubnetSecurityGroup,
-  vpcPrivateSubnetIds: vpcPrivateSubnetIds,
-  lambdaLayerArn: pythonLambdaLayer.arn,
-  bucketId: codeBucketId,
-});
 
-const embedLambdaRateLimit = createEmbedLambdaRateLimit({
-  name: "embed-rl",
+
+
+createEmbedLambdaFunctions({
   vpcId: vpcID,
   snsAlertsTopicArn: pagerdutyTopic.arn,
-  httpsListener: httpsListener,
+  httpsListenerArn: privateAlbHttpListenerArn,
   ceramicCacheScorerId: CERAMIC_CACHE_SCORER_ID,
   scorerSecret: scorerSecret,
   privateSubnetSecurityGroup: privateSubnetSecurityGroup,

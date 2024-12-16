@@ -7,9 +7,9 @@ import { secretsManager } from "infra-libs";
 import { defaultTags, stack } from "../../lib/tags";
 
 import { createLambdaFunction } from "../../lib/lambda";
-import { createEmbedLambdaGeneric } from "./lambda_generic";
 
-export function createEmbedLambdaFunctions(config: {
+export function createEmbedLambdaGeneric(config: {
+  name: string;
   snsAlertsTopicArn: pulumi.Input<string>;
   httpsListenerArn: pulumi.Input<string>;
   ceramicCacheScorerId: number;
@@ -19,57 +19,9 @@ export function createEmbedLambdaFunctions(config: {
   vpcPrivateSubnetIds: pulumi.Input<any>;
   lambdaLayerArn: pulumi.Input<string>;
   bucketId: pulumi.Input<string>;
-}) {
-  createEmbedLambdaGeneric({
-    ...config,
-    name: 'embed-st',
-    lbRuleConditions: [
-      {
-        pathPattern: {
-          values: ["/embed/stamps/*"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["POST"],
-        },
-      },
-    ],
-    lbRulePriority: 2100,
-    lambdaHandler: "embed.lambda.lambda_handler_save_stamps",
-  })
-  createEmbedLambdaGeneric({
-    ...config,
-    name: 'embed-rl',
-    lbRuleConditions: [
-      {
-        pathPattern: {
-          values: ["/embed/validate-api-key"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["GET"],
-        },
-      },
-    ],
-    lbRulePriority: 2101,
-    lambdaHandler: "embed.lambda.lambda_handler_get_rate_limit",
-  })
-}
-
-
-export function createEmbedLambda(config: {
-  name: string;
-  snsAlertsTopicArn: pulumi.Input<string>;
-  httpsListener: pulumi.Output<Listener>;
-  ceramicCacheScorerId: number;
-  scorerSecret: aws.secretsmanager.Secret;
-  privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
-  vpcId: pulumi.Input<string>;
-  vpcPrivateSubnetIds: pulumi.Input<any>;
-  lambdaLayerArn: pulumi.Input<string>;
-  bucketId: pulumi.Input<string>;
+  lbRuleConditions: pulumi.Input<any>;
+  lbRulePriority: pulumi.Input<number>;
+  lambdaHandler: pulumi.Input<string>;
 }) {
   const apiLambdaEnvironment = [
     ...secretsManager.getEnvironmentVars({
@@ -119,10 +71,10 @@ export function createEmbedLambda(config: {
     config.vpcPrivateSubnetIds,
     {
       name: lambdaName,
-      description: "Handle requests related to the embed API",
+      description: "Retreive the rate limit for an API key",
       code: new pulumi.asset.FileArchive("lambda_function_payload.zip"),
       // role: lambdaRole.arn,
-      handler: "embed.lambda.lambda_handler_save_stamps", // TODO: change this
+      handler: config.lambdaHandler,
       sourceCodeHash: lambdaCode.then((archive) => archive.outputBase64sha256),
       runtime: aws.lambda.Runtime.Python3d12,
       environment: {
@@ -171,7 +123,7 @@ export function createEmbedLambda(config: {
 
   ///////////////////////////////////////////////////////////////////////////
   const lambdaTargetGroup = new aws.lb.TargetGroup(
-    `${config.name}-lambda-target-group`,
+    `${config.name}-lambda-tg`,
     {
       name: `${config.name}-lambda-target-group`,
       targetType: "lambda",
@@ -186,7 +138,7 @@ export function createEmbedLambda(config: {
     sourceArn: lambdaTargetGroup.arn,
   });
   const lambdaTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
-    `${config.name}-lambda-target-group-attachment`,
+    `${config.name}-lambda-tg-attachment`,
     {
       targetGroupArn: lambdaTargetGroup.arn,
       targetId: lambdaFunction.arn,
@@ -196,29 +148,17 @@ export function createEmbedLambda(config: {
     }
   );
 
-  const conditions: any = [
-    {
-      pathPattern: {
-        values: ["/embed/stamps/*"],
-      },
-    },
-    {
-      httpRequestMethod: {
-        values: ["POST"],
-      },
-    },
-  ];
 
   const targetPassportRule = new ListenerRule(`${config.name}-rule-lambda`, {
     tags: { ...defaultTags, Name: `${config.name}-rule-lambda` },
-    listenerArn: config.httpsListener.arn,
-    priority: 2100,
+    listenerArn: config.httpsListenerArn,
+    priority: config.lbRulePriority,
     actions: [
       {
         type: "forward",
         targetGroupArn: lambdaTargetGroup.arn,
       },
     ],
-    conditions,
+    conditions: config.lbRuleConditions,
   });
 }
