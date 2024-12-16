@@ -148,7 +148,7 @@ export function createEmbedLambda(config: {
   const conditions: any = [
     {
       pathPattern: {
-        values: ["/embed"],
+        values: ["/embed/stamps/*"],
       },
     },
     {

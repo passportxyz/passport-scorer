@@ -13,7 +13,6 @@ import logging
 import re
 from typing import Any, Dict, List, Tuple
 
-from ninja import Schema
 from structlog.contextvars import bind_contextvars
 
 from aws_lambdas.exceptions import InvalidRequest
@@ -34,6 +33,7 @@ from aws_lambdas.utils import (
 
 """ Load the django apps after the aws_lambdas.utils """  # pylint: disable=pointless-string-statement
 from django.db import close_old_connections
+from ninja import Schema
 
 from ceramic_cache.api.schema import CacheStampPayload
 from ceramic_cache.api.v1 import handle_add_stamps
@@ -54,7 +54,6 @@ def with_embed_request_exception_handling(func):
     This wrapper is meant to be used for **embed** API handler, which will be called form the iam
 
     """
-    # TODO: adjust according to needs
 
     def wrapper(event, context, *args):
         try:
