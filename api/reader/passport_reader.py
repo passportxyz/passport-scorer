@@ -1,5 +1,5 @@
 # libs for processing the deterministic stream location
-from typing import Dict, List, Set, TypedDict
+from typing import Dict, List
 
 from asgiref.sync import async_to_sync
 
@@ -7,25 +7,6 @@ import api_logging as logging
 from ceramic_cache.models import CeramicCache
 
 log = logging.getLogger(__name__)
-
-
-class StampOverride(TypedDict):
-    preferred: str
-    overridden: str
-
-
-STAMP_OVERRIDES: List[StampOverride] = [
-    {
-        "preferred": "CoinbaseDualVerification",
-        "overridden": "CoinbaseDualVerification2",
-    },
-    {"preferred": "BinanceBABT", "overridden": "BinanceBABT2"},
-]
-
-# Quick lookup map
-OVERRIDDEN_TO_PREFERRED_PROVIDER = {
-    override["overridden"]: override["preferred"] for override in STAMP_OVERRIDES
-}
 
 
 # Ceramic definition id for Gitcoin Passport
@@ -37,22 +18,6 @@ CERAMIC_GITCOIN_PASSPORT_STREAM_ID = (
 def get_did(address, network="1"):
     # returns the did associated with the address on the given network
     return (f"did:pkh:eip155:{network}:{address}").lower()
-
-
-# Overridden if the provider is listed as a overridden provider and
-# the preferred provider is in the current list of all
-# providers for this user
-def is_overridden(provider: str, all_user_providers: Set[str]) -> bool:
-    return (
-        provider in OVERRIDDEN_TO_PREFERRED_PROVIDER
-        and OVERRIDDEN_TO_PREFERRED_PROVIDER[provider] in all_user_providers
-    )
-
-
-def filter_conflicting_stamps(stamps: List[CeramicCache]) -> List[CeramicCache]:
-    providers = set([stamp.provider for stamp in stamps])
-
-    return [stamp for stamp in stamps if not is_overridden(stamp.provider, providers)]
 
 
 async def aget_passport(address: str = "") -> Dict:
@@ -80,11 +45,9 @@ async def aget_passport(address: str = "") -> Dict:
 
         latest_stamps.append(latest_stamp)
 
-    filtered_stamps = filter_conflicting_stamps(latest_stamps)
-
     return {
         "stamps": [
-            {"provider": s.provider, "credential": s.stamp} for s in filtered_stamps
+            {"provider": s.provider, "credential": s.stamp} for s in latest_stamps
         ]
     }
 
