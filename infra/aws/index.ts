@@ -163,6 +163,7 @@ const coreVpcId = coreInfraStack.getOutput("vpcId");
 const corePrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds");
 const rdsSecretArn = coreInfraStack.getOutput("rdsSecretArn");
 
+const albDnsName = coreInfraStack.getOutput("coreAlbDns");
 const CERAMIC_CACHE_SCORER_ID_CONFG = Object({
   review: 1,
   staging: 14,
@@ -1484,7 +1485,9 @@ export const dailyScoreExportForOSO = createScheduledTask({
 const exportVals = createScoreExportBucketAndDomain(
   publicDataDomain,
   publicDataDomain,
-  route53ZoneForPublicData
+  route53ZoneForPublicData,
+  stack,
+  albDnsName
 );
 // The following scorer dumps the Allo scorer scores to a public S3 bucket
 // for the Allo team to easily pull the data
@@ -1504,7 +1507,7 @@ const frequentAlloScorerDataDumpTaskDefinition = pulumi
             "scorer_dump_data",
             "--batch-size=1000",
             "--database=read_replica_analytics",
-            `--cloudfront_distribution_id=${cloudFrontId}`,
+            // `--cloudfront_distribution_id=${cloudFrontId}`,
             "--config",
             "'" +
               JSON.stringify([
@@ -1611,7 +1614,7 @@ const frequentScorerDataDumpTaskDefinitionForScorer_335 = pulumi
             "scorer_dump_data",
             "--batch-size=1000",
             "--database=read_replica_analytics",
-            `--cloudfront_distribution_id=${cloudFrontId}`,
+            // `--cloudfront_distribution_id=${cloudFrontId}`,
             "--config",
             "'" +
               JSON.stringify([
@@ -1651,7 +1654,7 @@ const frequentScorerDataDumpTaskDefinitionForScorer_6608 = pulumi
             "scorer_dump_data",
             "--batch-size=1000",
             "--database=read_replica_analytics",
-            `--cloudfront_distribution_id=${cloudFrontId}`,
+            // `--cloudfront_distribution_id=${cloudFrontId}`,
             "--config",
             "'" +
               JSON.stringify([
@@ -1694,7 +1697,7 @@ const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer = pulumi
             "manage.py",
             "scorer_dump_data_model_score",
             `--s3-uri=s3://${publicDataDomain}/model_scores/`,
-            `--cloudfront_distribution_id=${cloudFrontId}`,
+            // `--cloudfront_distribution_id=${cloudFrontId}`,
             "--filename=model_scores.parquet",
             "--format=parquet",
           ].join(" "),

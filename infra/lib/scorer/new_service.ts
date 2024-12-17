@@ -443,7 +443,9 @@ export function createScorerECSService({
 export async function createScoreExportBucketAndDomain(
   bucketName: string,
   domain: string,
-  route53Zone: string
+  route53Zone: string,
+  stack: string,
+  albDnsName: Output<any>
 ) {
   const scoreBucket = new aws.s3.Bucket(domain, {
     bucket: bucketName,
@@ -595,19 +597,31 @@ export async function createScoreExportBucketAndDomain(
     {}
   );
 
-  new aws.route53.Record(domain, {
-    name: domain,
-    zoneId: route53Zone,
-    type: "A",
-    aliases: [
-      {
-        name: cloudFront.domainName,
-        zoneId: cloudFront.hostedZoneId,
-        evaluateTargetHealth: false,
-      },
-    ],
-  });
+  // new aws.route53.Record(domain, {
+  //   name: domain,
+  //   zoneId: route53Zone,
+  //   type: "A",
+  //   aliases: [
+  //     {
+  //       name: cloudFront.domainName,
+  //       zoneId: cloudFront.hostedZoneId,
+  //       evaluateTargetHealth: false,
+  //     },
+  //   ],
+  // });
 
+  // This will return a static response
+  pulumi.all([albDnsName]).apply(([_albDnsName]) => {
+    if (stack === "production") {
+      new aws.route53.Record(domain, {
+        name: domain,
+        zoneId: route53Zone,
+        type: "CNAME",
+        ttl: 300,
+        records: [_albDnsName],
+      });
+    }
+  });
   return {
     exportCertificate,
     publicExportCertificateValidationDomain,
