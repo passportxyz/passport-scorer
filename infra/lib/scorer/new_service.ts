@@ -445,7 +445,7 @@ export async function createScoreExportBucketAndDomain(
   domain: string,
   route53Zone: string,
   stack: string,
-  albDnsName: Output<any>
+  albDnsName: Output<any>,
   albHostedZoneId: Output<any>
 ) {
   const scoreBucket = new aws.s3.Bucket(domain, {
