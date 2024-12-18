@@ -7,12 +7,13 @@ import os
 # This will make sure that non-essential django apps will not be loaded
 os.environ["LAMBDA_ONLY_APPS"] = "True"
 
+# pylint: disable=wrong-import-position
 import json
 import logging
-from typing import Any, Dict, Tuple
+import re
+from typing import Any, Dict, List, Tuple
 
-from django.db import close_old_connections
-from structlog.contextvars import bind_contextvars  # noqa: E402
+from structlog.contextvars import bind_contextvars
 
 from aws_lambdas.exceptions import InvalidRequest
 from aws_lambdas.utils import (
@@ -26,11 +27,28 @@ from aws_lambdas.utils import (
     NotSupportedError,
     OperationalError,
     ProgrammingError,
-    Ratelimited,
     Unauthorized,
     parse_body,
+    strip_event,
 )
-from ceramic_cache.models import CeramicCache
+
+""" Load the django apps after the aws_lambdas.utils """  # pylint: disable=pointless-string-statement
+from django.db import close_old_connections
+from ninja import Schema
+
+from account.models import Account, AccountAPIKey, AccountAPIKeyAnalytics
+from ceramic_cache.api.schema import CacheStampPayload
+from ceramic_cache.api.v1 import handle_add_stamps
+from registry.api.utils import (
+    is_valid_address,
+)
+from registry.exceptions import (
+    InvalidAddressException,
+)
+
+from .api import AccountAPIKeySchema, AddStampsPayload
+
+# pylint: enable=wrong-import-position
 
 logger = logging.getLogger(__name__)
 
@@ -40,17 +58,18 @@ def with_embed_request_exception_handling(func):
     This wrapper is meant to be used for **embed** API handler, which will be called form the iam
 
     """
-    # TODO: adjust according to needs
 
-    def wrapper(event, context, *args):
+    def wrapper(_event, context, *args):
         try:
             bind_contextvars(request_id=context.aws_request_id)
+            sensitive_data, event = strip_event(_event)
+
             logger.info("Received event: %s", event)
 
             # Parse the body and call the function
             body = parse_body(event)
 
-            return func(event, context, body)
+            return func(event, context, body, sensitive_data)
         except Exception as e:
             if isinstance(e, APIException):
                 status = e.status_code
@@ -102,8 +121,22 @@ def with_embed_request_exception_handling(func):
     return wrapper
 
 
+# Define the pattern
+pattern = r"/([^/]+)/?$"
+
+
+def get_address(value: str) -> str:
+    match = re.search(pattern, value)
+    if match:
+        product_id = match.group(1)
+        print(f"Extracted product_id: {product_id}")
+        return product_id
+    else:
+        raise ValueError("Invalid path. Expecting values like: '/some/path/<address>/'")
+
+
 @with_embed_request_exception_handling
-def _handler(event, _context, body):
+def _handler_save_stamps(event, _context, body, _sensitive_date):
     """
     Request handler implementation.
 
@@ -112,16 +145,49 @@ def _handler(event, _context, body):
     this handler will be called via a private load balancer in our VPC
     """
 
-    # TODO: example of interacting with redis
-    stamps = list(CeramicCache.objects.all()[:3])
+    add_stamps_payload = AddStampsPayload(**body)
+    _address = get_address(event["path"])
+    address_lower = _address.lower()
+    if not is_valid_address(address_lower):
+        raise InvalidAddressException()
+
+    add_stamps_response = handle_add_stamps(
+        address_lower,
+        [
+            CacheStampPayload(
+                address=address_lower,
+                provider=s.get("credentialSubject", {}).get("provider"),
+                stamp=s,
+            )
+            for s in add_stamps_payload.stamps
+        ],
+        add_stamps_payload.scorer_id,
+    )
 
     return {
         "statusCode": 200,
         "headers": {"Content-Type": "application/json"},
-        "body": json.dumps({"stamp_count": len(stamps)}),
+        "body": add_stamps_response.model_dump_json(),
     }
 
 
-def lambda_handler(*args, **kwargs):
+def lambda_handler_save_stamps(*args, **kwargs):
     close_old_connections()
-    return _handler(*args, **kwargs)
+    return _handler_save_stamps(*args, **kwargs)
+
+
+@with_embed_request_exception_handling
+def _handler_get_rate_limit(_event, _context, body, sensitive_date):
+    # TODO: raise 404 if key does not exist
+    api_key = AccountAPIKey.objects.get_from_key(sensitive_date["x-api-key"])
+
+    return {
+        "statusCode": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": AccountAPIKeySchema.from_orm(api_key).model_dump_json(),
+    }
+
+
+def lambda_handler_get_rate_limit(*args, **kwargs):
+    close_old_connections()
+    return _handler_get_rate_limit(*args, **kwargs)

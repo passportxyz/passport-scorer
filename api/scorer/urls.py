@@ -42,6 +42,7 @@ urlpatterns = [
     path("stake/", include("stake.urls")),
     path("passport/", include("passport.urls")),
     path("internal/", include("internal.urls")),
+    path("embed/", include("embed.urls")),
 ]
 
 urlpatterns += [path("", api.urls) for api in api_list]

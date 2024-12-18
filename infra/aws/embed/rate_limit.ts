@@ -7,59 +7,8 @@ import { secretsManager } from "infra-libs";
 import { defaultTags, stack } from "../../lib/tags";
 
 import { createLambdaFunction } from "../../lib/lambda";
-import { createEmbedLambdaGeneric } from "./lambda_generic";
 
-export function createEmbedLambdaFunctions(config: {
-  snsAlertsTopicArn: pulumi.Input<string>;
-  httpsListenerArn: pulumi.Input<string>;
-  ceramicCacheScorerId: number;
-  scorerSecret: aws.secretsmanager.Secret;
-  privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
-  vpcId: pulumi.Input<string>;
-  vpcPrivateSubnetIds: pulumi.Input<any>;
-  lambdaLayerArn: pulumi.Input<string>;
-  bucketId: pulumi.Input<string>;
-}) {
-  createEmbedLambdaGeneric({
-    ...config,
-    name: 'embed-st',
-    lbRuleConditions: [
-      {
-        pathPattern: {
-          values: ["/embed/stamps/*"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["POST"],
-        },
-      },
-    ],
-    lbRulePriority: 2100,
-    lambdaHandler: "embed.lambda.lambda_handler_save_stamps",
-  })
-  createEmbedLambdaGeneric({
-    ...config,
-    name: 'embed-rl',
-    lbRuleConditions: [
-      {
-        pathPattern: {
-          values: ["/embed/validate-api-key"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["GET"],
-        },
-      },
-    ],
-    lbRulePriority: 2101,
-    lambdaHandler: "embed.lambda.lambda_handler_get_rate_limit",
-  })
-}
-
-
-export function createEmbedLambda(config: {
+export function createEmbedLambdaRateLimit(config: {
   name: string;
   snsAlertsTopicArn: pulumi.Input<string>;
   httpsListener: pulumi.Output<Listener>;
@@ -119,10 +68,10 @@ export function createEmbedLambda(config: {
     config.vpcPrivateSubnetIds,
     {
       name: lambdaName,
-      description: "Handle requests related to the embed API",
+      description: "Retreive the rate limit for an API key",
       code: new pulumi.asset.FileArchive("lambda_function_payload.zip"),
       // role: lambdaRole.arn,
-      handler: "embed.lambda.lambda_handler_save_stamps", // TODO: change this
+      handler: "embed.lambda.lambda_handler_get_rate_limit", // TODO: change this
       sourceCodeHash: lambdaCode.then((archive) => archive.outputBase64sha256),
       runtime: aws.lambda.Runtime.Python3d12,
       environment: {
@@ -199,12 +148,12 @@ export function createEmbedLambda(config: {
   const conditions: any = [
     {
       pathPattern: {
-        values: ["/embed/stamps/*"],
+        values: ["/embed/validate-api-key"],
       },
     },
     {
       httpRequestMethod: {
-        values: ["POST"],
+        values: ["GET"],
       },
     },
   ];
@@ -212,7 +161,7 @@ export function createEmbedLambda(config: {
   const targetPassportRule = new ListenerRule(`${config.name}-rule-lambda`, {
     tags: { ...defaultTags, Name: `${config.name}-rule-lambda` },
     listenerArn: config.httpsListener.arn,
-    priority: 2100,
+    priority: 2101,
     actions: [
       {
         type: "forward",
