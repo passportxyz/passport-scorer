@@ -164,6 +164,7 @@ const corePrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds");
 const rdsSecretArn = coreInfraStack.getOutput("rdsSecretArn");
 
 const albDnsName = coreInfraStack.getOutput("coreAlbDns");
+const albHostedZoneId = coreInfraStack.getOutput("coreAlbZoneId");
 const CERAMIC_CACHE_SCORER_ID_CONFG = Object({
   review: 1,
   staging: 14,
@@ -1487,7 +1488,8 @@ const exportVals = createScoreExportBucketAndDomain(
   publicDataDomain,
   route53ZoneForPublicData,
   stack,
-  albDnsName
+  albDnsName,
+  albHostedZoneId
 );
 // The following scorer dumps the Allo scorer scores to a public S3 bucket
 // for the Allo team to easily pull the data
