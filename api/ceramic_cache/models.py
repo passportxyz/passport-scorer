@@ -31,6 +31,7 @@ class CeramicCache(models.Model):
         blank=True,
         null=True,
         help_text="This is the timestamp that this DB record was created (it is not necessarily the stamp issuance timestamp)",
+        db_index=True,
     )
 
     proof_value = models.CharField(
@@ -44,12 +45,14 @@ class CeramicCache(models.Model):
         null=False,
         auto_now=True,
         help_text="This is the timestamp that this DB record was updated (it is not necessarily the stamp issuance timestamp)",
+        db_index=True,
     )
 
     deleted_at = models.DateTimeField(
         blank=True,
         null=True,
         help_text="This is the timestamp that this DB record was deleted",
+        db_index=True,
     )
 
     type = models.IntegerField(
