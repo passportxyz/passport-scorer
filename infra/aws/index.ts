@@ -1122,6 +1122,7 @@ const redashDb = new aws.rds.Instance(
     vpcSecurityGroupIds: [redashDbSecgrp.id],
     backupRetentionPeriod: 5,
     performanceInsightsEnabled: true,
+    allowMajorVersionUpgrade: true,
     applyImmediately: true,
     tags: {
       ...defaultTags,
