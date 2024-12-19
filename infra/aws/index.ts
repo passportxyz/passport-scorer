@@ -1112,7 +1112,7 @@ const redashDb = new aws.rds.Instance(
     allocatedStorage: 20,
     maxAllocatedStorage: 30, // maxAllocatedStorage needs to be bigger than allocatedStorage
     engine: "postgres",
-    engineVersion: stack === "review" ? "16.3" : "13.15",
+    engineVersion: "16.3",
     instanceClass: "db.t3.micro",
     dbName: redashDbName,
     password: redashDbPassword,
@@ -1122,6 +1122,7 @@ const redashDb = new aws.rds.Instance(
     vpcSecurityGroupIds: [redashDbSecgrp.id],
     backupRetentionPeriod: 5,
     performanceInsightsEnabled: true,
+    applyImmediately: true,
     tags: {
       ...defaultTags,
       Name: `redash-db`,
