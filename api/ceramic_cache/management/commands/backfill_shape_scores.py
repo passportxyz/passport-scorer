@@ -1,12 +1,12 @@
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 import os
+import csv
 import requests
 from web3 import Web3
 from eth_account import Account
 from typing import List, Dict, Any
 from ceramic_cache.models import CeramicCache
 
-# Constants
 SHAPE_CHAIN_ID = "0x168"
 CUSTOM_SCORER_ID = 7922
 IAM_EAS_ENDPOINT = "https://iam.passport.xyz/api/v0.0.0/eas/passport"
@@ -64,7 +64,14 @@ GITCOIN_ATTESTER_ABI = [
 
 
 class Command(BaseCommand):
-    help = "Submit attestations for a list of user addresses"
+    help = "Submit attestations for addresses from a CSV file"
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "input",
+            type=str,
+            help="Path to CSV file containing addresses and submit_onchain flags",
+        )
 
     def __init__(self):
         super().__init__()
@@ -106,7 +113,7 @@ class Command(BaseCommand):
             "customScorerId": CUSTOM_SCORER_ID,
         }
 
-        response = requests.post(IAM_ENDPOINT, json=payload)
+        response = requests.post(IAM_EAS_ENDPOINT, json=payload)
         if response.status_code != 200:
             raise Exception(f"IAM request failed: {response.text}")
 
@@ -120,10 +127,6 @@ class Command(BaseCommand):
         ).build_transaction(
             {
                 "from": self.account.address,
-                "nonce": self.w3.eth.get_transaction_count(self.account.address),
-                # Let the network handle gas estimation
-                "maxFeePerGas": None,
-                "maxPriorityFeePerGas": None,
             }
         )
 
@@ -133,36 +136,51 @@ class Command(BaseCommand):
 
         # Wait for transaction receipt
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
-        return receipt.transactionHash.hex()
+        return receipt["transactionHash"].hex()
 
     def handle(self, *args, **options):
-        # List of addresses to process
-        addresses = ["0x1234...", "0x5678..."]  # Replace with actual addresses
+        csv_path = options["input"]
 
-        for address in addresses:
-            try:
-                self.stdout.write(f"Processing address: {address}")
+        if not os.path.exists(csv_path):
+            raise CommandError(f"CSV file not found: {csv_path}")
 
-                # Get user credentials
-                credentials = self.get_user_credentials(address)
-                if not credentials:
-                    self.stdout.write(f"No credentials found for {address}")
-                    continue
+        with open(csv_path, "r") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                address = self.w3.to_checksum_address(row["address"])
+                submit_onchain = row["submit_onchain"].lower() == "true"
 
-                # Get attestation data from IAM
-                attestation_data = self.get_attestation_data(address, credentials)
+                try:
+                    self.stdout.write(f"Processing address: {address}")
 
-                # Submit attestation
-                tx_hash = self.submit_attestation(attestation_data)
+                    # Get user credentials
+                    credentials = self.get_user_credentials(address)
+                    if not credentials:
+                        self.stdout.write(f"No credentials found for {address}")
+                        continue
 
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"Successfully submitted attestation for {address}. "
-                        f"Transaction hash: {tx_hash}"
+                    # Get attestation data from IAM
+                    attestation_data = self.get_attestation_data(address, credentials)
+
+                    if submit_onchain:
+                        # Submit attestation only if submit_onchain is true
+                        tx_hash = self.submit_attestation(attestation_data)
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                f"Successfully submitted attestation for {address}. "
+                                f"Transaction hash: {tx_hash}"
+                            )
+                        )
+                    else:
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                f"Skipped onchain submission for {address} as requested"
+                            )
+                        )
+
+                except Exception as e:
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"Error processing address {address}: {str(e)}"
+                        )
                     )
-                )
-
-            except Exception as e:
-                self.stdout.write(
-                    self.style.ERROR(f"Error processing address {address}: {str(e)}")
-                )
