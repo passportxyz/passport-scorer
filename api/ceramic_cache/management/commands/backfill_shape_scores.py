@@ -6,6 +6,8 @@ from web3 import Web3
 from eth_account import Account
 from typing import List, Dict, Any
 from ceramic_cache.models import CeramicCache
+import traceback
+
 
 SHAPE_CHAIN_ID = "0x168"
 CUSTOM_SCORER_ID = 7922
@@ -16,13 +18,9 @@ GITCOIN_ATTESTER_ABI = [
         "inputs": [
             {
                 "components": [
+                    {"internalType": "bytes32", "name": "schema", "type": "bytes32"},
                     {
                         "components": [
-                            {
-                                "internalType": "bytes32",
-                                "name": "schema",
-                                "type": "bytes32",
-                            },
                             {
                                 "internalType": "address",
                                 "name": "recipient",
@@ -44,11 +42,16 @@ GITCOIN_ATTESTER_ABI = [
                                 "type": "bytes32",
                             },
                             {"internalType": "bytes", "name": "data", "type": "bytes"},
+                            {
+                                "internalType": "uint256",
+                                "name": "value",
+                                "type": "uint256",
+                            },
                         ],
                         "internalType": "struct AttestationRequestData[]",
                         "name": "data",
                         "type": "tuple[]",
-                    }
+                    },
                 ],
                 "internalType": "struct MultiAttestationRequest[]",
                 "name": "multiAttestationRequest",
@@ -59,7 +62,7 @@ GITCOIN_ATTESTER_ABI = [
         "outputs": [{"internalType": "bytes32[]", "name": "", "type": "bytes32[]"}],
         "stateMutability": "payable",
         "type": "function",
-    }
+    },
 ]
 
 
@@ -117,10 +120,16 @@ class Command(BaseCommand):
         if response.status_code != 200:
             raise Exception(f"IAM request failed: {response.text}")
 
-        return response.json()
+        return response.json()["passport"]
 
     def submit_attestation(self, attestation_request: Dict) -> str:
         """Submit attestation to the blockchain"""
+        for multiAttestationRequest in attestation_request["multiAttestationRequest"]:
+            for attestationRequestData in multiAttestationRequest["data"]:
+                attestationRequestData["expirationTime"] = int(
+                    attestationRequestData["expirationTime"]
+                )
+                attestationRequestData["value"] = int(attestationRequestData["value"])
         # Prepare transaction
         tx = self.contract.functions.submitAttestations(
             attestation_request["multiAttestationRequest"]
@@ -129,7 +138,6 @@ class Command(BaseCommand):
                 "from": self.account.address,
             }
         )
-
         # Sign and send transaction
         signed_tx = self.w3.eth.account.sign_transaction(tx, self.account.key)
         tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
@@ -179,8 +187,9 @@ class Command(BaseCommand):
                         )
 
                 except Exception as e:
+                    error_message = traceback.format_exc()
                     self.stdout.write(
                         self.style.ERROR(
-                            f"Error processing address {address}: {str(e)}"
+                            f"Error processing address {address}: {error_message}"
                         )
                     )
