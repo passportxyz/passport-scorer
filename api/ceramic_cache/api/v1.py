@@ -498,7 +498,7 @@ def handle_get_ui_score(
             score.expiration_date is not None and score.expiration_date < now
         ):
             # This will re-calculate the score and update the expiration date
-            ret = get_detailed_score_response_for_address(address)
+            ret = get_detailed_score_response_for_address(address, scorer_id)
 
             return ret
 

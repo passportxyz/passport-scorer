@@ -2129,14 +2129,15 @@ const createdTask = createTask({
   scorerSecretManagerArn: scorerSecret.arn,
 });
 
-export const s3TriggeredECSTask = createS3InitiatedECSTask(
-  `bulk-score-requests-${stack}`,
-  cluster.arn,
-  createdTask.task.arn,
-  vpcPrivateSubnetIds,
-  [secgrp.id],
-  createdTask.eventsStsAssumeRole.arn
-);
+export const s3TriggeredECSTask = createS3InitiatedECSTask({
+  bucketName: `bulk-score-requests-${stack}`,
+  clusterArn: cluster.arn,
+  taskDefinitionArn: createdTask.task.arn,
+  subnetIds: vpcPrivateSubnetIds,
+  securityGroupIds: [secgrp.id],
+  eventsStsAssumeRoleArn: createdTask.eventsStsAssumeRole.arn,
+  containerName: createdTask.containerName,
+});
 
 const PASSPORT_APP_GITHUB_URL =
   "https://github.com/passportxyz/passport-scorer";
