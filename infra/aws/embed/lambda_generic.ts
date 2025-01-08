@@ -10,6 +10,7 @@ import { createLambdaFunction } from "../../lib/lambda";
 
 export function createEmbedLambdaGeneric(config: {
   name: string;
+  description: string;
   snsAlertsTopicArn: pulumi.Input<string>;
   httpsListenerArn: pulumi.Input<string>;
   ceramicCacheScorerId: number;
@@ -71,7 +72,7 @@ export function createEmbedLambdaGeneric(config: {
     config.vpcPrivateSubnetIds,
     {
       name: lambdaName,
-      description: "Retreive the rate limit for an API key",
+      description: config.description,
       code: new pulumi.asset.FileArchive("lambda_function_payload.zip"),
       // role: lambdaRole.arn,
       handler: config.lambdaHandler,
