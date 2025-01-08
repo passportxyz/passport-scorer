@@ -67,9 +67,6 @@ impl PostgresClient {
         let pool = Pool::builder(mgr.unwrap()).max_size(16).build().unwrap();
 
         let ret = Self { pool };
-        let start_block = ret.get_requested_start_block(10).await.unwrap();
-
-        println!("Start block: {}", start_block);
 
         Ok(ret)
     }
