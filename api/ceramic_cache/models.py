@@ -1,7 +1,7 @@
 """Ceramic Cache Models"""
 
 from enum import IntEnum
-from typing import Literal
+from typing import Self
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -101,6 +101,19 @@ class CeramicCache(models.Model):
 
     def __str__(self):
         return f"#{self.id} {self.address} / {self.provider}"
+
+    @classmethod
+    def from_verifiable_credential(
+        self, stamp: dict, address: str | None = None
+    ) -> Self:
+        return CeramicCache(
+            address=(
+                address if address else stamp["credentialSubject"]["id"].split(":")[-1]
+            ),
+            provider=stamp["credentialSubject"]["provider"],
+            proof_value=stamp["proof"]["proofValue"],
+            stamp=stamp,
+        )
 
 
 class StampExports(models.Model):
@@ -306,7 +319,9 @@ class Ban(models.Model):
 
         if self.type == "account" and not (
             # Account ban (ETH address)
-            self.address and not self.hash and not self.provider
+            self.address
+            and not self.hash
+            and not self.provider
         ):
             raise ValidationError(
                 "Invalid ban for type 'account'. See `Wielding the Ban Hammer`."
@@ -314,7 +329,9 @@ class Ban(models.Model):
 
         if self.type == "hash" and not (
             # Account ban (ETH address)
-            self.hash and not self.address and not self.provider
+            self.hash
+            and not self.address
+            and not self.provider
         ):
             raise ValidationError(
                 "Invalid ban for type 'hash'. See `Wielding the Ban Hammer`."
@@ -322,7 +339,9 @@ class Ban(models.Model):
 
         if self.type == "single_stamp" and not (
             # Account ban (ETH address)
-            self.address and self.provider and not self.hash
+            self.address
+            and self.provider
+            and not self.hash
         ):
             raise ValidationError(
                 "Invalid ban for type 'single_stamp'. See `Wielding the Ban Hammer`."

@@ -65,7 +65,6 @@ def add_stamps(
     if not is_valid_address(address_lower):
         raise InvalidAddressException()
 
-    print("post stamps to ", address_lower)
     add_stamps_payload = [
         CacheStampPayload(
             address=address_lower,
@@ -74,7 +73,6 @@ def add_stamps(
         )
         for stamp in payload.stamps
     ]
-    print("post payload.scorer_id ", payload.scorer_id)
 
     try:
         added_stamps = handle_add_stamps_only(
@@ -85,8 +83,7 @@ def add_stamps(
 
         return GetStampsWithV2ScoreResponse(**added_stamps.model_dump(), score=score)
     except Exception as e:
-        # TODO: log exception and handle error properly
-        print("Error in add_stamps:", e)
+        log.error("Error in add_stamps: %s", e)
         import traceback
 
         traceback.print_exc()

@@ -9,13 +9,6 @@ from account.models import Account, AccountAPIKey
 # Avoids type issues in standard django models
 user_manager = cast(UserManager, get_user_model().objects)
 
-mock_community_body = {
-    "name": "test",
-    "description": "test",
-    "use_case": "sybil protection",
-    "scorer": "WEIGHTED_BINARY",
-}
-
 
 class ValidateApiKeyTestCase(TestCase):
     def setUp(self):
@@ -36,9 +29,9 @@ class ValidateApiKeyTestCase(TestCase):
             "/embed/validate-api-key",
             **{"HTTP_X-API-KEY": f"api_id.some_api_key"},
         )
-        self.assertEqual(rate_limit_response.status_code, 401)
+        assert rate_limit_response.status_code == 401
         data = rate_limit_response.json()
-        self.assertEqual(data, {"detail": "Invalid API Key."})
+        assert data == {"detail": "Invalid API Key."}
 
     def test_rate_limit_success(self):
         """Test that the rate limit API when correct API key is provided"""
@@ -53,6 +46,6 @@ class ValidateApiKeyTestCase(TestCase):
             **{"HTTP_X-API-KEY": api_key},
         )
 
-        self.assertEqual(rate_limit_response.status_code, 200)
+        assert rate_limit_response.status_code == 200
         data = rate_limit_response.json()
-        self.assertEqual(data, {"rate_limit": api_key_obj.rate_limit})
+        assert data == {"rate_limit": api_key_obj.rate_limit}
