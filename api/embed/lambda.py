@@ -110,7 +110,7 @@ def with_embed_request_exception_handling(func):
                 "statusDescription": str(e),
                 "isBase64Encoded": False,
                 "headers": RESPONSE_HEADERS,
-                "body": json.dumps({"error": message}),
+                "body": json.dumps({"detail": message}),
             }
 
             logger.exception(
@@ -178,8 +178,10 @@ def lambda_handler_save_stamps(*args, **kwargs):
 
 @with_embed_request_exception_handling
 def _handler_get_rate_limit(_event, _context, body, sensitive_date):
-    # TODO: raise 404 if key does not exist
-    api_key = AccountAPIKey.objects.get_from_key(sensitive_date["x-api-key"])
+    try:
+        api_key = AccountAPIKey.objects.get_from_key(sensitive_date["x-api-key"])
+    except AccountAPIKey.DoesNotExist:
+        raise Unauthorized()
 
     return {
         "statusCode": 200,
