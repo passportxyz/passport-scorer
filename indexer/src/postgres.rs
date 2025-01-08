@@ -336,7 +336,7 @@ impl PostgresClient {
         let client = self.pool.get().await.unwrap();
         let latest_block_rows = client
             .query(
-                "SELECT block_number FROM stake_stakeevent WHERE chain = $1 ORDER BY block_number DESC LIMIT 1;",
+                "SELECT block_number FROM stake_lastblock WHERE chain = $1 LIMIT 1;",
                 &[&chain_id],
             )
             .await?;
@@ -351,21 +351,41 @@ impl PostgresClient {
     }
 
     pub async fn get_latest_block_legacy(&self) -> Result<i32, Error> {
+        let block = self.get_latest_block(0).await?;
+        if block == 0 {
+            return Ok(LEGACY_CONTRACT_START_BLOCK);
+        }
+        Ok(block as i32)
+    }
+
+    pub async fn update_last_checked_block(
+        &self,
+        chain_id: u32,
+        block_number: &u64,
+    ) -> Result<(), Error> {
+        let chain_id: i32 = chain_id as i32;
+        let block_number = Decimal::from_u64(*block_number).unwrap();
+
         let client = self.pool.get().await.unwrap();
-        let latest_block_rows = client
-            .query(
-                "SELECT block_number FROM registry_gtcstakeevent ORDER BY id DESC LIMIT 1;",
-                &[],
+
+        client
+            .execute(
+                concat!(
+                    "UPDATE stake_lastblock",
+                    " SET block_number = $2",
+                    " WHERE chain = $1 AND block_number < $2",
+                ),
+                &[&chain_id, &block_number],
             )
             .await?;
 
-        match latest_block_rows.get(0) {
-            Some(row) => {
-                // Extract and return the block number
-                let latest_block: i32 = row.get("block_number");
-                Ok(latest_block)
-            }
-            None => Ok(LEGACY_CONTRACT_START_BLOCK),
-        }
+        Ok(())
+    }
+
+    pub async fn update_last_checked_block_legacy(
+        &self,
+        block_number: u32,
+    ) -> Result<(), Error> {
+        self.update_last_checked_block(0, &(block_number as u64)).await
     }
 }

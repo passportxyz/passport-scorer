@@ -103,3 +103,17 @@ class ReindexRequest(models.Model):
                 condition=models.Q(pending=True),
             ),
         ]
+
+
+class LastBlock(models.Model):
+    chain = models.IntegerField(
+        null=False,
+        blank=False,
+        db_index=True,
+        unique=True,
+        help_text="Decimal chain ID. Ethereum: 1, Optimism: 10, Arbitrum: 42161, Legacy: 0",
+    )
+
+    block_number = models.DecimalField(
+        decimal_places=0, null=False, blank=False, max_digits=78, db_index=True
+    )
