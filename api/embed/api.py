@@ -61,6 +61,12 @@ class AddStampsPayload(Schema):
 def add_stamps(
     request, address: str, payload: AddStampsPayload
 ) -> GetStampsWithV2ScoreResponse:
+    return handle_add_stamps(address, payload)
+
+
+def handle_add_stamps(
+    address: str, payload: AddStampsPayload
+) -> GetStampsWithV2ScoreResponse:
     address_lower = address.lower()
     if not is_valid_address(address_lower):
         raise InvalidAddressException()

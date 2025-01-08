@@ -7,7 +7,7 @@ from django.test import Client, TestCase
 
 from account.models import Account, AccountAPIKey
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
-from embed.lambda import lambda_handler_get_rate_limit
+from embed.lambda_fn import lambda_handler_get_rate_limit
 
 # Avoids type issues in standard django models
 user_manager = cast(UserManager, get_user_model().objects)

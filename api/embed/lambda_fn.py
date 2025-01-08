@@ -38,7 +38,6 @@ from ninja import Schema
 
 from account.models import Account, AccountAPIKey, AccountAPIKeyAnalytics
 from ceramic_cache.api.schema import CacheStampPayload
-from ceramic_cache.api.v1 import handle_add_stamps
 from registry.api.utils import (
     is_valid_address,
 )
@@ -46,7 +45,7 @@ from registry.exceptions import (
     InvalidAddressException,
 )
 
-from .api import AccountAPIKeySchema, AddStampsPayload
+from .api import AccountAPIKeySchema, AddStampsPayload, handle_add_stamps
 
 # pylint: enable=wrong-import-position
 
@@ -151,18 +150,7 @@ def _handler_save_stamps(event, _context, body, _sensitive_date):
     if not is_valid_address(address_lower):
         raise InvalidAddressException()
 
-    add_stamps_response = handle_add_stamps(
-        address_lower,
-        [
-            CacheStampPayload(
-                address=address_lower,
-                provider=s.get("credentialSubject", {}).get("provider"),
-                stamp=s,
-            )
-            for s in add_stamps_payload.stamps
-        ],
-        add_stamps_payload.scorer_id,
-    )
+    add_stamps_response = handle_add_stamps(address_lower, add_stamps_payload)
 
     return {
         "statusCode": 200,

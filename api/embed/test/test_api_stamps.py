@@ -18,13 +18,6 @@ from scorer_weighted.models import BinaryWeightedScorer, Scorer
 # Avoids type issues in standard django models
 user_manager = cast(UserManager, get_user_model().objects)
 
-mock_community_body = {
-    "name": "test",
-    "description": "test",
-    "use_case": "sybil protection",
-    "scorer": "WEIGHTED_BINARY",
-}
-
 
 now = datetime.now(timezone.utc)
 expiration_dates = [
@@ -34,13 +27,13 @@ expiration_dates = [
 ]
 
 providers = ["Ens", "Google", "Gitcoin"]
-mock_addresses = "0x0000000000000000000000000000000000000000"
+mock_addresse = "0x0000000000000000000000000000000000000000"
 
 mock_stamps = [
     {
         "type": ["VerifiableCredential"],
         "credentialSubject": {
-            "id": mock_addresses,
+            "id": mock_addresse,
             "hash": "v0.0.0:1Vzw/OyM9CBUkVi/3mb+BiwFnHzsSRZhVH1gaQIyHvM=",
             "provider": "Ens",
         },
@@ -54,7 +47,7 @@ mock_stamps = [
     {
         "type": ["VerifiableCredential"],
         "credentialSubject": {
-            "id": mock_addresses,
+            "id": mock_addresse,
             "hash": "0x88888",
             "provider": "Google",
         },
@@ -68,7 +61,7 @@ mock_stamps = [
     {
         "type": ["VerifiableCredential"],
         "credentialSubject": {
-            "id": mock_addresses,
+            "id": mock_addresse,
             "hash": "0x45678",
             "provider": "Gitcoin",
         },
@@ -87,11 +80,6 @@ class StampsApiTestCase(TestCase):
         user_manager.create_user(username="admin", password="12345")
 
         self.user = user_manager.create_user(username="testuser-1", password="12345")
-
-        # Avoids type issues in standard ninja models
-        refresh = cast(RefreshToken, RefreshToken.for_user(self.user))
-        refresh["ip_address"] = "127.0.0.1"
-        self.access_token = refresh.access_token
 
         (self.account, _) = Account.objects.get_or_create(
             user=self.user, defaults={"address": "0x0"}
@@ -134,7 +122,7 @@ class StampsApiTestCase(TestCase):
         """Test that the internal API key is required for the stamps request"""
 
         stamps_response = self.client.post(
-            f"/embed/stamps/{mock_addresses}",
+            f"/embed/stamps/{mock_addresse}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": "BAD_API_KEY"},
@@ -146,7 +134,7 @@ class StampsApiTestCase(TestCase):
         """Test that the newly submitted stamps are correctly saved and scored"""
 
         stamps_response = self.client.post(
-            f"/embed/stamps/{mock_addresses}",
+            f"/embed/stamps/{mock_addresse}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
@@ -201,7 +189,7 @@ class StampsApiTestCase(TestCase):
 
         # Create the rest of the stamps via the POST request
         stamps_response = self.client.post(
-            f"/embed/stamps/{mock_addresses}",
+            f"/embed/stamps/{mock_addresse}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps[1:]}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
@@ -262,7 +250,7 @@ class StampsApiTestCase(TestCase):
 
         # Create stamps with the same provider using the POST request
         stamps_response = self.client.post(
-            f"/embed/stamps/{mock_addresses}",
+            f"/embed/stamps/{mock_addresse}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
@@ -270,7 +258,6 @@ class StampsApiTestCase(TestCase):
         self.assertEqual(stamps_response.status_code, 200)
         data = stamps_response.json()
 
-        cc = list(CeramicCache.objects.all())
 
         assert data["success"] == True
 
