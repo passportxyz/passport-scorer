@@ -1,7 +1,7 @@
 """Ceramic Cache Models"""
 
 from enum import IntEnum
-from typing import Self
+from typing import Literal, Self
 
 from django.core.exceptions import ValidationError
 from django.db import models
