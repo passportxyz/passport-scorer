@@ -34,15 +34,10 @@ from aws_lambdas.utils import (
 
 """ Load the django apps after the aws_lambdas.utils """  # pylint: disable=pointless-string-statement
 from django.db import close_old_connections
-from ninja import Schema
 
-from account.models import Account, AccountAPIKey, AccountAPIKeyAnalytics
-from ceramic_cache.api.schema import CacheStampPayload
+from account.models import AccountAPIKey
 from registry.api.utils import (
-    is_valid_address,
-)
-from registry.exceptions import (
-    InvalidAddressException,
+    validate_address_and_convert_to_lowercase,
 )
 
 from .api import AccountAPIKeySchema, AddStampsPayload, handle_add_stamps
@@ -146,9 +141,7 @@ def _handler_save_stamps(event, _context, body, _sensitive_date):
 
     add_stamps_payload = AddStampsPayload(**body)
     _address = get_address(event["path"])
-    address_lower = _address.lower()
-    if not is_valid_address(address_lower):
-        raise InvalidAddressException()
+    address_lower = validate_address_and_convert_to_lowercase(_address)
 
     add_stamps_response = handle_add_stamps(address_lower, add_stamps_payload)
 

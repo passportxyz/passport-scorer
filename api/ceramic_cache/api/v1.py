@@ -148,7 +148,6 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
 def handle_add_stamps_only(
     address, payload: List[CacheStampPayload], alternate_scorer_id: Optional[int] = None
 ) -> GetStampResponse:
-    # TODO: test this method
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
         raise TooManyStampsException()
 
@@ -204,55 +203,11 @@ def handle_add_stamps_only(
 def handle_add_stamps(
     address, payload: List[CacheStampPayload], alternate_scorer_id: Optional[int] = None
 ) -> GetStampsWithScoreResponse:
-    if len(payload) > settings.MAX_BULK_CACHE_SIZE:
-        raise TooManyStampsException()
 
-    now = get_utc_time()
-
-    existing_stamps = CeramicCache.objects.filter(
-        address=address,
-        provider__in=[p.provider for p in payload],
-        type=CeramicCache.StampType.V1,
-        deleted_at__isnull=True,
-    )
-
-    existing_stamps.update(updated_at=now, deleted_at=now)
-
-    new_stamp_objects = [
-        CeramicCache(
-            type=CeramicCache.StampType.V1,
-            address=address,
-            provider=p.provider,
-            stamp=p.stamp,
-            proof_value=p.stamp["proof"]["proofValue"],
-            updated_at=now,
-            compose_db_save_status=CeramicCache.ComposeDBSaveStatus.PENDING,
-            issuance_date=p.stamp.get("issuanceDate", None),
-            expiration_date=p.stamp.get("expirationDate", None),
-        )
-        for p in payload
-    ]
-
-    CeramicCache.objects.bulk_create(new_stamp_objects)
-
-    updated_passport_state = CeramicCache.objects.filter(
-        address=address,
-        type=CeramicCache.StampType.V1,
-        deleted_at__isnull=True,
-        revocation__isnull=True,
-    )
-
+    stamps_response = handle_add_stamps_only(address, payload, alternate_scorer_id)
     return GetStampsWithScoreResponse(
-        success=True,
-        stamps=[
-            CachedStampResponse(
-                address=stamp.address,
-                provider=stamp.provider,
-                stamp=stamp.stamp,
-                id=stamp.pk,
-            )
-            for stamp in updated_passport_state
-        ],
+        success=stamps_response.success,
+        stamps=stamps_response.stamps,
         score=get_detailed_score_response_for_address(
             address, alternate_scorer_id=alternate_scorer_id
         ),
