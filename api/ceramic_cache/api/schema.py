@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from ninja_schema import Schema
 
 from registry.api.v1 import DetailedScoreResponse
+from v2.schema import V2ScoreResponse
 
 from ..models import CeramicCache
 
@@ -34,6 +35,10 @@ class GetStampResponse(Schema):
 
 class GetStampsWithScoreResponse(GetStampResponse):
     score: DetailedScoreResponse
+
+
+class GetStampsWithV2ScoreResponse(GetStampResponse):
+    score: V2ScoreResponse
 
 
 class CacaoVerifySubmit(Schema):

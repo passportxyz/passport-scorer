@@ -7,11 +7,11 @@ import { secretsManager } from "infra-libs";
 import { defaultTags, stack } from "../../lib/tags";
 
 import { createLambdaFunction } from "../../lib/lambda";
+import { createEmbedLambdaGeneric } from "./lambda_generic";
 
-export function createEmbedLambda(config: {
-  name: string;
+export function createEmbedLambdaFunctions(config: {
   snsAlertsTopicArn: pulumi.Input<string>;
-  httpsListener: pulumi.Output<Listener>;
+  httpsListenerArn: pulumi.Input<string>;
   ceramicCacheScorerId: number;
   scorerSecret: aws.secretsmanager.Secret;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
@@ -20,154 +20,42 @@ export function createEmbedLambda(config: {
   lambdaLayerArn: pulumi.Input<string>;
   bucketId: pulumi.Input<string>;
 }) {
-  const apiLambdaEnvironment = [
-    ...secretsManager.getEnvironmentVars({
-      vault: "DevOps",
-      repo: "passport-scorer",
-      env: stack,
-      section: "api",
-    }),
-    {
-      name: "DEBUG",
-      value: "off",
-    },
-    {
-      name: "LOGGING_STRATEGY",
-      value: "structlog_json",
-    },
-    {
-      name: "FF_API_ANALYTICS",
-      value: "on",
-    },
-    {
-      name: "CERAMIC_CACHE_SCORER_ID",
-      value: `${config.ceramicCacheScorerId}`,
-    },
-    {
-      name: "SCORER_SERVER_SSM_ARN",
-      value: config.scorerSecret.arn,
-    },
-    {
-      name: "VERIFIER_URL",
-      value: "http://core-alb.private.gitcoin.co/verifier/verify",
-    },
-  ].sort(secretsManager.sortByName);
-
-  // The lambda will contain our own code (everything from the `api` folder for now)
-  const lambdaCode = archive.getFile({
-    type: "zip",
-    sourceDir: "../../api",
-    outputPath: "lambda_function_payload.zip",
-    excludes: ["**/__pycache__"],
-  });
-
-  const lambdaName = `${config.name}-lambda`;
-  const { lambdaFunction, lambdaFunctionUrl } = createLambdaFunction(
-    [config.scorerSecret.arn],
-    config.vpcId,
-    config.vpcPrivateSubnetIds,
-    {
-      name: lambdaName,
-      description: "Handle requests related to the embed API",
-      code: new pulumi.asset.FileArchive("lambda_function_payload.zip"),
-      // role: lambdaRole.arn,
-      handler: "embed.lambda.lambda_handler", // TODO: change this
-      sourceCodeHash: lambdaCode.then((archive) => archive.outputBase64sha256),
-      runtime: aws.lambda.Runtime.Python3d12,
-      environment: {
-        variables: apiLambdaEnvironment.reduce(
-          (
-            acc: { [key: string]: pulumi.Input<string> },
-            e: { name: string; value: pulumi.Input<string> }
-          ) => {
-            acc[e.name] = e.value;
-            return acc;
-          },
-          {}
-        ),
-      },
-      memorySize: 128,
-      timeout: 60,
-      layers: [config.lambdaLayerArn],
-      tags: {
-        ...defaultTags,
-        Name: lambdaName,
-      },
-    }
-  );
-
-  // Create alarm to monitor lambda errors
-  const metricAlarmName = `${config.name}-lambda-errors`;
-  const lambdaErrorsAlarm = new aws.cloudwatch.MetricAlarm(metricAlarmName, {
-    tags: { ...defaultTags, Name: metricAlarmName },
-    alarmActions: [config.snsAlertsTopicArn],
-    okActions: [config.snsAlertsTopicArn],
-    comparisonOperator: "GreaterThanOrEqualToThreshold",
-    dimensions: {
-      FunctionName: lambdaName,
-    },
-    datapointsToAlarm: 3,
-    evaluationPeriods: 5,
-    metricName: "Errors",
-    name: metricAlarmName,
-    namespace: "AWS/Lambda",
-    period: 60, // 1 min
-    unit: "Seconds",
-    statistic: "SampleCount",
-    treatMissingData: "notBreaching",
-    threshold: 1,
-  });
-
-  ///////////////////////////////////////////////////////////////////////////
-  const lambdaTargetGroup = new aws.lb.TargetGroup(
-    `${config.name}-lambda-target-group`,
-    {
-      name: `${config.name}-lambda-target-group`,
-      targetType: "lambda",
-      tags: { ...defaultTags, Name: `${config.name}-lambda` },
-    }
-  );
-
-  const withLb = new aws.lambda.Permission(`${config.name}-lambda-permission`, {
-    action: "lambda:InvokeFunction",
-    function: lambdaFunction.name,
-    principal: "elasticloadbalancing.amazonaws.com",
-    sourceArn: lambdaTargetGroup.arn,
-  });
-  const lambdaTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
-    `${config.name}-lambda-target-group-attachment`,
-    {
-      targetGroupArn: lambdaTargetGroup.arn,
-      targetId: lambdaFunction.arn,
-    },
-    {
-      dependsOn: [withLb],
-    }
-  );
-
-  const conditions: any = [
-    {
-      pathPattern: {
-        values: ["/embed"],
-      },
-    },
-    {
-      httpRequestMethod: {
-        values: ["POST"],
-      },
-    },
-  ];
-
-  const targetPassportRule = new ListenerRule(`${config.name}-rule-lambda`, {
-    tags: { ...defaultTags, Name: `${config.name}-rule-lambda` },
-    listenerArn: config.httpsListener.arn,
-    priority: 2100,
-    actions: [
+  createEmbedLambdaGeneric({
+    ...config,
+    name: "embed-st",
+    description: "Submit stamps & score passport",
+    lbRuleConditions: [
       {
-        type: "forward",
-        targetGroupArn: lambdaTargetGroup.arn,
+        pathPattern: {
+          values: ["/embed/stamps/*"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["POST"],
+        },
       },
     ],
-    conditions,
+    lbRulePriority: 2100,
+    lambdaHandler: "embed.lambda_fn.lambda_handler_save_stamps",
+  });
+  createEmbedLambdaGeneric({
+    ...config,
+    description: "Retreive the rate limit for an API key",
+    name: "embed-rl",
+    lbRuleConditions: [
+      {
+        pathPattern: {
+          values: ["/embed/validate-api-key"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["GET"],
+        },
+      },
+    ],
+    lbRulePriority: 2101,
+    lambdaHandler: "embed.lambda_fn.lambda_handler_get_rate_limit",
   });
 }

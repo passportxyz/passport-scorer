@@ -20,7 +20,11 @@ import api_logging as logging
 from account.models import Account, AccountAPIKey, AccountAPIKeyAnalytics
 from registry.api.schema import SubmitPassportPayload
 from registry.atasks import asave_api_key_analytics
-from registry.exceptions import InvalidScorerIdException, Unauthorized
+from registry.exceptions import (
+    InvalidScorerIdException,
+    Unauthorized,
+    InvalidAddressException,
+)
 from registry.tasks import save_api_key_analytics
 
 log = logging.getLogger(__name__)
@@ -369,3 +373,9 @@ def is_valid_address(address: str) -> bool:
         if is_checksum_formatted_address(address)
         else is_hex_address(address)
     )
+
+
+def validate_address_and_convert_to_lowercase(address: str) -> str:
+    if not is_valid_address(address):
+        raise InvalidAddressException()
+    return address.lower()
