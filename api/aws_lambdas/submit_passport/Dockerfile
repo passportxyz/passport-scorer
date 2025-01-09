@@ -8,10 +8,13 @@ FROM --platform=linux/amd64 public.ecr.aws/lambda/python:3.12 AS base
 #########################################################
 FROM base AS builder
 
+# Installing the poetry export plugin as per instructions here: https://github.com/python-poetry/poetry-plugin-export?tab=readme-ov-file#installation
+#   - Note: using `pipx inject poetry poetry-plugin-export` did not work in this case for unknown reasons
 RUN  pip install --upgrade pip && \
     pip install --user pipx && \
     /root/.local/bin/pipx ensurepath && \
-    /root/.local/bin/pipx install poetry
+    /root/.local/bin/pipx install poetry && \
+    /root/.local/bin/poetry self add poetry-plugin-export
 
 # Tell pipenv to create venv in the current directory
 ENV POETRY_VIRTUALENVS_IN_PROJECT=1
