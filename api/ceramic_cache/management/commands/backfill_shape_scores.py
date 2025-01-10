@@ -1,13 +1,17 @@
-from django.core.management.base import BaseCommand, CommandError
-import os
 import csv
-import requests
-from web3 import Web3
-from eth_account import Account
-from typing import List, Dict, Any
-from ceramic_cache.models import CeramicCache
+import os
 import traceback
+from typing import Any, Dict, List
 
+import requests
+from django.core.management.base import BaseCommand, CommandError
+from eth_account import Account
+from web3 import Web3
+
+from ceramic_cache.api.v1 import get_detailed_score_response_for_address
+from ceramic_cache.models import CeramicCache
+from ceramic_cache.utils import get_utc_time
+from registry.models import Score
 
 SHAPE_CHAIN_ID = "0x168"
 CUSTOM_SCORER_ID = 7922
@@ -136,15 +140,19 @@ class Command(BaseCommand):
         ).build_transaction(
             {
                 "from": self.account.address,
+                "nonce": self.w3.eth.get_transaction_count(self.account.address),
             }
         )
         # Sign and send transaction
         signed_tx = self.w3.eth.account.sign_transaction(tx, self.account.key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
         # Wait for transaction receipt
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
         return receipt["transactionHash"].hex()
+
+    def recalculate_score(self, address: str):
+        get_detailed_score_response_for_address(address, CUSTOM_SCORER_ID)
 
     def handle(self, *args, **options):
         csv_path = options["input"]
@@ -166,6 +174,8 @@ class Command(BaseCommand):
                     if not credentials:
                         self.stdout.write(f"No credentials found for {address}")
                         continue
+
+                    self.recalculate_score(address)
 
                     # Get attestation data from IAM
                     attestation_data = self.get_attestation_data(address, credentials)
