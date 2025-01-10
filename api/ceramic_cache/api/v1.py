@@ -211,7 +211,6 @@ def handle_add_stamps(
     stamp_creator: CeramicCache.StampCreator,
     alternate_scorer_id: Optional[int] = None,
 ) -> GetStampsWithScoreResponse:
-
     stamps_response = handle_add_stamps_only(
         address, payload, stamp_creator, alternate_scorer_id
     )
