@@ -6,8 +6,8 @@ from unittest.mock import patch
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import UserManager
+from django.forms.models import model_to_dict
 from django.test import Client, TestCase
-from ninja_jwt.schema import RefreshToken
 
 from account.models import Account, AccountAPIKey, Community
 from ceramic_cache.models import CeramicCache
@@ -73,6 +73,7 @@ mock_stamps = [
         },
     },
 ]
+mock_stamps = sorted(mock_stamps, key=lambda x: x["credentialSubject"]["provider"])
 
 
 class StampsApiTestCase(TestCase):
@@ -197,8 +198,6 @@ class StampsApiTestCase(TestCase):
         self.assertEqual(stamps_response.status_code, 200)
         data = stamps_response.json()
 
-        cc = list(CeramicCache.objects.all())
-
         assert data["success"] == True
 
         last_score_timestamp = data["score"].pop("last_score_timestamp")
@@ -258,7 +257,6 @@ class StampsApiTestCase(TestCase):
         self.assertEqual(stamps_response.status_code, 200)
         data = stamps_response.json()
 
-
         assert data["success"] == True
 
         last_score_timestamp = data["score"].pop("last_score_timestamp")
@@ -295,3 +293,83 @@ class StampsApiTestCase(TestCase):
             [d["stamp"] for d in data["stamps"]],
             key=lambda x: x["credentialSubject"]["provider"],
         ) == sorted(mock_stamps, key=lambda x: x["credentialSubject"]["provider"])
+
+    @patch("registry.atasks.validate_credential", side_effect=[[], [], []])
+    def test_submitted_stamps_are_saved_properly(self, _test_submit_valid_stamps):
+        """Test that the newly submitted stamps are stored in the DB properly"""
+
+        # Create an initial stamp in the DB
+        ceramic_cache = CeramicCache.from_verifiable_credential(mock_stamps[0])
+        ceramic_cache.save()
+
+        # Create the rest of the stamps via the POST request
+        stamps_response = self.client.post(
+            f"/embed/stamps/{mock_addresse}",
+            json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps[1:]}),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
+        )
+        self.assertEqual(stamps_response.status_code, 200)
+        data = stamps_response.json()
+
+        assert data["success"] == True
+
+        last_score_timestamp = data["score"].pop("last_score_timestamp")
+
+        assert datetime.fromisoformat(last_score_timestamp) - datetime.now(
+            timezone.utc
+        ) < timedelta(seconds=2)
+        assert data["score"] == {
+            "address": "0x0000000000000000000000000000000000000000",
+            "error": None,
+            "expiration_timestamp": min(expiration_dates).isoformat(),
+            "passing_score": True,
+            "score": "45.00000",
+            "stamps": {
+                "Ens": {
+                    "dedup": False,
+                    "expiration_date": expiration_dates[0].isoformat(),
+                    "score": "15.00000",
+                },
+                "Google": {
+                    "dedup": False,
+                    "expiration_date": expiration_dates[1].isoformat(),
+                    "score": "15.00000",
+                },
+                "Gitcoin": {
+                    "dedup": False,
+                    "expiration_date": expiration_dates[2].isoformat(),
+                    "score": "15.00000",
+                },
+            },
+            "threshold": "20.00000",
+        }
+        assert (
+            sorted(
+                [d["stamp"] for d in data["stamps"]],
+                key=lambda x: x["credentialSubject"]["provider"],
+            )
+            == mock_stamps
+        )
+
+        # Check the data stored in the DB
+        cc = list(CeramicCache.objects.all())
+        assert len(cc) == len(mock_stamps)
+        for idx, c in enumerate(cc):
+            m = mock_stamps[idx]
+            assert model_to_dict(c) == {
+                "id": c.id,
+                "address": mock_addresse,
+                "provider": m["credentialSubject"]["provider"],
+                "compose_db_save_status": "",
+                "compose_db_stream_id": "",
+                "deleted_at": None,
+                "expiration_date": None,
+                "issuance_date": None,
+                "proof_value": m["proof"]["proofValue"],
+                "stamp_created_by": CeramicCache.StampCreator.EMBED,
+                "scorer_id": self.community.id,
+                "stamp": m,
+                "type": 1,
+                "created_at": "12313"
+            }

@@ -56,13 +56,15 @@ class CeramicCacheAdmin(ScorerModelAdmin):
         "id",
         "address",
         "provider",
-        "stamp",
         "deleted_at",
         "compose_db_save_status",
         "compose_db_stream_id",
         "proof_value",
+        "stamp_created_by",
+        "scorer_id",
+        "stamp",
     )
-    list_filter = ("deleted_at", "compose_db_save_status")
+    list_filter = ("deleted_at", "compose_db_save_status", "stamp_created_by")
     search_fields = ("address__exact", "compose_db_stream_id__exact", "proof_value")
     search_help_text = (
         "This will perform a search by 'address' and 'compose_db_stream_id'"
