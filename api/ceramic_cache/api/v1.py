@@ -139,7 +139,12 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
     try:
         address = get_address_from_did(request.did)
 
-        return handle_add_stamps(address, payload, CeramicCache.StampCreator.PASSPORT)
+        return handle_add_stamps(
+            address,
+            payload,
+            CeramicCache.StampCreator.PASSPORT,
+            settings.CERAMIC_CACHE_SCORER_ID,
+        )
 
     except Exception as e:
         raise e
@@ -218,7 +223,7 @@ def handle_add_stamps(
         success=stamps_response.success,
         stamps=stamps_response.stamps,
         score=get_detailed_score_response_for_address(
-            address, alternate_scorer_id=alternate_scorer_id
+            address, scorer_id=alternate_scorer_id
         ),
     )
 
@@ -296,7 +301,9 @@ def handle_patch_stamps(
             )
             for stamp in updated_passport_state
         ],
-        score=get_detailed_score_response_for_address(address),
+        score=get_detailed_score_response_for_address(
+            address, settings.CERAMIC_CACHE_SCORER_ID
+        ),
     )
 
 
@@ -400,7 +407,9 @@ def handle_delete_stamps(
             )
             for stamp in updated_passport_state
         ],
-        score=get_detailed_score_response_for_address(address),
+        score=get_detailed_score_response_for_address(
+            address, settings.CERAMIC_CACHE_SCORER_ID
+        ),
     )
 
 
@@ -463,7 +472,7 @@ def handle_get_stamps(address):
             passport__community_id=scorer_id,
         ).exists()
     ):
-        get_detailed_score_response_for_address(address)
+        get_detailed_score_response_for_address(address, scorer_id)
 
     return GetStampResponse(
         success=True,
@@ -659,9 +668,8 @@ def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
 
 
 def get_detailed_score_response_for_address(
-    address: str, alternate_scorer_id: Optional[int] = None
+    address: str, scorer_id: Optional[int]
 ) -> DetailedScoreResponse:
-    scorer_id = alternate_scorer_id or settings.CERAMIC_CACHE_SCORER_ID
     if not scorer_id:
         raise InternalServerException("Scorer ID not set")
 

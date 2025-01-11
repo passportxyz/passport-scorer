@@ -45,6 +45,31 @@ class TestBulkStampUpdates:
         assert len(stamps) == len(sample_providers)
         assert stamps[0]["id"] is not None
 
+        # Test the stored stamps
+        cc = CeramicCache.objects.all().values()
+        for idx, c in enumerate(cc):
+            provider = sample_providers[idx]
+            stamp = sample_stamps[idx]
+            assert c == {
+                # Just copy the automatically generated values over
+                "id": c["id"],
+                "created_at": c["created_at"],
+                "updated_at": c["updated_at"],
+                # Here are the values we control
+                "address": sample_address.lower(),
+                "compose_db_save_status": "pending",
+                "compose_db_stream_id": "",
+                "deleted_at": None,
+                "expiration_date": None,
+                "issuance_date": None,
+                "proof_value": stamp["proof"]["proofValue"],
+                "provider": provider,
+                "scorer_id": ui_scorer,
+                "stamp": stamp,
+                "stamp_created_by": CeramicCache.StampCreator.PASSPORT.value,
+                "type": 1,
+            }
+
     def test_bulk_update(
         self,
         sample_providers,
