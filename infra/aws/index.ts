@@ -6,7 +6,6 @@ import {
   ScorerService,
   buildHttpLambdaFn,
   createIndexerService,
-  createScoreExportBucketAndDomain,
   createScorerECSService,
   createTargetGroup,
   createSharedLambdaResources,
@@ -43,9 +42,6 @@ export const DOCKER_IMAGE_TAG = `${process.env.DOCKER_IMAGE_TAG || ""}`;
 const route53Zone = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE`
 );
-const route53ZoneForPublicData = op.read.parse(
-  `op://DevOps/passport-scorer-${stack}-env/ci/ROUTE_53_ZONE_FOR_PUBLIC_DATA`
-);
 
 const legacyRootDomain = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/ROOT_DOMAIN`
@@ -55,13 +51,6 @@ const legacyDomain =
   stack == "production"
     ? `api.scorer.${legacyRootDomain}`
     : `api.${stack}.scorer.${legacyRootDomain}`;
-
-// We only need the publicDataDomain for the legacyRootDomain
-// as we hope to be able to drop that before finalizing the mirgation to the new domain
-const publicDataDomain =
-  stack == "production"
-    ? `public.scorer.${legacyRootDomain}`
-    : `public.${stack}.scorer.${legacyRootDomain}`;
 
 const current = aws.getCallerIdentity({});
 const regionData = aws.getRegion({});
@@ -1049,74 +1038,12 @@ const secgrp = new aws.ec2.SecurityGroup(`scorer-run-migrations-task`, {
 
 export const securityGroupForTaskDefinition = secgrp.id;
 
-export const weeklyDataDumpTaskDefinition = createScheduledTask({
-  name: "weekly-data-dump",
-  config: {
-    ...baseScorerServiceConfig,
-    securityGroup: secgrp,
-    command:
-      "python manage.py dump_stamp_data --database=read_replica_analytics --batch-size=1000",
-    scheduleExpression: "cron(30 23 ? * FRI *)", // Run the task every friday at 23:30 UTC
-    alertTopic: pagerdutyTopic,
-  },
-  environment: apiEnvironment,
-  secrets: apiSecrets,
-  alarmPeriodSeconds: 86400, // 24h max period
-  enableInvocationAlerts: false,
-  scorerSecretManagerArn: scorerSecret.arn,
-});
-
-export const dailyDataDumpTaskDefinition = createScheduledTask({
-  name: "daily-data-dump",
-  config: {
-    ...baseScorerServiceConfig,
-    cpu: 1024,
-    memory: 2048,
-    securityGroup: secgrp,
-    ephemeralStorageSizeInGiB: 100,
-    command: [
-      "python",
-      "manage.py",
-      "scorer_dump_data",
-      "--database=read_replica_analytics",
-      "--config",
-      "'" +
-        JSON.stringify([
-          { name: "ceramic_cache.CeramicCache", "extra-args": {} },
-          { name: "registry.Event", "extra-args": {} },
-          { name: "registry.HashScorerLink", "extra-args": {} },
-          {
-            name: "registry.Stamp",
-            select_related: ["passport"],
-            "extra-args": {},
-          },
-        ]) +
-        "'",
-      "--s3-uri=s3://passport-scorer/daily_data_dumps/",
-      "--batch-size=20000",
-    ].join(" "),
-    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
-    alertTopic: pagerdutyTopic,
-  },
-  environment: apiEnvironment,
-  secrets: apiSecrets,
-  alarmPeriodSeconds: 86400, // 24h max period
-  enableInvocationAlerts: false,
-  scorerSecretManagerArn: scorerSecret.arn,
-});
-
 // Apps: registry,ceramic_cache,account,scorer_weighted,trusta_labs,stake
 // Split the data dump by app to avoid having 1 bad app causing the whole dump to fail
 
-const dailyDataDumpApps: string[] = [
-  "registry",
-  "ceramic_cache",
-  "account",
-  "scorer_weighted",
-  "trusta_labs",
-  "stake",
-];
+const dailyDataDumpApps: string[] = ["registry"];
 
+// Used by the data team
 export const dailyDataDumpTaskDefinitionParquetList = dailyDataDumpApps.map(
   (app: string) => {
     const dailyDataDumpTaskDefinitionParquet = createScheduledTask({
@@ -1150,88 +1077,39 @@ export const dailyDataDumpTaskDefinitionParquetList = dailyDataDumpApps.map(
   }
 );
 
-/*
- * Exporting score data for OSO
- */
-export const dailyScoreExportForOSO = createScheduledTask({
-  name: "daily-score-export-for-oso",
-  config: {
-    ...baseScorerServiceConfig,
-    securityGroup: secgrp,
-    command: [
-      "python",
-      "manage.py",
-      "scorer_dump_data_parquet_for_oso",
-      "--s3-uri=s3://oso-dataset-transfer-bucket/passport/",
-      "--filename=scores.parquet",
-      "--database=read_replica_analytics",
-    ].join(" "),
-    scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
-    alertTopic: pagerdutyTopic,
-  },
-  environment: apiEnvironment,
-  secrets: apiSecrets,
-  alarmPeriodSeconds: 86400, // 24h max period
-  enableInvocationAlerts: false,
-  scorerSecretManagerArn: scorerSecret.arn,
-});
-
-const exportVals = createScoreExportBucketAndDomain(
-  publicDataDomain,
-  publicDataDomain,
-  route53ZoneForPublicData,
-  stack,
-  albDnsName,
-  albHostedZoneId
-);
-// The following scorer dumps the Allo scorer scores to a public S3 bucket
-// for the Allo team to easily pull the data
-// This will be removed after the confirmation that the new exports are working properly.
-const frequentAlloScorerDataDumpTaskDefinition = pulumi
-  .all([exportVals])
-  .apply(([_exportedVals]) => {
-    return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
-      createScheduledTask({
-        name: "frequent-allo-scorer-data-dump",
-        config: {
-          ...baseScorerServiceConfig,
-          securityGroup: secgrp,
-          command: [
-            "python",
-            "manage.py",
-            "scorer_dump_data",
-            "--batch-size=1000",
-            "--database=read_replica_analytics",
-            // `--cloudfront_distribution_id=${cloudFrontId}`,
-            "--config",
-            "'" +
-              JSON.stringify([
-                {
-                  name: "registry.Score",
-                  filter: { passport__community_id: 335 },
-                  select_related: ["passport"],
-                },
-              ]) +
-              "'",
-            `--s3-uri=s3://${publicDataDomain}/passport_scores/`,
-          ].join(" "),
-          scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-          alertTopic: pagerdutyTopic,
-        },
-        environment: apiEnvironment,
-        secrets: apiSecrets,
-        alarmPeriodSeconds: 3600, // 1h in seconds
-        enableInvocationAlerts: true,
-        scorerSecretManagerArn: scorerSecret.arn,
-      });
-    });
-  });
-
 // Only for production
 if (stack === "production") {
+  /*
+   * Exporting score data for OSO
+   */
+  // Used by OSO team : dumps the data in their AWS account
+  const dailyScoreExportForOSO = createScheduledTask({
+    name: "daily-score-export-for-oso",
+    config: {
+      ...baseScorerServiceConfig,
+      securityGroup: secgrp,
+      command: [
+        "python",
+        "manage.py",
+        "scorer_dump_data_parquet_for_oso",
+        "--s3-uri=s3://oso-dataset-transfer-bucket/passport/",
+        "--filename=scores.parquet",
+        "--database=read_replica_analytics",
+      ].join(" "),
+      scheduleExpression: "cron(30 0 ? * * *)", // Run the task daily at 00:30 UTC
+      alertTopic: pagerdutyTopic,
+    },
+    environment: apiEnvironment,
+    secrets: apiSecrets,
+    alarmPeriodSeconds: 86400, // 24h max period
+    enableInvocationAlerts: false,
+    scorerSecretManagerArn: scorerSecret.arn,
+  });
+  // Used by the grants team
+  // dumps the data in their Digital Ocean account
   const frequentAlloScorerDataDumpTaskDefinitionDigitalOcean = pulumi
-    .all([exportVals, apiSecrets])
-    .apply(([_exportedVals, _apiSecrets]) => {
+    .all([apiSecrets])
+    .apply(([_apiSecrets]) => {
       const digitalOceanAccessKey = _apiSecrets.find(
         (secret) => secret.name === "GRANTS_DIGITAL_OCEAN_ACCESS_KEY"
       )?.valueFrom;
@@ -1244,62 +1122,8 @@ if (stack === "production") {
       const digitalOceanS3Bucket = op.read.parse(
         `op://DevOps/passport-scorer-${stack}-env/api/GRANTS_DIGITAL_OCEAN_S3_BUCKET`
       );
-      return pulumi
-        .all([_exportedVals.cloudFront.id])
-        .apply(([cloudFrontId]) => {
-          createScheduledTask({
-            name: "frequent-allo-scorer-data-dump-grants",
-            config: {
-              ...baseScorerServiceConfig,
-              securityGroup: secgrp,
-              command: [
-                "python",
-                "manage.py",
-                "scorer_dump_data",
-                "--batch-size=1000",
-                "--database=read_replica_analytics",
-                "--config",
-                "'" +
-                  JSON.stringify([
-                    {
-                      name: "registry.Score",
-                      filter: { passport__community_id: 335 },
-                      select_related: ["passport"],
-                      "extra-args": { ACL: "public-read" },
-                    },
-                  ]) +
-                  "'",
-                `--s3-uri=s3://${digitalOceanS3Bucket}`,
-                `--s3-endpoint=https://${digitalOceanS3Endpoint}`,
-              ].join(" "),
-              scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-              alertTopic: pagerdutyTopic,
-            },
-            environment: apiEnvironment,
-
-            secrets: _apiSecrets.map((secret) => {
-              if (secret.name === "S3_DATA_AWS_SECRET_KEY_ID") {
-                return { ...secret, valueFrom: digitalOceanAccessKey }; // Replace for data dump with digital ocean credentials
-              }
-              if (secret.name === "S3_DATA_AWS_SECRET_ACCESS_KEY") {
-                return { ...secret, valueFrom: digitalOceanSecretAccessKey }; // Replace  for data dump with digital ocean credentials
-              }
-              return secret;
-            }) as secretsManager.SecretRef[],
-            alarmPeriodSeconds: 3600, // 1h in seconds
-            enableInvocationAlerts: true,
-            scorerSecretManagerArn: scorerSecret.arn,
-          });
-        });
-    });
-}
-
-const frequentScorerDataDumpTaskDefinitionForScorer_335 = pulumi
-  .all([exportVals])
-  .apply(([_exportedVals]) => {
-    return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
       return createScheduledTask({
-        name: "frequent-allo-scorer-data-dump-335",
+        name: "frequent-allo-scorer-data-dump-grants",
         config: {
           ...baseScorerServiceConfig,
           securityGroup: secgrp,
@@ -1309,7 +1133,6 @@ const frequentScorerDataDumpTaskDefinitionForScorer_335 = pulumi
             "scorer_dump_data",
             "--batch-size=1000",
             "--database=read_replica_analytics",
-            // `--cloudfront_distribution_id=${cloudFrontId}`,
             "--config",
             "'" +
               JSON.stringify([
@@ -1317,73 +1140,45 @@ const frequentScorerDataDumpTaskDefinitionForScorer_335 = pulumi
                   name: "registry.Score",
                   filter: { passport__community_id: 335 },
                   select_related: ["passport"],
+                  "extra-args": { ACL: "public-read" },
                 },
               ]) +
               "'",
-            `--s3-uri=s3://${publicDataDomain}/passport_scores/335/`,
+            `--s3-uri=s3://${digitalOceanS3Bucket}`,
+            `--s3-endpoint=https://${digitalOceanS3Endpoint}`,
           ].join(" "),
           scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
           alertTopic: pagerdutyTopic,
         },
         environment: apiEnvironment,
-        secrets: apiSecrets,
+
+        secrets: _apiSecrets.map((secret) => {
+          if (secret.name === "S3_DATA_AWS_SECRET_KEY_ID") {
+            return { ...secret, valueFrom: digitalOceanAccessKey }; // Replace for data dump with digital ocean credentials
+          }
+          if (secret.name === "S3_DATA_AWS_SECRET_ACCESS_KEY") {
+            return { ...secret, valueFrom: digitalOceanSecretAccessKey }; // Replace  for data dump with digital ocean credentials
+          }
+          return secret;
+        }) as secretsManager.SecretRef[],
         alarmPeriodSeconds: 3600, // 1h in seconds
         enableInvocationAlerts: true,
         scorerSecretManagerArn: scorerSecret.arn,
       });
     });
-  });
 
-const frequentScorerDataDumpTaskDefinitionForScorer_6608 = pulumi
-  .all([exportVals])
-  .apply(([_exportedVals]) => {
-    return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
-      createScheduledTask({
-        name: "frequent-allo-scorer-data-dump-6608",
-        config: {
-          ...baseScorerServiceConfig,
-          securityGroup: secgrp,
-          command: [
-            "python",
-            "manage.py",
-            "scorer_dump_data",
-            "--batch-size=1000",
-            "--database=read_replica_analytics",
-            // `--cloudfront_distribution_id=${cloudFrontId}`,
-            "--config",
-            "'" +
-              JSON.stringify([
-                {
-                  name: "registry.Score",
-                  filter: { passport__community_id: 6608 },
-                  select_related: ["passport"],
-                },
-              ]) +
-              "'",
-            `--s3-uri=s3://${publicDataDomain}/passport_scores/6608/`,
-          ].join(" "),
-          scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-          alertTopic: pagerdutyTopic,
-        },
-        environment: apiEnvironment,
-        secrets: apiSecrets,
-        alarmPeriodSeconds: 3600, // 1h in seconds
-        enableInvocationAlerts: true,
-        scorerSecretManagerArn: scorerSecret.arn,
-      });
-    });
-  });
-
-/*
- * Dump data for the eth-model V2
- */
-// this for sure
-const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer = pulumi
-  .all([exportVals])
-  .apply(([_exportedVals]) => {
-    return pulumi.all([_exportedVals.cloudFront.id]).apply(([cloudFrontId]) => {
-      createScheduledTask({
-        name: "frequent-eth-model-v2-score-dump",
+  const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorerDigitalOcean =
+    pulumi.all([apiSecrets]).apply(([_apiSecrets]) => {
+      // const digitalOceanAccessKey =  _apiSecrets.find(secret => secret.name === "GRANTS_DIGITAL_OCEAN_ACCESS_KEY")?.valueFrom;
+      // const digitalOceanSecretAccessKey =  _apiSecrets.find(secret => secret.name === "GRANTS_DIGITAL_OCEAN_SECRET_ACCESS_KEY")?.valueFrom;
+      const digitalOceanS3Endpoint = op.read.parse(
+        `op://DevOps/passport-scorer-${stack}-env/api/GRANTS_DIGITAL_OCEAN_S3_ENDPOINT`
+      );
+      const digitalOceanS3Bucket = op.read.parse(
+        `op://DevOps/passport-scorer-${stack}-env/api/GRANTS_DIGITAL_OCEAN_S3_BUCKET`
+      );
+      return createScheduledTask({
+        name: "frequent-eth-model-v2-dump-grants",
         config: {
           ...baseScorerServiceConfig,
           securityGroup: secgrp,
@@ -1391,69 +1186,27 @@ const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorer = pulumi
             "python",
             "manage.py",
             "scorer_dump_data_model_score",
-            `--s3-uri=s3://${publicDataDomain}/model_scores/`,
-            // `--cloudfront_distribution_id=${cloudFrontId}`,
+            `--s3-uri=s3://${digitalOceanS3Bucket}`,
+            `--s3-endpoint=https://${digitalOceanS3Endpoint}`,
+            `--s3-access-key=$GRANTS_DIGITAL_OCEAN_ACCESS_KEY`, // Those are defined in the secrets
+            `--s3-secret-access-key=$GRANTS_DIGITAL_OCEAN_SECRET_ACCESS_KEY`, // Those are defined in the secrets
             "--filename=model_scores.parquet",
             "--format=parquet",
+            "--s3-extra-args",
+            "'" + JSON.stringify({ ACL: "public-read" }) + "'",
           ].join(" "),
           scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
           alertTopic: pagerdutyTopic,
         },
         environment: apiEnvironment,
-        secrets: apiSecrets,
+        secrets: _apiSecrets,
         alarmPeriodSeconds: 3600, // 1h in seconds
         enableInvocationAlerts: true,
         scorerSecretManagerArn: scorerSecret.arn,
       });
     });
-  });
-
-if (stack === "production") {
-  const frequentEthModelV2ScoreDataDumpTaskDefinitionForScorerDigitalOcean =
-    pulumi
-      .all([exportVals, apiSecrets])
-      .apply(([_exportedVals, _apiSecrets]) => {
-        // const digitalOceanAccessKey =  _apiSecrets.find(secret => secret.name === "GRANTS_DIGITAL_OCEAN_ACCESS_KEY")?.valueFrom;
-        // const digitalOceanSecretAccessKey =  _apiSecrets.find(secret => secret.name === "GRANTS_DIGITAL_OCEAN_SECRET_ACCESS_KEY")?.valueFrom;
-        const digitalOceanS3Endpoint = op.read.parse(
-          `op://DevOps/passport-scorer-${stack}-env/api/GRANTS_DIGITAL_OCEAN_S3_ENDPOINT`
-        );
-        const digitalOceanS3Bucket = op.read.parse(
-          `op://DevOps/passport-scorer-${stack}-env/api/GRANTS_DIGITAL_OCEAN_S3_BUCKET`
-        );
-        return pulumi
-          .all([_exportedVals.cloudFront.id])
-          .apply(([cloudFrontId]) => {
-            createScheduledTask({
-              name: "frequent-eth-model-v2-dump-grants",
-              config: {
-                ...baseScorerServiceConfig,
-                securityGroup: secgrp,
-                command: [
-                  "python",
-                  "manage.py",
-                  "scorer_dump_data_model_score",
-                  `--s3-uri=s3://${digitalOceanS3Bucket}`,
-                  `--s3-endpoint=https://${digitalOceanS3Endpoint}`,
-                  `--s3-access-key=$GRANTS_DIGITAL_OCEAN_ACCESS_KEY`, // Those are defined in the secrets
-                  `--s3-secret-access-key=$GRANTS_DIGITAL_OCEAN_SECRET_ACCESS_KEY`, // Those are defined in the secrets
-                  "--filename=model_scores.parquet",
-                  "--format=parquet",
-                  "--s3-extra-args",
-                  "'" + JSON.stringify({ ACL: "public-read" }) + "'",
-                ].join(" "),
-                scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
-                alertTopic: pagerdutyTopic,
-              },
-              environment: apiEnvironment,
-              secrets: _apiSecrets,
-              alarmPeriodSeconds: 3600, // 1h in seconds
-              enableInvocationAlerts: true,
-              scorerSecretManagerArn: scorerSecret.arn,
-            });
-          });
-      });
 }
+
 export const coinbaseRevocationCheck = createScheduledTask({
   name: "coinbase-revocation-check",
   config: {
