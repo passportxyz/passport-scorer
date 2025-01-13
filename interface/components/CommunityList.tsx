@@ -129,6 +129,7 @@ const CommunityList = () => {
         isOpen={selectUseCaseModalOpen}
         existingScorers={communities}
         onClose={() => setSelectUseCaseModalOpen(false)}
+        refreshCommunities={fetchCommunities}
       />
     </>
   );
