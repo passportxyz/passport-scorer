@@ -111,6 +111,8 @@ class LastBlock(models.Model):
         blank=False,
         db_index=True,
         unique=True,
+        # The legacy indexer is using totally different rust code from the new indexer, so
+        # instead of passing its chain ID, it's just passing a hardcoded "0"
         help_text="Decimal chain ID. Ethereum: 1, Optimism: 10, Arbitrum: 42161, Legacy: 0",
     )
 
