@@ -1,5 +1,5 @@
 // --- React components/methods
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 // --- Components
@@ -15,6 +15,7 @@ import {
   ModalContent,
   ModalBody,
   ModalHeader,
+  useToast,
 } from "@chakra-ui/react";
 import {
   DotsCircleHorizontalIcon,
@@ -23,7 +24,8 @@ import {
   StatusOnlineIcon,
 } from "./CustomIcons";
 import { PrimaryBtn } from "./PrimaryBtn";
-import { Community } from "../utils/account-requests";
+import { warningToast } from "./Toasts";
+import { Community, createCommunity } from "../utils/account-requests";
 
 export interface UseCaseInterface {
   icon: (fill?: string) => JSX.Element;
@@ -65,12 +67,14 @@ interface UseCaseModalProps {
   isOpen: boolean;
   existingScorers: Community[];
   onClose: () => void;
+  refreshCommunities: () => void;
 }
 
 const UseCaseModal = ({
   isOpen,
   existingScorers,
   onClose,
+  refreshCommunities,
 }: UseCaseModalProps): JSX.Element => {
   const [wizardStep, setWizardStep] = useState(1);
   const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
@@ -133,6 +137,7 @@ const UseCaseModal = ({
               setWizardStep={setWizardStep}
               closeModal={closeModal}
               existingScorers={existingScorers}
+              refreshCommunities={refreshCommunities}
             />
           )}
         </ModalBody>
@@ -239,6 +244,7 @@ interface UseCaseDetailsProps {
   setScorerDescription: (description: string) => void;
   setWizardStep: (wizardStep: number) => void;
   closeModal: () => void;
+  refreshCommunities: () => void;
 }
 
 const UseCaseDetails = ({
@@ -248,10 +254,13 @@ const UseCaseDetails = ({
   existingScorers,
   setScorerName,
   setScorerDescription,
+  closeModal,
+  refreshCommunities,
 }: UseCaseDetailsProps) => {
   const navigate = useNavigate();
   const [useCaseError, setUseCaseError] = useState<string>();
-
+  const toast = useToast();
+  const [isLoading, setIsLoading] = useState(false);
   const hasDuplicateName = () => {
     const existingScorer = existingScorers.find(
       (scorer) => scorer.name === scorerName
@@ -265,6 +274,25 @@ const UseCaseDetails = ({
     }
   };
 
+  const createScorer = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      await createCommunity({
+        name: scorerName,
+        description: scorerDescription,
+        use_case: useCase!.title,
+        rule: "LIFO",
+        scorer: "WEIGHTED",
+      });
+      localStorage.setItem("scorerCreated", "true");
+      setIsLoading(false);
+      closeModal();
+      refreshCommunities();
+    } catch (e) {
+      toast(warningToast("Something went wrong. Please try again.", toast));
+    }
+  }, [scorerName, scorerDescription, useCase, toast, closeModal]);
+
   const switchToSelectMechanism = () => {
     if (!hasDuplicateName()) {
       localStorage.setItem(
@@ -275,7 +303,8 @@ const UseCaseDetails = ({
           description: scorerDescription,
         })
       );
-      navigate("/new-scorer");
+      console.debug("Saving the score here .... ");
+      createScorer();
     }
   };
 
