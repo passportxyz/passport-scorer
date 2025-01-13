@@ -222,7 +222,9 @@ class GrantContributionIndex(models.Model):
         help_text=_("The USD amount contributed"),
     )
 
-    contributor_address = EthAddressField(null=True, blank=True, max_length=100)
+    contributor_address = EthAddressField(
+        null=True, blank=True, max_length=100, db_index=True
+    )
 
 
 class ProtocolContributions(models.Model):
