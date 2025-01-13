@@ -1,6 +1,7 @@
 from django.contrib import admin
+
 from scorer.scorer_admin import ScorerModelAdmin
-from stake.models import Stake, StakeEvent, ReindexRequest
+from stake.models import LastBlock, ReindexRequest, Stake, StakeEvent
 
 
 @admin.register(Stake)
@@ -68,3 +69,11 @@ class ReindexRequestAdmin(admin.ModelAdmin):
     ]
 
     readonly_fields = ("pending",)
+
+
+@admin.register(LastBlock)
+class LastBlockAdmin(admin.ModelAdmin):
+    list_display = [
+        "chain",
+        "block_number",
+    ]

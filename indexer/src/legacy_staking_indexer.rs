@@ -143,6 +143,8 @@ impl<'a> LegacyStakingIndexer<'a> {
                     );
                 }
             }
+
+            self.postgres_client.update_last_checked_block_legacy(next_block_range).await?;
             last_queried_block = next_block_range;
         }
 

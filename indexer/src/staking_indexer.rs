@@ -202,6 +202,11 @@ impl<'a> StakingIndexer<'a> {
                     for (event, meta) in previous_events.iter() {
                         self.process_staking_event(&event, &meta, &client).await?;
                     }
+
+                    self.postgres_client
+                        .update_last_checked_block(self.chain_id, &query_end_block)
+                        .await?;
+
                     query_start_block = query_end_block + 1;
                 }
                 Err(err) => {
