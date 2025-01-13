@@ -70,6 +70,8 @@ export function createTask({
     },
   });
 
+  const containerName = `${name}-container`;
+
   const task = new aws.ecs.TaskDefinition(`${name}-1`, {
     family: `${name}-1`,
     cpu: (cpu ? cpu : 256).toString(),
@@ -94,7 +96,7 @@ export function createTask({
       .apply(([env, secs, image, logGroupName, logGroupRegion]) =>
         JSON.stringify([
           {
-            name: `${name}-container`,
+            name: containerName,
             image,
             cpu: cpu ? cpu : 256,
             memory: memory ? memory : 2048,
@@ -232,6 +234,7 @@ export function createTask({
     subnets,
     alertTopic,
     commandSuccessMessage,
+    containerName,
   };
 }
 

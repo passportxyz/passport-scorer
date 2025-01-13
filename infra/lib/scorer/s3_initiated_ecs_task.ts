@@ -1,15 +1,24 @@
 import * as aws from "@pulumi/aws";
 import { Input, Output } from "@pulumi/pulumi";
-import {defaultTags} from "../tags";
+import { defaultTags } from "../tags";
 
-export function createS3InitiatedECSTask(
-  bucketName: string,
-  clusterArn: Output<string>,
-  taskDefinitionArn: Output<string>,
-  subnetIds: Output<any>,
-  securityGroupIds: Output<string>[],
-  eventsStsAssumeRoleArn: Input<string>
-) {
+export function createS3InitiatedECSTask({
+  bucketName,
+  clusterArn,
+  taskDefinitionArn,
+  subnetIds,
+  securityGroupIds,
+  eventsStsAssumeRoleArn,
+  containerName,
+}: {
+  bucketName: string;
+  clusterArn: Output<string>;
+  taskDefinitionArn: Output<string>;
+  subnetIds: Output<any>;
+  securityGroupIds: Output<string>[];
+  eventsStsAssumeRoleArn: Input<string>;
+  containerName: string;
+}) {
   // Create S3 bucket
   const bucket = new aws.s3.Bucket(bucketName, {
     bucket: bucketName,
@@ -34,7 +43,7 @@ export function createS3InitiatedECSTask(
       tags: {
         ...defaultTags,
         Name: folder,
-      }
+      },
     });
   });
 
@@ -59,7 +68,7 @@ export function createS3InitiatedECSTask(
     tags: {
       ...defaultTags,
       Name: "s3-to-ecs-rule",
-      Scope: "MBD batch processing"
+      Scope: "MBD batch processing",
     },
   });
 
@@ -86,7 +95,7 @@ export function createS3InitiatedECSTask(
       inputTemplate: JSON.stringify({
         containerOverrides: [
           {
-            name: "web", // Replace with actual container name or fetch dynamically
+            name: containerName,
             environment: [
               {
                 name: "S3_BUCKET",
