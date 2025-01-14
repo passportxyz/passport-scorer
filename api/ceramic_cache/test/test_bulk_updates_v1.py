@@ -1,21 +1,28 @@
 import json
+from copy import deepcopy
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
-from django.test import Client
 
 from ceramic_cache.api.v1 import get_address_from_did
 from ceramic_cache.models import CeramicCache
 
 pytestmark = pytest.mark.django_db
 
-client = Client()
+
+def ascore_passport_patch(_community, _passport, _address, score):
+    score.status = "DONE"
 
 
 class TestBulkStampUpdates:
     base_url = "/ceramic-cache"
     stamp_version = CeramicCache.StampType.V1
 
+    @patch(
+        "registry.api.v1.ascore_passport",
+        side_effect=ascore_passport_patch,
+    )
     def test_bulk_create(
         self,
         sample_providers,
@@ -23,6 +30,7 @@ class TestBulkStampUpdates:
         sample_stamps,
         sample_token,
         ui_scorer,
+        client,
     ):
         bulk_payload = []
         for i in range(0, len(sample_providers)):
@@ -41,15 +49,47 @@ class TestBulkStampUpdates:
         )
 
         assert cache_stamp_response.status_code == 201
-        stamps = cache_stamp_response.json()["stamps"]
+        cache_stamp_response_data = cache_stamp_response.json()
+        stamps = cache_stamp_response_data["stamps"]
+        sorted_stamps = sorted(stamps, key=lambda x: x["stamp"]["issuanceDate"])
+        score = cache_stamp_response_data["score"]
         assert len(stamps) == len(sample_providers)
-        assert stamps[0]["id"] is not None
 
-        # Test the stored stamps
-        cc = CeramicCache.objects.all().values()
+        sorted_sample_stamps = sorted(sample_stamps, key=lambda x: x["issuanceDate"])
+
+        # Verify the returned score
+        assert score == {
+            "address": sample_address.lower(),
+            "error": None,
+            "evidence": None,
+            "expiration_date": None,
+            "last_score_timestamp": None,
+            "score": None,
+            "stamp_scores": {},
+            "status": "DONE",
+        }
+
+        # Verify the returned stamps
+        for i in range(0, len(sorted_stamps)):
+            provider = sorted_sample_stamps[i]["credentialSubject"]["provider"]
+            stamp = sorted_sample_stamps[i]
+            assert sorted_stamps[i] == {
+                # For these fields, values are set by the server
+                "id": sorted_stamps[i]["id"],
+                # For the attributes below we know the expected values
+                "address": sample_address.lower(),
+                "provider": provider,
+                "stamp": stamp,
+            }
+
+        # Test that stamps are stored correctly
+        cc = sorted(
+            CeramicCache.objects.all().values(),
+            key=lambda x: x["stamp"]["issuanceDate"],
+        )
         for idx, c in enumerate(cc):
-            provider = sample_providers[idx]
-            stamp = sample_stamps[idx]
+            provider = sorted_sample_stamps[idx]["credentialSubject"]["provider"]
+            stamp = sorted_sample_stamps[idx]
             assert c == {
                 # Just copy the automatically generated values over
                 "id": c["id"],
@@ -60,8 +100,8 @@ class TestBulkStampUpdates:
                 "compose_db_save_status": "pending",
                 "compose_db_stream_id": "",
                 "deleted_at": None,
-                "expiration_date": None,
-                "issuance_date": None,
+                "expiration_date": datetime.fromisoformat(stamp["expirationDate"]),
+                "issuance_date": datetime.fromisoformat(stamp["issuanceDate"]),
                 "proof_value": stamp["proof"]["proofValue"],
                 "provider": provider,
                 "scorer_id": ui_scorer,
@@ -70,14 +110,20 @@ class TestBulkStampUpdates:
                 "type": 1,
             }
 
+    @patch(
+        "registry.api.v1.ascore_passport",
+        side_effect=ascore_passport_patch,
+    )
     def test_bulk_update(
         self,
+        _avalidate_credentials,
         sample_providers,
         sample_address,
         sample_stamps,
         sample_token,
         scorer_account,
         ui_scorer,
+        client,
     ):
         bulk_payload = []
         for i in range(0, len(sample_providers)):
@@ -96,17 +142,17 @@ class TestBulkStampUpdates:
         )
 
         assert cache_stamp_response.status_code == 201
-
         assert len(cache_stamp_response.json()["stamps"]) == len(sample_providers)
 
         bulk_payload = []
-        for i in range(0, len(sample_providers)):
-            bulk_payload.append(
-                {
-                    "provider": sample_providers[i],
-                    "stamp": {"updated": True, "proof": {"proofValue": "updated"}},
-                }
-            )
+        sorted_sample_stamps = sorted(sample_stamps, key=lambda x: x["issuanceDate"])
+        sorted_sample_stamps_updates = []
+
+        for i, stamp in enumerate(sorted_sample_stamps):
+            new_stamp = deepcopy(stamp)
+            new_stamp["proof"]["proofValue"] = f"updated {i}"
+            sorted_sample_stamps_updates.append(new_stamp)
+            bulk_payload.append({"provider": sample_providers[i], "stamp": new_stamp})
 
         cache_stamp_response = client.post(
             f"{self.base_url}/stamps/bulk",
@@ -117,24 +163,90 @@ class TestBulkStampUpdates:
 
         assert cache_stamp_response.status_code == 201
 
-        stamps = cache_stamp_response.json()["stamps"]
+        response = cache_stamp_response.json()
+        stamps = response["stamps"]
+        score = response["score"]
 
         assert len(stamps) == len(sample_providers)
-        for i in range(0, len(sample_providers)):
-            assert stamps[i]["stamp"]["updated"] == True
-            assert stamps[i]["id"] is not None
 
-    def test_bulk_patch(
+        assert score == {
+            "address": sample_address.lower(),
+            "error": None,
+            "evidence": None,
+            "expiration_date": None,
+            "last_score_timestamp": None,
+            "score": None,
+            "stamp_scores": {},
+            "status": "DONE",
+        }
+
+        sorted_stamps_returned = sorted(
+            stamps, key=lambda x: x["stamp"]["issuanceDate"]
+        )
+
+        for i in range(0, len(sorted_sample_stamps_updates)):
+            provider = sorted_sample_stamps_updates[i]["credentialSubject"]["provider"]
+            stamp = sorted_sample_stamps_updates[i]
+            assert sorted_stamps_returned[i] == {
+                # For these fields, values are set by the server
+                "id": sorted_stamps_returned[i]["id"],
+                # For the attributes below we know the expected values
+                "address": sample_address.lower(),
+                "provider": provider,
+                "stamp": stamp,
+            }
+
+        # Test that stamps are stored correctly
+        cc = sorted(
+            list(CeramicCache.objects.filter(deleted_at__isnull=True).values()),
+            key=lambda x: x["stamp"]["issuanceDate"],
+        )
+
+        for i, c in enumerate(cc):
+            provider = sorted_sample_stamps_updates[i]["credentialSubject"]["provider"]
+            stamp = sorted_sample_stamps_updates[i]
+            assert c == {
+                # Just copy the automatically generated values over
+                "id": c["id"],
+                "created_at": c["created_at"],
+                "updated_at": c["updated_at"],
+                # Here are the values we control
+                "address": sample_address.lower(),
+                "compose_db_save_status": "pending",
+                "compose_db_stream_id": "",
+                "deleted_at": None,
+                "expiration_date": datetime.fromisoformat(stamp["expirationDate"]),
+                "issuance_date": datetime.fromisoformat(stamp["issuanceDate"]),
+                "proof_value": stamp["proof"]["proofValue"],
+                "provider": provider,
+                "scorer_id": ui_scorer,
+                "stamp": stamp,
+                "stamp_created_by": CeramicCache.StampCreator.PASSPORT.value,
+                "type": 1,
+            }
+
+    @patch(
+        "registry.api.v1.ascore_passport",
+        side_effect=ascore_passport_patch,
+    )
+    def test_bulk_patch_partial_update(
         self,
+        _avalidate_credentials,
         sample_providers,
         sample_address,
         sample_stamps,
         sample_token,
+        scorer_account,
         ui_scorer,
+        client,
     ):
-        # create two stamps
+        """
+        Test updating only a part of the stamps
+        """
+        assert CeramicCache.objects.all().count() == 0
+
         bulk_payload = []
-        for i in range(0, 2):
+        for i in range(0, len(sample_providers)):
             bulk_payload.append(
                 {
                     "provider": sample_providers[i],
@@ -142,83 +254,138 @@ class TestBulkStampUpdates:
                 }
             )
 
-        cache_stamp_response = client.patch(
+        cache_stamp_response = client.post(
             f"{self.base_url}/stamps/bulk",
             json.dumps(bulk_payload),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
         )
 
-        assert cache_stamp_response.status_code == 200
-        stamps = cache_stamp_response.json()["stamps"]
-        assert len(stamps) == 2
-        assert stamps[0]["id"] is not None
+        assert cache_stamp_response.status_code == 201
+        assert len(cache_stamp_response.json()["stamps"]) == len(sample_providers)
 
-        # Should have a stamp for the first provider, but not for last provider
-        assert (
-            CeramicCache.objects.filter(
-                type=self.stamp_version, provider=sample_providers[0]
-            ).count()
-            == 1
-        )
+        bulk_payload = []
+        sorted_sample_stamps = sorted(sample_stamps, key=lambda x: x["issuanceDate"])
+        # This will hold the state we expect when getting the stamp list back (or reading from DB)
+        sorted_sample_stamps_updated = []
 
-        assert (
-            CeramicCache.objects.filter(
-                type=self.stamp_version,
-                provider=sample_providers[len(sample_providers) - 1],
-            ).count()
-            == 0
-        )
+        for i, stamp in enumerate(sorted_sample_stamps):
+            if i < len(sample_providers) / 2:
+                new_stamp = deepcopy(stamp)
+                new_stamp["proof"]["proofValue"] = f"updated {i}"
+                sorted_sample_stamps_updated.append(new_stamp)
+                bulk_payload.append(
+                    {"provider": sample_providers[i], "stamp": new_stamp}
+                )
+            else:
+                sorted_sample_stamps_updated.append(deepcopy(stamp))
 
-        # patch all the stamps except the first, which is deleted
-        bulk_payload = [{"provider": sample_providers[0]}]
-        for i in range(1, len(sample_providers)):
-            bulk_payload.append(
-                {
-                    "provider": sample_providers[i],
-                    "stamp": {"updated": True, "proof": {"proofValue": "test"}},
-                }
-            )
-
-        cache_stamp_response = client.patch(
+        cache_stamp_response = client.post(
             f"{self.base_url}/stamps/bulk",
             json.dumps(bulk_payload),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
         )
 
-        assert cache_stamp_response.status_code == 200
-        assert len(cache_stamp_response.json()["stamps"]) == len(sample_providers) - 1
+        assert cache_stamp_response.status_code == 201
 
-        # Should now have a stamp for the last provider, but stamp for first provider should be marked as deleted
-        assert (
-            CeramicCache.objects.filter(
-                type=self.stamp_version,
-                provider=sample_providers[0],
-                deleted_at__isnull=True,
-            ).count()
-            == 0
+        response = cache_stamp_response.json()
+        stamps = response["stamps"]
+        score = response["score"]
+
+        assert len(stamps) == len(sample_providers)
+
+        assert score == {
+            "address": sample_address.lower(),
+            "error": None,
+            "evidence": None,
+            "expiration_date": None,
+            "last_score_timestamp": None,
+            "score": None,
+            "stamp_scores": {},
+            "status": "DONE",
+        }
+
+        sorted_stamps_returned = sorted(
+            stamps, key=lambda x: x["stamp"]["issuanceDate"]
         )
 
-        assert (
-            CeramicCache.objects.filter(
-                type=self.stamp_version,
-                provider=sample_providers[0],
-                deleted_at__isnull=False,
-            ).count()
-            == 1
+        for i in range(0, len(sorted_sample_stamps_updated)):
+            provider = sorted_sample_stamps_updated[i]["credentialSubject"]["provider"]
+            stamp = sorted_sample_stamps_updated[i]
+            assert sorted_stamps_returned[i] == {
+                # For these fields, values are set by the server
+                "id": sorted_stamps_returned[i]["id"],
+                # For the attributes below we know the expected values
+                "address": sample_address.lower(),
+                "provider": provider,
+                "stamp": stamp,
+            }
+
+        # Test that stamps are stored correctly
+        cc = sorted(
+            list(CeramicCache.objects.filter(deleted_at__isnull=True).values()),
+            key=lambda x: x["stamp"]["issuanceDate"],
         )
 
-        assert (
-            CeramicCache.objects.filter(
-                type=self.stamp_version,
-                provider=sample_providers[len(sample_providers) - 1],
-            ).count()
-            == 1
+        for i, c in enumerate(cc):
+            provider = sorted_sample_stamps_updated[i]["credentialSubject"]["provider"]
+            stamp = sorted_sample_stamps_updated[i]
+            assert c == {
+                # Just copy the automatically generated values over
+                "id": c["id"],
+                "created_at": c["created_at"],
+                "updated_at": c["updated_at"],
+                # Here are the values we control
+                "address": sample_address.lower(),
+                "compose_db_save_status": "pending",
+                "compose_db_stream_id": "",
+                "deleted_at": None,
+                "expiration_date": datetime.fromisoformat(stamp["expirationDate"]),
+                "issuance_date": datetime.fromisoformat(stamp["issuanceDate"]),
+                "proof_value": stamp["proof"]["proofValue"],
+                "provider": provider,
+                "scorer_id": ui_scorer,
+                "stamp": stamp,
+                "stamp_created_by": CeramicCache.StampCreator.PASSPORT.value,
+                "type": 1,
+            }
+
+        # Check that old versions of stamps are marked as deleted
+        cc = sorted(
+            list(CeramicCache.objects.filter(deleted_at__isnull=False).values()),
+            key=lambda x: x["stamp"]["issuanceDate"],
         )
+
+        assert len(cc) == len(bulk_payload)
+
+        for i, c in enumerate(cc):
+            provider = bulk_payload[i]["stamp"]["credentialSubject"]["provider"]
+            stamp = sorted_sample_stamps[i]
+
+            assert c["deleted_at"] is not None
+            assert c == {
+                # Just copy the automatically generated values over
+                "id": c["id"],
+                "created_at": c["created_at"],
+                "updated_at": c["updated_at"],
+                "deleted_at": c["deleted_at"],
+                # Here are the values we control
+                "address": sample_address.lower(),
+                "compose_db_save_status": "pending",
+                "compose_db_stream_id": "",
+                "expiration_date": datetime.fromisoformat(stamp["expirationDate"]),
+                "issuance_date": datetime.fromisoformat(stamp["issuanceDate"]),
+                "proof_value": stamp["proof"]["proofValue"],
+                "provider": provider,
+                "scorer_id": ui_scorer,
+                "stamp": stamp,
+                "stamp_created_by": CeramicCache.StampCreator.PASSPORT.value,
+                "type": 1,
+            }
 
     def test_bulk_update_create_doesnt_accept_greater_than_100_stamps(
-        self, sample_providers, sample_address, sample_stamps, sample_token
+        self, sample_providers, sample_address, sample_stamps, sample_token, client
     ):
         bulk_payload = []
         for i in range(0, 101):
@@ -242,18 +409,34 @@ class TestBulkStampUpdates:
         }
 
     def test_successful_bulk_delete(
-        self, sample_providers, sample_address, sample_stamps, sample_token, ui_scorer
+        self,
+        sample_providers,
+        sample_address,
+        sample_stamps,
+        sample_token,
+        ui_scorer,
+        client,
     ):
+        sorted_sample_stamps = sorted(sample_stamps, key=lambda x: x["issuanceDate"])
         bulk_payload = []
-        for i in range(0, 3):
+        for stamp in sorted_sample_stamps:
             CeramicCache.objects.create(
                 type=self.stamp_version,
                 address=sample_address,
-                provider=sample_providers[i],
-                stamp=sample_stamps[i],
+                provider=stamp["credentialSubject"]["provider"],
+                stamp=stamp,
+                stamp_created_by=CeramicCache.StampCreator.PASSPORT.value,
+                scorer_id=ui_scorer,
+                compose_db_save_status="pending",
+                expiration_date=datetime.fromisoformat(stamp["expirationDate"]),
+                issuance_date=datetime.fromisoformat(stamp["issuanceDate"]),
+                proof_value=stamp["proof"]["proofValue"],
             )
             bulk_payload.append(
-                {"address": sample_address, "provider": sample_providers[i]}
+                {
+                    "address": sample_address,
+                    "provider": stamp["credentialSubject"]["provider"],
+                }
             )
 
         cache_stamp_response = client.delete(
@@ -264,8 +447,57 @@ class TestBulkStampUpdates:
         )
 
         assert cache_stamp_response.status_code == 200
-        assert cache_stamp_response.json()["success"] == True
-        assert len(cache_stamp_response.json()["stamps"]) == 0
+        cache_stamp_response_data = cache_stamp_response.json()
+        assert cache_stamp_response_data["success"] is True
+        assert len(cache_stamp_response_data["stamps"]) == 0
+
+        # TODO: ideally score would be returned as well on DELETE, this
+        # should be fixed in the future
+        # score = cache_stamp_response_data["score"]
+
+        # assert score == {
+        #     "address": sample_address.lower(),
+        #     "error": None,
+        #     "evidence": None,
+        #     "expiration_date": None,
+        #     "last_score_timestamp": None,
+        #     "score": None,
+        #     "stamp_scores": {},
+        #     "status": "DONE",
+        # }
+
+        # Check that old versions of stamps are marked as deleted
+        cc = sorted(
+            list(CeramicCache.objects.filter(deleted_at__isnull=False).values()),
+            key=lambda x: x["stamp"]["issuanceDate"],
+        )
+
+        assert len(cc) == len(sorted_sample_stamps)
+
+        for i, c in enumerate(cc):
+            provider = bulk_payload[i]["provider"]
+            stamp = sorted_sample_stamps[i]
+
+            assert c["deleted_at"] is not None
+            assert c == {
+                # Just copy the automatically generated values over
+                "id": c["id"],
+                "created_at": c["created_at"],
+                "updated_at": c["updated_at"],
+                "deleted_at": c["deleted_at"],
+                # Here are the values we control
+                "address": sample_address.lower(),
+                "compose_db_save_status": "pending",
+                "compose_db_stream_id": "",
+                "expiration_date": datetime.fromisoformat(stamp["expirationDate"]),
+                "issuance_date": datetime.fromisoformat(stamp["issuanceDate"]),
+                "proof_value": stamp["proof"]["proofValue"],
+                "provider": provider,
+                "scorer_id": ui_scorer,
+                "stamp": stamp,
+                "stamp_created_by": CeramicCache.StampCreator.PASSPORT.value,
+                "type": 1,
+            }
 
     def test_bulk_delete_indicates_a_subset_of_stamps_were_deleted(
         self,
@@ -274,6 +506,7 @@ class TestBulkStampUpdates:
         sample_stamps,
         sample_token,
         ui_scorer,
+        client,
     ):
         bulk_payload = []
         for i in range(0, 3):
@@ -300,7 +533,7 @@ class TestBulkStampUpdates:
         assert cache_stamp_response.json()["success"] == True
 
     def test_bulk_delete_indicates_no_stamps_were_deleted(
-        self, sample_providers, sample_address, sample_stamps, sample_token
+        self, sample_providers, sample_address, sample_stamps, sample_token, client
     ):
         bulk_payload = []
 
@@ -325,90 +558,3 @@ class TestBulkStampUpdates:
         did = f"did:pkh:eip155:1:{sample_address}"
         address = get_address_from_did(did)
         assert address == sample_address
-
-
-class TestComposeDBBulkStampUpdates:
-    base_url = "/ceramic-cache"
-    stamp_version = CeramicCache.StampType.V1
-
-    def test_success_bulk_update_compose_db_status(
-        self,
-        sample_providers,
-        sample_address,
-        sample_stamps,
-        sample_token,
-        ui_scorer,
-    ):
-        # Create stamps first
-        create_response = client.post(
-            f"{self.base_url}/stamps/bulk",
-            json.dumps(
-                [
-                    {
-                        "provider": sample_providers[0],
-                        "stamp": sample_stamps[0],
-                    },
-                    {
-                        "provider": sample_providers[1],
-                        "stamp": sample_stamps[1],
-                    },
-                    # This one will stay pending
-                    {
-                        "provider": sample_providers[2],
-                        "stamp": sample_stamps[2],
-                    },
-                ]
-            ),
-            content_type="application/json",
-            **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
-        )
-        assert create_response.status_code == 201
-
-        ids = [stamp["id"] for stamp in create_response.json()["stamps"]]
-
-        missing_id = 1234564564564564564
-
-        # Construct payload
-        bulk_payload = [
-            {
-                "id": ids[0],
-                "compose_db_save_status": "saved",
-                "compose_db_stream_id": "stream-id-1",
-            },
-            {
-                "id": ids[1],
-                "compose_db_save_status": "failed",
-            },
-            # This is not valid, but should not interfere
-            {
-                "id": missing_id,
-                "compose_db_save_status": "saved",
-            },
-        ]
-
-        # Make the request
-        response = client.patch(
-            f"{self.base_url}/stamps/bulk/meta/compose-db",
-            json.dumps(bulk_payload),
-            content_type="application/json",
-            **{"HTTP_AUTHORIZATION": f"Bearer {sample_token}"},
-        )
-
-        assert response.status_code == 200
-
-        data = response.json()
-
-        assert len(data["updated"]) == 2
-
-        assert missing_id not in data["updated"]
-        assert ids[0] in data["updated"]
-        assert ids[1] in data["updated"]
-
-        assert CeramicCache.objects.filter(compose_db_save_status="saved").count() == 1
-        assert CeramicCache.objects.filter(compose_db_save_status="failed").count() == 1
-        assert (
-            CeramicCache.objects.filter(compose_db_save_status="pending").count() == 1
-        )
-        assert (
-            CeramicCache.objects.filter(compose_db_stream_id="stream-id-1").count() == 1
-        )

@@ -1,9 +1,11 @@
-from typing import List, Optional
+from typing import List
 from urllib.parse import urljoin
 
 import django_filters
 import requests
+from asgiref.sync import async_to_sync
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from ninja import Router
 from ninja.pagination import paginate
@@ -15,6 +17,7 @@ from account.api import UnauthorizedException, create_community_for_account
 # --- Deduplication Modules
 from account.models import (
     Account,
+    AccountAPIKey,
     Community,
     Nonce,
     Rules,
@@ -59,7 +62,6 @@ from registry.exceptions import (
 )
 from registry.filters import GTCStakeEventsFilter
 from registry.models import GTCStakeEvent, Passport, Score
-from registry.tasks import score_passport_passport, score_registry_passport
 from registry.utils import (
     decode_cursor,
     encode_cursor,
@@ -67,6 +69,9 @@ from registry.utils import (
     get_signing_message,
     reverse_lazy_with_query,
 )
+
+User = get_user_model()
+
 
 SCORE_TIMESTAMP_FIELD_DESCRIPTION = """
 The optional `timestamp` query parameter can be used to retrieve
@@ -173,7 +178,37 @@ async def a_submit_passport(
         raise e
     except Exception as e:
         log.exception("Error submitting passport: %s", e)
-        raise InternalServerErrorException("Unexpected error while submitting passport")
+        raise InternalServerErrorException(
+            "Unexpected error while submitting passport"
+        ) from e
+
+
+def sync_test_function():
+    account_api_keys = []
+    for api_key in AccountAPIKey.objects.all():
+        account_api_keys.append(api_key)
+
+    print("account_api_keys", account_api_keys)
+
+    users = []
+    for user in User.objects.all():
+        users.append(user)
+
+    print("user", users)
+
+
+async def async_test_function():
+    account_api_keys = []
+    async for api_key in AccountAPIKey.objects.all():
+        account_api_keys.append(api_key)
+
+    print("account_api_keys", account_api_keys)
+
+    users = []
+    async for user in User.objects.all():
+        users.append(user)
+
+    print("user", users)
 
 
 async def ahandle_submit_passport(
@@ -225,60 +260,9 @@ async def ahandle_submit_passport(
 
 
 def handle_submit_passport(
-    payload: SubmitPassportPayload, account: Account, use_passport_task: bool = False
+    payload: SubmitPassportPayload, account: Account
 ) -> DetailedScoreResponse:
-    address_lower = payload.address.lower()
-
-    try:
-        scorer_id = get_scorer_id(payload)
-    except Exception as e:
-        raise e
-
-    # Get community object
-    user_community = get_scorer_by_id(scorer_id, account)
-
-    # Verify the signer
-    if payload.signature or community_requires_signature(user_community):
-        if get_signer(payload.nonce, payload.signature).lower() != address_lower:
-            raise InvalidSignerException()
-
-        # Verify nonce
-        if not Nonce.use_nonce(payload.nonce):
-            log.error("Invalid nonce %s for address %s", payload.nonce, payload.address)
-            raise InvalidNonceException()
-
-    # Create an empty passport instance, only needed to be able to create a pending Score
-    # The passport will be updated by the score_passport task
-    db_passport, _ = Passport.objects.update_or_create(
-        address=payload.address.lower(),
-        community=user_community,
-        defaults={
-            "requires_calculation": True,
-        },
-    )
-
-    # Create a score with status PROCESSING
-    score, _ = Score.objects.update_or_create(
-        passport_id=db_passport.pk,
-        defaults=dict(score=None, status=Score.Status.PROCESSING),
-    )
-
-    if use_passport_task:
-        score_passport_passport.delay(user_community.pk, payload.address)
-    else:
-        score_registry_passport.delay(user_community.pk, payload.address)
-
-    return DetailedScoreResponse(
-        address=score.passport.address,
-        score=score.score,
-        status=score.status,
-        evidence=score.evidence,
-        last_score_timestamp=(
-            score.last_score_timestamp.isoformat()
-            if score.last_score_timestamp
-            else None
-        ),
-    )
+    return async_to_sync(ahandle_submit_passport)(payload, account)
 
 
 def get_scorer_by_id(scorer_id: int | str, account: Account) -> Community:
@@ -551,21 +535,31 @@ def get_passport_stamps(
     domain = request.build_absolute_uri("/")[:-1]
 
     next_url = (
-        f"""{domain}{reverse_lazy_with_query(
-            "registry:get_passport_stamps",
-            args=[address],
-            query_kwargs={"token": encode_cursor(d="next", id=next_id), "limit": limit},
-        )}"""
+        f"""{domain}{
+            reverse_lazy_with_query(
+                "registry:get_passport_stamps",
+                args=[address],
+                query_kwargs={
+                    "token": encode_cursor(d="next", id=next_id),
+                    "limit": limit,
+                },
+            )
+        }"""
         if has_more_stamps
         else None
     )
 
     prev_url = (
-        f"""{domain}{reverse_lazy_with_query(
-            "registry:get_passport_stamps",
-            args=[address],
-            query_kwargs={"token": encode_cursor(d="prev", id=prev_id), "limit": limit},
-        )}"""
+        f"""{domain}{
+            reverse_lazy_with_query(
+                "registry:get_passport_stamps",
+                args=[address],
+                query_kwargs={
+                    "token": encode_cursor(d="prev", id=prev_id),
+                    "limit": limit,
+                },
+            )
+        }"""
         if has_prev_stamps
         else None
     )

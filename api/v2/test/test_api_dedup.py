@@ -1,12 +1,10 @@
 import copy
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from re import M
 from unittest.mock import patch
 
 import pytest
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.test import Client
 from web3 import Web3
 

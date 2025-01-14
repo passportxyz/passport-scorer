@@ -7,7 +7,6 @@ from datetime import timedelta
 from typing import Any, Dict, List, Optional, Type
 
 import requests
-from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -36,7 +35,7 @@ from registry.api.v1 import (
     DetailedScoreResponse,
     ErrorMessageResponse,
     SubmitPassportPayload,
-    ahandle_submit_passport,
+    handle_submit_passport,
 )
 from registry.exceptions import (
     InvalidAddressException,
@@ -95,6 +94,7 @@ class JWTDidAuthentication:
         Validates an encoded JSON web token and returns a validated token
         wrapper object.
         """
+        print("get_validated_token")
         messages = []
         for AuthToken in api_settings.AUTH_TOKEN_CLASSES:
             try:
@@ -117,6 +117,7 @@ class JWTDidAuthentication:
         )
 
     def jwt_authenticate(self, request: HttpRequest, token: str) -> Type[AbstractUser]:
+        print("jwt_authenticate")
         request.did = None
         validated_token = self.get_validated_token(token)
         request.did = validated_token["did"]
@@ -129,6 +130,8 @@ class JWTDidAuth(JWTDidAuthentication, HttpBearer):
     """
 
     def authenticate(self, request: HttpRequest, token: str) -> Any:
+        print("request:", request)
+        print("authenticate:", token)
         return self.jwt_authenticate(request, token)
 
 
@@ -219,12 +222,11 @@ def handle_add_stamps(
     stamps_response = handle_add_stamps_only(
         address, payload, stamp_creator, alternate_scorer_id
     )
+    scorer_id = alternate_scorer_id or settings.CERAMIC_CACHE_SCORER_ID
     return GetStampsWithScoreResponse(
         success=stamps_response.success,
         stamps=stamps_response.stamps,
-        score=get_detailed_score_response_for_address(
-            address, scorer_id=alternate_scorer_id
-        ),
+        score=get_detailed_score_response_for_address(address, scorer_id=scorer_id),
     )
 
 
@@ -236,13 +238,13 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
         address = get_address_from_did(request.did)
         return handle_patch_stamps(address, payload)
 
-    except Exception:
+    except Exception as exc:
         log.error(
             "Failed patch_stamps request: '%s'",
-            [p.dict() for p in payload],
+            [p.model_dump_json() for p in payload],
             exc_info=True,
         )
-        raise InternalServerException()
+        raise InternalServerException() from exc
 
 
 def handle_patch_stamps(
@@ -680,8 +682,7 @@ def get_detailed_score_response_for_address(
         scorer_id=str(scorer_id),
     )
 
-    score = async_to_sync(ahandle_submit_passport)(submit_passport_payload, account)
-
+    score = handle_submit_passport(submit_passport_payload, account)
     return score
 
 

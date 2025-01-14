@@ -2,6 +2,7 @@ import base64
 import json
 from datetime import datetime, timezone
 from functools import wraps
+from typing import List
 from urllib.parse import urlencode
 
 import didkit
@@ -27,7 +28,7 @@ def index(request):
     return render(request, "registry/index.html", context)
 
 
-async def validate_credential(did, credential):
+async def validate_credential(did, credential) -> List[str]:
     # pylint: disable=fixme
     stamp_return_errors = []
     credential_subject = credential.get("credentialSubject")

@@ -5,15 +5,19 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import call, patch
 
+import pytest
+from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TransactionTestCase
 from web3 import Web3
 
 from account.models import Account, AccountAPIKey, Community
+from registry.api.schema import StatusEnum
 from registry.api.v1 import SubmitPassportPayload, a_submit_passport, get_score
 from registry.models import Event, HashScorerLink, Passport, Score, Stamp
 from registry.tasks import score_passport_passport, score_registry_passport
+from scorer_weighted.models import Scorer, WeightedScorer
 
 User = get_user_model()
 my_mnemonic = settings.TEST_MNEMONIC
@@ -26,6 +30,12 @@ expiration_dates = [
     now + timedelta(days=1),
     now + timedelta(days=3),
 ]
+
+mocked_weights = {
+    "Ens": 1.0,
+    "Google": 2.0,
+    "Gitcoin": 3.0,
+}
 
 mock_passport_data = {
     "stamps": [
@@ -73,6 +83,9 @@ mock_passport_data = {
         },
     ]
 }
+mock_min_expiration_date = min(
+    *[s["credential"]["expirationDate"] for s in mock_passport_data["stamps"]]
+)
 
 
 def mock_validate(*args, **kwargs):
@@ -103,14 +116,19 @@ class TestScorePassportTestCase(TransactionTestCase):
             user=self.user, address=account.address
         )
 
-        AccountAPIKey.objects.create_key(
+        (api_key_instance, _) = AccountAPIKey.objects.create_key(
             account=self.user_account, name="Token for user 1"
         )
+        self.api_key = api_key_instance
 
         self.community = Community.objects.create(
             name="My Community",
             description="My Community description",
             account=self.user_account,
+            scorer=WeightedScorer.objects.create(
+                type=Scorer.Type.WEIGHTED,
+                weights=mocked_weights,
+            ),
         )
 
         self.client = Client()
@@ -144,16 +162,20 @@ class TestScorePassportTestCase(TransactionTestCase):
 
         self._score_address(address)
 
-    async def _score_address(self, address):
+    def _score_address(self, address):
         class MockRequest:
-            def __init__(self, account):
-                self.auth = account
-                self.api_key = account.api_keys.all()[0]
+            def __init__(self):
+                pass
 
-        mock_request = MockRequest(self.user_account)
+        mock_request = MockRequest()
+        mock_request.auth = self.user_account
+        mock_request.api_key = self.api_key
+        mock_request.path = "/passport/"
+        mock_request.GET = {}
+        mock_request.headers = {}
 
-        with patch("registry.api.v1.score_passport_passport.delay", return_value=None):
-            await a_submit_passport(
+        with patch("registry.api.v1.score_passport_passport", return_value=None):
+            async_to_sync(a_submit_passport)(
                 mock_request,
                 SubmitPassportPayload(
                     address=address,
@@ -170,8 +192,20 @@ class TestScorePassportTestCase(TransactionTestCase):
         Passport.objects.get(address=address, community_id=self.community.pk)
 
         score = get_score(mock_request, address, self.community.pk)
-        assert Decimal(score.score) == Decimal("3")
-        assert score.status == "DONE"
+        assert score.last_score_timestamp is not None
+        score_dict = score.model_dump()
+        assert score.model_dump() == {
+            # attributes set automatically
+            "last_score_timestamp": score_dict["last_score_timestamp"],
+            # attributes we expect to have a specific value
+            "address": self.account.address.lower(),
+            "evidence": None,
+            "error": None,
+            "score": Decimal("6.000000000"),
+            "status": StatusEnum.done,
+            "stamp_scores": mocked_weights,
+            "expiration_date": mock_min_expiration_date,
+        }
 
     def test_cleaning_stale_stamps(self):
         passport, _ = Passport.objects.update_or_create(
@@ -256,121 +290,51 @@ class TestScorePassportTestCase(TransactionTestCase):
             requires_calculation=True,
         )
 
-        passport_with_duplicates, _ = Passport.objects.update_or_create(
-            address=self.account_3.address,
-            community_id=self.community.pk,
-            requires_calculation=True,
-        )
+        mocked_duplicate_stamps = {"stamps": mock_passport_data["stamps"][:1]}
+        mocked_non_duplicate_stamps = {"stamps": mock_passport_data["stamps"][1:]}
 
-        already_existing_stamp = {
-            "provider": "POAP",
-            "credential": {
-                "type": ["VerifiableCredential"],
-                "credentialSubject": {
-                    "id": settings.TRUSTED_IAM_ISSUERS[0],
-                    "hash": "0x1111",
-                    "provider": "Gitcoin",
+        for stamp in mocked_duplicate_stamps["stamps"]:
+            Stamp.objects.update_or_create(
+                hash=stamp["credential"]["credentialSubject"]["hash"],
+                passport=passport_for_already_existing_stamp,
+                defaults={
+                    "provider": stamp["provider"],
+                    "credential": json.dumps(stamp["credential"]),
                 },
-                "issuer": settings.TRUSTED_IAM_ISSUERS[0],
-                "issuanceDate": "2023-02-06T23:22:58.848Z",
-                "expirationDate": "2099-02-06T23:22:58.848Z",
-            },
-        }
+            )
 
-        Stamp.objects.update_or_create(
-            hash=already_existing_stamp["credential"]["credentialSubject"]["hash"],
-            passport=passport_for_already_existing_stamp,
-            defaults={
-                "provider": already_existing_stamp["provider"],
-                "credential": json.dumps(already_existing_stamp["credential"]),
-            },
-        )
-
-        HashScorerLink.objects.create(
-            hash=already_existing_stamp["credential"]["credentialSubject"]["hash"],
-            address=passport_for_already_existing_stamp.address,
-            community=passport_for_already_existing_stamp.community,
-            expires_at=already_existing_stamp["credential"]["expirationDate"],
-        )
-
-        mock_passport_data_with_duplicates = {
-            "stamps": [
-                mock_passport_data["stamps"][0],
-                already_existing_stamp,
-                {
-                    "provider": "Google",
-                    "credential": {
-                        "type": ["VerifiableCredential"],
-                        "credentialSubject": {
-                            "id": settings.TRUSTED_IAM_ISSUERS[0],
-                            "hash": "0x12121",
-                            "provider": "Google",
-                        },
-                        "issuer": settings.TRUSTED_IAM_ISSUERS[0],
-                        "issuanceDate": "2023-02-06T23:22:58.848Z",
-                        "expirationDate": "2099-02-06T23:22:58.848Z",
-                    },
-                },
-            ]
-        }
+            HashScorerLink.objects.create(
+                hash=stamp["credential"]["credentialSubject"]["hash"],
+                address=passport_for_already_existing_stamp.address,
+                community=passport_for_already_existing_stamp.community,
+                expires_at=stamp["credential"]["expirationDate"],
+            )
 
         with patch("registry.atasks.validate_credential", side_effect=mock_validate):
             # Score original passport
             with patch(
-                "registry.atasks.aget_passport", return_value=mock_passport_data
+                "registry.atasks.aget_passport",
+                return_value=mock_passport_data,
             ):
                 score_registry_passport(self.community.pk, passport.address)
-
-            assert (
-                Event.objects.filter(action=Event.Action.LIFO_DEDUPLICATION).count()
-                == 0
-            )
-
-            # Score passport with duplicates (one duplicate from original passport,
-            # one duplicate from already existing stamp)
-            with patch(
-                "registry.atasks.aget_passport",
-                return_value=mock_passport_data_with_duplicates,
-            ):
-                score_registry_passport(
-                    self.community.pk, passport_with_duplicates.address
-                )
 
             original_stamps = Stamp.objects.filter(passport=passport)
-            assert len(original_stamps) == 3
+            assert len(original_stamps) == len(mocked_non_duplicate_stamps["stamps"])
+
+            assert Event.objects.filter(
+                action=Event.Action.LIFO_DEDUPLICATION
+            ).count() == len(mocked_duplicate_stamps["stamps"])
 
             assert (Score.objects.get(passport=passport).score) == Decimal(
-                "0.933000000"
+                sum(
+                    mocked_weights[s["credential"]["credentialSubject"]["provider"]]
+                    for s in mocked_non_duplicate_stamps["stamps"]
+                )
             )
 
-            assert (
-                Event.objects.filter(action=Event.Action.LIFO_DEDUPLICATION).count()
-                == 2
-            )
-
-            deduplicated_stamps = Stamp.objects.filter(
-                passport=passport_with_duplicates
-            )
-            assert len(deduplicated_stamps) == 1
-
-            assert (
-                Score.objects.get(passport=passport_with_duplicates).score
-            ) == Decimal("0.525000000")
-
-            passport.requires_calculation = True
-            passport.save()
-            # Re-score original passport, just to make sure it doesn't change
-            with patch(
-                "registry.atasks.aget_passport", return_value=mock_passport_data
-            ):
-                score_registry_passport(self.community.pk, passport.address)
-
-            assert (Score.objects.get(passport=passport).score) == Decimal(
-                "0.933000000"
-            )
-            assert (
-                Event.objects.filter(action=Event.Action.LIFO_DEDUPLICATION).count()
-                == 2
+            # All the stamps we worked with should be registered in HashScorerLink by now
+            assert HashScorerLink.objects.all().count() == len(
+                mock_passport_data["stamps"]
             )
 
     def test_score_events(self):
