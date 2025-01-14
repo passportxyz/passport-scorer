@@ -16,7 +16,7 @@ class CeramicCache(models.Model):
         V1 = 1
         V2 = 2
 
-    class StampCreator(models.IntegerChoices):
+    class SourceApp(models.IntegerChoices):
         PASSPORT = 1
         EMBED = 2
 
@@ -88,7 +88,10 @@ class CeramicCache(models.Model):
         null=True, db_index=True
     )  # stamp['expirationDate']
 
-    scorer_id = models.BigIntegerField(
+    ################################################################################################
+    # Begin metadata fields, to determine the scorer that initiated the creation of a stamp
+    #################################################################################################
+    source_scorer_id = models.BigIntegerField(
         verbose_name="Scorer ID",
         help_text="""This is field is only used to indicate for analytic purposes which scorer was targeted 
         when claiming the users credential (when used from embed, it will indicate what scorer id was set in 
@@ -97,14 +100,17 @@ class CeramicCache(models.Model):
         blank=True,
         db_index=True,
     )
-    stamp_created_by = models.IntegerField(
+    source_app = models.IntegerField(
         verbose_name="Creating Enity",
         help_text="""Which entity created the stamp. At the moment there are 2 options: the 'Passport App' and 'Embed Widget'""",
-        choices=StampCreator.choices,
+        choices=SourceApp.choices,
         null=True,
         blank=True,
         db_index=True,
     )
+    ################################################################################################
+    # End metadata fields
+    #################################################################################################
 
     class Meta:
         unique_together = ["type", "address", "provider", "deleted_at"]

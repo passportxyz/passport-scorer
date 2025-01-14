@@ -10,7 +10,7 @@ from django.test import Client
 from pytest_bdd import given, scenario, then, when
 
 from account.models import Community
-from registry.tasks import score_passport_passport
+from registry.tasks import score_passport
 from registry.test.test_passport_submission import mock_passport, mock_utc_timestamp
 from registry.weight_models import WeightConfiguration
 from scorer_weighted.models import BinaryWeightedScorer
@@ -169,7 +169,7 @@ def _(scorer_community_with_binary_scorer, scorer_api_key):
                 )
 
             # execute the task
-            score_passport_passport(
+            score_passport(
                 scorer_community_with_binary_scorer.id,
                 "0x71ad3e3057ca74967239c66ca6d3a9c2a43a58fc",
             )

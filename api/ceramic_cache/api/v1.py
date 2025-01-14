@@ -145,7 +145,7 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
         return handle_add_stamps(
             address,
             payload,
-            CeramicCache.StampCreator.PASSPORT,
+            CeramicCache.SourceApp.PASSPORT,
             settings.CERAMIC_CACHE_SCORER_ID,
         )
 
@@ -156,7 +156,7 @@ def cache_stamps(request, payload: List[CacheStampPayload]):
 def handle_add_stamps_only(
     address,
     payload: List[CacheStampPayload],
-    stamp_creator: CeramicCache.StampCreator,
+    source_app: CeramicCache.SourceApp,
     alternate_scorer_id: Optional[int] = None,
 ) -> GetStampResponse:
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
@@ -184,8 +184,8 @@ def handle_add_stamps_only(
             compose_db_save_status=CeramicCache.ComposeDBSaveStatus.PENDING,
             issuance_date=p.stamp.get("issuanceDate", None),
             expiration_date=p.stamp.get("expirationDate", None),
-            stamp_created_by=stamp_creator,
-            scorer_id=alternate_scorer_id,
+            source_app=source_app,
+            source_scorer_id=alternate_scorer_id,
         )
         for p in payload
     ]
@@ -216,7 +216,7 @@ def handle_add_stamps_only(
 def handle_add_stamps(
     address,
     payload: List[CacheStampPayload],
-    stamp_creator: CeramicCache.StampCreator,
+    stamp_creator: CeramicCache.SourceApp,
     alternate_scorer_id: Optional[int] = None,
 ) -> GetStampsWithScoreResponse:
     stamps_response = handle_add_stamps_only(

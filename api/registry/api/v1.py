@@ -183,34 +183,6 @@ async def a_submit_passport(
         ) from e
 
 
-def sync_test_function():
-    account_api_keys = []
-    for api_key in AccountAPIKey.objects.all():
-        account_api_keys.append(api_key)
-
-    print("account_api_keys", account_api_keys)
-
-    users = []
-    for user in User.objects.all():
-        users.append(user)
-
-    print("user", users)
-
-
-async def async_test_function():
-    account_api_keys = []
-    async for api_key in AccountAPIKey.objects.all():
-        account_api_keys.append(api_key)
-
-    print("account_api_keys", account_api_keys)
-
-    users = []
-    async for user in User.objects.all():
-        users.append(user)
-
-    print("user", users)
-
-
 async def ahandle_submit_passport(
     payload: SubmitPassportPayload, account: Account
 ) -> DetailedScoreResponse:

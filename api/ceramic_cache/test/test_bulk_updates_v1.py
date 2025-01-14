@@ -106,7 +106,7 @@ class TestBulkStampUpdates:
                 "provider": provider,
                 "scorer_id": ui_scorer,
                 "stamp": stamp,
-                "stamp_created_by": CeramicCache.StampCreator.PASSPORT.value,
+                "source_app": CeramicCache.SourceApp.PASSPORT.value,
                 "type": 1,
             }
 
@@ -219,9 +219,9 @@ class TestBulkStampUpdates:
                 "issuance_date": datetime.fromisoformat(stamp["issuanceDate"]),
                 "proof_value": stamp["proof"]["proofValue"],
                 "provider": provider,
-                "scorer_id": ui_scorer,
+                "source_scorer_id": ui_scorer,
                 "stamp": stamp,
-                "stamp_created_by": CeramicCache.StampCreator.PASSPORT.value,
+                "source_app": CeramicCache.SourceApp.PASSPORT.value,
                 "type": 1,
             }
 
@@ -345,9 +345,9 @@ class TestBulkStampUpdates:
                 "issuance_date": datetime.fromisoformat(stamp["issuanceDate"]),
                 "proof_value": stamp["proof"]["proofValue"],
                 "provider": provider,
-                "scorer_id": ui_scorer,
+                "source_scorer_id": ui_scorer,
                 "stamp": stamp,
-                "stamp_created_by": CeramicCache.StampCreator.PASSPORT.value,
+                "source_app": CeramicCache.SourceApp.PASSPORT.value,
                 "type": 1,
             }
 
@@ -378,9 +378,9 @@ class TestBulkStampUpdates:
                 "issuance_date": datetime.fromisoformat(stamp["issuanceDate"]),
                 "proof_value": stamp["proof"]["proofValue"],
                 "provider": provider,
-                "scorer_id": ui_scorer,
+                "source_scorer_id": ui_scorer,
                 "stamp": stamp,
-                "stamp_created_by": CeramicCache.StampCreator.PASSPORT.value,
+                "source_app": CeramicCache.SourceApp.PASSPORT.value,
                 "type": 1,
             }
 
@@ -425,8 +425,8 @@ class TestBulkStampUpdates:
                 address=sample_address,
                 provider=stamp["credentialSubject"]["provider"],
                 stamp=stamp,
-                stamp_created_by=CeramicCache.StampCreator.PASSPORT.value,
-                scorer_id=ui_scorer,
+                source_app=CeramicCache.SourceApp.PASSPORT.value,
+                source_scorer_id=ui_scorer,
                 compose_db_save_status="pending",
                 expiration_date=datetime.fromisoformat(stamp["expirationDate"]),
                 issuance_date=datetime.fromisoformat(stamp["issuanceDate"]),
@@ -493,9 +493,9 @@ class TestBulkStampUpdates:
                 "issuance_date": datetime.fromisoformat(stamp["issuanceDate"]),
                 "proof_value": stamp["proof"]["proofValue"],
                 "provider": provider,
-                "scorer_id": ui_scorer,
+                "source_scorer_id": ui_scorer,
                 "stamp": stamp,
-                "stamp_created_by": CeramicCache.StampCreator.PASSPORT.value,
+                "source_app": CeramicCache.SourceApp.PASSPORT.value,
                 "type": 1,
             }
 

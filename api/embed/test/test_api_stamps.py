@@ -329,8 +329,8 @@ class StampsApiTestCase(TestCase):
                     "expiration_date": datetime.fromisoformat(m["expirationDate"]),
                     "issuance_date": datetime.fromisoformat(m["issuanceDate"]),
                     "proof_value": m["proof"]["proofValue"],
-                    "stamp_created_by": CeramicCache.StampCreator.EMBED.value,
-                    "scorer_id": self.community.id,
+                    "source_app": CeramicCache.SourceApp.EMBED.value,
+                    "source_scorer_id": self.community.id,
                     "stamp": m,
                     "type": 1,
                 }

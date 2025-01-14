@@ -16,7 +16,7 @@ from account.models import Account, AccountAPIKey, Community
 from registry.api.schema import StatusEnum
 from registry.api.v1 import SubmitPassportPayload, a_submit_passport, get_score
 from registry.models import Event, HashScorerLink, Passport, Score, Stamp
-from registry.tasks import score_passport_passport, score_registry_passport
+from registry.tasks import score_passport
 from scorer_weighted.models import Scorer, WeightedScorer
 
 User = get_user_model()
@@ -135,7 +135,7 @@ class TestScorePassportTestCase(TransactionTestCase):
 
     def test_no_passport(self):
         with patch("registry.atasks.aget_passport", return_value=None):
-            score_passport_passport(self.community.pk, self.account.address)
+            score_passport(self.community.pk, self.account.address)
 
             passport = Passport.objects.get(
                 address=self.account.address, community_id=self.community.pk
@@ -174,7 +174,7 @@ class TestScorePassportTestCase(TransactionTestCase):
         mock_request.GET = {}
         mock_request.headers = {}
 
-        with patch("registry.api.v1.score_passport_passport", return_value=None):
+        with patch("registry.api.v1.ascore_passport", return_value=None):
             async_to_sync(a_submit_passport)(
                 mock_request,
                 SubmitPassportPayload(
@@ -187,7 +187,7 @@ class TestScorePassportTestCase(TransactionTestCase):
             with patch(
                 "registry.atasks.validate_credential", side_effect=mock_validate
             ):
-                score_passport_passport(self.community.pk, address)
+                score_passport(self.community.pk, address)
 
         Passport.objects.get(address=address, community_id=self.community.pk)
 
@@ -228,7 +228,7 @@ class TestScorePassportTestCase(TransactionTestCase):
             with patch(
                 "registry.atasks.validate_credential", side_effect=mock_validate
             ):
-                score_passport_passport(self.community.pk, self.account.address)
+                score_passport(self.community.pk, self.account.address)
 
                 my_stamps = Stamp.objects.filter(passport=passport)
                 assert len(my_stamps) == 3
@@ -263,8 +263,8 @@ class TestScorePassportTestCase(TransactionTestCase):
             ):
                 with patch("registry.tasks.log.info") as mock_log:
                     # Call score_passport_passport twice, but only one of them should actually execute the scoring calculation
-                    score_passport_passport(self.community.pk, self.account.address)
-                    score_passport_passport(self.community.pk, self.account.address)
+                    score_passport(self.community.pk, self.account.address)
+                    score_passport(self.community.pk, self.account.address)
 
                     expected_call = call(
                         "Passport no passport found for address='%s', community_id='%s' that has requires_calculation=True or None",
@@ -316,7 +316,7 @@ class TestScorePassportTestCase(TransactionTestCase):
                 "registry.atasks.aget_passport",
                 return_value=mock_passport_data,
             ):
-                score_registry_passport(self.community.pk, passport.address)
+                score_passport(self.community.pk, passport.address)
 
             original_stamps = Stamp.objects.filter(passport=passport)
             assert len(original_stamps) == len(mocked_non_duplicate_stamps["stamps"])
@@ -382,7 +382,7 @@ class TestScorePassportTestCase(TransactionTestCase):
             with patch(
                 "registry.atasks.validate_credential", side_effect=mock_validate
             ):
-                score_passport_passport(self.community.pk, self.account.address)
+                score_passport(self.community.pk, self.account.address)
 
                 score = Score.objects.get(passport=passport)
 
@@ -421,7 +421,7 @@ class TestScorePassportTestCase(TransactionTestCase):
             with patch(
                 "registry.atasks.validate_credential", side_effect=mock_validate
             ):
-                score_passport_passport(self.community.pk, self.account.address)
+                score_passport(self.community.pk, self.account.address)
 
                 score = Score.objects.get(passport=passport)
 
@@ -445,7 +445,7 @@ class TestScorePassportTestCase(TransactionTestCase):
             with patch(
                 "registry.atasks.validate_credential", side_effect=mock_validate
             ):
-                score_passport_passport(self.community.pk, self.account.address)
+                score_passport(self.community.pk, self.account.address)
 
                 score = Score.objects.get(passport=passport)
 

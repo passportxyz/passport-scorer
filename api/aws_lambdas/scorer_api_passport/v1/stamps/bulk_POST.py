@@ -22,7 +22,7 @@ def _handler(event, context):
     payload = [CacheStampPayload(**p) for p in body]
 
     return format_response(
-        handle_add_stamps(address, payload, CeramicCache.StampCreator.PASSPORT)
+        handle_add_stamps(address, payload, CeramicCache.SourceApp.PASSPORT)
     )
 
 

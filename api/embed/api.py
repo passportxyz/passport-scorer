@@ -83,7 +83,7 @@ def handle_embed_add_stamps(
 
     try:
         added_stamps = handle_add_stamps_only(
-            address, add_stamps_payload, CeramicCache.StampCreator.EMBED, payload.scorer_id
+            address, add_stamps_payload, CeramicCache.SourceApp.EMBED, payload.scorer_id
         )
         user_account = Community.objects.get(id=payload.scorer_id).account
         score = async_to_sync(handle_scoring)(address, payload.scorer_id, user_account)
