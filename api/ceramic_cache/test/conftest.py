@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from django.conf import settings
 
@@ -28,11 +30,29 @@ def sample_providers():
 
 
 @pytest.fixture
-def sample_stamps():
+def sample_expiration_dates(sample_providers):
+    now = datetime.now(timezone.utc)
+    return [now + timedelta(days=idx) for idx, _ in enumerate(sample_providers, 1)]
+
+
+@pytest.fixture
+def sample_stamps(sample_expiration_dates, sample_providers, sample_address):
     return [
-        {"stamp": 1, "proof": {"proofValue": "test1"}},
-        {"stamp": 2, "proof": {"proofValue": "test2"}},
-        {"stamp": 3, "proof": {"proofValue": "test3"}},
+        {
+            "type": ["VerifiableCredential"],
+            "credentialSubject": {
+                "id": sample_address,
+                "hash": "v0.0.0:1Vzw/OyM9CBUkVi/3mb+BiwFnHzsSRZhVH1gaQIyHvM=",
+                "provider": sample_providers[idx],
+            },
+            "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+            "issuanceDate": (expiration_date - timedelta(days=30)).isoformat(),
+            "expirationDate": expiration_date.isoformat(),
+            "proof": {
+                "proofValue": "proof-v0.0.0:1Vzw/OyM9CBUkVi/3mb+BiwFnHzsSRZhVH1gaQIyHvM=",
+            },
+        }
+        for idx, expiration_date in enumerate(sample_expiration_dates)
     ]
 
 

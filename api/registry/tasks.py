@@ -46,14 +46,6 @@ def save_api_key_analytics(
         log.error("Failed to save analytics. Error: '%s'", e, exc_info=True)
 
 
-def score_passport_passport(community_id: int, address: str):
-    score_passport(community_id, address)
-
-
-def score_registry_passport(community_id: int, address: str):
-    score_passport(community_id, address)
-
-
 def score_passport(community_id: int, address: str):
     passport = load_passport_record(community_id, address)
 
