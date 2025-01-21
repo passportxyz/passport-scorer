@@ -2,14 +2,18 @@
 This module provides a handler to manage API requests in AWS Lambda.
 """
 
-from django.db import close_old_connections
-
 from aws_lambdas.scorer_api_passport.utils import (
     authenticate_and_get_address,
     format_response,
     parse_body,
     with_request_exception_handling,
 )
+
+"""
+Imports after aws_lambdas.scorer_api_passport.utils
+"""
+from django.db import close_old_connections
+
 from ceramic_cache.api.v1 import CacheStampPayload, handle_add_stamps
 from ceramic_cache.models import CeramicCache
 
