@@ -94,7 +94,6 @@ class JWTDidAuthentication:
         Validates an encoded JSON web token and returns a validated token
         wrapper object.
         """
-        print("get_validated_token")
         messages = []
         for AuthToken in api_settings.AUTH_TOKEN_CLASSES:
             try:
@@ -117,7 +116,6 @@ class JWTDidAuthentication:
         )
 
     def jwt_authenticate(self, request: HttpRequest, token: str) -> Type[AbstractUser]:
-        print("jwt_authenticate")
         request.did = None
         validated_token = self.get_validated_token(token)
         request.did = validated_token["did"]
@@ -130,8 +128,6 @@ class JWTDidAuth(JWTDidAuthentication, HttpBearer):
     """
 
     def authenticate(self, request: HttpRequest, token: str) -> Any:
-        print("request:", request)
-        print("authenticate:", token)
         return self.jwt_authenticate(request, token)
 
 
