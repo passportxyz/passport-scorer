@@ -466,7 +466,7 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         expectedResponse = {
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-            "score": Decimal("0.93300"),
+            "score": Decimal("0.73300"),
             "passing_score": False,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
             "expiration_timestamp": mock_passport_expiration_date.isoformat(),
@@ -476,7 +476,7 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "Ens": {
                     "dedup": False,
                     "expiration_date": mock_passport_expiration_date.isoformat(),
-                    "score": "0.40800",
+                    "score": "0.20800",
                 },
                 "Google": {
                     "dedup": False,
@@ -488,7 +488,7 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         expected2ndResponse = {
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
-            "score": Decimal("0.93300"),
+            "score": Decimal("0.73300"),
             "passing_score": False,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
             "expiration_timestamp": mock_passport_expiration_date.isoformat(),
@@ -498,7 +498,7 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "Ens": {
                     "dedup": False,
                     "expiration_date": mock_passport_expiration_date.isoformat(),
-                    "score": "0.40800",
+                    "score": "0.20800",
                 },
                 "Google": {
                     "dedup": False,

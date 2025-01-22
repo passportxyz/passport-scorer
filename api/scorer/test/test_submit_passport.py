@@ -104,14 +104,14 @@ def _(scorer_community_with_gitcoin_default, submit_passport_response):
 
     assert returned_json == {
         "address": scorer_community_with_gitcoin_default.account.address.lower(),
-        "score": Decimal("0.9329999999999999960031971113"),
+        "score": Decimal("0.7330000000000000126565424807"),
         "status": "DONE",
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "expiration_date": mock_passport_expiration_date.isoformat(),
         "evidence": None,
         "error": None,
         "stamp_scores": {
-            "Ens": 0.408,
+            "Ens": 0.208,
             "Google": 0.525,
         },
     }
@@ -168,14 +168,14 @@ def _(scorer_community_with_gitcoin_default, score_response):
 
     assert score_response.json() == {
         "address": scorer_community_with_gitcoin_default.account.address.lower(),
-        "score": "0.933000000",
+        "score": "0.733000000",
         "status": "DONE",
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "expiration_date": mock_passport_expiration_date.isoformat(),
         "evidence": None,
         "error": None,
         "stamp_scores": {
-            "Ens": 0.408,
+            "Ens": 0.208,
             "Google": 0.525,
         },
     }
@@ -235,7 +235,7 @@ def _(scorer_community_with_gitcoin_default, scoring_failed_score_response):
         "evidence": None,
         "error": "something bad",
         "stamp_scores": {
-            "Ens": 0.408,
+            "Ens": 0.208,
             "Google": 0.525,
         },
     }
@@ -273,7 +273,7 @@ def _(scorer_community_with_gitcoin_default, score_response, mocker):
         response_data["address"]
         == scorer_community_with_gitcoin_default.account.address.lower()
     )
-    assert response_data["score"] == "0.933000000"
+    assert response_data["score"] == "0.733000000"
     assert response_data["status"] == "DONE"
     assert response_data["last_score_timestamp"] == mock_utc_timestamp.isoformat()
     assert response_data["evidence"] is None
@@ -344,14 +344,14 @@ def _(scorer_community_with_gitcoin_default, score_response):
     score_response_data = score_response.json()
     assert score_response_data == {
         "address": scorer_community_with_gitcoin_default.account.address.lower(),
-        "score": "0.933000000",
+        "score": "0.733000000",
         "status": "DONE",
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "expiration_date": mock_passport_expiration_date.isoformat(),
         "evidence": None,
         "error": None,
         "stamp_scores": {
-            "Ens": 0.408,
+            "Ens": 0.208,
             "Google": 0.525,
         },
     }

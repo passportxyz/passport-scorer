@@ -53,7 +53,7 @@ def _(scorersPutResponse):
 def _(scorer_community_with_binary_scorer):
     scorer = Community.objects.get(id=scorer_community_with_binary_scorer.id).scorer
 
-    scorer.binaryweightedscorer.threshold = 0.9
+    scorer.binaryweightedscorer.threshold = 0.7
     scorer.binaryweightedscorer.save()
     assert scorer.type == "WEIGHTED_BINARY"
     assert scorer.binaryweightedscorer
@@ -119,7 +119,7 @@ def _(scoreResponse):
 def _(scoreResponse):
     """the threshold should be returned."""
     assert (
-        scoreResponse.json()["evidence"]["threshold"] == 0.9
+        scoreResponse.json()["evidence"]["threshold"] == 0.7
     )  # That is the mocked value
 
 
