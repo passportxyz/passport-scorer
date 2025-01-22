@@ -40,7 +40,7 @@ from registry.api.utils import (
     validate_address_and_convert_to_lowercase,
 )
 
-from .api import AccountAPIKeySchema, AddStampsPayload, handle_add_stamps
+from .api import AccountAPIKeySchema, AddStampsPayload, handle_embed_add_stamps
 
 # pylint: enable=wrong-import-position
 
@@ -143,7 +143,7 @@ def _handler_save_stamps(event, _context, body, _sensitive_date):
     _address = get_address(event["path"])
     address_lower = validate_address_and_convert_to_lowercase(_address)
 
-    add_stamps_response = handle_add_stamps(address_lower, add_stamps_payload)
+    add_stamps_response = handle_embed_add_stamps(address_lower, add_stamps_payload)
 
     return {
         "statusCode": 200,

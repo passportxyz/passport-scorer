@@ -50,6 +50,7 @@ django-stubs = "*"
 pandas = "*"
 faker = "*"
 freezegun = "*"
+pytest-asyncio = "^0.25.2"
 
 
 [tool.poetry.group.server.dependencies]

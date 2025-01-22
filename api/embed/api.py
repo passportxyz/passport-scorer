@@ -11,6 +11,7 @@ from ceramic_cache.api.schema import (
     GetStampsWithV2ScoreResponse,
 )
 from ceramic_cache.api.v1 import handle_add_stamps_only
+from ceramic_cache.models import CeramicCache
 from registry.api.schema import (
     ErrorMessageResponse,
 )
@@ -61,10 +62,10 @@ class AddStampsPayload(Schema):
 def add_stamps(
     request, address: str, payload: AddStampsPayload
 ) -> GetStampsWithV2ScoreResponse:
-    return handle_add_stamps(address, payload)
+    return handle_embed_add_stamps(address, payload)
 
 
-def handle_add_stamps(
+def handle_embed_add_stamps(
     address: str, payload: AddStampsPayload
 ) -> GetStampsWithV2ScoreResponse:
     address_lower = address.lower()
@@ -82,7 +83,7 @@ def handle_add_stamps(
 
     try:
         added_stamps = handle_add_stamps_only(
-            address, add_stamps_payload, payload.scorer_id
+            address, add_stamps_payload, CeramicCache.SourceApp.EMBED, payload.scorer_id
         )
         user_account = Community.objects.get(id=payload.scorer_id).account
         score = async_to_sync(handle_scoring)(address, payload.scorer_id, user_account)

@@ -8,8 +8,14 @@ from aws_lambdas.scorer_api_passport.utils import (
     parse_body,
     with_request_exception_handling,
 )
-from ceramic_cache.api.v1 import CacheStampPayload, handle_add_stamps
+
+"""
+Imports after aws_lambdas.scorer_api_passport.utils
+"""
 from django.db import close_old_connections
+
+from ceramic_cache.api.v1 import CacheStampPayload, handle_add_stamps
+from ceramic_cache.models import CeramicCache
 
 
 @with_request_exception_handling
@@ -19,7 +25,9 @@ def _handler(event, context):
 
     payload = [CacheStampPayload(**p) for p in body]
 
-    return format_response(handle_add_stamps(address, payload))
+    return format_response(
+        handle_add_stamps(address, payload, CeramicCache.SourceApp.PASSPORT)
+    )
 
 
 def handler(*args, **kwargs):
