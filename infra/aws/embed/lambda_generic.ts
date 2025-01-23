@@ -90,7 +90,7 @@ export function createEmbedLambdaGeneric(config: {
           {}
         ),
       },
-      memorySize: 128,
+      memorySize: 512,
       timeout: 60,
       layers: [config.lambdaLayerArn],
       tags: {
@@ -123,14 +123,11 @@ export function createEmbedLambdaGeneric(config: {
   });
 
   ///////////////////////////////////////////////////////////////////////////
-  const lambdaTargetGroup = new aws.lb.TargetGroup(
-    `${config.name}-lambda-tg`,
-    {
-      name: `${config.name}-lambda-target-group`,
-      targetType: "lambda",
-      tags: { ...defaultTags, Name: `${config.name}-lambda` },
-    }
-  );
+  const lambdaTargetGroup = new aws.lb.TargetGroup(`${config.name}-lambda-tg`, {
+    name: `${config.name}-lambda-target-group`,
+    targetType: "lambda",
+    tags: { ...defaultTags, Name: `${config.name}-lambda` },
+  });
 
   const withLb = new aws.lambda.Permission(`${config.name}-lambda-permission`, {
     action: "lambda:InvokeFunction",
@@ -148,7 +145,6 @@ export function createEmbedLambdaGeneric(config: {
       dependsOn: [withLb],
     }
   );
-
 
   const targetPassportRule = new ListenerRule(`${config.name}-rule-lambda`, {
     tags: { ...defaultTags, Name: `${config.name}-rule-lambda` },
