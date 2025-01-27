@@ -8,6 +8,7 @@ describe('Test Environment', () => {
       'TEST_UI_SCORER_ID',
       'TEST_INTERNAL_API_SECRET',
       'IAM_BASE_URL',
+      'EMBED_BASE_URL',
       'NFT_HOLDER_PRIVATE_KEY',
       'DOMAIN',
       'DB_CONNECTION_STRING',
