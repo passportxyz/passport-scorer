@@ -15,6 +15,7 @@ from registry.models import BatchModelScoringRequest, BatchRequestStatus
 from scorer.settings import (
     BULK_MODEL_SCORE_BATCH_SIZE,
     BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER,
+    BULK_MODEL_SCORE_RETRY_SLEEP,
     BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
     BULK_SCORE_REQUESTS_BUCKET_NAME,
     S3_BUCKET,
@@ -169,39 +170,52 @@ class Command(BaseCommand):
         ) / self.total_lambda_calls
 
     async def process_address(self, address, model_list):
-        try:
-            start_time = time.time()
-            analysis = await handle_get_analysis(address, model_list, False, True)
-            end_time = time.time()
-            duration = end_time - start_time
+        num_attempts = 5
+        last_attempt = num_attempts - 1
 
-            self.update_average_duration(duration)
+        for attempt in range(num_attempts):
+            try:
+                return await self._process_address(address, model_list)
+            except Exception as e:
+                if attempt == last_attempt:
+                    self.stderr.write(
+                        self.style.ERROR(
+                            f"Error processing address {address}: {str(e)}"
+                        )
+                    )
+                    return address, e
+                else:
+                    await asyncio.sleep(BULK_MODEL_SCORE_RETRY_SLEEP)
 
-            details_dict = {
-                "models": {
-                    model: {
-                        "score": score.score,
-                        "num_transactions": score.num_transactions,
-                        "first_funder": score.first_funder,
-                        "first_funder_amount": score.first_funder_amount,
-                        "first_funder_timestamp": score.first_funder_timestamp,
-                    }
-                    for model, score in analysis.details.models.items()
+    async def _process_address(self, address, model_list):
+        start_time = time.time()
+        analysis = await handle_get_analysis(address, model_list, False, True)
+        end_time = time.time()
+        duration = end_time - start_time
+
+        self.update_average_duration(duration)
+
+        details_dict = {
+            "models": {
+                model: {
+                    "score": score.score,
+                    "num_transactions": score.num_transactions,
+                    "first_funder": score.first_funder,
+                    "first_funder_amount": score.first_funder_amount,
+                    "first_funder_timestamp": score.first_funder_timestamp,
                 }
+                for model, score in analysis.details.models.items()
             }
-            result = json.dumps(details_dict)
+        }
+        result = json.dumps(details_dict)
 
-            self.stdout.write(f"Processed address {address}:")
-            self.stdout.write(f"  Duration: {duration:.2f} seconds")
-            self.stdout.write(
-                f"  Average Duration: {self.average_lambda_duration:.2f} seconds"
-            )
+        self.stdout.write(f"Processed address {address}:")
+        self.stdout.write(f"  Duration: {duration:.2f} seconds")
+        self.stdout.write(
+            f"  Average Duration: {self.average_lambda_duration:.2f} seconds"
+        )
 
-            return address, result
-        except Exception as e:
-            error = self.style.ERROR(f"Error processing address {address}: {str(e)}")
-            self.stderr.write(error)
-            return address, error
+        return address, result
 
     async def create_and_upload_results_csv(self, request_id, results, filename):
         csv_buffer = StringIO()
