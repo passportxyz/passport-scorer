@@ -2,6 +2,7 @@
 
 # Weight values for each stamp based on its perceived significance in assessing the unique humanity of the Passport holder
 GITCOIN_PASSPORT_WEIGHTS = {
+    "BeginnerCommunityStaker": "0.673",
     "BinanceBABT": "16.021",
     "BinanceBABT2": "10.021",
     "Brightid": "0.202",
@@ -55,9 +56,3 @@ GITCOIN_PASSPORT_WEIGHTS = {
 
 # The Boolean scorer deems Passport holders unique humans if they meet or exceed the below thresholdold
 GITCOIN_PASSPORT_THRESHOLD = "20"
-
-
-def increment_scores(increment_value):
-    for key, value in GITCOIN_PASSPORT_WEIGHTS.copy().items():
-        updated_value = float(value) + increment_value
-        print(f'"{key}": "{updated_value:.6f}",')
