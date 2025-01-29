@@ -141,11 +141,11 @@ def test_successful_authentication(
     assert body["evidence"] == {
         "type": "ThresholdScoreCheck",
         "success": False,
-        "rawScore": 0.9329999999999999,
+        "rawScore": 0.733,
         "threshold": 20.0,
     }
     assert body["error"] is None
-    assert body["stamp_scores"] == {"Ens": 0.408, "Google": 0.525}
+    assert body["stamp_scores"] == {"Ens": 0.208, "Google": 0.525}
     # We just check that something != None was recorded for the last timestamp
     assert body["last_score_timestamp"] is not None
 
@@ -184,11 +184,11 @@ def test_successful_authentication_and_numeric_scorer_id(
     assert body["evidence"] == {
         "type": "ThresholdScoreCheck",
         "success": False,
-        "rawScore": 0.9329999999999999,
+        "rawScore": 0.733,
         "threshold": 20.0,
     }
     assert body["error"] is None
-    assert body["stamp_scores"] == {"Ens": 0.408, "Google": 0.525}
+    assert body["stamp_scores"] == {"Ens": 0.208, "Google": 0.525}
     # We just check that something != None was recorded for the last timestamp
     assert body["last_score_timestamp"] is not None
 
@@ -227,11 +227,11 @@ def test_successful_authentication_and_string_scorer_id(
     assert body["evidence"] == {
         "type": "ThresholdScoreCheck",
         "success": False,
-        "rawScore": 0.9329999999999999,
+        "rawScore": 0.733,
         "threshold": 20.0,
     }
     assert body["error"] is None
-    assert body["stamp_scores"] == {"Ens": 0.408, "Google": 0.525}
+    assert body["stamp_scores"] == {"Ens": 0.208, "Google": 0.525}
     # We just check that something != None was recorded for the last timestamp
     assert body["last_score_timestamp"] is not None
 
@@ -270,11 +270,11 @@ def test_successful_authentication_and_base64_encoded_body(
     assert body["evidence"] == {
         "type": "ThresholdScoreCheck",
         "success": False,
-        "rawScore": 0.9329999999999999,
+        "rawScore": 0.733,
         "threshold": 20.0,
     }
     assert body["error"] is None
-    assert body["stamp_scores"] == {"Ens": 0.408, "Google": 0.525}
+    assert body["stamp_scores"] == {"Ens": 0.208, "Google": 0.525}
     # We just check that something != None was recorded for the last timestamp
     assert body["last_score_timestamp"] is not None
 

@@ -115,14 +115,14 @@ def test_successful_authentication(
             body = json.loads(response["body"])
 
             assert body["address"] == address
-            assert body["score"] == "0.93300"
+            assert body["score"] == "0.73300"
             assert body["passing_score"] == False
             assert body["threshold"] == "20.00000"
 
             assert body["error"] is None
             assert body["stamps"] == {
                 "Ens": {
-                    "score": "0.40800",
+                    "score": "0.20800",
                     "dedup": False,
                     "expiration_date": next(
                         (
@@ -178,7 +178,7 @@ def test_successful_authentication_and_dedup_flag(
     days_ago = (now - timedelta(days=2)).isoformat()
     days_later = (now + timedelta(days=2)).isoformat()
 
-    sample_provider = "LinkedinV2"
+    sample_provider = "Linkedin"
     sample_provider_hash = "v0.0.0:Ft7mqRdvJ9jNgSSowb9qdcMeOzswOeighIOvk0wn964="
 
     sample_stamp = CeramicCache.objects.create(
@@ -342,13 +342,13 @@ def test_successful_authentication_and_base64_encoded_body(
             body = json.loads(response["body"])
 
             assert body["address"] == address
-            assert body["score"] == "0.93300"
+            assert body["score"] == "0.73300"
             assert body["passing_score"] == False
             assert body["threshold"] == "20.00000"
             assert body["error"] is None
             assert body["stamps"] == {
                 "Ens": {
-                    "score": "0.40800",
+                    "score": "0.20800",
                     "dedup": False,
                     "expiration_date": next(
                         (

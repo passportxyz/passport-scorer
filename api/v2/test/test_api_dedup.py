@@ -96,7 +96,7 @@ class TestApiGetStampsDedupFlagTestCase:
             },
         )
 
-        sample_provider = "LinkedinV2"
+        sample_provider = "Linkedin"
         sample_provider_hash = "v0.0.0:Ft7mqRdvJ9jNgSSowb9qdcMeOzswOeighIOvk0wn964="
 
         sample_stamp = CeramicCache.objects.create(
@@ -163,7 +163,7 @@ class TestApiGetStampsDedupFlagTestCase:
         days_ago = (now - timedelta(days=2)).isoformat()
         days_later = (now + timedelta(days=2)).isoformat()
 
-        sample_provider = "LinkedinV2"
+        sample_provider = "Linkedin"
         sample_provider_hash = "v0.0.0:Ft7mqRdvJ9jNgSSowb9qdcMeOzswOeighIOvk0wn964="
 
         sample_stamp = CeramicCache.objects.create(

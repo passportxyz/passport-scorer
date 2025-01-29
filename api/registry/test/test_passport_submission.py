@@ -574,10 +574,10 @@ class ValidatePassportTestCase(TransactionTestCase):
             "evidence": None,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
             "expiration_date": mock_passport_expiration_date.isoformat(),
-            "score": Decimal("0.9329999999999999960031971113"),
+            "score": Decimal("0.7330000000000000126565424807"),
             "status": "DONE",
             "error": None,
-            "stamp_scores": {"Ens": 0.408, "Google": 0.525},
+            "stamp_scores": {"Ens": 0.208, "Google": 0.525},
         }
 
         expected2ndResponse = {
@@ -585,10 +585,10 @@ class ValidatePassportTestCase(TransactionTestCase):
             "evidence": None,
             "last_score_timestamp": "2023-01-11T16:35:23.938006+00:00",
             "expiration_date": mock_passport_expiration_date.isoformat(),
-            "score": Decimal("0.9329999999999999960031971113"),
+            "score": Decimal("0.7330000000000000126565424807"),
             "status": "DONE",
             "error": None,
-            "stamp_scores": {"Ens": 0.408, "Google": 0.525},
+            "stamp_scores": {"Ens": 0.208, "Google": 0.525},
         }
 
         # First submission
