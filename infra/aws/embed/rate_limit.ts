@@ -86,7 +86,7 @@ export function createEmbedLambdaRateLimit(config: {
           {}
         ),
       },
-      memorySize: 128,
+      memorySize: 1024,
       timeout: 60,
       layers: [config.lambdaLayerArn],
       tags: {
