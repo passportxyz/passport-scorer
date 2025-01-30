@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, Dict, List, Optional
 
 from asgiref.sync import async_to_sync
 from ninja import Router, Schema
@@ -10,7 +10,7 @@ from ceramic_cache.api.schema import (
     CacheStampPayload,
     GetStampsWithV2ScoreResponse,
 )
-from ceramic_cache.api.v1 import handle_add_stamps_only
+from ceramic_cache.api.v1 import handle_add_stamps_only, handle_get_scorer_weights
 from ceramic_cache.models import CeramicCache
 from registry.api.schema import (
     ErrorMessageResponse,
@@ -119,3 +119,16 @@ def validate_api_key(request) -> AccountAPIKeySchema:
     This API is intended to be used in the embed service in the passport repo
     """
     return AccountAPIKeySchema.from_orm(request.api_key)
+
+
+@api_router.get("/weights", response=Dict[str, float])
+def get_embed_weights(request, community_id: Optional[str] = None) -> Dict[str, float]:
+    """
+    ---
+    get:
+      description: Get embed weights
+      responses:
+        200:
+          description: Returns the embed weights
+    """
+    return handle_get_scorer_weights(community_id)
