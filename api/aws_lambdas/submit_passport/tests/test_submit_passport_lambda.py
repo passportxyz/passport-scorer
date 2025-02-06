@@ -308,6 +308,7 @@ def test_strip_event_strips_the_api_key(
     Tests that authentication is successful given correct credentials.
     """
 
+    prefix = scorer_api_key.split(".")[0]
     address = passport_holder_addresses[0]["address"].lower()
     event = make_test_event(
         scorer_api_key, address, scorer_community_with_binary_scorer.id
@@ -316,7 +317,7 @@ def test_strip_event_strips_the_api_key(
     sensitive_data, event = strip_event(event)
 
     assert sensitive_data["x-api-key"] == initial_event["headers"]["x-api-key"]
-    assert event["headers"]["x-api-key"] == "***"
+    assert event["headers"]["x-api-key"] == f"{prefix}.***"
 
     # Events hould equal the initial event after adding back the stripped data
     event["headers"]["x-api-key"] = sensitive_data["x-api-key"]
