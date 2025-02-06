@@ -141,7 +141,8 @@ def strip_event(event) -> tuple:
     headers = event.get("headers", {})
     if "x-api-key" in headers:
         sensitive_data["x-api-key"] = headers["x-api-key"]
-        headers["x-api-key"] = "***"
+        prefix = headers["x-api-key"].split(".")[0]
+        headers["x-api-key"] = f"{prefix}.***"
     return sensitive_data, event
 
 
