@@ -12,12 +12,11 @@ import json
 import logging
 from typing import Any, Dict, Tuple
 
+from ninja_extra.exceptions import APIException
 from structlog.contextvars import bind_contextvars
 
 from aws_lambdas.exceptions import InvalidRequest
 from aws_lambdas.utils import (
-    RESPONSE_HEADERS,
-    APIException,
     DataError,
     IntegrityError,
     InterfaceError,
@@ -30,6 +29,14 @@ from aws_lambdas.utils import (
     parse_body,
     strip_event,
 )
+
+RESPONSE_HEADERS = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "*",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Access-Control-Allow-Headers": "Accept,Accept-Encoding,Authorization,Content-Type,Dnt,Origin,User-Agent,X-Csrftoken,X-Requested-With,X-Api-Key",
+}
 
 """ Load the django apps after the aws_lambdas.utils """  # pylint: disable=pointless-string-statement
 from django.db import close_old_connections
@@ -106,30 +113,20 @@ def with_app_api_no_auth_request_exception_handling(func):
 @with_app_api_no_auth_request_exception_handling
 def _lambda_handler_account_nonce(_event, _context, body, sensitive_date):
     http_method = _event["httpMethod"]
-    body = None
-    headers = None
+    response_body = None
+    headers = dict(**RESPONSE_HEADERS)
+    headers["Access-Control-Allow-Methods"] = "GET,OPTIONS"
 
     if http_method == "GET":
         nonce = Nonce.create_nonce(ttl=300)
-        body = json.dumps({"nonce": nonce.nonce})
-        headers = {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET,OPTIONS",
-            "Cross-Origin-Opener-Policy": "same-origin",
-        }
+        response_body = json.dumps({"nonce": nonce.nonce})
     else:
-        headers = {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET,OPTIONS",
-            "Cross-Origin-Opener-Policy": "same-origin",
-        }
-        body = ""
+        response_body = ""
 
     return {
         "statusCode": 200,
         "headers": headers,
-        "body": body,
+        "body": response_body,
     }
 
 
@@ -141,33 +138,21 @@ def lambda_handler_account_nonce(*args, **kwargs):
 @with_app_api_no_auth_request_exception_handling
 def _lambda_handler_authenticate(_event, _context, body, sensitive_date):
     http_method = _event["httpMethod"]
-    body = None
-    headers = None
+    response_body = None
+    headers = dict(**RESPONSE_HEADERS)
+    headers["Access-Control-Allow-Methods"] = "POST,OPTIONS"
 
     if http_method == "POST":
         cacao_verify_submit = CacaoVerifySubmit(**body)
         access_token_response = handle_authenticate(cacao_verify_submit)
-        body = access_token_response.model_dump_json()
-        headers = {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST,OPTIONS",
-            "Cross-Origin-Opener-Policy": "same-origin",
-            "Access-Control-Allow-Headers": "*",
-        }
+        response_body = access_token_response.model_dump_json()
     else:
-        headers = {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST,OPTIONS",
-            "Cross-Origin-Opener-Policy": "same-origin",
-            "Access-Control-Allow-Headers": "*",
-        }
-        body = ""
+        response_body = ""
 
     return {
         "statusCode": 200,
         "headers": headers,
-        "body": body,
+        "body": response_body,
     }
 
 

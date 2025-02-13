@@ -18,12 +18,6 @@ class AccountNonceLambdaTestCase(TestCase):
     def setUp(self):
         pass
 
-    def test_rate_limit_bad_api_key(self):
-        """Test that the rate limit API returns error when an invalid API key is provided"""
-
-        # This test is actually not necesary for the lambda as this is only exposed on the internal API
-        assert True
-
     @patch("app_api.lambda_fn.close_old_connections", side_effect=[None])
     def test_nonce_returned(self, _close_old_connections):
         """Test that a new nonce is returned"""
@@ -33,6 +27,7 @@ class AccountNonceLambdaTestCase(TestCase):
             "path": "/account/nonce",
             "isBase64Encoded": False,
             "body": "",
+            "httpMethod": "GET",
         }
 
         result = lambda_handler_account_nonce(event, MockContext())
@@ -41,9 +36,43 @@ class AccountNonceLambdaTestCase(TestCase):
 
         assert result == {
             "headers": {
+                "Access-Control-Allow-Methods": "GET,OPTIONS",
+                "Access-Control-Allow-Origin": "*",
                 "Content-Type": "application/json",
+                "Cross-Origin-Opener-Policy": "same-origin",
+                "Access-Control-Allow-Headers": "Accept,Accept-Encoding,Authorization,Content-Type,Dnt,Origin,User-Agent,X-Csrftoken,X-Requested-With,X-Api-Key",
             },
             "statusCode": 200,
             "body": json.dumps({"nonce": nonce.nonce}),
         }
+        assert _close_old_connections.call_count == 1
+
+    @patch("app_api.lambda_fn.close_old_connections", side_effect=[None])
+    def test_nonce_options(self, _close_old_connections):
+        """Test that the CORS request is returning proper headers"""
+
+        event = {
+            "headers": {},
+            "path": "/account/nonce",
+            "isBase64Encoded": False,
+            "body": "",
+            "httpMethod": "OPTIONS",
+        }
+
+        nonce_count = len(Nonce.objects.all())
+
+        result = lambda_handler_account_nonce(event, MockContext())
+
+        assert result == {
+            "headers": {
+                "Access-Control-Allow-Methods": "GET,OPTIONS",
+                "Access-Control-Allow-Origin": "*",
+                "Cross-Origin-Opener-Policy": "same-origin",
+                "Access-Control-Allow-Headers": "Accept,Accept-Encoding,Authorization,Content-Type,Dnt,Origin,User-Agent,X-Csrftoken,X-Requested-With,X-Api-Key",
+                "Content-Type": "application/json",
+            },
+            "statusCode": 200,
+            "body": "",  # Empty body for OPTIONS request
+        }
+        assert nonce_count == 0
         assert _close_old_connections.call_count == 1
