@@ -50,6 +50,6 @@ export function createAppApiLambdaFunctions(config: {
       },
     ],
     lbRulePriority: 5020,
-    lambdaHandler: "app_api.lambda_fn.lambda_handler_account_nonce",
+    lambdaHandler: "app_api.lambda_fn.lambda_handler_authenticate",
   });
 }

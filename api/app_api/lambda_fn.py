@@ -153,12 +153,14 @@ def _lambda_handler_authenticate(_event, _context, body, sensitive_date):
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "POST,OPTIONS",
             "Cross-Origin-Opener-Policy": "same-origin",
+            "Access-Control-Allow-Headers": "*",
         }
     else:
         headers = {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "POST,OPTIONS",
             "Cross-Origin-Opener-Policy": "same-origin",
+            "Access-Control-Allow-Headers": "*",
         }
         body = ""
 
