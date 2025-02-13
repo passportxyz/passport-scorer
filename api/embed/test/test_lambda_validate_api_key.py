@@ -50,6 +50,7 @@ class ValidateLambdaValidateApiKeyTestCase(TestCase):
             "isBase64Encoded": False,
             "statusDescription": "Invalid API Key.",
         }
+        assert _close_old_connections.call_count == 1
 
     @patch("embed.lambda_fn.close_old_connections", side_effect=[None])
     def test_rate_limit_success(self, _close_old_connections):
@@ -73,3 +74,4 @@ class ValidateLambdaValidateApiKeyTestCase(TestCase):
             "headers": {"Content-Type": "application/json"},
             "statusCode": 200,
         }
+        assert _close_old_connections.call_count == 1
