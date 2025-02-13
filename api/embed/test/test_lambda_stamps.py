@@ -136,6 +136,7 @@ class ValidateLambdaValidateApiKeyTestCase(TestCase):
             [d["stamp"] for d in data["stamps"]],
             key=lambda x: x["credentialSubject"]["provider"],
         ) == sorted(mock_stamps, key=lambda x: x["credentialSubject"]["provider"])
+        assert _close_old_connections.call_count == 1
 
     @patch("embed.lambda_fn.close_old_connections", side_effect=[None])
     @patch("registry.atasks.validate_credential", side_effect=[[], [], []])
@@ -238,3 +239,4 @@ class ValidateLambdaValidateApiKeyTestCase(TestCase):
             },
             "status": "DONE",
         }
+        assert _close_old_connections.call_count == 1

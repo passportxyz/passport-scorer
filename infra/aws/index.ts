@@ -27,6 +27,7 @@ import { createS3InitiatedECSTask } from "../lib/scorer/s3_initiated_ecs_task";
 import { stack, defaultTags, StackType } from "../lib/tags";
 import { createV2Api } from "./v2/index";
 import { createEmbedLambdaFunctions } from "./embed";
+import { createAppApiLambdaFunctions } from "./app_api";
 import { createPythonLambdaLayer } from "./layer";
 
 //////////////////////////////////////////////////////////////
@@ -1708,6 +1709,18 @@ createV2Api({
 
 const pythonLambdaLayer = createPythonLambdaLayer({
   name: "python",
+  bucketId: codeBucketId,
+});
+
+createAppApiLambdaFunctions({
+  vpcId: vpcID,
+  snsAlertsTopicArn: pagerdutyTopic.arn,
+  httpsListenerArn: httpsListener.arn,
+  ceramicCacheScorerId: CERAMIC_CACHE_SCORER_ID,
+  scorerSecret: scorerSecret,
+  privateSubnetSecurityGroup: privateSubnetSecurityGroup,
+  vpcPrivateSubnetIds: vpcPrivateSubnetIds,
+  lambdaLayerArn: pythonLambdaLayer.arn,
   bucketId: codeBucketId,
 });
 
