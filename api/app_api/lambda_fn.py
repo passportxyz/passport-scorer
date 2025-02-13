@@ -12,10 +12,8 @@ import json
 import logging
 from typing import Any, Dict, Tuple
 
-from ninja_extra.exceptions import APIException
 from structlog.contextvars import bind_contextvars
 
-from aws_lambdas.exceptions import InvalidRequest
 from aws_lambdas.utils import (
     DataError,
     IntegrityError,
@@ -30,6 +28,16 @@ from aws_lambdas.utils import (
     strip_event,
 )
 
+""" Load the django apps after the aws_lambdas.utils """  # pylint: disable=pointless-string-statement
+from django.db import close_old_connections
+from ninja_extra.exceptions import APIException
+
+from account.models import Nonce
+from aws_lambdas.exceptions import InvalidRequest
+from ceramic_cache.api.v1 import CacaoVerifySubmit, handle_authenticate
+
+# pylint: enable=wrong-import-position
+
 RESPONSE_HEADERS = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
@@ -38,13 +46,6 @@ RESPONSE_HEADERS = {
     "Access-Control-Allow-Headers": "Accept,Accept-Encoding,Authorization,Content-Type,Dnt,Origin,User-Agent,X-Csrftoken,X-Requested-With,X-Api-Key",
 }
 
-""" Load the django apps after the aws_lambdas.utils """  # pylint: disable=pointless-string-statement
-from django.db import close_old_connections
-
-from account.models import Nonce
-from ceramic_cache.api.v1 import CacaoVerifySubmit, handle_authenticate
-
-# pylint: enable=wrong-import-position
 
 logger = logging.getLogger(__name__)
 
