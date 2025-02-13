@@ -816,10 +816,6 @@ class TestNotifications:
             is_deleted=True,
         )
 
-        notification_statuses = NotificationStatus.objects.filter(
-            eth_address=sample_address
-        )
-
         assert notification_statuses.count() == 4
 
     def test_delete_all_notifications_error(self, sample_bad_token):
