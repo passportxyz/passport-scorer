@@ -44,7 +44,7 @@ from registry.exceptions import (
 )
 from registry.models import Score
 from stake.api import handle_get_gtc_stake
-from stake.schema import GetSchemaResponse
+from stake.schema import StakeResponse
 from trusta_labs.api import CgrantsApiKey
 
 from ..exceptions import (
@@ -560,19 +560,6 @@ def calc_score(
     return get_detailed_score_response_for_address(address, payload.alternate_scorer_id)
 
 
-@router.get(
-    "/score/{int:scorer_id}/{str:address}",
-    response=DetailedScoreResponse,
-    auth=secret_key,
-)
-def calc_score_community(
-    request,
-    scorer_id: int,
-    address: str,
-) -> DetailedScoreResponse:
-    return handle_get_ui_score(address, scorer_id)
-
-
 class FailedVerificationException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Unable to authorize request"
@@ -685,15 +672,15 @@ def get_detailed_score_response_for_address(
 @router.get(
     "/stake/gtc",
     response={
-        200: GetSchemaResponse,
+        200: StakeResponse,
         400: ErrorMessageResponse,
     },
     auth=JWTDidAuth(),
 )
-def get_staked_gtc(request) -> GetSchemaResponse:
+def get_staked_gtc(request) -> StakeResponse:
     address = get_address_from_did(request.did)
     get_stake_response = handle_get_gtc_stake(address)
-    response = GetSchemaResponse(items=get_stake_response)
+    response = StakeResponse(items=get_stake_response)
     return response
 
 

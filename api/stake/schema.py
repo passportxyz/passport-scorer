@@ -23,5 +23,5 @@ class StakeSchema(Schema):
         return format(amount, ".18f")
 
 
-class GetSchemaResponse(Schema):
+class StakeResponse(Schema):
     items: List[StakeSchema]

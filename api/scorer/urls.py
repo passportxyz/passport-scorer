@@ -22,13 +22,7 @@ from django.urls import include, path
 from account.api import health
 from scorer.api import apis as api_list
 
-from .api import (
-    feature_flag_api,
-)
-
 urlpatterns = [
-    path("registry/feature/", feature_flag_api.urls),
-    path("cgrants/", include("cgrants.urls")),
     path("health/", health, {}, "health-check"),
     path(
         "admin/login/",
@@ -39,7 +33,8 @@ urlpatterns = [
     path("account/", include("account.urls")),
     path("social/", include("social_django.urls", namespace="social")),
     path("trusta_labs/", include("trusta_labs.urls")),
-    path("stake/", include("stake.urls")),
+    # path("cgrants/", include("cgrants.urls")),
+    # path("stake/", include("stake.urls")),
     path("passport/", include("passport.urls")),
     path("internal/", include("internal.urls")),
     path("embed/", include("embed.urls")),

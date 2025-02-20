@@ -6,8 +6,18 @@ from ninja_extra import NinjaExtraAPI
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
+from ceramic_cache.api.v1 import handle_get_ui_score
 from ceramic_cache.exceptions import InternalServerException, TooManyStampsException
 from ceramic_cache.models import Ban, Revocation
+from cgrants.api import (
+    ContributorStatistics,
+    handle_get_contributor_statistics,
+)
+from registry.api.schema import DetailedScoreResponse
+from registry.api.utils import is_valid_address
+from registry.exceptions import InvalidAddressException
+from stake.api import handle_get_gtc_stake
+from stake.schema import ErrorMessageResponse, StakeResponse
 from trusta_labs.api import CgrantsApiKey
 
 from .exceptions import InvalidBanQueryException
@@ -121,3 +131,47 @@ def check_revocations(
     except Exception as e:
         log.error("Failed to check revocations", exc_info=True)
         raise InternalServerException("Failed to check revocations") from e
+
+
+@api_router.get(
+    "/stake/gtc/{str:address}",
+    auth=internal_api_key,
+    response={
+        200: StakeResponse,
+        400: ErrorMessageResponse,
+    },
+    summary="Retrieve GTC stake amounts for the GTC Staking stamp",
+    description="Get self and community GTC stakes for an address",
+)
+def get_gtc_stake(request, address: str) -> StakeResponse:
+    """
+    Get relevant GTC stakes for an address
+    """
+    if not is_valid_address(address):
+        raise InvalidAddressException()
+
+    get_stake_response = handle_get_gtc_stake(address)
+    response = StakeResponse(items=get_stake_response)
+    return response
+
+
+@api_router.get(
+    "/cgrants/contributor_statistics",
+    response=ContributorStatistics,
+    auth=internal_api_key,
+)
+def cgrants_contributor_statistics(request, address: str):
+    return handle_get_contributor_statistics(address)
+
+
+@api_router.get(
+    "/score/{int:scorer_id}/{str:address}",
+    response=DetailedScoreResponse,
+    auth=internal_api_key,
+)
+def calc_score_community(
+    request,
+    scorer_id: int,
+    address: str,
+) -> DetailedScoreResponse:
+    return handle_get_ui_score(address, scorer_id)
