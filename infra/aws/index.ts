@@ -287,7 +287,10 @@ type EcsTaskConfigurationType = {
   desiredCount: number;
 };
 
-type EcsServiceNameType = "scorer-api-default-1" | "scorer-api-reg-1";
+type EcsServiceNameType =
+  | "scorer-api-default-1"
+  | "scorer-api-reg-1"
+  | "scorer-api-internal-1";
 const ecsTaskConfigurations: Record<
   EcsServiceNameType,
   Record<StackType, EcsTaskConfigurationType>
@@ -325,6 +328,23 @@ const ecsTaskConfigurations: Record<
       cpu: 2048,
       desiredCount: 2,
     },
+    "scorer-api-internal-1": {
+      review: {
+        memory: 1024,
+        cpu: 512,
+        desiredCount: 1,
+      },
+      staging: {
+        memory: 1024,
+        cpu: 512,
+        desiredCount: 1,
+      },
+      production: {
+        memory: 2048,
+        cpu: 512,
+        desiredCount: 2,
+      },
+    },
   },
 };
 
@@ -335,6 +355,8 @@ if (PROVISION_STAGING_FOR_LOADTEST) {
     ecsTaskConfigurations["scorer-api-default-1"]["production"];
   ecsTaskConfigurations["scorer-api-reg-1"]["staging"] =
     ecsTaskConfigurations["scorer-api-reg-1"]["production"];
+  ecsTaskConfigurations["scorer-api-internal-1"]["staging"] =
+    ecsTaskConfigurations["scorer-api-internal-1"]["production"];
 }
 
 // This matches the default security group that awsx previously created when creating the Cluster.
@@ -513,6 +535,7 @@ const httpListener = new aws.alb.Listener("scorer-http-listener", {
 // Target group with the port of the Docker image
 const targetGroupDefault = createTargetGroup("scorer-api-default", vpcID);
 const targetGroupRegistry = createTargetGroup("scorer-api-reg", vpcID);
+const targetGroupInternal = createTargetGroup("scorer-api-internal", vpcID);
 
 //////////////////////////////////////////////////////////////
 // Create the HTTPS listener, and set the default target group
@@ -951,6 +974,29 @@ const scorerServiceRegistry = createScorerECSService({
     memory: ecsTaskConfigurations["scorer-api-reg-1"][stack].memory,
     cpu: ecsTaskConfigurations["scorer-api-reg-1"][stack].cpu,
     desiredCount: ecsTaskConfigurations["scorer-api-reg-1"][stack].desiredCount,
+  },
+  environment: apiEnvironment,
+  secrets: apiSecrets,
+  loadBalancerAlarmThresholds: alarmConfigurations,
+});
+
+const scorerServiceInternal = createScorerECSService({
+  name: "scorer-api-internal-1",
+  config: {
+    ...baseScorerServiceConfig,
+    listenerRulePriority: 3001,
+    httpListenerRulePaths: [
+      {
+        pathPattern: {
+          values: ["/internal/*"],
+        },
+      },
+    ],
+    targetGroup: targetGroupInternal,
+    memory: ecsTaskConfigurations["scorer-api-internal-1"][stack].memory,
+    cpu: ecsTaskConfigurations["scorer-api-internal-1"][stack].cpu,
+    desiredCount:
+      ecsTaskConfigurations["scorer-api-internal-1"][stack].desiredCount,
   },
   environment: apiEnvironment,
   secrets: apiSecrets,
