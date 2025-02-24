@@ -92,6 +92,13 @@ const coreInfraStack = new pulumi.StackReference(
   `passportxyz/core-infra/${stack}`
 );
 
+const privateAlbHttpListenerArn = coreInfraStack.getOutput(
+  "privateAlbHttpListenerArn"
+);
+const privatprivateAlbArnSuffixeAlbHttpListenerArn = coreInfraStack.getOutput(
+  "privateAlbArnSuffix"
+);
+
 const RDS_SECRET_ARN = coreInfraStack.getOutput("rdsSecretArn");
 
 const vpcID = coreInfraStack.getOutput("vpcId");
@@ -984,7 +991,8 @@ const scorerServiceInternal = createScorerECSService({
   name: "scorer-api-internal-1",
   config: {
     ...baseScorerServiceConfig,
-    listenerRulePriority: 3001,
+    listenerRulePriority: 2102,
+    httpListenerArn: privateAlbHttpListenerArn,
     httpListenerRulePaths: [
       {
         pathPattern: {
@@ -1575,13 +1583,6 @@ buildQueueLambdaFn({
 });
 
 // VERIFIER
-const privateAlbHttpListenerArn = coreInfraStack.getOutput(
-  "privateAlbHttpListenerArn"
-);
-const privatprivateAlbArnSuffixeAlbHttpListenerArn = coreInfraStack.getOutput(
-  "privateAlbArnSuffix"
-);
-
 const verifier = pulumi
   .all([verifierDockerImage])
   .apply(([_verifierDockerImage]) =>

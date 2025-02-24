@@ -3,10 +3,10 @@ from typing import List
 from django.db.models import Q
 
 import api_logging as logging
-from registry.api.utils import with_read_db
-from registry.exceptions import StakingRequestError
+from registry.api.utils import is_valid_address, with_read_db
+from registry.exceptions import InvalidAddressException, StakingRequestError
 from stake.models import Stake
-from stake.schema import StakeSchema
+from stake.schema import StakeResponse, StakeSchema
 from trusta_labs.api import CgrantsApiKey
 
 secret_key = CgrantsApiKey()
@@ -31,15 +31,18 @@ log = logging.getLogger(__name__)
 #     """
 #     Get relevant GTC stakes for an address
 #     """
-#   if not is_valid_address(address):
-#       raise InvalidAddressException()
-
-#   get_stake_response = handle_get_gtc_stake(address)
-#   response = StakeResponse(items=get_stake_response)
-#   return response
+#     return handle_get_gtc_stake(address)
 
 
-def handle_get_gtc_stake(address: str) -> List[StakeSchema]:
+def handle_get_gtc_stake(address: str) -> StakeResponse:
+    if not is_valid_address(address):
+        raise InvalidAddressException()
+
+    items = get_gtc_stake_for_address(address)
+    return StakeResponse(items=items)
+
+
+def get_gtc_stake_for_address(address: str) -> List[StakeSchema]:
     address = address.lower()
 
     try:

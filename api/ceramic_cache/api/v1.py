@@ -43,7 +43,7 @@ from registry.exceptions import (
     NotFoundApiException,
 )
 from registry.models import Score
-from stake.api import handle_get_gtc_stake
+from stake.api import get_gtc_stake_for_address
 from stake.schema import StakeResponse
 from trusta_labs.api import CgrantsApiKey
 
@@ -679,7 +679,7 @@ def get_detailed_score_response_for_address(
 )
 def get_staked_gtc(request) -> StakeResponse:
     address = get_address_from_did(request.did)
-    get_stake_response = handle_get_gtc_stake(address)
+    get_stake_response = get_gtc_stake_for_address(address)
     response = StakeResponse(items=get_stake_response)
     return response
 
