@@ -124,7 +124,7 @@ class StampsApiTestCase(TestCase):
         """Test that the internal API key is required for the stamps request"""
 
         stamps_response = self.client.post(
-            f"/embed/stamps/{mock_addresse}",
+            f"/internal/embed/stamps/{mock_addresse}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": "BAD_API_KEY"},
@@ -136,7 +136,7 @@ class StampsApiTestCase(TestCase):
         """Test that the newly submitted stamps are correctly saved and scored"""
 
         stamps_response = self.client.post(
-            f"/embed/stamps/{mock_addresse}",
+            f"/internal/embed/stamps/{mock_addresse}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
@@ -191,7 +191,7 @@ class StampsApiTestCase(TestCase):
 
         # Create the rest of the stamps via the POST request
         stamps_response = self.client.post(
-            f"/embed/stamps/{mock_addresse}",
+            f"/internal/embed/stamps/{mock_addresse}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps[1:]}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
@@ -250,7 +250,7 @@ class StampsApiTestCase(TestCase):
 
         # Create stamps with the same provider using the POST request
         stamps_response = self.client.post(
-            f"/embed/stamps/{mock_addresse}",
+            f"/internal/embed/stamps/{mock_addresse}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
@@ -301,7 +301,7 @@ class StampsApiTestCase(TestCase):
 
         # Create the rest of the stamps via the POST request
         stamps_response = self.client.post(
-            f"/embed/stamps/{mock_addresse}",
+            f"/internal/embed/stamps/{mock_addresse}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},

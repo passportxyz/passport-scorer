@@ -1,6 +1,11 @@
-""" Test file for cgrants contribution API """
+"""Test file for cgrants contribution API"""
 
 import pytest
+from django.conf import settings
+from django.test import Client
+from django.urls import reverse
+from numpy import add
+
 from account.test.conftest import scorer_account, scorer_user
 from cgrants.api import _get_contributor_statistics_for_protocol
 from cgrants.models import (
@@ -12,10 +17,6 @@ from cgrants.models import (
 from cgrants.test.test_add_address_to_contribution_index import (
     generate_bulk_cgrant_data,
 )
-from django.conf import settings
-from django.test import Client
-from django.urls import reverse
-from numpy import add
 
 pytestmark = pytest.mark.django_db
 
@@ -41,7 +42,7 @@ class TestCombinedContributionsApi:
             contrib.save()
 
         response = client.get(
-            reverse("cgrants:contributor_statistics"),
+            reverse("internal:cgrants_contributor_statistics"),
             {"address": scorer_account.address},
             **headers,
         )
@@ -53,7 +54,7 @@ class TestCombinedContributionsApi:
 
     def test_combined_contributor_statistics_no_contributions(self):
         response = client.get(
-            reverse("cgrants:contributor_statistics"),
+            reverse("internal:cgrants_contributor_statistics"),
             {"address": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"},
             **headers,
         )
@@ -66,7 +67,7 @@ class TestCombinedContributionsApi:
 
     def test_invalid_address(self):
         response = client.get(
-            reverse("cgrants:contributor_statistics"),
+            reverse("internal:cgrants_contributor_statistics"),
             {"address": "0x9965507D1a55bcC2695C58ba16FB37d819BAAAAA"},
             **headers,
         )
@@ -76,7 +77,7 @@ class TestCombinedContributionsApi:
 
     def test_combined_contributor_invalid_token(self):
         response = client.get(
-            reverse("cgrants:contributor_statistics"),
+            reverse("internal:cgrants_contributor_statistics"),
             {"address": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"},
             **{"HTTP_AUTHORIZATION": "invalidtoken"},
         )
@@ -85,16 +86,12 @@ class TestCombinedContributionsApi:
 
     def test_missing_address(self):
         response = client.get(
-            reverse("cgrants:contributor_statistics"),
+            reverse("internal:cgrants_contributor_statistics"),
             {},
             **headers,
         )
 
-        assert response.status_code == 400
-
-        assert response.json() == {
-            "error": "Bad request, 'address' is missing or invalid. A valid address is required."
-        }
+        assert response.status_code == 422
 
     def test_contribution_below_threshold(self, protocol_contributions, scorer_account):
         for contrib in ProtocolContributions.objects.filter(
@@ -104,7 +101,7 @@ class TestCombinedContributionsApi:
             contrib.save()
 
         response = client.get(
-            reverse("cgrants:contributor_statistics"),
+            reverse("internal:cgrants_contributor_statistics"),
             {"address": scorer_account.address},
             **headers,
         )
@@ -117,7 +114,7 @@ class TestCombinedContributionsApi:
 
     def test_only_protocol_contributions(self, protocol_contributions, scorer_account):
         response = client.get(
-            reverse("cgrants:contributor_statistics"),
+            reverse("internal:cgrants_contributor_statistics"),
             {"address": scorer_account.address},
             **headers,
         )
@@ -138,7 +135,7 @@ class TestCombinedContributionsApi:
         )
 
         response = client.get(
-            reverse("cgrants:contributor_statistics"),
+            reverse("internal:cgrants_contributor_statistics"),
             {"address": scorer_account.address},
             **headers,
         )

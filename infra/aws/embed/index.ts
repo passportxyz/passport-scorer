@@ -1,12 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as archive from "@pulumi/archive";
 import * as aws from "@pulumi/aws";
-import { ListenerRule } from "@pulumi/aws/lb";
-import { Listener } from "@pulumi/aws/alb";
-import { secretsManager } from "infra-libs";
-import { defaultTags, stack } from "../../lib/tags";
 
-import { createLambdaFunction } from "../../lib/lambda";
 import { createEmbedLambdaGeneric } from "./lambda_generic";
 
 export function createEmbedLambdaFunctions(config: {
@@ -27,7 +21,7 @@ export function createEmbedLambdaFunctions(config: {
     lbRuleConditions: [
       {
         pathPattern: {
-          values: ["/embed/stamps/*"],
+          values: ["/internal/embed/stamps/*"],
         },
       },
       {
@@ -41,12 +35,12 @@ export function createEmbedLambdaFunctions(config: {
   });
   createEmbedLambdaGeneric({
     ...config,
-    description: "Retreive the rate limit for an API key",
+    description: "Retrieve the rate limit for an API key",
     name: "embed-rl",
     lbRuleConditions: [
       {
         pathPattern: {
-          values: ["/embed/validate-api-key"],
+          values: ["/internal/embed/validate-api-key"],
         },
       },
       {

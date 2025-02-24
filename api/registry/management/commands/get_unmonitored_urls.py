@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from ninja.openapi.schema import OpenAPISchema
 
-from scorer.api import apis
+from scorer.api import public_apis
 
 from .get_unmonitored_urls_config import get_config
 
@@ -96,7 +96,7 @@ class Command(BaseCommand):
         num_skipped_namespaces = 0
         num_skipped_endpoints = 0
         config = get_config(kwargs["base_url"], kwargs["base_url_xyz"])
-        for api in apis:
+        for api in public_apis:
             openapi = OpenAPISchema(api=api, path_prefix="")
             paths = openapi.get("paths", {})
 
@@ -168,7 +168,7 @@ class Command(BaseCommand):
 
     def get_all_urls_with_methods(self):
         combined_data = {}
-        for api in apis:
+        for api in public_apis:
             openapi = OpenAPISchema(api=api, path_prefix="")
             paths = openapi.get("paths", {})
 

@@ -100,11 +100,11 @@ ceramic_cache_api_v1.add_router("/ceramic-cache", ceramic_cache_router_v1)
 passport_admin_api = NinjaAPI(urls_namespace="passport-admin", docs_url=None)
 passport_admin_api.add_router("/passport-admin", passport_admin_router)
 
+public_apis = [registry_api_v1, ceramic_cache_api_v1, passport_admin_api]
 
 apis = [
-    registry_api_v1,
-    ceramic_cache_api_v1,
-    passport_admin_api,
+    feature_flag_api,
+    *public_apis,
 ]
 
 
