@@ -8,12 +8,10 @@ from enum import Enum
 
 from django.db.models import Count, Q, Sum
 from django.http import JsonResponse
-from ninja_extra import NinjaExtraAPI
 from ninja_schema import Schema
 from pydantic import Field
 
 import api_logging as logging
-from internal.api_key import internal_api_key
 from registry.api.v1 import is_valid_address
 from registry.exceptions import InvalidAddressException
 
@@ -25,9 +23,6 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-api = NinjaExtraAPI(urls_namespace="cgrants")
 
 
 class ContributorStatistics(Schema):
@@ -109,16 +104,6 @@ def _get_contributor_statistics_for_protocol(address: str) -> dict:
         "num_grants_contribute_to": num_projects,
         "total_contribution_amount": round(total_amount_usd, 3),
     }
-
-
-# TODO 3280 Remove this endpoint
-@api.get(
-    "/contributor_statistics",
-    response=ContributorStatistics,
-    auth=internal_api_key,
-)
-def contributor_statistics(request, address: str):
-    return handle_get_contributor_statistics(address)
 
 
 def handle_get_contributor_statistics(address: str):
