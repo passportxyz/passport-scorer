@@ -6,44 +6,28 @@ This file re-iplements the API endpoints from the original cgrants API: https://
 
 from enum import Enum
 
-from django.conf import settings
 from django.db.models import Count, Q, Sum
 from django.http import JsonResponse
-from ninja.security import APIKeyHeader
 from ninja_extra import NinjaExtraAPI
 from ninja_schema import Schema
-from ninja_schema.orm.utils.converter import Decimal
 from pydantic import Field
 
 import api_logging as logging
+from internal.api_key import internal_api_key
 from registry.api.v1 import is_valid_address
 from registry.exceptions import InvalidAddressException
 
 from .models import (
-    Contribution,
-    Grant,
     GrantContributionIndex,
     ProtocolContributions,
     RoundMapping,
     SquelchedAccounts,
-    SquelchProfile,
 )
 
 logger = logging.getLogger(__name__)
 
 
 api = NinjaExtraAPI(urls_namespace="cgrants")
-
-
-class CgrantsApiKey(APIKeyHeader):
-    param_name = "AUTHORIZATION"
-
-    def authenticate(self, request, key):
-        if key == settings.CGRANTS_API_TOKEN:
-            return key
-
-
-cg_api_key = CgrantsApiKey()
 
 
 class ContributorStatistics(Schema):
@@ -131,7 +115,7 @@ def _get_contributor_statistics_for_protocol(address: str) -> dict:
 @api.get(
     "/contributor_statistics",
     response=ContributorStatistics,
-    auth=cg_api_key,
+    auth=internal_api_key,
 )
 def contributor_statistics(request, address: str):
     return handle_get_contributor_statistics(address)

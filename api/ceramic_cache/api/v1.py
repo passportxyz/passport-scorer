@@ -28,6 +28,7 @@ import tos.api
 import tos.schema
 from account.models import Account, Community, Nonce
 from ceramic_cache.utils import get_utc_time
+from internal.api_key import internal_api_key
 from registry.api.utils import (
     is_valid_address,
 )
@@ -45,7 +46,6 @@ from registry.exceptions import (
 from registry.models import Score
 from stake.api import get_gtc_stake_for_address
 from stake.schema import StakeResponse
-from trusta_labs.api import CgrantsApiKey
 
 from ..exceptions import (
     InternalServerException,
@@ -70,8 +70,6 @@ from .schema import (
 log = logging.getLogger(__name__)
 
 router = Router()
-
-secret_key = CgrantsApiKey()
 
 
 def get_address_from_did(did: str):
@@ -564,7 +562,7 @@ def calc_score(
 @router.get(
     "/score/{int:scorer_id}/{str:address}",
     response=DetailedScoreResponse,
-    auth=secret_key,
+    auth=internal_api_key,
 )
 def calc_score_community(
     request,

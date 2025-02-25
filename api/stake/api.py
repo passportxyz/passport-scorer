@@ -4,13 +4,11 @@ from django.db.models import Q
 from ninja_extra import NinjaExtraAPI
 
 import api_logging as logging
+from internal.api_key import internal_api_key
 from registry.api.utils import is_valid_address, with_read_db
 from registry.exceptions import InvalidAddressException, StakingRequestError
 from stake.models import Stake
 from stake.schema import ErrorMessageResponse, StakeResponse, StakeSchema
-from trusta_labs.api import CgrantsApiKey
-
-secret_key = CgrantsApiKey()
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +20,7 @@ api = NinjaExtraAPI(urls_namespace="stake")
 # TODO 3280 Remove this endpoint
 @api.get(
     "/gtc/{str:address}",
-    auth=secret_key,
+    auth=internal_api_key,
     response={
         200: StakeResponse,
         400: ErrorMessageResponse,

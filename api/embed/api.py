@@ -12,6 +12,7 @@ from ceramic_cache.api.schema import (
 )
 from ceramic_cache.api.v1 import handle_add_stamps_only, handle_get_scorer_weights
 from ceramic_cache.models import CeramicCache
+from internal.api_key import internal_api_key
 from registry.api.schema import (
     ErrorMessageResponse,
 )
@@ -22,7 +23,6 @@ from registry.api.utils import (
 from registry.exceptions import (
     InvalidAddressException,
 )
-from trusta_labs.api import CgrantsApiKey
 from v2.api import handle_scoring
 
 api_router = Router()
@@ -37,9 +37,6 @@ api = NinjaExtraAPI(
 api.add_router("", api_router)
 
 log = logging.getLogger(__name__)
-
-
-internal_api_key = CgrantsApiKey()
 
 
 class AddStampsPayload(Schema):

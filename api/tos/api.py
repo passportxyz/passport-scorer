@@ -1,11 +1,9 @@
-import api_logging as logging
 from ninja_extra import NinjaExtraAPI, status
 from ninja_extra.exceptions import APIException
+
+import api_logging as logging
 from tos.models import Tos, TosAcceptanceProof
 from tos.schema import TosAccepted, TosSigned, TosToSign
-from trusta_labs.api import CgrantsApiKey
-
-secret_key = CgrantsApiKey()
 
 log = logging.getLogger(__name__)
 
@@ -27,5 +25,5 @@ def accept_tos(payload: TosSigned) -> None:
     if Tos.accept(payload.tos_type, payload.nonce, payload.signature):
         return
     raise APIException(
-        "Failed to process the tos acceptance proof", status.HTTP_400_BAD_REQUESTÍ
+        "Failed to process the tos acceptance proof", status.HTTP_400_BAD_REQUEST
     )
