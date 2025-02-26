@@ -26,7 +26,7 @@ class ValidateApiKeyTestCase(TestCase):
         """Test that the rate limit API returns error when an invalid API key is provided"""
 
         rate_limit_response = self.client.get(
-            "/embed/validate-api-key",
+            "/internal/embed/validate-api-key",
             **{"HTTP_X-API-KEY": f"api_id.some_api_key"},
         )
         assert rate_limit_response.status_code == 401
@@ -42,7 +42,7 @@ class ValidateApiKeyTestCase(TestCase):
         )
 
         rate_limit_response = self.client.get(
-            "/embed/validate-api-key",
+            "/internal/embed/validate-api-key",
             **{"HTTP_X-API-KEY": api_key},
         )
 

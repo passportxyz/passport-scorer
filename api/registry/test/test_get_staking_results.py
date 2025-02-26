@@ -1,5 +1,7 @@
 import pytest
+from django.conf import settings
 from django.test import Client
+
 from registry.models import GTCStakeEvent
 
 pytestmark = pytest.mark.django_db
@@ -15,6 +17,21 @@ class TestGetLegacyStakingResults:
         response = client.get(
             f"/registry/gtc-stake/{user_address}/1",
             HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
+
+        response_data = response.json()["results"]
+        assert response.status_code == 200
+
+        # an extra stake event was added that is below the filtered amount, hence the minus 1
+        assert len(stakes) - 1 == len(response_data)
+
+    def test_internal_endpoint(self, scorer_api_key, gtc_staking_response):
+        stakes = list(GTCStakeEvent.objects.all())
+
+        client = Client()
+        response = client.get(
+            f"/internal/stake/legacy-gtc/{user_address}/1",
+            HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
 
         response_data = response.json()["results"]

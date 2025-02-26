@@ -28,6 +28,7 @@ import tos.api
 import tos.schema
 from account.models import Account, Community, Nonce
 from ceramic_cache.utils import get_utc_time
+from internal.api_key import internal_api_key
 from registry.api.utils import (
     is_valid_address,
 )
@@ -43,9 +44,8 @@ from registry.exceptions import (
     NotFoundApiException,
 )
 from registry.models import Score
-from stake.api import handle_get_gtc_stake
-from stake.schema import GetSchemaResponse
-from trusta_labs.api import CgrantsApiKey
+from stake.api import get_gtc_stake_for_address
+from stake.schema import StakeResponse
 
 from ..exceptions import (
     InternalServerException,
@@ -70,8 +70,6 @@ from .schema import (
 log = logging.getLogger(__name__)
 
 router = Router()
-
-secret_key = CgrantsApiKey()
 
 
 def get_address_from_did(did: str):
@@ -560,10 +558,11 @@ def calc_score(
     return get_detailed_score_response_for_address(address, payload.alternate_scorer_id)
 
 
+# TODO 3280 Remove this endpoint
 @router.get(
     "/score/{int:scorer_id}/{str:address}",
     response=DetailedScoreResponse,
-    auth=secret_key,
+    auth=internal_api_key,
 )
 def calc_score_community(
     request,
@@ -685,15 +684,15 @@ def get_detailed_score_response_for_address(
 @router.get(
     "/stake/gtc",
     response={
-        200: GetSchemaResponse,
+        200: StakeResponse,
         400: ErrorMessageResponse,
     },
     auth=JWTDidAuth(),
 )
-def get_staked_gtc(request) -> GetSchemaResponse:
+def get_staked_gtc(request) -> StakeResponse:
     address = get_address_from_did(request.did)
-    get_stake_response = handle_get_gtc_stake(address)
-    response = GetSchemaResponse(items=get_stake_response)
+    get_stake_response = get_gtc_stake_for_address(address)
+    response = StakeResponse(items=get_stake_response)
     return response
 
 

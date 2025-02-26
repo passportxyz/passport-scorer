@@ -26,16 +26,14 @@ from account.models import (
     Customization,
     Nonce,
 )
+from internal.api_key import internal_api_key
 from scorer_weighted.models import (
     BinaryWeightedScorer,
     WeightedScorer,
     get_default_weights,
 )
-from trusta_labs.api import CgrantsApiKey
 
 from .deduplication import Rules
-
-secret_key = CgrantsApiKey()
 
 log = logging.getLogger(__name__)
 
@@ -597,8 +595,13 @@ def update_community_scorers(request, community_id, payload: ScorerId):
     return {"ok": True}
 
 
+# Public version of endpoint. Also available on the internal API
 @api.get("/customization/credential/{provider_id}", auth=None)
 def get_credential_definition(request, provider_id: str):
+    return handle_get_credential_definition(provider_id)
+
+
+def handle_get_credential_definition(provider_id: str):
     decoded_provider_id = provider_id.replace("%23", "#")
     return {
         "ruleset": get_object_or_404(
@@ -676,11 +679,16 @@ def get_account_customization(request, dashboard_path: str):
         raise APIException("Customization not found", status.HTTP_404_NOT_FOUND)
 
 
-@api.get("/allow-list/{str:list}/{str:address}", auth=secret_key)
+# TODO 3280 Remove this endpoint
+@api.get("/allow-list/{str:list}/{str:address}", auth=internal_api_key)
 def check_on_allow_list(request, list: str, address: str):
     """
     Check if an address is on the allow list for a specific round
     """
+    return handle_check_allow_list(list, address)
+
+
+def handle_check_allow_list(list: str, address: str):
     try:
         is_member = AddressListMember.objects.filter(
             list__name=list, address=address
