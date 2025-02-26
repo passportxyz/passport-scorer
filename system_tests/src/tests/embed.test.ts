@@ -18,9 +18,9 @@ describe('Embed', () => {
     authStrategy = new HeaderKeyAuth({ key: apiKey, header: 'X-API-Key' });
   });
 
-  it('POST /embed/verify', async () => {
+  it('POST /embed/auto-verify', async () => {
     const response = await testRequest({
-      url: url('embed/verify'),
+      url: url('embed/auto-verify'),
       method: 'POST',
       authStrategy,
       payload: {
@@ -47,6 +47,9 @@ describe('Embed', () => {
       url: url(`embed/stamps/metadata`),
       method: 'GET',
       authStrategy,
+      payload: {
+        scorerId,
+      },
     });
 
     expect(response).toHaveStatus(200);
