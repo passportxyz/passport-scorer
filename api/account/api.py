@@ -595,8 +595,13 @@ def update_community_scorers(request, community_id, payload: ScorerId):
     return {"ok": True}
 
 
+# Public version of endpoint. Also available on the internal API
 @api.get("/customization/credential/{provider_id}", auth=None)
 def get_credential_definition(request, provider_id: str):
+    return handle_get_credential_definition(provider_id)
+
+
+def handle_get_credential_definition(provider_id: str):
     decoded_provider_id = provider_id.replace("%23", "#")
     return {
         "ruleset": get_object_or_404(

@@ -99,6 +99,7 @@ class AccountAPIKeySchema(Schema):
     rate_limit: str
 
 
+# TODO 3280 Remove this endpoint
 @api_router.get(
     "/validate-api-key",
     # Here we want to authenticate the partners key, hence this ApiKey auth class
@@ -112,6 +113,10 @@ class AccountAPIKeySchema(Schema):
     summary="Add Stamps and get the new score",
 )
 def validate_api_key(request) -> AccountAPIKeySchema:
+    return handle_validate_embed_api_key(request)
+
+
+def handle_validate_embed_api_key(request) -> AccountAPIKeySchema:
     """
     Return the capabilities allocated to this API key.
     This API is intended to be used in the embed service in the passport repo
@@ -119,7 +124,6 @@ def validate_api_key(request) -> AccountAPIKeySchema:
     return AccountAPIKeySchema.from_orm(request.api_key)
 
 
-# Endpoint for this defined in internal module
 # TODO 3280 Remove this endpoint
 @api_router.get("/weights", response=Dict[str, float])
 def get_embed_weights(request, community_id: Optional[str] = None) -> Dict[str, float]:

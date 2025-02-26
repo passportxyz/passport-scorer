@@ -4,7 +4,7 @@ from ninja import Router
 from ninja_extra import NinjaExtraAPI
 
 import api_logging as logging
-from account.api import handle_check_allow_list
+from account.api import handle_check_allow_list, handle_get_credential_definition
 from ceramic_cache.api.schema import GetStampsWithV2ScoreResponse
 from ceramic_cache.api.v1 import handle_get_scorer_weights, handle_get_ui_score
 from cgrants.api import (
@@ -12,10 +12,13 @@ from cgrants.api import (
     handle_get_contributor_statistics,
 )
 from embed.api import (
+    AccountAPIKeySchema,
     AddStampsPayload,
     handle_embed_add_stamps,
+    handle_validate_embed_api_key,
 )
 from registry.api.schema import DetailedScoreResponse
+from registry.api.utils import ApiKey
 from stake.api import handle_get_gtc_stake
 from stake.schema import ErrorMessageResponse, StakeResponse
 
@@ -122,6 +125,22 @@ def get_embed_weights(request, community_id: Optional[str] = None) -> Dict[str, 
     return handle_get_scorer_weights(community_id)
 
 
+@api_router.get(
+    "/embed/validate-api-key",
+    # Here we want to authenticate the partners key, hence this ApiKey auth class
+    auth=ApiKey(),
+    response={
+        200: AccountAPIKeySchema,
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+        404: ErrorMessageResponse,
+    },
+    summary="Add Stamps and get the new score",
+)
+def validate_api_key(request) -> AccountAPIKeySchema:
+    return handle_validate_embed_api_key(request)
+
+
 @api.get(
     "/allow-list/{str:list}/{str:address}",
     auth=internal_api_key,
@@ -129,3 +148,8 @@ def get_embed_weights(request, community_id: Optional[str] = None) -> Dict[str, 
 )
 def check_on_allow_list(request, list: str, address: str):
     return handle_check_allow_list(list, address)
+
+
+@api.get("/customization/credential/{provider_id}", auth=internal_api_key)
+def get_credential_definition(request, provider_id: str):
+    return handle_get_credential_definition(provider_id)
