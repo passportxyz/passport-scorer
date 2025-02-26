@@ -17,8 +17,9 @@ from embed.api import (
     handle_embed_add_stamps,
     handle_validate_embed_api_key,
 )
-from registry.api.schema import DetailedScoreResponse
+from registry.api.schema import DetailedScoreResponse, GtcEventsResponse
 from registry.api.utils import ApiKey
+from registry.api.v1 import handle_get_gtc_stake_legacy
 from stake.api import handle_get_gtc_stake
 from stake.schema import ErrorMessageResponse, StakeResponse
 
@@ -71,6 +72,17 @@ def check_revocations(
 )
 def get_gtc_stake(request, address: str) -> StakeResponse:
     return handle_get_gtc_stake(address)
+
+
+@api_router.get(
+    "/stake/legacy-gtc/{str:address}/{int:round_id}",
+    auth=internal_api_key,
+    response=GtcEventsResponse,
+    summary="Retrieve GTC stake amounts from legacy staking contract",
+    description="Get self and community GTC staking amounts based on address and round ID",
+)
+def get_gtc_stake_legacy(request, address: str, round_id: int) -> GtcEventsResponse:
+    return handle_get_gtc_stake_legacy(address, round_id)
 
 
 @api_router.get(
