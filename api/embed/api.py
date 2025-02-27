@@ -98,7 +98,7 @@ def handle_embed_add_stamps(
 
 
 class AccountAPIKeySchema(Schema):
-    rate_limit: str
+    rate_limit: str | None
 
 
 @api_router.get(
