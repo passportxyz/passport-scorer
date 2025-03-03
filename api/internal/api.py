@@ -5,6 +5,7 @@ from ninja_extra import NinjaExtraAPI
 
 import api_logging as logging
 from account.api import handle_check_allow_list, handle_get_credential_definition
+from account.models import Community
 from ceramic_cache.api.schema import GetStampsWithV2ScoreResponse
 from ceramic_cache.api.v1 import handle_get_scorer_weights, handle_get_ui_score
 from cgrants.api import (
@@ -18,10 +19,13 @@ from embed.api import (
     handle_validate_embed_api_key,
 )
 from registry.api.schema import DetailedScoreResponse, GtcEventsResponse
-from registry.api.utils import ApiKey
+from registry.api.utils import ApiKey, with_read_db
 from registry.api.v1 import handle_get_gtc_stake_legacy
+from registry.exceptions import aapi_get_object_or_404
 from stake.api import handle_get_gtc_stake
 from stake.schema import ErrorMessageResponse, StakeResponse
+from v2.api.api_stamps import ahandle_scoring
+from v2.schema import V2ScoreResponse
 
 from .api_key import internal_api_key
 from .bans_revocations import handle_check_bans, handle_check_revocations
@@ -105,6 +109,20 @@ def calc_score_community(
     address: str,
 ) -> DetailedScoreResponse:
     return handle_get_ui_score(address, scorer_id)
+
+
+@api_router.get(
+    "/score/v2/{int:scorer_id}/{str:address}",
+    response=V2ScoreResponse,
+    auth=internal_api_key,
+)
+async def get_score_v2(
+    request,
+    scorer_id: int,
+    address: str,
+) -> V2ScoreResponse:
+    community = await aapi_get_object_or_404(with_read_db(Community), id=scorer_id)
+    return await ahandle_scoring(address, community)
 
 
 # TODO: check authentication for these endpoints. Ideally the embed service requires an internal

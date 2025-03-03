@@ -386,6 +386,38 @@ class ValidatePassportTestCase(TransactionTestCase):
         "registry.atasks.aget_passport",
         return_value=mock_passport,
     )
+    def test_internal_endpoint(self, aget_passport, validate_credential):
+        # get_passport.return_value = mock_passport
+
+        response = self.client.get(
+            f"/internal/score/v2/{self.community.pk}/{self.account.address}",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
+        )
+        self.assertEqual(response.status_code, 200)
+
+        # Check if the passport data was saved to the database (data that we mock)
+        all_passports = list(Passport.objects.all())
+        self.assertEqual(len(all_passports), 1)
+
+        self.assertEqual(all_passports[0].address, self.account.address.lower())
+        self.assertEqual(len(all_passports[0].stamps.all()), 2)
+
+        stamp_ens = Stamp.objects.get(provider="Ens")
+        stamp_google = Stamp.objects.get(provider="Google")
+
+        self.assertEqual(stamp_ens.credential, ens_credential)
+        self.assertEqual(stamp_google.credential, google_credential)
+        self.assertEqual(stamp_ens.hash, ens_credential["credentialSubject"]["hash"])
+        self.assertEqual(
+            stamp_google.hash, google_credential["credentialSubject"]["hash"]
+        )
+
+    @patch("registry.atasks.validate_credential", side_effect=[[], []])
+    @patch(
+        "registry.atasks.aget_passport",
+        return_value=mock_passport,
+    )
     def test_submitted_passport_has_lower_case_address_value(
         self, aget_passport, validate_credential
     ):

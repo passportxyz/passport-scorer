@@ -9,7 +9,7 @@ from aws_lambdas.utils import (
     with_api_request_exception_handling,
 )
 
-from ..api.api_stamps import handle_scoring
+from ..api.api_stamps import handle_scoring_for_account
 
 # Now this script or any imported module can use any part of Django it needs.
 # from myapp import models
@@ -23,7 +23,7 @@ def _handler(event, _context, request, user_account, body):
     split_url = event["path"].split("/")
     address = split_url[-1]
     scorer_id = split_url[-3]
-    return async_to_sync(handle_scoring)(address, scorer_id, user_account)
+    return async_to_sync(handle_scoring_for_account)(address, scorer_id, user_account)
 
 
 def handler(*args, **kwargs):
