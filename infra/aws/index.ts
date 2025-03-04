@@ -335,6 +335,7 @@ const ecsTaskConfigurations: Record<
       cpu: 2048,
       desiredCount: 2,
     },
+  },
     "scorer-api-internal-1": {
       review: {
         memory: 1024,
@@ -352,7 +353,7 @@ const ecsTaskConfigurations: Record<
         desiredCount: 2,
       },
     },
-  },
+  
 };
 
 if (PROVISION_STAGING_FOR_LOADTEST) {
