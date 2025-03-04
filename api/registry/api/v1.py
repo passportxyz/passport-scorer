@@ -680,6 +680,10 @@ def stamp_display(request) -> List[StampDisplayResponse]:
     deprecated=True,
 )
 def get_gtc_stake_legacy(request, address: str, round_id: int) -> GtcEventsResponse:
+    return handle_get_gtc_stake_legacy(address, round_id)
+
+
+def handle_get_gtc_stake_legacy(address: str, round_id: int) -> GtcEventsResponse:
     """
     Get GTC stake amount by address and round ID (from legacy contract)
     """

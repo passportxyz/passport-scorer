@@ -67,7 +67,7 @@ class TestGetStakingResults:
     def test_successful_get_staking_results(self, mock_stakes, sample_address):
         client = Client()
         response = client.get(
-            f"/stake/gtc/{sample_address.lower()}",
+            f"/internal/stake/gtc/{sample_address.lower()}",
             HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
         response_data = response.json()["items"]
@@ -114,7 +114,9 @@ class TestGetStakingResults:
 
     def test_failed_auth(self, mock_stakes, sample_address):
         client = Client()
-        response = client.get(f"/stake/gtc/{sample_address}", HTTP_AUTHORIZATION="None")
+        response = client.get(
+            f"/internal/stake/gtc/{sample_address}", HTTP_AUTHORIZATION="None"
+        )
 
         assert response.status_code == 401
 

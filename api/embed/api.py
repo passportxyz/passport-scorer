@@ -12,6 +12,7 @@ from ceramic_cache.api.schema import (
 )
 from ceramic_cache.api.v1 import handle_add_stamps_only, handle_get_scorer_weights
 from ceramic_cache.models import CeramicCache
+from internal.api_key import internal_api_key
 from registry.api.schema import (
     ErrorMessageResponse,
 )
@@ -22,7 +23,6 @@ from registry.api.utils import (
 from registry.exceptions import (
     InvalidAddressException,
 )
-from trusta_labs.api import CgrantsApiKey
 from v2.api import handle_scoring
 
 api_router = Router()
@@ -39,15 +39,13 @@ api.add_router("", api_router)
 log = logging.getLogger(__name__)
 
 
-internal_api_key = CgrantsApiKey()
-
-
 class AddStampsPayload(Schema):
     scorer_id: int
     stamps: List[Any]
 
 
-# TODO: check authentication for these endpoints. Ideally the embed service requires an internal API key, but the lambda one is only exposed on internal LB
+# Endpoint for this defined in internal module
+# TODO 3280 Remove this endpoint
 @api_router.post(
     "/stamps/{str:address}",
     auth=internal_api_key,
@@ -101,6 +99,7 @@ class AccountAPIKeySchema(Schema):
     rate_limit: str | None
 
 
+# TODO 3280 Remove this endpoint
 @api_router.get(
     "/validate-api-key",
     # Here we want to authenticate the partners key, hence this ApiKey auth class
@@ -114,6 +113,10 @@ class AccountAPIKeySchema(Schema):
     summary="Add Stamps and get the new score",
 )
 def validate_api_key(request) -> AccountAPIKeySchema:
+    return handle_validate_embed_api_key(request)
+
+
+def handle_validate_embed_api_key(request) -> AccountAPIKeySchema:
     """
     Return the capabilities allocated to this API key.
     This API is intended to be used in the embed service in the passport repo
@@ -121,6 +124,7 @@ def validate_api_key(request) -> AccountAPIKeySchema:
     return AccountAPIKeySchema.from_orm(request.api_key)
 
 
+# TODO 3280 Remove this endpoint
 @api_router.get("/weights", response=Dict[str, float])
 def get_embed_weights(request, community_id: Optional[str] = None) -> Dict[str, float]:
     """
