@@ -93,8 +93,8 @@ class CeramicCache(models.Model):
     #################################################################################################
     source_scorer_id = models.BigIntegerField(
         verbose_name="Scorer ID",
-        help_text="""This is field is only used to indicate for analytic purposes which scorer was targeted 
-        when claiming the users credential (when used from embed, it will indicate what scorer id was set in 
+        help_text="""This is field is only used to indicate for analytic purposes which scorer was targeted
+        when claiming the users credential (when used from embed, it will indicate what scorer id was set in
         the embed component)""",
         null=True,
         blank=True,
@@ -145,6 +145,13 @@ class CeramicCache(models.Model):
             proof_value=stamp["proof"]["proofValue"],
             stamp=stamp,
         )
+
+    def get_nullifiers(self) -> list[str]:
+        credential_subject = self.stamp["credentialSubject"]
+        if "hash" in credential_subject:
+            return [credential_subject["hash"]]
+        else:
+            return credential_subject["nullifiers"]
 
 
 class StampExports(models.Model):
@@ -236,9 +243,9 @@ class BanList(models.Model):
 
 class Ban(models.Model):
     BAN_TYPE_CHOICES = [
-        ("account", "Account"),
-        ("hash", "Hash"),
-        ("single_stamp", "SingleStamps"),
+        ("account", "Account"),  # Ban an entire account (ETH address)
+        ("hash", "Hash"),  # Ban based on the credential hash / nullifier
+        ("single_stamp", "SingleStamps"),  # BAn based on the tuple (address, provider)
     ]
 
     type = models.CharField(
@@ -350,9 +357,7 @@ class Ban(models.Model):
 
         if self.type == "account" and not (
             # Account ban (ETH address)
-            self.address
-            and not self.hash
-            and not self.provider
+            self.address and not self.hash and not self.provider
         ):
             raise ValidationError(
                 "Invalid ban for type 'account'. See `Wielding the Ban Hammer`."
@@ -360,9 +365,7 @@ class Ban(models.Model):
 
         if self.type == "hash" and not (
             # Account ban (ETH address)
-            self.hash
-            and not self.address
-            and not self.provider
+            self.hash and not self.address and not self.provider
         ):
             raise ValidationError(
                 "Invalid ban for type 'hash'. See `Wielding the Ban Hammer`."
@@ -370,9 +373,7 @@ class Ban(models.Model):
 
         if self.type == "single_stamp" and not (
             # Account ban (ETH address)
-            self.address
-            and self.provider
-            and not self.hash
+            self.address and self.provider and not self.hash
         ):
             raise ValidationError(
                 "Invalid ban for type 'single_stamp'. See `Wielding the Ban Hammer`."

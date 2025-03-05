@@ -68,7 +68,6 @@ class LifoDeduplicationTestCase(TransactionTestCase):
         )
         await Stamp.objects.acreate(
             passport=passport1,
-            hash="test_hash",
             provider="test_provider",
             credential=credential,
         )
@@ -79,7 +78,6 @@ class LifoDeduplicationTestCase(TransactionTestCase):
         )
         await Stamp.objects.acreate(
             passport=passport2,
-            hash="test_hash",
             provider="test_provider",
             credential=credential,
         )
@@ -106,7 +104,6 @@ class LifoDeduplicationTestCase(TransactionTestCase):
         )
         await Stamp.objects.acreate(
             passport=passport1,
-            hash="test_hash",
             provider="test_provider",
             credential=credential,
         )
@@ -117,7 +114,6 @@ class LifoDeduplicationTestCase(TransactionTestCase):
         )
         await Stamp.objects.acreate(
             passport=passport2,
-            hash="test_hash",
             provider="test_provider",
             credential=credential,
         )
@@ -148,7 +144,6 @@ class LifoDeduplicationTestCase(TransactionTestCase):
         stamp = deduped_passport["stamps"][0]
         await Stamp.objects.acreate(
             passport=passport,
-            hash=stamp["credential"]["credentialSubject"]["hash"],
             provider=stamp["credential"]["credentialSubject"]["provider"],
             credential=stamp["credential"],
         )

@@ -217,7 +217,6 @@ class TestScorePassportTestCase(TransactionTestCase):
         Stamp.objects.filter(passport=passport).delete()
 
         Stamp.objects.update_or_create(
-            hash="0x1234",
             passport=passport,
             defaults={"provider": "Gitcoin", "credential": "{}"},
         )
@@ -235,7 +234,6 @@ class TestScorePassportTestCase(TransactionTestCase):
 
                 gitcoin_stamps = my_stamps.filter(provider="Gitcoin")
                 assert len(gitcoin_stamps) == 1
-                assert gitcoin_stamps[0].hash == "0x45678"
 
     def test_deduplication_of_scoring_tasks(self):
         """
@@ -250,7 +248,6 @@ class TestScorePassportTestCase(TransactionTestCase):
         Stamp.objects.filter(passport=passport).delete()
 
         Stamp.objects.update_or_create(
-            hash="0x1234",
             passport=passport,
             defaults={"provider": "Gitcoin", "credential": "{}"},
         )
@@ -294,13 +291,10 @@ class TestScorePassportTestCase(TransactionTestCase):
         mocked_non_duplicate_stamps = {"stamps": mock_passport_data["stamps"][1:]}
 
         for stamp in mocked_duplicate_stamps["stamps"]:
-            Stamp.objects.update_or_create(
-                hash=stamp["credential"]["credentialSubject"]["hash"],
+            Stamp.objects.create(
                 passport=passport_for_already_existing_stamp,
-                defaults={
-                    "provider": stamp["provider"],
-                    "credential": json.dumps(stamp["credential"]),
-                },
+                provider=stamp["provider"],
+                credential=json.dumps(stamp["credential"]),
             )
 
             HashScorerLink.objects.create(
@@ -367,13 +361,10 @@ class TestScorePassportTestCase(TransactionTestCase):
         expected_score_expiration = min(expiration_dates)
 
         for idx, credential in enumerate(mock_passport_data["stamps"]):
-            Stamp.objects.update_or_create(
-                hash=f"0x1234{idx}",
+            Stamp.objects.create(
                 passport=passport,
-                defaults={
-                    "provider": credential["provider"],
-                    "credential": credential,
-                },
+                provider=credential["provider"],
+                credential=credential,
             )
 
         assert Stamp.objects.filter(passport=passport).count() == len(expiration_dates)
@@ -406,13 +397,10 @@ class TestScorePassportTestCase(TransactionTestCase):
         # Step 1: calculate the score as usual, with all stamps valid
         #############################################################################################
         for idx, credential in enumerate(mock_passport_data["stamps"]):
-            Stamp.objects.update_or_create(
-                hash=f"0x1234{idx}",
+            Stamp.objects.create(
                 passport=passport,
-                defaults={
-                    "provider": credential["provider"],
-                    "credential": credential,
-                },
+                provider=credential["provider"],
+                credential=credential,
             )
 
         assert Stamp.objects.filter(passport=passport).count() == len(expiration_dates)

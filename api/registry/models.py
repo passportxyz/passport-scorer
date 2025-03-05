@@ -37,17 +37,15 @@ class Stamp(models.Model):
         null=True,
         db_index=True,
     )
-    hash = models.CharField(null=False, blank=False, max_length=100, db_index=True)
     provider = models.CharField(
         null=False, blank=False, default="", max_length=256, db_index=True
     )
     credential = models.JSONField(default=dict)
 
     def __str__(self):
-        return f"Stamp #{self.id}, hash={self.hash}, provider={self.provider}, passport={self.passport_id}"
-
-    class Meta:
-        unique_together = ["hash", "passport"]
+        return (
+            f"Stamp #{self.id}, provider={self.provider}, passport={self.passport_id}"
+        )
 
 
 class Score(models.Model):

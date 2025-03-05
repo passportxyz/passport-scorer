@@ -67,18 +67,6 @@ async def asave_api_key_analytics(
         log.error("Failed to save analytics. Error: '%s'", e, exc_info=True)
 
 
-async def aremove_stale_stamps_from_db(passport: Passport, passport_data: dict):
-    current_hashes = [
-        stamp["credential"]["credentialSubject"]["hash"]
-        for stamp in passport_data["stamps"]
-    ]
-    await (
-        Stamp.objects.filter(passport=passport)
-        .exclude(hash__in=current_hashes)
-        .adelete()
-    )
-
-
 async def aload_passport_data(address: str) -> Dict:
     # Get the passport data from the blockchain or ceramic cache
     passport_data = await aget_passport(address)
@@ -226,19 +214,17 @@ async def avalidate_credentials(passport: Passport, passport_data) -> dict:
     return validated_passport
 
 
-async def asave_stamps(passport: Passport, deduped_passport_data) -> None:
+async def aupdate_passport(passport: Passport, deduped_passport_data) -> None:
     log.debug(
         "saving stamps deduped_passport_data: %s", deduped_passport_data["stamps"]
     )
+    await Stamp.objects.filter(passport=passport).adelete()
 
     for stamp in deduped_passport_data["stamps"]:
-        await Stamp.objects.aupdate_or_create(
-            hash=stamp["credential"]["credentialSubject"]["hash"],
+        await Stamp.objects.acreate(
             passport=passport,
-            defaults={
-                "provider": stamp["provider"],
-                "credential": stamp["credential"],
-            },
+            provider=stamp["provider"],
+            credential=stamp["credential"],
         )
 
 
@@ -297,8 +283,7 @@ async def ascore_passport(
             passport, community, validated_passport_data, score
         )
         filtered_passport_data = filter_stamps(deduped_passport_data)
-        await asave_stamps(passport, filtered_passport_data)
-        await aremove_stale_stamps_from_db(passport, filtered_passport_data)
+        await aupdate_passport(passport, filtered_passport_data)
         await acalculate_score(passport, community.pk, score, clashing_stamps)
 
     except APIException as e:

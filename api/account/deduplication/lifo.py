@@ -35,6 +35,11 @@ async def alifo(
                 raise
 
 
+def get_nullifiers(stamp: dict) -> list[str]:
+    cs = stamp["credential"]["credentialSubject"]
+    return [cs["hash"]] if "hash" in cs else cs["nullifiers"]
+
+
 async def arun_lifo_dedup(
     community: Community, lifo_passport: dict, address: str
 ) -> Tuple[dict, list | None]:
@@ -43,10 +48,11 @@ async def arun_lifo_dedup(
 
     now = get_utc_time()
     if "stamps" in lifo_passport:
-        stamp_hashes = [
-            stamp["credential"]["credentialSubject"]["hash"]
-            for stamp in lifo_passport["stamps"]
-        ]
+        stamp_hashes = []
+
+        for stamp in lifo_passport["stamps"]:
+            cs = stamp["credential"]["credentialSubject"]
+            stamp_hashes.extend(get_nullifiers(stamp))
 
         existing_hash_links = HashScorerLink.objects.filter(
             hash__in=stamp_hashes, community=community
@@ -70,41 +76,44 @@ async def arun_lifo_dedup(
         clashing_stamps = {}
 
         for stamp in lifo_passport["stamps"]:
-            hash = stamp["credential"]["credentialSubject"]["hash"]
+            # hash = stamp["credential"]["credentialSubject"]["hash"]
+            nullifiers = get_nullifiers(stamp)
             expires_at = stamp["credential"]["expirationDate"]
 
-            if hash not in clashing_hashes:
-                deduped_passport["stamps"].append(copy.deepcopy(stamp))
+            if all([hash not in clashing_hashes for hash in nullifiers]):
+                for hash in nullifiers:
+                    deduped_passport["stamps"].append(copy.deepcopy(stamp))
 
-                done = False
+                    done = False
 
-                for hash_link in this_users_hash_links:
-                    if hash_link.hash == hash:
-                        done = True
-                        if hash_link.expires_at != expires_at:
-                            hash_link.expires_at = expires_at
-                            hash_links_to_update.append(hash_link)
-                        break
-
-                if not done:
-                    for hash_link in forfeited_hash_links:
+                    for hash_link in this_users_hash_links:
                         if hash_link.hash == hash:
                             done = True
-                            hash_link.address = address
-                            hash_link.expires_at = expires_at
-                            hash_links_to_update.append(hash_link)
+                            if hash_link.expires_at != expires_at:
+                                hash_link.expires_at = expires_at
+                                hash_links_to_update.append(hash_link)
                             break
 
-                if not done:
-                    hash_links_to_create.append(
-                        HashScorerLink(
-                            hash=hash,
-                            address=address,
-                            community=community,
-                            expires_at=stamp["credential"]["expirationDate"],
+                    if not done:
+                        for hash_link in forfeited_hash_links:
+                            if hash_link.hash == hash:
+                                done = True
+                                hash_link.address = address
+                                hash_link.expires_at = expires_at
+                                hash_links_to_update.append(hash_link)
+                                break
+
+                    if not done:
+                        hash_links_to_create.append(
+                            HashScorerLink(
+                                hash=hash,
+                                address=address,
+                                community=community,
+                                expires_at=stamp["credential"]["expirationDate"],
+                            )
                         )
-                    )
             else:
+                # TODO: geri if not "all" then backfill?
                 clashing_stamps[
                     stamp["credential"]["credentialSubject"]["provider"]
                 ] = stamp

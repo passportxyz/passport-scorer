@@ -376,9 +376,11 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         self.assertEqual(stamp_ens.credential, ens_credential)
         self.assertEqual(stamp_google.credential, google_credential)
-        self.assertEqual(stamp_ens.hash, ens_credential["credentialSubject"]["hash"])
         self.assertEqual(
-            stamp_google.hash, google_credential["credentialSubject"]["hash"]
+            stamp_ens.provider, ens_credential["credentialSubject"]["provider"]
+        )
+        self.assertEqual(
+            stamp_google.provider, google_credential["credentialSubject"]["provider"]
         )
 
     @patch("registry.atasks.validate_credential", side_effect=[[], []])
@@ -557,9 +559,11 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         self.assertEqual(stamp_ens.credential, ens_credential)
         self.assertEqual(stamp_google.credential, google_credential)
-        self.assertEqual(stamp_ens.hash, ens_credential["credentialSubject"]["hash"])
         self.assertEqual(
-            stamp_google.hash, google_credential["credentialSubject"]["hash"]
+            stamp_ens.provider, ens_credential["credentialSubject"]["provider"]
+        )
+        self.assertEqual(
+            stamp_google.provider, google_credential["credentialSubject"]["provider"]
         )
 
     @patch("registry.atasks.validate_credential", side_effect=[[], [], [], []])
@@ -1081,9 +1085,11 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         self.assertEqual(stamp_ens.credential, ens_credential)
         self.assertEqual(stamp_google.credential, google_credential)
-        self.assertEqual(stamp_ens.hash, ens_credential["credentialSubject"]["hash"])
         self.assertEqual(
-            stamp_google.hash, google_credential["credentialSubject"]["hash"]
+            stamp_ens.provider, ens_credential["credentialSubject"]["provider"]
+        )
+        self.assertEqual(
+            stamp_google.provider, google_credential["credentialSubject"]["provider"]
         )
 
     @patch("registry.atasks.validate_credential", side_effect=[[], [], []])
@@ -1115,9 +1121,11 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         self.assertEqual(stamp_ens.credential, ens_credential)
         self.assertEqual(stamp_google.credential, google_credential)
-        self.assertEqual(stamp_ens.hash, ens_credential["credentialSubject"]["hash"])
         self.assertEqual(
-            stamp_google.hash, google_credential["credentialSubject"]["hash"]
+            stamp_ens.provider, ens_credential["credentialSubject"]["provider"]
+        )
+        self.assertEqual(
+            stamp_google.provider, google_credential["credentialSubject"]["provider"]
         )
 
     @patch("registry.atasks.validate_credential", side_effect=[[], [], []])
@@ -1189,14 +1197,12 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         Stamp.objects.create(
             passport=first_passport,
-            hash=ens_credential["credentialSubject"]["hash"],
             provider="Ens",
             credential=ens_credential,
         )
 
         Stamp.objects.create(
             passport=first_passport,
-            hash=google_credential["credentialSubject"]["hash"],
             provider="Google",
             credential=google_credential,
         )

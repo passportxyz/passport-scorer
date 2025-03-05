@@ -56,7 +56,6 @@ def _(
 
     Stamp.objects.create(
         passport=first_passport,
-        hash="hash1",
         provider="Some Provider",
         credential={},
     )
@@ -71,7 +70,6 @@ def _(
     # Create a stamp, with and ID that will be duplicate
     Stamp.objects.create(
         passport=first_passport,
-        hash=ens_credential["credentialSubject"]["hash"],
         provider="Ens",
         credential={},
     )

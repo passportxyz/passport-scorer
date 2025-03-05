@@ -66,17 +66,6 @@ async def validate_credential(did, credential) -> List[str]:
     return stamp_return_errors
 
 
-def get_duplicate_passport(did, stamp_hash):
-    stamps = Stamp.objects.filter(hash=stamp_hash).exclude(passport__did=did)
-    if stamps.exists():
-        log.debug(
-            "Duplicate did '%s' for stamp '%s'", stamps[0].passport.did, stamp_hash
-        )
-        return stamps[0].passport
-
-    return None
-
-
 def get_signing_message(nonce: str) -> str:
     return f"""I hereby agree to submit my address in order to score my associated Gitcoin Passport from Ceramic.
 
