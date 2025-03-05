@@ -1,4 +1,3 @@
-import codecs
 import csv
 import json
 from math import exp
@@ -192,20 +191,22 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
 
     @admin.action(description="Generate and Upload WAF JSON to S3")
     def generate_waf_json_and_upload(self, request, queryset=None):
+        # TODO: make sure the rules support the usecase of one API key.
+        # TODO: make sure the action can be executed for big sets of API keys.
         api_keys = AccountAPIKey.objects.values_list("prefix", flat=True)
-        # The rule 0 will also handle any blocked requests (at ip level)
-        # The first rule  (priority 0) will evaluate Invalid API keys . => managed outside of python code
-        # The second rule (priority 1) will evaluate Expired and Revoked API keys.
-        # <All analysis / per request rules should be evaluated before the generic api keys evaluation.>
-        # The third rule  (priority 2) will evaluate Analysis - Unlimited API keys.
-        # The fourth rule (priority 3) will evaluate Analysis - Tier 3 API keys.
-        # The fifth rule  (priority 4) will evaluate Analysis - Tier 2 API keys.
-        # The sixth rule  (priority 5) will evaluate Analysis - Tier 1 API keys.
+        # The first rule    (priority 0) will handle blocked IPs.
+        # The second rule   (priority 1) will evaluate Invalid API keys. => managed outside of python code
+        # The third rule    (priority 2) will evaluate Expired and Revoked API keys.
+        # <All analysis / per request rules should be evaluated before the generic API keys evaluation.>
+        # The fourth rule   (priority 3) will evaluate Analysis - Unlimited API keys.
+        # The fifth rule    (priority 4) will evaluate Analysis - Tier 3 API keys.
+        # The sixth rule    (priority 5) will evaluate Analysis - Tier 2 API keys.
+        # The seventh rule  (priority 6) will evaluate Analysis - Tier 1 API keys.
         # <Generic non path restricted rules.>
-        # The seventh rule (priority 6) will evaluate Unlimited API keys.
-        # The eighth rule  (priority 7) will evaluate Tier 3 API keys.
-        # The ninth rule  (priority 8) will evaluate Tier 2 API keys.
-        # The tenth rule  (priority 9) will evaluate Tier 1 API keys.
+        # The eighth rule   (priority 7) will evaluate Unlimited API keys.
+        # The ninth rule    (priority 8) will evaluate Tier 3 API keys.
+        # The tenth rule    (priority 9) will evaluate Tier 2 API keys.
+        # The eleventh rule (priority 10) will evaluate Tier 1 API keys.
         # <The last rule should also be the default rule to be evaluated>.
 
         # [BLOCK] Create rule for the revoked & expired keys
@@ -222,7 +223,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         )
         revoked_or_expired_waf_rule = {
             "Name": "Expired-RevokedKeys",
-            "Priority": 1,
+            "Priority": 2,
             "Action": {
                 "Block": {
                     "CustomResponse": {
@@ -260,7 +261,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         )
         analysis_unlimited_waf_rule = {
             "Name": "Analysis-UnlimitedKeys",
-            "Priority": 2,
+            "Priority": 3,
             "Action": {"Count": {}},
             "Statement": {
                 "AndStatement": {
@@ -298,7 +299,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         analysis_tier_3_statements = self.generate_statements(analysis_tier_3_keys)
         analysis_tier_3_waf_rule = {
             "Name": "Analysis-Tier-3-Keys",
-            "Priority": 3,
+            "Priority": 4,
             "Action": {
                 "Block": {
                     "CustomResponse": {
@@ -369,7 +370,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         analysis_tier_2_statements = self.generate_statements(analysis_tier_2_keys)
         analysis_tier_2_waf_rule = {
             "Name": "Analysis-Tier-2-Keys",
-            "Priority": 4,
+            "Priority": 5,
             "Action": {
                 "Block": {
                     "CustomResponse": {
@@ -441,7 +442,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         analysis_tier_1_statements = self.generate_statements(analysis_tier_1_keys)
         analysis_tier_1_waf_rule = {
             "Name": "Analysis-Tier1-Keys",
-            "Priority": 5,
+            "Priority": 6,
             "Action": {
                 "Block": {
                     "CustomResponse": {
@@ -515,7 +516,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         # TODO: adjust the rule to properly group the requests / api key prefix ( count / api key prefix )
         active_unlimited_waf_rule = {
             "Name": "UnlimitedKeys",
-            "Priority": 6,
+            "Priority": 7,
             "Action": {"Count": {}},
             "Statement": {"OrStatement": {"Statements": active_unlimited_statements}},
             "VisibilityConfig": {
@@ -541,7 +542,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         tier_3_statements = self.generate_statements(tier_3_api_keys)
         tier_3_waf_rule = {
             "Name": "Tier-3-Api-Keys",
-            "Priority": 7,
+            "Priority": 8,
             "Action": {
                 "Block": {
                     "CustomResponse": {
@@ -593,7 +594,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         tier_2_statements = self.generate_statements(tier_2_api_keys)
         tier_2_waf_rule = {
             "Name": "Tier-2-Api-Keys",
-            "Priority": 8,
+            "Priority": 9,
             "Action": {
                 "Block": {
                     "CustomResponse": {
@@ -645,7 +646,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         tier_1_statements = self.generate_statements(tier_1_api_keys)
         tier_1_waf_rule = {
             "Name": "Tier-1-Api-Keys",
-            "Priority": 9,
+            "Priority": 10,
             "Action": {
                 "Block": {
                     "CustomResponse": {
