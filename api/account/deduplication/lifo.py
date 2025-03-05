@@ -51,7 +51,6 @@ async def arun_lifo_dedup(
         stamp_hashes = []
 
         for stamp in lifo_passport["stamps"]:
-            cs = stamp["credential"]["credentialSubject"]
             stamp_hashes.extend(get_nullifiers(stamp))
 
         existing_hash_links = HashScorerLink.objects.filter(
@@ -81,11 +80,9 @@ async def arun_lifo_dedup(
             expires_at = stamp["credential"]["expirationDate"]
 
             if all([hash not in clashing_hashes for hash in nullifiers]):
+                deduped_passport["stamps"].append(copy.deepcopy(stamp))
                 for hash in nullifiers:
-                    deduped_passport["stamps"].append(copy.deepcopy(stamp))
-
                     done = False
-
                     for hash_link in this_users_hash_links:
                         if hash_link.hash == hash:
                             done = True
@@ -123,23 +120,24 @@ async def arun_lifo_dedup(
         )
 
         if clashing_stamps:
-            await Event.objects.abulk_create(
-                [
-                    Event(
-                        action=Event.Action.LIFO_DEDUPLICATION,
-                        address=address,
-                        data={
-                            "hash": stamp["credential"]["credentialSubject"]["hash"],
-                            "provider": stamp["credential"]["credentialSubject"][
-                                "provider"
-                            ],
-                            "community_id": community.pk,
-                        },
-                        community=community,
-                    )
-                    for _, stamp in clashing_stamps.items()
-                ]
-            )
+            for hash in get_nullifiers(stamp):
+                await Event.objects.abulk_create(
+                    [
+                        Event(
+                            action=Event.Action.LIFO_DEDUPLICATION,
+                            address=address,
+                            data={
+                                "hash": hash,
+                                "provider": stamp["credential"]["credentialSubject"][
+                                    "provider"
+                                ],
+                                "community_id": community.pk,
+                            },
+                            community=community,
+                        )
+                        for _, stamp in clashing_stamps.items()
+                    ]
+                )
     return (deduped_passport, None, clashing_stamps)
 
 
