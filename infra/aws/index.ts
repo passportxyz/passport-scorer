@@ -353,7 +353,6 @@ const ecsTaskConfigurations: Record<
         desiredCount: 2,
       },
     },
-
 };
 
 if (PROVISION_STAGING_FOR_LOADTEST) {

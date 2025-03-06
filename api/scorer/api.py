@@ -89,10 +89,6 @@ def service_unavailable(request, _):
 
 registry_api_v1.add_router("/registry/", registry_router_v1, tags=["Passport API."])
 
-feature_flag_api = NinjaAPI(urls_namespace="feature")
-feature_flag_api.add_router("", feature_flag_router)
-
-
 ceramic_cache_api_v1 = NinjaAPI(urls_namespace="ceramic-cache", docs_url=None)
 ceramic_cache_api_v1.add_router("/ceramic-cache", ceramic_cache_router_v1)
 
@@ -100,13 +96,7 @@ ceramic_cache_api_v1.add_router("/ceramic-cache", ceramic_cache_router_v1)
 passport_admin_api = NinjaAPI(urls_namespace="passport-admin", docs_url=None)
 passport_admin_api.add_router("/passport-admin", passport_admin_router)
 
-public_apis = [registry_api_v1, ceramic_cache_api_v1, passport_admin_api]
-
-apis = [
-    feature_flag_api,
-    *public_apis,
-]
-
+apis = [registry_api_v1, ceramic_cache_api_v1, passport_admin_api]
 
 if settings.FF_V2_API == "on":
     apis.append(registry_api_v2)
