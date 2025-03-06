@@ -174,8 +174,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         return statements
 
     def upload_to_s3(self, json_input, filename):
-        # TODO: read it from ENV
-        S3_BUCKET_NAME = "passport-review-waf"
+        S3_BUCKET_NAME = settings.S3_BUCKET_WAF
         try:
             s3_client = boto3.client("s3")
             s3_client.put_object(
@@ -189,24 +188,24 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             print(f"Failed to upload to S3: {e}")
             return False
 
-    @admin.action(description="Generate and Upload WAF JSON to S3")
+    @admin.action(description="[All] Generate and Upload WAF Rules to S3")
     def generate_waf_json_and_upload(self, request, queryset=None):
         # TODO: make sure the rules support the usecase of one API key.
         # TODO: make sure the action can be executed for big sets of API keys.
         api_keys = AccountAPIKey.objects.values_list("prefix", flat=True)
-        # The first rule    (priority 0) will handle blocked IPs.
-        # The second rule   (priority 1) will evaluate Invalid API keys. => managed outside of python code
-        # The third rule    (priority 2) will evaluate Expired and Revoked API keys.
+        # The first rule    (priority 1) will handle blocked IPs.
+        # The second rule   (priority 2) will evaluate Invalid API keys. => managed outside of python code
+        # The third rule    (priority 3) will evaluate Expired and Revoked API keys.
         # <All analysis / per request rules should be evaluated before the generic API keys evaluation.>
-        # The fourth rule   (priority 3) will evaluate Analysis - Unlimited API keys.
-        # The fifth rule    (priority 4) will evaluate Analysis - Tier 3 API keys.
-        # The sixth rule    (priority 5) will evaluate Analysis - Tier 2 API keys.
-        # The seventh rule  (priority 6) will evaluate Analysis - Tier 1 API keys.
+        # The fourth rule   (priority 4) will evaluate Analysis - Unlimited API keys.
+        # The fifth rule    (priority 5) will evaluate Analysis - Tier 3 API keys.
+        # The sixth rule    (priority 6) will evaluate Analysis - Tier 2 API keys.
+        # The seventh rule  (priority 7) will evaluate Analysis - Tier 1 API keys.
         # <Generic non path restricted rules.>
-        # The eighth rule   (priority 7) will evaluate Unlimited API keys.
-        # The ninth rule    (priority 8) will evaluate Tier 3 API keys.
-        # The tenth rule    (priority 9) will evaluate Tier 2 API keys.
-        # The eleventh rule (priority 10) will evaluate Tier 1 API keys.
+        # The eighth rule   (priority 8) will evaluate Unlimited API keys.
+        # The ninth rule    (priority 9) will evaluate Tier 3 API keys.
+        # The tenth rule    (priority 10) will evaluate Tier 2 API keys.
+        # The eleventh rule (priority 11) will evaluate Tier 1 API keys.
         # <The last rule should also be the default rule to be evaluated>.
 
         # [BLOCK] Create rule for the revoked & expired keys
@@ -223,7 +222,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         )
         revoked_or_expired_waf_rule = {
             "Name": "Expired-RevokedKeys",
-            "Priority": 2,
+            "Priority": 3,
             "Action": {
                 "Block": {
                     "CustomResponse": {
@@ -244,34 +243,41 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         )
         # [ALLOW] Create rule for the analysis unlimited keys
         ###################################################################################
-        analysis_unlimited_keys = (
-            AccountAPIKey.objects.filter(
-                revoked=False,  # Not revoked
-                expiry_date__isnull=True,  # No expiry date
-                analysis_rate_limit=AnalysisRateLimits.UNLIMITED.value,  # Unlimited rate limit
-            )
-            | AccountAPIKey.objects.filter(
-                revoked=False,  # Not revoked
-                expiry_date__gt=now(),  # Expiry date is in the future
-                analysis_rate_limit=AnalysisRateLimits.UNLIMITED.value,  # Unlimited rate limit
-            )
+        analysis_unlimited_keys = AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__isnull=True,  # No expiry date
+            analysis_rate_limit__isnull=True,  # Unlimited rate limit
+        ) | AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__gt=now(),  # Expiry date is in the future
+            analysis_rate_limit__isnull=True,  # Unlimited rate limit
         )
         analysis_unlimited_statements = self.generate_statements(
             analysis_unlimited_keys
         )
         analysis_unlimited_waf_rule = {
             "Name": "Analysis-UnlimitedKeys",
-            "Priority": 3,
+            "Priority": 10,
             "Action": {"Count": {}},
             "Statement": {
                 "AndStatement": {
-                    "ByteMatchStatement": {
-                        "FieldToMatch": {"UriPath": {}},
-                        "PositionalConstraint": "STARTS_WITH",
-                        "SearchString": "/passport/analysis/",
-                        "TextTransformations": [{"Priority": 0, "Type": "NONE"}],
-                    },
-                    "OrStatement": {"Statements": analysis_unlimited_statements},
+                    "Statements": [
+                        {
+                            "ByteMatchStatement": {
+                                "FieldToMatch": {"UriPath": {}},
+                                "PositionalConstraint": "STARTS_WITH",
+                                "SearchString": "/passport/analysis/",
+                                "TextTransformations": [
+                                    {"Priority": 0, "Type": "NONE"}
+                                ],
+                            },
+                        },
+                        {
+                            "OrStatement": {
+                                "Statements": analysis_unlimited_statements
+                            },
+                        },
+                    ]
                 }
             },
             "VisibilityConfig": {
@@ -505,18 +511,17 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         active_unlimited_keys = AccountAPIKey.objects.filter(
             revoked=False,  # Not revoked
             expiry_date__isnull=True,  # No expiry date
-            rate_limit=RateLimits.UNLIMITED.value,  # Unlimited rate limit
+            rate_limit__isnull=True,  # Unlimited rate limit
         ) | AccountAPIKey.objects.filter(
             revoked=False,  # Not revoked
             expiry_date__gt=now(),  # Expiry date is in the future
-            rate_limit=RateLimits.UNLIMITED.value,  # Unlimited rate limit
+            rate_limit__isnull=True,  # Unlimited rate limit
         )
-
         active_unlimited_statements = self.generate_statements(active_unlimited_keys)
         # TODO: adjust the rule to properly group the requests / api key prefix ( count / api key prefix )
         active_unlimited_waf_rule = {
             "Name": "UnlimitedKeys",
-            "Priority": 7,
+            "Priority": 11,
             "Action": {"Count": {}},
             "Statement": {"OrStatement": {"Statements": active_unlimited_statements}},
             "VisibilityConfig": {
@@ -542,7 +547,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         tier_3_statements = self.generate_statements(tier_3_api_keys)
         tier_3_waf_rule = {
             "Name": "Tier-3-Api-Keys",
-            "Priority": 8,
+            "Priority": 7,
             "Action": {
                 "Block": {
                     "CustomResponse": {
@@ -594,7 +599,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         tier_2_statements = self.generate_statements(tier_2_api_keys)
         tier_2_waf_rule = {
             "Name": "Tier-2-Api-Keys",
-            "Priority": 9,
+            "Priority": 8,
             "Action": {
                 "Block": {
                     "CustomResponse": {
@@ -646,7 +651,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         tier_1_statements = self.generate_statements(tier_1_api_keys)
         tier_1_waf_rule = {
             "Name": "Tier-1-Api-Keys",
-            "Priority": 10,
+            "Priority": 9,
             "Action": {
                 "Block": {
                     "CustomResponse": {
