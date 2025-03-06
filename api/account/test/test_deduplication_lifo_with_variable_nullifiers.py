@@ -1,13 +1,12 @@
-from unittest import mock
+from datetime import datetime, timedelta, timezone
 
 from asgiref.sync import async_to_sync
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TransactionTestCase
 from ninja_jwt.schema import RefreshToken
 
 from account.deduplication import Rules
-from account.deduplication.lifo import HashScorerLinkIntegrityError, alifo
+from account.deduplication.lifo import alifo
 from account.models import Account, Community
 from registry.models import HashScorerLink, Passport, Stamp
 from scorer_weighted.models import Scorer, WeightedScorer
@@ -185,3 +184,108 @@ class LifoDeduplicationWithVariableNullifiersTestCase(TransactionTestCase):
                 "test_provider": credential_with_2_nullifiers_a_and_random,
             },
         )
+
+    @async_to_sync
+    async def test_lifo_deduplication_backfill(self):
+        """
+        Let's asume a stamp using a nullifier "A" only was already used and has a HashScorerLink.
+        When another user trys 1st deduplication of the same stamp nullifiers ["A", "B"]
+        then the HashScorerLink for nullifier "B" does not exist.
+
+        We want to make sure the HashScorerLink for nullifier "B" is backfilled.
+        """
+        now = datetime.now(timezone.utc)
+        expiration_date_1 = now + timedelta(days=3)
+        expiration_date_2 = now + timedelta(days=10)
+        expiration_date_3 = now + timedelta(days=15)
+        credential_a = {
+            "credential": {
+                "credentialSubject": {
+                    "nullifiers": ["hash-A"],  # only 1 nullifier
+                    "provider": "test_provider",
+                },
+                "expirationDate": expiration_date_1.isoformat(),  # expiring date
+            },
+        }
+
+        credential_ab = {
+            "credential": {
+                "credentialSubject": {
+                    "nullifiers": ["hash-A", "hash-B"],  # 2 nullifier
+                    "provider": "test_provider",
+                },
+                "expirationDate": expiration_date_2.isoformat(),  # expiring date is newer
+            },
+        }
+
+        credential_b = {
+            "credential": {
+                "credentialSubject": {
+                    "nullifiers": ["hash-B"],  # 2 nullifier
+                    "provider": "test_provider",
+                },
+                "expirationDate": expiration_date_3.isoformat(),  # expiring date is newer
+            },
+        }
+
+        ##################################################
+        # Make the 1st deduplication - hash-A
+        ##################################################
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community1,
+            {"stamps": [credential_a]},
+            "0xaddress_1",
+        )
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_1", community=self.community1
+            ).values_list("hash", "expires_at")
+        ]
+        self.assertListEqual(hash_links, [("hash-A", expiration_date_1)])
+        self.assertDictEqual(deduped_passport, {"stamps": [credential_a]})
+        self.assertDictEqual(clashing_stamps, {})
+
+        # Make the 2nd deduplication - hash-A, hash-B
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community1,
+            {"stamps": [credential_ab]},
+            "0xaddress_2",
+        )
+
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_1", community=self.community1
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        self.assertListEqual(
+            hash_links, [("hash-A", expiration_date_1), ("hash-B", expiration_date_1)]
+        )  # Expect hash-B to have been back-filled, expiration date is the same for all
+        self.assertDictEqual(deduped_passport, {"stamps": []})
+        self.assertDictEqual(clashing_stamps, {"test_provider": credential_ab})
+
+        ##################################################
+        # Make the 3rd deduplication - hash-B
+        ##################################################
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community1,
+            {"stamps": [credential_b]},
+            "0xaddress_2",
+        )
+
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_1", community=self.community1
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        self.assertListEqual(
+            hash_links, [("hash-A", expiration_date_1), ("hash-B", expiration_date_1)]
+        )  # Expect no changes here compared to previous step
+        self.assertDictEqual(deduped_passport, {"stamps": []})
+        self.assertDictEqual(clashing_stamps, {"test_provider": credential_b})

@@ -58,6 +58,7 @@ async def arun_lifo_dedup(
         )
 
         this_users_hash_links, clashing_hashes, forfeited_hash_links = [], [], []
+        clasing_hash_links_by_hash = {}
         async for hash_link in existing_hash_links:
             if hash_link.address == address:
                 # Already claimed by this user,
@@ -65,6 +66,7 @@ async def arun_lifo_dedup(
             elif hash_link.expires_at > now:
                 # Already claimed by another user,
                 clashing_hashes.append(hash_link.hash)
+                clasing_hash_links_by_hash[hash_link.hash] = hash_link
             else:
                 # Already claimed by another user, but
                 # it's expired so we'll give it to this user
@@ -79,12 +81,19 @@ async def arun_lifo_dedup(
             nullifiers = get_nullifiers(stamp)
             expires_at = stamp["credential"]["expirationDate"]
 
-            if all([hash not in clashing_hashes for hash in nullifiers]):
+            # If at least one of the nullifier clashes with an existing hash link
+            # then the stamp gets deduped
+            clashing_hashes_for_stamp = [
+                nullifier_hash
+                for nullifier_hash in nullifiers
+                if nullifier_hash in clashing_hashes
+            ]
+            if not clashing_hashes_for_stamp:
                 deduped_passport["stamps"].append(copy.deepcopy(stamp))
-                for hash in nullifiers:
+                for nullifier_hash in nullifiers:
                     done = False
                     for hash_link in this_users_hash_links:
-                        if hash_link.hash == hash:
+                        if hash_link.hash == nullifier_hash:
                             done = True
                             if hash_link.expires_at != expires_at:
                                 hash_link.expires_at = expires_at
@@ -93,7 +102,7 @@ async def arun_lifo_dedup(
 
                     if not done:
                         for hash_link in forfeited_hash_links:
-                            if hash_link.hash == hash:
+                            if hash_link.hash == nullifier_hash:
                                 done = True
                                 hash_link.address = address
                                 hash_link.expires_at = expires_at
@@ -103,31 +112,50 @@ async def arun_lifo_dedup(
                     if not done:
                         hash_links_to_create.append(
                             HashScorerLink(
-                                hash=hash,
+                                hash=nullifier_hash,
                                 address=address,
                                 community=community,
                                 expires_at=stamp["credential"]["expirationDate"],
                             )
                         )
             else:
-                # TODO: geri if not "all" then backfill?
                 clashing_stamps[
                     stamp["credential"]["credentialSubject"]["provider"]
                 ] = stamp
+
+                # We backfill the hash link for the clashing hash if only some
+                # of the stamps nullifiers clash.
+                # The reason why this might be missing is because only one of
+                # the nullifiers was available last time the stamp git deduped
+                for nullifier_hash in nullifiers:
+                    if nullifier_hash not in clashing_hashes:
+                        clashing_hash_link = clasing_hash_links_by_hash[
+                            clashing_hashes_for_stamp[0]
+                        ]
+                        hash_links_to_create.append(
+                            HashScorerLink(
+                                hash=nullifier_hash,
+                                # Create this hash link with the same address, community and expores_at as fields
+                                # the one we are clashing with -> the 2 should be identical
+                                address=clashing_hash_link.address,
+                                community=community,
+                                expires_at=clashing_hash_link.expires_at,
+                            )
+                        )
 
         await save_hash_links(
             hash_links_to_create, hash_links_to_update, address, community
         )
 
         if clashing_stamps:
-            for hash in get_nullifiers(stamp):
+            for nullifier_hash in get_nullifiers(stamp):
                 await Event.objects.abulk_create(
                     [
                         Event(
                             action=Event.Action.LIFO_DEDUPLICATION,
                             address=address,
                             data={
-                                "hash": hash,
+                                "hash": nullifier_hash,
                                 "provider": stamp["credential"]["credentialSubject"][
                                     "provider"
                                 ],
