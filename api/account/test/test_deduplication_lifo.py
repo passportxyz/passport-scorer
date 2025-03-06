@@ -9,7 +9,7 @@ from ninja_jwt.schema import RefreshToken
 from account.deduplication import Rules
 from account.deduplication.lifo import HashScorerLinkIntegrityError, alifo
 from account.models import Account, Community
-from registry.models import HashScorerLink
+from registry.models import Event, HashScorerLink
 from scorer_weighted.models import Scorer, WeightedScorer
 
 User = get_user_model()
@@ -181,7 +181,6 @@ class LifoDeduplicationWith1NullifierTestCase(TransactionTestCase):
             .values_list("hash", "expires_at")
             .order_by("hash")
         ]
-        print("hash_links", hash_links)
         self.assertListEqual(
             hash_links,
             [
@@ -245,15 +244,6 @@ class LifoDeduplicationWith1NullifierTestCase(TransactionTestCase):
             .values_list("hash", "expires_at")
             .order_by("hash")
         ]
-        print("hash_links", hash_links)
-        print(
-            "expected:",
-            [
-                (nullifier, self.expect_expiration_date)
-                for nullifier in self.expect_nullifiers
-            ],
-        )
-        print("expected:", self.expect_nullifiers)
         self.assertListEqual(
             hash_links,
             [
@@ -322,6 +312,53 @@ class LifoDeduplicationWith1NullifierTestCase(TransactionTestCase):
                     "0xaddress_1",
                 )
         self.assertEqual(call_count, 5)
+
+    async def test_dedupe_events(self):
+        """
+        Check that the expected deduplication events are created
+        """
+        # Step 1/2: run dedupe stamp in community 1
+        _, _, _ = await alifo(
+            self.community1,
+            {"stamps": [self.credential]},
+            "0xaddress_1",
+        )
+
+        events = [
+            e
+            async for e in Event.objects.filter(
+                community=self.community1, action=Event.Action.LIFO_DEDUPLICATION
+            ).values_list("address", "data")
+        ]
+        self.assertListEqual(events, [])
+
+        # Step 2/2: run dedupe stamp in community 1 on address 2
+        _, _, _ = await alifo(
+            self.community1,
+            {"stamps": [self.credential]},
+            "0xaddress_2",
+        )
+        events = [
+            e
+            async for e in Event.objects.filter(
+                community=self.community1, action=Event.Action.LIFO_DEDUPLICATION
+            ).values_list("address", "data")
+        ]
+        self.assertListEqual(
+            events,
+            [
+                (
+                    "0xaddress_2",
+                    {
+                        "nullifiers": self.expect_nullifiers,
+                        "provider": self.credential["credential"]["credentialSubject"][
+                            "provider"
+                        ],
+                        "community_id": self.community1.pk,
+                    },
+                )
+            ],
+        )
 
 
 class LifoDeduplicationWith2NullifiersTestCase(LifoDeduplicationWith1NullifierTestCase):

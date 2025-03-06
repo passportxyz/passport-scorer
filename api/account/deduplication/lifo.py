@@ -1,12 +1,11 @@
 import copy
 from typing import Tuple
 
-from django.conf import settings
 from django.db import IntegrityError
 
 import api_logging as logging
 from account.models import Community
-from registry.models import Event, HashScorerLink, Stamp
+from registry.models import Event, HashScorerLink
 from registry.utils import get_utc_time
 
 log = logging.getLogger(__name__)
@@ -148,24 +147,23 @@ async def arun_lifo_dedup(
         )
 
         if clashing_stamps:
-            for nullifier_hash in get_nullifiers(stamp):
-                await Event.objects.abulk_create(
-                    [
-                        Event(
-                            action=Event.Action.LIFO_DEDUPLICATION,
-                            address=address,
-                            data={
-                                "hash": nullifier_hash,
-                                "provider": stamp["credential"]["credentialSubject"][
-                                    "provider"
-                                ],
-                                "community_id": community.pk,
-                            },
-                            community=community,
-                        )
-                        for _, stamp in clashing_stamps.items()
-                    ]
-                )
+            await Event.objects.abulk_create(
+                [
+                    Event(
+                        action=Event.Action.LIFO_DEDUPLICATION,
+                        address=address,
+                        data={
+                            "nullifiers": get_nullifiers(stamp),
+                            "provider": stamp["credential"]["credentialSubject"][
+                                "provider"
+                            ],
+                            "community_id": community.pk,
+                        },
+                        community=community,
+                    )
+                    for _, stamp in clashing_stamps.items()
+                ]
+            )
     return (deduped_passport, None, clashing_stamps)
 
 
