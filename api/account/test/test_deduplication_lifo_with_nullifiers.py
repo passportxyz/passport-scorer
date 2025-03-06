@@ -9,7 +9,7 @@ from ninja_jwt.schema import RefreshToken
 from account.deduplication import Rules
 from account.deduplication.lifo import HashScorerLinkIntegrityError, alifo
 from account.models import Account, Community
-from registry.models import HashScorerLink, Passport
+from registry.models import HashScorerLink
 from scorer_weighted.models import Scorer, WeightedScorer
 
 User = get_user_model()
@@ -274,10 +274,6 @@ class LifoDeduplicationWith1NullifierTestCase(TransactionTestCase):
         wouldn't make it past the previous validation step in the real flow.
         """
 
-        passport = Passport.objects.create(
-            address="0xaddress_1", community=self.community1
-        )
-
         call_count = 0
 
         def increment_call_count(*args, **kwargs):
@@ -291,14 +287,14 @@ class LifoDeduplicationWith1NullifierTestCase(TransactionTestCase):
         ):
             with self.assertRaises(HashScorerLinkIntegrityError):
                 async_to_sync(alifo)(
-                    passport.community,
+                    self.community1,
                     {
                         "stamps": [
                             self.credential,
                             self.credential,
                         ]
                     },
-                    passport.address,
+                    "0xaddress_1",
                 )
         self.assertEqual(call_count, 5)
 
