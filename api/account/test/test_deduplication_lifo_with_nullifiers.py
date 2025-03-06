@@ -1,7 +1,7 @@
+from datetime import datetime
 from unittest import mock
 
 from asgiref.sync import async_to_sync
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TransactionTestCase
 from ninja_jwt.schema import RefreshToken
@@ -9,7 +9,7 @@ from ninja_jwt.schema import RefreshToken
 from account.deduplication import Rules
 from account.deduplication.lifo import HashScorerLinkIntegrityError, alifo
 from account.models import Account, Community
-from registry.models import HashScorerLink, Passport, Stamp
+from registry.models import HashScorerLink, Passport
 from scorer_weighted.models import Scorer, WeightedScorer
 
 User = get_user_model()
@@ -77,35 +77,62 @@ class LifoDeduplicationWith1NullifierTestCase(TransactionTestCase):
         This means the user can submit the same stamps to different communities, and they will not
         be discarded by the `lifo` deduplication method
         """
-        # We create 1 passport for each community, and add 1 stamps to it
-        passport1 = await Passport.objects.acreate(
-            address="0xaddress_1", community=self.community1
-        )
-        await Stamp.objects.acreate(
-            passport=passport1,
-            provider="test_provider",
-            credential=self.credential,
+        expect_nullifiers = self.credential["credential"]["credentialSubject"][
+            "nullifiers"
+        ]
+        expect_expiration_date = datetime.fromisoformat(
+            self.credential["credential"]["expirationDate"]
         )
 
-        # We create 1 passport for each community, and add 1 stamps to it
-        passport2 = await Passport.objects.acreate(
-            address="0xaddress_2", community=self.community2
-        )
-        await Stamp.objects.acreate(
-            passport=passport2,
-            provider="test_provider",
-            credential=self.credential,
-        )
-
+        # Step 1/2: run dedupe stamp in community 1
         deduped_passport, _, clashing_stamps = await alifo(
-            passport1.community,
+            self.community1,
             {"stamps": [self.credential]},
-            passport1.address,
+            "0xaddress_1",
         )
         # We expect the passport not to be deduped, as the duplicate hash is
         # contained in a different community
-        self.assertEqual(len(deduped_passport["stamps"]), 1)
-        self.assertEqual(clashing_stamps, {})
+        self.assertDictEqual(deduped_passport, {"stamps": [self.credential]})
+        self.assertDictEqual(clashing_stamps, {})
+
+        # Check for the hash links
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_1", community=self.community1
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        self.assertListEqual(
+            hash_links,
+            [(nullifier, expect_expiration_date) for nullifier in expect_nullifiers],
+        )
+
+        # Step 2/2: run dedupe stamp in community 2 with another address, expect no deduplication
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community2,
+            {"stamps": [self.credential]},
+            "0xaddress_2",
+        )
+        # We expect the passport not to be deduped, as the duplicate hash is
+        # contained in a different community
+        self.assertDictEqual(deduped_passport, {"stamps": [self.credential]})
+        self.assertDictEqual(clashing_stamps, {})
+
+        # Check for the hash links for address_2 and community2
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_2", community=self.community2
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        self.assertListEqual(
+            hash_links,
+            [(nullifier, expect_expiration_date) for nullifier in expect_nullifiers],
+        )
 
     @async_to_sync
     async def test_lifo_no_deduplicate_same_passport_address_across_cummunities(self):
@@ -115,36 +142,62 @@ class LifoDeduplicationWith1NullifierTestCase(TransactionTestCase):
         This means the user can submit the same stamps to different communities with the
         same ETH address, and they will not be discarded by the `lifo` deduplication method
         """
-        # We create 1 passport for each community, and add 1 stamps to it
-        passport1 = await Passport.objects.acreate(
-            address="0xaddress_1", community=self.community1
-        )
-        await Stamp.objects.acreate(
-            passport=passport1,
-            provider="test_provider",
-            credential=self.credential,
+        expect_nullifiers = self.credential["credential"]["credentialSubject"][
+            "nullifiers"
+        ]
+        expect_expiration_date = datetime.fromisoformat(
+            self.credential["credential"]["expirationDate"]
         )
 
-        # We create the 2nd passport, owned by the same address and add the same stamp to it
-        passport2 = await Passport.objects.acreate(
-            address=passport1.address, community=self.community2
-        )
-        await Stamp.objects.acreate(
-            passport=passport2,
-            provider="test_provider",
-            credential=self.credential,
-        )
-
+        # Step 1/2: run dedupe stamp in community 1
         deduped_passport, _, clashing_stamps = await alifo(
-            passport1.community,
+            self.community1,
             {"stamps": [self.credential]},
-            passport1.address,
+            "0xaddress_1",
         )
-
         # We expect the passport not to be deduped, as the duplicate hash is
         # contained in a different community
-        self.assertEqual(len(deduped_passport["stamps"]), 1)
-        self.assertEqual(clashing_stamps, {})
+        self.assertDictEqual(deduped_passport, {"stamps": [self.credential]})
+        self.assertDictEqual(clashing_stamps, {})
+
+        # Check for the hash links
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_1", community=self.community1
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        self.assertListEqual(
+            hash_links,
+            [(nullifier, expect_expiration_date) for nullifier in expect_nullifiers],
+        )
+
+        # Step 2/2: run dedupe stamp in community 2 with same address, expect no deduplication
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community2,
+            {"stamps": [self.credential]},
+            "0xaddress_1",
+        )
+        # We expect the passport not to be deduped, as the duplicate hash is
+        # contained in a different community
+        self.assertDictEqual(deduped_passport, {"stamps": [self.credential]})
+        self.assertDictEqual(clashing_stamps, {})
+
+        # Check for the hash links
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_1", community=self.community2
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        self.assertListEqual(
+            hash_links,
+            [(nullifier, expect_expiration_date) for nullifier in expect_nullifiers],
+        )
 
     @async_to_sync
     async def test_lifo_deduplicate(self):
@@ -152,40 +205,64 @@ class LifoDeduplicationWith1NullifierTestCase(TransactionTestCase):
         Verifies that deduplication works if the user submits the same stamps to a community
         but as part of different passports
         """
-        passport = await Passport.objects.acreate(
-            address="0xaddress_1", community=self.community1
+        expect_nullifiers = self.credential["credential"]["credentialSubject"][
+            "nullifiers"
+        ]
+        expect_expiration_date = datetime.fromisoformat(
+            self.credential["credential"]["expirationDate"]
         )
 
-        # We test deduplication of the 1st passport (for example user submits the same passport again)
+        # Step 1/2: run dedupe stamp in community 1
         deduped_passport, _, clashing_stamps = await alifo(
-            passport.community,
+            self.community1,
             {"stamps": [self.credential]},
-            passport.address,
-        )
-        stamp = deduped_passport["stamps"][0]
-        await Stamp.objects.acreate(
-            passport=passport,
-            provider=stamp["credential"]["credentialSubject"]["provider"],
-            credential=stamp["credential"],
+            "0xaddress_1",
         )
 
         # We expect the passport to not be deduped, as it is the same owner
-        self.assertEqual(len(deduped_passport["stamps"]), 1)
-        self.assertEqual(clashing_stamps, {})
-        # We test deduplication of another passport with different address but
-        # with the same stamp
+        self.assertDictEqual(deduped_passport, {"stamps": [self.credential]})
+        self.assertDictEqual(clashing_stamps, {})
+
+        # Check for the hash links
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_1", community=self.community1
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        self.assertListEqual(
+            hash_links,
+            [(nullifier, expect_expiration_date) for nullifier in expect_nullifiers],
+        )
+
+        # Step 2/2: run dedupe stamp in community 1 with another address, expect deduplication
         deduped_passport, _, clashing_stamps = await alifo(
-            passport.community, {"stamps": [self.credential]}, "0xaddress_2"
+            self.community1, {"stamps": [self.credential]}, "0xaddress_2"
         )
 
         # We expect the passport to be deduped, and the return copy shall contain
         # no stamps
-        self.assertEqual(len(deduped_passport["stamps"]), 0)
-        self.assertEqual(
+        self.assertDictEqual(deduped_passport, {"stamps": []})
+        self.assertDictEqual(
             clashing_stamps,
             {
                 "test_provider": self.credential,
             },
+        )
+        # Check for the hash links
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_2", community=self.community1
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        self.assertListEqual(
+            hash_links,
+            [],
         )
 
     def test_retry_on_clash(self):
@@ -227,6 +304,10 @@ class LifoDeduplicationWith1NullifierTestCase(TransactionTestCase):
 
 
 class LifoDeduplicationWith2NullifiersTestCase(LifoDeduplicationWith1NullifierTestCase):
+    """
+    Repeat the same tests for atsmps with 2 nullifiers
+    """
+
     def setUp(self):
         super().setUp()
         self.credential = credential_with_2_nullifiers
