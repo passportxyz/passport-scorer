@@ -315,13 +315,12 @@ class TestBanModel:
             revocation = Revocation.objects.first()
             assert revocation.ceramic_cache.provider == "github"
 
-        def test_revoke_matching_already_revoked(self, sample_stamp):
+        def test_revoke_matching_already_revoked(self, sample_stamp, sample_address):
             """Test attempting to revoke already revoked credentials"""
             # Create initial revocation
             Revocation.objects.create(
                 proof_value=sample_stamp.proof_value, ceramic_cache=sample_stamp
             )
-            print(" ~~~~~ sample_address: ", sample_address)
             ban = Ban.objects.create(type="account", address=sample_address)
             ban.revoke_matching_credentials()
 
@@ -338,9 +337,8 @@ class TestBanModel:
 
             assert Revocation.objects.count() == 0
 
-        def test_revoke_matching_updates_timestamp(self, sample_stamp):
+        def test_revoke_matching_updates_timestamp(self, sample_stamp, sample_address):
             """Test that last_run_revoke_matching is updated"""
-            print(" ~~~~~ sample_address: ", sample_address)
             ban = Ban.objects.create(type="account", address=sample_address)
             assert ban.last_run_revoke_matching is None
 
