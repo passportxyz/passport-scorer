@@ -31,8 +31,9 @@ def index(request):
 async def validate_credential(did, credential) -> List[str]:
     # pylint: disable=fixme
     stamp_return_errors = []
-    credential_subject = credential.get("credentialSubject")
+    credential_subject = credential.get("credentialSubject", {})
     stamp_hash = credential_subject.get("hash")
+    stamp_nullfiers = credential_subject.get("nullifiers")
     stamp_did = credential_subject.get("id").lower()
     provider = credential_subject.get("provider")
 
@@ -42,8 +43,10 @@ async def validate_credential(did, credential) -> List[str]:
     if not credential_subject:
         stamp_return_errors.append("Missing attribute: credentialSubject")
 
-    if not stamp_hash:
-        stamp_return_errors.append("Missing attribute: hash")
+    if not stamp_hash and not stamp_nullfiers:
+        stamp_return_errors.append(
+            "Missing attribute: hash and stamp_nullfiers (either one must be present)"
+        )
 
     if not stamp_did:
         stamp_return_errors.append("Missing attribute: id")
