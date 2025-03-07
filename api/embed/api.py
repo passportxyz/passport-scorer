@@ -23,7 +23,7 @@ from registry.api.utils import (
 from registry.exceptions import (
     InvalidAddressException,
 )
-from v2.api import handle_scoring
+from v2.api import handle_scoring_for_account
 
 api_router = Router()
 
@@ -84,7 +84,9 @@ def handle_embed_add_stamps(
             address, add_stamps_payload, CeramicCache.SourceApp.EMBED, payload.scorer_id
         )
         user_account = Community.objects.get(id=payload.scorer_id).account
-        score = async_to_sync(handle_scoring)(address, payload.scorer_id, user_account)
+        score = async_to_sync(handle_scoring_for_account)(
+            address, payload.scorer_id, user_account
+        )
 
         return GetStampsWithV2ScoreResponse(**added_stamps.model_dump(), score=score)
     except Exception as e:

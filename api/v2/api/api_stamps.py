@@ -55,21 +55,24 @@ METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 log = logging.getLogger(__name__)
 
 
-async def handle_scoring(address: str, scorer_id: str, user_account):
+async def handle_scoring_for_account(address: str, scorer_id: str, user_account):
+    # Get community object
+    user_community = await aget_scorer_by_id(scorer_id, user_account)
+    return await ahandle_scoring(address, user_community)
+
+
+async def ahandle_scoring(address: str, community):
     address_lower = address.lower()
     if not is_valid_address(address_lower):
         raise InvalidAddressException()
-    # Get community object
-    user_community = await aget_scorer_by_id(scorer_id, user_account)
-
-    scorer = await user_community.aget_scorer()
+    scorer = await community.aget_scorer()
     scorer_type = scorer.type
 
     # Create an empty passport instance, only needed to be able to create a pending Score
     # The passport will be updated by the score_passport task
     db_passport, _ = await Passport.objects.aupdate_or_create(
         address=address_lower,
-        community=user_community,
+        community=community,
     )
 
     score, _ = await Score.objects.select_related("passport").aget_or_create(
@@ -77,7 +80,7 @@ async def handle_scoring(address: str, scorer_id: str, user_account):
         defaults=dict(score=None, status=Score.Status.PROCESSING),
     )
 
-    await ascore_passport(user_community, db_passport, address_lower, score)
+    await ascore_passport(community, db_passport, address_lower, score)
     await score.asave()
 
     raw_score = 0
@@ -131,7 +134,7 @@ async def handle_scoring(address: str, scorer_id: str, user_account):
 async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreResponse:
     check_rate_limit(request)
     try:
-        return await handle_scoring(address, str(scorer_id), request.auth)
+        return await handle_scoring_for_account(address, str(scorer_id), request.auth)
     except APIException as e:
         raise e
     except Exception as e:
