@@ -244,8 +244,12 @@ class BanList(models.Model):
 class Ban(models.Model):
     BAN_TYPE_CHOICES = [
         ("account", "Account"),  # Ban an entire account (ETH address)
-        ("hash", "Hash"),  # Ban based on the credential hash / nullifier
-        ("single_stamp", "SingleStamps"),  # BAn based on the tuple (address, provider)
+        # TODO: disabling hash ban for now
+        # --- this is disabled given that we have moved to rotating hashes, and need a better approach for this
+        # --- tests for thie ban type have also been disabled, and should be re-enabled once a new approach is in place
+        # --- find disable tests by searching for `TODO: disabling hash ban for now` in the code
+        # ("hash", "Hash"),  # Ban based on the credential hash / nullifier
+        ("single_stamp", "SingleStamps"),  # Ban based on the tuple (address, provider)
     ]
 
     type = models.CharField(
