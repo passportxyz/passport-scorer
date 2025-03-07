@@ -679,15 +679,6 @@ def get_account_customization(request, dashboard_path: str):
         raise APIException("Customization not found", status.HTTP_404_NOT_FOUND)
 
 
-# TODO 3280 Remove this endpoint
-@api.get("/allow-list/{str:list}/{str:address}", auth=internal_api_key)
-def check_on_allow_list(request, list: str, address: str):
-    """
-    Check if an address is on the allow list for a specific round
-    """
-    return handle_check_allow_list(list, address)
-
-
 def handle_check_allow_list(list: str, address: str):
     try:
         is_member = AddressListMember.objects.filter(

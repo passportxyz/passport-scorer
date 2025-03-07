@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, List
 
 from asgiref.sync import async_to_sync
 from ninja import Router, Schema
@@ -10,14 +10,9 @@ from ceramic_cache.api.schema import (
     CacheStampPayload,
     GetStampsWithV2ScoreResponse,
 )
-from ceramic_cache.api.v1 import handle_add_stamps_only, handle_get_scorer_weights
+from ceramic_cache.api.v1 import handle_add_stamps_only
 from ceramic_cache.models import CeramicCache
-from internal.api_key import internal_api_key
-from registry.api.schema import (
-    ErrorMessageResponse,
-)
 from registry.api.utils import (
-    ApiKey,
     is_valid_address,
 )
 from registry.exceptions import (
@@ -45,24 +40,6 @@ class AddStampsPayload(Schema):
 
 
 # Endpoint for this defined in internal module
-# TODO 3280 Remove this endpoint
-@api_router.post(
-    "/stamps/{str:address}",
-    auth=internal_api_key,
-    response={
-        200: GetStampsWithV2ScoreResponse,
-        401: ErrorMessageResponse,
-        400: ErrorMessageResponse,
-        404: ErrorMessageResponse,
-    },
-    summary="Add Stamps and get the new score",
-)
-def add_stamps(
-    request, address: str, payload: AddStampsPayload
-) -> GetStampsWithV2ScoreResponse:
-    return handle_embed_add_stamps(address, payload)
-
-
 def handle_embed_add_stamps(
     address: str, payload: AddStampsPayload
 ) -> GetStampsWithV2ScoreResponse:
@@ -101,40 +78,9 @@ class AccountAPIKeySchema(Schema):
     rate_limit: str | None
 
 
-# TODO 3280 Remove this endpoint
-@api_router.get(
-    "/validate-api-key",
-    # Here we want to authenticate the partners key, hence this ApiKey auth class
-    auth=ApiKey(),
-    response={
-        200: AccountAPIKeySchema,
-        401: ErrorMessageResponse,
-        400: ErrorMessageResponse,
-        404: ErrorMessageResponse,
-    },
-    summary="Add Stamps and get the new score",
-)
-def validate_api_key(request) -> AccountAPIKeySchema:
-    return handle_validate_embed_api_key(request)
-
-
 def handle_validate_embed_api_key(request) -> AccountAPIKeySchema:
     """
     Return the capabilities allocated to this API key.
     This API is intended to be used in the embed service in the passport repo
     """
     return AccountAPIKeySchema.from_orm(request.api_key)
-
-
-# TODO 3280 Remove this endpoint
-@api_router.get("/weights", response=Dict[str, float])
-def get_embed_weights(request, community_id: Optional[str] = None) -> Dict[str, float]:
-    """
-    ---
-    get:
-      description: Get embed weights
-      responses:
-        200:
-          description: Returns the embed weights
-    """
-    return handle_get_scorer_weights(community_id)

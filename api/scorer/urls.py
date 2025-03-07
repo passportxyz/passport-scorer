@@ -32,10 +32,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("account/", include("account.urls")),
     path("social/", include("social_django.urls", namespace="social")),
-    # TODO 3280 Remove cgrants URLs entry
-    path("cgrants/", include("cgrants.urls")),
-    # TODO 3280 Remove stake URLs entry
-    path("stake/", include("stake.urls")),
     path("passport/", include("passport.urls")),
     path("internal/", include("internal.urls")),
     path("embed/", include("embed.urls")),
