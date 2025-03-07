@@ -353,7 +353,6 @@ const ecsTaskConfigurations: Record<
         desiredCount: 2,
       },
     },
-  
 };
 
 if (PROVISION_STAGING_FOR_LOADTEST) {
@@ -514,7 +513,7 @@ const alb = new aws.alb.LoadBalancer(`scorer-service`, {
     Name: "scorer-service",
   },
 });
-
+export const scorerALbArn = alb.arn;
 // Listen to HTTP traffic on port 80 and redirect to 443
 const httpListener = new aws.alb.Listener("scorer-http-listener", {
   loadBalancerArn: alb.arn,

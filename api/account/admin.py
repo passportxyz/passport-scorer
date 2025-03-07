@@ -1,5 +1,7 @@
-import codecs
 import csv
+import json
+from math import exp
+from operator import ge
 
 import boto3
 from django import forms
@@ -8,7 +10,9 @@ from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from django.utils.timezone import now
 from django_ace import AceWidget
 from rest_framework_api_key.admin import APIKeyAdmin
 
@@ -21,12 +25,14 @@ from .models import (
     AddressList,
     AddressListMember,
     AllowList,
+    AnalysisRateLimits,
     Community,
     CustomCredential,
     CustomCredentialRuleset,
     Customization,
     CustomPlatform,
     IncludedChainId,
+    RateLimits,
 )
 
 
@@ -153,8 +159,537 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
     # Step 3: Customize the action's display name in the dropdown menu
     edit_selected.short_description = "Edit selected row"
 
-    # Step 2: Register the edit action
-    actions = [edit_selected]
+    def generate_statements(self, api_keys_list):
+        statements = [
+            {
+                "ByteMatchStatement": {
+                    "SearchString": f"{api_key.prefix}.",
+                    "FieldToMatch": {"SingleHeader": {"Name": "x-api-key"}},
+                    "TextTransformations": [{"Priority": 0, "Type": "NONE"}],
+                    "PositionalConstraint": "STARTS_WITH",
+                }
+            }
+            for api_key in api_keys_list
+        ]
+        return statements
+
+    def upload_to_s3(self, json_input, filename):
+        S3_BUCKET_NAME = settings.S3_BUCKET_WAF
+        try:
+            s3_client = boto3.client("s3")
+            s3_client.put_object(
+                Bucket=S3_BUCKET_NAME,
+                Key=filename,
+                Body=json_input,
+                ContentType="application/json",
+            )
+            return True
+        except Exception as e:
+            print(f"Failed to upload to S3: {e}")
+            return False
+
+    @admin.action(description="[All] Generate and Upload WAF Rules to S3")
+    def generate_waf_json_and_upload(self, request, queryset=None):
+        # TODO: make sure the rules support the usecase of one API key.
+        # TODO: make sure the action can be executed for big sets of API keys.
+        api_keys = AccountAPIKey.objects.values_list("prefix", flat=True)
+        # The first rule    (priority 1) will handle blocked IPs.
+        # The second rule   (priority 2) will evaluate Invalid API keys. => managed outside of python code
+        # The third rule    (priority 3) will evaluate Expired and Revoked API keys.
+        # <All analysis / per request rules should be evaluated before the generic API keys evaluation.>
+        # The fourth rule   (priority 4) will evaluate Analysis - Unlimited API keys.
+        # The fifth rule    (priority 5) will evaluate Analysis - Tier 3 API keys.
+        # The sixth rule    (priority 6) will evaluate Analysis - Tier 2 API keys.
+        # The seventh rule  (priority 7) will evaluate Analysis - Tier 1 API keys.
+        # <Generic non path restricted rules.>
+        # The eighth rule   (priority 8) will evaluate Unlimited API keys.
+        # The ninth rule    (priority 9) will evaluate Tier 3 API keys.
+        # The tenth rule    (priority 10) will evaluate Tier 2 API keys.
+        # The eleventh rule (priority 11) will evaluate Tier 1 API keys.
+        # <The last rule should also be the default rule to be evaluated>.
+
+        # [BLOCK] Create rule for the revoked & expired keys
+        ###################################################################################
+        revoked_or_expired_keys = AccountAPIKey.objects.filter(
+            revoked=True  # Revoked keys
+        ) | AccountAPIKey.objects.filter(
+            expiry_date__isnull=False,  # Ensure expiry_date is set
+            expiry_date__lte=now(),  # Expiry date is in the past
+        )
+
+        revoked_or_expired_statements = self.generate_statements(
+            revoked_or_expired_keys
+        )
+        revoked_or_expired_waf_rule = {
+            "Name": "Expired-RevokedKeys",
+            "Priority": 3,
+            "Action": {
+                "Block": {
+                    "CustomResponse": {
+                        "ResponseCode": 401,  # TODO: add message to response
+                    }
+                }
+            },
+            "Statement": {"OrStatement": {"Statements": revoked_or_expired_statements}},
+            "VisibilityConfig": {
+                "SampledRequestsEnabled": True,
+                "CloudWatchMetricsEnabled": True,
+                "MetricName": "Expired-RevokedKeys",
+            },
+        }
+        revoked_or_expired_waf_json = json.dumps(revoked_or_expired_waf_rule, indent=3)
+        self.upload_to_s3(
+            revoked_or_expired_waf_json, "revoked_or_expired_waf_rule.json"
+        )
+        # [ALLOW] Create rule for the analysis unlimited keys
+        ###################################################################################
+        analysis_unlimited_keys = AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__isnull=True,  # No expiry date
+            analysis_rate_limit__isnull=True,  # Unlimited rate limit
+        ) | AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__gt=now(),  # Expiry date is in the future
+            analysis_rate_limit__isnull=True,  # Unlimited rate limit
+        )
+        analysis_unlimited_statements = self.generate_statements(
+            analysis_unlimited_keys
+        )
+        analysis_unlimited_waf_rule = {
+            "Name": "Analysis-UnlimitedKeys",
+            "Priority": 10,
+            "Action": {"Count": {}},
+            "Statement": {
+                "AndStatement": {
+                    "Statements": [
+                        {
+                            "ByteMatchStatement": {
+                                "FieldToMatch": {"UriPath": {}},
+                                "PositionalConstraint": "STARTS_WITH",
+                                "SearchString": "/passport/analysis/",
+                                "TextTransformations": [
+                                    {"Priority": 0, "Type": "NONE"}
+                                ],
+                            },
+                        },
+                        {
+                            "OrStatement": {
+                                "Statements": analysis_unlimited_statements
+                            },
+                        },
+                    ]
+                }
+            },
+            "VisibilityConfig": {
+                "SampledRequestsEnabled": True,
+                "CloudWatchMetricsEnabled": True,
+                "MetricName": "Analysis-UnlimitedKeys",
+            },
+        }
+        analysis_unlimited_waf_json = json.dumps(analysis_unlimited_waf_rule, indent=3)
+        self.upload_to_s3(
+            analysis_unlimited_waf_json, "analysis_unlimited_waf_rule.json"
+        )
+        # [BLOCK] Analysis tier 3 keys
+        ###################################################################################
+        analysis_tier_3_keys = AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__isnull=True,  # No expiry date
+            analysis_rate_limit=AnalysisRateLimits.TIER_3.value,
+        ) | AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__gt=now(),  # Expiry date is in the future
+            analysis_rate_limit=AnalysisRateLimits.TIER_3.value,
+        )
+
+        analysis_tier_3_statements = self.generate_statements(analysis_tier_3_keys)
+        analysis_tier_3_waf_rule = {
+            "Name": "Analysis-Tier-3-Keys",
+            "Priority": 4,
+            "Action": {
+                "Block": {
+                    "CustomResponse": {
+                        "ResponseCode": 429,
+                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
+                    }
+                }
+            },
+            "Statement": {
+                "RateBasedStatement": {
+                    "Limit": 670,  # almost 2000/15m
+                    "EvaluationWindowSec": 300,  # 5 minutes
+                    "AggregateKeyType": "CUSTOM_KEYS",
+                    "CustomKeys": [
+                        {
+                            "Header": {
+                                "Name": "X-API-Key",
+                                "TextTransformations": [
+                                    {"Priority": 0, "Type": "NONE"}
+                                ],
+                            }
+                        }
+                    ],
+                    "ScopeDownStatement": {
+                        "AndStatement": {
+                            "Statements": [
+                                {
+                                    # Match /passport/analysis/ path
+                                    "ByteMatchStatement": {
+                                        "FieldToMatch": {"UriPath": {}},
+                                        "PositionalConstraint": "STARTS_WITH",
+                                        "SearchString": "/passport/analysis/",
+                                        "TextTransformations": [
+                                            {"Priority": 0, "Type": "NONE"}
+                                        ],
+                                    }
+                                },
+                                # Match valid API keys
+                                {
+                                    "OrStatement": {
+                                        "Statements": analysis_tier_3_statements
+                                    }
+                                },
+                            ]
+                        }
+                    },
+                }
+            },
+            "VisibilityConfig": {
+                "SampledRequestsEnabled": True,
+                "CloudWatchMetricsEnabled": True,
+                "MetricName": "Analysis-Tier-3-Keys",
+            },
+        }
+        analysis_tier_3_waf_json = json.dumps(analysis_tier_3_waf_rule, indent=3)
+        self.upload_to_s3(analysis_tier_3_waf_json, "analysis_tier_3_waf_rule.json")
+        # [BLOCK] Analysis tier 2 keys
+        ###################################################################################
+        analysis_tier_2_keys = AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__isnull=True,  # No expiry date
+            analysis_rate_limit=AnalysisRateLimits.TIER_2.value,
+        ) | AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__gt=now(),  # Expiry date is in the future
+            analysis_rate_limit=AnalysisRateLimits.TIER_2.value,
+        )
+        analysis_tier_2_statements = self.generate_statements(analysis_tier_2_keys)
+        analysis_tier_2_waf_rule = {
+            "Name": "Analysis-Tier-2-Keys",
+            "Priority": 5,
+            "Action": {
+                "Block": {
+                    "CustomResponse": {
+                        "ResponseCode": 429,
+                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
+                    }
+                }
+            },
+            "Statement": {
+                "RateBasedStatement": {
+                    "Limit": 120,  # almost 350/15m
+                    "EvaluationWindowSec": 300,  # 5 minutes
+                    "AggregateKeyType": "CUSTOM_KEYS",
+                    "CustomKeys": [
+                        {
+                            "Header": {
+                                "Name": "X-API-Key",
+                                "TextTransformations": [
+                                    {"Priority": 0, "Type": "NONE"}
+                                ],
+                            }
+                        }
+                    ],
+                    "ScopeDownStatement": {
+                        "AndStatement": {
+                            "Statements": [
+                                {
+                                    # Match /passport/analysis/ path
+                                    "ByteMatchStatement": {
+                                        "FieldToMatch": {"UriPath": {}},
+                                        "PositionalConstraint": "STARTS_WITH",
+                                        "SearchString": "/passport/analysis/",
+                                        "TextTransformations": [
+                                            {"Priority": 0, "Type": "NONE"}
+                                        ],
+                                    }
+                                },
+                                # Match valid API keys
+                                {
+                                    "OrStatement": {
+                                        "Statements": analysis_tier_2_statements
+                                    }
+                                },
+                            ]
+                        }
+                    },
+                }
+            },
+            "VisibilityConfig": {
+                "SampledRequestsEnabled": True,
+                "CloudWatchMetricsEnabled": True,
+                "MetricName": "Analysis-Tier2-Keys",
+            },
+        }
+        analysis_tier_2_waf_json = json.dumps(analysis_tier_2_waf_rule, indent=3)
+        self.upload_to_s3(analysis_tier_2_waf_json, "analysis_tier_2_waf_rule.json")
+
+        # [BLOCK] Analysis tier 1 keys
+        ###################################################################################
+        analysis_tier_1_keys = AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__isnull=True,  # No expiry date
+            analysis_rate_limit=AnalysisRateLimits.TIER_1.value,
+        ) | AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__gt=now(),  # Expiry date is in the future
+            analysis_rate_limit=AnalysisRateLimits.TIER_1.value,
+        )
+        analysis_tier_1_statements = self.generate_statements(analysis_tier_1_keys)
+        analysis_tier_1_waf_rule = {
+            "Name": "Analysis-Tier1-Keys",
+            "Priority": 6,
+            "Action": {
+                "Block": {
+                    "CustomResponse": {
+                        "ResponseCode": 429,
+                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
+                    }
+                }
+            },
+            "Statement": {
+                "RateBasedStatement": {
+                    "Limit": 10,  # Min value
+                    "EvaluationWindowSec": 300,  # 5 minutes
+                    "AggregateKeyType": "CUSTOM_KEYS",
+                    "CustomKeys": [
+                        {
+                            "Header": {
+                                "Name": "X-API-Key",
+                                "TextTransformations": [
+                                    {"Priority": 0, "Type": "NONE"}
+                                ],
+                            }
+                        }
+                    ],
+                    "ScopeDownStatement": {
+                        "AndStatement": {
+                            "Statements": [
+                                {
+                                    # Match /passport/analysis/ path
+                                    "ByteMatchStatement": {
+                                        "FieldToMatch": {"UriPath": {}},
+                                        "PositionalConstraint": "STARTS_WITH",
+                                        "SearchString": "/passport/analysis/",
+                                        "TextTransformations": [
+                                            {"Priority": 0, "Type": "NONE"}
+                                        ],
+                                    }
+                                },
+                                # Match valid API keys
+                                {
+                                    "OrStatement": {
+                                        "Statements": analysis_tier_1_statements
+                                    }
+                                },
+                            ]
+                        }
+                    },
+                }
+            },
+            "VisibilityConfig": {
+                "SampledRequestsEnabled": True,
+                "CloudWatchMetricsEnabled": True,
+                "MetricName": "Analysis-Tier2-Keys",
+            },
+        }
+        analysis_tier_1_waf_json = json.dumps(analysis_tier_1_waf_rule, indent=3)
+        self.upload_to_s3(analysis_tier_1_waf_json, "analysis_tier_1_waf_rule.json")
+        ###################################################################################
+        # [ALLOW] Create rule for the unlimited keys
+        ###################################################################################
+        active_unlimited_keys = AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__isnull=True,  # No expiry date
+            rate_limit__isnull=True,  # Unlimited rate limit
+        ) | AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__gt=now(),  # Expiry date is in the future
+            rate_limit__isnull=True,  # Unlimited rate limit
+        )
+        active_unlimited_statements = self.generate_statements(active_unlimited_keys)
+        # TODO: adjust the rule to properly group the requests / api key prefix ( count / api key prefix )
+        active_unlimited_waf_rule = {
+            "Name": "UnlimitedKeys",
+            "Priority": 11,
+            "Action": {"Count": {}},
+            "Statement": {"OrStatement": {"Statements": active_unlimited_statements}},
+            "VisibilityConfig": {
+                "SampledRequestsEnabled": True,
+                "CloudWatchMetricsEnabled": True,
+                "MetricName": "UnlimitedKeys",
+            },
+        }
+        active_unlimited_waf_json = json.dumps(active_unlimited_waf_rule, indent=3)
+        self.upload_to_s3(active_unlimited_waf_json, "unlimited_waf_rule.json")
+
+        # Create rule for the Tier 3 keys
+        ###################################################################################
+        tier_3_api_keys = AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__isnull=True,  # No expiry date
+            rate_limit=RateLimits.TIER_3.value,
+        ) | AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__gt=now(),  # Expiry date is in the future
+            rate_limit=RateLimits.TIER_3.value,
+        )
+        tier_3_statements = self.generate_statements(tier_3_api_keys)
+        tier_3_waf_rule = {
+            "Name": "Tier-3-Api-Keys",
+            "Priority": 7,
+            "Action": {
+                "Block": {
+                    "CustomResponse": {
+                        "ResponseCode": 429,
+                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
+                    }
+                }
+            },
+            "Statement": {
+                "RateBasedStatement": {
+                    "Limit": 670,  # almost 2000/15m"
+                    "EvaluationWindowSec": 300,  # 5 minutes
+                    "AggregateKeyType": "CUSTOM_KEYS",
+                    "CustomKeys": [
+                        {
+                            "Header": {
+                                "Name": "X-API-Key",
+                                "TextTransformations": [
+                                    {"Priority": 0, "Type": "NONE"}
+                                ],
+                            }
+                        }
+                    ],
+                    "ScopeDownStatement": {
+                        "OrStatement": {"Statements": tier_3_statements}
+                    },
+                }
+            },
+            "VisibilityConfig": {
+                "SampledRequestsEnabled": True,
+                "CloudWatchMetricsEnabled": True,
+                "MetricName": "Tier-3-Api-Keys",
+            },
+        }
+        tier_3_waf_json = json.dumps(tier_3_waf_rule, indent=3)
+        self.upload_to_s3(tier_3_waf_json, "tier_3_waf_rule.json")
+
+        # [BLOCK] Analysis tier 2 keys
+        ###################################################################################
+        tier_2_api_keys = AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__isnull=True,  # No expiry date
+            rate_limit=RateLimits.TIER_2.value,
+        ) | AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__gt=now(),  # Expiry date is in the future
+            rate_limit=RateLimits.TIER_2.value,
+        )
+        tier_2_statements = self.generate_statements(tier_2_api_keys)
+        tier_2_waf_rule = {
+            "Name": "Tier-2-Api-Keys",
+            "Priority": 8,
+            "Action": {
+                "Block": {
+                    "CustomResponse": {
+                        "ResponseCode": 429,
+                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
+                    }
+                }
+            },
+            "Statement": {
+                "RateBasedStatement": {
+                    "Limit": 120,  # almost 350/15m
+                    "EvaluationWindowSec": 300,  # 5 minutes
+                    "AggregateKeyType": "CUSTOM_KEYS",
+                    "CustomKeys": [
+                        {
+                            "Header": {
+                                "Name": "X-API-Key",
+                                "TextTransformations": [
+                                    {"Priority": 0, "Type": "NONE"}
+                                ],
+                            }
+                        }
+                    ],
+                    "ScopeDownStatement": {
+                        "OrStatement": {"Statements": tier_2_statements}
+                    },
+                }
+            },
+            "VisibilityConfig": {
+                "SampledRequestsEnabled": True,
+                "CloudWatchMetricsEnabled": True,
+                "MetricName": "Tier-2-Api-Keys",
+            },
+        }
+        tier_2_waf_json = json.dumps(tier_2_waf_rule, indent=3)
+        self.upload_to_s3(tier_2_waf_json, "tier_2_waf_rule.json")
+
+        # [BLOCK] Tier 1 keys / This should be also the default rule ??? TODO
+        ###################################################################################
+        tier_1_api_keys = AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__isnull=True,  # No expiry date
+            rate_limit=RateLimits.TIER_1.value,
+        ) | AccountAPIKey.objects.filter(
+            revoked=False,  # Not revoked
+            expiry_date__gt=now(),  # Expiry date is in the future
+            rate_limit=RateLimits.TIER_1.value,
+        )
+        tier_1_statements = self.generate_statements(tier_1_api_keys)
+        tier_1_waf_rule = {
+            "Name": "Tier-1-Api-Keys",
+            "Priority": 9,
+            "Action": {
+                "Block": {
+                    "CustomResponse": {
+                        "ResponseCode": 429,
+                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
+                    }
+                }
+            },
+            "Statement": {
+                "RateBasedStatement": {
+                    "Limit": 42,  # almost 124/15m
+                    "EvaluationWindowSec": 300,  # 5 minutes
+                    "AggregateKeyType": "CUSTOM_KEYS",
+                    "CustomKeys": [
+                        {
+                            "Header": {
+                                "Name": "X-API-Key",
+                                "TextTransformations": [
+                                    {"Priority": 0, "Type": "NONE"}
+                                ],
+                            }
+                        }
+                    ],
+                    "ScopeDownStatement": {
+                        "OrStatement": {"Statements": tier_1_statements}
+                    },
+                }
+            },
+            "VisibilityConfig": {
+                "SampledRequestsEnabled": True,
+                "CloudWatchMetricsEnabled": True,
+                "MetricName": "Tier-1-Api-Keys",
+            },
+        }
+        tier_1_waf_json = json.dumps(tier_1_waf_rule, indent=3)
+        self.upload_to_s3(tier_1_waf_json, "tier_1_waf_rule.json")
+
+    actions = [edit_selected, generate_waf_json_and_upload]
 
 
 class APIKeyPermissionsAdmin(ScorerModelAdmin):
