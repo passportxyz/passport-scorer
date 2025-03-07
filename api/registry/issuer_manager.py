@@ -33,12 +33,6 @@ class IssuerVersion(BaseModel):
 KEY_ENV_PREFIX = "IAM_JWK_EIP712_V"
 pattern = KEY_ENV_PREFIX + r"(?P<version>\d+)_ISSUER"
 
-print("\n\n")
-print("=" * 80)
-print(pattern)
-print("=" * 80)
-print("\n\n")
-
 
 def get_versions() -> List[int]:
     ret: List[int] = []
@@ -68,6 +62,7 @@ def load_issuer_from_env(version: int) -> IssuerVersion:
             e,
             exc_info=True,
         )
+        raise
 
 
 def load_issuer_versions() -> List[IssuerVersion]:
@@ -81,7 +76,7 @@ def load_issuer_versions() -> List[IssuerVersion]:
         issuer_versions.append(issuer_version)
 
     for issuer in settings.TRUSTED_IAM_ISSUERS:
-        # Adding support for the logacy issuer
+        # Adding support for the legacy issuer
         if issuer.startswith("did:ethr:"):
             issuer_versions.append(
                 IssuerVersion(
@@ -103,30 +98,50 @@ def load_issuer_versions() -> List[IssuerVersion]:
             "No active issuer found. Please configure at least a `TRUSTED_IAM_ISSUERS` or IAM_JWK_EIP712_V{}_ISSUER ... with starttime in the past"
         )
 
-    current_and_upcoming_issuer_versions = []
-    for idx, iv in enumerate(issuer_versions[1:]):
-        if iv.start_time >= now:
-            current_and_upcoming_issuer_versions = issuer_versions[idx:]
-            break
-
-    return (issuer_versions, current_and_upcoming_issuer_versions)
+    return issuer_versions
 
 
-def get_current_trusted_issuer():
+NUM_ISSUERS_TO_TRUST = 2
+
+
+def get_current_trusted_issuer_versions() -> list[IssuerVersion]:
+    """
+    We will always trust the current and previous issuers setups
+    """
     now = datetime.now(timezone.utc)
-    last_issuer_version = LOADED_ISSUER_VERSIONS[0]
-    for issuer_version in LOADED_ISSUER_VERSIONS[1:]:
+    issuer_version_list = get_loaded_versions()
+    issuers_to_trust = [issuer_version_list[0]]
+
+    for issuer_version in issuer_version_list[1:]:
         if issuer_version.start_time > now:
-            return last_issuer_version
+            return issuers_to_trust
+        else:
+            if len(issuers_to_trust) >= NUM_ISSUERS_TO_TRUST:
+                issuers_to_trust.pop(0)
+            issuers_to_trust.append(issuer_version)
+
+    # This should contain the legacy issuer only in this
+    return issuers_to_trust
+
+
+def get_current_trusted_issuers() -> list[str]:
+    """
+    Return the list of issuers (returns the did only)
+    """
+    return [iv.issuer for iv in get_current_trusted_issuer_versions()]
+
+
+def get_loaded_versions() -> list[IssuerVersion]:
+    try:
+        global LOADED_ISSUER_VERSIONS
+        if LOADED_ISSUER_VERSIONS is None:
+            LOADED_ISSUER_VERSIONS = load_issuer_versions()
+            log.info("Loaded issuer versions: %s", LOADED_ISSUER_VERSIONS)
+        return LOADED_ISSUER_VERSIONS
+    except Exception as e:
+        log.error("Error loading issuer versions: {%s}", e, exc_info=True)
+        raise
 
 
 # List of issuer versions sorted by start time
-LOADED_ISSUER_VERSIONS, CURRENT_AND_UPCOMING_ISSUER_VERSIONS = load_issuer_versions()
-CURRENT_AND_UPCOMING_VERSIONS: list[str] = [
-    iv.version for iv in CURRENT_AND_UPCOMING_ISSUER_VERSIONS
-]
-
-from pprint import pprint
-
-pprint(LOADED_ISSUER_VERSIONS)
-pprint(CURRENT_AND_UPCOMING_ISSUER_VERSIONS)
+LOADED_ISSUER_VERSIONS = None

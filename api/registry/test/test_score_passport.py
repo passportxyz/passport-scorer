@@ -37,6 +37,10 @@ mocked_weights = {
     "Gitcoin": 3.0,
 }
 
+trusted_issuer = [
+    issuer for issuer in settings.TRUSTED_IAM_ISSUERS if issuer.startswith("did:ethr:")
+][0]
+
 mock_passport_data = {
     "stamps": [
         {
@@ -44,11 +48,11 @@ mock_passport_data = {
             "credential": {
                 "type": ["VerifiableCredential"],
                 "credentialSubject": {
-                    "id": settings.TRUSTED_IAM_ISSUERS[0],
+                    "id": trusted_issuer,
                     "hash": "v0.0.0:1Vzw/OyM9CBUkVi/3mb+BiwFnHzsSRZhVH1gaQIyHvM=",
                     "provider": "Ens",
                 },
-                "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+                "issuer": trusted_issuer,
                 "issuanceDate": (expiration_dates[0] - timedelta(days=30)).isoformat(),
                 "expirationDate": expiration_dates[0].isoformat(),
             },
@@ -58,11 +62,11 @@ mock_passport_data = {
             "credential": {
                 "type": ["VerifiableCredential"],
                 "credentialSubject": {
-                    "id": settings.TRUSTED_IAM_ISSUERS[0],
+                    "id": trusted_issuer,
                     "hash": "0x88888",
                     "provider": "Google",
                 },
-                "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+                "issuer": trusted_issuer,
                 "issuanceDate": (expiration_dates[1] - timedelta(days=30)).isoformat(),
                 "expirationDate": expiration_dates[1].isoformat(),
             },
@@ -72,11 +76,11 @@ mock_passport_data = {
             "credential": {
                 "type": ["VerifiableCredential"],
                 "credentialSubject": {
-                    "id": settings.TRUSTED_IAM_ISSUERS[0],
+                    "id": trusted_issuer,
                     "hash": "0x45678",
                     "provider": "Gitcoin",
                 },
-                "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+                "issuer": trusted_issuer,
                 "issuanceDate": (expiration_dates[2] - timedelta(days=30)).isoformat(),
                 "expirationDate": expiration_dates[2].isoformat(),
             },

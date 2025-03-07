@@ -6,7 +6,6 @@ from typing import List
 from urllib.parse import urlencode
 
 import didkit
-from django.conf import settings
 from django.db.models import Q
 from django.forms.models import model_to_dict
 from django.shortcuts import render
@@ -16,6 +15,7 @@ from web3 import Web3
 
 import api_logging as logging
 from registry.exceptions import NoRequiredPermissionsException
+from registry.issuer_manager import get_current_trusted_issuers
 from registry.models import Stamp
 
 log = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ def verify_issuer(stamp: dict) -> bool:
     return (
         "credential" in stamp
         and "issuer" in stamp["credential"]
-        and stamp["credential"]["issuer"] in settings.TRUSTED_IAM_ISSUERS
+        and stamp["credential"]["issuer"] in get_current_trusted_issuers()
     )
 
 

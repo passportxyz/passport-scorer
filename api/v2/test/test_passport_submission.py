@@ -22,6 +22,10 @@ web3.eth.account.enable_unaudited_hdwallet_features()
 
 my_mnemonic = settings.TEST_MNEMONIC
 
+trusted_issuer = [
+    issuer for issuer in settings.TRUSTED_IAM_ISSUERS if issuer.startswith("did:ethr:")
+][0]
+
 now = datetime.now(timezone.utc)
 ens_credential = {
     "type": ["VerifiableCredential"],
@@ -32,7 +36,7 @@ ens_credential = {
         "proofPurpose": "assertionMethod",
         "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     },
-    "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+    "issuer": trusted_issuer,
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "issuanceDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "expirationDate": (now + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -59,7 +63,7 @@ ens_credential_corrupted = {
         "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC"
         + "CORRUPTING THE FIELD",
     },
-    "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+    "issuer": trusted_issuer,
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "issuanceDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "expirationDate": (now + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -86,7 +90,7 @@ google_credential = {
         "proofPurpose": "assertionMethod",
         "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     },
-    "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+    "issuer": trusted_issuer,
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "issuanceDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "expirationDate": (now + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -113,7 +117,7 @@ google_credential_2 = {
         "proofPurpose": "assertionMethod",
         "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     },
-    "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+    "issuer": trusted_issuer,
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "issuanceDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "expirationDate": (now + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -140,7 +144,7 @@ google_credential_expired = {
         "proofPurpose": "assertionMethod",
         "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     },
-    "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+    "issuer": trusted_issuer,
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "issuanceDate": (now - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "expirationDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -166,7 +170,7 @@ google_credential_soon_to_be_expired = {
         "proofPurpose": "assertionMethod",
         "verificationMethod": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC#z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     },
-    "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+    "issuer": trusted_issuer,
     "@context": ["https://www.w3.org/2018/credentials/v1"],
     "issuanceDate": (now - timedelta(days=27)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "expirationDate": (now + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
