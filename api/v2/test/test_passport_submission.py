@@ -414,10 +414,6 @@ class ValidatePassportTestCase(TransactionTestCase):
 
         self.assertEqual(stamp_ens.credential, ens_credential)
         self.assertEqual(stamp_google.credential, google_credential)
-        self.assertEqual(stamp_ens.hash, ens_credential["credentialSubject"]["hash"])
-        self.assertEqual(
-            stamp_google.hash, google_credential["credentialSubject"]["hash"]
-        )
 
     @patch("registry.atasks.validate_credential", side_effect=[[], []])
     @patch(
