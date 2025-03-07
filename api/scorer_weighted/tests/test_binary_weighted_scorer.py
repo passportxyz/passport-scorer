@@ -1,9 +1,10 @@
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
+
 from registry.models import Passport, Stamp
 from scorer_weighted.models import BinaryWeightedScorer
-from datetime import datetime, timezone, timedelta
 
 pytestmark = pytest.mark.django_db
 
@@ -29,7 +30,6 @@ def fixture_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport,
         provider="FirstEthTxnProvider",
-        hash="0x1234",
         credential={
             "expirationDate": today.isoformat(),
         },
@@ -43,7 +43,6 @@ def fixture_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport1,
         provider="FirstEthTxnProvider",
-        hash="0x12345",
         credential={
             "expirationDate": yesterday.isoformat(),
         },
@@ -51,7 +50,6 @@ def fixture_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport1,
         provider="Google",
-        hash="0x123456",
         credential={
             "expirationDate": today.isoformat(),
         },
@@ -65,7 +63,6 @@ def fixture_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport2,
         provider="FirstEthTxnProvider",
-        hash="0x12345a",
         credential={
             "expirationDate": one_day_before_yesterday.isoformat(),
         },
@@ -73,7 +70,6 @@ def fixture_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport2,
         provider="Google",
-        hash="0x123456ab",
         credential={
             "expirationDate": yesterday.isoformat(),
         },
@@ -81,7 +77,6 @@ def fixture_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport2,
         provider="Ens",
-        hash="0x123456abc",
         credential={
             "expirationDate": today.isoformat(),
         },
@@ -122,7 +117,6 @@ class TestBinaraWeightedScorer:
         Stamp.objects.create(
             passport=weighted_scorer_passports[1],
             provider="FirstEthTxnProvider",
-            hash="0x12345",
             credential={
                 "expirationDate": today.isoformat(),
             },

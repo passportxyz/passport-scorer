@@ -52,23 +52,24 @@ class TestCheckBansEndpoint:
         assert all(not result["is_banned"] for result in data)
         assert all(result["ban_type"] is None for result in data)
 
-    def test_check_bans_hash_ban(self, client, auth_headers, sample_credentials):
-        """Test when a credential hash is banned"""
-        Ban.objects.create(type="hash", hash="hash1")
+    # TODO: disabling hash ban for now
+    # def test_check_bans_hash_ban(self, client, auth_headers, sample_credentials):
+    #     """Test when a credential hash is banned"""
+    #     Ban.objects.create(type="hash", hash="hash1")
 
-        response = client.post(
-            "/internal/check-bans",
-            data=[c.dict() for c in sample_credentials],
-            content_type="application/json",
-            **auth_headers,
-        )
+    #     response = client.post(
+    #         "/internal/check-bans",
+    #         data=[c.dict() for c in sample_credentials],
+    #         content_type="application/json",
+    #         **auth_headers,
+    #     )
 
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 2
-        assert data[0]["is_banned"]  # First credential should be banned
-        assert data[0]["ban_type"] == "hash"
-        assert not data[1]["is_banned"]  # Second credential should not be banned
+    #     assert response.status_code == 200
+    #     data = response.json()
+    #     assert len(data) == 2
+    #     assert data[0]["is_banned"]  # First credential should be banned
+    #     assert data[0]["ban_type"] == "hash"
+    #     assert not data[1]["is_banned"]  # Second credential should not be banned
 
     def test_check_bans_address_ban(self, client, auth_headers, sample_credentials):
         """Test when an address is banned"""
@@ -113,32 +114,39 @@ class TestCheckBansEndpoint:
         assert data[0]["ban_type"] == "single_stamp"
         assert not data[1]["is_banned"]  # Twitter credential should not be banned
 
-    def test_check_bans_temporary_ban(self, client, auth_headers, sample_credentials):
-        """Test temporary ban with end_time"""
-        future_date = timezone.now() + timedelta(days=1)
-        Ban.objects.create(
-            type="hash", hash="hash1", end_time=future_date, reason="Temporary ban"
-        )
+    # TODO: disabling hash ban for now
+    # def test_check_bans_temporary_ban(self, client, auth_headers, sample_credentials):
+    #     """Test temporary ban with end_time"""
+    #     future_date = timezone.now() + timedelta(days=1)
+    #     Ban.objects.create(
+    #         type="hash", hash="hash1", end_time=future_date, reason="Temporary ban"
+    #     )
 
-        response = client.post(
-            "/internal/check-bans",
-            data=[c.dict() for c in sample_credentials],
-            content_type="application/json",
-            **auth_headers,
-        )
+    #     response = client.post(
+    #         "/internal/check-bans",
+    #         data=[c.dict() for c in sample_credentials],
+    #         content_type="application/json",
+    #         **auth_headers,
+    #     )
 
-        print(response.json())
+    #     print(response.json())
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data[0]["is_banned"]
-        assert data[0]["end_time"] is not None
-        assert data[0]["reason"] == "Temporary ban"
+    #     assert response.status_code == 200
+    #     data = response.json()
+    #     assert data[0]["is_banned"]
+    #     assert data[0]["end_time"] is not None
+    #     assert data[0]["reason"] == "Temporary ban"
 
-    def test_check_bans_expired_ban(self, client, auth_headers, sample_credentials):
+    def test_check_bans_expired_ban(
+        self, client, auth_headers, sample_credentials, sample_address
+    ):
         """Test expired ban should not affect credentials"""
         past_date = timezone.now() - timedelta(days=1)
-        Ban.objects.create(type="hash", hash="hash1", end_time=past_date)
+        Ban.objects.create(
+            type="account",
+            address=sample_address,
+            end_time=past_date,
+        )
 
         response = client.post(
             "/internal/check-bans",

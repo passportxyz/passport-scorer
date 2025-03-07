@@ -6,7 +6,6 @@ from typing import List
 from urllib.parse import urlencode
 
 import didkit
-from django.conf import settings
 from django.db.models import Q
 from django.forms.models import model_to_dict
 from django.shortcuts import render
@@ -16,6 +15,7 @@ from web3 import Web3
 
 import api_logging as logging
 from registry.exceptions import NoRequiredPermissionsException
+from registry.issuer_manager import get_current_trusted_issuers
 from registry.models import Stamp
 
 log = logging.getLogger(__name__)
@@ -31,8 +31,9 @@ def index(request):
 async def validate_credential(did, credential) -> List[str]:
     # pylint: disable=fixme
     stamp_return_errors = []
-    credential_subject = credential.get("credentialSubject")
+    credential_subject = credential.get("credentialSubject", {})
     stamp_hash = credential_subject.get("hash")
+    stamp_nullfiers = credential_subject.get("nullifiers")
     stamp_did = credential_subject.get("id").lower()
     provider = credential_subject.get("provider")
 
@@ -42,8 +43,10 @@ async def validate_credential(did, credential) -> List[str]:
     if not credential_subject:
         stamp_return_errors.append("Missing attribute: credentialSubject")
 
-    if not stamp_hash:
-        stamp_return_errors.append("Missing attribute: hash")
+    if not stamp_hash and not stamp_nullfiers:
+        stamp_return_errors.append(
+            "Missing attribute: hash and stamp_nullfiers (either one must be present)"
+        )
 
     if not stamp_did:
         stamp_return_errors.append("Missing attribute: id")
@@ -66,17 +69,6 @@ async def validate_credential(did, credential) -> List[str]:
     return stamp_return_errors
 
 
-def get_duplicate_passport(did, stamp_hash):
-    stamps = Stamp.objects.filter(hash=stamp_hash).exclude(passport__did=did)
-    if stamps.exists():
-        log.debug(
-            "Duplicate did '%s' for stamp '%s'", stamps[0].passport.did, stamp_hash
-        )
-        return stamps[0].passport
-
-    return None
-
-
 def get_signing_message(nonce: str) -> str:
     return f"""I hereby agree to submit my address in order to score my associated Gitcoin Passport from Ceramic.
 
@@ -95,7 +87,7 @@ def verify_issuer(stamp: dict) -> bool:
     return (
         "credential" in stamp
         and "issuer" in stamp["credential"]
-        and stamp["credential"]["issuer"] in settings.TRUSTED_IAM_ISSUERS
+        and stamp["credential"]["issuer"] in get_current_trusted_issuers()
     )
 
 

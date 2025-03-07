@@ -96,9 +96,9 @@ class PassportAdmin(ScorerModelAdmin):
 
 @admin.register(Stamp)
 class StampAdmin(ScorerModelAdmin):
-    list_display = ["passport", "community", "provider", "hash"]
-    search_fields = ["hash__exact"]
-    search_help_text = "This will perform an exact case sensitive search by 'hash'"
+    list_display = ["passport", "community", "provider"]
+    search_fields = ["passport__address"]
+    search_help_text = "This will perform a search by passport__address"
     raw_id_fields = ["passport"]
     show_full_result_count = False
 

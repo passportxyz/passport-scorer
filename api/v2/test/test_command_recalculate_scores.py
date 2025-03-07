@@ -23,7 +23,6 @@ def fixture_binaty_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport,
         provider="FirstEthTxnProvider",
-        hash="0x1234",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },
@@ -37,7 +36,6 @@ def fixture_binaty_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport1,
         provider="FirstEthTxnProvider",
-        hash="0x12345",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },
@@ -45,7 +43,6 @@ def fixture_binaty_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport1,
         provider="Google",
-        hash="0x123456",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },
@@ -59,7 +56,6 @@ def fixture_binaty_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport2,
         provider="FirstEthTxnProvider",
-        hash="0x12345a",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },
@@ -67,7 +63,6 @@ def fixture_binaty_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport2,
         provider="Google",
-        hash="0x123456ab",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },
@@ -75,7 +70,6 @@ def fixture_binaty_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport2,
         provider="Ens",
-        hash="0x123456abc",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },
@@ -95,7 +89,6 @@ def fixture_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport,
         provider="FirstEthTxnProvider",
-        hash="0x1234",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },
@@ -109,7 +102,6 @@ def fixture_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport1,
         provider="FirstEthTxnProvider",
-        hash="0x12345",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },
@@ -117,7 +109,6 @@ def fixture_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport1,
         provider="Google",
-        hash="0x123456",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },
@@ -131,7 +122,6 @@ def fixture_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport2,
         provider="FirstEthTxnProvider",
-        hash="0x12345a",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },
@@ -139,7 +129,6 @@ def fixture_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport2,
         provider="Google",
-        hash="0x123456ab",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },
@@ -147,7 +136,6 @@ def fixture_weighted_scorer_passports(
     Stamp.objects.create(
         passport=passport2,
         provider="Ens",
-        hash="0x123456abc",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },

@@ -1,12 +1,11 @@
 import copy
 from typing import Tuple
 
-from django.conf import settings
 from django.db import IntegrityError
 
 import api_logging as logging
 from account.models import Community
-from registry.models import Event, HashScorerLink, Stamp
+from registry.models import Event, HashScorerLink
 from registry.utils import get_utc_time
 
 log = logging.getLogger(__name__)
@@ -35,6 +34,11 @@ async def alifo(
                 raise
 
 
+def get_nullifiers(stamp: dict) -> list[str]:
+    cs = stamp["credential"]["credentialSubject"]
+    return [cs["hash"]] if "hash" in cs else cs["nullifiers"]
+
+
 async def arun_lifo_dedup(
     community: Community, lifo_passport: dict, address: str
 ) -> Tuple[dict, list | None]:
@@ -43,16 +47,17 @@ async def arun_lifo_dedup(
 
     now = get_utc_time()
     if "stamps" in lifo_passport:
-        stamp_hashes = [
-            stamp["credential"]["credentialSubject"]["hash"]
-            for stamp in lifo_passport["stamps"]
-        ]
+        stamp_hashes = []
+
+        for stamp in lifo_passport["stamps"]:
+            stamp_hashes.extend(get_nullifiers(stamp))
 
         existing_hash_links = HashScorerLink.objects.filter(
             hash__in=stamp_hashes, community=community
         )
 
         this_users_hash_links, clashing_hashes, forfeited_hash_links = [], [], []
+        clasing_hash_links_by_hash = {}
         async for hash_link in existing_hash_links:
             if hash_link.address == address:
                 # Already claimed by this user,
@@ -60,6 +65,7 @@ async def arun_lifo_dedup(
             elif hash_link.expires_at > now:
                 # Already claimed by another user,
                 clashing_hashes.append(hash_link.hash)
+                clasing_hash_links_by_hash[hash_link.hash] = hash_link
             else:
                 # Already claimed by another user, but
                 # it's expired so we'll give it to this user
@@ -70,44 +76,71 @@ async def arun_lifo_dedup(
         clashing_stamps = {}
 
         for stamp in lifo_passport["stamps"]:
-            hash = stamp["credential"]["credentialSubject"]["hash"]
+            # hash = stamp["credential"]["credentialSubject"]["hash"]
+            nullifiers = get_nullifiers(stamp)
             expires_at = stamp["credential"]["expirationDate"]
 
-            if hash not in clashing_hashes:
+            # If at least one of the nullifier clashes with an existing hash link
+            # then the stamp gets deduped
+            clashing_hashes_for_stamp = [
+                nullifier_hash
+                for nullifier_hash in nullifiers
+                if nullifier_hash in clashing_hashes
+            ]
+            if not clashing_hashes_for_stamp:
                 deduped_passport["stamps"].append(copy.deepcopy(stamp))
-
-                done = False
-
-                for hash_link in this_users_hash_links:
-                    if hash_link.hash == hash:
-                        done = True
-                        if hash_link.expires_at != expires_at:
-                            hash_link.expires_at = expires_at
-                            hash_links_to_update.append(hash_link)
-                        break
-
-                if not done:
-                    for hash_link in forfeited_hash_links:
-                        if hash_link.hash == hash:
+                for nullifier_hash in nullifiers:
+                    done = False
+                    for hash_link in this_users_hash_links:
+                        if hash_link.hash == nullifier_hash:
                             done = True
-                            hash_link.address = address
-                            hash_link.expires_at = expires_at
-                            hash_links_to_update.append(hash_link)
+                            if hash_link.expires_at != expires_at:
+                                hash_link.expires_at = expires_at
+                                hash_links_to_update.append(hash_link)
                             break
 
-                if not done:
-                    hash_links_to_create.append(
-                        HashScorerLink(
-                            hash=hash,
-                            address=address,
-                            community=community,
-                            expires_at=stamp["credential"]["expirationDate"],
+                    if not done:
+                        for hash_link in forfeited_hash_links:
+                            if hash_link.hash == nullifier_hash:
+                                done = True
+                                hash_link.address = address
+                                hash_link.expires_at = expires_at
+                                hash_links_to_update.append(hash_link)
+                                break
+
+                    if not done:
+                        hash_links_to_create.append(
+                            HashScorerLink(
+                                hash=nullifier_hash,
+                                address=address,
+                                community=community,
+                                expires_at=stamp["credential"]["expirationDate"],
+                            )
                         )
-                    )
             else:
                 clashing_stamps[
                     stamp["credential"]["credentialSubject"]["provider"]
                 ] = stamp
+
+                # We backfill the hash link for the clashing hash if only some
+                # of the stamps nullifiers clash.
+                # The reason why this might be missing is because only one of
+                # the nullifiers was available last time the stamp git deduped
+                for nullifier_hash in nullifiers:
+                    if nullifier_hash not in clashing_hashes:
+                        clashing_hash_link = clasing_hash_links_by_hash[
+                            clashing_hashes_for_stamp[0]
+                        ]
+                        hash_links_to_create.append(
+                            HashScorerLink(
+                                hash=nullifier_hash,
+                                # Create this hash link with the same address, community and expores_at as fields
+                                # the one we are clashing with -> the 2 should be identical
+                                address=clashing_hash_link.address,
+                                community=community,
+                                expires_at=clashing_hash_link.expires_at,
+                            )
+                        )
 
         await save_hash_links(
             hash_links_to_create, hash_links_to_update, address, community
@@ -120,7 +153,7 @@ async def arun_lifo_dedup(
                         action=Event.Action.LIFO_DEDUPLICATION,
                         address=address,
                         data={
-                            "hash": stamp["credential"]["credentialSubject"]["hash"],
+                            "nullifiers": get_nullifiers(stamp),
                             "provider": stamp["credential"]["credentialSubject"][
                                 "provider"
                             ],

@@ -23,7 +23,6 @@ def user_data(passport_holder_addresses, scorer_community_with_binary_scorer):
     Stamp.objects.create(
         passport=passport,
         provider="FirstEthTxnProvider",
-        hash="0x1234",
         credential={
             "expirationDate": "2022-01-01T00:00:00Z",
         },

@@ -30,6 +30,10 @@ expiration_dates = [
 providers = ["Ens", "Google", "Gitcoin"]
 mock_addresse = "0x0000000000000000000000000000000000000000"
 
+trusted_issuer = [
+    issuer for issuer in settings.TRUSTED_IAM_ISSUERS if issuer.startswith("did:ethr:")
+][0]
+
 mock_stamps = [
     {
         "type": ["VerifiableCredential"],
@@ -38,7 +42,7 @@ mock_stamps = [
             "hash": "v0.0.0:1Vzw/OyM9CBUkVi/3mb+BiwFnHzsSRZhVH1gaQIyHvM=",
             "provider": "Ens",
         },
-        "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+        "issuer": trusted_issuer,
         "issuanceDate": (expiration_dates[0] - timedelta(days=30)).isoformat(),
         "expirationDate": expiration_dates[0].isoformat(),
         "proof": {
@@ -52,7 +56,7 @@ mock_stamps = [
             "hash": "0x88888",
             "provider": "Google",
         },
-        "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+        "issuer": trusted_issuer,
         "issuanceDate": (expiration_dates[1] - timedelta(days=30)).isoformat(),
         "expirationDate": expiration_dates[1].isoformat(),
         "proof": {
@@ -66,7 +70,7 @@ mock_stamps = [
             "hash": "0x45678",
             "provider": "Gitcoin",
         },
-        "issuer": settings.TRUSTED_IAM_ISSUERS[0],
+        "issuer": trusted_issuer,
         "issuanceDate": (expiration_dates[2] - timedelta(days=30)).isoformat(),
         "expirationDate": expiration_dates[2].isoformat(),
         "proof": {
