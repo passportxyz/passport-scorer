@@ -190,8 +190,6 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
 
     @admin.action(description="[All] Generate and Upload WAF Rules to S3")
     def generate_waf_json_and_upload(self, request, queryset=None):
-        # TODO: make sure the rules support the usecase of one API key.
-        # TODO: make sure the action can be executed for big sets of API keys.
         api_keys = AccountAPIKey.objects.values_list("prefix", flat=True)
         # The first rule    (priority 1) will handle blocked IPs.
         # The second rule   (priority 2) will evaluate Invalid API keys. => managed outside of python code
@@ -255,6 +253,18 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         analysis_unlimited_statements = self.generate_statements(
             analysis_unlimited_keys
         )
+
+        if len(analysis_unlimited_statements) > 1:
+            analysis_api_key_condition = {
+                "OrStatement": {"Statements": analysis_unlimited_statements}
+            }
+        else:
+            analysis_api_key_condition = (
+                analysis_unlimited_statements[0]
+                if analysis_unlimited_statements
+                else None
+            )
+
         analysis_unlimited_waf_rule = {
             "Name": "Analysis-UnlimitedKeys",
             "Priority": 10,
@@ -272,11 +282,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                                 ],
                             },
                         },
-                        {
-                            "OrStatement": {
-                                "Statements": analysis_unlimited_statements
-                            },
-                        },
+                        analysis_api_key_condition,
                     ]
                 }
             },
@@ -303,6 +309,14 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         )
 
         analysis_tier_3_statements = self.generate_statements(analysis_tier_3_keys)
+        if len(analysis_tier_3_statements) > 1:
+            analysis_tier_3_condition = {
+                "OrStatement": {"Statements": analysis_tier_3_statements}
+            }
+        else:
+            analysis_tier_3_condition = (
+                analysis_tier_3_statements[0] if analysis_tier_3_statements else None
+            )
         analysis_tier_3_waf_rule = {
             "Name": "Analysis-Tier-3-Keys",
             "Priority": 4,
@@ -344,11 +358,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                                     }
                                 },
                                 # Match valid API keys
-                                {
-                                    "OrStatement": {
-                                        "Statements": analysis_tier_3_statements
-                                    }
-                                },
+                                analysis_tier_3_condition,
                             ]
                         }
                     },
@@ -374,6 +384,14 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             analysis_rate_limit=AnalysisRateLimits.TIER_2.value,
         )
         analysis_tier_2_statements = self.generate_statements(analysis_tier_2_keys)
+        if len(analysis_tier_2_statements) > 1:
+            analysis_tier_2_condition = {
+                "OrStatement": {"Statements": analysis_tier_2_statements}
+            }
+        else:
+            analysis_tier_2_condition = (
+                analysis_tier_2_statements[0] if analysis_tier_2_statements else None
+            )
         analysis_tier_2_waf_rule = {
             "Name": "Analysis-Tier-2-Keys",
             "Priority": 5,
@@ -415,11 +433,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                                     }
                                 },
                                 # Match valid API keys
-                                {
-                                    "OrStatement": {
-                                        "Statements": analysis_tier_2_statements
-                                    }
-                                },
+                                analysis_tier_2_condition,
                             ]
                         }
                     },
@@ -446,6 +460,15 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             analysis_rate_limit=AnalysisRateLimits.TIER_1.value,
         )
         analysis_tier_1_statements = self.generate_statements(analysis_tier_1_keys)
+        if len(analysis_tier_1_statements) > 1:
+            analysis_tier_1_condition = {
+                "OrStatement": {"Statements": analysis_tier_1_statements}
+            }
+        else:
+            analysis_tier_1_condition = (
+                analysis_tier_1_statements[0] if analysis_tier_1_statements else None
+            )
+
         analysis_tier_1_waf_rule = {
             "Name": "Analysis-Tier1-Keys",
             "Priority": 6,
@@ -487,11 +510,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                                     }
                                 },
                                 # Match valid API keys
-                                {
-                                    "OrStatement": {
-                                        "Statements": analysis_tier_1_statements
-                                    }
-                                },
+                                analysis_tier_1_condition,
                             ]
                         }
                     },
@@ -519,11 +538,19 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         )
         active_unlimited_statements = self.generate_statements(active_unlimited_keys)
         # TODO: adjust the rule to properly group the requests / api key prefix ( count / api key prefix )
+        if len(active_unlimited_statements) > 1:
+            active_unlimited_condition = {
+                "OrStatement": {"Statements": active_unlimited_statements}
+            }
+        else:
+            active_unlimited_condition = (
+                active_unlimited_statements[0] if active_unlimited_statements else None
+            )
         active_unlimited_waf_rule = {
             "Name": "UnlimitedKeys",
             "Priority": 11,
             "Action": {"Count": {}},
-            "Statement": {"OrStatement": {"Statements": active_unlimited_statements}},
+            "Statement": active_unlimited_condition,
             "VisibilityConfig": {
                 "SampledRequestsEnabled": True,
                 "CloudWatchMetricsEnabled": True,
@@ -545,6 +572,11 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             rate_limit=RateLimits.TIER_3.value,
         )
         tier_3_statements = self.generate_statements(tier_3_api_keys)
+        if len(tier_3_statements) > 1:
+            tier_3_condition = {"OrStatement": {"Statements": tier_3_statements}}
+        else:
+            tier_3_condition = tier_3_statements[0] if tier_3_statements else None
+
         tier_3_waf_rule = {
             "Name": "Tier-3-Api-Keys",
             "Priority": 7,
@@ -571,9 +603,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                             }
                         }
                     ],
-                    "ScopeDownStatement": {
-                        "OrStatement": {"Statements": tier_3_statements}
-                    },
+                    "ScopeDownStatement": tier_3_condition,
                 }
             },
             "VisibilityConfig": {
@@ -597,6 +627,10 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             rate_limit=RateLimits.TIER_2.value,
         )
         tier_2_statements = self.generate_statements(tier_2_api_keys)
+        if len(tier_2_statements) > 1:
+            tier_2_condition = {"OrStatement": {"Statements": tier_2_statements}}
+        else:
+            tier_2_condition = tier_2_statements[0] if tier_2_statements else None
         tier_2_waf_rule = {
             "Name": "Tier-2-Api-Keys",
             "Priority": 8,
@@ -623,9 +657,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                             }
                         }
                     ],
-                    "ScopeDownStatement": {
-                        "OrStatement": {"Statements": tier_2_statements}
-                    },
+                    "ScopeDownStatement": tier_2_condition,
                 }
             },
             "VisibilityConfig": {
@@ -649,6 +681,10 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             rate_limit=RateLimits.TIER_1.value,
         )
         tier_1_statements = self.generate_statements(tier_1_api_keys)
+        if len(tier_1_statements) > 1:
+            tier_1_condition = {"OrStatement": {"Statements": tier_1_statements}}
+        else:
+            tier_1_condition = tier_1_statements[0] if tier_1_statements else None
         tier_1_waf_rule = {
             "Name": "Tier-1-Api-Keys",
             "Priority": 9,
@@ -675,9 +711,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                             }
                         }
                     ],
-                    "ScopeDownStatement": {
-                        "OrStatement": {"Statements": tier_1_statements}
-                    },
+                    "ScopeDownStatement": tier_1_condition,
                 }
             },
             "VisibilityConfig": {
