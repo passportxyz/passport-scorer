@@ -188,7 +188,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             print(f"Failed to upload to S3: {e}")
             return False
 
-    def manage_revoked_or_expired_waf_rule(self, name, priority):
+    def manage_revoked_or_expired_waf_rule(self, name, priority, file_name):
         # [BLOCK] Create rule for the revoked & expired keys
         ###################################################################################
         revoked_or_expired_keys = AccountAPIKey.objects.filter(
@@ -229,11 +229,9 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             }
 
         revoked_or_expired_waf_json = json.dumps(revoked_or_expired_waf_rule, indent=3)
-        self.upload_to_s3(
-            revoked_or_expired_waf_json, "revoked_or_expired_waf_rule.json"
-        )
+        self.upload_to_s3(revoked_or_expired_waf_json, file_name)
 
-    def manage_analysis_unlimited_waf_rule(self, name, priority):
+    def manage_analysis_unlimited_waf_rule(self, name, priority, file_name):
         # [ALLOW] Create rule for the analysis unlimited keys
         ###################################################################################
         analysis_unlimited_keys = AccountAPIKey.objects.filter(
@@ -286,9 +284,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                 },
             }
         analysis_unlimited_waf_json = json.dumps(analysis_unlimited_waf_rule, indent=3)
-        self.upload_to_s3(
-            analysis_unlimited_waf_json, "analysis_unlimited_waf_rule.json"
-        )
+        self.upload_to_s3(analysis_unlimited_waf_json, file_name)
 
     def manage_analyisis_tier_waf_rule(
         self, api_keys, name, priority, limit, file_name
@@ -360,7 +356,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         analysis_tier_waf_json = json.dumps(analysis_tier_waf_rule, indent=3)
         self.upload_to_s3(analysis_tier_waf_json, file_name)
 
-    def manage_unlimited_waf_rule(self, name, priority):
+    def manage_unlimited_waf_rule(self, name, priority, file_name):
         # [ALLOW] Create rule for the unlimited keys
         ###################################################################################
         active_unlimited_keys = AccountAPIKey.objects.filter(
@@ -397,7 +393,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                 },
             }
         active_unlimited_waf_json = json.dumps(active_unlimited_waf_rule, indent=3)
-        self.upload_to_s3(active_unlimited_waf_json, "unlimited_waf_rule.json")
+        self.upload_to_s3(active_unlimited_waf_json, file_name)
 
     def manage_tier_waf_rule(self, api_keys, name, priority, limit, file_name):
         tier_waf_rule = {}
@@ -469,7 +465,11 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
 
         # [BLOCK] Create rule for the revoked & expired keys
         ###################################################################################
-        self.manage_revoked_rule(name="Expired-RevokedKeys", priority=3)
+        self.manage_revoked_or_expired_waf_rule(
+            name="Expired-RevokedKeys",
+            priority=3,
+            file_name="03_revoked_or_expired_waf_rule.json",
+        )
 
         # [BLOCK] Analysis tier 3 keys
         ###################################################################################
@@ -487,7 +487,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             name="Analysis-Tier-3-Keys",
             priority=4,
             limit=670,
-            file_name="analysis_tier_3_waf_rule.json",
+            file_name="04_analysis_tier_3_waf_rule.json",
         )  # almost 2000/15m
 
         # [BLOCK] Analysis tier 2 keys
@@ -506,7 +506,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             name="Analysis-Tier-2-Keys",
             priority=5,
             limit=120,
-            file_name="analysis_tier_2_waf_rule.json",
+            file_name="05_analysis_tier_2_waf_rule.json",
         )  # almost 350/15m
 
         # [BLOCK] Analysis tier 1 keys
@@ -525,7 +525,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             name="Analysis-Tier-1-Keys",
             priority=6,
             limit=10,  # Min value
-            file_name="analysis_tier_1_waf_rule.json",
+            file_name="06_analysis_tier_1_waf_rule.json",
         )
 
         # Create rule for the Tier 3 keys
@@ -545,7 +545,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             name="Tier-3-Api-Keys",
             priority=7,
             limit=670,  # almost 2000/15m
-            file_name="tier_3_waf_rule.json",
+            file_name="07_tier_3_waf_rule.json",
         )
 
         # [BLOCK] Analysis tier 2 keys
@@ -564,7 +564,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             name="Tier-2-Api-Keys",
             priority=8,
             limit=120,  # almost 350/15m
-            file_name="tier_2_waf_rule.json",
+            file_name="08_tier_2_waf_rule.json",
         )
 
         # [BLOCK] Tier 1 keys / This should be also the default rule -> TODO
@@ -583,18 +583,22 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             name="Tier-1-Api-Keys",
             priority=9,
             limit=42,  # almost 124/15m
-            file_name="tier_1_waf_rule.json",
+            file_name="09_tier_1_waf_rule.json",
         )
 
         # [ALLOW] Create rule for the analysis unlimited keys
         ###################################################################################
         self.manage_analysis_unlimited_waf_rule(
-            name="Analysis-UnlimitedKeys", priority=10
+            name="Analysis-UnlimitedKeys",
+            priority=10,
+            file_name="10_analysis_unlimited_waf_rule.json",
         )
 
         # [ALLOW] Create rule for the unlimited keys
         ###################################################################################
-        self.manage_unlimited_waf_rule(name="UnlimitedKeys", priority=11)
+        self.manage_unlimited_waf_rule(
+            name="UnlimitedKeys", priority=11, file_name="11_unlimited_waf_rule.json"
+        )
 
     actions = [edit_selected, generate_waf_json_and_upload]
 
