@@ -215,26 +215,36 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             expiry_date__lte=now(),  # Expiry date is in the past
         )
 
-        revoked_or_expired_statements = self.generate_statements(
-            revoked_or_expired_keys
-        )
-        revoked_or_expired_waf_rule = {
-            "Name": "Expired-RevokedKeys",
-            "Priority": 3,
-            "Action": {
-                "Block": {
-                    "CustomResponse": {
-                        "ResponseCode": 401,  # TODO: add message to response
-                    }
+        revoked_or_expired_waf_rule = {}
+        if len(revoked_or_expired_keys) > 0:
+            revoked_or_expired_statements = self.generate_statements(
+                revoked_or_expired_keys
+            )
+            if len(revoked_or_expired_statements) == 1:
+                revoked_or_expired_condition = revoked_or_expired_statements[0]
+            else:
+                revoked_or_expired_condition = {
+                    "OrStatement": {"Statements": revoked_or_expired_statements}
                 }
-            },
-            "Statement": {"OrStatement": {"Statements": revoked_or_expired_statements}},
-            "VisibilityConfig": {
-                "SampledRequestsEnabled": True,
-                "CloudWatchMetricsEnabled": True,
-                "MetricName": "Expired-RevokedKeys",
-            },
-        }
+
+            revoked_or_expired_waf_rule = {
+                "Name": "Expired-RevokedKeys",
+                "Priority": 3,
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 401,  # TODO: add message to response
+                        }
+                    }
+                },
+                "Statement": revoked_or_expired_condition,
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": True,
+                    "CloudWatchMetricsEnabled": True,
+                    "MetricName": "Expired-RevokedKeys",
+                },
+            }
+
         revoked_or_expired_waf_json = json.dumps(revoked_or_expired_waf_rule, indent=3)
         self.upload_to_s3(
             revoked_or_expired_waf_json, "revoked_or_expired_waf_rule.json"
@@ -250,48 +260,46 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             expiry_date__gt=now(),  # Expiry date is in the future
             analysis_rate_limit__isnull=True,  # Unlimited rate limit
         )
-        analysis_unlimited_statements = self.generate_statements(
-            analysis_unlimited_keys
-        )
 
-        if len(analysis_unlimited_statements) > 1:
-            analysis_api_key_condition = {
-                "OrStatement": {"Statements": analysis_unlimited_statements}
-            }
-        else:
-            analysis_api_key_condition = (
-                analysis_unlimited_statements[0]
-                if analysis_unlimited_statements
-                else None
+        analysis_unlimited_waf_rule = {}
+        if len(analysis_unlimited_keys) > 0:
+            analysis_unlimited_statements = self.generate_statements(
+                analysis_unlimited_keys
             )
-
-        analysis_unlimited_waf_rule = {
-            "Name": "Analysis-UnlimitedKeys",
-            "Priority": 10,
-            "Action": {"Count": {}},
-            "Statement": {
-                "AndStatement": {
-                    "Statements": [
-                        {
-                            "ByteMatchStatement": {
-                                "FieldToMatch": {"UriPath": {}},
-                                "PositionalConstraint": "STARTS_WITH",
-                                "SearchString": "/passport/analysis/",
-                                "TextTransformations": [
-                                    {"Priority": 0, "Type": "NONE"}
-                                ],
-                            },
-                        },
-                        analysis_api_key_condition,
-                    ]
+            if len(analysis_unlimited_statements) == 1:
+                analysis_api_key_condition = analysis_unlimited_statements[0]
+            else:
+                analysis_api_key_condition = {
+                    "OrStatement": {"Statements": analysis_unlimited_statements}
                 }
-            },
-            "VisibilityConfig": {
-                "SampledRequestsEnabled": True,
-                "CloudWatchMetricsEnabled": True,
-                "MetricName": "Analysis-UnlimitedKeys",
-            },
-        }
+
+            analysis_unlimited_waf_rule = {
+                "Name": "Analysis-UnlimitedKeys",
+                "Priority": 10,
+                "Action": {"Count": {}},
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "ByteMatchStatement": {
+                                    "FieldToMatch": {"UriPath": {}},
+                                    "PositionalConstraint": "STARTS_WITH",
+                                    "SearchString": "/passport/analysis/",
+                                    "TextTransformations": [
+                                        {"Priority": 0, "Type": "NONE"}
+                                    ],
+                                },
+                            },
+                            analysis_api_key_condition,
+                        ]
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": True,
+                    "CloudWatchMetricsEnabled": True,
+                    "MetricName": "Analysis-UnlimitedKeys",
+                },
+            }
         analysis_unlimited_waf_json = json.dumps(analysis_unlimited_waf_rule, indent=3)
         self.upload_to_s3(
             analysis_unlimited_waf_json, "analysis_unlimited_waf_rule.json"
@@ -308,68 +316,70 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             analysis_rate_limit=AnalysisRateLimits.TIER_3.value,
         )
 
-        analysis_tier_3_statements = self.generate_statements(analysis_tier_3_keys)
-        if len(analysis_tier_3_statements) > 1:
-            analysis_tier_3_condition = {
-                "OrStatement": {"Statements": analysis_tier_3_statements}
-            }
-        else:
-            analysis_tier_3_condition = (
-                analysis_tier_3_statements[0] if analysis_tier_3_statements else None
-            )
-        analysis_tier_3_waf_rule = {
-            "Name": "Analysis-Tier-3-Keys",
-            "Priority": 4,
-            "Action": {
-                "Block": {
-                    "CustomResponse": {
-                        "ResponseCode": 429,
-                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
+        analysis_tier_3_waf_rule = {}
+        if len(analysis_tier_3_keys) > 0:
+            analysis_tier_3_statements = self.generate_statements(analysis_tier_3_keys)
+            if len(analysis_tier_3_statements) == 1:
+                analysis_tier_3_condition = analysis_tier_3_statements[0]
+            else:
+                analysis_tier_3_condition = {
+                    "OrStatement": {"Statements": analysis_tier_3_statements}
+                }
+            analysis_tier_3_waf_rule = {
+                "Name": "Analysis-Tier-3-Keys",
+                "Priority": 4,
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 429,
+                            "ResponseHeaders": [
+                                {"Name": "Retry-After", "Value": "300"}
+                            ],
+                        }
                     }
-                }
-            },
-            "Statement": {
-                "RateBasedStatement": {
-                    "Limit": 670,  # almost 2000/15m
-                    "EvaluationWindowSec": 300,  # 5 minutes
-                    "AggregateKeyType": "CUSTOM_KEYS",
-                    "CustomKeys": [
-                        {
-                            "Header": {
-                                "Name": "X-API-Key",
-                                "TextTransformations": [
-                                    {"Priority": 0, "Type": "NONE"}
-                                ],
+                },
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 670,  # almost 2000/15m
+                        "EvaluationWindowSec": 300,  # 5 minutes
+                        "AggregateKeyType": "CUSTOM_KEYS",
+                        "CustomKeys": [
+                            {
+                                "Header": {
+                                    "Name": "X-API-Key",
+                                    "TextTransformations": [
+                                        {"Priority": 0, "Type": "NONE"}
+                                    ],
+                                }
                             }
-                        }
-                    ],
-                    "ScopeDownStatement": {
-                        "AndStatement": {
-                            "Statements": [
-                                {
-                                    # Match /passport/analysis/ path
-                                    "ByteMatchStatement": {
-                                        "FieldToMatch": {"UriPath": {}},
-                                        "PositionalConstraint": "STARTS_WITH",
-                                        "SearchString": "/passport/analysis/",
-                                        "TextTransformations": [
-                                            {"Priority": 0, "Type": "NONE"}
-                                        ],
-                                    }
-                                },
-                                # Match valid API keys
-                                analysis_tier_3_condition,
-                            ]
-                        }
-                    },
-                }
-            },
-            "VisibilityConfig": {
-                "SampledRequestsEnabled": True,
-                "CloudWatchMetricsEnabled": True,
-                "MetricName": "Analysis-Tier-3-Keys",
-            },
-        }
+                        ],
+                        "ScopeDownStatement": {
+                            "AndStatement": {
+                                "Statements": [
+                                    {
+                                        # Match /passport/analysis/ path
+                                        "ByteMatchStatement": {
+                                            "FieldToMatch": {"UriPath": {}},
+                                            "PositionalConstraint": "STARTS_WITH",
+                                            "SearchString": "/passport/analysis/",
+                                            "TextTransformations": [
+                                                {"Priority": 0, "Type": "NONE"}
+                                            ],
+                                        }
+                                    },
+                                    # Match valid API keys
+                                    analysis_tier_3_condition,
+                                ]
+                            }
+                        },
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": True,
+                    "CloudWatchMetricsEnabled": True,
+                    "MetricName": "Analysis-Tier-3-Keys",
+                },
+            }
         analysis_tier_3_waf_json = json.dumps(analysis_tier_3_waf_rule, indent=3)
         self.upload_to_s3(analysis_tier_3_waf_json, "analysis_tier_3_waf_rule.json")
         # [BLOCK] Analysis tier 2 keys
@@ -383,68 +393,72 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             expiry_date__gt=now(),  # Expiry date is in the future
             analysis_rate_limit=AnalysisRateLimits.TIER_2.value,
         )
-        analysis_tier_2_statements = self.generate_statements(analysis_tier_2_keys)
-        if len(analysis_tier_2_statements) > 1:
-            analysis_tier_2_condition = {
-                "OrStatement": {"Statements": analysis_tier_2_statements}
-            }
-        else:
-            analysis_tier_2_condition = (
-                analysis_tier_2_statements[0] if analysis_tier_2_statements else None
-            )
-        analysis_tier_2_waf_rule = {
-            "Name": "Analysis-Tier-2-Keys",
-            "Priority": 5,
-            "Action": {
-                "Block": {
-                    "CustomResponse": {
-                        "ResponseCode": 429,
-                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
+        analysis_tier_2_waf_rule = {}
+        if len(analysis_tier_2_keys) > 0:
+            analysis_tier_2_statements = self.generate_statements(analysis_tier_2_keys)
+            if len(analysis_tier_2_statements) == 1:
+                analysis_tier_2_condition = analysis_tier_2_statements[0]
+            else:
+                analysis_tier_2_condition = {
+                    "OrStatement": {"Statements": analysis_tier_2_statements}
+                }
+
+            analysis_tier_2_waf_rule = {
+                "Name": "Analysis-Tier-2-Keys",
+                "Priority": 5,
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 429,
+                            "ResponseHeaders": [
+                                {"Name": "Retry-After", "Value": "300"}
+                            ],
+                        }
                     }
-                }
-            },
-            "Statement": {
-                "RateBasedStatement": {
-                    "Limit": 120,  # almost 350/15m
-                    "EvaluationWindowSec": 300,  # 5 minutes
-                    "AggregateKeyType": "CUSTOM_KEYS",
-                    "CustomKeys": [
-                        {
-                            "Header": {
-                                "Name": "X-API-Key",
-                                "TextTransformations": [
-                                    {"Priority": 0, "Type": "NONE"}
-                                ],
+                },
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 120,  # almost 350/15m
+                        "EvaluationWindowSec": 300,  # 5 minutes
+                        "AggregateKeyType": "CUSTOM_KEYS",
+                        "CustomKeys": [
+                            {
+                                "Header": {
+                                    "Name": "X-API-Key",
+                                    "TextTransformations": [
+                                        {"Priority": 0, "Type": "NONE"}
+                                    ],
+                                }
                             }
-                        }
-                    ],
-                    "ScopeDownStatement": {
-                        "AndStatement": {
-                            "Statements": [
-                                {
-                                    # Match /passport/analysis/ path
-                                    "ByteMatchStatement": {
-                                        "FieldToMatch": {"UriPath": {}},
-                                        "PositionalConstraint": "STARTS_WITH",
-                                        "SearchString": "/passport/analysis/",
-                                        "TextTransformations": [
-                                            {"Priority": 0, "Type": "NONE"}
-                                        ],
-                                    }
-                                },
-                                # Match valid API keys
-                                analysis_tier_2_condition,
-                            ]
-                        }
-                    },
-                }
-            },
-            "VisibilityConfig": {
-                "SampledRequestsEnabled": True,
-                "CloudWatchMetricsEnabled": True,
-                "MetricName": "Analysis-Tier2-Keys",
-            },
-        }
+                        ],
+                        "ScopeDownStatement": analysis_tier_2_condition,
+                        # {
+                        #     "AndStatement": {
+                        #         "Statements": [
+                        #             {
+                        #                 # Match /passport/analysis/ path
+                        #                 "ByteMatchStatement": {
+                        #                     "FieldToMatch": {"UriPath": {}},
+                        #                     "PositionalConstraint": "STARTS_WITH",
+                        #                     "SearchString": "/passport/analysis/",
+                        #                     "TextTransformations": [
+                        #                         {"Priority": 0, "Type": "NONE"}
+                        #                     ],
+                        #                 }
+                        #             },
+                        #             # Match valid API keys
+                        #             analysis_tier_2_condition,
+                        #         ]
+                        #     }
+                        # },
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": True,
+                    "CloudWatchMetricsEnabled": True,
+                    "MetricName": "Analysis-Tier2-Keys",
+                },
+            }
         analysis_tier_2_waf_json = json.dumps(analysis_tier_2_waf_rule, indent=3)
         self.upload_to_s3(analysis_tier_2_waf_json, "analysis_tier_2_waf_rule.json")
 
@@ -459,69 +473,71 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             expiry_date__gt=now(),  # Expiry date is in the future
             analysis_rate_limit=AnalysisRateLimits.TIER_1.value,
         )
-        analysis_tier_1_statements = self.generate_statements(analysis_tier_1_keys)
-        if len(analysis_tier_1_statements) > 1:
-            analysis_tier_1_condition = {
-                "OrStatement": {"Statements": analysis_tier_1_statements}
-            }
-        else:
-            analysis_tier_1_condition = (
-                analysis_tier_1_statements[0] if analysis_tier_1_statements else None
-            )
+        analysis_tier_1_waf_rule = {}
+        if len(analysis_tier_1_keys) > 0:
+            analysis_tier_1_statements = self.generate_statements(analysis_tier_1_keys)
+            if len(analysis_tier_1_statements) == 1:
+                analysis_tier_1_condition = analysis_tier_1_statements[0]
+            else:
+                analysis_tier_1_condition = {
+                    "OrStatement": {"Statements": analysis_tier_1_statements}
+                }
 
-        analysis_tier_1_waf_rule = {
-            "Name": "Analysis-Tier1-Keys",
-            "Priority": 6,
-            "Action": {
-                "Block": {
-                    "CustomResponse": {
-                        "ResponseCode": 429,
-                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
+            analysis_tier_1_waf_rule = {
+                "Name": "Analysis-Tier1-Keys",
+                "Priority": 6,
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 429,
+                            "ResponseHeaders": [
+                                {"Name": "Retry-After", "Value": "300"}
+                            ],
+                        }
                     }
-                }
-            },
-            "Statement": {
-                "RateBasedStatement": {
-                    "Limit": 10,  # Min value
-                    "EvaluationWindowSec": 300,  # 5 minutes
-                    "AggregateKeyType": "CUSTOM_KEYS",
-                    "CustomKeys": [
-                        {
-                            "Header": {
-                                "Name": "X-API-Key",
-                                "TextTransformations": [
-                                    {"Priority": 0, "Type": "NONE"}
-                                ],
+                },
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 10,  # Min value
+                        "EvaluationWindowSec": 300,  # 5 minutes
+                        "AggregateKeyType": "CUSTOM_KEYS",
+                        "CustomKeys": [
+                            {
+                                "Header": {
+                                    "Name": "X-API-Key",
+                                    "TextTransformations": [
+                                        {"Priority": 0, "Type": "NONE"}
+                                    ],
+                                }
                             }
-                        }
-                    ],
-                    "ScopeDownStatement": {
-                        "AndStatement": {
-                            "Statements": [
-                                {
-                                    # Match /passport/analysis/ path
-                                    "ByteMatchStatement": {
-                                        "FieldToMatch": {"UriPath": {}},
-                                        "PositionalConstraint": "STARTS_WITH",
-                                        "SearchString": "/passport/analysis/",
-                                        "TextTransformations": [
-                                            {"Priority": 0, "Type": "NONE"}
-                                        ],
-                                    }
-                                },
-                                # Match valid API keys
-                                analysis_tier_1_condition,
-                            ]
-                        }
-                    },
-                }
-            },
-            "VisibilityConfig": {
-                "SampledRequestsEnabled": True,
-                "CloudWatchMetricsEnabled": True,
-                "MetricName": "Analysis-Tier2-Keys",
-            },
-        }
+                        ],
+                        "ScopeDownStatement": {
+                            "AndStatement": {
+                                "Statements": [
+                                    {
+                                        # Match /passport/analysis/ path
+                                        "ByteMatchStatement": {
+                                            "FieldToMatch": {"UriPath": {}},
+                                            "PositionalConstraint": "STARTS_WITH",
+                                            "SearchString": "/passport/analysis/",
+                                            "TextTransformations": [
+                                                {"Priority": 0, "Type": "NONE"}
+                                            ],
+                                        }
+                                    },
+                                    # Match valid API keys
+                                    analysis_tier_1_condition,
+                                ]
+                            }
+                        },
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": True,
+                    "CloudWatchMetricsEnabled": True,
+                    "MetricName": "Analysis-Tier2-Keys",
+                },
+            }
         analysis_tier_1_waf_json = json.dumps(analysis_tier_1_waf_rule, indent=3)
         self.upload_to_s3(analysis_tier_1_waf_json, "analysis_tier_1_waf_rule.json")
         ###################################################################################
@@ -536,27 +552,30 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             expiry_date__gt=now(),  # Expiry date is in the future
             rate_limit__isnull=True,  # Unlimited rate limit
         )
-        active_unlimited_statements = self.generate_statements(active_unlimited_keys)
-        # TODO: adjust the rule to properly group the requests / api key prefix ( count / api key prefix )
-        if len(active_unlimited_statements) > 1:
-            active_unlimited_condition = {
-                "OrStatement": {"Statements": active_unlimited_statements}
-            }
-        else:
-            active_unlimited_condition = (
-                active_unlimited_statements[0] if active_unlimited_statements else None
+        active_unlimited_waf_rule = {}
+        if len(active_unlimited_keys) > 0:
+            active_unlimited_statements = self.generate_statements(
+                active_unlimited_keys
             )
-        active_unlimited_waf_rule = {
-            "Name": "UnlimitedKeys",
-            "Priority": 11,
-            "Action": {"Count": {}},
-            "Statement": active_unlimited_condition,
-            "VisibilityConfig": {
-                "SampledRequestsEnabled": True,
-                "CloudWatchMetricsEnabled": True,
-                "MetricName": "UnlimitedKeys",
-            },
-        }
+            # TODO: adjust the rule to properly group the requests / api key prefix ( count / api key prefix )
+            if len(active_unlimited_statements) == 1:
+                active_unlimited_condition = active_unlimited_statements[0]
+            else:
+                active_unlimited_condition = {
+                    "OrStatement": {"Statements": active_unlimited_statements}
+                }
+
+            active_unlimited_waf_rule = {
+                "Name": "UnlimitedKeys",
+                "Priority": 11,
+                "Action": {"Count": {}},
+                "Statement": active_unlimited_condition,
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": True,
+                    "CloudWatchMetricsEnabled": True,
+                    "MetricName": "UnlimitedKeys",
+                },
+            }
         active_unlimited_waf_json = json.dumps(active_unlimited_waf_rule, indent=3)
         self.upload_to_s3(active_unlimited_waf_json, "unlimited_waf_rule.json")
 
@@ -571,47 +590,51 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             expiry_date__gt=now(),  # Expiry date is in the future
             rate_limit=RateLimits.TIER_3.value,
         )
-        tier_3_statements = self.generate_statements(tier_3_api_keys)
-        if len(tier_3_statements) > 1:
-            tier_3_condition = {"OrStatement": {"Statements": tier_3_statements}}
-        else:
-            tier_3_condition = tier_3_statements[0] if tier_3_statements else None
+        tier_3_waf_rule = {}
+        if len(tier_3_api_keys) > 0:
+            tier_3_statements = self.generate_statements(tier_3_api_keys)
+            if len(tier_3_statements) == 1:
+                tier_3_condition = tier_3_statements[0]
+            else:
+                tier_3_condition = {"OrStatement": {"Statements": tier_3_statements}}
 
-        tier_3_waf_rule = {
-            "Name": "Tier-3-Api-Keys",
-            "Priority": 7,
-            "Action": {
-                "Block": {
-                    "CustomResponse": {
-                        "ResponseCode": 429,
-                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
-                    }
-                }
-            },
-            "Statement": {
-                "RateBasedStatement": {
-                    "Limit": 670,  # almost 2000/15m"
-                    "EvaluationWindowSec": 300,  # 5 minutes
-                    "AggregateKeyType": "CUSTOM_KEYS",
-                    "CustomKeys": [
-                        {
-                            "Header": {
-                                "Name": "X-API-Key",
-                                "TextTransformations": [
-                                    {"Priority": 0, "Type": "NONE"}
-                                ],
-                            }
+            tier_3_waf_rule = {
+                "Name": "Tier-3-Api-Keys",
+                "Priority": 7,
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 429,
+                            "ResponseHeaders": [
+                                {"Name": "Retry-After", "Value": "300"}
+                            ],
                         }
-                    ],
-                    "ScopeDownStatement": tier_3_condition,
-                }
-            },
-            "VisibilityConfig": {
-                "SampledRequestsEnabled": True,
-                "CloudWatchMetricsEnabled": True,
-                "MetricName": "Tier-3-Api-Keys",
-            },
-        }
+                    }
+                },
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 670,  # almost 2000/15m"
+                        "EvaluationWindowSec": 300,  # 5 minutes
+                        "AggregateKeyType": "CUSTOM_KEYS",
+                        "CustomKeys": [
+                            {
+                                "Header": {
+                                    "Name": "X-API-Key",
+                                    "TextTransformations": [
+                                        {"Priority": 0, "Type": "NONE"}
+                                    ],
+                                }
+                            }
+                        ],
+                        "ScopeDownStatement": tier_3_condition,
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": True,
+                    "CloudWatchMetricsEnabled": True,
+                    "MetricName": "Tier-3-Api-Keys",
+                },
+            }
         tier_3_waf_json = json.dumps(tier_3_waf_rule, indent=3)
         self.upload_to_s3(tier_3_waf_json, "tier_3_waf_rule.json")
 
@@ -626,46 +649,51 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             expiry_date__gt=now(),  # Expiry date is in the future
             rate_limit=RateLimits.TIER_2.value,
         )
-        tier_2_statements = self.generate_statements(tier_2_api_keys)
-        if len(tier_2_statements) > 1:
-            tier_2_condition = {"OrStatement": {"Statements": tier_2_statements}}
-        else:
-            tier_2_condition = tier_2_statements[0] if tier_2_statements else None
-        tier_2_waf_rule = {
-            "Name": "Tier-2-Api-Keys",
-            "Priority": 8,
-            "Action": {
-                "Block": {
-                    "CustomResponse": {
-                        "ResponseCode": 429,
-                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
-                    }
-                }
-            },
-            "Statement": {
-                "RateBasedStatement": {
-                    "Limit": 120,  # almost 350/15m
-                    "EvaluationWindowSec": 300,  # 5 minutes
-                    "AggregateKeyType": "CUSTOM_KEYS",
-                    "CustomKeys": [
-                        {
-                            "Header": {
-                                "Name": "X-API-Key",
-                                "TextTransformations": [
-                                    {"Priority": 0, "Type": "NONE"}
-                                ],
-                            }
+        tier_2_waf_rule = {}
+        if len(tier_2_api_keys) > 0:
+            tier_2_statements = self.generate_statements(tier_2_api_keys)
+            if len(tier_2_statements) == 1:
+                tier_2_condition = tier_2_statements[0]
+            else:
+                tier_2_condition = {"OrStatement": {"Statements": tier_2_statements}}
+
+            tier_2_waf_rule = {
+                "Name": "Tier-2-Api-Keys",
+                "Priority": 8,
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 429,
+                            "ResponseHeaders": [
+                                {"Name": "Retry-After", "Value": "300"}
+                            ],
                         }
-                    ],
-                    "ScopeDownStatement": tier_2_condition,
-                }
-            },
-            "VisibilityConfig": {
-                "SampledRequestsEnabled": True,
-                "CloudWatchMetricsEnabled": True,
-                "MetricName": "Tier-2-Api-Keys",
-            },
-        }
+                    }
+                },
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 120,  # almost 350/15m
+                        "EvaluationWindowSec": 300,  # 5 minutes
+                        "AggregateKeyType": "CUSTOM_KEYS",
+                        "CustomKeys": [
+                            {
+                                "Header": {
+                                    "Name": "X-API-Key",
+                                    "TextTransformations": [
+                                        {"Priority": 0, "Type": "NONE"}
+                                    ],
+                                }
+                            }
+                        ],
+                        "ScopeDownStatement": tier_2_condition,
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": True,
+                    "CloudWatchMetricsEnabled": True,
+                    "MetricName": "Tier-2-Api-Keys",
+                },
+            }
         tier_2_waf_json = json.dumps(tier_2_waf_rule, indent=3)
         self.upload_to_s3(tier_2_waf_json, "tier_2_waf_rule.json")
 
@@ -680,46 +708,52 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             expiry_date__gt=now(),  # Expiry date is in the future
             rate_limit=RateLimits.TIER_1.value,
         )
-        tier_1_statements = self.generate_statements(tier_1_api_keys)
-        if len(tier_1_statements) > 1:
-            tier_1_condition = {"OrStatement": {"Statements": tier_1_statements}}
-        else:
-            tier_1_condition = tier_1_statements[0] if tier_1_statements else None
-        tier_1_waf_rule = {
-            "Name": "Tier-1-Api-Keys",
-            "Priority": 9,
-            "Action": {
-                "Block": {
-                    "CustomResponse": {
-                        "ResponseCode": 429,
-                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
-                    }
-                }
-            },
-            "Statement": {
-                "RateBasedStatement": {
-                    "Limit": 42,  # almost 124/15m
-                    "EvaluationWindowSec": 300,  # 5 minutes
-                    "AggregateKeyType": "CUSTOM_KEYS",
-                    "CustomKeys": [
-                        {
-                            "Header": {
-                                "Name": "X-API-Key",
-                                "TextTransformations": [
-                                    {"Priority": 0, "Type": "NONE"}
-                                ],
-                            }
+        tier_1_waf_rule = {}
+
+        if len(tier_1_api_keys) > 0:
+            tier_1_statements = self.generate_statements(tier_1_api_keys)
+            if len(tier_1_statements) == 1:
+                tier_1_condition = tier_1_statements[0]
+            else:
+                tier_1_condition = {"OrStatement": {"Statements": tier_1_statements}}
+
+            tier_1_waf_rule = {
+                "Name": "Tier-1-Api-Keys",
+                "Priority": 9,
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 429,
+                            "ResponseHeaders": [
+                                {"Name": "Retry-After", "Value": "300"}
+                            ],
                         }
-                    ],
-                    "ScopeDownStatement": tier_1_condition,
-                }
-            },
-            "VisibilityConfig": {
-                "SampledRequestsEnabled": True,
-                "CloudWatchMetricsEnabled": True,
-                "MetricName": "Tier-1-Api-Keys",
-            },
-        }
+                    }
+                },
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 42,  # almost 124/15m
+                        "EvaluationWindowSec": 300,  # 5 minutes
+                        "AggregateKeyType": "CUSTOM_KEYS",
+                        "CustomKeys": [
+                            {
+                                "Header": {
+                                    "Name": "X-API-Key",
+                                    "TextTransformations": [
+                                        {"Priority": 0, "Type": "NONE"}
+                                    ],
+                                }
+                            }
+                        ],
+                        "ScopeDownStatement": tier_1_condition,
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": True,
+                    "CloudWatchMetricsEnabled": True,
+                    "MetricName": "Tier-1-Api-Keys",
+                },
+            }
         tier_1_waf_json = json.dumps(tier_1_waf_rule, indent=3)
         self.upload_to_s3(tier_1_waf_json, "tier_1_waf_rule.json")
 
