@@ -558,20 +558,6 @@ def calc_score(
     return get_detailed_score_response_for_address(address, payload.alternate_scorer_id)
 
 
-# TODO 3280 Remove this endpoint
-@router.get(
-    "/score/{int:scorer_id}/{str:address}",
-    response=DetailedScoreResponse,
-    auth=internal_api_key,
-)
-def calc_score_community(
-    request,
-    scorer_id: int,
-    address: str,
-) -> DetailedScoreResponse:
-    return handle_get_ui_score(address, scorer_id)
-
-
 class FailedVerificationException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Unable to authorize request"

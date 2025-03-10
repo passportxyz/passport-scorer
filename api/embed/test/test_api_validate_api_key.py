@@ -60,7 +60,7 @@ class ValidateApiKeyTestCase(TestCase):
         )
 
         rate_limit_response = self.client.get(
-            "/embed/validate-api-key",
+            "/internal/embed/validate-api-key",
             **{"HTTP_X-API-KEY": api_key},
         )
 
