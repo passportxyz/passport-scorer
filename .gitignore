@@ -16,3 +16,7 @@ postgres_db_passport_data
 **/.next/
 infra/aws/python
 __lambda__
+api/requirements.txt
+infra/aws/__pythonDeps.zip
+infra/aws/lambda_function_payload.zip
+python-layer-code.zip

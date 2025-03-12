@@ -945,7 +945,7 @@ const baseScorerServiceConfig: ScorerService = {
   httpListenerArn: httpsListener.arn,
   targetGroup: targetGroupDefault,
   autoScaleMaxCapacity: 20,
-  autoScaleMinCapacity: 2,
+  autoScaleMinCapacity: stack == "production" ? 2: 1,
   alertTopic: pagerdutyTopic,
 };
 

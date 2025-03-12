@@ -173,6 +173,8 @@ export function createScorerECSService({
       },
     ],
     tags: { ...defaultTags, Name: name },
+  }, {
+    ignoreChanges: ["desiredCount"],
   });
 
   function getAutoScaleMinCapacity() {
