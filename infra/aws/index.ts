@@ -336,23 +336,23 @@ const ecsTaskConfigurations: Record<
       desiredCount: 2,
     },
   },
-    "scorer-api-internal-1": {
-      review: {
-        memory: 1024,
-        cpu: 512,
-        desiredCount: 1,
-      },
-      staging: {
-        memory: 1024,
-        cpu: 512,
-        desiredCount: 1,
-      },
-      production: {
-        memory: 2048,
-        cpu: 512,
-        desiredCount: 2,
-      },
+  "scorer-api-internal-1": {
+    review: {
+      memory: 1024,
+      cpu: 512,
+      desiredCount: 1,
     },
+    staging: {
+      memory: 1024,
+      cpu: 512,
+      desiredCount: 1,
+    },
+    production: {
+      memory: 2048,
+      cpu: 512,
+      desiredCount: 2,
+    },
+  },
 };
 
 if (PROVISION_STAGING_FOR_LOADTEST) {
@@ -945,7 +945,7 @@ const baseScorerServiceConfig: ScorerService = {
   httpListenerArn: httpsListener.arn,
   targetGroup: targetGroupDefault,
   autoScaleMaxCapacity: 20,
-  autoScaleMinCapacity: stack == "production" ? 2: 1,
+  autoScaleMinCapacity: stack == "production" ? 2 : 1,
   alertTopic: pagerdutyTopic,
 };
 
@@ -1430,29 +1430,6 @@ buildHttpLambdaFn(
       },
     ],
     listenerPriority: 1004,
-  },
-  alarmConfigurations
-);
-
-buildHttpLambdaFn(
-  {
-    ...lambdaSettings,
-    name: "cc-auhenticate-0",
-    memorySize: 512,
-    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.authenticate_POST.handler"],
-    httpListenerRulePaths: [
-      {
-        pathPattern: {
-          values: ["/ceramic-cache/authenticate"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["POST"],
-        },
-      },
-    ],
-    listenerPriority: 1005,
   },
   alarmConfigurations
 );
