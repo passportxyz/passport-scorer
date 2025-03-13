@@ -916,17 +916,10 @@ const indexerSecrets = pulumi
 // Set up log groups for API service and worker
 //////////////////////////////////////////////////////////////
 const serviceLogGroup = new aws.cloudwatch.LogGroup("scorer-service", {
-  retentionInDays: 90,
+  retentionInDays: stack === "production" ? 90 : 7,
   tags: {
     ...defaultTags,
     Name: `cloudwatch-loggroup-scorer-service`,
-  },
-});
-const workerLogGroup = new aws.cloudwatch.LogGroup("scorer-worker", {
-  retentionInDays: 90,
-  tags: {
-    ...defaultTags,
-    Name: `cloudwatch-loggroup-scorer-worker`,
   },
 });
 
