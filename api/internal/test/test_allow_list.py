@@ -21,7 +21,7 @@ class TestAllowList:
 
         client = Client()
         response = client.get(
-            f"/account/allow-list/{list_name}/{user_address}",
+            f"/internal/allow-list/{list_name}/{user_address}",
             HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
         assert response.status_code == 200
@@ -31,7 +31,7 @@ class TestAllowList:
         list_name = "test"
         client = Client()
         response = client.get(
-            f"/account/allow-list/{list_name}/0x123",
+            f"/internal/allow-list/{list_name}/0x123",
             HTTP_AUTHORIZATION=settings.CGRANTS_API_TOKEN,
         )
         assert response.status_code == 200
