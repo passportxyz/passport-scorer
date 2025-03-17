@@ -444,7 +444,118 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         tier_waf_json = json.dumps(tier_waf_rule, indent=3)
         self.upload_to_s3(tier_waf_json, file_name)
 
-    # def manage_
+    def manage_analyisis_default_waf_rule(self, name, priority, limit, file_name):
+        default_analysis_waf_rule = {
+            "Name": name,
+            "Priority": priority,
+            "Action": {
+                "Block": {
+                    "CustomResponse": {
+                        "ResponseCode": 429,
+                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
+                    }
+                }
+            },
+            "Statement": {
+                "RateBasedStatement": {
+                    "Limit": limit,
+                    "EvaluationWindowSec": 300,  # 5 minutes
+                    "AggregateKeyType": "CUSTOM_KEYS",
+                    "CustomKeys": [
+                        {
+                            "Header": {
+                                "Name": "X-API-Key",
+                                "TextTransformations": [
+                                    {"Priority": 0, "Type": "NONE"}
+                                ],
+                            }
+                        }
+                    ],
+                    "ScopeDownStatement": {
+                        "AndStatement": {
+                            "Statements": [
+                                {
+                                    "ByteMatchStatement": {
+                                        "FieldToMatch": {"UriPath": {}},
+                                        "PositionalConstraint": "STARTS_WITH",
+                                        "SearchString": "/passport/analysis/",
+                                        "TextTransformations": [
+                                            {"Priority": 0, "Type": "LOWERCASE"},
+                                        ],
+                                    },
+                                },
+                                {
+                                    "RegexMatchStatement": {
+                                        "RegexString": "^[^. ]+\\.[^. ]+$",
+                                        "FieldToMatch": {
+                                            "SingleHeader": {"Name": "x-api-key"},
+                                        },
+                                        "TextTransformations": [
+                                            {"Priority": 0, "Type": "NONE"},
+                                        ],
+                                    },
+                                },
+                            ]
+                        }
+                    },
+                }
+            },
+            "VisibilityConfig": {
+                "SampledRequestsEnabled": True,
+                "CloudWatchMetricsEnabled": True,
+                "MetricName": name,
+            },
+        }
+        default_analysis_waf_json = json.dumps(default_analysis_waf_rule, indent=3)
+        self.upload_to_s3(default_analysis_waf_json, file_name)
+
+    def manage_tier_default_waf_rule(self, name, priority, limit, file_name):
+        default_tier_waf_rule = {
+            "Name": name,
+            "Priority": priority,
+            "Action": {
+                "Block": {
+                    "CustomResponse": {
+                        "ResponseCode": 429,
+                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
+                    }
+                }
+            },
+            "Statement": {
+                "RateBasedStatement": {
+                    "Limit": limit,
+                    "EvaluationWindowSec": 300,  # 5 minutes
+                    "AggregateKeyType": "CUSTOM_KEYS",
+                    "CustomKeys": [
+                        {
+                            "Header": {
+                                "Name": "X-API-Key",
+                                "TextTransformations": [
+                                    {"Priority": 0, "Type": "NONE"}
+                                ],
+                            }
+                        }
+                    ],
+                    "ScopeDownStatement": {
+                        "RegexMatchStatement": {
+                            "RegexString": "^[^. ]+\\.[^. ]+$",
+                            "FieldToMatch": {"SingleHeader": {"Name": "x-api-key"}},
+                            "TextTransformations": [
+                                {"Priority": 0, "Type": "NONE"},
+                            ],
+                        }
+                    },
+                }
+            },
+            "VisibilityConfig": {
+                "SampledRequestsEnabled": True,
+                "CloudWatchMetricsEnabled": True,
+                "MetricName": name,
+            },
+        }
+        default_tier_waf_json = json.dumps(default_tier_waf_rule, indent=3)
+        self.upload_to_s3(default_tier_waf_json, file_name)
+
     @admin.action(description="[All] Generate and Upload WAF Rules to S3")
     def generate_waf_json_and_upload(self, request, queryset=None):
         # The first rule    (priority 1) will handle blocked IPs. => managed outside of python code
@@ -509,19 +620,9 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             file_name="05_analysis_tier_2_waf_rule.json",
         )  # almost 350/15m
 
-        # [BLOCK] Analysis tier 1 keys
+        # [BLOCK] Analysis tier 1 keys = This is also the default rule for analysis rate limiting
         ###################################################################################
-        analysis_tier_1_keys = AccountAPIKey.objects.filter(
-            revoked=False,  # Not revoked
-            expiry_date__isnull=True,  # No expiry date
-            analysis_rate_limit=AnalysisRateLimits.TIER_1.value,
-        ) | AccountAPIKey.objects.filter(
-            revoked=False,  # Not revoked
-            expiry_date__gt=now(),  # Expiry date is in the future
-            analysis_rate_limit=AnalysisRateLimits.TIER_1.value,
-        )
-        self.manage_analyisis_tier_waf_rule(
-            api_keys=analysis_tier_1_keys,
+        self.manage_analyisis_default_waf_rule(
             name="Analysis-Tier-1-Keys",
             priority=6,
             limit=10,  # Min value
@@ -567,19 +668,9 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             file_name="08_tier_2_waf_rule.json",
         )
 
-        # [BLOCK] Tier 1 keys / This should be also the default rule -> TODO
+        # [BLOCK] Tier 1 keys = This is also the default rule
         ###################################################################################
-        tier_1_api_keys = AccountAPIKey.objects.filter(
-            revoked=False,  # Not revoked
-            expiry_date__isnull=True,  # No expiry date
-            rate_limit=RateLimits.TIER_1.value,
-        ) | AccountAPIKey.objects.filter(
-            revoked=False,  # Not revoked
-            expiry_date__gt=now(),  # Expiry date is in the future
-            rate_limit=RateLimits.TIER_1.value,
-        )
-        self.manage_tier_waf_rule(
-            api_keys=tier_1_api_keys,
+        self.manage_tier_default_waf_rule(
             name="Tier-1-Api-Keys",
             priority=9,
             limit=42,  # almost 124/15m
