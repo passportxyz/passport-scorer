@@ -17,8 +17,9 @@ services:
 
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
-      - CERAMIC_CACHE_CACAO_VALIDATION_URL=http://verifier:8001/verify
-
+      - CERAMIC_CACHE_CACAO_VALIDATION_URL=http://verifier:8001/verifier/verify
+      - VERIFIER_URL=http://verifier:8001/verifier/verify
+      - DATABASE_URL=postgresql://passport_scorer:passport_scorer_pwd@postgres:5432/passport_scorer
     command: uvicorn scorer.asgi:application --reload --host 0.0.0.0 --port 8002
 
   interface:

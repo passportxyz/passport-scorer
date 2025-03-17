@@ -16,7 +16,7 @@ import {
   TargetGroupAlarmsConfiguration,
 } from "./loadBalancer";
 
-import { defaultTags } from "../tags";
+import { defaultTags, stack } from "../tags";
 
 export type ScorerService = {
   dockerImageScorer: Input<string>;
@@ -173,6 +173,8 @@ export function createScorerECSService({
       },
     ],
     tags: { ...defaultTags, Name: name },
+  }, {
+    ignoreChanges: ["desiredCount"],
   });
 
   function getAutoScaleMinCapacity() {
@@ -451,6 +453,8 @@ type IndexerServiceParams = {
   indexerImage: Input<string>;
 };
 
+
+
 export function createIndexerService(
   {
     cluster,
@@ -465,7 +469,7 @@ export function createIndexerService(
   alarmThresholds: AlarmConfigurations
 ) {
   const indexerLogGroup = new aws.cloudwatch.LogGroup("scorer-indexer", {
-    retentionInDays: 90,
+    retentionInDays: stack === "production" ? 90 : 7,
     tags: { ...defaultTags, Name: "scorer-indexer" },
   });
 

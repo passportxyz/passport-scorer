@@ -3,7 +3,7 @@ import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import { ScorerService } from "./new_service";
 import { secretsManager } from "infra-libs";
-import { defaultTags } from "../tags";
+import { defaultTags, stack } from "../tags";
 
 export type ScheduledTaskConfig = Pick<
   ScorerService,
@@ -63,7 +63,7 @@ export function createTask({
   const logGroupName = `${scheduled ? "scheduled-" : ""}${name}`;
 
   const logGroup = new aws.cloudwatch.LogGroup(logGroupName, {
-    retentionInDays: 90,
+    retentionInDays: stack === "production" ? 90 : 7,
     tags: {
       ...defaultTags,
       Name: logGroupName,
