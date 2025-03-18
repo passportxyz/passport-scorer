@@ -84,8 +84,8 @@ jobs:
         with:
           export-env: true
         env:
-          UPTIME_ROBOT_READONLY_API_KEY: op://DevOps/passport-scorer-api-review-secrets/ci/UPTIME_ROBOT_READONLY_API_KEY
-          IGNORE_UNMONITORED_URLS: op://DevOps/passport-scorer-api-review-env/ci/IGNORE_UNMONITORED_URLS
+          UPTIME_ROBOT_READONLY_API_KEY: op://DevOps/passport-scorer-review-secrets/ci/UPTIME_ROBOT_READONLY_API_KEY
+          IGNORE_UNMONITORED_URLS: op://DevOps/passport-scorer-review-env/ci/IGNORE_UNMONITORED_URLS
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
           UPTIME_ROBOT_API_KEY: op://DevOps/uptime-robot-config/ci/UPTIME_ROBOT_API_KEY
