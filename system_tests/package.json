@@ -25,6 +25,7 @@
     "@babel/core": "^7.26.0",
     "@babel/plugin-transform-modules-commonjs": "^7.26.3",
     "@eslint/js": "^9.16.0",
+    "@types/aws-lambda": "^8.10.147",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.1",
     "@typescript-eslint/eslint-plugin": "^8.17.0",
