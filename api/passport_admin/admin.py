@@ -13,6 +13,8 @@ from .models import (
     Notification,
     NotificationStatus,
     PassportBanner,
+    SystemTestResult,
+    SystemTestRun,
 )
 
 admin.site.register(DismissedBanners)
@@ -69,3 +71,23 @@ class LastScheduledRunAdmin(admin.ModelAdmin):
     list_display = ("name", "last_run")
     search_fields = ("name", "last_run")
     list_filter = ("name", "last_run")
+
+
+@admin.register(SystemTestRun)
+class SystemTestRunAdmin(admin.ModelAdmin):
+    """
+    Admin class for LastScheduledRun.
+    """
+
+    list_display = ["id"]
+    search_fields = ["id"]
+
+
+@admin.register(SystemTestResult)
+class SystemTestResultAdmin(admin.ModelAdmin):
+    """
+    Admin class for LastScheduledRun.
+    """
+
+    list_display = ("run", "timestamp", "category", "name", "success", "error")
+    search_fields = ("category", "name", "error")
