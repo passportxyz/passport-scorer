@@ -76,7 +76,7 @@ class LastScheduledRunAdmin(admin.ModelAdmin):
 @admin.register(SystemTestRun)
 class SystemTestRunAdmin(admin.ModelAdmin):
     """
-    Admin class for LastScheduledRun.
+    Admin class for SystemTestRuns.
     """
 
     list_display = ["id"]
@@ -86,7 +86,7 @@ class SystemTestRunAdmin(admin.ModelAdmin):
 @admin.register(SystemTestResult)
 class SystemTestResultAdmin(admin.ModelAdmin):
     """
-    Admin class for LastScheduledRun.
+    Admin class for SystemTestResult.
     """
 
     list_display = ("run", "timestamp", "category", "name", "success", "error")

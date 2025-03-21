@@ -18,6 +18,7 @@ Including another URLconf
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+from django.views.generic.base import RedirectView
 
 from account.api import health
 from scorer.api import apis as api_list
@@ -35,6 +36,7 @@ urlpatterns = [
     path("passport/", include("passport.urls")),
     path("internal/", include("internal.urls")),
     path("embed/", include("embed.urls")),
+    path("", RedirectView.as_view(url="/admin/", permanent=False)),
 ]
 
 urlpatterns += [path("", api.urls) for api in api_list]

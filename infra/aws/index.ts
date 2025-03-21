@@ -1759,9 +1759,9 @@ createMonitoringLambdaFunction({
   snsAlertsTopicArn: pagerdutyTopic.arn,
   httpsListenerArn: privateAlbHttpListenerArn,
   ceramicCacheScorerId: CERAMIC_CACHE_SCORER_ID,
-  scorerSecret: scorerSecret,
   privateSubnetSecurityGroup: privateSubnetSecurityGroup,
   vpcPrivateSubnetIds: vpcPrivateSubnetIds,
   lambdaLayerArn: pythonLambdaLayer.arn,
   bucketId: codeBucketId,
+  scorerDbProxyEndpointConn: scorerDbProxyEndpointConn,
 });

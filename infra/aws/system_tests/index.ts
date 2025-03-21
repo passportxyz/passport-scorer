@@ -9,110 +9,132 @@ export function createMonitoringLambdaFunction(config: {
   snsAlertsTopicArn: pulumi.Input<string>;
   httpsListenerArn: pulumi.Input<string>;
   ceramicCacheScorerId: number;
-  scorerSecret: aws.secretsmanager.Secret;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   vpcId: pulumi.Input<string>;
   vpcPrivateSubnetIds: pulumi.Input<any>;
   lambdaLayerArn: pulumi.Input<string>;
   bucketId: pulumi.Input<string>;
+  scorerDbProxyEndpointConn: pulumi.Input<string>;
 }) {
-  // createEmbedLambdaGeneric({
-  //   ...config,
-  //   name: "embed-st",
-  //   description: "Submit stamps & score passport",
-  //   lbRuleConditions: [
-  //     {
-  //       pathPattern: {
-  //         values: ["/internal/embed/stamps/*"],
-  //       },
-  //     },
-  //     {
-  //       httpRequestMethod: {
-  //         values: ["POST"],
-  //       },
-  //     },
-  //   ],
-  //   lbRulePriority: 2100,
-  //   lambdaHandler: "embed.lambda_fn.lambda_handler_save_stamps",
-  // });
-  // const lambdaHandler: "embed.lambda_fn.lambda_handler_save_stamps",
-  const name = "system-tests";
-  const description = "execute system tests";
+  pulumi
+    .all([config.scorerDbProxyEndpointConn])
+    .apply(([_scorerDbProxyEndpointConn]) => {
+      const name = "system-tests";
+      const description = "execute system tests";
 
-  const apiLambdaEnvironment = [
-    ...secretsManager.getEnvironmentVars({
-      vault: "DevOps",
-      repo: "passport-scorer",
-      env: stack,
-      section: "api",
-    }),
-    {
-      name: "DEBUG",
-      value: "off",
-    },
-    {
-      name: "LOGGING_STRATEGY",
-      value: "structlog_json",
-    },
-    {
-      name: "FF_API_ANALYTICS",
-      value: "on",
-    },
-    {
-      name: "CERAMIC_CACHE_SCORER_ID",
-      value: `${config.ceramicCacheScorerId}`,
-    },
-    {
-      name: "SCORER_SERVER_SSM_ARN",
-      value: config.scorerSecret.arn,
-    },
-    {
-      name: "VERIFIER_URL",
-      value: "http://core-alb.private.gitcoin.co/verifier/verify",
-    },
-  ].sort(secretsManager.sortByName);
+      const systemTestsSecret = new aws.secretsmanager.Secret("system-tests", {
+        name: "system-tests",
+        description: "System Tests Secrets",
+        tags: {
+          ...defaultTags,
+          Name: "scorer-secret",
+        },
+      });
 
-  // The lambda will contain our own code (everything from the `api` folder for now)
-  const lambdaCode = archive.getFile({
-    type: "zip",
-    sourceDir: "../../system_tests",
-    outputPath: "lambda_function_payload.zip",
-    excludes: [], //["**/__pycache__"],
-  });
-
-  const lambdaName = `${name}-lambda`;
-  const lambdaHandler = "index.handler";
-  const { lambdaFunction, lambdaFunctionUrl } = createLambdaFunction(
-    [config.scorerSecret.arn],
-    config.vpcId,
-    config.vpcPrivateSubnetIds,
-    {
-      name: lambdaName,
-      description: description,
-      code: new pulumi.asset.FileArchive("lambda_function_payload.zip"),
-      // role: lambdaRole.arn,
-      handler: lambdaHandler,
-      sourceCodeHash: lambdaCode.then((archive) => archive.outputBase64sha256),
-      runtime: aws.lambda.Runtime.NodeJS20dX,
-      environment: {
-        variables: apiLambdaEnvironment.reduce(
-          (
-            acc: { [key: string]: pulumi.Input<string> },
-            e: { name: string; value: pulumi.Input<string> }
-          ) => {
-            acc[e.name] = e.value;
-            return acc;
+      secretsManager.syncSecretsAndGetRefs({
+        vault: "DevOps",
+        repo: "system-tests",
+        env: stack,
+        section: "run",
+        targetSecret: systemTestsSecret,
+        secretVersionName: "system-tests-version",
+        extraSecretDefinitions: [
+          {
+            name: "DATABASE_URL",
+            value: _scorerDbProxyEndpointConn,
           },
-          {}
-        ),
-      },
-      memorySize: 512,
-      timeout: 60,
-      layers: [],
-      tags: {
-        ...defaultTags,
-        Name: lambdaName,
-      },
-    }
-  );
+        ],
+      });
+
+      const apiLambdaEnvironment = [
+        ...secretsManager.getEnvironmentVars({
+          vault: "DevOps",
+          repo: "system-tests",
+          env: stack,
+          section: "run",
+        }),
+        {
+          name: "SYSTEM_TESTS_SSM_ARN",
+          value: systemTestsSecret.arn,
+        },
+      ].sort(secretsManager.sortByName);
+
+      // The lambda will contain our own code (everything from the `api` folder for now)
+      const lambdaCode = archive.getFile({
+        type: "zip",
+        sourceDir: "../../system_tests",
+        outputPath: `${name}-lambda-function-payload.zip`,
+        excludes: [], //["**/__pycache__"],
+      });
+
+      const lambdaName = `${name}-lambda`;
+      const lambdaHandler = "index.handler";
+      const { lambdaFunction, lambdaFunctionUrl } = createLambdaFunction(
+        [systemTestsSecret.arn],
+        config.vpcId,
+        config.vpcPrivateSubnetIds,
+        {
+          name: lambdaName,
+          description: description,
+          code: new pulumi.asset.FileArchive(
+            `${name}-lambda-function-payload.zip`
+          ),
+          // role: lambdaRole.arn,
+          handler: lambdaHandler,
+          sourceCodeHash: lambdaCode.then(
+            (archive) => archive.outputBase64sha256
+          ),
+          runtime: aws.lambda.Runtime.NodeJS20dX,
+          environment: {
+            variables: apiLambdaEnvironment.reduce(
+              (
+                acc: { [key: string]: pulumi.Input<string> },
+                e: { name: string; value: pulumi.Input<string> }
+              ) => {
+                acc[e.name] = e.value;
+                return acc;
+              },
+              {}
+            ),
+          },
+          memorySize: 512,
+          timeout: 60 * 15,
+          layers: [],
+          tags: {
+            ...defaultTags,
+            Name: lambdaName,
+          },
+        }
+      );
+
+      const scheduledEventRuleName = `${name}-rule`;
+      const scheduledEventRule = new aws.cloudwatch.EventRule(
+        scheduledEventRuleName,
+        {
+          scheduleExpression:
+            stack === "production"
+              ? "cron(0/5 * ? * * *)"
+              : "cron(0 0 ? * * *)",
+          tags: {
+            ...defaultTags,
+            Name: scheduledEventRuleName,
+          },
+        }
+      );
+
+      // Granting EventBridge the necessary permissions to trigger the Lambda function.
+      new aws.lambda.Permission(`${name}-permission`, {
+        action: "lambda:InvokeFunction",
+        function: lambdaFunction,
+        principal: "events.amazonaws.com",
+        sourceArn: scheduledEventRule.arn,
+      });
+
+      // Target the rule to the lambda
+      const scheduledEventTargetName = `${name}-target`;
+      new aws.cloudwatch.EventTarget(scheduledEventTargetName, {
+        rule: scheduledEventRule.name,
+        arn: lambdaFunction.arn,
+      });
+    });
 }

@@ -1,13 +1,13 @@
 const { Pool } = require('pg');
 
 class SystemTestResultWriter {
-  constructor(connectionString) {
+  constructor(connectionString, useSSL) {
     this.pool = new Pool({
       connectionString,
       max: 2, // max number of clients in the pool
       idleTimeoutMillis: 30000,
+      ssl: useSSL,
     });
-    this._runId;
   }
 
   async query() {
@@ -67,7 +67,10 @@ const TERMINAL_COLOR_CODE_REGEX =
 class DBLoggerReporter {
   getWriter() {
     if (!this.writer) {
-      this.writer = new SystemTestResultWriter(process.env.DB_CONNECTION_STRING);
+      this.writer = new SystemTestResultWriter(
+        process.env.DATABASE_URL,
+        process.env.DATABASE_USE_SSL === 'true'
+      );
     }
     return this.writer;
   }
