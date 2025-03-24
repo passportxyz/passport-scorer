@@ -109,8 +109,12 @@ class LastScheduledRun(models.Model):
 
 
 class SystemTestRun(models.Model):
-    # Just need an ID field for now
-    pass
+    timestamp = models.DateTimeField(
+        db_index=True, null=True, blank=True, auto_now_add=True
+    )
+
+    def __str__(self):
+        return f"#{self.id} @{self.timestamp}"
 
 
 # This table is written to directly (i.e. with pg) by the system tests

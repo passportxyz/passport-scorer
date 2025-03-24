@@ -1,5 +1,7 @@
+from datetime import datetime
 from typing import List, Optional
 
+from django.core.cache import cache
 from django.db.models import OuterRef, Q, Subquery, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -23,6 +25,7 @@ from passport_admin.schema import (
     NotificationPayload,
     NotificationResponse,
     NotificationSchema,
+    ServerStatusResponse,
 )
 
 from .models import (
@@ -30,6 +33,7 @@ from .models import (
     Notification,
     NotificationStatus,
     PassportBanner,
+    SystemTestRun,
 )
 
 router = Router()
@@ -264,6 +268,62 @@ def dismiss_notification(request, notification_id: str, payload: DismissPayload)
             return {
                 "status": "success",
             }
+
+    except Notification.DoesNotExist:
+        return {
+            "status": "failed",
+        }
+
+
+@router.get(
+    "/server-status",
+    response={200: ServerStatusResponse},
+)
+def dismiss_notification(request):
+    """
+    Return the server status based on the last system tests run
+    """
+    try:
+        cached_server_status = cache.get("server_status")
+
+        if not cached_server_status:
+            last_run = SystemTestRun.objects.filter(timestamp__isnull=False).latest(
+                "timestamp"
+            )
+
+            results = last_run.results.all()
+            failed = [r for r in results if not r.success]
+
+            num_failed = len(failed)
+            total = len(results)
+            num_success = total - num_failed
+
+            server_status = ServerStatusResponse(
+                timestamp=last_run.timestamp,
+                success=num_success,
+                failed=num_failed,
+                total=total,
+            )
+
+            cache.set("server_status", server_status.model_dump_json(), 60)
+        else:
+            server_status = ServerStatusResponse.model_validate_json(
+                cached_server_status
+            )
+            # server_status = ServerStatusResponse(**json.loads(cached_server_status))
+            # server_status.status += " (cached)"
+
+        run_timestamp = datetime(server_status.timestamp)
+        age = datetime.now() - run_timestamp
+        health = (
+            server_status.total > 0
+            and server_status.num_failed == 0
+            and age.total_seconds() < 60 * 5
+        )
+        server_status.status = "healthy" if health else "unhealthy"
+        server_status.age = age
+
+        return server_status
 
     except Notification.DoesNotExist:
         return {

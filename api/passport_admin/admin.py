@@ -73,14 +73,23 @@ class LastScheduledRunAdmin(admin.ModelAdmin):
     list_filter = ("name", "last_run")
 
 
+class SystemTestResultInlineAdmin(admin.TabularInline):
+    model = SystemTestResult
+    readonly_fields = ["timestamp", "category", "name", "success", "error"]
+    extra = 0
+
+
 @admin.register(SystemTestRun)
 class SystemTestRunAdmin(admin.ModelAdmin):
     """
     Admin class for SystemTestRuns.
     """
 
-    list_display = ["id"]
+    list_display = ["id", "timestamp"]
     search_fields = ["id"]
+    inlines = [
+        SystemTestResultInlineAdmin,
+    ]
 
 
 @admin.register(SystemTestResult)
