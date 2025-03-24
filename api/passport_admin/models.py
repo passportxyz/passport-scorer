@@ -110,7 +110,9 @@ class LastScheduledRun(models.Model):
 
 class SystemTestRun(models.Model):
     timestamp = models.DateTimeField(
-        db_index=True, null=True, blank=True, auto_now_add=True
+        db_index=True,
+        null=True,
+        blank=True,
     )
 
     def __str__(self):

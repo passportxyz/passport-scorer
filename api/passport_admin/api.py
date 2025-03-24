@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List, Optional
 
 from django.core.cache import cache
@@ -279,7 +278,7 @@ def dismiss_notification(request, notification_id: str, payload: DismissPayload)
     "/server-status",
     response={200: ServerStatusResponse},
 )
-def dismiss_notification(request):
+def server_status_handler(request):
     """
     Return the server status based on the last system tests run
     """
@@ -305,23 +304,23 @@ def dismiss_notification(request):
                 total=total,
             )
 
-            cache.set("server_status", server_status.model_dump_json(), 60)
+            cache.set("server_status", server_status.model_dump_json(), 3 * 60)
         else:
             server_status = ServerStatusResponse.model_validate_json(
                 cached_server_status
             )
-            # server_status = ServerStatusResponse(**json.loads(cached_server_status))
-            # server_status.status += " (cached)"
 
-        run_timestamp = datetime(server_status.timestamp)
-        age = datetime.now() - run_timestamp
-        health = (
-            server_status.total > 0
-            and server_status.num_failed == 0
-            and age.total_seconds() < 60 * 5
-        )
-        server_status.status = "healthy" if health else "unhealthy"
-        server_status.age = age
+        server_status.age = (timezone.now() - server_status.timestamp).total_seconds()
+        last_run_within_5_minutes = server_status.age < 60 * 5
+
+        if last_run_within_5_minutes:
+            server_status.status = (
+                "healthy"
+                if server_status.total > 0 and server_status.failed == 0
+                else "unhealthy"
+            )
+        else:
+            server_status.status = "outdated"
 
         return server_status
 

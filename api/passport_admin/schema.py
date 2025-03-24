@@ -45,7 +45,7 @@ class DismissPayload(Schema):
 
 
 class ServerStatusResponse(Schema):
-    timestamp: datetime | str | None
+    timestamp: datetime | None
     success: int
     failed: int
     total: int
@@ -59,8 +59,6 @@ class ServerStatusResponse(Schema):
     @field_validator("timestamp", mode="before")
     @classmethod
     def handle_timestamp(cls, value: datetime | str | None) -> datetime | None:
-        print(" =" * 40)
-        print(" ====> value", value, type(vaue))
         if isinstance(value, str):
             return datetime.fromisoformat(value)
-        return datetime
+        return value
