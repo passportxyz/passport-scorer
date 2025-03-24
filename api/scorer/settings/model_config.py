@@ -1,23 +1,25 @@
 from .env import env
 
 ETHEREUM_MODEL_ENDPOINT = env(
-    "ETHEREUM_MODEL_ENDPOINT", default="http://localhost:80/ethereum"
+    "ETHEREUM_MODEL_ENDPOINT", default="http://localhost:5007/eth-stamp-predict"
 )
-NFT_MODEL_ENDPOINT = env("NFT_MODEL_ENDPOINT", default="http://localhost:80/nft")
+NFT_MODEL_ENDPOINT = env(
+    "NFT_MODEL_ENDPOINT", default="http://localhost:5003/nft-model-predict"
+)
 ZKSYNC_MODEL_ENDPOINT = env(
-    "ZKSYNC_MODEL_ENDPOINT", default="http://localhost:80/zksync"
+    "ZKSYNC_MODEL_ENDPOINT", default="http://localhost:5006/zksync-model-predict"
 )
 POLYGON_MODEL_ENDPOINT = env(
-    "POLYGON_MODEL_ENDPOINT", default="http://localhost:80/zksync"
+    "POLYGON_MODEL_ENDPOINT", default="http://localhost:5005/polygon-model-predict"
 )
 ARBITRUM_MODEL_ENDPOINT = env(
-    "ARBITRUM_MODEL_ENDPOINT", default="http://localhost:80/zksync"
+    "ARBITRUM_MODEL_ENDPOINT", default="http://localhost:5002/arbitrum-model-predict"
 )
 OPTIMISM_MODEL_ENDPOINT = env(
-    "OPTIMISM_MODEL_ENDPOINT", default="http://localhost:80/zksync"
+    "OPTIMISM_MODEL_ENDPOINT", default="http://localhost:5004/op-model-predict"
 )
 AGGREGATE_MODEL_ENDPOINT = env(
-    "AGGREGATE_MODEL_ENDPOINT", default="http://localhost:80/aggregate"
+    "AGGREGATE_MODEL_ENDPOINT", default="http://localhost:5001/aggregate-model-predict"
 )
 
 AGGREGATE_MODEL_NAME = "aggregate"
