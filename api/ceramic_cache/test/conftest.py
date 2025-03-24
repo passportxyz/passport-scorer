@@ -57,5 +57,4 @@ def sample_stamps(sample_expiration_dates, sample_providers, sample_address):
 
 
 def pytest_configure():
-    settings.CERAMIC_CACHE_API_KEY = "supersecret"
     settings.CERAMIC_CACHE_SCORER_ID = "1"
