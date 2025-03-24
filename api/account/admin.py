@@ -216,7 +216,8 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                 "Action": {
                     "Block": {
                         "CustomResponse": {
-                            "ResponseCode": 401,  # TODO: add message to response
+                            "ResponseCode": 401,
+                            "CustomResponseBodyKey": "InvalidApiKey",
                         }
                     }
                 },
@@ -305,6 +306,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                     "Block": {
                         "CustomResponse": {
                             "ResponseCode": 429,
+                            "CustomResponseBodyKey": "RateLimitExceeded",
                             "ResponseHeaders": [
                                 {"Name": "Retry-After", "Value": "300"}
                             ],
@@ -411,6 +413,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                     "Block": {
                         "CustomResponse": {
                             "ResponseCode": 429,
+                            "CustomResponseBodyKey": "RateLimitExceeded",
                             "ResponseHeaders": [
                                 {"Name": "Retry-After", "Value": "300"}
                             ],
@@ -452,6 +455,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                 "Block": {
                     "CustomResponse": {
                         "ResponseCode": 429,
+                        "CustomResponseBodyKey": "RateLimitExceeded",
                         "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
                     }
                 }
@@ -517,6 +521,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                 "Block": {
                     "CustomResponse": {
                         "ResponseCode": 429,
+                        "CustomResponseBodyKey": "RateLimitExceeded",
                         "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
                     }
                 }
