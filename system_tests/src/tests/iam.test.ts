@@ -30,6 +30,7 @@ describe('IAM (Simple)', () => {
         payload: {
           address,
           type,
+          signatureType: 'EIP712',
         },
       },
     });
@@ -52,6 +53,7 @@ describe('IAM (Simple)', () => {
         payload: {
           address,
           type,
+          types: [type],
           signatureType: 'EIP712',
           version,
           proofs: {
@@ -64,7 +66,9 @@ describe('IAM (Simple)', () => {
     });
 
     expect(verifyResponse).toHaveStatus(200);
-    expect(verifyResponse.data).toMatchObject({
+    const responseCredentials = verifyResponse.data as Object[];
+    expect(responseCredentials.length).toBe(1);
+    expect(responseCredentials[0]).toMatchObject({
       record: {
         type,
       },
@@ -134,6 +138,7 @@ describe('IAM (NFT)', () => {
         payload: {
           address,
           type,
+          signatureType: 'EIP712',
         },
       },
     });
@@ -156,6 +161,7 @@ describe('IAM (NFT)', () => {
         payload: {
           address,
           type,
+          types: [type],
           signatureType: 'EIP712',
           version,
           proofs: {
