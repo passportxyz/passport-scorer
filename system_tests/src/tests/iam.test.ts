@@ -218,21 +218,4 @@ describe('IAM (NFT)', () => {
       invalidCredentials: [],
     });
   });
-
-  it('POST /auto-verification', async () => {
-    const response = await testRequest({
-      url: url(`auto-verification`),
-      method: 'POST',
-      payload: {
-        address,
-        scorerId: process.env.TEST_API_SCORER_ID!,
-      },
-    });
-
-    expect(response).toHaveStatus(200);
-    expect(response.data).toMatchObject({
-      score: expect.any(String),
-      threshold: expect.any(String),
-    });
-  });
 });

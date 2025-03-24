@@ -1,7 +1,7 @@
 from .env import env
 
 ETHEREUM_MODEL_ENDPOINT = env(
-    "ETHEREUM_MODEL_ENDPOINT", default="http://localhost:5007/eth-stamp-predict"
+    "ETHEREUM_MODEL_ENDPOINT", default="http://localhost:5000/eth-stamp-predict"
 )
 NFT_MODEL_ENDPOINT = env(
     "NFT_MODEL_ENDPOINT", default="http://localhost:5003/nft-model-predict"
