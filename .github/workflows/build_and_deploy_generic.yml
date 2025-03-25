@@ -191,6 +191,13 @@ jobs:
         with:
           ref: ${{ inputs.refspec }}
           fetch-depth: 0
+      - name: Use Node.js 20
+        # Required for pulumi as it will require yarn to pull deps for the system-tests lambda
+        uses: actions/setup-node@v3
+        with:
+          # Lambda is currently running on node 20
+          node-version: 20
+          cache: "yarn"
       - uses: actions/setup-python@v4
         with:
           python-version: "3.12"
@@ -261,6 +268,13 @@ jobs:
         with:
           ref: ${{ inputs.refspec }}
           fetch-depth: 0
+      - name: Use Node.js 20
+        # Required for pulumi as it will require yarn to pull deps for the system-tests lambda
+        uses: actions/setup-node@v3
+        with:
+          # Lambda is currently running on node 20
+          node-version: 20
+          cache: "yarn"
       - uses: actions/setup-python@v4
         with:
           python-version: "3.12"
