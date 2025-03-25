@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db.models import OuterRef, Q, Subquery, Value
 from django.db.models.functions import Coalesce
@@ -311,7 +312,9 @@ def server_status_handler(request):
             )
 
         server_status.age = (timezone.now() - server_status.timestamp).total_seconds()
-        last_run_within_5_minutes = server_status.age < 60 * 5
+        last_run_within_5_minutes = (
+            server_status.age < settings.SYSTEM_TESTS_MAX_AGE_BEFORE_OUTDATED
+        )
 
         if last_run_within_5_minutes:
             server_status.status = (

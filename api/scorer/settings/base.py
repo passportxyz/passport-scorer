@@ -494,3 +494,9 @@ MBD_API_RATE_LIMITING_FORM = env(
 
 FF_V2_API = env("FF_V2_API", default="off")
 MEDIA_ROOT = env("MEDIA_ROOT", default="")
+
+# Max age of the system tests before we consider them outdated in seconds
+# This affects the return of the server status
+SYSTEM_TESTS_MAX_AGE_BEFORE_OUTDATED = env.float(
+    "SYSTEM_TESTS_MAX_AGE_BEFORE_OUTDATED", default=10 * 60
+)
