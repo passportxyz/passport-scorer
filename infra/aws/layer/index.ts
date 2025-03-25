@@ -6,7 +6,7 @@ import { defaultTags } from "../../lib/tags";
 import { existsSync, statSync } from "fs";
 import { spawn } from "child_process";
 
-function runCommand(
+export function runCommand(
   command: string,
   args: string[],
   options: Record<string, any>

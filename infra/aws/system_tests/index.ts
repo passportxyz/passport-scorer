@@ -4,6 +4,7 @@ import * as aws from "@pulumi/aws";
 import { secretsManager } from "infra-libs";
 import { defaultTags, stack } from "../../lib/tags";
 import { createLambdaFunction } from "../../lib/lambda";
+import { runCommand } from "../layer";
 
 export function createMonitoringLambdaFunction(config: {
   snsAlertsTopicArn: pulumi.Input<string>;
@@ -53,10 +54,6 @@ export function createMonitoringLambdaFunction(config: {
           env: stack,
           section: "run",
         }),
-        {
-          name: "SYSTEM_TESTS_SSM_ARN",
-          value: systemTestsSecret.arn,
-        },
       ].sort(secretsManager.sortByName);
 
       // The lambda will contain our own code (everything from the `api` folder for now)
@@ -66,6 +63,21 @@ export function createMonitoringLambdaFunction(config: {
         outputPath: `${name}-lambda-function-payload.zip`,
         excludes: [], //["**/__pycache__"],
       });
+      const layerBucketObjectName = `${name}-lambda-code.zip`;
+      const expectedArchivePath = `../../${layerBucketObjectName}`;
+
+      const nodeCodeArchive = runCommand(
+        "yarn",
+        ["install", "--frozen-lockfile"],
+        { cwd: "../../system_tests" }
+      )
+        .then(() => runCommand("rm", ["-Rf", expectedArchivePath], {}))
+        .then(() =>
+          runCommand("zip", ["-q", "-r", `../${layerBucketObjectName}`, "."], {
+            cwd: "../../system_tests",
+          })
+        )
+        .then(() => new pulumi.asset.FileArchive(expectedArchivePath));
 
       const lambdaName = `${name}-lambda`;
       const lambdaHandler = "index.handler";
@@ -76,9 +88,10 @@ export function createMonitoringLambdaFunction(config: {
         {
           name: lambdaName,
           description: description,
-          code: new pulumi.asset.FileArchive(
-            `${name}-lambda-function-payload.zip`
-          ),
+          code: nodeCodeArchive,
+          // new pulumi.asset.FileArchive(
+          //   `${name}-lambda-function-payload.zip`
+          // ),
           // role: lambdaRole.arn,
           handler: lambdaHandler,
           sourceCodeHash: lambdaCode.then(
