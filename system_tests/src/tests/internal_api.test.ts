@@ -3,9 +3,9 @@ import { AuthStrategy } from '../types';
 import { testRequest } from '../utils/testRequest';
 import { InternalAPIUser, PassportUIUser } from '../users';
 
-const url = (subpath: string) => process.env.SCORER_API_BASE_URL + '/ceramic-cache/' + subpath;
+const url = (subpath: string) => process.env.SCORER_API_BASE_URL + '/internal/' + subpath;
 
-describe('Ceramic Cache Secret', () => {
+describe('Internal Requests', () => {
   let authStrategy: AuthStrategy;
 
   let address: string;
@@ -22,7 +22,7 @@ describe('Ceramic Cache Secret', () => {
 
   it('GET /score/{scorer_id}/{address}', async () => {
     const response = await testRequest({
-      url: url(`score/${scorerId}/${address}`),
+      url: url(`score/v2/${scorerId}/${address}`),
       method: 'GET',
       authStrategy,
     });

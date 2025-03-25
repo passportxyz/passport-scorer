@@ -1,7 +1,8 @@
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 
 from ninja import Schema
+from pydantic import field_serializer, field_validator
 
 
 class GenericResponse(Schema):
@@ -41,3 +42,23 @@ class NotificationPayload(Schema):
 
 class DismissPayload(Schema):
     dismissal_type: str
+
+
+class ServerStatusResponse(Schema):
+    timestamp: datetime | None
+    success: int
+    failed: int
+    total: int
+    status: Optional[str] = None
+    age: Optional[float] = None
+
+    @field_serializer("timestamp")
+    def serialize_timestamp(self, timestamp: datetime, _info):
+        return timestamp.isoformat() if timestamp is not None else "null"
+
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def handle_timestamp(cls, value: datetime | str | None) -> datetime | None:
+        if isinstance(value, str):
+            return datetime.fromisoformat(value)
+        return value

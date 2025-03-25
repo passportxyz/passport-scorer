@@ -29,6 +29,7 @@ import { createV2Api } from "./v2/index";
 import { createEmbedLambdaFunctions } from "./embed";
 import { createAppApiLambdaFunctions } from "./app_api";
 import { createPythonLambdaLayer } from "./layer";
+import { createMonitoringLambdaFunction } from "./system_tests";
 
 //////////////////////////////////////////////////////////////
 // Loading environment variables
@@ -1751,4 +1752,16 @@ createEmbedLambdaFunctions({
   vpcPrivateSubnetIds: vpcPrivateSubnetIds,
   lambdaLayerArn: pythonLambdaLayer.arn,
   bucketId: codeBucketId,
+});
+
+createMonitoringLambdaFunction({
+  vpcId: vpcID,
+  snsAlertsTopicArn: pagerdutyTopic.arn,
+  httpsListenerArn: privateAlbHttpListenerArn,
+  ceramicCacheScorerId: CERAMIC_CACHE_SCORER_ID,
+  privateSubnetSecurityGroup: privateSubnetSecurityGroup,
+  vpcPrivateSubnetIds: vpcPrivateSubnetIds,
+  lambdaLayerArn: pythonLambdaLayer.arn,
+  bucketId: codeBucketId,
+  scorerDbProxyEndpointConn: scorerDbProxyEndpointConn,
 });

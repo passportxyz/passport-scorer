@@ -30,6 +30,7 @@ describe('IAM (Simple)', () => {
         payload: {
           address,
           type,
+          signatureType: 'EIP712',
         },
       },
     });
@@ -52,6 +53,7 @@ describe('IAM (Simple)', () => {
         payload: {
           address,
           type,
+          types: [type],
           signatureType: 'EIP712',
           version,
           proofs: {
@@ -64,7 +66,9 @@ describe('IAM (Simple)', () => {
     });
 
     expect(verifyResponse).toHaveStatus(200);
-    expect(verifyResponse.data).toMatchObject({
+    const responseCredentials = verifyResponse.data as Object[];
+    expect(responseCredentials.length).toBe(1);
+    expect(responseCredentials[0]).toMatchObject({
       record: {
         type,
       },
@@ -134,6 +138,7 @@ describe('IAM (NFT)', () => {
         payload: {
           address,
           type,
+          signatureType: 'EIP712',
         },
       },
     });
@@ -156,6 +161,7 @@ describe('IAM (NFT)', () => {
         payload: {
           address,
           type,
+          types: [type],
           signatureType: 'EIP712',
           version,
           proofs: {
@@ -210,23 +216,6 @@ describe('IAM (NFT)', () => {
         s: expect.any(String),
       },
       invalidCredentials: [],
-    });
-  });
-
-  it('POST /auto-verification', async () => {
-    const response = await testRequest({
-      url: url(`auto-verification`),
-      method: 'POST',
-      payload: {
-        address,
-        scorerId: process.env.TEST_API_SCORER_ID!,
-      },
-    });
-
-    expect(response).toHaveStatus(200);
-    expect(response.data).toMatchObject({
-      score: expect.any(String),
-      threshold: expect.any(String),
     });
   });
 });

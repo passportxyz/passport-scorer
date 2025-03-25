@@ -1,5 +1,7 @@
 from typing import List, Optional
 
+from django.conf import settings
+from django.core.cache import cache
 from django.db.models import OuterRef, Q, Subquery, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -23,6 +25,7 @@ from passport_admin.schema import (
     NotificationPayload,
     NotificationResponse,
     NotificationSchema,
+    ServerStatusResponse,
 )
 
 from .models import (
@@ -30,6 +33,7 @@ from .models import (
     Notification,
     NotificationStatus,
     PassportBanner,
+    SystemTestRun,
 )
 
 router = Router()
@@ -264,6 +268,64 @@ def dismiss_notification(request, notification_id: str, payload: DismissPayload)
             return {
                 "status": "success",
             }
+
+    except Notification.DoesNotExist:
+        return {
+            "status": "failed",
+        }
+
+
+@router.get(
+    "/server-status",
+    response={200: ServerStatusResponse},
+)
+def server_status_handler(request):
+    """
+    Return the server status based on the last system tests run
+    """
+    try:
+        cached_server_status = cache.get("server_status")
+
+        if not cached_server_status:
+            last_run = SystemTestRun.objects.filter(timestamp__isnull=False).latest(
+                "timestamp"
+            )
+
+            results = last_run.results.all()
+            failed = [r for r in results if not r.success]
+
+            num_failed = len(failed)
+            total = len(results)
+            num_success = total - num_failed
+
+            server_status = ServerStatusResponse(
+                timestamp=last_run.timestamp,
+                success=num_success,
+                failed=num_failed,
+                total=total,
+            )
+
+            cache.set("server_status", server_status.model_dump_json(), 3 * 60)
+        else:
+            server_status = ServerStatusResponse.model_validate_json(
+                cached_server_status
+            )
+
+        server_status.age = (timezone.now() - server_status.timestamp).total_seconds()
+        last_run_within_5_minutes = (
+            server_status.age < settings.SYSTEM_TESTS_MAX_AGE_BEFORE_OUTDATED
+        )
+
+        if last_run_within_5_minutes:
+            server_status.status = (
+                "healthy"
+                if server_status.total > 0 and server_status.failed == 0
+                else "unhealthy"
+            )
+        else:
+            server_status.status = "outdated"
+
+        return server_status
 
     except Notification.DoesNotExist:
         return {

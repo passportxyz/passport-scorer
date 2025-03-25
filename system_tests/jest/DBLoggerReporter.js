@@ -1,13 +1,13 @@
 const { Pool } = require('pg');
 
 class SystemTestResultWriter {
-  constructor(connectionString) {
+  constructor(connectionString, useSSL) {
     this.pool = new Pool({
       connectionString,
       max: 2, // max number of clients in the pool
       idleTimeoutMillis: 30000,
+      ssl: useSSL,
     });
-    this._runId;
   }
 
   async query() {
@@ -18,6 +18,7 @@ class SystemTestResultWriter {
       await client.query('COMMIT');
       return result;
     } catch (error) {
+      console.error('Error executing query:', error);
       await client.query('ROLLBACK');
       throw error;
     } finally {
@@ -25,10 +26,11 @@ class SystemTestResultWriter {
     }
   }
 
-  async createOrGetTestRunId() {
+  async createOrGetTestRunId(timestamp) {
     if (this._runId === undefined) {
       const result = await this.query(
-        'INSERT INTO passport_admin_systemtestrun DEFAULT VALUES RETURNING id'
+        'INSERT INTO passport_admin_systemtestrun (timestamp) VALUES($1) RETURNING id',
+        [timestamp]
       );
       this._runId = result.rows[0].id;
     }
@@ -36,7 +38,7 @@ class SystemTestResultWriter {
   }
 
   async writeTestResult(testResult) {
-    const runId = await this.createOrGetTestRunId();
+    const runId = await this.createOrGetTestRunId(testResult.timestamp);
 
     const query = `
                 INSERT INTO passport_admin_systemtestresult
@@ -67,7 +69,10 @@ const TERMINAL_COLOR_CODE_REGEX =
 class DBLoggerReporter {
   getWriter() {
     if (!this.writer) {
-      this.writer = new SystemTestResultWriter(process.env.DB_CONNECTION_STRING);
+      this.writer = new SystemTestResultWriter(
+        process.env.DATABASE_URL,
+        process.env.DATABASE_USE_SSL === 'true'
+      );
     }
     return this.writer;
   }

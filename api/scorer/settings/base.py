@@ -27,8 +27,6 @@ DEBUG = env("DEBUG", default=True)
 
 ALLOWED_HOSTS = env.json("ALLOWED_HOSTS", default=[])
 
-CERAMIC_CACHE_API_KEY = env("CERAMIC_CACHE_API_KEY", default="")
-
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
 
@@ -496,3 +494,9 @@ MBD_API_RATE_LIMITING_FORM = env(
 
 FF_V2_API = env("FF_V2_API", default="off")
 MEDIA_ROOT = env("MEDIA_ROOT", default="")
+
+# Max age of the system tests before we consider them outdated in seconds
+# This affects the return of the server status
+SYSTEM_TESTS_MAX_AGE_BEFORE_OUTDATED = env.float(
+    "SYSTEM_TESTS_MAX_AGE_BEFORE_OUTDATED", default=10 * 60
+)
