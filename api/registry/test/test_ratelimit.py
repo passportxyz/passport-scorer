@@ -88,6 +88,12 @@ def test_rate_limit_from_db_is_applied_for_token(scorer_api_key):
 
         assert response.status_code == 200
 
+    # We make 2 additional calls, but only verify the second one
+    # because of timing issues the first one might not always return 429
+    client.get(
+        "/registry/signing-message",
+        HTTP_AUTHORIZATION="Token " + scorer_api_key,
+    )
     response = client.get(
         "/registry/signing-message",
         HTTP_AUTHORIZATION="Token " + scorer_api_key,
