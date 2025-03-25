@@ -157,9 +157,9 @@ def parse_body(event):
     return body
 
 
-def format_response(ret: Any):
+def format_response(ret: Any, statusCode=200):
     return {
-        "statusCode": 200,
+        "statusCode": statusCode,
         "statusDescription": "200 OK",
         "isBase64Encoded": False,
         "headers": RESPONSE_HEADERS,

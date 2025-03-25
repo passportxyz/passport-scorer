@@ -105,7 +105,7 @@ def test_post(
 
     body = json.loads(response["body"])
 
-    assert response["statusCode"] == 200
+    assert response["statusCode"] == 201
     assert body["stamps"][0]["provider"] == "Google"
     assert body["score"]["evidence"]["rawScore"] > 0
     assert body["score"]["status"] == "DONE"

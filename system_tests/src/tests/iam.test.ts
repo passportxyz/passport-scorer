@@ -152,7 +152,7 @@ describe('IAM (NFT)', () => {
 
     const signedChallenge = await createSignedPayload(did, challengeMessage);
 
-    const verifyResponse = await testRequest<{ credential: unknown }>({
+    const verifyResponse = await testRequest<{ credential: unknown }[]>({
       url: url(`verify`),
       method: 'POST',
       payload: {
@@ -174,7 +174,7 @@ describe('IAM (NFT)', () => {
     });
 
     expect(verifyResponse).toHaveStatus(200);
-    expect(verifyResponse.data).toMatchObject({
+    expect(verifyResponse.data[0]).toMatchObject({
       record: {
         type,
       },
@@ -186,14 +186,14 @@ describe('IAM (NFT)', () => {
       },
     });
 
-    const credential = verifyResponse.data.credential;
+    const credential = verifyResponse.data[0].credential;
 
     expect(credential).toBeDefined();
 
     const nonce = '123';
 
     const createAttestationResponse = await testRequest({
-      url: url(`eas/passport`),
+      url: url(`eas/score`),
       method: 'POST',
       payload: {
         chainIdHex: '0xa',
