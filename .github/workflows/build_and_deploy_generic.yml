@@ -197,7 +197,6 @@ jobs:
         with:
           # Lambda is currently running on node 20
           node-version: 20
-          cache: "yarn"
       - uses: actions/setup-python@v4
         with:
           python-version: "3.12"
@@ -274,7 +273,6 @@ jobs:
         with:
           # Lambda is currently running on node 20
           node-version: 20
-          cache: "yarn"
       - uses: actions/setup-python@v4
         with:
           python-version: "3.12"
