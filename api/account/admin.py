@@ -1,6 +1,5 @@
 import csv
 import json
-from cProfile import label
 from math import exp
 from operator import ge
 
@@ -178,7 +177,6 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         S3_BUCKET_NAME = settings.S3_BUCKET_WAF
         try:
             s3_client = boto3.client("s3")
-            print("Uploading to S3...")
             s3_client.put_object(
                 Bucket=S3_BUCKET_NAME,
                 Key=filename,
@@ -188,7 +186,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             return True
         except Exception as e:
             print(f"Failed to upload to S3: {e}")
-            return False
+            raise
 
     def manage_revoked_or_expired_waf_rule(self, name, priority, file_name):
         # [BLOCK] Create rule for the revoked & expired keys
