@@ -5,7 +5,7 @@ from functools import wraps
 from typing import List
 from urllib.parse import urlencode
 
-import didkit
+from didkit import verify_credential
 from django.db.models import Q
 from django.forms.models import model_to_dict
 from django.shortcuts import render
@@ -16,7 +16,6 @@ from web3 import Web3
 import api_logging as logging
 from registry.exceptions import NoRequiredPermissionsException
 from registry.issuer_manager import get_current_trusted_issuers
-from registry.models import Stamp
 
 log = logging.getLogger(__name__)
 
@@ -29,43 +28,48 @@ def index(request):
 
 
 async def validate_credential(did, credential) -> List[str]:
-    # pylint: disable=fixme
     stamp_return_errors = []
-    credential_subject = credential.get("credentialSubject", {})
-    stamp_hash = credential_subject.get("hash")
-    stamp_nullfiers = credential_subject.get("nullifiers")
-    stamp_did = credential_subject.get("id").lower()
-    provider = credential_subject.get("provider")
+    try:
+        # pylint: disable=fixme
+        credential_subject = credential.get("credentialSubject", {})
+        stamp_hash = credential_subject.get("hash")
+        stamp_nullfiers = credential_subject.get("nullifiers")
+        stamp_did = credential_subject.get("id", "").lower()
+        provider = credential_subject.get("provider")
 
-    if not credential:
-        stamp_return_errors.append("Missing or invalid attribute: credential")
+        if not credential:
+            stamp_return_errors.append("Missing or invalid attribute: credential")
 
-    if not credential_subject:
-        stamp_return_errors.append("Missing attribute: credentialSubject")
+        if not credential_subject:
+            stamp_return_errors.append("Missing attribute: credentialSubject")
 
-    if not stamp_hash and not stamp_nullfiers:
-        stamp_return_errors.append(
-            "Missing attribute: hash and stamp_nullfiers (either one must be present)"
+        if not stamp_hash and not stamp_nullfiers:
+            stamp_return_errors.append(
+                "Missing attribute: hash and stamp_nullfiers (either one must be present)"
+            )
+
+        if not stamp_did:
+            stamp_return_errors.append("Missing attribute: id")
+
+        if not provider:
+            stamp_return_errors.append("Missing attribute: provider")
+
+        if did != stamp_did:
+            stamp_return_errors.append("Did mismatch")
+
+        # pylint: disable=no-member
+        verification = await verify_credential(
+            json.dumps(credential), '{"proofPurpose":"assertionMethod"}'
         )
+        verification = json.loads(verification)
 
-    if not stamp_did:
-        stamp_return_errors.append("Missing attribute: id")
-
-    if not provider:
-        stamp_return_errors.append("Missing attribute: provider")
-
-    if did != stamp_did:
-        stamp_return_errors.append("Did mismatch")
-
-    # pylint: disable=no-member
-    verification = await didkit.verify_credential(
-        json.dumps(credential), '{"proofPurpose":"assertionMethod"}'
-    )
-    verification = json.loads(verification)
-
-    if verification["errors"]:
-        stamp_return_errors.append(f"Stamp validation failed: {verification['errors']}")
-
+        if verification["errors"]:
+            stamp_return_errors.append(
+                f"Stamp validation failed: {verification['errors']}"
+            )
+    except Exception as e:
+        log.error("Error validating credential", exc_info=True)
+        stamp_return_errors.append(f"Error validating credential: {e}")
     return stamp_return_errors
 
 
@@ -196,17 +200,19 @@ def get_cursor_tokens_for_results(
         has_prev_scores = base_query.filter(prev_filter_cond).exists()
 
     next_url = (
-        f"""{domain}{reverse_lazy_with_query( f"{service}:{endpoint}", args=http_query_args, query_kwargs={"token": encode_cursor(**next_cursor), "limit": limit}, )}"""
+        f"""{domain}{reverse_lazy_with_query(f"{service}:{endpoint}", args=http_query_args, query_kwargs={"token": encode_cursor(**next_cursor), "limit": limit})}"""
         if has_more_scores
         else None
     )
 
     prev_url = (
-        f"""{domain}{reverse_lazy_with_query(
-            f"{service}:{endpoint}",
-            args=http_query_args,
-            query_kwargs={"token": encode_cursor(**prev_cursor), "limit": limit},
-        )}"""
+        f"""{domain}{
+            reverse_lazy_with_query(
+                f"{service}:{endpoint}",
+                args=http_query_args,
+                query_kwargs={"token": encode_cursor(**prev_cursor), "limit": limit},
+            )
+        }"""
         if has_prev_scores
         else None
     )
