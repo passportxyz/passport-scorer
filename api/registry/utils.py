@@ -33,8 +33,8 @@ async def validate_credential(did, credential) -> List[str]:
     stamp_return_errors = []
     credential_subject = credential.get("credentialSubject", {})
     stamp_hash = credential_subject.get("hash")
-    stamp_nullfiers = credential_subject.get("nullifiers")
-    stamp_did = credential_subject.get("id").lower()
+    stamp_nullifiers = credential_subject.get("nullifiers")
+    stamp_did = credential_subject.get("id", "").lower()
     provider = credential_subject.get("provider")
 
     if not credential:
@@ -43,9 +43,9 @@ async def validate_credential(did, credential) -> List[str]:
     if not credential_subject:
         stamp_return_errors.append("Missing attribute: credentialSubject")
 
-    if not stamp_hash and not stamp_nullfiers:
+    if not stamp_hash and not stamp_nullifiers:
         stamp_return_errors.append(
-            "Missing attribute: hash and stamp_nullfiers (either one must be present)"
+            "Missing attribute: hash and nullifiers (either one must be present)"
         )
 
     if not stamp_did:
