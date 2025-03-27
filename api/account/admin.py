@@ -186,7 +186,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             return True
         except Exception as e:
             print(f"Failed to upload to S3: {e}")
-            return False
+            raise
 
     def manage_revoked_or_expired_waf_rule(self, name, priority, file_name):
         # [BLOCK] Create rule for the revoked & expired keys
@@ -232,7 +232,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         revoked_or_expired_waf_json = json.dumps(revoked_or_expired_waf_rule, indent=3)
         self.upload_to_s3(revoked_or_expired_waf_json, file_name)
 
-    def manage_analysis_unlimited_waf_rule(self, name, priority, file_name):
+    def manage_analysis_unlimited_waf_rule(self, name, priority, label, file_name):
         # [ALLOW] Create rule for the analysis unlimited keys
         ###################################################################################
         analysis_unlimited_keys = AccountAPIKey.objects.filter(
@@ -256,11 +256,11 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                 analysis_api_key_condition = {
                     "OrStatement": {"Statements": analysis_unlimited_statements}
                 }
-            # TODO: adjust the rule to properly group the requests / api key prefix ( count / api key prefix )
             analysis_unlimited_waf_rule = {
                 "Name": name,
                 "Priority": priority,
                 "Action": {"Count": {}},
+                "RuleLabels": [{"Name": label}],
                 "Statement": {
                     "AndStatement": {
                         "Statements": [
@@ -288,7 +288,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         self.upload_to_s3(analysis_unlimited_waf_json, file_name)
 
     def manage_analyisis_tier_waf_rule(
-        self, api_keys, name, priority, limit, file_name
+        self, api_keys, name, priority, label, file_name
     ):
         analysis_tier_waf_rule = {}
         if len(api_keys) > 0:
@@ -302,51 +302,25 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             analysis_tier_waf_rule = {
                 "Name": name,
                 "Priority": priority,
-                "Action": {
-                    "Block": {
-                        "CustomResponse": {
-                            "ResponseCode": 429,
-                            "CustomResponseBodyKey": "RateLimitExceeded",
-                            "ResponseHeaders": [
-                                {"Name": "Retry-After", "Value": "300"}
-                            ],
-                        }
-                    }
-                },
+                "Action": {"Count": {}},
+                "RuleLabels": [{"Name": label}],
                 "Statement": {
-                    "RateBasedStatement": {
-                        "Limit": limit,
-                        "EvaluationWindowSec": 300,  # 5 minutes
-                        "AggregateKeyType": "CUSTOM_KEYS",
-                        "CustomKeys": [
+                    "AndStatement": {
+                        "Statements": [
                             {
-                                "Header": {
-                                    "Name": "X-API-Key",
+                                # Match /passport/analysis/ path
+                                "ByteMatchStatement": {
+                                    "FieldToMatch": {"UriPath": {}},
+                                    "PositionalConstraint": "STARTS_WITH",
+                                    "SearchString": "/passport/analysis/",
                                     "TextTransformations": [
                                         {"Priority": 0, "Type": "NONE"}
                                     ],
                                 }
-                            }
-                        ],
-                        "ScopeDownStatement": {
-                            "AndStatement": {
-                                "Statements": [
-                                    {
-                                        # Match /passport/analysis/ path
-                                        "ByteMatchStatement": {
-                                            "FieldToMatch": {"UriPath": {}},
-                                            "PositionalConstraint": "STARTS_WITH",
-                                            "SearchString": "/passport/analysis/",
-                                            "TextTransformations": [
-                                                {"Priority": 0, "Type": "NONE"}
-                                            ],
-                                        }
-                                    },
-                                    # Match valid API keys
-                                    analysis_condition,
-                                ]
-                            }
-                        },
+                            },
+                            # Match valid API keys
+                            analysis_condition,
+                        ]
                     }
                 },
                 "VisibilityConfig": {
@@ -358,7 +332,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         analysis_tier_waf_json = json.dumps(analysis_tier_waf_rule, indent=3)
         self.upload_to_s3(analysis_tier_waf_json, file_name)
 
-    def manage_unlimited_waf_rule(self, name, priority, file_name):
+    def manage_unlimited_waf_rule(self, name, priority, label, file_name):
         # [ALLOW] Create rule for the unlimited keys
         ###################################################################################
         active_unlimited_keys = AccountAPIKey.objects.filter(
@@ -375,7 +349,6 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             active_unlimited_statements = self.generate_statements(
                 active_unlimited_keys
             )
-            # TODO: adjust the rule to properly group the requests / api key prefix ( count / api key prefix )
             if len(active_unlimited_statements) == 1:
                 active_unlimited_condition = active_unlimited_statements[0]
             else:
@@ -387,7 +360,52 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
                 "Name": name,
                 "Priority": priority,
                 "Action": {"Count": {}},
-                "Statement": active_unlimited_condition,
+                "RuleLabels": [{"Name": label}],
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "OrStatement": {
+                                    "Statements": [
+                                        {
+                                            "RegexMatchStatement": {
+                                                "RegexString": "^/registry/(score|stamp|signing-message)",
+                                                "FieldToMatch": {"UriPath": {}},
+                                                "TextTransformations": [
+                                                    {"Priority": 0, "Type": "NONE"}
+                                                ],
+                                            }
+                                        },
+                                        {
+                                            "ByteMatchStatement": {
+                                                "SearchString": "/registry/submit-passport",
+                                                "FieldToMatch": {"UriPath": {}},
+                                                "TextTransformations": [
+                                                    {"Priority": 0, "Type": "NONE"}
+                                                ],
+                                                "PositionalConstraint": "STARTS_WITH",
+                                            }
+                                        },
+                                        {
+                                            "ByteMatchStatement": {
+                                                "SearchString": "/v2/",
+                                                "FieldToMatch": {"UriPath": {}},
+                                                "TextTransformations": [
+                                                    {
+                                                        "Priority": 0,
+                                                        "Type": "NONE",
+                                                    }
+                                                ],
+                                                "PositionalConstraint": "STARTS_WITH",
+                                            }
+                                        },
+                                    ]
+                                }
+                            },
+                            active_unlimited_condition,
+                        ]
+                    }
+                },
                 "VisibilityConfig": {
                     "SampledRequestsEnabled": True,
                     "CloudWatchMetricsEnabled": True,
@@ -397,7 +415,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         active_unlimited_waf_json = json.dumps(active_unlimited_waf_rule, indent=3)
         self.upload_to_s3(active_unlimited_waf_json, file_name)
 
-    def manage_tier_waf_rule(self, api_keys, name, priority, limit, file_name):
+    def manage_tier_waf_rule(self, api_keys, name, priority, label, file_name):
         tier_waf_rule = {}
         if len(api_keys) > 0:
             tier_statements = self.generate_statements(api_keys)
@@ -409,33 +427,51 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             tier_waf_rule = {
                 "Name": name,
                 "Priority": priority,
-                "Action": {
-                    "Block": {
-                        "CustomResponse": {
-                            "ResponseCode": 429,
-                            "CustomResponseBodyKey": "RateLimitExceeded",
-                            "ResponseHeaders": [
-                                {"Name": "Retry-After", "Value": "300"}
-                            ],
-                        }
-                    }
-                },
+                "Action": {"Count": {}},
+                "RuleLabels": [{"Name": label}],
                 "Statement": {
-                    "RateBasedStatement": {
-                        "Limit": limit,
-                        "EvaluationWindowSec": 300,  # 5 minutes
-                        "AggregateKeyType": "CUSTOM_KEYS",
-                        "CustomKeys": [
+                    "AndStatement": {
+                        "Statements": [
                             {
-                                "Header": {
-                                    "Name": "X-API-Key",
-                                    "TextTransformations": [
-                                        {"Priority": 0, "Type": "NONE"}
-                                    ],
+                                "OrStatement": {
+                                    "Statements": [
+                                        {
+                                            "RegexMatchStatement": {
+                                                "RegexString": "^/registry/(score|stamp|signing-message)",
+                                                "FieldToMatch": {"UriPath": {}},
+                                                "TextTransformations": [
+                                                    {"Priority": 0, "Type": "NONE"}
+                                                ],
+                                            }
+                                        },
+                                        {
+                                            "ByteMatchStatement": {
+                                                "SearchString": "/registry/submit-passport",
+                                                "FieldToMatch": {"UriPath": {}},
+                                                "TextTransformations": [
+                                                    {"Priority": 0, "Type": "NONE"}
+                                                ],
+                                                "PositionalConstraint": "STARTS_WITH",
+                                            }
+                                        },
+                                        {
+                                            "ByteMatchStatement": {
+                                                "SearchString": "/v2/",
+                                                "FieldToMatch": {"UriPath": {}},
+                                                "TextTransformations": [
+                                                    {
+                                                        "Priority": 0,
+                                                        "Type": "NONE",
+                                                    }
+                                                ],
+                                                "PositionalConstraint": "STARTS_WITH",
+                                            }
+                                        },
+                                    ]
                                 }
-                            }
-                        ],
-                        "ScopeDownStatement": tier_condition,
+                            },
+                            tier_condition,
+                        ]
                     }
                 },
                 "VisibilityConfig": {
@@ -447,144 +483,23 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         tier_waf_json = json.dumps(tier_waf_rule, indent=3)
         self.upload_to_s3(tier_waf_json, file_name)
 
-    def manage_analyisis_default_waf_rule(self, name, priority, limit, file_name):
-        default_analysis_waf_rule = {
-            "Name": name,
-            "Priority": priority,
-            "Action": {
-                "Block": {
-                    "CustomResponse": {
-                        "ResponseCode": 429,
-                        "CustomResponseBodyKey": "RateLimitExceeded",
-                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
-                    }
-                }
-            },
-            "Statement": {
-                "RateBasedStatement": {
-                    "Limit": limit,
-                    "EvaluationWindowSec": 300,  # 5 minutes
-                    "AggregateKeyType": "CUSTOM_KEYS",
-                    "CustomKeys": [
-                        {
-                            "Header": {
-                                "Name": "X-API-Key",
-                                "TextTransformations": [
-                                    {"Priority": 0, "Type": "NONE"}
-                                ],
-                            }
-                        }
-                    ],
-                    "ScopeDownStatement": {
-                        "AndStatement": {
-                            "Statements": [
-                                {
-                                    "ByteMatchStatement": {
-                                        "FieldToMatch": {"UriPath": {}},
-                                        "PositionalConstraint": "STARTS_WITH",
-                                        "SearchString": "/passport/analysis/",
-                                        "TextTransformations": [
-                                            {"Priority": 0, "Type": "LOWERCASE"},
-                                        ],
-                                    },
-                                },
-                                {
-                                    "RegexMatchStatement": {
-                                        "RegexString": "^[^. ]+\\.[^. ]+$",
-                                        "FieldToMatch": {
-                                            "SingleHeader": {"Name": "x-api-key"},
-                                        },
-                                        "TextTransformations": [
-                                            {"Priority": 0, "Type": "NONE"},
-                                        ],
-                                    },
-                                },
-                            ]
-                        }
-                    },
-                }
-            },
-            "VisibilityConfig": {
-                "SampledRequestsEnabled": True,
-                "CloudWatchMetricsEnabled": True,
-                "MetricName": name,
-            },
-        }
-        default_analysis_waf_json = json.dumps(default_analysis_waf_rule, indent=3)
-        self.upload_to_s3(default_analysis_waf_json, file_name)
-
-    def manage_tier_default_waf_rule(self, name, priority, limit, file_name):
-        default_tier_waf_rule = {
-            "Name": name,
-            "Priority": priority,
-            "Action": {
-                "Block": {
-                    "CustomResponse": {
-                        "ResponseCode": 429,
-                        "CustomResponseBodyKey": "RateLimitExceeded",
-                        "ResponseHeaders": [{"Name": "Retry-After", "Value": "300"}],
-                    }
-                }
-            },
-            "Statement": {
-                "RateBasedStatement": {
-                    "Limit": limit,
-                    "EvaluationWindowSec": 300,  # 5 minutes
-                    "AggregateKeyType": "CUSTOM_KEYS",
-                    "CustomKeys": [
-                        {
-                            "Header": {
-                                "Name": "X-API-Key",
-                                "TextTransformations": [
-                                    {"Priority": 0, "Type": "NONE"}
-                                ],
-                            }
-                        }
-                    ],
-                    "ScopeDownStatement": {
-                        "RegexMatchStatement": {
-                            "RegexString": "^[^. ]+\\.[^. ]+$",
-                            "FieldToMatch": {"SingleHeader": {"Name": "x-api-key"}},
-                            "TextTransformations": [
-                                {"Priority": 0, "Type": "NONE"},
-                            ],
-                        }
-                    },
-                }
-            },
-            "VisibilityConfig": {
-                "SampledRequestsEnabled": True,
-                "CloudWatchMetricsEnabled": True,
-                "MetricName": name,
-            },
-        }
-        default_tier_waf_json = json.dumps(default_tier_waf_rule, indent=3)
-        self.upload_to_s3(default_tier_waf_json, file_name)
-
     @admin.action(description="[All] Generate and Upload WAF Rules to S3")
     def generate_waf_json_and_upload(self, request, queryset=None):
-        # The first rule    (priority 1) will handle blocked IPs. => managed outside of python code
-        # The second rule   (priority 2) will evaluate Invalid API keys. => managed outside of python code
-        # <Api key specific rules>
-        # The third rule    (priority 3) will evaluate Expired and Revoked API keys.
-        # <All analysis / per request rules should be evaluated before the generic API keys evaluation.>
-        # The fourth rule   (priority 4) will evaluate Analysis - Tier 3 API keys.
-        # The fifth rule    (priority 5) will evaluate Analysis - Tier 2 API keys.
-        # The sixth rule    (priority 6) will evaluate Analysis - Tier 1 API keys.
-        # <Generic non path restricted rules.>
-        # The seventh rule  (priority 7) will evaluate Tier 3 API keys.
-        # The eighth rule   (priority 8) will evaluate Tier 2 API keys.
-        # The ninth rule    (priority 9) will evaluate Tier 1 API keys
-        # The tenth rule    (priority 10) will evaluate Analysis - Unlimites API keys.
-        # The eleventh rule (priority 11) will evaluate Unlimites API keys.
-        # <The ninth rule should also be the default rule to be evaluated>.
-
         # [BLOCK] Create rule for the revoked & expired keys
         ###################################################################################
         self.manage_revoked_or_expired_waf_rule(
             name="Expired-RevokedKeys",
             priority=3,
             file_name="03_revoked_or_expired_waf_rule.json",
+        )
+
+        # [ALLOW] Create rule for the analysis unlimited keys
+        ###################################################################################
+        self.manage_analysis_unlimited_waf_rule(
+            name="Analysis-Unlimited-Label",
+            priority=4,
+            label="AnalysisUnlimited",
+            file_name="04_analysis_unlimited_label_rule.json",
         )
 
         # [BLOCK] Analysis tier 3 keys
@@ -600,11 +515,11 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         )
         self.manage_analyisis_tier_waf_rule(
             api_keys=analysis_tier_3_keys,
-            name="Analysis-Tier-3-Keys",
-            priority=4,
-            limit=670,
-            file_name="04_analysis_tier_3_waf_rule.json",
-        )  # almost 2000/15m
+            name="Analysis-Tier-3-Label",
+            priority=5,
+            label="AnalysisTier3",
+            file_name="05_analysis_tier_3_label_rule.json",
+        )
 
         # [BLOCK] Analysis tier 2 keys
         ###################################################################################
@@ -619,19 +534,19 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         )
         self.manage_analyisis_tier_waf_rule(
             api_keys=analysis_tier_2_keys,
-            name="Analysis-Tier-2-Keys",
-            priority=5,
-            limit=120,
-            file_name="05_analysis_tier_2_waf_rule.json",
-        )  # almost 350/15m
+            name="Analysis-Tier-2-Label",
+            priority=7,
+            label="AnalysisTier2",
+            file_name="07_analysis_tier_2_label_rule.json",
+        )
 
-        # [BLOCK] Analysis tier 1 keys = This is also the default rule for analysis rate limiting
+        # [ALLOW] Create rule for the unlimited keys
         ###################################################################################
-        self.manage_analyisis_default_waf_rule(
-            name="Analysis-Tier-1-Keys",
-            priority=6,
-            limit=10,  # Min value
-            file_name="06_analysis_tier_1_waf_rule.json",
+        self.manage_unlimited_waf_rule(
+            name="UnlimitedKeys",
+            priority=10,
+            label="Unlimited",
+            file_name="10_unlimited_label_rule.json",
         )
 
         # Create rule for the Tier 3 keys
@@ -648,10 +563,10 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
 
         self.manage_tier_waf_rule(
             api_keys=tier_3_api_keys,
-            name="Tier-3-Api-Keys",
-            priority=7,
-            limit=670,  # almost 2000/15m
-            file_name="07_tier_3_waf_rule.json",
+            name="Tier-3-Label",
+            priority=11,
+            label="Tier3",
+            file_name="11_tier_3_label_rule.json",
         )
 
         # [BLOCK] Analysis tier 2 keys
@@ -667,33 +582,16 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         )
         self.manage_tier_waf_rule(
             api_keys=tier_2_api_keys,
-            name="Tier-2-Api-Keys",
-            priority=8,
-            limit=120,  # almost 350/15m
-            file_name="08_tier_2_waf_rule.json",
+            name="Tier-2-Label",
+            priority=13,
+            label="Tier2",
+            file_name="13_tier_2_label_rule.json",
         )
 
-        # [BLOCK] Tier 1 keys = This is also the default rule
-        ###################################################################################
-        self.manage_tier_default_waf_rule(
-            name="Tier-1-Api-Keys",
-            priority=9,
-            limit=42,  # almost 124/15m
-            file_name="09_tier_1_waf_rule.json",
-        )
-
-        # [ALLOW] Create rule for the analysis unlimited keys
-        ###################################################################################
-        self.manage_analysis_unlimited_waf_rule(
-            name="Analysis-UnlimitedKeys",
-            priority=10,
-            file_name="10_analysis_unlimited_waf_rule.json",
-        )
-
-        # [ALLOW] Create rule for the unlimited keys
-        ###################################################################################
-        self.manage_unlimited_waf_rule(
-            name="UnlimitedKeys", priority=11, file_name="11_unlimited_waf_rule.json"
+        self.message_user(
+            request,
+            "WAF rules have been generated and uploaded to S3 successfully.",
+            level=messages.SUCCESS,
         )
 
     actions = [edit_selected, generate_waf_json_and_upload]
