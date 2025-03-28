@@ -10,6 +10,7 @@ describe('V2 API', () => {
   let authStrategy: AuthStrategy;
   let address: string;
   let scorerId: string;
+  let model: string;
 
   beforeAll(async () => {
     const registryAPIUser = await RegistryAPIUser.get();
@@ -17,6 +18,7 @@ describe('V2 API', () => {
 
     authStrategy = new HeaderKeyAuth({ key: registryAPIUser.apiKey, header: 'X-API-Key' });
     address = generatePassportAddress();
+    model = 'aggregate';
   });
 
   describe('/stamps', () => {
@@ -112,7 +114,6 @@ describe('V2 API', () => {
 
   describe('/models', () => {
     it('GET /models/score/{address}?model=aggregate', async () => {
-      const model = 'aggregate';
       const response = await testRequest({
         url: url(`models/score/${address}?model=${model}`),
         method: 'GET',
@@ -130,6 +131,27 @@ describe('V2 API', () => {
           },
         },
       });
+    });
+  });
+
+  describe('OPTIONS - allows the OPTIONS request for all endpoints', () => {
+    it.each([
+      { url: url(`stamps/${scorerId}/score/${address}`) },
+      { url: url(`stamps/${scorerId}/score/${address}/history`) },
+      { url: url('stamps/metadata') },
+      { url: url(`stamps/${address}?include_metadata=true`) },
+      { url: url(`models/score/${address}?model=${model}`) },
+    ])("OPTIONS request for '$url'", async ({ url }) => {
+      const response = await testRequest({
+        url,
+        method: 'OPTIONS',
+        headers: {
+          'access-control-request-headers': 'x-api-key',
+          'access-control-request-method': 'GET',
+        },
+      });
+      expect(response).toHaveStatus(200);
+      expect(response.headers).toMatchObject({"something": "something"});
     });
   });
 });

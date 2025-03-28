@@ -1,5 +1,5 @@
 import type { AxiosResponse } from 'axios';
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
 
 export interface AuthStrategy {
   name: string;
