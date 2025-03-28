@@ -2,9 +2,8 @@ import copy
 import json
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
-import pytest
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
@@ -16,12 +15,14 @@ from ceramic_cache.models import CeramicCache
 from registry.models import Passport, Stamp
 from registry.tasks import score_passport
 from registry.utils import get_signer, get_signing_message, verify_issuer
-from registry.weight_models import WeightConfiguration, WeightConfigurationItem
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
 
 my_mnemonic = settings.TEST_MNEMONIC
+
+account = web3.eth.account.from_mnemonic(my_mnemonic, account_path="m/44'/60'/0'/0/0")
+account_2 = web3.eth.account.from_mnemonic(my_mnemonic, account_path="m/44'/60'/0'/0/0")
 
 trusted_issuer = [
     issuer for issuer in settings.TRUSTED_IAM_ISSUERS if issuer.startswith("did:ethr:")
@@ -41,7 +42,7 @@ ens_credential = {
     "issuanceDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "expirationDate": (now + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "credentialSubject": {
-        "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+        "id": f"did:pkh:eip155:1:{account.address}",
         "hash": "v0.0.0:xG1Todke+0P1jphcnZhP/3UA5XUBMaEux4fHG86I20U=",
         "@context": [
             {
@@ -68,7 +69,7 @@ ens_credential_corrupted = {
     "issuanceDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "expirationDate": (now + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "credentialSubject": {
-        "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+        "id": f"did:pkh:eip155:1:{account.address}",
         "hash": "v0.0.0:xG1Todke+0P1jphcnZhP/3UA5XUBMaEux4fHG86I20U=",
         "@context": [
             {
@@ -95,7 +96,7 @@ google_credential = {
     "issuanceDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "expirationDate": (now + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "credentialSubject": {
-        "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+        "id": f"did:pkh:eip155:1:{account.address}",
         "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
         "@context": [
             {
@@ -122,7 +123,7 @@ google_credential_2 = {
     "issuanceDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "expirationDate": (now + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "credentialSubject": {
-        "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+        "id": f"did:pkh:eip155:1:{account.address}",
         "hash": "v0.0.0:edgFWHsCSaqGxthSqdilpEXR06Ojw+YLO8K0BSjz0d8=",
         "@context": [
             {
@@ -149,7 +150,7 @@ google_credential_expired = {
     "issuanceDate": (now - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "expirationDate": (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "credentialSubject": {
-        "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+        "id": f"did:pkh:eip155:1:{account.address}",
         "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
         "@context": [
             {
@@ -175,7 +176,7 @@ google_credential_soon_to_be_expired = {
     "issuanceDate": (now - timedelta(days=27)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "expirationDate": (now + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "credentialSubject": {
-        "id": "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE",
+        "id": f"did:pkh:eip155:1:{account.address}",
         "hash": "v0.0.0:edgFWHsCSaqGxtHSqdiPpEXR06Ejw+YLO9K0BSjz0d8=",
         "@context": [
             {
@@ -257,13 +258,6 @@ class ValidatePassportTestCase(TransactionTestCase):
         # This is to catch errors like the one where the user id is the same as the account id, and
         # we query the account id by the user id
         self.user = User.objects.create_user(username="admin", password="12345")
-
-        account = web3.eth.account.from_mnemonic(
-            my_mnemonic, account_path="m/44'/60'/0'/0/0"
-        )
-        account_2 = web3.eth.account.from_mnemonic(
-            my_mnemonic, account_path="m/44'/60'/0'/0/0"
-        )
 
         self.account = account
         self.account_2 = account_2
@@ -742,6 +736,66 @@ class ValidatePassportTestCase(TransactionTestCase):
         all_passports = list(Passport.objects.all())
         self.assertEqual(len(all_passports), 1)
 
+        self.assertEqual(
+            all_passports[0].stamps.all()[0].credential,
+            mock_passport_with_corrupted_stamp["stamps"][0]["credential"],
+        )
+
+        self.assertEqual(all_passports[0].address, self.account.address.lower())
+        self.assertEqual(len(all_passports[0].stamps.all()), 2)
+        stamp_ens = Stamp.objects.get(provider="Ens")
+        stamp_google = Stamp.objects.get(provider="Google")
+
+        self.assertEqual(stamp_ens.credential, ens_credential)
+        self.assertEqual(stamp_google.credential, google_credential)
+        self.assertEqual(
+            stamp_ens.provider, ens_credential["credentialSubject"]["provider"]
+        )
+        self.assertEqual(
+            stamp_google.provider, google_credential["credentialSubject"]["provider"]
+        )
+
+    @patch(
+        "registry.utils.verify_credential",  # This is the didkit.verify_credential
+        side_effect=[
+            '{"errors": []}',
+            '{"errors": []}',
+            ValueError("verify_credential failed"),
+        ],
+        new_callable=AsyncMock,
+    )
+    @patch(
+        "registry.atasks.aget_passport",
+        return_value=mock_passport_with_corrupted_stamp,
+    )
+    def test_submit_passport_when_didkit_verify_credential_throws(
+        self, aget_passport, validate_credential
+    ):
+        """
+        Verify that stamps which do not pass the didkit validation are ignored and not stored in the DB
+        """
+
+        payload = {
+            "community": self.community.id,
+            "address": self.account.address,
+            "signature": self.signed_message.signature.hex(),
+            "nonce": self.nonce,
+        }
+
+        response = self.client.post(
+            f"{self.base_url}/submit-passport",
+            json.dumps(payload),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+        self.assertEqual(response.status_code, 200)
+
+        # Check if the passport data was saved to the database (data that we mock)
+        all_passports = list(Passport.objects.all())
+        self.assertEqual(len(all_passports), 1)
+
+        print(">>> all_passports", all_passports)
+        print(">>> all_passports", list(all_passports[0].stamps.all()))
         self.assertEqual(
             all_passports[0].stamps.all()[0].credential,
             mock_passport_with_corrupted_stamp["stamps"][0]["credential"],
