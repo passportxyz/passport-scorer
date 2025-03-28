@@ -1,16 +1,16 @@
-import { testRequest } from '../utils/testRequest';
-import { PassportUIUser } from '../users';
-import { DID } from 'dids';
-import { createSignedPayload } from '../utils/dids';
-import { generateEVMProviders } from '../generate';
-import { Wallet } from 'ethers';
+import { testRequest } from "../utils/testRequest";
+import { PassportUIUser } from "../users";
+import { DID } from "dids";
+import { createSignedPayload } from "../utils/dids";
+import { generateEVMProviders } from "../generate";
+import { Wallet } from "ethers";
 
 const { IAM_BASE_URL } = process.env;
 
-const version = '0.0.0';
-const url = (subpath: string) => IAM_BASE_URL + '/api/v' + version + '/' + subpath;
+const version = "0.0.0";
+const url = (subpath: string) => IAM_BASE_URL + "/api/v" + version + "/" + subpath;
 
-describe('IAM (Simple)', () => {
+describe("IAM (Simple)", () => {
   let address: string;
   let did: DID;
 
@@ -18,19 +18,19 @@ describe('IAM (Simple)', () => {
     ({ did, address } = await PassportUIUser.get());
   });
 
-  it('POST /verify (also tests POST /challenge)', async () => {
-    const type = 'Simple';
+  it("POST /verify (also tests POST /challenge)", async () => {
+    const type = "Simple";
 
     const challengeResponse = await testRequest<{
       credential?: { credentialSubject?: { challenge?: unknown } };
     }>({
       url: url(`challenge`),
-      method: 'POST',
+      method: "POST",
       payload: {
         payload: {
           address,
           type,
-          signatureType: 'EIP712',
+          signatureType: "EIP712",
         },
       },
     });
@@ -46,7 +46,7 @@ describe('IAM (Simple)', () => {
 
     const verifyResponse = await testRequest({
       url: url(`verify`),
-      method: 'POST',
+      method: "POST",
       payload: {
         challenge,
         signedChallenge,
@@ -54,12 +54,12 @@ describe('IAM (Simple)', () => {
           address,
           type,
           types: [type],
-          signatureType: 'EIP712',
+          signatureType: "EIP712",
           version,
           proofs: {
-            valid: 'true',
-            username: 'test',
-            signature: 'pass',
+            valid: "true",
+            username: "test",
+            signature: "pass",
           },
         },
       },
@@ -81,14 +81,14 @@ describe('IAM (Simple)', () => {
     });
   });
 
-  it('POST /check', async () => {
+  it("POST /check", async () => {
     const response = await testRequest<{ valid?: boolean; code?: number }[]>({
       url: url(`check`),
-      method: 'POST',
+      method: "POST",
       payload: {
         payload: {
           address,
-          type: 'EVMBulkVerify',
+          type: "EVMBulkVerify",
           types: generateEVMProviders(3),
           version,
         },
@@ -102,21 +102,21 @@ describe('IAM (Simple)', () => {
     response.data.forEach(({ valid, code }) => expect(valid || code === 403).toBeTruthy());
   });
 
-  it('GET /health', async () => {
+  it("GET /health", async () => {
     const response = await testRequest({
-      url: IAM_BASE_URL + '/health',
-      method: 'GET',
+      url: IAM_BASE_URL + "/health",
+      method: "GET",
     });
 
     expect(response).toHaveStatus(200);
     expect(response.data).toMatchObject({
-      message: 'Ok',
+      message: "Ok",
       date: expect.any(String),
     });
   });
 });
 
-describe('IAM (NFT)', () => {
+describe("IAM (NFT)", () => {
   let address: string;
   let did: DID;
 
@@ -126,19 +126,19 @@ describe('IAM (NFT)', () => {
     ({ did, address } = await PassportUIUser.createFromWallet(wallet));
   });
 
-  it('POST /eas/passport', async () => {
-    const type = 'NFT';
+  it("POST /eas/passport", async () => {
+    const type = "NFT";
 
     const challengeResponse = await testRequest<{
       credential?: { credentialSubject?: { challenge?: unknown } };
     }>({
       url: url(`challenge`),
-      method: 'POST',
+      method: "POST",
       payload: {
         payload: {
           address,
           type,
-          signatureType: 'EIP712',
+          signatureType: "EIP712",
         },
       },
     });
@@ -154,7 +154,7 @@ describe('IAM (NFT)', () => {
 
     const verifyResponse = await testRequest<{ credential: unknown }[]>({
       url: url(`verify`),
-      method: 'POST',
+      method: "POST",
       payload: {
         challenge,
         signedChallenge,
@@ -162,12 +162,12 @@ describe('IAM (NFT)', () => {
           address,
           type,
           types: [type],
-          signatureType: 'EIP712',
+          signatureType: "EIP712",
           version,
           proofs: {
-            valid: 'true',
-            username: 'test',
-            signature: 'pass',
+            valid: "true",
+            username: "test",
+            signature: "pass",
           },
         },
       },
@@ -190,13 +190,13 @@ describe('IAM (NFT)', () => {
 
     expect(credential).toBeDefined();
 
-    const nonce = '123';
+    const nonce = "123";
 
     const createAttestationResponse = await testRequest({
       url: url(`eas/score`),
-      method: 'POST',
+      method: "POST",
       payload: {
-        chainIdHex: '0xa',
+        chainIdHex: "0xa",
         nonce,
         recipient: address,
         credentials: [credential],

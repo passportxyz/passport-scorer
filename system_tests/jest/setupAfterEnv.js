@@ -8,8 +8,7 @@ expect.extend({
 
     if (pass) {
       return {
-        message: () =>
-          `expected status \x1b[32m${status}\x1b[0m to match \x1b[32m${expectedCode}\x1b[0m. `,
+        message: () => `expected status \x1b[32m${status}\x1b[0m to match \x1b[32m${expectedCode}\x1b[0m. `,
         pass: true,
       };
     } else {

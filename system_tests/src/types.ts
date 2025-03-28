@@ -1,5 +1,5 @@
-import type { AxiosResponse } from 'axios';
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+import type { AxiosResponse } from "axios";
+export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
 export interface AuthStrategy {
   name: string;
@@ -18,6 +18,6 @@ export interface TestRequestOptions extends TestRequestOptionsNoAuth {
   authStrategy?: AuthStrategy;
 }
 
-export interface TestResponse<T = any> extends Omit<AxiosResponse<T>, 'config'> {
+export interface TestResponse<T = any> extends Omit<AxiosResponse<T>, "config"> {
   requestOptions: TestRequestOptionsNoAuth;
 }

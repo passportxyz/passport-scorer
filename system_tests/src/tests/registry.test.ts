@@ -1,12 +1,12 @@
-import { HeaderKeyAuth } from '../auth/strategies';
-import { AuthStrategy } from '../types';
-import { testRequest } from '../utils/testRequest';
-import { generatePassportAddress } from '../generate';
-import { RegistryAPIUser } from '../users';
+import { HeaderKeyAuth } from "../auth/strategies";
+import { AuthStrategy } from "../types";
+import { testRequest } from "../utils/testRequest";
+import { generatePassportAddress } from "../generate";
+import { RegistryAPIUser } from "../users";
 
-const url = (subpath: string) => process.env.SCORER_API_BASE_URL + '/registry/' + subpath;
+const url = (subpath: string) => process.env.SCORER_API_BASE_URL + "/registry/" + subpath;
 
-describe('Registry API', () => {
+describe("Registry API", () => {
   let authStrategy: AuthStrategy;
   let address: string;
   let scorerId: string;
@@ -15,15 +15,15 @@ describe('Registry API', () => {
     const registryAPIUser = await RegistryAPIUser.get();
     scorerId = registryAPIUser.scorerId;
 
-    authStrategy = new HeaderKeyAuth({ key: registryAPIUser.apiKey, header: 'X-API-Key' });
+    authStrategy = new HeaderKeyAuth({ key: registryAPIUser.apiKey, header: "X-API-Key" });
     address = generatePassportAddress();
   });
 
-  describe('Submit Passport and Get Score', () => {
-    it('POST /submit-passport', async () => {
+  describe("Submit Passport and Get Score", () => {
+    it("POST /submit-passport", async () => {
       const submitResponse = await testRequest({
-        url: url('submit-passport'),
-        method: 'POST',
+        url: url("submit-passport"),
+        method: "POST",
         authStrategy,
         payload: {
           address,
@@ -34,28 +34,28 @@ describe('Registry API', () => {
       expect(submitResponse).toHaveStatus(200);
       expect(submitResponse.data).toMatchObject({
         address: expect.any(String),
-        status: 'DONE',
+        status: "DONE",
       });
     });
 
-    it('GET /score/{scorerId}/{address}', async () => {
+    it("GET /score/{scorerId}/{address}", async () => {
       const getScoreResponse = await testRequest({
         url: url(`score/${scorerId}/${address}`),
-        method: 'GET',
+        method: "GET",
         authStrategy,
       });
 
       expect(getScoreResponse).toHaveStatus(200);
       expect(getScoreResponse.data).toMatchObject({
         address: expect.any(String),
-        status: 'DONE',
+        status: "DONE",
       });
     });
 
-    it('GET /score/{scorerId}', async () => {
+    it("GET /score/{scorerId}", async () => {
       const getScoresResponse = await testRequest<{ items?: unknown[] }>({
         url: url(`score/${scorerId}`),
-        method: 'GET',
+        method: "GET",
         authStrategy,
         payload: {
           limit: 10,
@@ -69,16 +69,16 @@ describe('Registry API', () => {
       if (getScoresResponse.data.items!.length) {
         expect(getScoresResponse.data.items![0]).toMatchObject({
           address: expect.any(String),
-          status: 'DONE',
+          status: "DONE",
         });
       }
     });
   });
 
-  it('GET /signing-message', async () => {
+  it("GET /signing-message", async () => {
     const response = await testRequest({
-      url: url('signing-message'),
-      method: 'GET',
+      url: url("signing-message"),
+      method: "GET",
       authStrategy,
     });
 
@@ -89,10 +89,10 @@ describe('Registry API', () => {
     });
   });
 
-  it('GET /stamps/{address}', async () => {
+  it("GET /stamps/{address}", async () => {
     const response = await testRequest({
       url: url(`stamps/${address}`),
-      method: 'GET',
+      method: "GET",
       authStrategy,
     });
 
@@ -108,10 +108,10 @@ describe('Registry API', () => {
   });
 
   // Test for /stamps/{address} with metadata
-  it('GET /stamps/{address}?include_metadata=true', async () => {
+  it("GET /stamps/{address}?include_metadata=true", async () => {
     const response = await testRequest({
       url: url(`stamps/${address}?include_metadata=true`),
-      method: 'GET',
+      method: "GET",
       authStrategy,
     });
 
@@ -136,10 +136,10 @@ describe('Registry API', () => {
     });
   });
 
-  it('GET /stamp-metadata', async () => {
+  it("GET /stamp-metadata", async () => {
     const response = await testRequest<unknown[]>({
-      url: url('stamp-metadata'),
-      method: 'GET',
+      url: url("stamp-metadata"),
+      method: "GET",
       authStrategy,
     });
 
@@ -166,11 +166,11 @@ describe('Registry API', () => {
     });
   });
 
-  it('GET /gtc-stake/{address}/{roundId}', async () => {
+  it("GET /gtc-stake/{address}/{roundId}", async () => {
     const roundId = 1;
     const response = await testRequest({
       url: url(`gtc-stake/${address}/${roundId}`),
-      method: 'GET',
+      method: "GET",
     });
 
     expect(response).toHaveStatus(200);

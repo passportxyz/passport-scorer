@@ -1,7 +1,7 @@
-import { PassportUIUser } from './PassportUIUser';
-import { RegistryAPIUser } from './RegistryAPIUser';
-import { BaseUser } from './User';
-import { Signer } from 'ethers';
+import { PassportUIUser } from "./PassportUIUser";
+import { RegistryAPIUser } from "./RegistryAPIUser";
+import { BaseUser } from "./User";
+import { Signer } from "ethers";
 
 export class EmbedUser extends BaseUser {
   declare apiKey: string;

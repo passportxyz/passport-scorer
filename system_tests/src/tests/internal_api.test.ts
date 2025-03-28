@@ -1,11 +1,11 @@
-import { HeaderKeyAuth } from '../auth/strategies';
-import { AuthStrategy } from '../types';
-import { testRequest } from '../utils/testRequest';
-import { InternalAPIUser, PassportUIUser } from '../users';
+import { HeaderKeyAuth } from "../auth/strategies";
+import { AuthStrategy } from "../types";
+import { testRequest } from "../utils/testRequest";
+import { InternalAPIUser, PassportUIUser } from "../users";
 
-const url = (subpath: string) => process.env.SCORER_API_BASE_URL + '/internal/' + subpath;
+const url = (subpath: string) => process.env.SCORER_API_BASE_URL + "/internal/" + subpath;
 
-describe('Internal Requests', () => {
+describe("Internal Requests", () => {
   let authStrategy: AuthStrategy;
 
   let address: string;
@@ -20,10 +20,10 @@ describe('Internal Requests', () => {
     address = uiUser.address;
   });
 
-  it('GET /score/{scorer_id}/{address}', async () => {
+  it("GET /score/{scorer_id}/{address}", async () => {
     const response = await testRequest({
       url: url(`score/v2/${scorerId}/${address}`),
-      method: 'GET',
+      method: "GET",
       authStrategy,
     });
 

@@ -1,4 +1,4 @@
-import { BaseUser } from './User';
+import { BaseUser } from "./User";
 
 export class RegistryAPIUser extends BaseUser {
   declare apiKey: string;

@@ -1,4 +1,4 @@
-import { AuthStrategy, TestRequestOptionsNoAuth } from '../../types';
+import { AuthStrategy, TestRequestOptionsNoAuth } from "../../types";
 
 type AuthStrategyOptions = {
   name: string;

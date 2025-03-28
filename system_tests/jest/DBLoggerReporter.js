@@ -1,4 +1,4 @@
-const { Pool } = require('pg');
+const { Pool } = require("pg");
 
 class SystemTestResultWriter {
   constructor(connectionString, useSSL) {
@@ -13,13 +13,13 @@ class SystemTestResultWriter {
   async query() {
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
       const result = await client.query(...arguments);
-      await client.query('COMMIT');
+      await client.query("COMMIT");
       return result;
     } catch (error) {
-      console.error('Error executing query:', error);
-      await client.query('ROLLBACK');
+      console.error("Error executing query:", error);
+      await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
@@ -28,10 +28,9 @@ class SystemTestResultWriter {
 
   async createOrGetTestRunId(timestamp) {
     if (this._runId === undefined) {
-      const result = await this.query(
-        'INSERT INTO passport_admin_systemtestrun (timestamp) VALUES($1) RETURNING id',
-        [timestamp]
-      );
+      const result = await this.query("INSERT INTO passport_admin_systemtestrun (timestamp) VALUES($1) RETURNING id", [
+        timestamp,
+      ]);
       this._runId = result.rows[0].id;
     }
     return this._runId;
@@ -49,7 +48,7 @@ class SystemTestResultWriter {
     const values = [
       testResult.testName,
       JSON.stringify(testResult.category), // Convert array to JSON
-      testResult.status === 'passed', // Convert to boolean
+      testResult.status === "passed", // Convert to boolean
       testResult.error || null, // Handle undefined
       testResult.timestamp,
       runId,
@@ -63,16 +62,12 @@ class SystemTestResultWriter {
   }
 }
 
-const TERMINAL_COLOR_CODE_REGEX =
-  /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
+const TERMINAL_COLOR_CODE_REGEX = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
 
 class DBLoggerReporter {
   getWriter() {
     if (!this.writer) {
-      this.writer = new SystemTestResultWriter(
-        process.env.DATABASE_URL,
-        process.env.DATABASE_USE_SSL === 'true'
-      );
+      this.writer = new SystemTestResultWriter(process.env.DATABASE_URL, process.env.DATABASE_USE_SSL === "true");
     }
     return this.writer;
   }
@@ -86,7 +81,7 @@ class DBLoggerReporter {
         category: ancestorTitles,
         testName: title,
         status,
-        error: failureMessages.join('\n').replace(TERMINAL_COLOR_CODE_REGEX, '') || null,
+        error: failureMessages.join("\n").replace(TERMINAL_COLOR_CODE_REGEX, "") || null,
         timestamp: new Date(),
       });
     }
