@@ -1,5 +1,5 @@
-import axios, { AxiosRequestConfig } from 'axios';
-import { TestRequestOptions, TestRequestOptionsNoAuth, TestResponse } from '../types';
+import axios, { AxiosRequestConfig } from "axios";
+import { TestRequestOptions, TestRequestOptionsNoAuth, TestResponse } from "../types";
 
 /**
  * Makes an HTTP request with optional authentication and returns the response
@@ -25,7 +25,7 @@ export async function testRequest<T>(options: TestRequestOptions): Promise<TestR
       } catch (authError) {
         throw new Error(
           `Authentication failed for ${options.url} (${options.method}): ${
-            authError instanceof Error ? authError.message : 'Unknown error'
+            authError instanceof Error ? authError.message : "Unknown error"
           }`
         );
       }
@@ -38,12 +38,12 @@ export async function testRequest<T>(options: TestRequestOptions): Promise<TestR
       headers: requestOptions.headers,
       // Only include data if it exists and method is not GET
       ...(requestOptions.payload &&
-        requestOptions.method !== 'GET' && {
+        requestOptions.method !== "GET" && {
           data: requestOptions.payload,
         }),
       // For GET requests, convert payload to query parameters
       ...(requestOptions.payload &&
-        requestOptions.method === 'GET' && {
+        requestOptions.method === "GET" && {
           params: requestOptions.payload,
         }),
       validateStatus: () => true, // Don't throw on any status code
@@ -83,8 +83,8 @@ const normalizeHeaders = (headers: Record<string, string> = {}): Record<string, 
   });
 
   // Ensure content-type is set for requests with payloads
-  if (!normalized['content-type']) {
-    normalized['content-type'] = 'application/json';
+  if (!normalized["content-type"]) {
+    normalized["content-type"] = "application/json";
   }
 
   return normalized;

@@ -1,4 +1,4 @@
-import { BaseUser } from './User';
+import { BaseUser } from "./User";
 
 export class InternalAPIUser extends BaseUser {
   declare apiSecret: string;
