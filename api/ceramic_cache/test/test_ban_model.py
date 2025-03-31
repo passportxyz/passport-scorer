@@ -51,7 +51,7 @@ class TestBanModel:
                 CeramicCache.objects.create(
                     address=sample_address,
                     provider=provider,
-                    proof_value=f"proof{i+1}",
+                    proof_value=f"proof{i + 1}",
                     stamp={"credentialSubject": {"hash": hash, "provider": provider}},
                 )
             )

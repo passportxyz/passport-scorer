@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("registry", "0004_alter_stamp_unique_together_remove_stamp_community"),
     ]

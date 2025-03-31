@@ -2,14 +2,14 @@
 
 import re
 
-import account.models
 import django.core.validators
 import django.db.models.deletion
 from django.db import migrations, models
 
+import account.models
+
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = []

@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("registry", "0022_stamp_points_squashed_0024_alter_score_points"),
     ]

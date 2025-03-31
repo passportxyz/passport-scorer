@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ceramic_cache", "0004_rename_mark_as_deleted_ceramiccache_deleted_at"),
     ]

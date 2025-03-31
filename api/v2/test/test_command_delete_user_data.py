@@ -103,9 +103,9 @@ def test_delete_user_data_dry_run(passport_holder_addresses, user_data, capsys):
         for match in re.finditer(regex_pattern, captured.out, re.MULTILINE)
     ]
 
-    assert (
-        unexpected_objects_to_delete == []
-    ), " apparently more objects are checked for deletion than we expect ..."
+    assert unexpected_objects_to_delete == [], (
+        " apparently more objects are checked for deletion than we expect ..."
+    )
 
     # Check that passport objects have NOT been deleted
     assert Passport.objects.all().count() == 1
@@ -168,9 +168,9 @@ def test_delete_user_data_exec(passport_holder_addresses, user_data, capsys):
             for match in re.finditer(regex_pattern, captured.out, re.MULTILINE)
         ]
 
-        assert (
-            unexpected_objects_to_delete == []
-        ), " apparently more objects are deleted than we expect ..."
+        assert unexpected_objects_to_delete == [], (
+            " apparently more objects are deleted than we expect ..."
+        )
 
         # Check that passport objects have indeed been deleted
         assert Passport.objects.all().count() == 0

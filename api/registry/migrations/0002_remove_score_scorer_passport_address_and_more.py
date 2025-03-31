@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("account", "0002_alter_community_scorer"),
         ("registry", "0001_initial"),

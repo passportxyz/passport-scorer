@@ -1,16 +1,18 @@
 """Create API keys feature tests."""
+
 import json
 
 import pytest
-from account.models import AccountAPIKey, Nonce
-from account.test.test_api_key import mock_api_key_body
 from django.test import Client
 from eth_account.messages import encode_defunct
 from ninja_jwt.schema import RefreshToken
 from pytest_bdd import given, scenario, then, when
+from web3 import Web3
+
+from account.models import AccountAPIKey, Nonce
+from account.test.test_api_key import mock_api_key_body
 from registry.test.test_passport_submission import mock_passport
 from registry.utils import get_signing_message
-from web3 import Web3
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()

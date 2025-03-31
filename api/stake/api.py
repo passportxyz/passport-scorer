@@ -10,6 +10,7 @@ from stake.schema import StakeResponse, StakeSchema
 
 log = logging.getLogger(__name__)
 
+
 # Endpoint for this defined in internal module
 def handle_get_gtc_stake(address: str) -> StakeResponse:
     if not is_valid_address(address):
