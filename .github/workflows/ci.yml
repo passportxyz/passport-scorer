@@ -65,6 +65,18 @@ jobs:
           SECRET_KEY: secret-test-value
         run: python manage.py check
 
+      - name: Python Linter Check
+        working-directory: ./api
+        run: ruff check
+
+      - name: JS / TS Linter Check System Tests
+        working-directory: ./system-tests
+        run: yarn lint
+
+      - name: JS / TS Linter Check Infra
+        working-directory: ./infra
+        run: yarn lint
+
       - name: Run API unittests
         working-directory: ./api
         run: pytest
