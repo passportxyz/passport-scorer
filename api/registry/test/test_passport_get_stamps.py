@@ -1,13 +1,14 @@
 from unittest.mock import patch
 
 import pytest
-from ceramic_cache.models import CeramicCache
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import Client
-from registry.api.v1 import fetch_stamp_metadata_for_provider
 from web3 import Web3
+
+from ceramic_cache.models import CeramicCache
+from registry.api.v1 import fetch_stamp_metadata_for_provider
 
 User = get_user_model()
 web3 = Web3()

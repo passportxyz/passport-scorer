@@ -1,7 +1,9 @@
-from django.core.management.base import BaseCommand
-from registry.models import Event
-import random
 import datetime
+import random
+
+from django.core.management.base import BaseCommand
+
+from registry.models import Event
 
 
 class Command(BaseCommand):

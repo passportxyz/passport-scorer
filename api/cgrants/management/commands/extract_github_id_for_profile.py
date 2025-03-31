@@ -1,7 +1,8 @@
-from cgrants.models import Profile
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 from tqdm import tqdm
+
+from cgrants.models import Profile
 
 
 class Command(BaseCommand):

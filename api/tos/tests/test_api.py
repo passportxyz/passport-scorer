@@ -5,6 +5,7 @@ from django.conf import settings
 from django.test import Client
 from eth_account.account import Account
 from eth_account.messages import encode_defunct
+
 from tos.models import Tos, TosAcceptanceProof
 
 pytestmark = pytest.mark.django_db

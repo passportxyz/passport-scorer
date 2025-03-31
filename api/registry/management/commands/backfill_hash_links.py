@@ -1,8 +1,9 @@
-from tqdm import tqdm
 from datetime import datetime, timezone
 
 from django.core.management.base import BaseCommand
-from registry.models import Stamp, HashScorerLink
+from tqdm import tqdm
+
+from registry.models import HashScorerLink, Stamp
 
 
 class Command(BaseCommand):

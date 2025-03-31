@@ -1,10 +1,11 @@
 import pytest
 from django.conf import settings
+from django.db.utils import IntegrityError
 from eth_account.account import Account
 from eth_account.messages import encode_defunct
-from tos.models import Tos, TosAcceptanceProof
 from web3 import Web3
-from django.db.utils import IntegrityError
+
+from tos.models import Tos, TosAcceptanceProof
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()

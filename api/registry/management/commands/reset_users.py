@@ -1,6 +1,7 @@
+from django.core.management.base import BaseCommand
+
 from account.models import Community
 from ceramic_cache.models import CeramicCache
-from django.core.management.base import BaseCommand
 from registry.models import Passport, Score, Stamp
 from registry.utils import get_utc_time
 

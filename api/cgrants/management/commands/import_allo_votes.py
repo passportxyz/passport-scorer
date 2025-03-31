@@ -2,12 +2,13 @@ import itertools
 import json
 from urllib.parse import urlparse
 
-from cgrants.management.commands.utils import batch_iterator, stream_object_from_s3_uri
-from cgrants.models import ProtocolContributions
 from django import contrib
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from tqdm import tqdm
+
+from cgrants.management.commands.utils import batch_iterator, stream_object_from_s3_uri
+from cgrants.models import ProtocolContributions
 
 
 class Command(BaseCommand):

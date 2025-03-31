@@ -1,6 +1,8 @@
 import random
 
 import pytest
+from faker import Faker
+
 from cgrants.models import (
     Contribution,
     Grant,
@@ -9,7 +11,6 @@ from cgrants.models import (
     ProtocolContributions,
     Subscription,
 )
-from faker import Faker
 
 pytestmark = pytest.mark.django_db
 

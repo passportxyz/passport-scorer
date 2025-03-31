@@ -1,8 +1,9 @@
+from django import forms
 from django.contrib import admin
+from django_ace import AceWidget
+
 from scorer.scorer_admin import ScorerModelAdmin
 from scorer_weighted.models import BinaryWeightedScorer, RescoreRequest, WeightedScorer
-from django_ace import AceWidget
-from django import forms
 
 json_widget = AceWidget(
     mode="json",
