@@ -39,6 +39,7 @@ jobs:
       refspec: ${{ steps.ref.outputs.refspec }}
 
   deploy-app:
+    # TODO (#106): Remove this job once the interface is fully migrated to S3
     needs: [ui-test]
     runs-on: ubuntu-latest
     permissions:
@@ -55,3 +56,12 @@ jobs:
           commit: ${{ needs.ui-test.outputs.refspec }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           branch: review-interface
+
+  deploy-ui-s3:
+    name: Deploy UI to Review - Push to S3
+    needs: [ui-test]
+    uses: ./.github/workflows/sync_to_s3_generic_app.yml
+    secrets: inherit
+    with:
+      refspec: ${{ needs.ref.outputs.refspec }}
+      environment: review
