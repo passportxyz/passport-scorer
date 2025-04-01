@@ -70,7 +70,7 @@ jobs:
         run: ruff check
 
       - name: JS / TS Linter Check System Tests
-        working-directory: ./system-tests
+        working-directory: ./system_tests
         run: yarn lint
 
       - name: JS / TS Linter Check Infra
