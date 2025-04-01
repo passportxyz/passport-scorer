@@ -24,6 +24,10 @@ describe("Frontends", () => {
       url: `https://stake.${DOMAIN}/`,
       method: "GET",
     });
+
+
+
+
     expect(response).toHaveStatus(200);
   });
 });
