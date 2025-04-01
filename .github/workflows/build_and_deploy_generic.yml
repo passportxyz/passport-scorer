@@ -29,11 +29,11 @@ jobs:
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           CLOUDFLARE_API_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
-          AWS_ACCESS_KEY_ID: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
+          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Set AWS_SESSION_TOKEN if needed
         if: inputs.environment == 'production'
-        run: echo "AWS_SESSION_TOKEN=$(op read op://DevOps/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
+        run: echo "AWS_SESSION_TOKEN=$(op read op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
       - id: build_and_push_docker_image
         uses: passportxyz/gh-workflows/.github/actions/build_and_push@v1
         with:
@@ -57,11 +57,11 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
+          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Set AWS_SESSION_TOKEN if needed
         if: inputs.environment == 'production'
-        run: echo "AWS_SESSION_TOKEN=$(op read op://DevOps/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
+        run: echo "AWS_SESSION_TOKEN=$(op read op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
       - id: build_and_push_docker_image
         uses: passportxyz/gh-workflows/.github/actions/build_and_push@v1
         with:
@@ -85,11 +85,11 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
+          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Set AWS_SESSION_TOKEN if needed
         if: inputs.environment == 'production'
-        run: echo "AWS_SESSION_TOKEN=$(op read op://DevOps/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
+        run: echo "AWS_SESSION_TOKEN=$(op read op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
       - id: build_and_push_docker_image
         uses: passportxyz/gh-workflows/.github/actions/build_and_push@v1
         with:
@@ -113,11 +113,11 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
+          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Set AWS_SESSION_TOKEN if needed
         if: inputs.environment == 'production'
-        run: echo "AWS_SESSION_TOKEN=$(op read op://DevOps/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
+        run: echo "AWS_SESSION_TOKEN=$(op read op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
       - id: build_and_push_docker_image
         uses: passportxyz/gh-workflows/.github/actions/build_and_push@v1
         with:
@@ -153,11 +153,11 @@ jobs:
           export-env: true
         env:
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
-          AWS_ACCESS_KEY_ID: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
+          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Set AWS_SESSION_TOKEN if needed
         if: inputs.environment == 'production'
-        run: echo "AWS_SESSION_TOKEN=$(op read op://DevOps/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
+        run: echo "AWS_SESSION_TOKEN=$(op read op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v1
 
@@ -229,11 +229,11 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
           CLOUDFLARE_API_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
-          AWS_ACCESS_KEY_ID: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
+          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Set AWS_SESSION_TOKEN if needed
         if: inputs.environment == 'production'
-        run: echo "AWS_SESSION_TOKEN=$(op read op://DevOps/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
+        run: echo "AWS_SESSION_TOKEN=$(op read op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v1
       - name: Deploy Preview
@@ -302,11 +302,11 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
           CLOUDFLARE_API_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
-          AWS_ACCESS_KEY_ID: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
+          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Set AWS_SESSION_TOKEN if needed
         if: inputs.environment == 'production'
-        run: echo "AWS_SESSION_TOKEN=$(op read op://DevOps/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
+        run: echo "AWS_SESSION_TOKEN=$(op read op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v1
       - name: Deploy Review
