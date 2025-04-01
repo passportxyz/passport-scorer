@@ -28,11 +28,10 @@ jobs:
         with:
           ref: ${{ inputs.refspec }}
 
-      - name: Set up Node.js, version 20.9.0
-        uses: actions/setup-node@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v3
         with:
-          node-version: 20.9.0
-          cache: "yarn"
+          node-version: 22.14.0
 
       - name: Load secret
         id: op-load-secret
