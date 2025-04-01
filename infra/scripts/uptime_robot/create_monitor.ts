@@ -27,14 +27,8 @@ commands.push({
 });
 
 const NON_GET_OPTIONS = [
-  new Option(
-    "-d, --data <string>",
-    "JSON string data (body), by default turns into POST request"
-  ),
-  new Option(
-    "-m, --method <PATCH|...>",
-    "HTTP method (default GET, or POST if -d is provided)"
-  ),
+  new Option("-d, --data <string>", "JSON string data (body), by default turns into POST request"),
+  new Option("-m, --method <PATCH|...>", "HTTP method (default GET, or POST if -d is provided)"),
 ];
 
 function getHttpMethod<T extends NonGetMonitorOptions>(options: T) {
@@ -49,8 +43,7 @@ function getHttpMethod<T extends NonGetMonitorOptions>(options: T) {
 commands.push({
   name: "api_key_auth",
   summary: "Create a new monitor for an endpoint with API key auth",
-  description:
-    "Create a new monitor for an endpoint with API key auth (defaults to GET request)",
+  description: "Create a new monitor for an endpoint with API key auth (defaults to GET request)",
   additionalOptions: [
     new Option(
       "-k, --scorer-api-key <string>",
@@ -76,8 +69,7 @@ commands.push({
 commands.push({
   name: "token_auth",
   summary: "Create a new monitor for an endpoint with JWT token auth",
-  description:
-    "Create a new monitor for an endpoint with JWT token auth (defaults to GET request)",
+  description: "Create a new monitor for an endpoint with JWT token auth (defaults to GET request)",
   additionalOptions: [
     new Option(
       "-j, --jwt-token <string>",

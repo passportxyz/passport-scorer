@@ -80,10 +80,7 @@ export function createEmbedLambdaGeneric(config: {
       runtime: aws.lambda.Runtime.Python3d12,
       environment: {
         variables: apiLambdaEnvironment.reduce(
-          (
-            acc: { [key: string]: pulumi.Input<string> },
-            e: { name: string; value: pulumi.Input<string> }
-          ) => {
+          (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
             acc[e.name] = e.value;
             return acc;
           },
