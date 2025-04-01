@@ -32,9 +32,11 @@ repos:
     hooks:
       - id: lint system_tests
         name: lint system_tests
-        entry: cd system_tests && yarn lint
+        entry: .hooks/lint_system_tests.sh
         language: system
-        types: [javascript, ts]
+        types_or:
+          - ts
+          - javascript
 
   - repo: local
     hooks:

@@ -25,9 +25,6 @@ describe("Frontends", () => {
       method: "GET",
     });
 
-
-
-
     expect(response).toHaveStatus(200);
   });
 });
