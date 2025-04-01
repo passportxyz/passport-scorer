@@ -37,6 +37,18 @@ repos:
         types_or:
           - ts
           - javascript
+          - json
+
+  - repo: local
+    hooks:
+      - id: lint infra
+        name: lint infra
+        entry: .hooks/lint_infra.sh
+        language: system
+        types_or:
+          - ts
+          - javascript
+          - json
 
   - repo: local
     hooks:
