@@ -86,13 +86,15 @@ jobs:
           echo "CLOUDFRONT_ID=$CLOUDFRONT_ID" >> $GITHUB_ENV
 
       - name: Install Dependencies
-        working-directory: .
+        working-directory: interface
         run: yarn install --frozen-lockfile
 
       - name: Run Tests
+        working-directory: interface
         run: yarn test
 
       - name: Run Linter
+        working-directory: interface
         run: yarn lint
 
       - name: Build Application
@@ -108,7 +110,7 @@ jobs:
           aws-region: us-west-2
 
       - name: Sync Files to S3
-        working-directory: app
+        working-directory: interface
         run: |
           if [ -d "out" ]; then
               aws s3 sync ./out s3://${{ env.BUCKET_NAME }} --delete
