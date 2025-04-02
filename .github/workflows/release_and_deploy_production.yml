@@ -89,6 +89,7 @@ jobs:
     secrets: inherit
 
   deploy-interface-to-production:
+    # TODO (#106): remove this after deploy to S3 is final
     name: Push code to branch
     needs: [ref, deploy-production]
     permissions:
@@ -106,6 +107,15 @@ jobs:
           commit: ${{ needs.ref.outputs.refspec }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           branch: production-interface
+
+  deploy-interface-to-s3:
+    name: Deploy UI to Review - Push to S3
+    needs: [ref, deploy-production]
+    uses: ./.github/workflows/sync_to_s3_generic_app.yml
+    secrets: inherit
+    with:
+      refspec: ${{ needs.ref.outputs.refspec }}
+      environment: production
 
   release:
     name: Release

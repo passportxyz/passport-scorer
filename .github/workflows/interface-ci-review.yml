@@ -58,7 +58,7 @@ jobs:
           branch: review-interface
 
   deploy-ui-s3:
-    name: Deploy UI to Review - Push to S3
+    name: Deploy UI - Push to S3
     needs: [ui-test]
     uses: ./.github/workflows/sync_to_s3_generic_app.yml
     secrets: inherit
