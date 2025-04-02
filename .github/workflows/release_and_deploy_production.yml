@@ -86,7 +86,7 @@ jobs:
     secrets: inherit
     with:
       refspec: ${{ needs.ref.outputs.refspec }}
-      environment: production
+      environment: staging
 
   deploy-production:
     name: Deploy to Production
