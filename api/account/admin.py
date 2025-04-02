@@ -489,17 +489,17 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         ###################################################################################
         self.manage_revoked_or_expired_waf_rule(
             name="Expired-RevokedKeys",
-            priority=3,
-            file_name="03_revoked_or_expired_waf_rule.json",
+            priority=103,
+            file_name="1003_revoked_or_expired_waf_rule.json",
         )
 
         # [ALLOW] Create rule for the analysis unlimited keys
         ###################################################################################
         self.manage_analysis_unlimited_waf_rule(
             name="Analysis-Unlimited-Label",
-            priority=4,
+            priority=104,
             label="AnalysisUnlimited",
-            file_name="04_analysis_unlimited_label_rule.json",
+            file_name="1004_analysis_unlimited_label_rule.json",
         )
 
         # [BLOCK] Analysis tier 3 keys
@@ -516,9 +516,9 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         self.manage_analyisis_tier_waf_rule(
             api_keys=analysis_tier_3_keys,
             name="Analysis-Tier-3-Label",
-            priority=5,
+            priority=105,
             label="AnalysisTier3",
-            file_name="05_analysis_tier_3_label_rule.json",
+            file_name="1005_analysis_tier_3_label_rule.json",
         )
 
         # [BLOCK] Analysis tier 2 keys
@@ -535,18 +535,18 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         self.manage_analyisis_tier_waf_rule(
             api_keys=analysis_tier_2_keys,
             name="Analysis-Tier-2-Label",
-            priority=7,
+            priority=107,
             label="AnalysisTier2",
-            file_name="07_analysis_tier_2_label_rule.json",
+            file_name="1007_analysis_tier_2_label_rule.json",
         )
 
         # [ALLOW] Create rule for the unlimited keys
         ###################################################################################
         self.manage_unlimited_waf_rule(
             name="UnlimitedKeys",
-            priority=10,
+            priority=1010,
             label="Unlimited",
-            file_name="10_unlimited_label_rule.json",
+            file_name="1010_unlimited_label_rule.json",
         )
 
         # Create rule for the Tier 3 keys
@@ -564,9 +564,9 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         self.manage_tier_waf_rule(
             api_keys=tier_3_api_keys,
             name="Tier-3-Label",
-            priority=11,
+            priority=1011,
             label="Tier3",
-            file_name="11_tier_3_label_rule.json",
+            file_name="1011_tier_3_label_rule.json",
         )
 
         # [BLOCK] Analysis tier 2 keys
@@ -583,9 +583,9 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         self.manage_tier_waf_rule(
             api_keys=tier_2_api_keys,
             name="Tier-2-Label",
-            priority=13,
+            priority=1013,
             label="Tier2",
-            file_name="13_tier_2_label_rule.json",
+            file_name="1013_tier_2_label_rule.json",
         )
 
         self.message_user(
