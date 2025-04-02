@@ -33,10 +33,6 @@ class GetStampResponse(Schema):
     stamps: List[CachedStampResponse]
 
 
-class GetStampsWithScoreResponse(GetStampResponse):
-    score: DetailedScoreResponse
-
-
 class GetStampsWithV2ScoreResponse(GetStampResponse):
     score: V2ScoreResponse
 
