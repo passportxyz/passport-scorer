@@ -40,9 +40,9 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/AWS_SECRET_ACCESS_KEY
           PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
+          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
 
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
@@ -51,6 +51,11 @@ jobs:
         uses: 1password/load-secrets-action/configure@v1
         with:
           service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+
+      - name: Set AWS_SESSION_TOKEN if needed
+        if: inputs.environment == 'production'
+        run: |
+          export AWS_SESSION_TOKEN=$(op get item "github-aws-${{ inputs.environment }}" --vault "DeployerVault" --fields "AWS_SESSION_TOKEN" --output text)
 
       - name: Get envs from 1Pass
         working-directory: .
