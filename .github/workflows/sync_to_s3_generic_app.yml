@@ -40,9 +40,9 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
           AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
+          PULUMI_ACCESS_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/PULUMI_ACCESS_TOKEN
 
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
@@ -74,6 +74,7 @@ jobs:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+          aws-session-token: ${{ env.AWS_SESSION_TOKEN }}
 
       - name: Get Pulumi Stack Outputs From Core Infra
         id: get_pulumi_outputs
@@ -111,7 +112,8 @@ jobs:
         with:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
+          aws-session-token: ${{ env.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Sync Files to S3
         working-directory: interface
