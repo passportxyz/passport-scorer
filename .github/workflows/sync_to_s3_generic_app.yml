@@ -54,8 +54,7 @@ jobs:
 
       - name: Set AWS_SESSION_TOKEN if needed
         if: inputs.environment == 'production'
-        run: |
-          export AWS_SESSION_TOKEN=$(op get item "github-aws-${{ inputs.environment }}" --vault "DeployerVault" --fields "AWS_SESSION_TOKEN" --output text)
+        run: echo "AWS_SESSION_TOKEN=$(op read op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
 
       - name: Get envs from 1Pass
         working-directory: .
