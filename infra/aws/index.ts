@@ -292,10 +292,11 @@ const CERAMIC_CACHE_SCORER_ID = CERAMIC_CACHE_SCORER_ID_CONFG[stack];
 type EcsTaskConfigurationType = {
   memory: number;
   cpu: number;
-  desiredCount: number;
+  desiredCount?: number;
 };
 
 type EcsServiceNameType =
+  | "frequent-eth-model-v2-dump-grants"
   | "scorer-api-default-1"
   | "scorer-api-reg-1"
   | "scorer-api-internal-1";
@@ -303,6 +304,20 @@ const ecsTaskConfigurations: Record<
   EcsServiceNameType,
   Record<StackType, EcsTaskConfigurationType>
 > = {
+  "frequent-eth-model-v2-dump-grants": {
+    review: {
+      memory: 512,
+      cpu: 256,
+    },
+    staging: {
+      memory: 512,
+      cpu: 256,
+    },
+    production: {
+      memory: 4095,
+      cpu: 512,
+    },
+  },
   "scorer-api-default-1": {
     review: {
       memory: 1024,
@@ -1246,6 +1261,8 @@ if (stack === "production") {
           ].join(" "),
           scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
           alertTopic: pagerdutyTopic,
+          cpu: ecsTaskConfigurations["frequent-eth-model-v2-dump-grants"][stack].cpu,
+          memory: ecsTaskConfigurations["frequent-eth-model-v2-dump-grants"][stack].memory,
         },
         environment: apiEnvironment,
         secrets: _apiSecrets,
