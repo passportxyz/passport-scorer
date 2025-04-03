@@ -314,7 +314,7 @@ const ecsTaskConfigurations: Record<
       cpu: 256,
     },
     production: {
-      memory: 4095,
+      memory: 4096,
       cpu: 512,
     },
   },
