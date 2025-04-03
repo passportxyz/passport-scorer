@@ -1,4 +1,5 @@
 from django.contrib import admin
+
 from scorer.scorer_admin import ScorerModelAdmin
 
 from .models import (

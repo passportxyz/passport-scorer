@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("passport_admin", "0001_squashed_0003_remove_passportbanner_name"),
     ]

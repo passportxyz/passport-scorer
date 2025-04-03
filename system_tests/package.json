@@ -7,8 +7,8 @@
   "scripts": {
     "build": "tsc",
     "test": "jest --verbose",
-    "lint": "eslint src/**/*.ts",
-    "format": "prettier --write \"src/**/*.ts\""
+    "lint": "prettier --check .",
+    "prettier": "prettier --write ."
   },
   "dependencies": {
     "@didtools/cacao": "^3.0.1",

@@ -1,12 +1,13 @@
-""" Test file for cgrants address aggregation """
+"""Test file for cgrants address aggregation"""
 
 import pytest
+from django.core.management import call_command
+
 from cgrants.models import Contribution, GrantContributionIndex
 from cgrants.test.conftest import (
     generate_bulk_cgrant_data,
     grant_contribution_indices_no_address,
 )
-from django.core.management import call_command
 
 pytestmark = pytest.mark.django_db
 

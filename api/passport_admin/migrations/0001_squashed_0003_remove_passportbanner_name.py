@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     replaces = [
         ("passport_admin", "0001_initial"),
         ("passport_admin", "0002_rename_description_passportbanner_content_and_more"),

@@ -21,9 +21,9 @@ from account.models import Account, AccountAPIKey, AccountAPIKeyAnalytics
 from registry.api.schema import SubmitPassportPayload
 from registry.atasks import asave_api_key_analytics
 from registry.exceptions import (
+    InvalidAddressException,
     InvalidScorerIdException,
     Unauthorized,
-    InvalidAddressException,
 )
 from registry.tasks import save_api_key_analytics
 

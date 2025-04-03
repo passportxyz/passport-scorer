@@ -76,10 +76,7 @@ export function createEmbedLambdaRateLimit(config: {
       runtime: aws.lambda.Runtime.Python3d12,
       environment: {
         variables: apiLambdaEnvironment.reduce(
-          (
-            acc: { [key: string]: pulumi.Input<string> },
-            e: { name: string; value: pulumi.Input<string> }
-          ) => {
+          (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
             acc[e.name] = e.value;
             return acc;
           },
@@ -119,14 +116,11 @@ export function createEmbedLambdaRateLimit(config: {
   });
 
   ///////////////////////////////////////////////////////////////////////////
-  const lambdaTargetGroup = new aws.lb.TargetGroup(
-    `${config.name}-lambda-target-group`,
-    {
-      name: `${config.name}-lambda-target-group`,
-      targetType: "lambda",
-      tags: { ...defaultTags, Name: `${config.name}-lambda` },
-    }
-  );
+  const lambdaTargetGroup = new aws.lb.TargetGroup(`${config.name}-lambda-target-group`, {
+    name: `${config.name}-lambda-target-group`,
+    targetType: "lambda",
+    tags: { ...defaultTags, Name: `${config.name}-lambda` },
+  });
 
   const withLb = new aws.lambda.Permission(`${config.name}-lambda-permission`, {
     action: "lambda:InvokeFunction",

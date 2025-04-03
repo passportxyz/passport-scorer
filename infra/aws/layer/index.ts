@@ -6,11 +6,7 @@ import { defaultTags } from "../../lib/tags";
 import { existsSync, statSync } from "fs";
 import { spawn } from "child_process";
 
-export function runCommand(
-  command: string,
-  args: string[],
-  options: Record<string, any>
-): Promise<void> {
+export function runCommand(command: string, args: string[], options: Record<string, any>): Promise<void> {
   return new Promise((resolve, reject) => {
     const cmd = spawn(command, args, { stdio: "inherit", ...options });
 
@@ -54,11 +50,9 @@ export function createPythonLambdaLayer(config: {
     console.log("The file does not exist.");
   }
 
-  const pythonDepsArchive = runCommand(
-    "poetry",
-    ["export", "-f", "requirements.txt", "-o", "requirements.txt"],
-    { cwd: "../../api" }
-  )
+  const pythonDepsArchive = runCommand("poetry", ["export", "-f", "requirements.txt", "-o", "requirements.txt"], {
+    cwd: "../../api",
+  })
     .then(() =>
       runCommand("rm", ["-Rf", "__lambda__"], {
         cwd: "../..",
@@ -87,24 +81,9 @@ export function createPythonLambdaLayer(config: {
     )
 
     .then(() =>
-      runCommand(
-        "find",
-        [
-          "__lambda__",
-          "-type",
-          "d",
-          "-name",
-          "__pycache__",
-          "-exec",
-          "rm",
-          "-rf",
-          "{}",
-          "+",
-        ],
-        {
-          cwd: "../..",
-        }
-      )
+      runCommand("find", ["__lambda__", "-type", "d", "-name", "__pycache__", "-exec", "rm", "-rf", "{}", "+"], {
+        cwd: "../..",
+      })
     )
     .then(() => runCommand("rm", ["-Rf", expectedArchivePath], {}))
     .then(() =>

@@ -1,4 +1,5 @@
 from ninja import Schema
+
 from registry.api.schema import ErrorMessageResponse
 
 ErrorMessageResponse = ErrorMessageResponse

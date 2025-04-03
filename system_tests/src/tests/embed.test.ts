@@ -1,14 +1,14 @@
-import { testRequest } from '../utils/testRequest';
-import { EmbedUser } from '../users/EmbedUser';
-import { AuthStrategy } from '../types';
-import { HeaderKeyAuth } from '../auth/strategies';
-import { Signer } from 'ethers';
+import { testRequest } from "../utils/testRequest";
+import { EmbedUser } from "../users/EmbedUser";
+import { AuthStrategy } from "../types";
+import { HeaderKeyAuth } from "../auth/strategies";
+import { Signer } from "ethers";
 
 const { EMBED_BASE_URL } = process.env;
 
-const url = (subpath: string) => EMBED_BASE_URL + '/' + subpath;
+const url = (subpath: string) => EMBED_BASE_URL + "/" + subpath;
 
-describe('Embed', () => {
+describe("Embed", () => {
   let authStrategy: AuthStrategy;
   let address: string;
   let apiKey: string;
@@ -17,13 +17,13 @@ describe('Embed', () => {
 
   beforeAll(async () => {
     ({ apiKey, scorerId, address, signer } = await EmbedUser.get());
-    authStrategy = new HeaderKeyAuth({ key: apiKey, header: 'X-API-Key' });
+    authStrategy = new HeaderKeyAuth({ key: apiKey, header: "X-API-Key" });
   });
 
-  it('POST /embed/auto-verify', async () => {
+  it("POST /embed/auto-verify", async () => {
     const response = await testRequest({
-      url: url('embed/auto-verify'),
-      method: 'POST',
+      url: url("embed/auto-verify"),
+      method: "POST",
       authStrategy,
       payload: {
         address,
@@ -44,16 +44,16 @@ describe('Embed', () => {
     });
   });
 
-  it('POST /embed/challenge', async () => {
+  it("POST /embed/challenge", async () => {
     const response = await testRequest({
-      url: url('embed/challenge'),
-      method: 'POST',
+      url: url("embed/challenge"),
+      method: "POST",
       authStrategy,
       payload: {
         payload: {
-          type: 'NFT',
+          type: "NFT",
           address,
-          signatureType: 'EIP712',
+          signatureType: "EIP712",
         },
         scorerId,
       },
@@ -64,7 +64,7 @@ describe('Embed', () => {
     expect(response.data).toMatchObject({
       credential: expect.objectContaining({
         credentialSubject: expect.objectContaining({
-          address: expect.stringMatching(new RegExp(address, 'i')),
+          address: expect.stringMatching(new RegExp(address, "i")),
           challenge: expect.any(String),
         }),
         proof: expect.any(Object),
@@ -72,18 +72,18 @@ describe('Embed', () => {
     });
   });
 
-  it('POST /embed/verify', async () => {
+  it("POST /embed/verify", async () => {
     const challengeResponse = await testRequest<{
       credential: { credentialSubject: { challenge: string } };
     }>({
-      url: url('embed/challenge'),
-      method: 'POST',
+      url: url("embed/challenge"),
+      method: "POST",
       authStrategy,
       payload: {
         payload: {
-          type: 'NFT',
+          type: "NFT",
           address,
-          signatureType: 'EIP712',
+          signatureType: "EIP712",
         },
         scorerId,
       },
@@ -96,16 +96,16 @@ describe('Embed', () => {
     const challengeSignature = await signer.signMessage(challenge);
 
     const response = await testRequest({
-      url: url('embed/verify'),
-      method: 'POST',
+      url: url("embed/verify"),
+      method: "POST",
       authStrategy,
       payload: {
         payload: {
-          type: 'NFT',
-          types: ['NFT'],
-          version: '0.0.0',
+          type: "NFT",
+          types: ["NFT"],
+          version: "0.0.0",
           address,
-          signatureType: 'EIP712',
+          signatureType: "EIP712",
           proofs: {
             signature: challengeSignature,
           },
@@ -129,10 +129,10 @@ describe('Embed', () => {
     });
   });
 
-  it('GET /embed/stamps/metadata', async () => {
+  it("GET /embed/stamps/metadata", async () => {
     const response = await testRequest<{ valid?: boolean; code?: number }[]>({
       url: url(`embed/stamps/metadata`),
-      method: 'GET',
+      method: "GET",
       authStrategy,
       payload: {
         scorerId,
@@ -143,15 +143,15 @@ describe('Embed', () => {
     expect(response.data.length).toBeGreaterThan(0);
   });
 
-  it('GET /health', async () => {
+  it("GET /health", async () => {
     const response = await testRequest({
-      url: url('health'),
-      method: 'GET',
+      url: url("health"),
+      method: "GET",
     });
 
     expect(response).toHaveStatus(200);
     expect(response.data).toMatchObject({
-      message: 'Ok',
+      message: "Ok",
     });
   });
 });

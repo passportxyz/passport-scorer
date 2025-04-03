@@ -11,10 +11,7 @@ import { Listener } from "@pulumi/aws/alb";
 import { SecurityGroup } from "@pulumi/aws/ec2";
 import { RolePolicyAttachment } from "@pulumi/aws/iam";
 import { secretsManager } from "infra-libs";
-import {
-  AlarmConfigurations,
-  TargetGroupAlarmsConfiguration,
-} from "./loadBalancer";
+import { AlarmConfigurations, TargetGroupAlarmsConfiguration } from "./loadBalancer";
 
 import { defaultTags, stack } from "../tags";
 
@@ -27,9 +24,7 @@ export type ScorerService = {
   logGroup: LogGroup;
   subnets: Input<Input<string>[]>;
   httpListenerArn: Input<string>;
-  httpListenerRulePaths?: Input<
-    Input<aws.types.input.lb.ListenerRuleCondition>[]
-  >;
+  httpListenerRulePaths?: Input<Input<aws.types.input.lb.ListenerRuleCondition>[]>;
   listenerRulePriority?: Input<number>;
   targetGroup: TargetGroup;
   autoScaleMaxCapacity?: number;
@@ -41,10 +36,7 @@ export type ScorerService = {
   desiredCount?: number;
 };
 
-export function createTargetGroup(
-  name: string,
-  vpcId: Input<string>
-): TargetGroup {
+export function createTargetGroup(name: string, vpcId: Input<string>): TargetGroup {
   return new TargetGroup(name, {
     tags: {
       ...defaultTags,
@@ -95,51 +87,41 @@ export function createScorerECSService({
   //////////////////////////////////////////////////////////////
 
   const containerDefinitions = pulumi
-    .all([
-      config.dockerImageScorer,
-      secrets,
-      environment,
-      config.logGroup.name,
-      aws.config.region,
-    ])
-    .apply(
-      ([scorerImage, secrets, environment, logGroupName, logGroupRegion]) => {
-        return JSON.stringify([
-          {
-            name: "scorer",
-            image: scorerImage,
-            memory: config.memory ? config.memory : 4096,
-            cpu: config.cpu ? config.cpu : 4096,
-            portMappings: [
-              { containerPort: 80, hostPort: 80, protocol: "tcp" },
-            ],
-            command: [
-              "gunicorn",
-              "-w",
-              "4",
-              "-k",
-              "uvicorn.workers.UvicornWorker",
-              "scorer.asgi:application",
-              "-b",
-              "0.0.0.0:80",
-            ],
-            linuxParameters: {
-              initProcessEnabled: true,
-            },
-            environment,
-            secrets,
-            logConfiguration: {
-              logDriver: "awslogs",
-              options: {
-                "awslogs-group": logGroupName,
-                "awslogs-region": logGroupRegion,
-                "awslogs-stream-prefix": name,
-              },
+    .all([config.dockerImageScorer, secrets, environment, config.logGroup.name, aws.config.region])
+    .apply(([scorerImage, secrets, environment, logGroupName, logGroupRegion]) => {
+      return JSON.stringify([
+        {
+          name: "scorer",
+          image: scorerImage,
+          memory: config.memory ? config.memory : 4096,
+          cpu: config.cpu ? config.cpu : 4096,
+          portMappings: [{ containerPort: 80, hostPort: 80, protocol: "tcp" }],
+          command: [
+            "gunicorn",
+            "-w",
+            "4",
+            "-k",
+            "uvicorn.workers.UvicornWorker",
+            "scorer.asgi:application",
+            "-b",
+            "0.0.0.0:80",
+          ],
+          linuxParameters: {
+            initProcessEnabled: true,
+          },
+          environment,
+          secrets,
+          logConfiguration: {
+            logDriver: "awslogs",
+            options: {
+              "awslogs-group": logGroupName,
+              "awslogs-region": logGroupRegion,
+              "awslogs-stream-prefix": name,
             },
           },
-        ]);
-      }
-    );
+        },
+      ]);
+    });
 
   const taskDefinition = new aws.ecs.TaskDefinition(name, {
     family: name,
@@ -153,29 +135,33 @@ export function createScorerECSService({
     tags: { ...defaultTags, Name: name },
   });
 
-  const service = new aws.ecs.Service(name, {
-    name: name,
-    cluster: config.cluster.arn,
-    taskDefinition: taskDefinition.arn,
-    desiredCount: config.desiredCount ? config.desiredCount : 1,
-    launchType: "FARGATE",
-    propagateTags: "TASK_DEFINITION",
-    networkConfiguration: {
-      subnets: config.subnets,
-      securityGroups: [config.securityGroup.id],
-      assignPublicIp: false,
-    },
-    loadBalancers: [
-      {
-        targetGroupArn: config.targetGroup.arn,
-        containerName: "scorer",
-        containerPort: 80,
+  const service = new aws.ecs.Service(
+    name,
+    {
+      name: name,
+      cluster: config.cluster.arn,
+      taskDefinition: taskDefinition.arn,
+      desiredCount: config.desiredCount ? config.desiredCount : 1,
+      launchType: "FARGATE",
+      propagateTags: "TASK_DEFINITION",
+      networkConfiguration: {
+        subnets: config.subnets,
+        securityGroups: [config.securityGroup.id],
+        assignPublicIp: false,
       },
-    ],
-    tags: { ...defaultTags, Name: name },
-  }, {
-    ignoreChanges: ["desiredCount"],
-  });
+      loadBalancers: [
+        {
+          targetGroupArn: config.targetGroup.arn,
+          containerName: "scorer",
+          containerPort: 80,
+        },
+      ],
+      tags: { ...defaultTags, Name: name },
+    },
+    {
+      ignoreChanges: ["desiredCount"],
+    }
+  );
 
   function getAutoScaleMinCapacity() {
     return config.autoScaleMinCapacity ? config.autoScaleMinCapacity : 2;
@@ -185,83 +171,71 @@ export function createScorerECSService({
     return config.autoScaleMaxCapacity ? config.autoScaleMaxCapacity : 20;
   }
 
-  const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(
-    `autoscale-target-${name}`,
-    {
-      tags: { ...defaultTags, Name: name },
-      maxCapacity: getAutoScaleMaxCapacity(),
-      minCapacity: getAutoScaleMinCapacity(),
-      resourceId: interpolate`service/${config.cluster.name}/${service.name}`,
-      scalableDimension: "ecs:service:DesiredCount",
-      serviceNamespace: "ecs",
-    }
-  );
+  const ecsScorerServiceAutoscalingTarget = new aws.appautoscaling.Target(`autoscale-target-${name}`, {
+    tags: { ...defaultTags, Name: name },
+    maxCapacity: getAutoScaleMaxCapacity(),
+    minCapacity: getAutoScaleMinCapacity(),
+    resourceId: interpolate`service/${config.cluster.name}/${service.name}`,
+    scalableDimension: "ecs:service:DesiredCount",
+    serviceNamespace: "ecs",
+  });
 
-  const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(
-    `autoscale-policy-${name}`,
-    {
-      policyType: "TargetTrackingScaling",
-      resourceId: ecsScorerServiceAutoscalingTarget.resourceId,
-      scalableDimension: ecsScorerServiceAutoscalingTarget.scalableDimension,
-      serviceNamespace: ecsScorerServiceAutoscalingTarget.serviceNamespace,
-      targetTrackingScalingPolicyConfiguration: {
-        predefinedMetricSpecification: {
-          predefinedMetricType: "ECSServiceAverageCPUUtilization",
-        },
-        targetValue: 50,
-        scaleInCooldown: 300,
-        scaleOutCooldown: 300,
+  const ecsScorerServiceAutoscaling = new aws.appautoscaling.Policy(`autoscale-policy-${name}`, {
+    policyType: "TargetTrackingScaling",
+    resourceId: ecsScorerServiceAutoscalingTarget.resourceId,
+    scalableDimension: ecsScorerServiceAutoscalingTarget.scalableDimension,
+    serviceNamespace: ecsScorerServiceAutoscalingTarget.serviceNamespace,
+    targetTrackingScalingPolicyConfiguration: {
+      predefinedMetricSpecification: {
+        predefinedMetricType: "ECSServiceAverageCPUUtilization",
       },
-    }
-  );
+      targetValue: 50,
+      scaleInCooldown: 300,
+      scaleOutCooldown: 300,
+    },
+  });
 
   if (config.alertTopic) {
     // We want an alarm when the number of running tasks reaches 75% of the configured maximum
-    const runningTaskCountAlarm = new aws.cloudwatch.MetricAlarm(
-      `RunningTaskCount-${name}`,
-      {
-        tags: { ...defaultTags, Name: `RunningTaskCount-${name}` },
-        alarmActions: [config.alertTopic.arn],
-        okActions: [config.alertTopic.arn],
-        comparisonOperator: "GreaterThanThreshold",
-        datapointsToAlarm: 1,
-        dimensions: {
-          ClusterName: config.cluster.name,
-          ServiceName: service.name,
-        },
-        evaluationPeriods: 1,
-        metricName: "RunningTaskCount",
-        name: `RunningTaskCount-${name}`,
-        namespace: "ECS/ContainerInsights",
-        period: 300,
-        statistic: "Average",
-        threshold: getAutoScaleMaxCapacity() * 0.75,
-      }
-    );
+    const runningTaskCountAlarm = new aws.cloudwatch.MetricAlarm(`RunningTaskCount-${name}`, {
+      tags: { ...defaultTags, Name: `RunningTaskCount-${name}` },
+      alarmActions: [config.alertTopic.arn],
+      okActions: [config.alertTopic.arn],
+      comparisonOperator: "GreaterThanThreshold",
+      datapointsToAlarm: 1,
+      dimensions: {
+        ClusterName: config.cluster.name,
+        ServiceName: service.name,
+      },
+      evaluationPeriods: 1,
+      metricName: "RunningTaskCount",
+      name: `RunningTaskCount-${name}`,
+      namespace: "ECS/ContainerInsights",
+      period: 300,
+      statistic: "Average",
+      threshold: getAutoScaleMaxCapacity() * 0.75,
+    });
 
     // High memory consumption might indicate an issue with the provisioned memory size, and
     // we should probably increase the size of allocated memory
-    const memoryAlarm = new aws.cloudwatch.MetricAlarm(
-      `MemoryUtilization-${name}`,
-      {
-        tags: { ...defaultTags, Name: `MemoryUtilization-${name}` },
-        alarmActions: [config.alertTopic.arn],
-        okActions: [config.alertTopic.arn],
-        comparisonOperator: "GreaterThanThreshold",
-        datapointsToAlarm: 1,
-        dimensions: {
-          ClusterName: config.cluster.name,
-          ServiceName: service.name,
-        },
-        evaluationPeriods: 1,
-        metricName: "MemoryUtilization",
-        name: `MemoryUtilization-${name}`,
-        namespace: "AWS/ECS",
-        period: 900,
-        statistic: "Average",
-        threshold: 80,
-      }
-    );
+    const memoryAlarm = new aws.cloudwatch.MetricAlarm(`MemoryUtilization-${name}`, {
+      tags: { ...defaultTags, Name: `MemoryUtilization-${name}` },
+      alarmActions: [config.alertTopic.arn],
+      okActions: [config.alertTopic.arn],
+      comparisonOperator: "GreaterThanThreshold",
+      datapointsToAlarm: 1,
+      dimensions: {
+        ClusterName: config.cluster.name,
+        ServiceName: service.name,
+      },
+      evaluationPeriods: 1,
+      metricName: "MemoryUtilization",
+      name: `MemoryUtilization-${name}`,
+      namespace: "AWS/ECS",
+      period: 900,
+      statistic: "Average",
+      threshold: 80,
+    });
 
     // We want alarm to monitor:
     // - 5xx errors in individual targets
@@ -275,12 +249,8 @@ export function createScorerECSService({
      * Alarm for monitoring target 5XX errors
      */
     const alarmConfig =
-      (
-        loadBalancerAlarmThresholds as any as Record<
-          string,
-          TargetGroupAlarmsConfiguration
-        >
-      )[name] || loadBalancerAlarmThresholds.default;
+      (loadBalancerAlarmThresholds as any as Record<string, TargetGroupAlarmsConfiguration>)[name] ||
+      loadBalancerAlarmThresholds.default;
 
     [
       {
@@ -291,54 +261,52 @@ export function createScorerECSService({
         name: `HTTP-Target-5XX-${name}-sustain`,
         ...alarmConfig.percentHTTPCodeTarget5XX.sustain,
       },
-    ].forEach(
-      ({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
-        new aws.cloudwatch.MetricAlarm(name, {
-          tags: { ...defaultTags, Name: name },
-          name,
-          alarmActions: [config.alertTopic.arn],
-          okActions: [config.alertTopic.arn],
-          comparisonOperator: "GreaterThanThreshold",
-          datapointsToAlarm,
-          evaluationPeriods,
-          metricQueries: [
-            {
-              id: "m1",
-              metric: {
-                metricName: "RequestCount",
-                dimensions: {
-                  LoadBalancer: config.alb.arnSuffix,
-                  TargetGroup: config.targetGroup.arnSuffix,
-                },
-                namespace: metricNamespace,
-                period,
-                stat: "Sum",
+    ].forEach(({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
+      new aws.cloudwatch.MetricAlarm(name, {
+        tags: { ...defaultTags, Name: name },
+        name,
+        alarmActions: [config.alertTopic.arn],
+        okActions: [config.alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm,
+        evaluationPeriods,
+        metricQueries: [
+          {
+            id: "m1",
+            metric: {
+              metricName: "RequestCount",
+              dimensions: {
+                LoadBalancer: config.alb.arnSuffix,
+                TargetGroup: config.targetGroup.arnSuffix,
               },
+              namespace: metricNamespace,
+              period,
+              stat: "Sum",
             },
-            {
-              id: "m2",
-              metric: {
-                metricName: "HTTPCode_Target_5XX_Count",
-                dimensions: {
-                  LoadBalancer: config.alb.arnSuffix,
-                  TargetGroup: config.targetGroup.arnSuffix,
-                },
-                namespace: metricNamespace,
-                period,
-                stat: "Sum",
+          },
+          {
+            id: "m2",
+            metric: {
+              metricName: "HTTPCode_Target_5XX_Count",
+              dimensions: {
+                LoadBalancer: config.alb.arnSuffix,
+                TargetGroup: config.targetGroup.arnSuffix,
               },
+              namespace: metricNamespace,
+              period,
+              stat: "Sum",
             },
-            {
-              expression: "m2 / m1",
-              id: "e1",
-              label: "Percent of target 5XX errors",
-              returnData: true,
-            },
-          ],
-          threshold,
-        });
-      }
-    );
+          },
+          {
+            expression: "m2 / m1",
+            id: "e1",
+            label: "Percent of target 5XX errors",
+            returnData: true,
+          },
+        ],
+        threshold,
+      });
+    });
 
     /*
      * Alarm for monitoring target 4XX errors
@@ -453,8 +421,6 @@ type IndexerServiceParams = {
   indexerImage: Input<string>;
 };
 
-
-
 export function createIndexerService(
   {
     cluster,
@@ -474,13 +440,7 @@ export function createIndexerService(
   });
 
   const containerDefinitions = pulumi
-    .all([
-      indexerImage,
-      secretReferences,
-      environment,
-      indexerLogGroup.name,
-      aws.config.region,
-    ])
+    .all([indexerImage, secretReferences, environment, indexerLogGroup.name, aws.config.region])
     .apply(([indexerImage, secrets, environment, logGroupName, region]) => {
       return JSON.stringify([
         {
@@ -503,19 +463,16 @@ export function createIndexerService(
       ]);
     });
 
-  const taskDefinition = new aws.ecs.TaskDefinition(
-    "scorer-staking-indexer-1",
-    {
-      family: "scorer-staking-indexer-1",
-      cpu: "512",
-      memory: "1024",
-      networkMode: "awsvpc",
-      requiresCompatibilities: ["FARGATE"],
-      executionRoleArn: workerRole.arn,
-      containerDefinitions,
-      tags: { ...defaultTags, Name: "scorer-staking-indexer-1" },
-    }
-  );
+  const taskDefinition = new aws.ecs.TaskDefinition("scorer-staking-indexer-1", {
+    family: "scorer-staking-indexer-1",
+    cpu: "512",
+    memory: "1024",
+    networkMode: "awsvpc",
+    requiresCompatibilities: ["FARGATE"],
+    executionRoleArn: workerRole.arn,
+    containerDefinitions,
+    tags: { ...defaultTags, Name: "scorer-staking-indexer-1" },
+  });
 
   const service = new aws.ecs.Service("scorer-staking-indexer-1", {
     name: "scorer-staking-indexer-1",
@@ -532,57 +489,43 @@ export function createIndexerService(
     tags: { ...defaultTags, Name: "scorer-staking-indexer" },
   });
 
-  const indexerErrorsMetric = new aws.cloudwatch.LogMetricFilter(
-    "indexerErrorsMetric",
-    {
-      logGroupName: indexerLogGroup.name,
-      metricTransformation: {
-        defaultValue: "0",
-        name: "indexerError",
-        namespace: "/scorer/indexer",
-        unit: "Count",
-        value: "1",
-      },
-      name: "Indexer Errors",
-      pattern: '"Error - Failed"',
-    }
-  );
-
-  const indexerErrorsAlarm = new aws.cloudwatch.MetricAlarm(
-    "indexerErrorsAlarm",
-    {
-      alarmActions: [alertTopic.arn],
-      comparisonOperator: "GreaterThanOrEqualToThreshold",
-      datapointsToAlarm: 1,
-      evaluationPeriods: 1,
-      insufficientDataActions: [],
-      metricName: "indexerError",
-      name: "Indexer Errors",
+  const indexerErrorsMetric = new aws.cloudwatch.LogMetricFilter("indexerErrorsMetric", {
+    logGroupName: indexerLogGroup.name,
+    metricTransformation: {
+      defaultValue: "0",
+      name: "indexerError",
       namespace: "/scorer/indexer",
-      okActions: [],
-      period: alarmThresholds.indexerErrorPeriod,
-      statistic: "Sum",
-      threshold: alarmThresholds.indexerErrorThreshold,
-      treatMissingData: "notBreaching",
-      tags: { ...defaultTags, Name: "indexerErrorsAlarm" },
-    }
-  );
+      unit: "Count",
+      value: "1",
+    },
+    name: "Indexer Errors",
+    pattern: '"Error - Failed"',
+  });
+
+  const indexerErrorsAlarm = new aws.cloudwatch.MetricAlarm("indexerErrorsAlarm", {
+    alarmActions: [alertTopic.arn],
+    comparisonOperator: "GreaterThanOrEqualToThreshold",
+    datapointsToAlarm: 1,
+    evaluationPeriods: 1,
+    insufficientDataActions: [],
+    metricName: "indexerError",
+    name: "Indexer Errors",
+    namespace: "/scorer/indexer",
+    okActions: [],
+    period: alarmThresholds.indexerErrorPeriod,
+    statistic: "Sum",
+    threshold: alarmThresholds.indexerErrorThreshold,
+    treatMissingData: "notBreaching",
+    tags: { ...defaultTags, Name: "indexerErrorsAlarm" },
+  });
 }
 
-export const createSharedLambdaResources = ({
-  rescoreQueue,
-}: {
-  rescoreQueue: aws.sqs.Queue;
-}) => {
+export const createSharedLambdaResources = ({ rescoreQueue }: { rescoreQueue: aws.sqs.Queue }) => {
   const lambdaLoggingPolicyDocument = aws.iam.getPolicyDocument({
     statements: [
       {
         effect: "Allow",
-        actions: [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
-        ],
+        actions: ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         resources: ["arn:aws:logs:*:*:*"],
       },
     ],
@@ -617,33 +560,25 @@ export const createSharedLambdaResources = ({
   const lambdaLoggingPolicy = new aws.iam.Policy("lambdaLoggingPolicy", {
     path: "/",
     description: "IAM policy for logging from a lambda",
-    policy: lambdaLoggingPolicyDocument.then(
-      (lambdaLoggingPolicyDocument) => lambdaLoggingPolicyDocument.json
-    ),
+    policy: lambdaLoggingPolicyDocument.then((lambdaLoggingPolicyDocument) => lambdaLoggingPolicyDocument.json),
     tags: { ...defaultTags, Name: "lambdaLoggingPolicy" },
   });
 
   const lambdaEc2Policy = new aws.iam.Policy("lambdaEc2Policy", {
     path: "/",
     description: "IAM policy for interfacing with EC2 network",
-    policy: lambdaEc2PolicyDocument.then(
-      (lambdaEc2PolicyDocument) => lambdaEc2PolicyDocument.json
-    ),
+    policy: lambdaEc2PolicyDocument.then((lambdaEc2PolicyDocument) => lambdaEc2PolicyDocument.json),
     tags: { ...defaultTags, Name: "lambdaEc2Policy" },
   });
 
-  const lambdaSecretsManagerPolicy = new aws.iam.Policy(
-    "lambdaSecretManagerPolicy",
-    {
-      path: "/",
-      description: "IAM policy for interfacing with SecretManager network",
-      policy: lambdaSecretsManagerPolicyDocument.then(
-        (lambdaSecretsManagerPolicyDocument) =>
-          lambdaSecretsManagerPolicyDocument.json
-      ),
-      tags: { ...defaultTags, Name: "lambdaSecretManagerPolicy" },
-    }
-  );
+  const lambdaSecretsManagerPolicy = new aws.iam.Policy("lambdaSecretManagerPolicy", {
+    path: "/",
+    description: "IAM policy for interfacing with SecretManager network",
+    policy: lambdaSecretsManagerPolicyDocument.then(
+      (lambdaSecretsManagerPolicyDocument) => lambdaSecretsManagerPolicyDocument.json
+    ),
+    tags: { ...defaultTags, Name: "lambdaSecretManagerPolicy" },
+  });
 
   const assumeRole = aws.iam.getPolicyDocument({
     statements: [
@@ -665,29 +600,20 @@ export const createSharedLambdaResources = ({
     tags: { ...defaultTags, Name: "lambdaRole" },
   });
 
-  const lambdaLogRoleAttachment = new aws.iam.RolePolicyAttachment(
-    "lambdaLogRoleAttachment",
-    {
-      role: httpLambdaRole.name,
-      policyArn: lambdaLoggingPolicy.arn,
-    }
-  );
+  const lambdaLogRoleAttachment = new aws.iam.RolePolicyAttachment("lambdaLogRoleAttachment", {
+    role: httpLambdaRole.name,
+    policyArn: lambdaLoggingPolicy.arn,
+  });
 
-  const lambdaEc2RoleAttachment = new aws.iam.RolePolicyAttachment(
-    "lambdaEc2RoleAttachment",
-    {
-      role: httpLambdaRole.name,
-      policyArn: lambdaEc2Policy.arn,
-    }
-  );
+  const lambdaEc2RoleAttachment = new aws.iam.RolePolicyAttachment("lambdaEc2RoleAttachment", {
+    role: httpLambdaRole.name,
+    policyArn: lambdaEc2Policy.arn,
+  });
 
-  const lambdaSecretsManagerRoleAttachment = new aws.iam.RolePolicyAttachment(
-    "lambdaSecretManagerRoleAttachment",
-    {
-      role: httpLambdaRole.name,
-      policyArn: lambdaSecretsManagerPolicy.arn,
-    }
-  );
+  const lambdaSecretsManagerRoleAttachment = new aws.iam.RolePolicyAttachment("lambdaSecretManagerRoleAttachment", {
+    role: httpLambdaRole.name,
+    policyArn: lambdaSecretsManagerPolicy.arn,
+  });
 
   const queueLambdaRole = new aws.iam.Role("queueLambdaRole", {
     assumeRolePolicy: assumeRole.then((assumeRole) => assumeRole.json),
@@ -699,12 +625,7 @@ export const createSharedLambdaResources = ({
       statements: [
         {
           effect: "Allow",
-          actions: [
-            "sqs:ReceiveMessage",
-            "sqs:DeleteMessage",
-            "sqs:GetQueueAttributes",
-            "sqs:ChangeMessageVisibility",
-          ],
+          actions: ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes", "sqs:ChangeMessageVisibility"],
           resources: [rescoreQueueArn],
         },
       ],
@@ -714,49 +635,36 @@ export const createSharedLambdaResources = ({
   const readSqsPolicy = new aws.iam.Policy("readSqsPolicy", {
     path: "/",
     description: "IAM policy for reading from SQS",
-    policy: readSqsPolicyDocument.apply(
-      (readSqsPolicyDocument) => readSqsPolicyDocument.json
-    ),
+    policy: readSqsPolicyDocument.apply((readSqsPolicyDocument) => readSqsPolicyDocument.json),
     tags: { ...defaultTags, Name: "readSqsPolicy" },
   });
 
-  const queueLambdaSqsRoleAttachment = new aws.iam.RolePolicyAttachment(
-    "queueLambdaSqsRoleAttachment",
-    {
-      role: queueLambdaRole.name,
-      policyArn: readSqsPolicy.arn,
-    }
-  );
+  const queueLambdaSqsRoleAttachment = new aws.iam.RolePolicyAttachment("queueLambdaSqsRoleAttachment", {
+    role: queueLambdaRole.name,
+    policyArn: readSqsPolicy.arn,
+  });
 
-  const queueLambdaLogRoleAttachment = new aws.iam.RolePolicyAttachment(
-    "queueLambdaLogRoleAttachment",
-    {
-      role: queueLambdaRole.name,
-      policyArn: lambdaLoggingPolicy.arn,
-    }
-  );
+  const queueLambdaLogRoleAttachment = new aws.iam.RolePolicyAttachment("queueLambdaLogRoleAttachment", {
+    role: queueLambdaRole.name,
+    policyArn: lambdaLoggingPolicy.arn,
+  });
 
-  const queueLambdaEc2RoleAttachment = new aws.iam.RolePolicyAttachment(
-    "queueLambdaEc2RoleAttachment",
-    {
-      role: queueLambdaRole.name,
-      policyArn: lambdaEc2Policy.arn,
-    }
-  );
+  const queueLambdaEc2RoleAttachment = new aws.iam.RolePolicyAttachment("queueLambdaEc2RoleAttachment", {
+    role: queueLambdaRole.name,
+    policyArn: lambdaEc2Policy.arn,
+  });
 
-  const queueLambdaSecretsManagerRoleAttachment =
-    new aws.iam.RolePolicyAttachment("queueLambdaSecretManagerRoleAttachment", {
+  const queueLambdaSecretsManagerRoleAttachment = new aws.iam.RolePolicyAttachment(
+    "queueLambdaSecretManagerRoleAttachment",
+    {
       role: queueLambdaRole.name,
       policyArn: lambdaSecretsManagerPolicy.arn,
-    });
+    }
+  );
 
   return {
     httpLambdaRole,
-    httpRoleAttachments: [
-      lambdaLogRoleAttachment,
-      lambdaEc2RoleAttachment,
-      lambdaSecretsManagerRoleAttachment,
-    ],
+    httpRoleAttachments: [lambdaLogRoleAttachment, lambdaEc2RoleAttachment, lambdaSecretsManagerRoleAttachment],
     queueLambdaRole,
     queueRoleAttachments: [
       queueLambdaLogRoleAttachment,
@@ -785,22 +693,13 @@ export function buildHttpLambdaFn(
   args: BuildLambdaFnBaseParams & {
     httpsListener: Output<Listener>;
     listenerPriority: number;
-    httpListenerRulePaths?: Input<
-      Input<aws.types.input.lb.ListenerRuleCondition>[]
-    >;
+    httpListenerRulePaths?: Input<Input<aws.types.input.lb.ListenerRuleCondition>[]>;
   },
   loadBalancerAlarmThresholds: AlarmConfigurations
 ) {
   const lambdaFunction = buildLambdaFn(args);
 
-  const {
-    httpsListener,
-    listenerPriority,
-    httpListenerRulePaths,
-    name,
-    alertTopic,
-    alb,
-  } = args;
+  const { httpsListener, listenerPriority, httpListenerRulePaths, name, alertTopic, alb } = args;
 
   const lambdaTargetGroup = new aws.lb.TargetGroup(`l-${name}`, {
     name: `l-${name}`,
@@ -852,12 +751,8 @@ export function buildHttpLambdaFn(
      * Alarm for monitoring target 5XX errors
      */
     const alarmConfig =
-      (
-        loadBalancerAlarmThresholds as any as Record<
-          string,
-          TargetGroupAlarmsConfiguration
-        >
-      )[name] || loadBalancerAlarmThresholds.default;
+      (loadBalancerAlarmThresholds as any as Record<string, TargetGroupAlarmsConfiguration>)[name] ||
+      loadBalancerAlarmThresholds.default;
 
     [
       {
@@ -868,54 +763,52 @@ export function buildHttpLambdaFn(
         name: `HTTP-Target-5XX-${name}-sustain`,
         ...alarmConfig.percentHTTPCodeTarget5XX.sustain,
       },
-    ].forEach(
-      ({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
-        new aws.cloudwatch.MetricAlarm(name, {
-          tags: { ...defaultTags, Name: name },
-          name,
-          alarmActions: [alertTopic.arn],
-          okActions: [alertTopic.arn],
-          comparisonOperator: "GreaterThanThreshold",
-          datapointsToAlarm,
-          evaluationPeriods,
-          metricQueries: [
-            {
-              id: "m1",
-              metric: {
-                metricName: "RequestCount",
-                dimensions: {
-                  LoadBalancer: alb.arnSuffix,
-                  TargetGroup: lambdaTargetGroup.arnSuffix,
-                },
-                namespace: metricNamespace,
-                period,
-                stat: "Sum",
+    ].forEach(({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
+      new aws.cloudwatch.MetricAlarm(name, {
+        tags: { ...defaultTags, Name: name },
+        name,
+        alarmActions: [alertTopic.arn],
+        okActions: [alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm,
+        evaluationPeriods,
+        metricQueries: [
+          {
+            id: "m1",
+            metric: {
+              metricName: "RequestCount",
+              dimensions: {
+                LoadBalancer: alb.arnSuffix,
+                TargetGroup: lambdaTargetGroup.arnSuffix,
               },
+              namespace: metricNamespace,
+              period,
+              stat: "Sum",
             },
-            {
-              id: "m2",
-              metric: {
-                metricName: "HTTPCode_Target_5XX_Count",
-                dimensions: {
-                  LoadBalancer: alb.arnSuffix,
-                  TargetGroup: lambdaTargetGroup.arnSuffix,
-                },
-                namespace: metricNamespace,
-                period,
-                stat: "Sum",
+          },
+          {
+            id: "m2",
+            metric: {
+              metricName: "HTTPCode_Target_5XX_Count",
+              dimensions: {
+                LoadBalancer: alb.arnSuffix,
+                TargetGroup: lambdaTargetGroup.arnSuffix,
               },
+              namespace: metricNamespace,
+              period,
+              stat: "Sum",
             },
-            {
-              expression: "m2 / m1",
-              id: "e1",
-              label: "Percent of target 5XX errors",
-              returnData: true,
-            },
-          ],
-          threshold,
-        });
-      }
-    );
+          },
+          {
+            expression: "m2 / m1",
+            id: "e1",
+            label: "Percent of target 5XX errors",
+            returnData: true,
+          },
+        ],
+        threshold,
+      });
+    });
 
     /*
      * Alarm for monitoring target 4XX errors
@@ -929,54 +822,52 @@ export function buildHttpLambdaFn(
         name: `HTTP-Target-4XX-${name}-sustain`,
         ...alarmConfig.percentHTTPCodeTarget4XX.sustain,
       },
-    ].forEach(
-      ({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
-        new aws.cloudwatch.MetricAlarm(name, {
-          tags: { ...defaultTags, Name: name },
-          name,
-          alarmActions: [alertTopic.arn],
-          okActions: [alertTopic.arn],
-          comparisonOperator: "GreaterThanThreshold",
-          datapointsToAlarm,
-          evaluationPeriods,
-          metricQueries: [
-            {
-              id: "m1",
-              metric: {
-                metricName: "RequestCount",
-                dimensions: {
-                  LoadBalancer: alb.arnSuffix,
-                  TargetGroup: lambdaTargetGroup.arnSuffix,
-                },
-                namespace: metricNamespace,
-                period,
-                stat: "Sum",
+    ].forEach(({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
+      new aws.cloudwatch.MetricAlarm(name, {
+        tags: { ...defaultTags, Name: name },
+        name,
+        alarmActions: [alertTopic.arn],
+        okActions: [alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm,
+        evaluationPeriods,
+        metricQueries: [
+          {
+            id: "m1",
+            metric: {
+              metricName: "RequestCount",
+              dimensions: {
+                LoadBalancer: alb.arnSuffix,
+                TargetGroup: lambdaTargetGroup.arnSuffix,
               },
+              namespace: metricNamespace,
+              period,
+              stat: "Sum",
             },
-            {
-              id: "m2",
-              metric: {
-                metricName: "HTTPCode_Target_4XX_Count",
-                dimensions: {
-                  LoadBalancer: alb.arnSuffix,
-                  TargetGroup: lambdaTargetGroup.arnSuffix,
-                },
-                namespace: metricNamespace,
-                period,
-                stat: "Sum",
+          },
+          {
+            id: "m2",
+            metric: {
+              metricName: "HTTPCode_Target_4XX_Count",
+              dimensions: {
+                LoadBalancer: alb.arnSuffix,
+                TargetGroup: lambdaTargetGroup.arnSuffix,
               },
+              namespace: metricNamespace,
+              period,
+              stat: "Sum",
             },
-            {
-              expression: "m2 / m1",
-              id: "e1",
-              label: "Percent of target 4XX errors",
-              returnData: true,
-            },
-          ],
-          threshold,
-        });
-      }
-    );
+          },
+          {
+            expression: "m2 / m1",
+            id: "e1",
+            label: "Percent of target 4XX errors",
+            returnData: true,
+          },
+        ],
+        threshold,
+      });
+    });
 
     // We want an alarm to monitor for the average response time
     [
@@ -988,30 +879,28 @@ export function buildHttpLambdaFn(
         name: `TargetResponseTime-${name}-sustain`,
         ...alarmConfig.targetResponseTime.sustain,
       },
-    ].forEach(
-      ({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
-        new aws.cloudwatch.MetricAlarm(name, {
-          tags: { ...defaultTags, Name: name },
-          alarmActions: [alertTopic.arn],
-          okActions: [alertTopic.arn],
-          comparisonOperator: "GreaterThanThreshold",
-          datapointsToAlarm,
-          dimensions: {
-            LoadBalancer: alb.arnSuffix,
-            TargetGroup: lambdaTargetGroup.arnSuffix,
-          },
-          evaluationPeriods,
-          metricName: "TargetResponseTime",
-          name,
-          namespace: metricNamespace,
-          period,
-          statistic: "Average",
-          treatMissingData: "notBreaching",
-          threshold,
-          unit: "Seconds",
-        });
-      }
-    );
+    ].forEach(({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
+      new aws.cloudwatch.MetricAlarm(name, {
+        tags: { ...defaultTags, Name: name },
+        alarmActions: [alertTopic.arn],
+        okActions: [alertTopic.arn],
+        comparisonOperator: "GreaterThanThreshold",
+        datapointsToAlarm,
+        dimensions: {
+          LoadBalancer: alb.arnSuffix,
+          TargetGroup: lambdaTargetGroup.arnSuffix,
+        },
+        evaluationPeriods,
+        metricName: "TargetResponseTime",
+        name,
+        namespace: metricNamespace,
+        period,
+        statistic: "Average",
+        treatMissingData: "notBreaching",
+        threshold,
+        unit: "Seconds",
+      });
+    });
   }
 }
 
@@ -1024,14 +913,11 @@ export function buildQueueLambdaFn(
 
   const { queue, name } = args;
 
-  const queueLambdaTrigger = new aws.lambda.EventSourceMapping(
-    `queueLambdaTrigger-${name}`,
-    {
-      batchSize: 10,
-      eventSourceArn: queue.arn,
-      functionName: lambdaFunction.arn,
-    }
-  );
+  const queueLambdaTrigger = new aws.lambda.EventSourceMapping(`queueLambdaTrigger-${name}`, {
+    batchSize: 10,
+    eventSourceArn: queue.arn,
+    functionName: lambdaFunction.arn,
+  });
 }
 
 function buildLambdaFn({
@@ -1064,10 +950,7 @@ function buildLambdaFn({
       memorySize,
       environment: {
         variables: environment.reduce(
-          (
-            acc: { [key: string]: Input<string> },
-            e: { name: string; value: Input<string> }
-          ) => {
+          (acc: { [key: string]: Input<string> }, e: { name: string; value: Input<string> }) => {
             acc[e.name] = e.value;
             return acc;
           },
@@ -1084,70 +967,59 @@ function buildLambdaFn({
   return lambdaFunction;
 }
 
-export const createDeadLetterQueue = ({
-  alertTopic,
-}: {
-  alertTopic?: Topic;
-}): aws.sqs.Queue => {
+export const createDeadLetterQueue = ({ alertTopic }: { alertTopic?: Topic }): aws.sqs.Queue => {
   const deadLetterQueue = new aws.sqs.Queue("scorer-dead-letter-queue", {
     tags: { ...defaultTags, Name: "scorer-dead-letter-queue" },
   });
 
   if (alertTopic) {
-    const newMessageDeadLetterQueueAlarm = new aws.cloudwatch.MetricAlarm(
-      "newMessageDeadLetterQueueAlarm",
-      {
-        alarmActions: [alertTopic.arn],
-        comparisonOperator: "GreaterThanThreshold",
-        datapointsToAlarm: 1,
-        evaluationPeriods: 1,
-        metricQueries: [
-          {
-            id: "m1",
-            metric: {
-              dimensions: {
-                QueueName: deadLetterQueue.name,
-              },
-              metricName: "ApproximateNumberOfMessagesVisible",
-              namespace: "AWS/SQS",
-              period: 300,
-              stat: "Maximum",
+    const newMessageDeadLetterQueueAlarm = new aws.cloudwatch.MetricAlarm("newMessageDeadLetterQueueAlarm", {
+      alarmActions: [alertTopic.arn],
+      comparisonOperator: "GreaterThanThreshold",
+      datapointsToAlarm: 1,
+      evaluationPeriods: 1,
+      metricQueries: [
+        {
+          id: "m1",
+          metric: {
+            dimensions: {
+              QueueName: deadLetterQueue.name,
             },
+            metricName: "ApproximateNumberOfMessagesVisible",
+            namespace: "AWS/SQS",
+            period: 300,
+            stat: "Maximum",
           },
-          {
-            id: "m10",
-            metric: {
-              dimensions: {
-                QueueName: deadLetterQueue.name,
-              },
-              metricName: "ApproximateNumberOfMessagesVisible",
-              namespace: "AWS/SQS",
-              period: 300,
-              stat: "Minimum",
+        },
+        {
+          id: "m10",
+          metric: {
+            dimensions: {
+              QueueName: deadLetterQueue.name,
             },
+            metricName: "ApproximateNumberOfMessagesVisible",
+            namespace: "AWS/SQS",
+            period: 300,
+            stat: "Minimum",
           },
-          {
-            expression: "m1 - m10",
-            id: "e1",
-            label: "NumNewMessagesDeadLetterQueue",
-            returnData: true,
-          },
-        ],
-        name: "NewMessageDeadLetterQueueAlarm",
-        treatMissingData: "notBreaching",
-        tags: { ...defaultTags, Name: "NewMessageDeadLetterQueueAlarm" },
-      }
-    );
+        },
+        {
+          expression: "m1 - m10",
+          id: "e1",
+          label: "NumNewMessagesDeadLetterQueue",
+          returnData: true,
+        },
+      ],
+      name: "NewMessageDeadLetterQueueAlarm",
+      treatMissingData: "notBreaching",
+      tags: { ...defaultTags, Name: "NewMessageDeadLetterQueueAlarm" },
+    });
   }
 
   return deadLetterQueue;
 };
 
-export const createRescoreQueue = ({
-  deadLetterQueue,
-}: {
-  deadLetterQueue: aws.sqs.Queue;
-}): aws.sqs.Queue => {
+export const createRescoreQueue = ({ deadLetterQueue }: { deadLetterQueue: aws.sqs.Queue }): aws.sqs.Queue => {
   const fourHoursInSeconds = 60 * 60 * 4;
 
   return new aws.sqs.Queue("rescore-queue", {

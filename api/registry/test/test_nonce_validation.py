@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 
-import api_logging as logging
 import pytest
+
+import api_logging as logging
 from account.models import Nonce, tz
 
 pytestmark = pytest.mark.django_db

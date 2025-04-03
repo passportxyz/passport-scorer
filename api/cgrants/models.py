@@ -5,9 +5,10 @@ and we store the JSON dump of the recoords containing all the fields
 from the original record in the `data` attribute
 """
 
-from account.models import EthAddressField
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+from account.models import EthAddressField
 
 
 class Profile(models.Model):

@@ -352,21 +352,31 @@ def get_passport_stamps(
     domain = request.build_absolute_uri("/")[:-1]
 
     next_url = (
-        f"""{domain}{reverse_lazy_with_query(
-            "registry:get_passport_stamps",
-            args=[address],
-            query_kwargs={"token": encode_cursor(d="next", id=next_id), "limit": limit},
-        )}"""
+        f"""{domain}{
+            reverse_lazy_with_query(
+                "registry:get_passport_stamps",
+                args=[address],
+                query_kwargs={
+                    "token": encode_cursor(d="next", id=next_id),
+                    "limit": limit,
+                },
+            )
+        }"""
         if has_more_stamps
         else None
     )
 
     prev_url = (
-        f"""{domain}{reverse_lazy_with_query(
-            "registry:get_passport_stamps",
-            args=[address],
-            query_kwargs={"token": encode_cursor(d="prev", id=prev_id), "limit": limit},
-        )}"""
+        f"""{domain}{
+            reverse_lazy_with_query(
+                "registry:get_passport_stamps",
+                args=[address],
+                query_kwargs={
+                    "token": encode_cursor(d="prev", id=prev_id),
+                    "limit": limit,
+                },
+            )
+        }"""
         if has_prev_stamps
         else None
     )

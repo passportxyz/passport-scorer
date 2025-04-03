@@ -1,5 +1,6 @@
 import pytest
 from django.db import IntegrityError
+
 from registry.models import HashScorerLink
 
 pytestmark = pytest.mark.django_db

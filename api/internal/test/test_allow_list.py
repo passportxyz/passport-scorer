@@ -1,7 +1,8 @@
-from django.conf import settings
 import pytest
+from django.conf import settings
 from django.test import Client
-from account.models import AddressListMember, AddressList
+
+from account.models import AddressList, AddressListMember
 
 pytestmark = pytest.mark.django_db
 

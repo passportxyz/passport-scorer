@@ -3,10 +3,12 @@ import json
 import os
 
 import boto3
-from ceramic_cache.models import CeramicCache, StampExports
 from django.conf import settings
 from django.utils import timezone
 from tqdm import tqdm
+
+from ceramic_cache.models import CeramicCache, StampExports
+
 from .base_cron_cmds import BaseCronJobCmd
 
 s3 = boto3.client(
@@ -39,7 +41,7 @@ class Command(BaseCronJobCmd):
         )
 
         # Generate the dump file name
-        file_name = f'stamps_{latest_export.last_export_ts.strftime("%Y%m%d_%H%M%S")}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.jsonl'
+        file_name = f"stamps_{latest_export.last_export_ts.strftime('%Y%m%d_%H%M%S')}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
 
         last_updated_at = latest_export.last_export_ts
         chunk_size = 1000

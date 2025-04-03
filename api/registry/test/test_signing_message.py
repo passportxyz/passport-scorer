@@ -1,8 +1,9 @@
-from account.models import Account, AccountAPIKey
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TransactionTestCase
 from web3 import Web3
+
+from account.models import Account, AccountAPIKey
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -30,7 +31,6 @@ class SigningMessageTestCase(TransactionTestCase):
         self.secret = secret
 
     def test_get_signing_message(self):
-
         response = self.client.get(
             "/registry/signing-message",
             content_type="application/json",

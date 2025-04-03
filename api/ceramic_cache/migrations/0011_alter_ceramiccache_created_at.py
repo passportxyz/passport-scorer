@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ceramic_cache", "0010_ceramiccache_created_at"),
     ]

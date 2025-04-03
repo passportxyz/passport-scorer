@@ -2,6 +2,8 @@
 This module provides a handler to manage API requests in AWS Lambda.
 """
 
+from django.db import close_old_connections
+
 from aws_lambdas.scorer_api_passport.utils import (
     authenticate_and_get_address,
     format_response,
@@ -9,7 +11,6 @@ from aws_lambdas.scorer_api_passport.utils import (
     with_request_exception_handling,
 )
 from ceramic_cache.api.v1 import DeleteStampPayload, handle_delete_stamps
-from django.db import close_old_connections
 
 
 @with_request_exception_handling

@@ -1,10 +1,11 @@
 import csv
 import json
 
-from cgrants.management.commands.utils import batch_iterator, stream_object_from_s3_uri
-from cgrants.models import RoundMapping, SquelchedAccounts
 from django.core.management.base import BaseCommand
 from tqdm import tqdm
+
+from cgrants.management.commands.utils import batch_iterator, stream_object_from_s3_uri
+from cgrants.models import RoundMapping, SquelchedAccounts
 
 
 def get_squelch_data_from_json(json_data, round_number):

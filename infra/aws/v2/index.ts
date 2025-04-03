@@ -140,37 +140,34 @@ export function createV2Api({
     alarmConfigurations
   );
 
-  const targetPassportRuleHistory = new ListenerRule(
-    `passport-v2-lrule-history`,
-    {
-      tags: { ...defaultTags, Name: "passport-v2-lrule-history" },
-      listenerArn: httpsListener.arn,
-      priority: 2022,
-      actions: [
-        {
-          type: "forward",
-          targetGroupArn: targetGroupRegistry.arn,
+  const targetPassportRuleHistory = new ListenerRule(`passport-v2-lrule-history`, {
+    tags: { ...defaultTags, Name: "passport-v2-lrule-history" },
+    listenerArn: httpsListener.arn,
+    priority: 2022,
+    actions: [
+      {
+        type: "forward",
+        targetGroupArn: targetGroupRegistry.arn,
+      },
+    ],
+    conditions: [
+      {
+        hostHeader: {
+          values: ["*.passport.xyz"],
         },
-      ],
-      conditions: [
-        {
-          hostHeader: {
-            values: ["*.passport.xyz"],
-          },
+      },
+      {
+        pathPattern: {
+          values: ["/v2/stamps/*/score/*/history"],
         },
-        {
-          pathPattern: {
-            values: ["/v2/stamps/*/score/*/history"],
-          },
+      },
+      {
+        httpRequestMethod: {
+          values: ["GET"],
         },
-        {
-          httpRequestMethod: {
-            values: ["GET"],
-          },
-        },
-      ],
-    }
-  );
+      },
+    ],
+  });
 
   const targetPassportRule = new ListenerRule(`passport-v2-lrule`, {
     tags: { ...defaultTags, Name: "passport-v2-lrule" },

@@ -32,7 +32,5 @@ def service_unavailable(request, _):
 @api.exception_handler(ScoreDoesNotExist)
 def score_not_found(request, exc):
     return api.create_response(
-        request,
-        {"detail": exc.detail, "address": exc.address},
-        status=exc.status_code
+        request, {"detail": exc.detail, "address": exc.address}, status=exc.status_code
     )

@@ -1,5 +1,6 @@
-from ceramic_cache.models import CeramicCache, CeramicCacheLegacy
 from django.core.management.base import BaseCommand
+
+from ceramic_cache.models import CeramicCache, CeramicCacheLegacy
 from passport_admin.models import DismissedBanners
 from registry.models import Event, HashScorerLink, Passport, Score, Stamp
 

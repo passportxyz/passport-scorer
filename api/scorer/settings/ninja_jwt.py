@@ -1,4 +1,5 @@
 """Ninja JWT settings."""
+
 from datetime import timedelta
 
 from .env import env

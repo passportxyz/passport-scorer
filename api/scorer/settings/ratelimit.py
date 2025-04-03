@@ -1,4 +1,5 @@
-""" Specify any feature flags here """
+"""Specify any feature flags here"""
+
 from .env import env
 
 RATELIMIT_FAIL_OPEN = True

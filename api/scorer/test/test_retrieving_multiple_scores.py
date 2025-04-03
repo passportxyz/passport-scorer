@@ -3,6 +3,7 @@
 import pytest
 from django.test import Client
 from pytest_bdd import given, scenario, then, when
+
 from registry.models import Passport, Score
 
 pytestmark = pytest.mark.django_db

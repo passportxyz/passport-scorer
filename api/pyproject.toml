@@ -51,6 +51,7 @@ pandas = "*"
 faker = "*"
 freezegun = "*"
 pytest-asyncio = "^0.25.2"
+ruff = "^0.11.2"
 
 
 [tool.poetry.group.server.dependencies]

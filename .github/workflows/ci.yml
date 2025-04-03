@@ -42,6 +42,10 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: "3.12"
+      - name: Use Node.js 22
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22.14.0
 
       - name: Install poetry
         run: |
@@ -64,6 +68,22 @@ jobs:
           CERAMIC_CACHE_SCORER_ID: ""
           SECRET_KEY: secret-test-value
         run: python manage.py check
+
+      - name: Python Linter Check
+        working-directory: ./api
+        run: ruff check
+
+      - name: JS / TS Linter Check System Tests
+        working-directory: ./system_tests
+        run: |
+          yarn install
+          yarn lint
+
+      - name: JS / TS Linter Check Infra
+        working-directory: ./infra
+        run: |
+          yarn install
+          yarn lint
 
       - name: Run API unittests
         working-directory: ./api

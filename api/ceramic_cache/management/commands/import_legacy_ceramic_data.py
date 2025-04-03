@@ -3,10 +3,12 @@ import json
 from urllib.parse import urlparse
 
 import boto3
-from ceramic_cache.models import CeramicCacheLegacy
 from django.conf import settings
-from .base_cron_cmds import BaseCronJobCmd
 from tqdm import tqdm
+
+from ceramic_cache.models import CeramicCacheLegacy
+
+from .base_cron_cmds import BaseCronJobCmd
 
 
 def batch_iterator(iterable, batch_size):

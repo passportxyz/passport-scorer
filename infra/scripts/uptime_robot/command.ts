@@ -23,8 +23,7 @@ export const HTTP_METHOD = {
   OPTIONS: "7",
 };
 
-const httpMethodToName = (methodId: string) =>
-  Object.entries(HTTP_METHOD).find(([_, id]) => id === methodId)?.[0];
+const httpMethodToName = (methodId: string) => Object.entries(HTTP_METHOD).find(([_, id]) => id === methodId)?.[0];
 
 const POST_TYPE = {
   KEY_VALUE_PAIRS: "1",
@@ -54,9 +53,7 @@ type CreateModelRequestBody = {
 // This function should return a partial CreateModelRequestBody
 // which overrides any defaults specified in the CreateMonitor
 // function (see below) and adds any additional fields required
-type GenerateCreateModelRequestBody<T> = (
-  options: T
-) => Partial<CreateModelRequestBody>;
+type GenerateCreateModelRequestBody<T> = (options: T) => Partial<CreateModelRequestBody>;
 
 type CommandParams<T> = {
   name: string;
@@ -84,12 +81,7 @@ async function createMonitors<T extends BaseMonitorOptions>(
 
   await Promise.all(
     paths.map(async (path) => {
-      const { data, url } = await createMonitor<T>(
-        baseUrl,
-        path,
-        options,
-        generateCreateModelRequestBody
-      );
+      const { data, url } = await createMonitor<T>(baseUrl, path, options, generateCreateModelRequestBody);
       const { stat } = data;
       if (stat === "ok") {
         successfulUrls.push(url);
@@ -127,8 +119,7 @@ async function createMonitor<T extends BaseMonitorOptions>(
   body.http_method = body.http_method || HTTP_METHOD.GET;
   const httpMethodName = httpMethodToName(body.http_method);
 
-  body.friendly_name =
-    body.friendly_name || `[auto] Scorer ${httpMethodName} /${path}`;
+  body.friendly_name = body.friendly_name || `[auto] Scorer ${httpMethodName} /${path}`;
 
   if (body.http_method !== HTTP_METHOD.GET && !body.post_type) {
     body.post_type = POST_TYPE.RAW_DATA;
@@ -136,16 +127,12 @@ async function createMonitor<T extends BaseMonitorOptions>(
 
   let data: any;
   try {
-    const response = await axios.post(
-      "https://api.uptimerobot.com/v2/newMonitor",
-      body,
-      {
-        headers: {
-          "content-type": "application/x-www-form-urlencoded",
-          "cache-control": "no-cache",
-        },
-      }
-    );
+    const response = await axios.post("https://api.uptimerobot.com/v2/newMonitor", body, {
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "cache-control": "no-cache",
+      },
+    });
 
     data = response.data;
   } catch (exception) {
@@ -158,10 +145,7 @@ async function createMonitor<T extends BaseMonitorOptions>(
   };
 }
 
-async function summarize(
-  successfulUrls: string[],
-  failed: { url: string; data: any }[]
-) {
+async function summarize(successfulUrls: string[], failed: { url: string; data: any }[]) {
   console.log(bigLine);
   console.log(`Successfully created ${successfulUrls.length} monitors:`);
   successfulUrls.map((url) => console.log(url));
@@ -181,48 +165,33 @@ export async function generateProgram(commands: CommandParams<any>[]) {
   const program = new Command();
   program.description("Utilities for creating Uptime Robot monitors");
 
-  commands.map(
-    ({
-      name,
-      description,
-      summary,
-      generateCreateModelRequestBody,
-      additionalOptions,
-    }) => {
-      const command = program
-        .command(name)
-        .description(description)
-        .argument("base-url", "Base URL for the monitor(s)")
-        .argument("<paths...>", "URL path(s) to monitor (space delimited)")
-        .option("-i, --interval <interval>", "Interval in seconds", "60")
-        .option("-t, --timeout <timeout>", "Timeout in seconds", "30")
-        .option("-p, --paused", "Create the monitor in paused state")
-        .option("--accept-404", "Accept 404 status code as success");
+  commands.map(({ name, description, summary, generateCreateModelRequestBody, additionalOptions }) => {
+    const command = program
+      .command(name)
+      .description(description)
+      .argument("base-url", "Base URL for the monitor(s)")
+      .argument("<paths...>", "URL path(s) to monitor (space delimited)")
+      .option("-i, --interval <interval>", "Interval in seconds", "60")
+      .option("-t, --timeout <timeout>", "Timeout in seconds", "30")
+      .option("-p, --paused", "Create the monitor in paused state")
+      .option("--accept-404", "Accept 404 status code as success");
 
-      additionalOptions?.forEach((option) => command.addOption(option));
+    additionalOptions?.forEach((option) => command.addOption(option));
 
-      summary && command.summary(summary);
+    summary && command.summary(summary);
 
-      command.action(
-        async (rawBaseUrl: string, rawPaths: string[], options) => {
-          checkEnv();
-          const baseUrl = rawBaseUrl.replace(/\/$/, "");
-          const paths = rawPaths.map((path) => path.replace(/^\//, ""));
+    command.action(async (rawBaseUrl: string, rawPaths: string[], options) => {
+      checkEnv();
+      const baseUrl = rawBaseUrl.replace(/\/$/, "");
+      const paths = rawPaths.map((path) => path.replace(/^\//, ""));
 
-          console.log(`Creating monitors for ${paths.length} URLs`);
+      console.log(`Creating monitors for ${paths.length} URLs`);
 
-          const { successfulUrls, failed } = await createMonitors(
-            baseUrl,
-            paths,
-            options,
-            generateCreateModelRequestBody
-          );
+      const { successfulUrls, failed } = await createMonitors(baseUrl, paths, options, generateCreateModelRequestBody);
 
-          summarize(successfulUrls, failed);
-        }
-      );
-    }
-  );
+      summarize(successfulUrls, failed);
+    });
+  });
 
   program.parse();
 }

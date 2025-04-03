@@ -6,13 +6,13 @@ isort:skip_file
 
 from sys import stdout
 
+from account.models import Community
+
 # needs to be imported before django models
 from aws_lambdas.utils import (
     format_response,
     with_request_exception_handling,
 )
-
-from account.models import Community
 from registry.management.commands.recalculate_scores import recalculate_scores
 
 

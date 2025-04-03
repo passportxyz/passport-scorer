@@ -3,12 +3,13 @@ from io import BytesIO
 from urllib.parse import urlparse
 
 import boto3
-from ceramic_cache.models import CeramicCache
 from dateutil.parser import parse as dateutil_parse
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from registry.models import Event, HashScorerLink
 from tqdm import tqdm
+
+from ceramic_cache.models import CeramicCache
+from registry.models import Event, HashScorerLink
 
 
 def write_csv_row(file, row):

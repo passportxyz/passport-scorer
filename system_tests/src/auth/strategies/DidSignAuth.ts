@@ -1,8 +1,8 @@
-import axios, { isAxiosError } from 'axios';
-import { DID } from 'dids';
-import { Cacao } from '@didtools/cacao';
-import { TestRequestOptionsNoAuth } from '../../types';
-import { BaseAuthStrategy } from './strategy';
+import axios, { isAxiosError } from "axios";
+import { DID } from "dids";
+import { Cacao } from "@didtools/cacao";
+import { TestRequestOptionsNoAuth } from "../../types";
+import { BaseAuthStrategy } from "./strategy";
 
 interface DidSignAuthConfig {
   did: DID;
@@ -13,7 +13,7 @@ export class DidSignAuth extends BaseAuthStrategy {
   accessToken?: string;
 
   constructor({ did }: DidSignAuthConfig) {
-    super({ name: 'did-sign-auth' });
+    super({ name: "did-sign-auth" });
     this.did = did;
   }
 
@@ -41,9 +41,7 @@ const getAccessToken = async (did: DID) => {
     nonce = nonceResponse.data.nonce;
   } catch (error) {
     if (isAxiosError(error)) {
-      throw new Error(
-        `Failed to get nonce from server: ${error.message}, status: ${error.response?.status}`
-      );
+      throw new Error(`Failed to get nonce from server: ${error.message}, status: ${error.response?.status}`);
     }
     throw error;
   }
@@ -73,7 +71,7 @@ const getAccessToken = async (did: DID) => {
   }
 
   if (!accessToken) {
-    throw new Error('No access token received from authentication');
+    throw new Error("No access token received from authentication");
   }
 
   return accessToken;

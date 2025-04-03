@@ -1,6 +1,7 @@
 import pytest
-from ceramic_cache.models import CeramicCache
 from django.db.utils import IntegrityError
+
+from ceramic_cache.models import CeramicCache
 
 stamp = {
     "type": ["VerifiableCredential"],

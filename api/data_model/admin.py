@@ -1,7 +1,7 @@
 from django.contrib import admin
 
-from scorer.scorer_admin import ScorerModelAdmin
 from data_model.models import Cache
+from scorer.scorer_admin import ScorerModelAdmin
 
 
 @admin.register(Cache)

@@ -1,8 +1,9 @@
 from datetime import datetime
 
 import pytest
-from ceramic_cache.models import CeramicCache
 from django.test import Client
+
+from ceramic_cache.models import CeramicCache
 
 pytestmark = pytest.mark.django_db
 

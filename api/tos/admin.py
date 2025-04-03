@@ -1,12 +1,13 @@
 # Register your models here.
 from typing import Any
+
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.contrib.auth import get_permission_codename
 from django.http import HttpRequest
 from django_ace import AceWidget
+
 from scorer.scorer_admin import ScorerModelAdmin
-from django.contrib.auth import get_permission_codename
-from django.contrib import messages
 
 from .models import Tos, TosAcceptanceProof
 

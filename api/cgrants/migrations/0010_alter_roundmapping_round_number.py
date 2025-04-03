@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cgrants", "0009_alter_squelchedaccounts_options_and_more"),
     ]

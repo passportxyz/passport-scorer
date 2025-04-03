@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("stake", "0002_alter_stake_chain_alter_stakeevent_chain"),
     ]

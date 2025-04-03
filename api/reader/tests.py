@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+
 from ceramic_cache.models import CeramicCache
 
 from .passport_reader import get_passport

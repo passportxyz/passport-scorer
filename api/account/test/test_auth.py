@@ -1,9 +1,10 @@
 import json
 
-from account.models import Account
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from ninja_jwt.schema import RefreshToken
+
+from account.models import Account
 
 mock_api_key_body = {"name": "test"}
 

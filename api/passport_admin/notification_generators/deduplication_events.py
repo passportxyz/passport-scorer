@@ -6,12 +6,12 @@ import hashlib
 from datetime import timedelta
 
 import dag_cbor
+from django.utils import timezone
+
 from account.models import Community
 from ceramic_cache.api.v1 import handle_get_scorer_weights
-from django.utils import timezone
-from registry.models import Event
-
 from passport_admin.models import Notification
+from registry.models import Event
 
 
 def generate_deduplication_notifications(address, community: Community):

@@ -1,6 +1,7 @@
-from cgrants.models import Contribution, GrantContributionIndex, Profile
 from django.core.management.base import BaseCommand
 from tqdm import tqdm
+
+from cgrants.models import Contribution, GrantContributionIndex, Profile
 
 
 class Command(BaseCommand):
