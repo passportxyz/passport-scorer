@@ -28,7 +28,7 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          CLOUDFLARE_API_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
+          CLOUDFLARE_API_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/CLOUDFLARE_API_TOKEN
           AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Install 1Password CLI
@@ -261,8 +261,8 @@ jobs:
         with:
           export-env: true
         env:
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
-          CLOUDFLARE_API_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
+          PULUMI_ACCESS_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/PULUMI_ACCESS_TOKEN
+          CLOUDFLARE_API_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/CLOUDFLARE_API_TOKEN
           AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Set AWS_SESSION_TOKEN if needed
@@ -340,8 +340,8 @@ jobs:
         with:
           export-env: true
         env:
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
-          CLOUDFLARE_API_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
+          PULUMI_ACCESS_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/PULUMI_ACCESS_TOKEN
+          CLOUDFLARE_API_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/CLOUDFLARE_API_TOKEN
           AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Set AWS_SESSION_TOKEN if needed
