@@ -10,6 +10,9 @@ export class PassportUIUser extends BaseUser {
   declare did: DID;
   declare address: string;
   declare signer: Signer;
+  customizationPath = process.env.CUSTOMIZATION_PATH!;
+  customProviderId = process.env.CUSTOM_PROVIDER_ID!;
+  allowListName = process.env.ALLOW_LIST_NAME!;
 
   async init() {
     const wallet = new Wallet(testPrivateKey);
