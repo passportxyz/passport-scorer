@@ -1,4 +1,4 @@
-name: Setup & Build App
+name: Build App
 
 on:
   workflow_call:
@@ -14,7 +14,6 @@ on:
 
 jobs:
   build:
-    name: Setup & Build App
     runs-on: ubuntu-latest
 
     env:

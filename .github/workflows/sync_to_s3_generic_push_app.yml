@@ -1,5 +1,4 @@
 name: Push App to S3
-
 on:
   workflow_call:
     inputs:
@@ -13,8 +12,7 @@ on:
         required: true
 
 jobs:
-  build:
-    name: Push App to S3
+  push:
     runs-on: ubuntu-latest
 
     env:
