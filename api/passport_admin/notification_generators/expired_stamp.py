@@ -24,11 +24,13 @@ def generate_stamp_expired_notifications(address, community: Community):
     for cc in ceramic_cache:
         stamp_weight = weights.get(cc.provider)
         if stamp_weight and float(stamp_weight) > 0:
+            cs = cc.stamp["credentialSubject"]
+            hash = cs["hash"] if "hash" in cs else cs["nullifiers"][0]
             encoded_data = dag_cbor.encode(
                 {
                     "cc_id": cc.id,
                     "cc_provider": cc.provider,
-                    "cc_stamp_hash": cc.stamp["credentialSubject"]["hash"],
+                    "cc_stamp_hash": hash,
                     "cc_stamp_id": cc.stamp["credentialSubject"]["id"],
                     "address": address,
                 }
