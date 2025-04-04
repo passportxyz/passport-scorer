@@ -303,7 +303,7 @@ jobs:
         run: |
           echo "Ref" ${{ inputs.refspec }}
 
-  push-app-to-staging:
+  push-app-to-s3:
     name: Push App
     needs: [build-app, deploy_confirm]
     uses: ./.github/workflows/sync_to_s3_generic_push_app.yml

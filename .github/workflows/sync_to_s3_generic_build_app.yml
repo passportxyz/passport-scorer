@@ -32,7 +32,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.14.0
-          cache: "yarn"
 
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
