@@ -14,6 +14,7 @@ on:
 
 jobs:
   build:
+    name: Build App
     runs-on: ubuntu-latest
 
     env:
@@ -67,4 +68,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: scorer-app
-          path: app/out
+          path: interface/out
