@@ -9,6 +9,8 @@ on:
         required: false
 jobs:
   ui-test:
+    # TODO (#106): Remove this job once the interface is fully migrated to S3, ui tests are also run as part of the build
+
     runs-on: ubuntu-latest
 
     steps:

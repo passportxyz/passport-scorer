@@ -75,7 +75,7 @@ jobs:
           echo "CLOUDFRONT_ID=$CLOUDFRONT_ID" >> $GITHUB_ENV
 
       - name: Sync Files to S3
-        working-directory: app
+        working-directory: interface
         run: |
           if [ -d "out" ]; then
               aws s3 sync ./out s3://${{ env.BUCKET_NAME }} --delete
