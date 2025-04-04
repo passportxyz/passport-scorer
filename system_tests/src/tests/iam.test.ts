@@ -126,7 +126,7 @@ describe("IAM (NFT)", () => {
     ({ did, address } = await PassportUIUser.createFromWallet(wallet));
   });
 
-  it("POST /eas/passport", async () => {
+  it("POST /eas/scoreV2", async () => {
     const type = "NFT";
 
     const challengeResponse = await testRequest<{
@@ -193,7 +193,7 @@ describe("IAM (NFT)", () => {
     const nonce = "123";
 
     const createAttestationResponse = await testRequest({
-      url: url(`eas/score`),
+      url: url(`eas/scoreV2`),
       method: "POST",
       payload: {
         chainIdHex: "0xa",

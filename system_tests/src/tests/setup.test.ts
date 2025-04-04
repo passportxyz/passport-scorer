@@ -2,6 +2,7 @@ describe("Test Environment", () => {
   it("should define the required environment variables", () => {
     const envVars = [
       "SCORER_API_BASE_URL",
+      "INTERNAL_SCORER_API_BASE_URL",
       "ALCHEMY_API_KEY",
       "TEST_API_SCORER_ID",
       "TEST_SCORER_API_KEY",
@@ -12,6 +13,8 @@ describe("Test Environment", () => {
       "NFT_HOLDER_PRIVATE_KEY",
       "DOMAIN",
       "DATABASE_URL",
+      "CUSTOM_PROVIDER_ID",
+      "CUSTOMIZATION_PATH",
     ];
     const missingEnvVars = envVars.filter((envVarName) => !process.env[envVarName]);
     expect(missingEnvVars).toEqual([]);
