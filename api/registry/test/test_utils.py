@@ -1,13 +1,14 @@
-import asyncio
 import copy
+import json
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock
 
 import pytest
 
 from registry.utils import validate_credential
 
 now = datetime.now(timezone.utc)
-mock_did = "did:pkh:eip155:1:0x0636F974D29d947d4946b2091d769ec6D2d415DE"
+mock_did = "did:pkh:eip155:1:0x0636f974d29d947d4946b2091d769ec6d2d415de"
 
 pytestmark = pytest.mark.django_db
 
@@ -68,18 +69,22 @@ mock_credential_with_nullifiers = {
 }
 
 
-async def mock_didkit_success(*args, **kwargs):
-    return {}
-
-
 @pytest.mark.parametrize(
-    "credential,n",
-    [(mock_credential_with_hash, 1), (mock_credential_with_nullifiers, 1)],
+    "credential",
+    [mock_credential_with_hash, mock_credential_with_nullifiers],
 )
 class TestValidateCredential:
     @pytest.mark.asyncio
-    async def test_validate_credential_success(self, mocker, credential, n):
-        mocker.patch("didkit.verify_credential", return_value=mock_didkit_success)
+    async def test_validate_credential_success(
+        self,
+        mocker,
+        credential,
+    ):
+        mocker.patch(
+            "registry.utils.verify_credential",
+            return_value=json.dumps({"errors": []}),
+            new_callable=AsyncMock,
+        )
 
         validation_errors = await validate_credential(mock_did, credential)
 
@@ -87,9 +92,15 @@ class TestValidateCredential:
 
     @pytest.mark.asyncio
     async def test_validate_credential_fails_if_hash_and_nullifiers_are_missing(
-        self, mocker, credential, n
+        self,
+        mocker,
+        credential,
     ):
-        mocker.patch("didkit.verify_credential", return_value=mock_didkit_success)
+        mocker.patch(
+            "registry.utils.verify_credential",
+            return_value=json.dumps({"errors": []}),
+            new_callable=AsyncMock,
+        )
 
         test_credential = copy.deepcopy(credential)
 
@@ -101,13 +112,6 @@ class TestValidateCredential:
 
         validation_errors = await validate_credential(mock_did, test_credential)
 
-        assert validation_errors == []
-
-
-@pytest.mark.parametrize("n,expected", [(1, 2), (3, 4)])
-class TestClass:
-    def test_simple_case(self, n, expected):
-        assert n + 1 == expected
-
-    def test_weird_simple_case(self, n, expected):
-        assert (n * 1) + 1 == expected
+        assert validation_errors == [
+            "Missing attribute: hash and nullifiers (either one must be present)",
+        ]
