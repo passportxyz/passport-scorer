@@ -55,11 +55,19 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           branch: staging-interface
 
-  deploy-ui-s3:
-    name: Deploy UI - Push to S3
-    needs: [ui-test]
-    uses: ./.github/workflows/sync_to_s3_generic_app.yml
+  build-app:
+    name: Build App
+    uses: ./.github/workflows/sync_to_s3_generic_build_app.yml
     secrets: inherit
     with:
-      refspec: ${{ needs.ref.outputs.refspec }}
+      refspec: ${{ needs.ui-test.outputs.refspec }}
+      environment: staging
+
+  push-app-to-s3:
+    name: Push App
+    needs: [build-app]
+    uses: ./.github/workflows/sync_to_s3_generic_push_app.yml
+    secrets: inherit
+    with:
+      refspec: ${{ needs.ui-test.outputs.refspec }}
       environment: staging
