@@ -24,6 +24,13 @@ pytestmark = pytest.mark.django_db
 client = Client()
 
 
+def get_hash(stamp):
+    cs = stamp["credentialSubject"]
+    if "hash" in cs:
+        return cs["hash"]
+    return cs["nullifiers"][0]
+
+
 @pytest.fixture
 def sample_address():
     return "0xc79abb54e4824cdb65c71f2eeb2d7f2db5da1fb8"
@@ -220,13 +227,18 @@ def deduplication_event(sample_address, community):
     return event
 
 
-@pytest.fixture
-def expired_stamp(sample_address):
+@pytest.fixture(
+    params=[
+        {"credentialSubject": {"hash": "some_hash", "id": "some_id"}},
+        {"credentialSubject": {"nullifiers": ["some_hash"], "id": "some_id"}},
+    ]
+)
+def expired_stamp(sample_address, request):
     cc_expired = CeramicCache.objects.create(
         address=sample_address,
         provider="provider-1",
         created_at=timezone.now() - timedelta(days=30),
-        stamp={"credentialSubject": {"hash": "some_hash", "id": "some_id"}},
+        stamp=request.param,
         expiration_date=timezone.now() - timedelta(days=3),
         issuance_date=timezone.now() - timedelta(days=3),
     )
@@ -236,7 +248,7 @@ def expired_stamp(sample_address):
         provider="provider-2",
         deleted_at=timezone.now(),
         created_at=timezone.now() - timedelta(days=3),
-        stamp={"credentialSubject": {"hash": "some_hash", "id": "some_id"}},
+        stamp=request.param,
         expiration_date=timezone.now() + timedelta(days=30),
         issuance_date=timezone.now() - timedelta(days=3),
     )
@@ -267,13 +279,18 @@ def existing_notification_expired_chain(sample_address, community):
     )
 
 
-@pytest.fixture
-def existing_notification_expired_stamp(sample_address, community):
+@pytest.fixture(
+    params=[
+        {"credentialSubject": {"hash": "some_hash", "id": "some_id"}},
+        {"credentialSubject": {"nullifiers": ["some_hash"], "id": "some_id"}},
+    ]
+)
+def existing_notification_expired_stamp(sample_address, community, request):
     cc_expired = CeramicCache.objects.create(
         address=sample_address,
         provider="provider-1",
         created_at=timezone.now() - timedelta(days=30),
-        stamp={"credentialSubject": {"hash": "some_hash", "id": "some_id"}},
+        stamp=request.param,
         expiration_date=timezone.now() - timedelta(days=3),
         issuance_date=timezone.now() - timedelta(days=3),
     )
@@ -284,7 +301,7 @@ def existing_notification_expired_stamp(sample_address, community):
                 {
                     "cc_id": cc_expired.id,
                     "cc_provider": cc_expired.provider,
-                    "cc_stamp_hash": cc_expired.stamp["credentialSubject"]["hash"],
+                    "cc_stamp_hash": get_hash(cc_expired.stamp),
                     "cc_stamp_id": cc_expired.stamp["credentialSubject"]["id"],
                     "address": sample_address,
                 }
@@ -379,9 +396,7 @@ class TestNotifications:
                     {
                         "cc_id": expired_stamp.id,
                         "cc_provider": expired_stamp.provider,
-                        "cc_stamp_hash": expired_stamp.stamp["credentialSubject"][
-                            "hash"
-                        ],
+                        "cc_stamp_hash": get_hash(expired_stamp.stamp),
                         "cc_stamp_id": expired_stamp.stamp["credentialSubject"]["id"],
                         "address": sample_address,
                     }
@@ -606,7 +621,10 @@ class TestNotifications:
         assert expected_response == received_items
 
     def test_no_duplication_notifications_expired_stamp(
-        self, sample_token, existing_notification_expired_stamp, community
+        self,
+        sample_token,
+        existing_notification_expired_stamp,
+        community,
     ):
         existing = Notification.objects.filter(
             notification_id=existing_notification_expired_stamp.notification_id
