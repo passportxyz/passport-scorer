@@ -28,7 +28,7 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          CLOUDFLARE_API_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
+          CLOUDFLARE_API_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/CLOUDFLARE_API_TOKEN
           AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Install 1Password CLI
@@ -158,6 +158,14 @@ jobs:
           dockerfile_name: ./verifier/Dockerfile
           build_dir: ./verifier/
 
+  build-app:
+    name: Build App
+    uses: ./.github/workflows/sync_to_s3_generic_build_app.yml
+    secrets: inherit
+    with:
+      refspec: ${{ inputs.refspec }}
+      environment: inputs.environment
+
   check_migrations:
     needs: [docker-lambda]
     name: Run showmigrations
@@ -261,8 +269,8 @@ jobs:
         with:
           export-env: true
         env:
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
-          CLOUDFLARE_API_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
+          PULUMI_ACCESS_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/PULUMI_ACCESS_TOKEN
+          CLOUDFLARE_API_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/CLOUDFLARE_API_TOKEN
           AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Set AWS_SESSION_TOKEN if needed
@@ -294,6 +302,15 @@ jobs:
         if: ${{ inputs.environment != 'review' }}
         run: |
           echo "Ref" ${{ inputs.refspec }}
+
+  push-app-to-s3:
+    name: Push App
+    needs: [build-app, deploy_confirm]
+    uses: ./.github/workflows/sync_to_s3_generic_push_app.yml
+    secrets: inherit
+    with:
+      refspec: ${{ inputs.refspec }}
+      environment: ${{ inputs.environment }}
 
   deploy_backends:
     name: Deploying AWS Infra
@@ -340,8 +357,8 @@ jobs:
         with:
           export-env: true
         env:
-          PULUMI_ACCESS_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/PULUMI_ACCESS_TOKEN
-          CLOUDFLARE_API_TOKEN: op://DevOps/passport-scorer-${{ inputs.environment }}-secrets/ci/CLOUDFLARE_API_TOKEN
+          PULUMI_ACCESS_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/PULUMI_ACCESS_TOKEN
+          CLOUDFLARE_API_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/CLOUDFLARE_API_TOKEN
           AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Set AWS_SESSION_TOKEN if needed

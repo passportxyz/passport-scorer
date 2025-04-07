@@ -9,6 +9,7 @@ on:
         required: false
 jobs:
   ui-test:
+    # TODO (#106): Remove this job once the interface is fully migrated to S3, ui tests are also run as part of the build
     runs-on: ubuntu-latest
 
     steps:
@@ -55,11 +56,19 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           branch: production-interface
 
-  deploy-ui-s3:
-    name: Deploy UI - Push to S3
-    needs: [ui-test]
-    uses: ./.github/workflows/sync_to_s3_generic_app.yml
+  build-app:
+    name: Build App
+    uses: ./.github/workflows/sync_to_s3_generic_build_app.yml
     secrets: inherit
     with:
-      refspec: ${{ needs.ref.outputs.refspec }}
+      refspec: ${{ needs.ui-test.outputs.refspec }}
+      environment: production
+
+  push-app-to-s3:
+    name: Push App
+    needs: [build-app]
+    uses: ./.github/workflows/sync_to_s3_generic_push_app.yml
+    secrets: inherit
+    with:
+      refspec: ${{ needs.ui-test.outputs.refspec }}
       environment: production
