@@ -310,7 +310,7 @@ jobs:
     secrets: inherit
     with:
       refspec: ${{ inputs.refspec }}
-      environment: inputs.environment
+      environment: ${{ inputs.environment }}
 
   deploy_backends:
     name: Deploying AWS Infra
