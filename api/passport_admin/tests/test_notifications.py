@@ -227,13 +227,18 @@ def deduplication_event(sample_address, community):
     return event
 
 
-@pytest.fixture
-def expired_stamp(sample_address):
+@pytest.fixture(
+    params=[
+        {"credentialSubject": {"hash": "some_hash", "id": "some_id"}},
+        {"credentialSubject": {"nullifiers": ["some_hash"], "id": "some_id"}},
+    ]
+)
+def expired_stamp(sample_address, request):
     cc_expired = CeramicCache.objects.create(
         address=sample_address,
         provider="provider-1",
         created_at=timezone.now() - timedelta(days=30),
-        stamp={"credentialSubject": {"hash": "some_hash", "id": "some_id"}},
+        stamp=request.param,
         expiration_date=timezone.now() - timedelta(days=3),
         issuance_date=timezone.now() - timedelta(days=3),
     )
@@ -243,31 +248,7 @@ def expired_stamp(sample_address):
         provider="provider-2",
         deleted_at=timezone.now(),
         created_at=timezone.now() - timedelta(days=3),
-        stamp={"credentialSubject": {"hash": "some_hash", "id": "some_id"}},
-        expiration_date=timezone.now() + timedelta(days=30),
-        issuance_date=timezone.now() - timedelta(days=3),
-    )
-
-    return cc_expired
-
-
-@pytest.fixture
-def expired_stamp_with_nullifier(sample_address):
-    cc_expired = CeramicCache.objects.create(
-        address=sample_address,
-        provider="provider-1",
-        created_at=timezone.now() - timedelta(days=30),
-        stamp={"credentialSubject": {"nullifiers": ["some_hash"], "id": "some_id"}},
-        expiration_date=timezone.now() - timedelta(days=3),
-        issuance_date=timezone.now() - timedelta(days=3),
-    )
-
-    CeramicCache.objects.create(
-        address=sample_address,
-        provider="provider-2",
-        deleted_at=timezone.now(),
-        created_at=timezone.now() - timedelta(days=3),
-        stamp={"credentialSubject": {"nullifiers": ["some_hash"], "id": "some_id"}},
+        stamp=request.param,
         expiration_date=timezone.now() + timedelta(days=30),
         issuance_date=timezone.now() - timedelta(days=3),
     )
@@ -298,47 +279,18 @@ def existing_notification_expired_chain(sample_address, community):
     )
 
 
-@pytest.fixture
-def existing_notification_expired_stamp(sample_address, community):
+@pytest.fixture(
+    params=[
+        {"credentialSubject": {"hash": "some_hash", "id": "some_id"}},
+        {"credentialSubject": {"nullifiers": ["some_hash"], "id": "some_id"}},
+    ]
+)
+def existing_notification_expired_stamp(sample_address, community, request):
     cc_expired = CeramicCache.objects.create(
         address=sample_address,
         provider="provider-1",
         created_at=timezone.now() - timedelta(days=30),
-        stamp={"credentialSubject": {"hash": "some_hash", "id": "some_id"}},
-        expiration_date=timezone.now() - timedelta(days=3),
-        issuance_date=timezone.now() - timedelta(days=3),
-    )
-
-    return Notification.objects.create(
-        notification_id=hashlib.sha256(
-            dag_cbor.encode(
-                {
-                    "cc_id": cc_expired.id,
-                    "cc_provider": cc_expired.provider,
-                    "cc_stamp_hash": cc_expired.stamp["credentialSubject"]["hash"],
-                    "cc_stamp_id": cc_expired.stamp["credentialSubject"]["id"],
-                    "address": sample_address,
-                }
-            )
-        ).hexdigest(),
-        type="stamp_expiry",
-        link="provider-1",
-        link_text=None,
-        content=f"Your {cc_expired.provider} stamp has expired. Please reverify to keep your Passport up to date.",
-        is_active=True,
-        created_at=timezone.now() - timedelta(days=3),
-        eth_address=sample_address,
-        community=community,
-    )
-
-
-@pytest.fixture
-def existing_notification_expired_stamp_with_nullifier(sample_address, community):
-    cc_expired = CeramicCache.objects.create(
-        address=sample_address,
-        provider="provider-1",
-        created_at=timezone.now() - timedelta(days=30),
-        stamp={"credentialSubject": {"nullifiers": ["some_hash"], "id": "some_id"}},
+        stamp=request.param,
         expiration_date=timezone.now() - timedelta(days=3),
         issuance_date=timezone.now() - timedelta(days=3),
     )
@@ -444,9 +396,7 @@ class TestNotifications:
                     {
                         "cc_id": expired_stamp.id,
                         "cc_provider": expired_stamp.provider,
-                        "cc_stamp_hash": expired_stamp.stamp["credentialSubject"][
-                            "hash"
-                        ],
+                        "cc_stamp_hash": get_hash(expired_stamp.stamp),
                         "cc_stamp_id": expired_stamp.stamp["credentialSubject"]["id"],
                         "address": sample_address,
                     }
@@ -456,116 +406,6 @@ class TestNotifications:
             "link": "provider-1",
             "link_text": None,
             "content": f"Your {expired_stamp.provider} stamp has expired. Please reverify to keep your Passport up to date.",
-            "created_at": current_date.isoformat(),
-            "is_read": False,
-        }
-
-        expected_response_items = sorted(
-            [
-                {
-                    "notification_id": custom_notifications["active"].notification_id,
-                    "type": custom_notifications["active"].type,
-                    "link": None,
-                    "link_text": None,
-                    "content": custom_notifications["active"].content,
-                    "created_at": custom_notifications["active"].created_at.isoformat(),
-                    "is_read": False,
-                },
-                {
-                    "notification_id": custom_notifications["read"].notification_id,
-                    "type": custom_notifications["read"].type,
-                    "link": None,
-                    "link_text": None,
-                    "content": custom_notifications["read"].content,
-                    "created_at": custom_notifications["read"].created_at.isoformat(),
-                    "is_read": True,
-                },
-                {
-                    "notification_id": generic_notifications["active"].notification_id,
-                    "type": generic_notifications["active"].type,
-                    "link": None,
-                    "link_text": None,
-                    "content": generic_notifications["active"].content,
-                    "created_at": generic_notifications[
-                        "active"
-                    ].created_at.isoformat(),
-                    "is_read": False,
-                },
-                {
-                    "notification_id": generic_notifications["read"].notification_id,
-                    "type": generic_notifications["read"].type,
-                    "link": None,
-                    "link_text": None,
-                    "content": generic_notifications["read"].content,
-                    "created_at": generic_notifications["read"].created_at.isoformat(),
-                    "is_read": True,
-                },
-                expected_deduplication_notification,
-                expected_expired_stamp_notification,
-            ],
-            key=lambda x: x["notification_id"],
-        )
-
-        res = response.json()
-        received_items = sorted(res["items"], key=lambda x: x["notification_id"])
-
-        assert received_items == expected_response_items
-
-    def test_get_active_notifications_for_address_with_nullifier(
-        self,
-        sample_token,
-        sample_address,
-        custom_notifications,
-        generic_notifications,
-        deduplication_event,
-        expired_stamp_with_nullifier,
-        current_date,
-        community,
-    ):
-        response = client.post(
-            "/passport-admin/notifications",
-            {"scorer_id": community.id},
-            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
-            content_type="application/json",
-        )
-
-        expected_deduplication_notification = {
-            "notification_id": hashlib.sha256(
-                dag_cbor.encode(
-                    {
-                        "action": deduplication_event.action,
-                        "address": deduplication_event.address,
-                        "data": deduplication_event.data,
-                        "id": deduplication_event.id,
-                    }
-                )
-            ).hexdigest(),
-            "type": "deduplication",
-            "link": "https://support.passport.xyz/passport-knowledge-base/using-passport/common-questions/why-is-my-passport-score-not-adding-up",
-            "link_text": "here",
-            "content": f"You have claimed the same '{deduplication_event.data['provider']}' stamp in two Passports. We only count your stamp once. This duplicate is in your wallet {sample_address}. Learn more about deduplication",
-            "created_at": current_date.isoformat(),
-            "is_read": False,
-        }
-
-        expected_expired_stamp_notification = {
-            "notification_id": hashlib.sha256(
-                dag_cbor.encode(
-                    {
-                        "cc_id": expired_stamp_with_nullifier.id,
-                        "cc_provider": expired_stamp_with_nullifier.provider,
-                        "cc_stamp_hash": get_hash(expired_stamp_with_nullifier.stamp),
-                        "cc_stamp_id": expired_stamp_with_nullifier.stamp[
-                            "credentialSubject"
-                        ]["id"],
-                        "address": sample_address,
-                    }
-                )
-            ).hexdigest(),
-            "type": "stamp_expiry",
-            "link": "provider-1",
-            "link_text": None,
-            "content": f"Your {expired_stamp_with_nullifier.provider} stamp has expired. Please reverify to keep your Passport up to date.",
             "created_at": current_date.isoformat(),
             "is_read": False,
         }
@@ -781,7 +621,10 @@ class TestNotifications:
         assert expected_response == received_items
 
     def test_no_duplication_notifications_expired_stamp(
-        self, sample_token, existing_notification_expired_stamp, community
+        self,
+        sample_token,
+        existing_notification_expired_stamp,
+        community,
     ):
         existing = Notification.objects.filter(
             notification_id=existing_notification_expired_stamp.notification_id
@@ -808,45 +651,6 @@ class TestNotifications:
                 "link_text": existing_notification_expired_stamp.link_text,
                 "content": existing_notification_expired_stamp.content,
                 "created_at": existing_notification_expired_stamp.created_at.isoformat(),
-                "is_read": False,
-            }
-        ]
-
-        res = response.json()
-        received_items = sorted(res["items"], key=lambda x: x["notification_id"])
-        assert expected_response == received_items
-
-    def test_no_duplication_notifications_expired_stamp_with_nullifier(
-        self,
-        sample_token,
-        existing_notification_expired_stamp_with_nullifier,
-        community,
-    ):
-        existing = Notification.objects.filter(
-            notification_id=existing_notification_expired_stamp_with_nullifier.notification_id
-        ).all()
-        assert existing.count() == 1
-
-        # Call the same endpoint again to check if the same notifications are returned
-        response = client.post(
-            "/passport-admin/notifications",
-            {"scorer_id": community.id},
-            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
-            content_type="application/json",
-        )
-        after_call_existing = Notification.objects.filter(
-            notification_id=existing_notification_expired_stamp_with_nullifier.notification_id
-        ).all()
-
-        assert after_call_existing.count() == 1
-        expected_response = [
-            {
-                "notification_id": existing_notification_expired_stamp_with_nullifier.notification_id,
-                "type": existing_notification_expired_stamp_with_nullifier.type,
-                "link": existing_notification_expired_stamp_with_nullifier.link,
-                "link_text": existing_notification_expired_stamp_with_nullifier.link_text,
-                "content": existing_notification_expired_stamp_with_nullifier.content,
-                "created_at": existing_notification_expired_stamp_with_nullifier.created_at.isoformat(),
                 "is_read": False,
             }
         ]
@@ -892,51 +696,6 @@ class TestNotifications:
                 "link_text": existing_notification_expired_stamp.link_text,
                 "content": existing_notification_expired_stamp.content,
                 "created_at": existing_notification_expired_stamp.created_at.isoformat(),
-                "is_read": False,
-            }
-        ]
-
-        res = response.json()
-        received_items = sorted(res["items"], key=lambda x: x["notification_id"])
-        assert expected_response == received_items
-
-    def test_only_valid_stamps_generate_expired_notifications_with_nullifier(
-        self,
-        sample_token,
-        existing_notification_expired_stamp_with_nullifier,
-        community,
-        sample_address,
-    ):
-        cc_expired = CeramicCache.objects.create(
-            address=sample_address,
-            provider="old-provider",
-            created_at=timezone.now() - timedelta(days=30),
-            stamp={"credentialSubject": {"hash": "some_hash", "id": "some_id"}},
-            expiration_date=timezone.now() - timedelta(days=3),
-            issuance_date=timezone.now() - timedelta(days=3),
-        )
-
-        use_cache_count = CeramicCache.objects.filter(
-            address=sample_address, deleted_at__isnull=True
-        ).count()
-
-        assert use_cache_count == 2
-        # Call the same endpoint again to check if the same notifications are returned
-        response = client.post(
-            "/passport-admin/notifications",
-            {"scorer_id": community.id},
-            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
-            content_type="application/json",
-        )
-
-        expected_response = [
-            {
-                "notification_id": existing_notification_expired_stamp_with_nullifier.notification_id,
-                "type": existing_notification_expired_stamp_with_nullifier.type,
-                "link": existing_notification_expired_stamp_with_nullifier.link,
-                "link_text": existing_notification_expired_stamp_with_nullifier.link_text,
-                "content": existing_notification_expired_stamp_with_nullifier.content,
-                "created_at": existing_notification_expired_stamp_with_nullifier.created_at.isoformat(),
                 "is_read": False,
             }
         ]
