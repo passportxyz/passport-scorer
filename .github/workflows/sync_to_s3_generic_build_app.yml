@@ -1,4 +1,4 @@
-name: Build App
+name: Library - Build App
 
 on:
   workflow_call:
@@ -67,5 +67,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: scorer-app
+          name: scorer-app-${{ inputs.environment }}
           path: interface/out

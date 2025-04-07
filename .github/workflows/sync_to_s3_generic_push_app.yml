@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: scorer-app
+          name: scorer-app-${{ inputs.environment }}
           path: interface/out
 
       - name: Load secret
