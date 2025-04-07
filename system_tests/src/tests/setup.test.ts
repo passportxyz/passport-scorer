@@ -15,6 +15,7 @@ describe("Test Environment", () => {
       "DATABASE_URL",
       "CUSTOM_PROVIDER_ID",
       "CUSTOMIZATION_PATH",
+      "ALLOW_LIST_NAME",
     ];
     const missingEnvVars = envVars.filter((envVarName) => !process.env[envVarName]);
     expect(missingEnvVars).toEqual([]);
