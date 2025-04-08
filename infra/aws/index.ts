@@ -263,7 +263,11 @@ type EcsTaskConfigurationType = {
   desiredCount?: number;
 };
 
-type EcsServiceNameType = "scorer-api-default-1" | "scorer-api-reg-1" | "scorer-api-internal-1";
+type EcsServiceNameType =
+  | "scorer-api-default-1"
+  | "scorer-api-reg-1"
+  | "scorer-api-internal-1"
+  | "frequent-eth-model-v2-dump-grants";
 const ecsTaskConfigurations: Record<EcsServiceNameType, Record<StackType, EcsTaskConfigurationType>> = {
   "scorer-api-default-1": {
     review: {
@@ -312,6 +316,23 @@ const ecsTaskConfigurations: Record<EcsServiceNameType, Record<StackType, EcsTas
     },
     production: {
       memory: 2048,
+      cpu: 512,
+      desiredCount: 2,
+    },
+  },
+  "frequent-eth-model-v2-dump-grants": {
+    review: {
+      memory: 1024,
+      cpu: 256,
+      desiredCount: 1,
+    },
+    staging: {
+      memory: 1024,
+      cpu: 256,
+      desiredCount: 1,
+    },
+    production: {
+      memory: 4095,
       cpu: 512,
       desiredCount: 2,
     },
