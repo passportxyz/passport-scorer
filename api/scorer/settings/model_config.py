@@ -18,6 +18,9 @@ ARBITRUM_MODEL_ENDPOINT = env(
 OPTIMISM_MODEL_ENDPOINT = env(
     "OPTIMISM_MODEL_ENDPOINT", default="http://localhost:5004/op-model-predict"
 )
+BASE_MODEL_ENDPOINT = env(
+    "BASE_MODEL_ENDPOINT", default="http://localhost:5002/base-stamp-predict"
+)
 AGGREGATE_MODEL_ENDPOINT = env(
     "AGGREGATE_MODEL_ENDPOINT", default="http://localhost:5001/aggregate-model-predict"
 )
@@ -40,6 +43,7 @@ MODEL_ENDPOINTS = {
     "polygon": POLYGON_MODEL_ENDPOINT,
     "arbitrum": ARBITRUM_MODEL_ENDPOINT,
     "optimism": OPTIMISM_MODEL_ENDPOINT,
+    "base": BASE_MODEL_ENDPOINT,
     AGGREGATE_MODEL_NAME: AGGREGATE_MODEL_ENDPOINT,
 }
 
