@@ -164,7 +164,7 @@ jobs:
     secrets: inherit
     with:
       refspec: ${{ inputs.refspec }}
-      environment: inputs.environment
+      environment: ${{ inputs.environment }}
 
   check_migrations:
     needs: [docker-lambda]
