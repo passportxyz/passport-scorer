@@ -332,7 +332,7 @@ const ecsTaskConfigurations: Record<EcsServiceNameType, Record<StackType, EcsTas
       desiredCount: 1,
     },
     production: {
-      memory: 4095,
+      memory: 4096,
       cpu: 512,
       desiredCount: 2,
     },
