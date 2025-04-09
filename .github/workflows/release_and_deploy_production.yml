@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: ref
-        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref@v1
+        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref@v3
         with:
           commit: ${{ inputs.commit }}
 
@@ -73,7 +73,7 @@ jobs:
           ref: ${{ needs.ref.outputs.refspec }}
           fetch-depth: 0
       - id: push-to-branch
-        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@v1
+        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@v3
         with:
           commit: ${{ needs.ref.outputs.refspec }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -103,7 +103,7 @@ jobs:
           ref: ${{ needs.ref.outputs.refspec }}
           fetch-depth: 0
       - id: push-to-branch
-        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@v1
+        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@v3
         with:
           commit: ${{ needs.ref.outputs.refspec }}
           github-token: ${{ secrets.GITHUB_TOKEN }}

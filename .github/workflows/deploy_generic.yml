@@ -54,9 +54,9 @@ jobs:
         if: inputs.environment == 'production'
         run: echo "AWS_SESSION_TOKEN=$(op read op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
       - name: Prepare to Deploy to AWS
-        uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v1
+        uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v3
       - name: Deploy Review
-        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v1
+        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v3
         with:
           docker_tag: ${{ inputs.docker_tag }}
           stack_name: passportxyz/passport-scorer/${{ inputs.environment }}
@@ -118,9 +118,9 @@ jobs:
         if: inputs.environment == 'production'
         run: echo "AWS_SESSION_TOKEN=$(op read op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN)" >> $GITHUB_ENV
       - name: Prepare to Deploy to AWS
-        uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v1
+        uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v3
       - name: Deploy Review
-        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v1
+        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v3
         with:
           docker_tag: ${{ inputs.docker_tag }}
           stack_name: passportxyz/passport-scorer/${{ inputs.environment }}
