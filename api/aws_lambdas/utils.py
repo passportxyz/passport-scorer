@@ -131,6 +131,11 @@ def lambda_to_django_request(api_key, event):
 
     return request
 
+def normalize_event_headers(event):
+    headers = event.get("headers", {})
+    lowercase_headers = {k.lower(): v for k, v in headers.items()}
+    return {**event, "headers": lowercase_headers}
+
 
 def strip_event(event) -> tuple:
     """
@@ -241,11 +246,12 @@ def with_api_request_exception_handling(func):
         error_msg = None
         api_key_id = None
         body = None
+        event = None
         try:
             # First let's bind the context vars for the logger, strip the event from
             # sensitive data and log the event
             bind_contextvars(request_id=context.aws_request_id)
-            sensitive_data, event = strip_event(_event)
+            sensitive_data, event = strip_event(normalize_event_headers(_event))
             logger.info("Received event: %s", event)
 
             # Authenticate the API request
@@ -277,7 +283,7 @@ def with_api_request_exception_handling(func):
             else:
                 ratelimit_msg = (
                     get_analysis_api_rate_limited_msg()
-                    if event.get("path", "").startswith("/passport/")
+                    if event and event.get("path", "").startswith("/passport/")
                     else get_passport_api_rate_limited_msg()
                 )
 
@@ -319,7 +325,7 @@ def with_api_request_exception_handling(func):
 
         # Log analytics for the API call
         try:
-            if api_key_id:
+            if event and api_key_id:
                 save_api_key_analytics(
                     api_key_id=api_key_id,
                     path=event["path"],
