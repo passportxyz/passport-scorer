@@ -227,46 +227,6 @@ async def aupdate_passport(passport: Passport, deduped_passport_data) -> None:
             credential=stamp["credential"],
         )
 
-
-class StampOverride(TypedDict):
-    preferred: str
-    overridden: str
-
-
-STAMP_OVERRIDES: List[StampOverride] = [
-    {
-        "preferred": "CoinbaseDualVerification",
-        "overridden": "CoinbaseDualVerification2",
-    },
-    {"preferred": "BinanceBABT", "overridden": "BinanceBABT2"},
-]
-
-# Quick lookup map
-OVERRIDDEN_TO_PREFERRED_PROVIDER = {
-    override["overridden"]: override["preferred"] for override in STAMP_OVERRIDES
-}
-
-
-# Overridden if the provider is listed as a overridden provider and
-# the preferred provider is in the current list of all
-# providers for this user
-def is_overridden(provider: str, all_user_providers: Set[str]) -> bool:
-    return (
-        provider in OVERRIDDEN_TO_PREFERRED_PROVIDER
-        and OVERRIDDEN_TO_PREFERRED_PROVIDER[provider] in all_user_providers
-    )
-
-
-def filter_stamps(passport_data):
-    providers = set([stamp["provider"] for stamp in passport_data["stamps"]])
-    new_stamps = [
-        stamp
-        for stamp in passport_data["stamps"]
-        if not is_overridden(stamp["provider"], providers)
-    ]
-    return {**passport_data, "stamps": new_stamps}
-
-
 async def ascore_passport(
     community: Community, passport: Passport, address: str, score: Score
 ):
@@ -282,8 +242,7 @@ async def ascore_passport(
         (deduped_passport_data, clashing_stamps) = await aprocess_deduplication(
             passport, community, validated_passport_data, score
         )
-        filtered_passport_data = filter_stamps(deduped_passport_data)
-        await aupdate_passport(passport, filtered_passport_data)
+        await aupdate_passport(passport, deduped_passport_data)
         await acalculate_score(passport, community.pk, score, clashing_stamps)
 
     except APIException as e:
