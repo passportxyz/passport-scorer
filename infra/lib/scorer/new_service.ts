@@ -686,6 +686,7 @@ type BuildLambdaFnBaseParams = {
   memorySize: number;
   dockerCmd: string[];
   alertTopic?: Topic;
+  timeout?: number;
   alb: aws.lb.LoadBalancer;
 };
 
@@ -930,6 +931,7 @@ function buildLambdaFn({
   roleAttachments,
   memorySize,
   dockerCmd,
+  timeout ,
 }: BuildLambdaFnBaseParams): aws.lambda.Function {
   const lambdaFunction = new aws.lambda.Function(
     name,
@@ -946,7 +948,7 @@ function buildLambdaFn({
       packageType: "Image",
       role: role.arn,
       imageUri,
-      timeout: 60,
+      timeout: timeout || 60,
       memorySize,
       environment: {
         variables: environment.reduce(
