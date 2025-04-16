@@ -1,58 +1,9 @@
-"""Configuration for the gitcoin scorer"""
+""Passport Stamps score weights""
 
-# Weight values for each stamp based on its perceived significance in assessing the unique humanity of the Passport holder
-GITCOIN_PASSPORT_WEIGHTS = {
-    "BeginnerCommunityStaker": "0.673",
-    "BinanceBABT": "16.021",
-    "BinanceBABT2": "10.021",
-    "Brightid": "0.202",
-    "CivicCaptchaPass": "0.823",
-    "CivicLivenessPass": "3.038",
-    "CivicUniquenessPass": "5.005",
-    "CoinbaseDualVerification": "16.042",
-    "CoinbaseDualVerification2": "10.042",
-    "Discord": "0.516",
-    "Ens": "0.208",
-    "ETHDaysActive#50": "0.207",
-    "ETHGasSpent#0.25": "0.778",
-    "ETHnumTransactions#100": "0.21",
-    "ETHScore#50": "16.021",
-    "ETHScore#75": "2.399",
-    "ETHScore#90": "2.926",
-    "ExperiencedCommunityStaker": "2.161",
-    "GitcoinContributorStatistics#totalContributionAmountGte#10": "0.223",
-    "GitcoinContributorStatistics#totalContributionAmountGte#100": "1.017",
-    "GitcoinContributorStatistics#totalContributionAmountGte#1000": "4.997",
-    "githubContributionActivityGte#120": "2.259",
-    "githubContributionActivityGte#30": "1.879",
-    "githubContributionActivityGte#60": "1.888",
-    "GnosisSafe": "0.222",
-    "Google": "0.525",
-    "GuildAdmin": "0.468",
-    "GuildPassportMember": "0.24",
-    "HolonymGovIdProvider": "16.026",
-    "HolonymPhone": "1.521",
-    "IdenaState#Human": "1.921",
-    "IdenaState#Newbie": "5.892",
-    "IdenaState#Verified": "1.924",
-    "Lens": "0.23",
-    "Linkedin": "1.531",
-    "NFT": "1.032",
-    "NFTScore#50": "16.246",
-    "NFTScore#75": "2.362",
-    "NFTScore#90": "2.413",
-    "SelfStakingBronze": "0.897",
-    "SelfStakingGold": "2.7",
-    "SelfStakingSilver": "2.066",
-    "SnapshotProposalsProvider": "0.239",
-    "TrustaLabs": "0.511",
-    "TrustedCitizen": "4.009",
-    "ZkSyncEra": "0.606",
-    "zkSyncScore#20": "1.67",
-    "zkSyncScore#5": "1.67",
-    "zkSyncScore#50": "1.67",
-}
+# This file previously included a list of Passport's Stamps product's Stamps/credentials and their associated weights. 
 
+# We have migrated this information into our developer documentation:
+# https://docs.passport.xyz/building-with-passport/major-concepts/credential-map-and-weights
 
-# The Boolean scorer deems Passport holders unique humans if they meet or exceed the below thresholdold
-GITCOIN_PASSPORT_THRESHOLD = "20"
+# If you'd instead like to see a user-friendly version of this information, please visit our user support knowledgebase:
+# https://support.passport.xyz/passport-knowledge-base/stamps/how-is-gitcoin-passports-score-calculated
