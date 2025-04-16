@@ -414,6 +414,26 @@ const accessLogsBucket = new aws.s3.Bucket(`gitcoin-scorer-access-logs`, {
   },
 });
 
+// Add lifecycle rule to delete objects after 14 days
+new aws.s3.BucketLifecycleConfigurationV2(
+  `gitcoin-scorer-access-logs`,
+  {
+    bucket: accessLogsBucket.id,
+    rules: [
+      {
+        id: "expire-logs-after-14-days",
+        status: "Enabled",
+        expiration: {
+          days: 14,
+        },
+      },
+    ],
+  },
+  {
+    dependsOn: [accessLogsBucket],
+  }
+);
+
 const serviceAccount = aws.elb.getServiceAccount({});
 
 const accessLogsBucketPolicyDocument = aws.iam.getPolicyDocumentOutput({
@@ -471,6 +491,7 @@ const alb = new aws.alb.LoadBalancer(`scorer-service`, {
   internal: false,
   securityGroups: [albSecGrp.id],
   subnets: vpcPublicSubnetIds,
+  idleTimeout: 90,
   accessLogs: {
     bucket: accessLogsBucket.bucket,
     enabled: true,
