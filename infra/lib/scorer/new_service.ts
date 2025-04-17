@@ -931,7 +931,7 @@ function buildLambdaFn({
   roleAttachments,
   memorySize,
   dockerCmd,
-  timeout ,
+  timeout,
 }: BuildLambdaFnBaseParams): aws.lambda.Function {
   const lambdaFunction = new aws.lambda.Function(
     name,
