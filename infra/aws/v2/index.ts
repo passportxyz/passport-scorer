@@ -108,6 +108,7 @@ export function createV2Api({
         },
       ],
       listenerPriority: 2021,
+      timeout: 90,
     },
     alarmConfigurations
   );
@@ -136,7 +137,7 @@ export function createV2Api({
         },
       ],
       listenerPriority: 2023,
-      timeout: 90,
+      timeout: 60,
     },
     alarmConfigurations
   );
