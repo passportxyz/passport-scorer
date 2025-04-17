@@ -136,6 +136,7 @@ export function createV2Api({
         },
       ],
       listenerPriority: 2023,
+      timeout: 90,
     },
     alarmConfigurations
   );
