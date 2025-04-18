@@ -28,11 +28,16 @@ class SystemTestResultWriter {
 
   async createOrGetTestRunId(timestamp) {
     if (this._runId === undefined) {
-      const result = await this.query("INSERT INTO passport_admin_systemtestrun (timestamp) VALUES($1) RETURNING id", [
-        timestamp,
-      ]);
+      const result = await this.query(
+        "INSERT INTO passport_admin_systemtestrun (finished, timestamp) VALUES(false, $1) RETURNING id",
+        [timestamp]
+      );
       this._runId = result.rows[0].id;
     }
+    return this._runId;
+  }
+
+  getRunId() {
     return this._runId;
   }
 
@@ -57,7 +62,23 @@ class SystemTestResultWriter {
     await this.query(query, values);
   }
 
+  async finalizeTestRun() {
+    const runId = this.getRunId();
+    if (runId) {
+      const query = `
+        UPDATE passport_admin_systemtestrun
+        SET finished = true
+        WHERE id = $1
+      `;
+
+      const values = [runId];
+
+      await this.query(query, values);
+    }
+  }
+
   async close() {
+    await this.finalizeTestRun();
     await this.pool.end();
   }
 }

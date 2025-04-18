@@ -29,7 +29,6 @@ jobs:
     with:
       refspec: ${{ needs.ref.outputs.refspec }}
       environment: review
-      uptime-robot-monitor-dry-run: --dry-run
     secrets: inherit
 
   deploy:
