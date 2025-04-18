@@ -85,8 +85,9 @@ class SystemTestRunAdmin(admin.ModelAdmin):
     Admin class for SystemTestRuns.
     """
 
-    list_display = ["id", "timestamp"]
+    list_display = ["id", "timestamp", "finished"]
     search_fields = ["id"]
+    list_filter = ["finished"]
     inlines = [
         SystemTestResultInlineAdmin,
     ]

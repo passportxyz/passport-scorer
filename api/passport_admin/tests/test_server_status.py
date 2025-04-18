@@ -26,7 +26,7 @@ client = Client()
 
 @pytest.fixture
 def test_run_all_pass():
-    test_runs = SystemTestRun.objects.create(timestamp=timezone.now())
+    test_runs = SystemTestRun.objects.create(timestamp=timezone.now(), finished=True)
 
     SystemTestResult.objects.create(
         run=test_runs,
@@ -50,7 +50,7 @@ def test_run_all_pass():
 
 @pytest.fixture
 def test_run_1_failed():
-    test_runs = SystemTestRun.objects.create(timestamp=timezone.now())
+    test_runs = SystemTestRun.objects.create(timestamp=timezone.now(), finished=True)
 
     SystemTestResult.objects.create(
         run=test_runs,
@@ -77,7 +77,7 @@ def test_run_outdated():
     timestamp = timezone.now() - timedelta(
         seconds=settings.SYSTEM_TESTS_MAX_AGE_BEFORE_OUTDATED + 1
     )
-    test_runs = SystemTestRun.objects.create(timestamp=timestamp)
+    test_runs = SystemTestRun.objects.create(timestamp=timestamp, finished=True)
 
     SystemTestResult.objects.create(
         run=test_runs,
@@ -104,7 +104,7 @@ def test_run_1_failed_but_outdated():
     timestamp = timezone.now() - timedelta(
         seconds=settings.SYSTEM_TESTS_MAX_AGE_BEFORE_OUTDATED + 1
     )
-    test_runs = SystemTestRun.objects.create(timestamp=timestamp)
+    test_runs = SystemTestRun.objects.create(timestamp=timestamp, finished=True)
 
     SystemTestResult.objects.create(
         run=test_runs,
@@ -124,6 +124,54 @@ def test_run_1_failed_but_outdated():
         timestamp=timestamp,
     )
     return test_runs
+
+
+@pytest.fixture
+def test_runs_in_progress():
+    previous_timestamp = timezone.now() - timedelta(seconds=120)
+    previous_test_run = SystemTestRun.objects.create(
+        timestamp=previous_timestamp, finished=True
+    )
+
+    SystemTestResult.objects.create(
+        run=previous_test_run,
+        name="Test 1",
+        category='["category 1"]',
+        success=True,
+        error=None,
+        timestamp=timezone.now(),
+    )
+
+    SystemTestResult.objects.create(
+        run=previous_test_run,
+        name="Test 2",
+        category='["category 1"]',
+        success=True,
+        error=None,
+        timestamp=timezone.now(),
+    )
+
+    current_test_run = SystemTestRun.objects.create(timestamp=timezone.now())
+
+    SystemTestResult.objects.create(
+        run=current_test_run,
+        name="Test 1",
+        category='["category 1"]',
+        success=False,
+        error=None,
+        timestamp=timezone.now(),
+    )
+
+    SystemTestResult.objects.create(
+        run=current_test_run,
+        name="Test 2",
+        category='["category 1"]',
+        success=False,
+        error=None,
+        timestamp=timezone.now(),
+    )
+
+    return {"previous": previous_test_run, "current": current_test_run}
 
 
 mock_cache = MagicMock()
@@ -284,5 +332,31 @@ class TestNotifications:
                 "status": "outdated",
                 "success": 1,
                 "timestamp": test_run_1_failed_but_outdated.timestamp.isoformat(),
+                "total": 2,
+            }
+
+    def test_server_status_ignore_in_progress(self, test_runs_in_progress):
+        with patch("passport_admin.api.cache", mock_cache):
+            response = client.get(
+                "/passport-admin/server-status",
+            )
+
+            response_json = response.json()
+            age = response_json.pop("age")
+
+            # Check the aproximate age
+            assert (
+                age
+                - (
+                    timezone.now() - test_runs_in_progress["previous"].timestamp
+                ).total_seconds()
+                <= 2
+            )
+
+            assert response_json == {
+                "failed": 0,
+                "status": "healthy",
+                "success": 2,
+                "timestamp": test_runs_in_progress["previous"].timestamp.isoformat(),
                 "total": 2,
             }

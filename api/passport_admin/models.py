@@ -115,6 +115,8 @@ class SystemTestRun(models.Model):
         blank=True,
     )
 
+    finished = models.BooleanField(default=False)
+
     def __str__(self):
         return f"#{self.id} @{self.timestamp}"
 
