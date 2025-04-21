@@ -287,9 +287,9 @@ def server_status_handler(request):
         cached_server_status = cache.get("server_status")
 
         if not cached_server_status:
-            last_run = SystemTestRun.objects.filter(timestamp__isnull=False).latest(
-                "timestamp"
-            )
+            last_run = SystemTestRun.objects.filter(
+                timestamp__isnull=False, finished=True
+            ).latest("timestamp")
 
             results = last_run.results.all()
             failed = [r for r in results if not r.success]
