@@ -30,3 +30,23 @@ expect.extend({
     }
   },
 });
+
+// Keep track of request cancel tokens globally
+global.axiosCancelTokens = [];
+
+// Add cleanup after all tests run
+afterAll(() => {
+  // Cancel any pending requests
+  if (global.axiosCancelTokens && global.axiosCancelTokens.length > 0) {
+    console.log(`Cleaning up ${global.axiosCancelTokens.length} pending Axios requests`);
+    global.axiosCancelTokens.forEach((token) => {
+      try {
+        token.cancel("Jest test completed");
+      } catch (e) {
+        console.log("Error cancelling request:", e);
+        // Ignore errors from already completed requests
+      }
+    });
+    global.axiosCancelTokens = [];
+  }
+});

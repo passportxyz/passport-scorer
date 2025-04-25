@@ -1,3 +1,5 @@
+import { CancelTokenSource } from "axios";
+
 interface CustomMatchers<R = unknown> {
   toHaveStatus(expectedCode: number): R;
 }
@@ -8,6 +10,8 @@ declare global {
     interface Matchers<R> extends CustomMatchers<R> {}
     interface InverseAsymmetricMatchers extends CustomMatchers {}
   }
+
+  var axiosCancelTokens: CancelTokenSource[] | undefined;
 }
 
 export {};

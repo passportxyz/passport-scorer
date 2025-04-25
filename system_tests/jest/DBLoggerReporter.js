@@ -78,8 +78,11 @@ class SystemTestResultWriter {
   }
 
   async close() {
-    await this.finalizeTestRun();
-    await this.pool.end();
+    try {
+      await this.finalizeTestRun();
+    } finally {
+      await this.pool.end();
+    }
   }
 }
 
