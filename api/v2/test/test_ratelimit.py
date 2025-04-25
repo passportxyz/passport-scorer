@@ -90,14 +90,27 @@ def test_rate_limit_from_db_is_applied_for_token(scorer_api_key):
 
     # We make 2 additional calls, but only verify the second one
     # because of timing issues the first one might not always return 429
-    client.get(
-        "/v2/stamps/metadata",
-        HTTP_AUTHORIZATION="Token " + scorer_api_key,
-    )
     response = client.get(
         "/v2/stamps/metadata",
         HTTP_AUTHORIZATION="Token " + scorer_api_key,
     )
+
+    if response.status_code != 429:
+        # If we did not get a 429, we repeat the process
+        # It might just be that some requests have been counted to one time window
+        # and some to the next window, so we did not exceed the limit in neither window
+        for _ in range(3):
+            response = client.get(
+                "/v2/stamps/metadata",
+                HTTP_AUTHORIZATION="Token " + scorer_api_key,
+            )
+
+            assert response.status_code == 200
+
+        response = client.get(
+            "/v2/stamps/metadata",
+            HTTP_AUTHORIZATION="Token " + scorer_api_key,
+        )
 
     assert response.status_code == 429
 
