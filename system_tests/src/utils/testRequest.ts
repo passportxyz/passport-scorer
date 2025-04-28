@@ -1,5 +1,23 @@
-import axios, { AxiosRequestConfig } from "axios";
+import axios, { AxiosRequestConfig, CancelTokenSource } from "axios";
 import { TestRequestOptions, TestRequestOptionsNoAuth, TestResponse } from "../types";
+import http from "http";
+import https from "https";
+
+const generateCancelToken = () => {
+  const cancelToken = axios.CancelToken.source();
+  if (!global.axiosCancelTokens) {
+    global.axiosCancelTokens = [];
+  }
+  global.axiosCancelTokens.push(cancelToken);
+  return cancelToken;
+};
+
+const clearCancelToken = (cancelToken: CancelTokenSource) => {
+  const index = global.axiosCancelTokens?.indexOf(cancelToken);
+  if (index !== undefined && index > -1) {
+    global.axiosCancelTokens?.splice(index, 1);
+  }
+};
 
 /**
  * Makes an HTTP request with optional authentication and returns the response
@@ -31,8 +49,12 @@ export async function testRequest<T>(options: TestRequestOptions): Promise<TestR
       }
     }
 
+    const cancelToken = generateCancelToken();
+
     // Prepare Axios configuration
     const axiosConfig: AxiosRequestConfig = {
+      httpAgent: new http.Agent({ keepAlive: false }),
+      httpsAgent: new https.Agent({ keepAlive: false }),
       url: requestOptions.url,
       method: requestOptions.method,
       headers: requestOptions.headers,
@@ -46,11 +68,15 @@ export async function testRequest<T>(options: TestRequestOptions): Promise<TestR
         requestOptions.method === "GET" && {
           params: requestOptions.payload,
         }),
+      timeout: 30000,
+      cancelToken: cancelToken.token,
       validateStatus: () => true, // Don't throw on any status code
     };
 
     // Make the request
     const response = await axios(axiosConfig);
+
+    clearCancelToken(cancelToken);
 
     // Return custom response object
     return {
