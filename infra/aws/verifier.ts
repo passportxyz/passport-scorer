@@ -20,7 +20,7 @@ const serviceResources = Object({
 const logsRetention = Object({
   review: 1,
   staging: 7,
-  production: 30,
+  production: 14,
 });
 
 export const createVerifierService = ({
