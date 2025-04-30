@@ -1,6 +1,8 @@
 import csv
 import io
+import logging
 from datetime import UTC, datetime
+from io import StringIO
 
 import boto3
 from asgiref.sync import async_to_sync
@@ -8,7 +10,7 @@ from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import path
 
@@ -33,6 +35,8 @@ from scorer.settings import (
 )
 
 ONE_HOUR = 60 * 60
+
+log = logging.getLogger(__name__)
 
 _s3_client = None
 
@@ -256,24 +260,42 @@ class BatchModelScoringRequestAdmin(ScorerModelAdmin):
 
 class WeightConfigurationItemInline(admin.TabularInline):
     model = WeightConfigurationItem
-    extra = 1
+    extra = 0
 
 
-class WeightConfigurationCsvImportForm(forms.Form):
-    threshold = forms.FloatField(
-        required=True, help_text="Threshold for Passport uniqueness"
-    )
-    description = forms.CharField(
-        required=False, help_text="Description of the weight configuration change"
-    )
-    csv_file = forms.FileField(
-        required=True, help_text="Upload a CSV file with weight configuration data"
-    )
+class WeightConfigurationForm(forms.ModelForm):
+    class Meta:
+        model = WeightConfiguration
+        fields = "__all__"
+
+    def clean_csv_source(self):
+        """
+        Validate the content of the CSV file
+        """
+        csv_source = self.cleaned_data["csv_source"]
+        # using 'utf-8-sig' will also handle the case where the file is saved with a BOM (byte order mark - \ufeff)
+        csv_data = csv_source.read().decode("utf-8-sig")
+
+        csv_reader = csv.reader(StringIO(csv_data))
+        for row in csv_reader:
+            if len(row) != 2:
+                raise ValueError(f"Invalid row format: {row}")
+            if not row[0] or not row[1]:
+                raise ValidationError("Provider and weight must not be empty.")
+
+            provider, weight = row
+            try:
+                weight = float(weight)
+            except ValueError:
+                raise ValidationError(
+                    f"Invalid weight value for '{provider}': '{weight}'"
+                )
+        return csv_source
 
 
 @admin.register(WeightConfiguration)
 class WeightConfigurationAdmin(admin.ModelAdmin):
-    change_list_template = "registry/batch_model_scoring_request_changelist.html"
+    form = WeightConfigurationForm
     list_display = (
         "version",
         "threshold",
@@ -283,77 +305,42 @@ class WeightConfigurationAdmin(admin.ModelAdmin):
         "updated_at",
     )
     search_fields = ("version", "description")
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "csv_source")
     inlines = [WeightConfigurationItemInline]
 
-    def get_urls(self):
-        return [
-            path("import-csv/", self.import_csv),
-        ] + super().get_urls()
+    def csv_source_url(self, obj: WeightConfiguration):
+        return obj.csv_file.url
 
-    def import_csv(self, request):
-        if request.method == "POST":
-            form = WeightConfigurationCsvImportForm(request.POST, request.FILES)
-            if form.is_valid():
-                csv_file = request.FILES["csv_file"]
-                threshold = request.POST.get("threshold")
-                description = request.POST.get("description")
-                try:
-                    version = 0
-                    weight_config = WeightConfiguration.objects.order_by(
-                        "-created_at"
-                    ).first()
-                    if weight_config:
-                        version = int(weight_config.version) + 1
+    def save_model(self, request, obj: WeightConfiguration, form, change):
+        if not obj.version:
+            version = 0
+            weight_config = WeightConfiguration.objects.order_by("-created_at").first()
+            if weight_config:
+                version = int(weight_config.version) + 1
 
-                    WeightConfiguration.objects.filter(active=True).update(active=False)
+            obj.version = version
+        super().save_model(request, obj, form, change)
 
-                    weight_config = WeightConfiguration.objects.create(
-                        threshold=threshold,
-                        version=version,
-                        active=True,
-                        description=description,
-                    )
+        # If saving any of the objects below fails, we expect to roll back
+        # using 'utf-8-sig' will also handle the case where the file is saved with a BOM (byte order mark - \ufeff)
 
-                    decoded_file = csv_file.read().decode("utf-8")
-                    io_string = io.StringIO(decoded_file)
-                    reader = csv.reader(io_string)
-                    for row in reader:
-                        if len(row) != 2:
-                            raise ValueError(f"Invalid row format: {row}")
+        csv_data = obj.csv_source.open("rb").read().decode("utf-8-sig")
+        csv_reader = csv.reader(StringIO(csv_data))
+        for row in csv_reader:
+            if len(row) != 2:
+                raise ValueError(f"Invalid row format: {row}")
 
-                        provider, weight = row
-                        WeightConfigurationItem.objects.create(
-                            weight_configuration=weight_config,
-                            provider=provider,
-                            weight=float(weight),
-                        )
+            provider, weight = row
+            log.info(f"Adding weight configuration for {provider} with weight {weight}")
+            WeightConfigurationItem.objects.create(
+                weight_configuration=obj,
+                provider=provider,
+                weight=float(weight),
+            )
 
-                    self.message_user(
-                        request,
-                        f"Successfully imported WeightConfiguration: {weight_config.version}",
-                    )
-                    return redirect("..")
-                except Exception as e:
-                    self.message_user(
-                        request, f"Error importing CSV: {str(e)}", level=messages.ERROR
-                    )
-            else:
-                self.message_user(
-                    request, "Invalid form submission", level=messages.ERROR
-                )
-        else:
-            form = WeightConfigurationCsvImportForm()
-
-        context = {
-            "form": form,
-            "title": "Import Weight Configuration CSV",
-        }
-        return render(
-            request,
-            "registry/batch_model_scoring_request_csv_import_form.html",
-            context,
-        )
+        WeightConfiguration.objects.filter(active=True).update(active=False)
+        obj.active = True
+        obj.save()
 
 
 admin.site.register(WeightConfigurationItem)
