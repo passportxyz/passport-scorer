@@ -19,19 +19,29 @@ def generate_stamp_expired_notifications(address, community: Community):
         address=address, deleted_at__isnull=True, expiration_date__lt=current_date
     )
 
-    weights = handle_get_scorer_weights(community.id)
+    existing_notifications = Notification.objects.filter(
+        type="stamp_expiry",
+        is_active=True,
+        eth_address=address,
+    )
+    existing_notifications_by_id = {
+        n.notification_id: n for n in existing_notifications
+    }
 
+    weights = handle_get_scorer_weights(community.id)
+    notifications_to_create = []
     for cc in ceramic_cache:
         stamp_weight = weights.get(cc.provider)
         if stamp_weight and float(stamp_weight) > 0:
             cs = cc.stamp["credentialSubject"]
-            hash = cs["hash"] if "hash" in cs else cs["nullifiers"][0]
+            stamp_hash = cs["hash"] if "hash" in cs else cs["nullifiers"][0]
             encoded_data = dag_cbor.encode(
                 {
                     "cc_id": cc.id,
                     "cc_provider": cc.provider,
-                    "cc_stamp_hash": hash,
+                    "cc_stamp_hash": stamp_hash,
                     "cc_stamp_id": cc.stamp["credentialSubject"]["id"],
+                    "cc_stamp_proof": cc.proof_value,
                     "address": address,
                 }
             )
@@ -42,11 +52,27 @@ def generate_stamp_expired_notifications(address, community: Community):
             ).exists()
 
             if not notification_exists:
-                Notification.objects.create(
-                    notification_id=notification_id,
-                    type="stamp_expiry",
-                    is_active=True,
-                    content=f"Your {cc.provider} stamp has expired. Please reverify to keep your Passport up to date.",
-                    link=cc.provider,
-                    eth_address=address,
+                notifications_to_create.append(
+                    Notification(
+                        notification_id=notification_id,
+                        type="stamp_expiry",
+                        is_active=True,
+                        content=f"Your {cc.provider} stamp has expired. Please reverify to keep your Passport up to date.",
+                        link=cc.provider,
+                        eth_address=address,
+                    )
                 )
+            else:
+                del existing_notifications_by_id[notification_id]
+
+    # Create the notifications in bulk
+    Notification.objects.bulk_create(notifications_to_create)
+
+    # Invalidate existing notifications that are still in existing_notifications_by_id,
+    # the user has refreshed the stamp
+    for _, notification in existing_notifications_by_id.items():
+        notification.is_outdated = True
+
+    Notification.objects.bulk_update(
+        existing_notifications_by_id.values(), ["is_outdated"]
+    )
