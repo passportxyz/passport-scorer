@@ -5,7 +5,12 @@ from django.db import models
 
 
 class WeightConfiguration(models.Model):
-    version = models.CharField(max_length=50, unique=True)
+    version = models.CharField(
+        max_length=50,
+        unique=True,
+        help_text="Leave empty to generate version automatically",
+        blank=True,
+    )
     threshold = models.FloatField(
         validators=[MinValueValidator(0.0), MaxValueValidator(1000)], default=20.0
     )
@@ -13,6 +18,13 @@ class WeightConfiguration(models.Model):
     description = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    csv_source = models.FileField(
+        upload_to="weight_configurations/",
+        null=True,
+        blank=True,
+        default=None,
+        help_text="CSV file containing weight configuration",
+    )
 
     class Meta:
         ordering = ["-created_at"]
