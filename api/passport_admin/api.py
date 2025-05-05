@@ -185,7 +185,6 @@ def get_notifications(request, payload: NotificationPayload):
         )[:20]  # Limit to the 20 newest notifications
 
         ret = NotificationResponse(items=all_notifications).dict()
-        print("api ret: ", pformat(ret))
         return ret
 
     except Notification.DoesNotExist:

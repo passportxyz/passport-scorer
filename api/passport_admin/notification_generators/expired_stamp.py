@@ -30,21 +30,6 @@ def generate_stamp_expired_notifications(address, community: Community):
         n.notification_id: n for n in existing_notifications_with_no_status
     }
 
-    from pprint import pformat
-
-    print(
-        "generate_stamp_expired_notifications ceramic_cache",
-        pformat(
-            [
-                {
-                    "id": c.id,
-                    "provider": c.provider,
-                    "deleted_at": c.deleted_at,
-                }
-                for c in ceramic_cache
-            ]
-        ),
-    )
     weights = handle_get_scorer_weights(community.id)
     notifications_to_create = []
     for cc in ceramic_cache:
@@ -91,16 +76,4 @@ def generate_stamp_expired_notifications(address, community: Community):
     # Invalidate existing notifications that are still in existing_notifications_by_id,
     # the user has refreshed the stamp
     for _, notification in existing_notifications_by_id.items():
-        print(
-            "generate_stamp_expired_notifications delete notification",
-            pformat(
-                [
-                    {
-                        "id": n.id,
-                        "content": n.content,
-                    }
-                    for n in notification
-                ]
-            ),
-        )
         notification.delete()
