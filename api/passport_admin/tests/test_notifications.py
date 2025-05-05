@@ -772,6 +772,7 @@ class TestNotifications:
             HTTP_AUTHORIZATION=f"Bearer {sample_token}",
             content_type="application/json",
         )
+        res = response.json()
         received_items = sorted(res["items"], key=lambda x: x["notification_id"])
         # Even though the stamp was deleted, the user should receive the notification with status 'read'
         assert received_items == received_items
@@ -791,14 +792,15 @@ class TestNotifications:
             HTTP_AUTHORIZATION=f"Bearer {sample_token}",
             content_type="application/json",
         )
+        res = response.json()
         received_items = sorted(res["items"], key=lambda x: x["notification_id"])
         assert expected_response == received_items
 
         # Expire the 2-nd stamp, and read the notifications again
-        new_stamp = existing_expired_stamp
-        new_stamp.expiration_date = datetime.now() - timedelta(days=1)
-        new_stamp.proof_value += "_another_proof"
-        new_stamp.save()
+        expired_stamp = existing_expired_stamp
+        expired_stamp.expiration_date = datetime.now() - timedelta(days=1)
+        expired_stamp.proof_value += "_another_proof"
+        expired_stamp.save()
 
         # Read the notifications again after new stamp has been created
         # We should see a new notification regarding expired stamp
@@ -808,13 +810,48 @@ class TestNotifications:
             HTTP_AUTHORIZATION=f"Bearer {sample_token}",
             content_type="application/json",
         )
+        res = response.json()
         received_items = sorted(res["items"], key=lambda x: x["notification_id"])
-        from pprint import pformat
 
-        print(pformat(received_items))
+        new_notifications = list(
+            Notification.objects.filter(
+                is_active=True,
+                eth_address=expired_stamp.address,
+                notificationstatus__isnull=True,
+                link=expired_stamp.provider,
+            )
+        )
 
+        assert len(new_notifications) == 1
+
+        expected_response = [
+            {
+                "notification_id": n.notification_id,
+                "type": n.type,
+                "link": n.link,
+                "link_text": n.link_text,
+                "content": n.content,
+                "created_at": n.created_at.isoformat(),
+                "is_read": True,  # Message has been read ...
+            }
+            for n in after_call_existing
+        ] + [
+            {
+                "notification_id": n.notification_id,
+                "type": n.type,
+                "link": n.link,
+                "link_text": n.link_text,
+                "content": n.content,
+                "created_at": n.created_at.isoformat(),
+                "is_read": False,  # Message has *not* been read ...
+            }
+            for n in new_notifications
+        ]
+        expected_response = sorted(
+            expected_response, key=lambda x: x["notification_id"]
+        )
         assert expected_response == received_items
-        assert False
+        assert len(received_items) == 2
 
     def test_only_valid_stamps_generate_expired_notifications(
         self,
