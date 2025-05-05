@@ -34,6 +34,7 @@ MODEL_AGGREGATION_NAMES = {
     "ethereum_activity": "eth",
     "arbitrum": "arb",
     "optimism": "op",
+    "base": "base",
 }
 
 MODEL_ENDPOINTS = {
