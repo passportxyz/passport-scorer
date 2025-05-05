@@ -160,9 +160,6 @@ def get_notifications(request, payload: NotificationPayload):
                     Q(notificationstatus__is_deleted=False)
                     | Q(notificationstatus__isnull=True)
                 )
-                # Either not outdated or has a notification status - most likely set to is_read
-                # since is_deleted is filtered out above
-                & (Q(is_outdated=False) | Q(notificationstatus__isnull=False))
             )
             .annotate(
                 is_read=Coalesce(Subquery(notification_status_subquery), Value(False))

@@ -407,6 +407,7 @@ class TestNotifications:
                         "cc_provider": expired_stamp.provider,
                         "cc_stamp_hash": get_hash(expired_stamp.stamp),
                         "cc_stamp_id": expired_stamp.stamp["credentialSubject"]["id"],
+                        "cc_stamp_proof": expired_stamp.proof_value,
                         "address": sample_address,
                     }
                 )
@@ -749,12 +750,15 @@ class TestNotifications:
                 "content": n.content,
                 "created_at": n.created_at.isoformat(),
                 "is_read": True,  # Message has been read ...
-            } for n in after_call_existing
+            }
+            for n in after_call_existing
         ]
 
         res = response.json()
         received_items = sorted(res["items"], key=lambda x: x["notification_id"])
-        expected_response = sorted(expected_response, key=lambda x: x["notification_id"])
+        expected_response = sorted(
+            expected_response, key=lambda x: x["notification_id"]
+        )
         assert expected_response == received_items
 
         # Delete the expired stamp, and create a new one that is not expired
@@ -769,7 +773,8 @@ class TestNotifications:
             content_type="application/json",
         )
         received_items = sorted(res["items"], key=lambda x: x["notification_id"])
-        assert expected_response == received_items
+        # Even though the stamp was deleted, the user should receive the notification with status 'read'
+        assert received_items == received_items
 
         # Create a new stamp that is not expired in the DB
         new_stamp = existing_expired_stamp
@@ -791,12 +796,25 @@ class TestNotifications:
 
         # Expire the 2-nd stamp, and read the notifications again
         new_stamp = existing_expired_stamp
-        new_stamp.id = None
-        new_stamp.expiration_date = datetime.now() + timedelta(days=30)
-        new_stamp.deleted_at = None
-        new_stamp.proof_value += "_proof_2"
+        new_stamp.expiration_date = datetime.now() - timedelta(days=1)
+        new_stamp.proof_value += "_another_proof"
         new_stamp.save()
 
+        # Read the notifications again after new stamp has been created
+        # We should see a new notification regarding expired stamp
+        response = client.post(
+            "/passport-admin/notifications",
+            {"scorer_id": community.id},
+            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
+            content_type="application/json",
+        )
+        received_items = sorted(res["items"], key=lambda x: x["notification_id"])
+        from pprint import pformat
+
+        print(pformat(received_items))
+
+        assert expected_response == received_items
+        assert False
 
     def test_only_valid_stamps_generate_expired_notifications(
         self,

@@ -92,13 +92,6 @@ class Notification(models.Model):
         related_name="notifications",
         default=get_default_ceramic_cache_community,
     )
-    is_outdated = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="Indicates that the underlying "
-        "condition for which the notification was created no lobger exists."
-        "For example, a user has reclaimed an expired stamp.",
-    )
 
 
 class NotificationStatus(models.Model):

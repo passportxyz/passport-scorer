@@ -19,18 +19,36 @@ def generate_stamp_expired_notifications(address, community: Community):
         address=address, deleted_at__isnull=True, expiration_date__lt=current_date
     )
 
-    existing_notifications = Notification.objects.filter(
+    # Get all notification to which user has not yet reacted
+    existing_notifications_with_no_status = Notification.objects.filter(
         type="stamp_expiry",
         is_active=True,
         eth_address=address,
+        notificationstatus__isnull=True,
     )
     existing_notifications_by_id = {
-        n.notification_id: n for n in existing_notifications
+        n.notification_id: n for n in existing_notifications_with_no_status
     }
 
+    from pprint import pformat
+
+    print(
+        "generate_stamp_expired_notifications ceramic_cache",
+        pformat(
+            [
+                {
+                    "id": c.id,
+                    "provider": c.provider,
+                    "deleted_at": c.deleted_at,
+                }
+                for c in ceramic_cache
+            ]
+        ),
+    )
     weights = handle_get_scorer_weights(community.id)
     notifications_to_create = []
     for cc in ceramic_cache:
+        # Ideally we would move this filtering to the UI ...
         stamp_weight = weights.get(cc.provider)
         if stamp_weight and float(stamp_weight) > 0:
             cs = cc.stamp["credentialSubject"]
@@ -51,6 +69,7 @@ def generate_stamp_expired_notifications(address, community: Community):
                 notification_id=notification_id
             ).exists()
 
+            print("Creating notification ...: ", notification_exists, notification_id)
             if not notification_exists:
                 notifications_to_create.append(
                     Notification(
@@ -63,7 +82,8 @@ def generate_stamp_expired_notifications(address, community: Community):
                     )
                 )
             else:
-                del existing_notifications_by_id[notification_id]
+                if notification_id in existing_notifications_by_id:
+                    del existing_notifications_by_id[notification_id]
 
     # Create the notifications in bulk
     Notification.objects.bulk_create(notifications_to_create)
@@ -71,8 +91,16 @@ def generate_stamp_expired_notifications(address, community: Community):
     # Invalidate existing notifications that are still in existing_notifications_by_id,
     # the user has refreshed the stamp
     for _, notification in existing_notifications_by_id.items():
-        notification.is_outdated = True
-
-    Notification.objects.bulk_update(
-        existing_notifications_by_id.values(), ["is_outdated"]
-    )
+        print(
+            "generate_stamp_expired_notifications delete notification",
+            pformat(
+                [
+                    {
+                        "id": n.id,
+                        "content": n.content,
+                    }
+                    for n in notification
+                ]
+            ),
+        )
+        notification.delete()
