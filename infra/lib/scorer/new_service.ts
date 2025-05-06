@@ -435,7 +435,7 @@ export function createIndexerService(
   alarmThresholds: AlarmConfigurations
 ) {
   const indexerLogGroup = new aws.cloudwatch.LogGroup("scorer-indexer", {
-    retentionInDays: stack === "production" ? 90 : 7,
+    retentionInDays: stack === "production" ? 14 : 7,
     tags: { ...defaultTags, Name: "scorer-indexer" },
   });
 

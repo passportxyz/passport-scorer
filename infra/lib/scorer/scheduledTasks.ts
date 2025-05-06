@@ -50,7 +50,7 @@ export function createTask({
   const logGroupName = `${scheduled ? "scheduled-" : ""}${name}`;
 
   const logGroup = new aws.cloudwatch.LogGroup(logGroupName, {
-    retentionInDays: stack === "production" ? 90 : 7,
+    retentionInDays: stack === "production" ? 14 : 7,
     tags: {
       ...defaultTags,
       Name: logGroupName,
