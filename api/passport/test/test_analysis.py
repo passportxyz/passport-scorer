@@ -283,6 +283,7 @@ class TestPassportAnalysis(TestCase):
             "arbitrum": "http://localhost:8123/arbitrum-predict",
             "optimism": "http://localhost:8123/optimism-predict",
             "aggregate": "http://localhost:8123/aggregate",
+            "base": "http://localhost:8123/base-predict",
         }
     )
     @patch("passport.api.fetch", side_effect=mock_post_response_with_failure("zksync"))
@@ -303,4 +304,4 @@ class TestPassportAnalysis(TestCase):
         assert '{"model": "polygon", "status": 200}' in exc_info.value.detail
         assert '{"model": "arbitrum", "status": 200}' in exc_info.value.detail
         assert '{"model": "ethereum_activity", "status": 200}' in exc_info.value.detail
-        assert mock_fetch.call_count == 5
+        assert mock_fetch.call_count == 6

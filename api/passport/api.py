@@ -281,9 +281,9 @@ async def handle_get_analysis(
         return ret
     except PassportAnalysisError:
         raise
-    except Exception:
+    except Exception as exc:
         log.error("Error retrieving Passport analysis", exc_info=True)
-        raise PassportAnalysisError()
+        raise PassportAnalysisError() from exc
 
 
 async def get_aggregate_model_response(
