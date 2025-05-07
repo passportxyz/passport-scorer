@@ -44,11 +44,7 @@ _s3_client = None
 def get_s3_client():
     global _s3_client
     if not _s3_client:
-        _s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
-            aws_secret_access_key=settings.S3_DATA_AWS_SECRET_ACCESS_KEY,
-        )
+        _s3_client = boto3.client("s3")
     return _s3_client
 
 
