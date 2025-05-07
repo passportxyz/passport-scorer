@@ -184,7 +184,8 @@ def get_notifications(request, payload: NotificationPayload):
             reverse=True,
         )[:20]  # Limit to the 20 newest notifications
 
-        return NotificationResponse(items=all_notifications).dict()
+        ret = NotificationResponse(items=all_notifications).dict()
+        return ret
 
     except Notification.DoesNotExist:
         return {

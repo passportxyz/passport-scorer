@@ -72,7 +72,11 @@ class Notification(models.Model):
     type = models.CharField(
         max_length=50, choices=NOTIFICATION_TYPES, default="custom", db_index=True
     )
-    is_active = models.BooleanField(default=False, db_index=True)
+    is_active = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="This flag will typically be used for `custom` attestations, not bound to a specific address.",
+    )
 
     link = models.CharField(max_length=255, null=True, blank=True)
     link_text = models.CharField(max_length=255, null=True, blank=True)

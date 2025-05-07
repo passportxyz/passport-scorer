@@ -4,7 +4,7 @@ This module contains unit tests for the notifications functionality in the passp
 """
 
 import hashlib
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import dag_cbor
 import pytest
@@ -285,15 +285,23 @@ def existing_notification_expired_chain(sample_address, community):
         {"credentialSubject": {"nullifiers": ["some_hash"], "id": "some_id"}},
     ]
 )
-def existing_notification_expired_stamp(sample_address, community, request):
-    cc_expired = CeramicCache.objects.create(
+def existing_expired_stamp(sample_address, request):
+    return CeramicCache.objects.create(
         address=sample_address,
         provider="provider-1",
         created_at=timezone.now() - timedelta(days=30),
         stamp=request.param,
         expiration_date=timezone.now() - timedelta(days=3),
         issuance_date=timezone.now() - timedelta(days=3),
+        proof_value="some_proof_value_345678",
     )
+
+
+@pytest.fixture
+def existing_notification_expired_stamp(
+    sample_address, community, existing_expired_stamp
+):
+    cc_expired = existing_expired_stamp
 
     return Notification.objects.create(
         notification_id=hashlib.sha256(
@@ -303,6 +311,7 @@ def existing_notification_expired_stamp(sample_address, community, request):
                     "cc_provider": cc_expired.provider,
                     "cc_stamp_hash": get_hash(cc_expired.stamp),
                     "cc_stamp_id": cc_expired.stamp["credentialSubject"]["id"],
+                    "cc_stamp_proof": cc_expired.proof_value,
                     "address": sample_address,
                 }
             )
@@ -398,6 +407,7 @@ class TestNotifications:
                         "cc_provider": expired_stamp.provider,
                         "cc_stamp_hash": get_hash(expired_stamp.stamp),
                         "cc_stamp_id": expired_stamp.stamp["credentialSubject"]["id"],
+                        "cc_stamp_proof": expired_stamp.proof_value,
                         "address": sample_address,
                     }
                 )
@@ -659,6 +669,190 @@ class TestNotifications:
         received_items = sorted(res["items"], key=lambda x: x["notification_id"])
         assert expected_response == received_items
 
+    def test_notifications_expired_stamp_invalidate_if_stamp_is_refreshed(
+        self,
+        sample_token,
+        existing_expired_stamp,
+        existing_notification_expired_stamp,
+        community,
+    ):
+        existing = Notification.objects.filter(
+            notification_id=existing_notification_expired_stamp.notification_id
+        ).all()
+        assert existing.count() == 1
+
+        # Delete the expired stamp, and create a new one that is not expired
+        existing_expired_stamp.deleted_at = datetime.now()
+        existing_expired_stamp.save()
+
+        # Create a new stamp that is not expired in the DB
+        new_stamp = existing_expired_stamp
+        new_stamp.id = None
+        new_stamp.expiration_date = datetime.now() + timedelta(days=30)
+        new_stamp.deleted_at = None
+        new_stamp.save()
+
+        # Call the same endpoint again to check if the same notifications are returned
+        response = client.post(
+            "/passport-admin/notifications",
+            {"scorer_id": community.id},
+            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
+            content_type="application/json",
+        )
+        after_call_existing = Notification.objects.filter(
+            notification_id=existing_notification_expired_stamp.notification_id,
+        ).all()
+
+        assert after_call_existing.count() == 0
+        expected_response = []
+
+        res = response.json()
+        received_items = res["items"]
+        assert expected_response == received_items
+
+    def test_notifications_when_stamp_expires_after_user_read_notification(
+        self,
+        sample_token,
+        existing_expired_stamp,
+        existing_notification_expired_stamp,
+        community,
+    ):
+        existing = Notification.objects.filter(
+            notification_id=existing_notification_expired_stamp.notification_id
+        ).all()
+        assert existing.count() == 1
+
+        # User reads the notification
+        NotificationStatus.objects.create(
+            notification=existing_notification_expired_stamp,
+            is_read=True,
+            eth_address=existing_notification_expired_stamp.eth_address,
+        )
+
+        # Call the same endpoint again to check if the same notifications are returned
+        response = client.post(
+            "/passport-admin/notifications",
+            {"scorer_id": community.id},
+            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
+            content_type="application/json",
+        )
+        after_call_existing = Notification.objects.filter(
+            type="stamp_expiry",
+        ).all()
+
+        assert after_call_existing.count() == 1
+        expected_response = [
+            {
+                "notification_id": n.notification_id,
+                "type": n.type,
+                "link": n.link,
+                "link_text": n.link_text,
+                "content": n.content,
+                "created_at": n.created_at.isoformat(),
+                "is_read": True,  # Message has been read ...
+            }
+            for n in after_call_existing
+        ]
+
+        res = response.json()
+        received_items = sorted(res["items"], key=lambda x: x["notification_id"])
+        expected_response = sorted(
+            expected_response, key=lambda x: x["notification_id"]
+        )
+        assert expected_response == received_items
+
+        # Delete the expired stamp, and create a new one that is not expired
+        existing_expired_stamp.deleted_at = datetime.now()
+        existing_expired_stamp.save()
+
+        # Read the notifications again after stamp has been deleted
+        response = client.post(
+            "/passport-admin/notifications",
+            {"scorer_id": community.id},
+            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
+            content_type="application/json",
+        )
+        res = response.json()
+        received_items = sorted(res["items"], key=lambda x: x["notification_id"])
+        # Even though the stamp was deleted, the user should receive the notification with status 'read'
+        assert received_items == received_items
+
+        # Create a new stamp that is not expired in the DB
+        new_stamp = existing_expired_stamp
+        new_stamp.id = None
+        new_stamp.expiration_date = datetime.now() + timedelta(days=30)
+        new_stamp.deleted_at = None
+        new_stamp.proof_value += "_proof_2"
+        new_stamp.save()
+
+        # Read the notifications again after new stamp has been created
+        response = client.post(
+            "/passport-admin/notifications",
+            {"scorer_id": community.id},
+            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
+            content_type="application/json",
+        )
+        res = response.json()
+        received_items = sorted(res["items"], key=lambda x: x["notification_id"])
+        assert expected_response == received_items
+
+        # Expire the 2-nd stamp, and read the notifications again
+        expired_stamp = existing_expired_stamp
+        expired_stamp.expiration_date = datetime.now() - timedelta(days=1)
+        expired_stamp.proof_value += "_another_proof"
+        expired_stamp.save()
+
+        # Read the notifications again after new stamp has been created
+        # We should see a new notification regarding expired stamp
+        response = client.post(
+            "/passport-admin/notifications",
+            {"scorer_id": community.id},
+            HTTP_AUTHORIZATION=f"Bearer {sample_token}",
+            content_type="application/json",
+        )
+        res = response.json()
+        received_items = sorted(res["items"], key=lambda x: x["notification_id"])
+
+        new_notifications = list(
+            Notification.objects.filter(
+                is_active=True,
+                eth_address=expired_stamp.address,
+                notificationstatus__isnull=True,
+                link=expired_stamp.provider,
+            )
+        )
+
+        assert len(new_notifications) == 1
+
+        expected_response = [
+            {
+                "notification_id": n.notification_id,
+                "type": n.type,
+                "link": n.link,
+                "link_text": n.link_text,
+                "content": n.content,
+                "created_at": n.created_at.isoformat(),
+                "is_read": True,  # Message has been read ...
+            }
+            for n in after_call_existing
+        ] + [
+            {
+                "notification_id": n.notification_id,
+                "type": n.type,
+                "link": n.link,
+                "link_text": n.link_text,
+                "content": n.content,
+                "created_at": n.created_at.isoformat(),
+                "is_read": False,  # Message has *not* been read ...
+            }
+            for n in new_notifications
+        ]
+        expected_response = sorted(
+            expected_response, key=lambda x: x["notification_id"]
+        )
+        assert expected_response == received_items
+        assert len(received_items) == 2
+
     def test_only_valid_stamps_generate_expired_notifications(
         self,
         sample_token,
@@ -666,7 +860,7 @@ class TestNotifications:
         community,
         sample_address,
     ):
-        cc_expired = CeramicCache.objects.create(
+        CeramicCache.objects.create(
             address=sample_address,
             provider="old-provider",
             created_at=timezone.now() - timedelta(days=30),
