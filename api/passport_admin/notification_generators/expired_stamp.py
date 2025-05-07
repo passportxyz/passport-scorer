@@ -54,7 +54,6 @@ def generate_stamp_expired_notifications(address, community: Community):
                 notification_id=notification_id
             ).exists()
 
-            print("Creating notification ...: ", notification_exists, notification_id)
             if not notification_exists:
                 notifications_to_create.append(
                     Notification(
