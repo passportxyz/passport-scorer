@@ -218,7 +218,7 @@ class Revocation(models.Model):
         return f"Revocation #{self.pk}, proof_value={self.proof_value}"
 
 
-type BanType = Literal["account"] | Literal["hash"] | Literal["single_stamp"]
+BanType = Literal["account", "hash", "single_stamp"]
 
 
 class BanList(models.Model):
