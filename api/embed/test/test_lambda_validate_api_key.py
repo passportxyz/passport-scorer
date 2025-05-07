@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import UserManager
 from django.test import Client, TestCase
 
-from account.models import Account, AccountAPIKey
+from account.models import Account, AccountAPIKey,  EmbedRateLimits
 from aws_lambdas.scorer_api_passport.tests.helpers import MockContext
 from embed.lambda_fn import lambda_handler_get_rate_limit
 
@@ -70,7 +70,32 @@ class ValidateLambdaValidateApiKeyTestCase(TestCase):
         result = lambda_handler_get_rate_limit(event, MockContext())
 
         assert result == {
-            "body": '{"rate_limit":"125/15m"}',
+            "body": '{"embed_rate_limit":"0/15m"}',
+            "headers": {"Content-Type": "application/json"},
+            "statusCode": 200,
+        }
+        assert _close_old_connections.call_count == 1
+
+    @patch("embed.lambda_fn.close_old_connections", side_effect=[None])
+    def test_rate_limit_success(self, _close_old_connections):
+        """Test that the rate limit API when correct API key is provided"""
+
+        (api_key_obj, api_key) = AccountAPIKey.objects.create_key(
+            account=self.account,
+            name="Token for user 1",
+            embed_rate_limit=EmbedRateLimits.UNLIMITED.value,
+        )
+
+        event = {
+            "headers": {"x-api-key": api_key},
+            "path": "/embed/validate-api-key",
+            "isBase64Encoded": False,
+        }
+
+        result = lambda_handler_get_rate_limit(event, MockContext())
+
+        assert result == {
+            "body": '{"embed_rate_limit":""}',
             "headers": {"Content-Type": "application/json"},
             "statusCode": 200,
         }

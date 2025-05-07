@@ -127,6 +127,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         "prefix",
         "rate_limit",
         "analysis_rate_limit",
+        "embed_rate_limit",
         "account__user__username",
         "account__address",
     )
@@ -136,6 +137,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         "account",
         "rate_limit_display",
         "analysis_rate_limit_display",
+        "embed_rate_limit_display",
         "created",
         "revoked",
     )

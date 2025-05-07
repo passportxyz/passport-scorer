@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import UserManager
 from django.test import Client, TestCase
 
-from account.models import Account, AccountAPIKey, RateLimits
+from account.models import Account, AccountAPIKey, EmbedRateLimits
 
 # Avoids type issues in standard django models
 user_manager = cast(UserManager, get_user_model().objects)
@@ -48,7 +48,7 @@ class ValidateApiKeyTestCase(TestCase):
 
         assert rate_limit_response.status_code == 200
         data = rate_limit_response.json()
-        assert data == {"rate_limit": api_key_obj.rate_limit}
+        assert data == {"embed_rate_limit": api_key_obj.embed_rate_limit}
 
     def test_rate_limit_success_for_unlimited_rate(self):
         """Test that the rate limit API when the rate limit is set to UNLIMITED"""
@@ -56,7 +56,7 @@ class ValidateApiKeyTestCase(TestCase):
         (api_key_obj, api_key) = AccountAPIKey.objects.create_key(
             account=self.account,
             name="Token for user 1",
-            rate_limit=RateLimits.UNLIMITED.value,
+            embed_rate_limit=EmbedRateLimits.UNLIMITED.value,
         )
 
         rate_limit_response = self.client.get(
@@ -66,4 +66,4 @@ class ValidateApiKeyTestCase(TestCase):
 
         assert rate_limit_response.status_code == 200
         data = rate_limit_response.json()
-        assert data == {"rate_limit": api_key_obj.rate_limit}
+        assert data == {"embed_rate_limit": api_key_obj.embed_rate_limit}
