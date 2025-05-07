@@ -236,6 +236,16 @@ class AnalysisRateLimits(str, Enum):
         return f"{self.name} - {self.value}"
 
 
+class EmbedRateLimits(str, Enum):
+    TIER_1 = "0/15m"  # No requests allowed
+    TIER_2 = "1000/15m"
+    TIER_3 = "3000/15m"
+    UNLIMITED = ""
+
+    def __str__(self):
+        return f"{self.name} - {self.value}"
+
+
 class Account(models.Model):
     address = EthAddressField(max_length=100, blank=False, null=False, db_index=True)
     user = models.OneToOneField(
@@ -267,10 +277,31 @@ class AccountAPIKey(AbstractAPIKey):
         blank=True,
     )
 
+    embed_rate_limit = models.CharField(
+        max_length=20,
+        choices=[(limit.value, limit) for limit in EmbedRateLimits],
+        default=EmbedRateLimits.TIER_1.value,
+        null=True,
+        blank=True,
+    )
+
     submit_passports = models.BooleanField(default=True)
     read_scores = models.BooleanField(default=True)
     create_scorers = models.BooleanField(default=False)
     historical_endpoint = models.BooleanField(default=False)
+
+    def clean(self):
+        super().clean()
+        # Embed keys are always used in frontend, so we should prohibit other rates limits from
+        # being elevated if the embed rate limit is elevated. (i.e. to prevent an unlimited backend
+        # key from accidentally being leaked through the frontend)
+        rate_above = self.rate_limit != RateLimits.TIER_1.value
+        analysis_above = self.analysis_rate_limit != AnalysisRateLimits.TIER_1.value
+        embed_above = self.embed_rate_limit != EmbedRateLimits.TIER_1.value
+        if embed_above and (rate_above or analysis_above):
+            raise ValidationError(
+                "Embed rate limit cannot be above tier 1 if standard or analysis rate limits are also above tier 1"
+            )
 
     @admin.display(description="Rate Limit")
     def rate_limit_display(self):
@@ -283,6 +314,12 @@ class AccountAPIKey(AbstractAPIKey):
         if self.analysis_rate_limit == "" or self.analysis_rate_limit is None:
             return "Unlimited"
         return str(AnalysisRateLimits(self.analysis_rate_limit))
+
+    @admin.display(description="Embed Rate Limit")
+    def embed_rate_limit_display(self):
+        if self.embed_rate_limit == "" or self.embed_rate_limit is None:
+            return "Unlimited"
+        return str(EmbedRateLimits(self.embed_rate_limit))
 
 
 class AccountAPIKeyAnalytics(models.Model):
