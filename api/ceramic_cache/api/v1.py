@@ -7,6 +7,7 @@ from datetime import timedelta
 from typing import Any, Dict, List, Optional, Type
 
 import requests
+from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -17,26 +18,21 @@ from ninja import Router
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
 from ninja_extra.security import HttpBearer
-from ninja_jwt.authentication import InvalidToken
-
-# from ninja_jwt.schema import RefreshToken
+from ninja_jwt.exceptions import InvalidToken, TokenError
 from ninja_jwt.settings import api_settings
-from ninja_jwt.tokens import RefreshToken, Token, TokenError
+from ninja_jwt.tokens import RefreshToken, Token
 
 import api_logging as logging
 import tos.api
 import tos.schema
 from account.models import Account, Community, Nonce
 from ceramic_cache.utils import get_utc_time
-from internal.api_key import internal_api_key
 from registry.api.utils import (
     is_valid_address,
 )
 from registry.api.v1 import (
     DetailedScoreResponse,
     ErrorMessageResponse,
-    SubmitPassportPayload,
-    handle_submit_passport,
 )
 from registry.exceptions import (
     InvalidAddressException,
@@ -46,6 +42,8 @@ from registry.exceptions import (
 from registry.models import Score
 from stake.api import get_gtc_stake_for_address
 from stake.schema import StakeResponse
+from v2.api.api_stamps import format_v2_score_response, handle_scoring_for_account
+from v2.schema import V2ScoreResponse
 
 from ..exceptions import (
     InternalServerException,
@@ -64,7 +62,7 @@ from .schema import (
     ComposeDBStatusPayload,
     DeleteStampPayload,
     GetStampResponse,
-    GetStampsWithScoreResponse,
+    GetStampsWithV2ScoreResponse,
 )
 
 log = logging.getLogger(__name__)
@@ -130,7 +128,7 @@ class JWTDidAuth(JWTDidAuthentication, HttpBearer):
 
 
 @router.post(
-    "stamps/bulk", response={201: GetStampsWithScoreResponse}, auth=JWTDidAuth()
+    "stamps/bulk", response={201: GetStampsWithV2ScoreResponse}, auth=JWTDidAuth()
 )
 def cache_stamps(request, payload: List[CacheStampPayload]):
     try:
@@ -212,12 +210,12 @@ def handle_add_stamps(
     payload: List[CacheStampPayload],
     stamp_creator: CeramicCache.SourceApp,
     alternate_scorer_id: Optional[int] = None,
-) -> GetStampsWithScoreResponse:
+) -> GetStampsWithV2ScoreResponse:
     stamps_response = handle_add_stamps_only(
         address, payload, stamp_creator, alternate_scorer_id
     )
     scorer_id = alternate_scorer_id or settings.CERAMIC_CACHE_SCORER_ID
-    return GetStampsWithScoreResponse(
+    return GetStampsWithV2ScoreResponse(
         success=stamps_response.success,
         stamps=stamps_response.stamps,
         score=get_detailed_score_response_for_address(address, scorer_id=scorer_id),
@@ -225,7 +223,7 @@ def handle_add_stamps(
 
 
 @router.patch(
-    "stamps/bulk", response={200: GetStampsWithScoreResponse}, auth=JWTDidAuth()
+    "stamps/bulk", response={200: GetStampsWithV2ScoreResponse}, auth=JWTDidAuth()
 )
 def patch_stamps(request, payload: List[CacheStampPayload]):
     try:
@@ -243,7 +241,7 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
 
 def handle_patch_stamps(
     address: str, payload: List[CacheStampPayload]
-) -> GetStampsWithScoreResponse:
+) -> GetStampsWithV2ScoreResponse:
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
         raise TooManyStampsException()
 
@@ -286,7 +284,7 @@ def handle_patch_stamps(
         revocation__isnull=True,
     )
 
-    return GetStampsWithScoreResponse(
+    return GetStampsWithV2ScoreResponse(
         success=True,
         stamps=[
             CachedStampResponse(
@@ -372,7 +370,7 @@ def delete_stamps(request, payload: List[DeleteStampPayload]):
 
 def handle_delete_stamps(
     address: str, payload: List[DeleteStampPayload]
-) -> GetStampsWithScoreResponse:
+) -> GetStampsWithV2ScoreResponse:
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
         raise TooManyStampsException()
 
@@ -392,7 +390,7 @@ def handle_delete_stamps(
         address=address, deleted_at__isnull=True, revocation__isnull=True
     )
 
-    return GetStampsWithScoreResponse(
+    return GetStampsWithV2ScoreResponse(
         success=True,
         stamps=[
             CachedStampResponse(
@@ -491,13 +489,13 @@ def handle_get_stamps(address):
 )
 def get_score(
     request, address: str, alternate_scorer_id: Optional[int] = None
-) -> DetailedScoreResponse:
+) -> V2ScoreResponse:
     return handle_get_ui_score(address, alternate_scorer_id)
 
 
 def handle_get_ui_score(
     address: str, alternate_scorer_id: Optional[int]
-) -> DetailedScoreResponse:
+) -> V2ScoreResponse:
     scorer_id = alternate_scorer_id or settings.CERAMIC_CACHE_SCORER_ID
     lower_address = address.lower()
 
@@ -507,6 +505,8 @@ def handle_get_ui_score(
     try:
         # Get community object, for the configured scorer
         user_community = Community.objects.get(id=scorer_id)
+        scorer = user_community.get_scorer()
+        scorer_type = scorer.type
 
         score = None
         try:
@@ -522,12 +522,12 @@ def handle_get_ui_score(
         if score is None or (
             score.expiration_date is not None and score.expiration_date < now
         ):
-            # This will re-calculate the score and update the expiration date
+            # This will re-calculate the score and update the expiration date.
             ret = get_detailed_score_response_for_address(address, scorer_id)
 
             return ret
 
-        return DetailedScoreResponse.from_orm(score)
+        return format_v2_score_response(score, scorer_type)
 
     except Community.DoesNotExist as e:
         raise NotFoundApiException(
@@ -552,9 +552,7 @@ def handle_get_ui_score(
     response=DetailedScoreResponse,
     auth=JWTDidAuth(),
 )
-def calc_score(
-    request, address: str, payload: CalcScorePayload
-) -> DetailedScoreResponse:
+def calc_score(request, address: str, payload: CalcScorePayload) -> V2ScoreResponse:
     return get_detailed_score_response_for_address(address, payload.alternate_scorer_id)
 
 
@@ -652,18 +650,14 @@ def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
 
 def get_detailed_score_response_for_address(
     address: str, scorer_id: Optional[int]
-) -> DetailedScoreResponse:
+) -> V2ScoreResponse:
     if not scorer_id:
         raise InternalServerException("Scorer ID not set")
 
     account = get_object_or_404(Account, community__id=scorer_id)
 
-    submit_passport_payload = SubmitPassportPayload(
-        address=address,
-        scorer_id=str(scorer_id),
-    )
+    score = async_to_sync(handle_scoring_for_account)(address, str(scorer_id), account)
 
-    score = handle_submit_passport(submit_passport_payload, account)
     return score
 
 
