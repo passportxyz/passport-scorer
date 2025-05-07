@@ -298,7 +298,9 @@ def check_rate_limit(request):
     """
     old_limited = getattr(request, "limited", False)
 
-    if request.path.startswith("/passport/"):
+    if request.path.startswith("/passport/") or request.path.startswith(
+        "/v2/models/score/"
+    ):
         ratelimited = check_analysis_rate_limit(request)
     else:
         ratelimited = check_standard_rate_limit(request)
