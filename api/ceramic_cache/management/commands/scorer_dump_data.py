@@ -287,12 +287,7 @@ class Command(BaseCronJobCmd):
         self.stdout.write(f"cloudfront_distribution_id  : {cloudfront_distribution_id}")
         self.stdout.write("-" * 40)
 
-        s3 = boto3.client(
-            "s3",
-            endpoint_url=s3_endpoint,
-            aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
-            aws_secret_access_key=settings.S3_DATA_AWS_SECRET_ACCESS_KEY,
-        )
+        s3 = boto3.client("s3")
         # Parse the S3 URI to extract bucket and key
         parsed_uri = urlparse(s3_uri)
         s3_bucket_name = parsed_uri.netloc
