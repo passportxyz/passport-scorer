@@ -61,11 +61,7 @@ class Command(BaseCronJobCmd):
         bucket_name = parsed_uri.netloc
         path = parsed_uri.path.strip("/")
 
-        s3 = boto3.client(
-            "s3",
-            aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
-            aws_secret_access_key=settings.S3_DATA_AWS_SECRET_ACCESS_KEY,
-        )
+        s3 = boto3.client("s3")
 
         try:
             response = s3.get_object(Bucket=bucket_name, Key=path)

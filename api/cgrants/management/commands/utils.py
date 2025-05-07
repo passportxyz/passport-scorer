@@ -27,11 +27,7 @@ def stream_object_from_s3_uri(s3_uri, stdout, style):
 
     folder_name, file_name = path.rsplit("/", 1)
 
-    s3 = boto3.client(
-        "s3",
-        aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
-        aws_secret_access_key=settings.S3_DATA_AWS_SECRET_ACCESS_KEY,
-    )
+    s3 = boto3.client("s3")
 
     try:
         response = s3.get_object(Bucket=bucket_name, Key=f"{folder_name}/{file_name}")

@@ -125,11 +125,7 @@ class Command(BaseCommand):
 
         temp_csv.seek(0)
         self.stdout.write(f"Writing file to s3: {s3_key}")
-        s3 = boto3.client(
-            "s3",
-            aws_access_key_id=settings.S3_DATA_AWS_SECRET_KEY_ID,
-            aws_secret_access_key=settings.S3_DATA_AWS_SECRET_ACCESS_KEY,
-        )
+        s3 = boto3.client("s3")
 
         s3.upload_fileobj(
             temp_csv, s3_bucket_name, s3_key, ExtraArgs={"ContentType": "text/csv"}

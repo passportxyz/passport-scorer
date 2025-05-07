@@ -224,7 +224,13 @@ class BatchRequestStatus(str, Enum):
 
 class BatchModelScoringRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
-    s3_filename = models.CharField(max_length=100, null=False, blank=False)
+    s3_filename = models.CharField(
+        max_length=100,
+        null=False,
+        blank=False,
+        help_text="This field has been deprecated",
+    )
+    s3_file = models.FileField(upload_to="registr_batch_model_scoring")
     model_list = models.CharField(max_length=100, null=False, blank=False)
     status = models.CharField(
         max_length=10,
