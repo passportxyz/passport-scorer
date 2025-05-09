@@ -131,3 +131,46 @@ class TestBinaraWeightedScorer:
             s.score for s in scorer.compute_score([weighted_scorer_passports[1]], 1)
         ]
         assert scores == [Decimal(0)]
+
+
+class TestWeightedScorer:
+    def test_weighted_scorer_threshold_logic(self, weighted_scorer_passports):
+        from scorer_weighted.models import WeightedScorer
+        scorer = WeightedScorer(
+            threshold=2, weights={"FirstEthTxnProvider": 1, "Google": 1, "Ens": 1}
+        )
+        scorer.save()
+
+        scores = [
+            s.score
+            for s in scorer.compute_score([p.id for p in weighted_scorer_passports], 1)
+        ]
+        expiration_dates = [
+            s.expiration_date
+            for s in scorer.compute_score([p.id for p in weighted_scorer_passports], 1)
+        ]
+        assert scores == [Decimal(0), Decimal(0), Decimal(1), Decimal(1)]
+        assert expiration_dates == [
+            None,
+            today,
+            yesterday,
+            one_day_before_yesterday,
+        ]
+
+    def test_weighted_scorer_duplicate_score_not_counted(self, weighted_scorer_passports):
+        from scorer_weighted.models import WeightedScorer
+        Stamp.objects.create(
+            passport=weighted_scorer_passports[1],
+            provider="FirstEthTxnProvider",
+            credential={
+                "expirationDate": today.isoformat(),
+            },
+        )
+        scorer = WeightedScorer(
+            threshold=2, weights={"FirstEthTxnProvider": 1, "Google": 1, "Ens": 1}
+        )
+        scorer.save()
+        scores = [
+            s.score for s in scorer.compute_score([weighted_scorer_passports[1]], 1)
+        ]
+        assert scores == [Decimal(0)]
