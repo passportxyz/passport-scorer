@@ -229,7 +229,12 @@ async def ahandle_submit_passport(
 
     await ascore_passport(user_community, db_passport, payload.address, score)
     await score.asave()
-    return DetailedScoreResponse.from_orm(score)
+
+    scorer = await user_community.aget_scorer()
+    if getattr(scorer, "type", None) == "WEIGHTED":
+        return format_non_threshold_score(score)
+    else:
+        return DetailedScoreResponse.from_orm(score)
 
 
 def handle_submit_passport(
@@ -296,26 +301,7 @@ def get_score(request, address: str, scorer_id: int | str) -> DetailedScoreRespo
 
     return handle_get_score(address, scorer_id, account)
 
-
-def handle_get_score(
-    address: str, scorer_id: int, account: Account
-) -> DetailedScoreResponse:
-    # Get community object
-    user_community = get_scorer_by_id(scorer_id, account)
-
-    try:
-        lower_address = address.lower()
-
-        if not is_valid_address(lower_address):
-            raise InvalidAddressException()
-
-        score = Score.objects.get(
-            passport__address=lower_address, passport__community=user_community
-        )
-
-        # Check if the scorer is a WeightedScorer (not BinaryWeightedScorer)
-        scorer = user_community.get_scorer()
-        if getattr(scorer, "type", None) == "WEIGHTED":
+def format_non_threshold_score(score: Score) -> DetailedScoreResponse:
             # For backward compatibility, use the raw score as the Score model's .score field
             raw_score = None
             if score.evidence and "rawScore" in score.evidence:
@@ -337,8 +323,28 @@ def handle_get_score(
                 error=score.error,
                 stamp_scores=score.stamp_scores or {},
             )
-        # Default: return as before
-        return DetailedScoreResponse.from_orm(score)
+
+def handle_get_score(
+    address: str, scorer_id: int, account: Account
+) -> DetailedScoreResponse:
+    # Get community object
+    user_community = get_scorer_by_id(scorer_id, account)
+
+    try:
+        lower_address = address.lower()
+
+        if not is_valid_address(lower_address):
+            raise InvalidAddressException()
+
+        score = Score.objects.get(
+            passport__address=lower_address, passport__community=user_community
+        )
+
+        scorer = user_community.get_scorer()
+        if getattr(scorer, "type", None) == "WEIGHTED":
+            return format_non_threshold_score(score)
+        else:
+            return DetailedScoreResponse.from_orm(score)
 
     except NotFoundApiException as e:
         raise e
