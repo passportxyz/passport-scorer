@@ -527,7 +527,7 @@ class CommunityTestCase(TestCase):
             self.assertEqual(response.status_code, 200)
 
     def test_patch_community_threshold_weighted(self):
-        """Test PATCHing threshold on a WeightedScorer community does not error and does not set threshold"""
+        """Test PATCHing threshold on a WeightedScorer community does not error and sets threshold"""
         client = Client()
         # Create Community with WEIGHTED scorer
         community_body = dict(**mock_community_body)
@@ -543,7 +543,7 @@ class CommunityTestCase(TestCase):
         community = Community.objects.get(name="Weighted Scorer Community")
         scorer = community.get_scorer() if hasattr(community, "get_scorer") else None
         self.assertIsNotNone(scorer)
-        self.assertFalse(hasattr(scorer, "threshold"))
+        self.assertTrue(hasattr(scorer, "threshold"))
         patch_body = {"threshold": 123.45}
         response = client.patch(
             f"/account/communities/{community.pk}",
@@ -553,7 +553,7 @@ class CommunityTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         scorer.refresh_from_db()
-        self.assertFalse(hasattr(scorer, "threshold"))
+        self.assertEqual(float(scorer.threshold), 123.45)
 
     def test_patch_community_threshold_binary_weighted(self):
         """Test PATCHing threshold on a BinaryWeightedScorer community updates threshold"""

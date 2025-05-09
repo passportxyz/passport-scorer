@@ -365,10 +365,11 @@ def create_community_for_account(
     # Create the scorer based on type
     if scorer == "WEIGHTED_BINARY":
         scorer_obj = BinaryWeightedScorer(type="WEIGHTED_BINARY")
-        if threshold is not None:
-            scorer_obj.threshold = threshold
     else:
-        scorer_obj = WeightedScorer(type="WEIGHTED")
+        scorer_obj = WeightedScorer()
+
+    if threshold is not None:
+        scorer_obj.threshold = threshold
     scorer_obj.save()
 
     # Create the community
@@ -427,11 +428,8 @@ def get_communities(request):
     result = []
     for community in communities:
         scorer = community.get_scorer() if hasattr(community, "get_scorer") else None
-        threshold = None
-        if scorer and hasattr(scorer, "threshold") and scorer.threshold is not None:
-            threshold = float(scorer.threshold)
-        else:
-            threshold = float(get_default_threshold())
+        threshold = scorer.threshold if scorer else None
+
         result.append(
             {
                 "name": community.name,
@@ -518,7 +516,7 @@ def patch_community(request, community_id, payload: CommunitiesPatchPayload):
 
         if payload.threshold is not None:
             scorer = community.get_scorer() if hasattr(community, "get_scorer") else None
-            if scorer and hasattr(scorer, "threshold"):
+            if scorer:
                 scorer.threshold = payload.threshold
                 scorer.save()
                 # Ensure the community points to the updated scorer

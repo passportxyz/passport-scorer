@@ -1,5 +1,6 @@
 from typing import List
 from urllib.parse import urljoin
+from decimal import Decimal
 
 import django_filters
 import requests
@@ -311,6 +312,32 @@ def handle_get_score(
         score = Score.objects.get(
             passport__address=lower_address, passport__community=user_community
         )
+
+        # Check if the scorer is a WeightedScorer (not BinaryWeightedScorer)
+        scorer = user_community.get_scorer()
+        if getattr(scorer, "type", None) == "WEIGHTED":
+            # For backward compatibility, use the raw score as the Score model's .score field
+            raw_score = None
+            if score.evidence and "rawScore" in score.evidence:
+                try:
+                    raw_score = Decimal(score.evidence["rawScore"])
+                except Exception:
+                    raw_score = score.evidence["rawScore"]
+            if raw_score is None:
+                raw_score = score.score
+            # Patch the score object for compatibility
+            score.score = raw_score
+            return DetailedScoreResponse(
+                address=score.passport.address,
+                score=raw_score,
+                status=score.status,
+                last_score_timestamp=score.last_score_timestamp,
+                expiration_date=score.expiration_date,
+                evidence=None,
+                error=score.error,
+                stamp_scores=score.stamp_scores or {},
+            )
+        # Default: return as before
         return DetailedScoreResponse.from_orm(score)
 
     except NotFoundApiException as e:
