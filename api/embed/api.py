@@ -75,7 +75,7 @@ def handle_embed_add_stamps(
 
 
 class AccountAPIKeySchema(Schema):
-    rate_limit: str | None
+    embed_rate_limit: str | None
 
 
 def handle_validate_embed_api_key(request) -> AccountAPIKeySchema:

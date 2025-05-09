@@ -99,7 +99,7 @@ export function createMonitoringLambdaFunction(config: {
             {}
           ),
         },
-        memorySize: 512,
+        memorySize: 1024,
         timeout: 60 * 15,
         layers: [],
         tags: {
