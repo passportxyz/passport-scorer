@@ -37,7 +37,7 @@ class WeightedScorerForm(forms.ModelForm):
 @admin.register(WeightedScorer)
 class WeightedScorerAdmin(ScorerModelAdmin):
     form = WeightedScorerForm
-    list_display = ["id", "exclude_from_weight_updates"]
+    list_display = ["id", "threshold", "exclude_from_weight_updates"]
     list_filter = ["exclude_from_weight_updates"]
 
 

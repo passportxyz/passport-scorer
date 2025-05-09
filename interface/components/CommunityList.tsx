@@ -53,9 +53,10 @@ const CommunityList = () => {
   const handleUpdateCommunity = async (
     communityId: number,
     name: string,
-    description: string
+    description: string,
+    threshold: number
   ) => {
-    await updateCommunity(communityId, { name, description });
+    await updateCommunity(communityId, { name, description, threshold });
     await fetchCommunities();
   };
 

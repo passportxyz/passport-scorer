@@ -1,5 +1,6 @@
 from typing import List
 from urllib.parse import urljoin
+from decimal import Decimal
 
 import django_filters
 import requests
@@ -228,7 +229,12 @@ async def ahandle_submit_passport(
 
     await ascore_passport(user_community, db_passport, payload.address, score)
     await score.asave()
-    return DetailedScoreResponse.from_orm(score)
+
+    scorer = await user_community.aget_scorer()
+    if getattr(scorer, "type", None) == "WEIGHTED":
+        return format_non_threshold_score(score)
+    else:
+        return DetailedScoreResponse.from_orm(score)
 
 
 def handle_submit_passport(
@@ -295,6 +301,28 @@ def get_score(request, address: str, scorer_id: int | str) -> DetailedScoreRespo
 
     return handle_get_score(address, scorer_id, account)
 
+def format_non_threshold_score(score: Score) -> DetailedScoreResponse:
+            # For backward compatibility, use the raw score as the Score model's .score field
+            raw_score = None
+            if score.evidence and "rawScore" in score.evidence:
+                try:
+                    raw_score = Decimal(score.evidence["rawScore"])
+                except Exception:
+                    raw_score = score.evidence["rawScore"]
+            if raw_score is None:
+                raw_score = score.score
+            # Patch the score object for compatibility
+            score.score = raw_score
+            return DetailedScoreResponse(
+                address=score.passport.address,
+                score=raw_score,
+                status=score.status,
+                last_score_timestamp=score.last_score_timestamp,
+                expiration_date=score.expiration_date,
+                evidence=None,
+                error=score.error,
+                stamp_scores=score.stamp_scores or {},
+            )
 
 def handle_get_score(
     address: str, scorer_id: int, account: Account
@@ -311,7 +339,12 @@ def handle_get_score(
         score = Score.objects.get(
             passport__address=lower_address, passport__community=user_community
         )
-        return DetailedScoreResponse.from_orm(score)
+
+        scorer = user_community.get_scorer()
+        if getattr(scorer, "type", None) == "WEIGHTED":
+            return format_non_threshold_score(score)
+        else:
+            return DetailedScoreResponse.from_orm(score)
 
     except NotFoundApiException as e:
         raise e

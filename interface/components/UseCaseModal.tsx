@@ -82,6 +82,7 @@ const UseCaseModal = ({
   );
   const [scorerName, setScorerName] = useState("");
   const [scorerDescription, setScorerDescription] = useState("");
+  const [threshold, setThreshold] = useState<number>(20);
 
   useEffect(() => {
     localStorage.removeItem("tempScorer");
@@ -132,8 +133,10 @@ const UseCaseModal = ({
               useCase={useCase}
               scorerName={scorerName}
               scorerDescription={scorerDescription}
+              threshold={threshold}
               setScorerName={setScorerName}
               setScorerDescription={setScorerDescription}
+              setThreshold={setThreshold}
               setWizardStep={setWizardStep}
               closeModal={closeModal}
               existingScorers={existingScorers}
@@ -239,9 +242,11 @@ interface UseCaseDetailsProps {
   useCase: UseCaseInterface | undefined;
   scorerName: string;
   scorerDescription: string;
+  threshold: number;
   existingScorers: Community[];
   setScorerName: (name: string) => void;
   setScorerDescription: (description: string) => void;
+  setThreshold: (threshold: number) => void;
   setWizardStep: (wizardStep: number) => void;
   closeModal: () => void;
   refreshCommunities: () => void;
@@ -251,9 +256,11 @@ const UseCaseDetails = ({
   useCase,
   scorerName,
   scorerDescription,
+  threshold,
   existingScorers,
   setScorerName,
   setScorerDescription,
+  setThreshold,
   closeModal,
   refreshCommunities,
 }: UseCaseDetailsProps) => {
@@ -283,6 +290,7 @@ const UseCaseDetails = ({
         use_case: useCase!.title,
         rule: "LIFO",
         scorer: "WEIGHTED",
+        threshold: threshold,
       });
       localStorage.setItem("scorerCreated", "true");
       setIsLoading(false);
@@ -291,7 +299,7 @@ const UseCaseDetails = ({
     } catch (e) {
       toast(warningToast("Something went wrong. Please try again.", toast));
     }
-  }, [scorerName, scorerDescription, useCase, toast, closeModal]);
+  }, [scorerName, scorerDescription, useCase, threshold, toast, closeModal]);
 
   const switchToSelectMechanism = () => {
     if (!hasDuplicateName()) {
@@ -319,29 +327,48 @@ const UseCaseDetails = ({
         <p className="text-gray-500">{useCase?.description}</p>
       </div>
       <hr className="my-6 text-gray-lightgray" />
-      <div>
-        <label className="text-gray-softgray font-librefranklin text-xs">
-          Name
-        </label>
-        <Input
-          data-testid="use-case-name-input"
-          className="mt-2 mb-4 text-blue-darkblue"
-          value={scorerName}
-          onChange={(name) => setScorerName(name.target.value)}
-          placeholder="App / Use Case Name"
-        />
-        <label className="text-gray-softgray font-librefranklin text-xs">
-          Description
-        </label>
-        <Input
-          className="mt-2 text-blue-darkblue"
-          data-testid="use-case-description-input"
-          value={scorerDescription}
-          onChange={(description) =>
-            setScorerDescription(description.target.value)
-          }
-          placeholder="Enter Use Case Description"
-        />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="flex flex-col">
+          <label className="text-gray-softgray font-librefranklin text-xs">
+            Name
+          </label>
+          <Input
+            data-testid="use-case-name-input"
+            className="mt-2 mb-4 text-blue-darkblue"
+            value={scorerName}
+            onChange={(name) => setScorerName(name.target.value)}
+            placeholder="App / Use Case Name"
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-gray-softgray font-librefranklin text-xs">
+            Description
+          </label>
+          <Input
+            className="mt-2 text-blue-darkblue"
+            data-testid="use-case-description-input"
+            value={scorerDescription}
+            onChange={(description) =>
+              setScorerDescription(description.target.value)
+            }
+            placeholder="Enter Use Case Description"
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-gray-softgray font-librefranklin text-xs">
+            Threshold
+          </label>
+          <Input
+            className="mt-2 text-blue-darkblue"
+            data-testid="use-case-threshold-input"
+            type="number"
+            step="any"
+            min="0"
+            value={threshold}
+            onChange={(e) => setThreshold(parseFloat(e.target.value) || 0)}
+            placeholder="Threshold"
+          />
+        </div>
       </div>
       {useCaseError && <p className="pt-4 text-red-700">{useCaseError}</p>}
       <button

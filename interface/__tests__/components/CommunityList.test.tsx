@@ -1,5 +1,6 @@
 import React from "react";
 import { fireEvent, render, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import CommunityList from "../../components/CommunityList";
 import {
   getCommunities,
@@ -17,7 +18,12 @@ jest.mock("../../utils/account-requests.ts", () => ({
 
 describe("CommunityList", () => {
   it("should open the use-case modal after clicking the `+ Scorer` button", async () => {
-    const { getByTestId, getByText } = render(<CommunityList />);
+    (getCommunities as jest.Mock).mockResolvedValue([]);
+    const { getByTestId, getByText, getAllByTestId } = render(
+      <MemoryRouter>
+        <CommunityList />
+      </MemoryRouter>
+    );
     expect(getByTestId("no-values-add")).toBeInTheDocument();
 
     const modalButton = getByTestId("no-values-add");
@@ -28,30 +34,35 @@ describe("CommunityList", () => {
       expect(getByText("Select a Use Case")).toBeInTheDocument()
     );
 
-    // expect(getByTestId("create-button")).toBeInTheDocument();
-    // const nameInput = getByTestId("community-name-input");
-    // const descriptionInput = getByTestId("community-description-input");
-    // fireEvent.change(nameInput, { target: { value: sampleInput.name } });
-    // fireEvent.change(descriptionInput, {
-    //   target: { value: sampleInput.description },
-    // });
-    // const createButton = getByTestId("create-button");
-    // fireEvent.click(createButton as HTMLElement);
-    // expect(createCommunity).toHaveBeenCalledWith(sampleInput);
-    // waitForElementToBeRemoved(getByTestId("community-modal"));
+    // Select the first use case and click Continue
+    const useCaseItems = getAllByTestId("use-case-item");
+    fireEvent.click(useCaseItems[0]);
+    const continueBtn = getByText("Continue");
+    fireEvent.click(continueBtn);
+
+    // Now threshold input should be visible
+    await waitFor(() => {
+      const thresholdInput = getByTestId("use-case-threshold-input");
+      expect(thresholdInput).toBeInTheDocument();
+      expect((thresholdInput as HTMLInputElement).value).toBe("20");
+    });
   });
 
   describe("when the community list already has records", () => {
     beforeEach(() => {
       (getCommunities as jest.Mock).mockResolvedValue([
-        { name: "banks", description: "No bankd" },
-        { name: "wells fargo", description: "WellsFargo" },
+        { name: "banks", description: "No bankd", threshold: 20 },
+        { name: "wells fargo", description: "WellsFargo", threshold: 20 },
       ]);
       // (createCommunity as jest.Mock).mockResolvedValue({});
     });
 
     it("should render a list of communities", async () => {
-      const { getByText } = render(<CommunityList />);
+      const { getByText } = render(
+        <MemoryRouter>
+          <CommunityList />
+        </MemoryRouter>
+      );
 
       await waitFor(async () => {
         expect(getByText("banks")).toBeInTheDocument();
@@ -68,6 +79,7 @@ describe("CommunityList", () => {
         description: "Test 1 Description",
         created_at: "2021-01-10T00:00:00.000Z",
         use_case: "Airdrop Protection",
+        threshold: 20,
       },
       {
         id: 2,
@@ -75,6 +87,7 @@ describe("CommunityList", () => {
         description: "Test 2 Description",
         created_at: "2021-01-10T00:00:00.000Z",
         use_case: "Airdrop Protection",
+        threshold: 20,
       },
       {
         id: 3,
@@ -82,10 +95,15 @@ describe("CommunityList", () => {
         description: "Test 3 Description",
         created_at: "2021-01-10T00:00:00.000Z",
         use_case: "Airdrop Protection",
+        threshold: 20,
       },
     ]);
 
-    const { getByText } = render(<CommunityList />);
+    const { getByText } = render(
+      <MemoryRouter>
+        <CommunityList />
+      </MemoryRouter>
+    );
 
     await waitFor(() =>
       expect(getByText("Create a Scorer")).toBeInTheDocument()
@@ -110,6 +128,7 @@ describe("CommunityList", () => {
           description: "Test 1 Description",
           created_at: "2021-01-10T00:00:00.000Z",
           use_case: "Airdrop Protection",
+          threshold: 20,
         },
       ],
       [
@@ -120,6 +139,7 @@ describe("CommunityList", () => {
           description: "Test 2 Description",
           created_at: "2021-01-10T00:00:00.000Z",
           use_case: "Airdrop Protection",
+          threshold: 20,
         },
       ],
     ];
@@ -135,7 +155,11 @@ describe("CommunityList", () => {
       .mockClear()
       .mockImplementation(() => promise);
 
-    const { getByText, getByTestId } = render(<CommunityList />);
+    const { getByText, getByTestId } = render(
+      <MemoryRouter>
+        <CommunityList />
+      </MemoryRouter>
+    );
 
     await waitFor(() =>
       expect(getByText("Create a Scorer")).toBeInTheDocument()
@@ -159,7 +183,7 @@ describe("CommunityList", () => {
     const renameMenuItem = getByTestId("menu-rename-1");
     fireEvent.click(renameMenuItem as HTMLElement);
 
-    await waitFor(() => expect(getByText("Rename Scorer")).toBeVisible());
+    await waitFor(() => expect(getByText("Edit Scorer")).toBeVisible());
 
     const saveChangeBtn = getByText("Save Changes");
     fireEvent.click(saveChangeBtn as HTMLElement);
@@ -185,6 +209,7 @@ describe("CommunityList", () => {
           description: "Test 1 Description",
           created_at: "2021-01-10T00:00:00.000Z",
           use_case: "Airdrop Protection",
+          threshold: 20,
         },
       ],
       // Empty list for after the delete
@@ -202,7 +227,11 @@ describe("CommunityList", () => {
       .mockClear()
       .mockImplementation(() => promise);
 
-    const { getByText, getByTestId } = render(<CommunityList />);
+    const { getByText, getByTestId } = render(
+      <MemoryRouter>
+        <CommunityList />
+      </MemoryRouter>
+    );
 
     await waitFor(() =>
       expect(getByText("Create a Scorer")).toBeInTheDocument()

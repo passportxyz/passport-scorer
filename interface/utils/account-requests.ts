@@ -12,10 +12,9 @@ export type ApiKeys = {
 
 export const createApiKey = async (name: ApiKeys["name"]) => {
   try {
-    const response = await axios.post(
-      `${SCORER_BACKEND}account/api-key`,
-      { name },
-    );
+    const response = await axios.post(`${SCORER_BACKEND}account/api-key`, {
+      name,
+    });
     const { data } = await response;
     return data;
   } catch (error) {
@@ -25,7 +24,7 @@ export const createApiKey = async (name: ApiKeys["name"]) => {
 
 export const updateApiKey = async (
   id: ApiKeys["id"],
-  name: ApiKeys["name"]
+  name: ApiKeys["name"],
 ) => {
   try {
     const response = await axios.patch(
@@ -65,6 +64,7 @@ export type DraftCommunity = {
   use_case: string;
   rule: string;
   scorer: string;
+  threshold: number;
 };
 
 export type Community = DraftCommunity & {
@@ -73,16 +73,16 @@ export type Community = DraftCommunity & {
 };
 
 export type CommunityPatch = {
-  name: string | undefined;
-  description: string | undefined;
+  name?: string;
+  description?: string;
+  threshold?: number;
 };
 
 export const createCommunity = async (community: DraftCommunity) => {
   try {
-    const response = await axios.post(
-      `${SCORER_BACKEND}account/communities`,
-      { ...community }
-    );
+    const response = await axios.post(`${SCORER_BACKEND}account/communities`, {
+      ...community,
+    });
   } catch (error) {
     throw error;
   }
@@ -101,12 +101,12 @@ export const getCommunities = async (): Promise<Community[]> => {
 
 export const updateCommunity = async (
   communityId: Community["id"],
-  community: CommunityPatch
+  community: CommunityPatch,
 ) => {
   try {
     const response = await axios.patch(
       `${SCORER_BACKEND}account/communities/${communityId}`,
-      { ...community }
+      { ...community },
     );
   } catch (error) {
     throw error;
@@ -116,7 +116,7 @@ export const updateCommunity = async (
 export const deleteCommunity = async (communityId: Community["id"]) => {
   try {
     const response = await axios.delete(
-      `${SCORER_BACKEND}account/communities/${communityId}`
+      `${SCORER_BACKEND}account/communities/${communityId}`,
     );
   } catch (error) {
     throw error;
@@ -139,11 +139,11 @@ export type TokenValidationResponse = {
 };
 
 export const getCommunityScorers = async (
-  communityId: string
+  communityId: string,
 ): Promise<ScorerResponse> => {
   try {
     const response = await axios.get(
-      `${SCORER_BACKEND}account/communities/${communityId}/scorers`
+      `${SCORER_BACKEND}account/communities/${communityId}/scorers`,
     );
 
     const { data } = response;
@@ -161,11 +161,11 @@ export const getCommunityScorers = async (
 
 export const updateCommunityScorers = async (
   communityId: string,
-  scorerType: string
+  scorerType: string,
 ) => {
   try {
     const response = await axios.put(
-      `${SCORER_BACKEND}account/communities/${communityId}/scorers`
+      `${SCORER_BACKEND}account/communities/${communityId}/scorers`,
     );
   } catch (error) {
     throw error;
@@ -191,12 +191,12 @@ export const authenticate = async (message: SiweMessage, signature: string) => {
 };
 
 export const verifyToken = async (
-  token: string
+  token: string,
 ): Promise<TokenValidationResponse> => {
   try {
     const response = await axios.post(
       `${SCORER_BACKEND}account/validate_token`,
-      { token }
+      { token },
     );
     const exp = response.data.exp;
     const expDate = new Date(exp * 1000);
