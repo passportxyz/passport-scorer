@@ -30,6 +30,7 @@ from internal.api_key import internal_api_key
 from scorer_weighted.models import (
     BinaryWeightedScorer,
     WeightedScorer,
+    get_default_threshold,
     get_default_weights,
 )
 
@@ -180,10 +181,13 @@ class AccountApiSchema(ModelSchema):
     api_key: Optional[str] = None
 
 
-class CommunityApiSchema(ModelSchema):
-    class Config:
-        model = Community
-        model_fields = ["name", "description", "id", "created_at", "use_case"]
+class CommunityApiSchema(Schema):
+    name: str
+    description: str
+    id: int
+    created_at: datetime
+    use_case: str
+    threshold: float
 
 
 @api.post("/verify", response=TokenObtainPairOutSchema)
@@ -327,6 +331,7 @@ class CommunitiesPayload(Schema):
     use_case: str
     rule: str = Rules.LIFO.value
     scorer: str
+    threshold: float = None
 
 
 def create_community_for_account(
@@ -337,6 +342,7 @@ def create_community_for_account(
     scorer,
     use_case,
     rule,
+    threshold=None,
     external_scorer_id=None,
 ):
     account_communities = Community.objects.filter(account=account, deleted_at=None)
@@ -356,13 +362,14 @@ def create_community_for_account(
     ):
         raise CommunityExistsExceptionExternalId()
 
-    # Create the scorer
+    # Create the scorer based on type
     if scorer == "WEIGHTED_BINARY":
-        scorer = BinaryWeightedScorer(type="WEIGHTED_BINARY")
+        scorer_obj = BinaryWeightedScorer(type="WEIGHTED_BINARY")
+        if threshold is not None:
+            scorer_obj.threshold = threshold
     else:
-        scorer = WeightedScorer()
-
-    scorer.save()
+        scorer_obj = WeightedScorer(type="WEIGHTED")
+    scorer_obj.save()
 
     # Create the community
     community = Community.objects.create(
@@ -371,7 +378,7 @@ def create_community_for_account(
         description=description,
         use_case=use_case,
         rule=rule,
-        scorer=scorer,
+        scorer=scorer_obj,
         external_scorer_id=external_scorer_id,
     )
 
@@ -396,6 +403,7 @@ def create_community(request, payload: CommunitiesPayload):
             payload.scorer,
             payload.use_case,
             payload.rule,
+            payload.threshold,
         )
 
         return {"ok": True}
@@ -413,10 +421,30 @@ def get_communities(request):
             .order_by("id")
             .all()
         )
-
     except Account.DoesNotExist:
         raise UnauthorizedException()
-    return communities
+    # Return with threshold field
+    result = []
+    for community in communities:
+        scorer = community.get_scorer() if hasattr(community, "get_scorer") else None
+        threshold = None
+        if scorer and hasattr(scorer, "threshold") and scorer.threshold is not None:
+            threshold = float(scorer.threshold)
+        else:
+            threshold = float(get_default_threshold())
+        result.append(
+            {
+                "name": community.name,
+                "description": community.description,
+                "id": community.id,
+                "created_at": community.created_at,
+                "use_case": community.use_case
+                if community.use_case is not None
+                else "",
+                "threshold": threshold,
+            }
+        )
+    return result
 
 
 class APIKeyId(Schema):
@@ -462,6 +490,7 @@ def update_community(request, community_id, payload: CommunitiesUpdatePayload):
 class CommunitiesPatchPayload(Schema):
     name: str = None
     description: str = None
+    threshold: float = None
 
 
 @api.patch("/communities/{community_id}", auth=UIAuth())
@@ -486,6 +515,14 @@ def patch_community(request, community_id, payload: CommunitiesPatchPayload):
 
         if payload.description:
             community.description = payload.description
+
+        if payload.threshold is not None:
+            scorer = community.get_scorer() if hasattr(community, "get_scorer") else None
+            if scorer and hasattr(scorer, "threshold"):
+                scorer.threshold = payload.threshold
+                scorer.save()
+                # Ensure the community points to the updated scorer
+                community.scorer = scorer
 
         community.save()
     except Account.DoesNotExist:

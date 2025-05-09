@@ -54,7 +54,8 @@ type CommunityCardProps = {
   handleUpdateCommunity: (
     communityId: number,
     name: string,
-    description: string
+    description: string,
+    threshold: number
   ) => void;
   handleDeleteCommunity: (communityId: number) => void;
 };
@@ -62,9 +63,10 @@ type CommunityCardProps = {
 interface RenameModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaveChanges: (name: string, description: string) => void;
+  onSaveChanges: (name: string, description: string, threshold: number) => void;
   name: string;
   description: string;
+  threshold: number;
 }
 
 const RenameModal = ({
@@ -73,17 +75,20 @@ const RenameModal = ({
   onSaveChanges,
   name,
   description,
+  threshold,
 }: RenameModalProps): JSX.Element => {
   const [scorerName, setScorerName] = useState("");
   const [scorerDescription, setScorerDescription] = useState("");
+  const [scorerThreshold, setScorerThreshold] = useState<number>(20);
   const [inProgress, setInProgress] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setScorerName(name);
       setScorerDescription(description);
+      setScorerThreshold(threshold);
     }
-  }, [isOpen]);
+  }, [isOpen, name, description, threshold]);
 
   const closeModal = () => {
     onClose();
@@ -92,7 +97,7 @@ const RenameModal = ({
   const saveChanges = async () => {
     setInProgress(true);
     try {
-      await onSaveChanges(scorerName, scorerDescription);
+      await onSaveChanges(scorerName, scorerDescription, scorerThreshold);
     } catch (e) {}
     setInProgress(false);
   };
@@ -107,7 +112,7 @@ const RenameModal = ({
       <ModalOverlay />
       <ModalContent>
         <ModalHeader className="flex justify-center">
-          <span className="text-base font-normal">Rename Scorer</span>
+          <span className="text-base font-normal">Edit Scorer</span>
         </ModalHeader>
         <ModalCloseButton onClick={closeModal} />
         <ModalBody className="flex h-screen w-full flex-col">
@@ -132,6 +137,19 @@ const RenameModal = ({
               setScorerDescription(description.target.value)
             }
             placeholder="Enter Use Case Description"
+          />
+          <label className="text-gray-softgray font-librefranklin text-xs mt-4">
+            Threshold
+          </label>
+          <Input
+            className="mt-2 text-blue-darkblue"
+            data-testid="use-case-threshold-input"
+            type="number"
+            step="any"
+            min="0"
+            value={scorerThreshold}
+            onChange={(e) => setScorerThreshold(parseFloat(e.target.value) || 0)}
+            placeholder="Threshold"
           />
         </ModalBody>
         <ModalFooter>
@@ -245,9 +263,9 @@ const CommunityCard = ({
     } catch (e) {}
   };
 
-  const saveChanges = async (name: string, description: string) => {
+  const saveChanges = async (name: string, description: string, threshold: number) => {
     try {
-      await handleUpdateCommunity(community.id, name, description);
+      await handleUpdateCommunity(community.id, name, description, threshold);
       setIsRenameModalOpen(false);
     } catch (e) {
       toast(warningToast("Something went wrong. Please try again.", toast));
@@ -274,6 +292,7 @@ const CommunityCard = ({
         onSaveChanges={saveChanges}
         name={community.name}
         description={community.description}
+        threshold={community.threshold}
       ></RenameModal>
       <DeleteConfirmationModal
         isOpen={isDeleteConfirmationModalOpen}
@@ -295,6 +314,9 @@ const CommunityCard = ({
           </p>
           <p className="mt-2 flex items-center text-sm text-purple-softpurple">
             <span className="truncate">{community.description}</span>
+          </p>
+          <p className="mt-2 flex items-center text-sm text-purple-softpurple">
+            <span className="truncate">Threshold: {community.threshold}</span>
           </p>
         </div>
         <div className="mt-4 flex md:mt-5 md:block md:basis-3/12">
@@ -334,7 +356,7 @@ const CommunityCard = ({
                 data-testid={`menu-rename-${community.id}`}
                 onClick={handleRename}
               >
-                Rename
+                Edit
               </MenuItem>
               <MenuItem
                 data-testid={`menu-delete-${community.id}`}

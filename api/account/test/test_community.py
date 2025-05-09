@@ -260,6 +260,8 @@ class CommunityTestCase(TestCase):
         json_response = community_response.json()
         self.assertEqual(len(json_response), 1)
         self.assertEqual(json_response[0]["name"], "Community for user 1")
+        self.assertIn("threshold", json_response[0])
+        self.assertIsInstance(json_response[0]["threshold"], float)
 
     def test_update_community(self):
         """Test successfully editing a community's name and description"""
@@ -486,3 +488,120 @@ class CommunityTestCase(TestCase):
                 name="Test",
                 description="some description",
             )
+
+    def test_patch_community_threshold(self):
+        """Test updating a community's threshold via PATCH"""
+        client = Client()
+
+        # Create Community
+        account_community = Community.objects.create(
+            account=self.account,
+            name="Threshold Community",
+            description="desc",
+        )
+        scorer = account_community.get_scorer() if hasattr(account_community, "get_scorer") else None
+        self.assertIsNotNone(scorer)
+        # Only test threshold update if scorer has threshold attribute
+        if hasattr(scorer, "threshold"):
+            old_threshold = float(getattr(scorer, "threshold", 20.0))
+            new_threshold = old_threshold + 5.5
+            patch_body = {"threshold": new_threshold}
+            response = client.patch(
+                f"/account/communities/{account_community.pk}",
+                json.dumps(patch_body),
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+            )
+            self.assertEqual(response.status_code, 200)
+            scorer.refresh_from_db()
+            self.assertEqual(float(scorer.threshold), new_threshold)
+        else:
+            # Should not error, but threshold is not settable
+            patch_body = {"threshold": 42.0}
+            response = client.patch(
+                f"/account/communities/{account_community.pk}",
+                json.dumps(patch_body),
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+            )
+            self.assertEqual(response.status_code, 200)
+
+    def test_patch_community_threshold_weighted(self):
+        """Test PATCHing threshold on a WeightedScorer community does not error and does not set threshold"""
+        client = Client()
+        # Create Community with WEIGHTED scorer
+        community_body = dict(**mock_community_body)
+        community_body["name"] = "Weighted Scorer Community"
+        community_body["scorer"] = "WEIGHTED"
+        community_response = client.post(
+            "/account/communities",
+            json.dumps(community_body),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response.status_code, 200)
+        community = Community.objects.get(name="Weighted Scorer Community")
+        scorer = community.get_scorer() if hasattr(community, "get_scorer") else None
+        self.assertIsNotNone(scorer)
+        self.assertFalse(hasattr(scorer, "threshold"))
+        patch_body = {"threshold": 123.45}
+        response = client.patch(
+            f"/account/communities/{community.pk}",
+            json.dumps(patch_body),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEqual(response.status_code, 200)
+        scorer.refresh_from_db()
+        self.assertFalse(hasattr(scorer, "threshold"))
+
+    def test_patch_community_threshold_binary_weighted(self):
+        """Test PATCHing threshold on a BinaryWeightedScorer community updates threshold"""
+        client = Client()
+        # Create Community with WEIGHTED_BINARY scorer
+        community_body = dict(**mock_community_body)
+        community_body["name"] = "Binary Scorer Community"
+        community_body["scorer"] = "WEIGHTED_BINARY"
+        community_response = client.post(
+            "/account/communities",
+            json.dumps(community_body),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response.status_code, 200)
+        community = Community.objects.get(name="Binary Scorer Community")
+        scorer = community.get_scorer() if hasattr(community, "get_scorer") else None
+        self.assertIsNotNone(scorer)
+        self.assertTrue(hasattr(scorer, "threshold"))
+        old_threshold = float(scorer.threshold)
+        new_threshold = old_threshold + 7.7
+        patch_body = {"threshold": new_threshold}
+        response = client.patch(
+            f"/account/communities/{community.pk}",
+            json.dumps(patch_body),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEqual(response.status_code, 200)
+        scorer.refresh_from_db()
+        self.assertEqual(float(scorer.threshold), new_threshold)
+
+    def test_create_community_with_custom_threshold(self):
+        """Test that POST /communities sets the threshold on the new BinaryWeightedScorer if provided"""
+        client = Client()
+        custom_threshold = 42.42
+        community_body = dict(**mock_community_body)
+        community_body["name"] = "Custom Threshold Community"
+        community_body["threshold"] = custom_threshold
+        community_response = client.post(
+            "/account/communities",
+            json.dumps(community_body),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response.status_code, 200)
+        community = Community.objects.get(name="Custom Threshold Community")
+        scorer = community.get_scorer() if hasattr(community, "get_scorer") else None
+        self.assertIsNotNone(scorer)
+        self.assertTrue(hasattr(scorer, "threshold"))
+        self.assertEqual(float(scorer.threshold), custom_threshold)
