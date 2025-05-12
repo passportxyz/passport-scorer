@@ -289,7 +289,7 @@ const UseCaseDetails = ({
         description: scorerDescription,
         use_case: useCase!.title,
         rule: "LIFO",
-        scorer: "WEIGHTED",
+        scorer: "WEIGHTED_BINARY",
         threshold: threshold,
       });
       localStorage.setItem("scorerCreated", "true");
