@@ -63,7 +63,7 @@ type CommunityCardProps = {
 interface RenameModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaveChanges: (name: string, description: string, threshold: number) => void;
+  onSaveChanges: (name: string, description: string, threshold: number) => Promise<void>;
   name: string;
   description: string;
   threshold: number;
@@ -79,14 +79,15 @@ const RenameModal = ({
 }: RenameModalProps): JSX.Element => {
   const [scorerName, setScorerName] = useState("");
   const [scorerDescription, setScorerDescription] = useState("");
-  const [scorerThreshold, setScorerThreshold] = useState<number>(20);
+  const [scorerThreshold, setScorerThreshold] = useState<string>(threshold.toString());
+  const [thresholdError, setThresholdError] = useState<string>("");
   const [inProgress, setInProgress] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setScorerName(name);
       setScorerDescription(description);
-      setScorerThreshold(threshold);
+      setScorerThreshold(threshold.toString());
     }
   }, [isOpen, name, description, threshold]);
 
@@ -95,9 +96,14 @@ const RenameModal = ({
   };
 
   const saveChanges = async () => {
+    if (scorerThreshold === "" || isNaN(Number(scorerThreshold)) || Number(scorerThreshold) <= 0) {
+      setThresholdError("Threshold must be greater than 0");
+      return;
+    }
     setInProgress(true);
     try {
-      await onSaveChanges(scorerName, scorerDescription, scorerThreshold);
+      const thresholdValue = parseFloat(scorerThreshold);
+      await onSaveChanges(scorerName, scorerDescription, thresholdValue);
     } catch (e) {}
     setInProgress(false);
   };
@@ -148,14 +154,24 @@ const RenameModal = ({
             step="any"
             min="0"
             value={scorerThreshold}
-            onChange={(e) => setScorerThreshold(parseFloat(e.target.value) || 0)}
+            onChange={(e) => {
+              setScorerThreshold(e.target.value);
+              if (e.target.value === "" || isNaN(Number(e.target.value)) || Number(e.target.value) <= 0) {
+                setThresholdError("Threshold must be greater than 0");
+              } else {
+                setThresholdError("");
+              }
+            }}
             placeholder="Threshold"
           />
+          {thresholdError && (
+            <span className="text-red-500 text-xs mt-1" data-testid="threshold-error">{thresholdError}</span>
+          )}
         </ModalBody>
         <ModalFooter>
           <button
             className="mb-2 flex w-full justify-center rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-4"
-            disabled={!scorerName || !scorerDescription || inProgress}
+            disabled={!scorerName || !scorerDescription || inProgress || !!thresholdError}
             onClick={saveChanges}
           >
             <SpinnerIcon inProgress={inProgress}></SpinnerIcon>

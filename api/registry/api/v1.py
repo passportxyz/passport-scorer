@@ -1,7 +1,6 @@
 from decimal import Decimal
 from typing import List
 from urllib.parse import urljoin
-from decimal import Decimal
 
 import django_filters
 import requests

@@ -82,17 +82,25 @@ const UseCaseModal = ({
   );
   const [scorerName, setScorerName] = useState("");
   const [scorerDescription, setScorerDescription] = useState("");
-  const [threshold, setThreshold] = useState<number>(20);
+  const [threshold, setThreshold] = useState<string>("20");
+  const [error, setError] = useState<string>("");
 
   useEffect(() => {
     localStorage.removeItem("tempScorer");
-  }, []);
+    if (isOpen) {
+      setError("");
+      setThreshold("20");
+      setScorerName("");
+      setScorerDescription("");
+    }
+  }, [isOpen]);
 
   const closeModal = () => {
     setScorerName("");
     setScorerDescription("");
     setUseCase(undefined);
     setWizardStep(1);
+    setError("");
     onClose();
   };
 
@@ -242,11 +250,11 @@ interface UseCaseDetailsProps {
   useCase: UseCaseInterface | undefined;
   scorerName: string;
   scorerDescription: string;
-  threshold: number;
+  threshold: string;
   existingScorers: Community[];
   setScorerName: (name: string) => void;
   setScorerDescription: (description: string) => void;
-  setThreshold: (threshold: number) => void;
+  setThreshold: (threshold: string) => void;
   setWizardStep: (wizardStep: number) => void;
   closeModal: () => void;
   refreshCommunities: () => void;
@@ -265,32 +273,39 @@ const UseCaseDetails = ({
   refreshCommunities,
 }: UseCaseDetailsProps) => {
   const navigate = useNavigate();
-  const [useCaseError, setUseCaseError] = useState<string>();
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const hasDuplicateName = () => {
-    const existingScorer = existingScorers.find(
-      (scorer) => scorer.name === scorerName
-    );
-    if (existingScorer) {
-      setUseCaseError("A scorer with this name already exists");
-      return true;
-    } else {
-      setUseCaseError("");
+  const [nameError, setNameError] = useState("");
+  const [thresholdError, setThresholdError] = useState("");
+
+  // Only check for duplicate name on save
+  const checkDuplicateName = (name: string) => {
+    return existingScorers.some((scorer) => scorer.name === name);
+  };
+
+  const validateThreshold = (value: string) => {
+    if (value === "" || isNaN(Number(value)) || Number(value) <= 0) {
+      setThresholdError("Threshold must be greater than 0");
       return false;
+    } else {
+      setThresholdError("");
+      return true;
     }
   };
 
   const createScorer = useCallback(async () => {
+    if (!validateThreshold(threshold)) {
+      return;
+    }
+    setIsLoading(true);
     try {
-      setIsLoading(true);
       await createCommunity({
         name: scorerName,
         description: scorerDescription,
         use_case: useCase!.title,
         rule: "LIFO",
         scorer: "WEIGHTED_BINARY",
-        threshold: threshold,
+        threshold: parseFloat(threshold),
       });
       localStorage.setItem("scorerCreated", "true");
       setIsLoading(false);
@@ -302,18 +317,25 @@ const UseCaseDetails = ({
   }, [scorerName, scorerDescription, useCase, threshold, toast, closeModal]);
 
   const switchToSelectMechanism = () => {
-    if (!hasDuplicateName()) {
-      localStorage.setItem(
-        "tempScorer",
-        JSON.stringify({
-          useCase: useCases.indexOf(useCase!),
-          name: scorerName,
-          description: scorerDescription,
-        })
-      );
-      console.debug("Saving the score here .... ");
-      createScorer();
+    // Check for duplicate name only on save
+    if (checkDuplicateName(scorerName)) {
+      setNameError("A scorer with this name already exists");
+      return;
     }
+    setNameError("");
+    if (!validateThreshold(threshold)) {
+      return;
+    }
+    localStorage.setItem(
+      "tempScorer",
+      JSON.stringify({
+        useCase: useCases.indexOf(useCase!),
+        name: scorerName,
+        description: scorerDescription,
+      })
+    );
+    console.debug("Saving the score here .... ");
+    createScorer();
   };
 
   return (
@@ -327,18 +349,24 @@ const UseCaseDetails = ({
         <p className="text-gray-500">{useCase?.description}</p>
       </div>
       <hr className="my-6 text-gray-lightgray" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col">
           <label className="text-gray-softgray font-librefranklin text-xs">
             Name
           </label>
           <Input
             data-testid="use-case-name-input"
-            className="mt-2 mb-4 text-blue-darkblue"
+            className="mt-2 text-blue-darkblue"
             value={scorerName}
-            onChange={(name) => setScorerName(name.target.value)}
+            onChange={(e) => {
+              setScorerName(e.target.value);
+              if (nameError) setNameError("");
+            }}
             placeholder="App / Use Case Name"
           />
+          {nameError && (
+            <span className="text-red-500 text-xs mt-1" data-testid="name-error">{nameError}</span>
+          )}
         </div>
         <div className="flex flex-col">
           <label className="text-gray-softgray font-librefranklin text-xs">
@@ -348,9 +376,9 @@ const UseCaseDetails = ({
             className="mt-2 text-blue-darkblue"
             data-testid="use-case-description-input"
             value={scorerDescription}
-            onChange={(description) =>
-              setScorerDescription(description.target.value)
-            }
+            onChange={(e) => {
+              setScorerDescription(e.target.value);
+            }}
             placeholder="Enter Use Case Description"
           />
         </div>
@@ -365,16 +393,21 @@ const UseCaseDetails = ({
             step="any"
             min="0"
             value={threshold}
-            onChange={(e) => setThreshold(parseFloat(e.target.value) || 0)}
+            onChange={(e) => {
+              setThreshold(e.target.value);
+              validateThreshold(e.target.value);
+            }}
             placeholder="Threshold"
           />
+          {thresholdError && (
+            <span className="text-red-500 text-xs mt-1" data-testid="threshold-error">{thresholdError}</span>
+          )}
         </div>
       </div>
-      {useCaseError && <p className="pt-4 text-red-700">{useCaseError}</p>}
       <button
         className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
         onClick={switchToSelectMechanism}
-        disabled={!scorerName || !scorerDescription}
+        disabled={!scorerName || !scorerDescription || !!nameError || !!thresholdError}
       >
         Continue
       </button>

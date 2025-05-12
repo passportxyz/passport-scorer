@@ -31,13 +31,17 @@ const existingScorers = [
   },
 ] as Community[];
 
+const noop = () => {};
+const refreshCommunities = jest.fn();
+
 describe("UseCaseModal", () => {
   it("should display a list of use cases", async () => {
     render(
       <UseCaseModal
         existingScorers={existingScorers}
         isOpen={true}
-        onClose={() => {}}
+        onClose={noop}
+        refreshCommunities={refreshCommunities}
       />
     );
     const useCaseItems = screen.getAllByTestId("use-case-item");
@@ -51,7 +55,8 @@ describe("UseCaseModal", () => {
       <UseCaseModal
         existingScorers={existingScorers}
         isOpen={true}
-        onClose={() => {}}
+        onClose={noop}
+        refreshCommunities={refreshCommunities}
       />
     );
 
@@ -70,7 +75,8 @@ describe("UseCaseModal", () => {
       <UseCaseModal
         existingScorers={existingScorers}
         isOpen={true}
-        onClose={() => {}}
+        onClose={noop}
+        refreshCommunities={refreshCommunities}
       />
     );
 
@@ -89,7 +95,8 @@ describe("UseCaseModal", () => {
       <UseCaseModal
         existingScorers={existingScorers}
         isOpen={true}
-        onClose={() => {}}
+        onClose={noop}
+        refreshCommunities={refreshCommunities}
       />
     );
 
@@ -121,7 +128,8 @@ describe("UseCaseModal", () => {
       <UseCaseModal
         existingScorers={existingScorers}
         isOpen={true}
-        onClose={() => {}}
+        onClose={noop}
+        refreshCommunities={refreshCommunities}
       />
     );
     const useCaseItem = screen.getAllByTestId("use-case-item")[0];
@@ -153,6 +161,41 @@ describe("UseCaseModal", () => {
       expect(
         screen.getByText("A scorer with this name already exists")
       ).toBeInTheDocument();
+    });
+  });
+
+  it("should validate threshold input", async () => {
+    render(
+      <UseCaseModal
+        existingScorers={existingScorers}
+        isOpen={true}
+        onClose={noop}
+        refreshCommunities={refreshCommunities}
+      />
+    );
+    const useCaseItem = screen.getAllByTestId("use-case-item")[0];
+    const firstContinueButton = screen.getByText(/Continue/i).closest("button");
+
+    fireEvent.click(useCaseItem as HTMLElement);
+
+    fireEvent.click(firstContinueButton as HTMLElement);
+    // Wait for step 2 UI to be present
+    await waitFor(() => {
+      expect(screen.getByTestId("use-case-name-input")).toBeInTheDocument();
+    });
+    const thresholdInput = screen.getByTestId("use-case-threshold-input");
+    const continueBtn = screen.getByText(/Continue/i).closest("button");
+    // Fill in required fields first
+    const nameInput = screen.getByTestId("use-case-name-input");
+    const descriptionInput = screen.getByTestId("use-case-description-input");
+    fireEvent.change(nameInput, { target: { value: "Unique Test Name 123" } });
+    fireEvent.change(descriptionInput, { target: { value: "This is my use case description" } });
+    // Now set a valid threshold
+    fireEvent.change(thresholdInput, { target: { value: "10" } });
+    // Wait for all state updates before asserting
+    await waitFor(() => {
+      expect(screen.queryByTestId("threshold-error")).toBeNull();
+      expect(continueBtn).not.toBeDisabled();
     });
   });
 });
