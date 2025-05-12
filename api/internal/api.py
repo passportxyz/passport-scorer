@@ -2,6 +2,7 @@ from typing import Dict, List, Optional
 
 from ninja import Router
 from ninja_extra import NinjaExtraAPI
+from ninja_extra.exceptions import APIException
 
 import api_logging as logging
 from account.api import handle_check_allow_list, handle_get_credential_definition
@@ -16,6 +17,7 @@ from embed.api import (
     AccountAPIKeySchema,
     AddStampsPayload,
     handle_embed_add_stamps,
+    handle_get_score,
     handle_validate_embed_api_key,
 )
 from registry.api.schema import DetailedScoreResponse, GtcEventsResponse
@@ -153,6 +155,25 @@ def add_stamps(
 )
 def get_embed_weights(request, community_id: Optional[str] = None) -> Dict[str, float]:
     return handle_get_scorer_weights(community_id)
+
+
+@api_router.get(
+    "/embed/score/{int:scorer_id}/{str:address}",
+    response={
+        200: GetStampsWithV2ScoreResponse,
+        401: ErrorMessageResponse,
+        400: ErrorMessageResponse,
+        404: ErrorMessageResponse,
+    },
+    summary="Retrieve the embed weights",
+)
+def get_embed_score(
+    request, scorer_id: int, address: str
+) -> GetStampsWithV2ScoreResponse:
+    try:
+        return handle_get_score(scorer_id, address)
+    except Community.DoesNotExist:
+        return 400, {"detail": "Invalid scorer_id"}
 
 
 @api_router.get(

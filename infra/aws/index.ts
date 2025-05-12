@@ -957,7 +957,7 @@ const scorerServiceInternal = createScorerECSService({
   name: "scorer-api-internal-1",
   config: {
     ...baseScorerServiceConfig,
-    listenerRulePriority: 2102,
+    listenerRulePriority: 2202,
     httpListenerArn: privateAlbHttpListenerArn,
     httpListenerRulePaths: [
       {

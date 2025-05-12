@@ -11,7 +11,7 @@ os.environ["LAMBDA_ONLY_APPS"] = "True"
 import json
 import logging
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 from structlog.contextvars import bind_contextvars
 
@@ -35,16 +35,37 @@ from aws_lambdas.utils import (
 """ Load the django apps after the aws_lambdas.utils """  # pylint: disable=pointless-string-statement
 from django.db import close_old_connections
 
-from account.models import AccountAPIKey
+from account.models import AccountAPIKey, Community
 from registry.api.utils import (
     validate_address_and_convert_to_lowercase,
 )
 
-from .api import AccountAPIKeySchema, AddStampsPayload, handle_embed_add_stamps
+from .api import (
+    AccountAPIKeySchema,
+    AddStampsPayload,
+    handle_embed_add_stamps,
+    handle_get_score,
+)
 
 # pylint: enable=wrong-import-position
 
 logger = logging.getLogger(__name__)
+
+pattern_internal_embed_score = re.compile(
+    "^/internal/embed/score/(?P<scorer_id>[^/]+)/(?P<address>[^/]+)[/]?$"
+)
+pattern_internal_save_stamps = re.compile(
+    "^/internal/embed/stamps/(?P<address>[^/]+)[/]?$"
+)
+
+
+def get_path_params(event: any, regex) -> dict:
+    path = event.get("path", "")
+    match = regex.match(path)
+    if match:
+        return match.groupdict()
+    else:
+        raise InvalidRequest(f"Invalid path. Expecting values like: '{regex.pattern}'")
 
 
 def with_embed_request_exception_handling(func):
@@ -68,6 +89,7 @@ def with_embed_request_exception_handling(func):
             if isinstance(e, APIException):
                 status = e.status_code
                 message = str(e.detail)
+
             else:
                 # TODO: do we want rate limiting here?
                 # ratelimit_msg = (
@@ -115,20 +137,6 @@ def with_embed_request_exception_handling(func):
     return wrapper
 
 
-# Define the pattern
-pattern = r"/([^/]+)/?$"
-
-
-def get_address(value: str) -> str:
-    match = re.search(pattern, value)
-    if match:
-        product_id = match.group(1)
-        print(f"Extracted product_id: {product_id}")
-        return product_id
-    else:
-        raise ValueError("Invalid path. Expecting values like: '/some/path/<address>/'")
-
-
 @with_embed_request_exception_handling
 def _handler_save_stamps(event, _context, body, _sensitive_date):
     """
@@ -140,7 +148,7 @@ def _handler_save_stamps(event, _context, body, _sensitive_date):
     """
 
     add_stamps_payload = AddStampsPayload(**body)
-    _address = get_address(event["path"])
+    _address = get_path_params(event, pattern_internal_save_stamps)["address"]
     address_lower = validate_address_and_convert_to_lowercase(_address)
 
     add_stamps_response = handle_embed_add_stamps(address_lower, add_stamps_payload)
@@ -161,8 +169,8 @@ def lambda_handler_save_stamps(*args, **kwargs):
 def _handler_get_rate_limit(_event, _context, body, sensitive_date):
     try:
         api_key = AccountAPIKey.objects.get_from_key(sensitive_date["x-api-key"])
-    except AccountAPIKey.DoesNotExist:
-        raise Unauthorized()
+    except AccountAPIKey.DoesNotExist as exc:
+        raise Unauthorized() from exc
 
     return {
         "statusCode": 200,
@@ -174,3 +182,26 @@ def _handler_get_rate_limit(_event, _context, body, sensitive_date):
 def lambda_handler_get_rate_limit(*args, **kwargs):
     close_old_connections()
     return _handler_get_rate_limit(*args, **kwargs)
+
+
+@with_embed_request_exception_handling
+def _handler_get_score(event, _context, body, sensitive_date):
+    try:
+        try:
+            params = get_path_params(event, pattern_internal_embed_score)
+            score = handle_get_score(params["scorer_id"], params["address"])
+            return {
+                "statusCode": 200,
+                "headers": {"Content-Type": "application/json"},
+                "body": score.model_dump_json(),
+            }
+        except Community.DoesNotExist as exc:
+            raise InvalidRequest("Invalid scorer_id") from exc
+
+    except AccountAPIKey.DoesNotExist as exc:
+        raise Unauthorized() from exc
+
+
+def lambda_handler_get_score(*args, **kwargs):
+    close_old_connections()
+    return _handler_get_score(*args, **kwargs)

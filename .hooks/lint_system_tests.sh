@@ -1,3 +1,6 @@
 #!/bin/bash
 
-cd system_tests && npx prettier --write ../$@
+cd system_tests
+for file in "$@"; do
+  npx prettier --write ../${file}
+done

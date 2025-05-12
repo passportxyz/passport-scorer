@@ -34,6 +34,7 @@ repos:
         name: lint system_tests
         entry: .hooks/lint_system_tests.sh
         language: system
+        files: ^system_tests/
         types_or:
           - ts
           - javascript
@@ -45,6 +46,7 @@ repos:
         name: lint infra
         entry: .hooks/lint_infra.sh
         language: system
+        files: ^infra/
         types_or:
           - ts
           - javascript
