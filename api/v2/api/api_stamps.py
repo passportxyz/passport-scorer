@@ -86,9 +86,7 @@ async def ahandle_scoring(address: str, community):
     raw_score = 0
     threshold = 20
 
-    if scorer_type == Scorer.Type.WEIGHTED:
-        raw_score = score.score
-    elif score.evidence and "rawScore":
+    if score.evidence and "rawScore":
         raw_score = score.evidence.get("rawScore")
         threshold = score.evidence.get("threshold")
 
