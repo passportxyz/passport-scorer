@@ -84,3 +84,27 @@ def handle_validate_embed_api_key(request) -> AccountAPIKeySchema:
     This API is intended to be used in the embed service in the passport repo
     """
     return AccountAPIKeySchema.from_orm(request.api_key)
+
+
+def handle_get_score(scorer_id: str, address: str) -> GetStampsWithV2ScoreResponse:
+    """
+    Get the score for a given address and scorer_id
+    """
+    address_lower = address.lower()
+
+    user_account = Community.objects.get(id=scorer_id).account
+
+    score = async_to_sync(handle_scoring_for_account)(
+        address_lower, scorer_id, user_account
+    )
+
+    return GetStampsWithV2ScoreResponse(
+        success=True,
+        score=score,
+        stamps=CeramicCache.objects.filter(
+            address=address_lower,
+            type=CeramicCache.StampType.V1,
+            deleted_at__isnull=True,
+            revocation__isnull=True,
+        ),
+    )

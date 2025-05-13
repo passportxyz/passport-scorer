@@ -52,4 +52,23 @@ export function createEmbedLambdaFunctions(config: {
     lbRulePriority: 2101,
     lambdaHandler: "embed.lambda_fn.lambda_handler_get_rate_limit",
   });
+  createEmbedLambdaGeneric({
+    ...config,
+    description: "Retrieve the score for an address",
+    name: "embed-gs",
+    lbRuleConditions: [
+      {
+        pathPattern: {
+          values: ["/internal/embed/score/*"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["GET"],
+        },
+      },
+    ],
+    lbRulePriority: 2103,
+    lambdaHandler: "embed.lambda_fn.lambda_handler_get_score",
+  });
 }

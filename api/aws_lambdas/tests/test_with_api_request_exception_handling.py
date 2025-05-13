@@ -19,7 +19,7 @@ def func_to_test(*args, **kwargs):
 
 
 def func_to_test_bad_request(*args, **kwargs):
-    raise InvalidRequest("bad request")
+    raise InvalidRequest("Bad request")
 
 
 def func_to_test_unexpected_error(*args, **kwargs):

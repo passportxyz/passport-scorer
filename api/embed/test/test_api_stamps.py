@@ -28,7 +28,7 @@ expiration_dates = [
 ]
 
 providers = ["Ens", "Google", "Gitcoin"]
-mock_addresse = "0x0000000000000000000000000000000000000000"
+mock_address = "0x0000000000000000000000000000000000000000"
 
 trusted_issuer = [
     issuer for issuer in settings.TRUSTED_IAM_ISSUERS if issuer.startswith("did:ethr:")
@@ -38,7 +38,7 @@ mock_stamps = [
     {
         "type": ["VerifiableCredential"],
         "credentialSubject": {
-            "id": mock_addresse,
+            "id": mock_address,
             "hash": "v0.0.0:1Vzw/OyM9CBUkVi/3mb+BiwFnHzsSRZhVH1gaQIyHvM=",
             "provider": "Ens",
         },
@@ -52,7 +52,7 @@ mock_stamps = [
     {
         "type": ["VerifiableCredential"],
         "credentialSubject": {
-            "id": mock_addresse,
+            "id": mock_address,
             "hash": "0x88888",
             "provider": "Google",
         },
@@ -66,7 +66,7 @@ mock_stamps = [
     {
         "type": ["VerifiableCredential"],
         "credentialSubject": {
-            "id": mock_addresse,
+            "id": mock_address,
             "hash": "0x45678",
             "provider": "Gitcoin",
         },
@@ -128,7 +128,7 @@ class StampsApiTestCase(TestCase):
         """Test that the internal API key is required for the stamps request"""
 
         stamps_response = self.client.post(
-            f"/internal/embed/stamps/{mock_addresse}",
+            f"/internal/embed/stamps/{mock_address}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": "BAD_API_KEY"},
@@ -140,7 +140,7 @@ class StampsApiTestCase(TestCase):
         """Test that the newly submitted stamps are correctly saved and scored"""
 
         stamps_response = self.client.post(
-            f"/internal/embed/stamps/{mock_addresse}",
+            f"/internal/embed/stamps/{mock_address}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
@@ -195,7 +195,7 @@ class StampsApiTestCase(TestCase):
 
         # Create the rest of the stamps via the POST request
         stamps_response = self.client.post(
-            f"/internal/embed/stamps/{mock_addresse}",
+            f"/internal/embed/stamps/{mock_address}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps[1:]}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
@@ -254,7 +254,7 @@ class StampsApiTestCase(TestCase):
 
         # Create stamps with the same provider using the POST request
         stamps_response = self.client.post(
-            f"/internal/embed/stamps/{mock_addresse}",
+            f"/internal/embed/stamps/{mock_address}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
@@ -305,7 +305,7 @@ class StampsApiTestCase(TestCase):
 
         # Create the rest of the stamps via the POST request
         stamps_response = self.client.post(
-            f"/internal/embed/stamps/{mock_addresse}",
+            f"/internal/embed/stamps/{mock_address}",
             json.dumps({"scorer_id": self.community.id, "stamps": mock_stamps}),
             content_type="application/json",
             **{"HTTP_AUTHORIZATION": settings.CGRANTS_API_TOKEN},
@@ -325,7 +325,7 @@ class StampsApiTestCase(TestCase):
                     "created_at": c["created_at"],
                     "updated_at": c["updated_at"],
                     # Here are the values we control
-                    "address": mock_addresse,
+                    "address": mock_address,
                     "provider": m["credentialSubject"]["provider"],
                     "compose_db_save_status": "pending",  # TODO: what state do we desire here ???
                     "compose_db_stream_id": "",
@@ -342,7 +342,7 @@ class StampsApiTestCase(TestCase):
 
         # Check the score stored in the DB
         scores = Score.objects.filter(
-            passport__address=mock_addresse, passport__community=self.community
+            passport__address=mock_address, passport__community=self.community
         ).values()
         assert len(scores) == 1
         score = scores[0]

@@ -1,3 +1,6 @@
 #!/bin/bash
 
-cd infra && npx prettier --write ../$@
+cd infra
+for file in "$@"; do
+  npx prettier --write ../${file}
+done
