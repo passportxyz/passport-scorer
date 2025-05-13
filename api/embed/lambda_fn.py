@@ -116,6 +116,9 @@ def with_embed_request_exception_handling(func):
                     type(e), (400, "An error has occurred")
                 )
 
+                # If a custom message was passed into the exception, use that
+                message = e.args[0] if e.args else message
+
             bind_contextvars(
                 statusCode=status,
                 statusCategory="4XX" if (status >= 400 and status < 500) else "5XX",
