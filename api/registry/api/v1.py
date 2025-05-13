@@ -306,27 +306,6 @@ def format_non_threshold_score(score: Score) -> DetailedScoreResponse:
     # For backward compatibility, use the raw score as the Score model's .score field
     raw_score = None
     if score.evidence and "rawScore" in score.evidence:
-        raw_score = Decimal(score.evidence["rawScore"])
-    if raw_score is None:
-        raw_score = score.score
-    # Patch the score object for compatibility
-    score.score = raw_score
-    return DetailedScoreResponse(
-        address=score.passport.address,
-        score=raw_score,
-        status=score.status,
-        last_score_timestamp=score.last_score_timestamp,
-        expiration_date=score.expiration_date,
-        evidence=None,
-        error=score.error,
-        stamp_scores=score.stamp_scores or {},
-    )
-
-
-def format_non_threshold_score(score: Score) -> DetailedScoreResponse:
-    # For backward compatibility, use the raw score as the Score model's .score field
-    raw_score = None
-    if score.evidence and "rawScore" in score.evidence:
         try:
             # 9 decimal places
             raw_score = Decimal(score.evidence["rawScore"]).quantize(
