@@ -12,7 +12,6 @@ import RequireAuth from "../components/RequireAuth";
 import Dashboard from "../components/Dashboard";
 import CommunityList from "../components/CommunityList";
 import APIKeyList from "../components/APIKeyList";
-import NewScorer from "../components/NewScorer";
 import LandingPage from "../components/LandingPage";
 import Maintenance from "../components/Maintenance";
 
@@ -37,7 +36,6 @@ export const PageRoutes = () => (
         <Route path="/dashboard/scorer" element={<CommunityList />} />
         <Route path="/dashboard/api-keys" element={<APIKeyList />} />
       </Route>
-      <Route path="/new-scorer" element={<NewScorer />} />
     </Route>
     <Route path="*" element={<NoMatch />} />
   </Routes>

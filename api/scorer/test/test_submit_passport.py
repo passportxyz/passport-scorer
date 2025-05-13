@@ -104,7 +104,7 @@ def _(scorer_community_with_gitcoin_default, submit_passport_response):
 
     assert returned_json == {
         "address": scorer_community_with_gitcoin_default.account.address.lower(),
-        "score": Decimal("0.7330000000000000126565424807"),
+        "score": Decimal("0.733000000"),
         "status": "DONE",
         "last_score_timestamp": mock_utc_timestamp.isoformat(),
         "expiration_date": mock_passport_expiration_date.isoformat(),

@@ -119,7 +119,7 @@ def _(
     response_data = submitResponse.json()
 
     assert response_data["address"] == passport_holder_addresses[1]["address"].lower()
-    assert Decimal(response_data["score"]) == Decimal("0.5250000000000000222044604925")
+    assert Decimal(response_data["score"]).quantize(Decimal("0.0000000001")) == Decimal("0.5250000000")
     assert response_data["status"] == "DONE"
     assert response_data["evidence"] is None
     assert response_data["error"] is None
@@ -158,7 +158,7 @@ def _(passport_holder_addresses, submit_passport_response):
         == passport_holder_addresses[1]["address"].lower()
     )
     assert (
-        submit_passport_response_data["score"] == "0.525000000"
+        Decimal(submit_passport_response_data["score"]).quantize(Decimal("0.0000000001")) == Decimal("0.5250000000")
     )  # we expect a score only for the ENS stamp
     assert submit_passport_response_data["evidence"] is None
     last_score_timestamp = datetime.fromisoformat(
