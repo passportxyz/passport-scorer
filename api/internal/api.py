@@ -8,7 +8,7 @@ import api_logging as logging
 from account.api import handle_check_allow_list, handle_get_credential_definition
 from account.models import Community
 from ceramic_cache.api.schema import GetStampsWithV2ScoreResponse
-from ceramic_cache.api.v1 import handle_get_scorer_weights, handle_get_ui_score
+from ceramic_cache.api.v1 import handle_get_scorer_weights
 from cgrants.api import (
     ContributorStatistics,
     handle_get_contributor_statistics,
@@ -20,7 +20,7 @@ from embed.api import (
     handle_get_score,
     handle_validate_embed_api_key,
 )
-from registry.api.schema import DetailedScoreResponse, GtcEventsResponse
+from registry.api.schema import GtcEventsResponse
 from registry.api.utils import ApiKey, with_read_db
 from registry.api.v1 import handle_get_gtc_stake_legacy
 from registry.exceptions import aapi_get_object_or_404
@@ -98,19 +98,6 @@ def get_gtc_stake_legacy(request, address: str, round_id: int) -> GtcEventsRespo
 )
 def cgrants_contributor_statistics(request, address: str):
     return handle_get_contributor_statistics(address)
-
-
-@api_router.get(
-    "/score/{int:scorer_id}/{str:address}",
-    response=DetailedScoreResponse,
-    auth=internal_api_key,
-)
-def calc_score_community(
-    request,
-    scorer_id: int,
-    address: str,
-) -> DetailedScoreResponse:
-    return handle_get_ui_score(address, scorer_id)
 
 
 @api_router.get(
