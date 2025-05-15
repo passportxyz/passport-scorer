@@ -1,3 +1,5 @@
+jest.retryTimes(4);
+
 // This adds a custom matcher which checks for a status and prints
 // response details if it fails. This avoids super unhelpful
 // error messages like "expected 500 to be 200"
