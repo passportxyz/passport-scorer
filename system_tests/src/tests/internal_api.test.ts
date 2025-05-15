@@ -197,7 +197,7 @@ describe("Internal Requests (DID API Key)", () => {
     });
     expect(response).toHaveStatus(200);
     expect(response.data).toMatchObject({
-      rate_limit: expect.any(String),
+      embed_rate_limit: expect.any(String),
     });
   });
 });
