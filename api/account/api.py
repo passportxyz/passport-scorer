@@ -185,7 +185,7 @@ class CommunityApiSchema(Schema):
     name: str
     description: str
     id: int
-    created_at: datetime
+    created_at: Optional[datetime]
     use_case: str
     threshold: float
 
@@ -237,7 +237,7 @@ class TokenValidationRequest(Schema):
 
 
 class TokenValidationResponse(Schema):
-    exp: str = ""
+    exp: str | int = ""
 
 
 @api.post("/validate_token", response=TokenValidationResponse)
@@ -270,8 +270,8 @@ def create_api_key(request, payload: APIKeyName):
         key_name = payload.name
 
         api_key, key = AccountAPIKey.objects.create_key(account=account, name=key_name)
-    except Account.DoesNotExist:
-        raise UnauthorizedException()
+    except Account.DoesNotExist as exc:
+        raise UnauthorizedException() from exc
 
     return {
         "id": api_key.id,
@@ -409,8 +409,8 @@ def create_community(request, payload: CommunitiesPayload):
 
         return {"ok": True}
 
-    except Account.DoesNotExist:
-        raise UnauthorizedException()
+    except Account.DoesNotExist as exc:
+        raise UnauthorizedException() from exc
 
 
 @api.get("/communities", auth=UIAuth(), response=List[CommunityApiSchema])
@@ -515,7 +515,9 @@ def patch_community(request, community_id, payload: CommunitiesPatchPayload):
             community.description = payload.description
 
         if payload.threshold is not None:
-            scorer = community.get_scorer() if hasattr(community, "get_scorer") else None
+            scorer = (
+                community.get_scorer() if hasattr(community, "get_scorer") else None
+            )
             if scorer:
                 scorer.threshold = payload.threshold
                 scorer.save()
