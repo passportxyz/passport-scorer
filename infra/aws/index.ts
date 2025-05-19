@@ -1124,12 +1124,6 @@ if (stack === "production") {
   // Used by the grants team
   // dumps the data in their Digital Ocean account
   const frequentAlloScorerDataDumpTaskDefinitionDigitalOcean = pulumi.all([apiSecrets]).apply(([_apiSecrets]) => {
-    const digitalOceanAccessKey = _apiSecrets.find(
-      (secret) => secret.name === "GRANTS_DIGITAL_OCEAN_ACCESS_KEY"
-    )?.valueFrom;
-    const digitalOceanSecretAccessKey = _apiSecrets.find(
-      (secret) => secret.name === "GRANTS_DIGITAL_OCEAN_SECRET_ACCESS_KEY"
-    )?.valueFrom;
     const digitalOceanS3Endpoint = op.read.parse(
       `op://DevOps/passport-scorer-${stack}-env/api/GRANTS_DIGITAL_OCEAN_S3_ENDPOINT`
     );
@@ -1160,21 +1154,14 @@ if (stack === "production") {
             "'",
           `--s3-uri=s3://${digitalOceanS3Bucket}`,
           `--s3-endpoint=https://${digitalOceanS3Endpoint}`,
+          `--s3-access-key=$GRANTS_DIGITAL_OCEAN_ACCESS_KEY`, // Those are defined in the secrets
+          `--s3-secret-access-key=$GRANTS_DIGITAL_OCEAN_SECRET_ACCESS_KEY`, // Those are defined in the secrets
         ].join(" "),
         scheduleExpression: "cron(*/30 * ? * * *)", // Run the task every 30 min
         alertTopic: pagerdutyTopic,
       },
       environment: apiEnvironment,
-
-      secrets: _apiSecrets.map((secret) => {
-        if (secret.name === "S3_DATA_AWS_SECRET_KEY_ID") {
-          return { ...secret, valueFrom: digitalOceanAccessKey }; // Replace for data dump with digital ocean credentials
-        }
-        if (secret.name === "S3_DATA_AWS_SECRET_ACCESS_KEY") {
-          return { ...secret, valueFrom: digitalOceanSecretAccessKey }; // Replace  for data dump with digital ocean credentials
-        }
-        return secret;
-      }) as secretsManager.SecretRef[],
+      secrets: _apiSecrets,
       alarmPeriodSeconds: 3600, // 1h in seconds
       enableInvocationAlerts: true,
       scorerSecretManagerArn: scorerSecret.arn,

@@ -263,6 +263,18 @@ class Command(BaseCronJobCmd):
             default="{}",
             help="Extra args to add to the summary file upload. This can be used to set S3 permissions, see: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html. Defaults to {}.",
         )
+        parser.add_argument(
+            "--s3-access-key",
+            type=str,
+            default="",
+            help="The S3 access key for dedicated S3 download (like digital ocean)",
+        )
+        parser.add_argument(
+            "--s3-secret-access-key",
+            type=str,
+            default="",
+            help="The S3 secret access key for dedicated S3 download (like digital ocean)",
+        )
 
     def handle_cron_job(self, *args, **options):
         self.stdout.write("Dumping DB data")
@@ -274,6 +286,8 @@ class Command(BaseCronJobCmd):
         configured_models = json.loads(config)
         s3_uri = options["s3_uri"]
         s3_endpoint = options["s3_endpoint"]
+        s3_access_key = options["s3_access_key"]
+        s3_secret_access_key = options["s3_secret_access_key"]
         database = options["database"]
         summary_extra_args = json.loads(options["summary_extra_args"])
         cloudfront_distribution_id = options["cloudfront_distribution_id"]
@@ -287,7 +301,17 @@ class Command(BaseCronJobCmd):
         self.stdout.write(f"cloudfront_distribution_id  : {cloudfront_distribution_id}")
         self.stdout.write("-" * 40)
 
-        s3 = boto3.client("s3")
+        if s3_access_key and s3_secret_access_key:
+            s3 = boto3.client(
+                "s3",
+                aws_access_key_id=s3_access_key,
+                aws_secret_access_key=s3_secret_access_key,
+                endpoint_url=s3_endpoint,
+            )
+        else:
+            # Use default credentials
+            s3 = boto3.client("s3", endpoint_url=s3_endpoint)
+
         # Parse the S3 URI to extract bucket and key
         parsed_uri = urlparse(s3_uri)
         s3_bucket_name = parsed_uri.netloc
