@@ -230,7 +230,9 @@ class BatchModelScoringRequest(models.Model):
         blank=False,
         help_text="This field has been deprecated",
     )
-    s3_file = models.FileField(upload_to="registr_batch_model_scoring")
+    s3_file = models.FileField(
+        upload_to="registr_batch_model_scoring", null=True, blank=True
+    )
     model_list = models.CharField(max_length=100, null=False, blank=False)
     status = models.CharField(
         max_length=10,
