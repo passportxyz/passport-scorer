@@ -17,50 +17,28 @@ import {
   ModalHeader,
   useToast,
 } from "@chakra-ui/react";
-import {
-  DotsCircleHorizontalIcon,
-  FingerPrintIcon,
-  HandIcon,
-  StatusOnlineIcon,
-} from "./CustomIcons";
+
 import { PrimaryBtn } from "./PrimaryBtn";
 import { warningToast } from "./Toasts";
 import { Community, createCommunity } from "../utils/account-requests";
 
 export interface UseCaseInterface {
-  icon: (fill?: string) => JSX.Element;
   title: string;
-  description: string;
 }
 
 export const useCases: Array<UseCaseInterface> = [
-  {
-    icon: (fill: string = "#111827"): JSX.Element => (
-      <StatusOnlineIcon fill={fill} />
-    ),
-    title: "Airdrop Protection",
-    description:
-      "I want to ensure my airdrop goes to real humans and not farmers.",
-  },
-  {
-    icon: (fill: string = "#111827"): JSX.Element => (
-      <FingerPrintIcon fill={fill} />
-    ),
-    title: "Sybil Prevention",
-    description: "I need to ensure my community or app is not attacked.",
-  },
-  {
-    icon: (fill: string = "#111827"): JSX.Element => <HandIcon fill={fill} />,
-    title: "Bot prevention",
-    description: "I want my community or app to be safe from bots.",
-  },
-  {
-    icon: (fill: string = "#111827"): JSX.Element => (
-      <DotsCircleHorizontalIcon fill={fill} />
-    ),
-    title: "Other",
-    description: "It's something else, or I'm not sure yet.",
-  },
+  { title: "Airdrop" },
+  { title: "Incentivized Testnet" },
+  { title: "Other rewards" },
+  { title: "Quadratic Funding" },
+  { title: "Governance" },
+  { title: "Quests" },
+  { title: "Community access" },
+  { title: "Prove reputation" },
+  { title: "Events" },
+  { title: "Spam prevention" },
+  { title: "AI" },
+  { title: "Other" },
 ];
 
 interface UseCaseModalProps {
@@ -227,13 +205,9 @@ const SelectUseCase = ({
             }
           >
             <div className="relative flex space-x-3">
-              <div>
-                <Icon boxSize={19.5}>{item.icon()}</Icon>
-              </div>
               <div className="min-w-0 flex-1 text-xs">
                 <span className="absolute inset-0" aria-hidden="true" />
                 <p className="mb-2 text-purple-darkpurple">{item.title}</p>
-                <p className="text-gray-500">{item.description}</p>
               </div>
             </div>
           </div>
@@ -342,11 +316,7 @@ const UseCaseDetails = ({
     <>
       <p className="mt-10 text-xs">Use Case</p>
       <div>
-        <p className="my-2 text-purple-gitcoinpurple">
-          <Icon boxSize={19.5}>{useCase?.icon("#6F3FF5")}</Icon>{" "}
-          {useCase?.title}
-        </p>
-        <p className="text-gray-500">{useCase?.description}</p>
+        <p className="my-2 text-purple-gitcoinpurple">{useCase?.title}</p>
       </div>
       <hr className="my-6 text-gray-lightgray" />
       <div className="flex flex-col gap-4">
@@ -365,7 +335,12 @@ const UseCaseDetails = ({
             placeholder="App / Use Case Name"
           />
           {nameError && (
-            <span className="text-red-500 text-xs mt-1" data-testid="name-error">{nameError}</span>
+            <span
+              className="mt-1 text-xs text-red-500"
+              data-testid="name-error"
+            >
+              {nameError}
+            </span>
           )}
         </div>
         <div className="flex flex-col">
@@ -400,14 +375,21 @@ const UseCaseDetails = ({
             placeholder="Threshold"
           />
           {thresholdError && (
-            <span className="text-red-500 text-xs mt-1" data-testid="threshold-error">{thresholdError}</span>
+            <span
+              className="mt-1 text-xs text-red-500"
+              data-testid="threshold-error"
+            >
+              {thresholdError}
+            </span>
           )}
         </div>
       </div>
       <button
         className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
         onClick={switchToSelectMechanism}
-        disabled={!scorerName || !scorerDescription || !!nameError || !!thresholdError}
+        disabled={
+          !scorerName || !scorerDescription || !!nameError || !!thresholdError
+        }
       >
         Continue
       </button>

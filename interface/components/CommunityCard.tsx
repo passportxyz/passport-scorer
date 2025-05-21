@@ -297,9 +297,7 @@ const CommunityCard = ({
     }
   };
 
-  const useCaseIcon = useCase ? (
-    <Icon boxSize={19.5}>{useCase.icon("#6F3FF5")}</Icon>
-  ) : null;
+
   return (
     <div className="flex-col px-4 py-4 md:pl-4 md:pr-1.5">
       <RenameModal
@@ -322,7 +320,6 @@ const CommunityCard = ({
       >
         <div className="flex-auto md:basis-5/12">
           <p className="text-sm text-purple-gitcoinpurple">
-            {useCaseIcon}
             {useCase?.title}
           </p>
           <p className="truncate text-base font-medium text-purple-darkpurple">
