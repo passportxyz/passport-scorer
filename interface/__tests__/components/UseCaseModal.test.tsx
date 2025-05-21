@@ -47,7 +47,7 @@ describe("UseCaseModal", () => {
     const useCaseItems = screen.getAllByTestId("use-case-item");
 
     expect(screen.getByText("Select a Use Case")).toBeInTheDocument();
-    expect(useCaseItems.length).toBe(4);
+    expect(useCaseItems.length).toBe(12);
   });
 
   it("continue button should only be enabled when a use case is selected", async () => {
