@@ -106,11 +106,11 @@ const SampleApplications = ({ className }: { className?: string }) => {
 export const subheader = (
   <div className="my-6 w-full">
     <h1 className="font-miriamlibre text-2xl text-blue-darkblue">
-      Gitcoin Passport Scorer
+      Human Passport Developer Portal
     </h1>
     <p className="mt-2 font-librefranklin text-purple-softpurple">
-      A Scorer is used to score Passports. An API key is required to access
-      those scores.
+      You can use Scorers to organize your integration by use case, and API keys
+      to get access to either the Passport or Models API.
     </p>
   </div>
 );

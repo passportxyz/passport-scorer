@@ -33,7 +33,7 @@ const Footer = ({ mode, className, hideLinks }: FooterProps): JSX.Element => {
       </div>
       <div className={`flex ${hideLinks ? "hidden" : ""}`}>
         <a
-          href={`https://github.com/gitcoinco/passport-scorer/commit/${process.env.NEXT_PUBLIC_GIT_COMMIT_HASH}`}
+          href={`https://github.com/passportxyz/passport-scorer/commit/${process.env.NEXT_PUBLIC_GIT_COMMIT_HASH}`}
           target="_blank"
           rel="noopener noreferrer"
           className="mr-8 text-purple-darkpurple"
@@ -41,7 +41,7 @@ const Footer = ({ mode, className, hideLinks }: FooterProps): JSX.Element => {
           Git commit
         </a>
         <a
-          href="https://github.com/gitcoinco/passport"
+          href="https://github.com/passportxyz"
           target="_blank"
           rel="noopener noreferrer"
           className="mr-8"
@@ -49,7 +49,7 @@ const Footer = ({ mode, className, hideLinks }: FooterProps): JSX.Element => {
           <img src={assets.githubLogo} alt="Github Logo" />
         </a>
         <a
-          href="https://docs.passport.gitcoin.co/building-with-passport/quick-start-guide"
+          href="https://docs.passport.xyz"
           target="_blank"
           rel="noopener noreferrer"
           className=""
