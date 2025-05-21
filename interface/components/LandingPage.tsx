@@ -52,15 +52,18 @@ const LandingPage = () => {
   const mainContent = (
     <div className="bg-purple-darkpurple">
       <div className="font-miriam-libre text-white">
-        <img src="/assets/gitcoinWordLogo.svg" alt="Gitcoin Logo" />
-        <p className="md:text-7xl my-2 -ml-1 text-5xl">Passport Scorer</p>
+        Human Passport
+        <p className="md:text-7xl my-2 -ml-1 text-5xl">Developer Portal</p>
       </div>
       <div>
-        Gitcoin Passport is a Sybil defense tool that makes it easy to protect
-        your web3 community from bots and bad actors. Connect your wallet below
-        to access the Passport Scorer app, which helps you create a
-        &quot;Scorer&quot; for the application you want to protect from Sybil
-        attackers.
+        Human Passport enables users to prove their humanity and other
+        reputation signals, and developers to easily use this data to protect
+        programs from Sybils and other bad actors.
+        <br/>
+        <br/>
+        Developers can create an API
+        key and Scorer via the Developer Portal, which are used to access the
+        Human Passport Developer Platform&apos;s APIs.
       </div>
       <SIWEButton
         className="mt-10 hidden md:block"

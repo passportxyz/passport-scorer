@@ -47,14 +47,8 @@ const MinimalHeader = ({
   return (
     <div className={`flex h-16 ${className}`}>
       <div className="flex items-center">
-        <img className="" src={assets.gitcoinLogo} alt="Gitcoin Logo" />
-        <img className="mx-3 md:mx-6" src={assets.logoLine} alt="Logo Line" />
         <Logo />
-        <img
-          className="mx-3 hidden md:block"
-          src={assets.scorerWord}
-          alt="Scorer"
-        />
+        <span className="font-bold text-white">Developer Portal</span>
       </div>
     </div>
   );
