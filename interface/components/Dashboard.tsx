@@ -13,7 +13,10 @@ import {
   BookOpenIcon,
   CommandLineIcon,
   FlagIcon,
-  PlayCircleIcon,
+  QuestionMarkCircleIcon,
+  ChatBubbleBottomCenterTextIcon,
+  WindowIcon,
+  ListBulletIcon,
 } from "@heroicons/react/24/solid";
 
 const QuickLink = ({
@@ -39,65 +42,105 @@ const QuickLink = ({
   </a>
 );
 
-const QuickLinks = ({ className }: { className: string }) => {
+const General = ({ className }: { className: string }) => {
   const linkClassName = "text-purple-softpurple";
   const iconClassName = "mr-2 w-3.5";
   return (
     <div className={`w-full rounded-md border bg-white ${className}`}>
       <QuickLink
-        text="Quick Links"
+        text="General"
         className="pt-6 text-xs text-purple-darkpurple"
       />
       <QuickLink
-        text="Quick Start Guide"
-        url="https://docs.passport.gitcoin.co/building-with-passport/quick-start-guide"
-        icon={<FlagIcon className={iconClassName} />}
+        text="Developer Docs"
+        url="https://docs.passport.xyz/"
+        icon={<BookOpenIcon className={iconClassName} />}
         className={linkClassName}
       />
       <QuickLink
-        text="Passport Documentation"
-        url="https://docs.passport.gitcoin.co/"
+        text="Developer Telegram Group"
+        url="https://t.me/passportxyzdevs"
+        icon={<ChatBubbleBottomCenterTextIcon className={iconClassName} />}
+        className={linkClassName}
+      />
+      <QuickLink
+        text="API Playground"
+        url="https://api.scorer.gitcoin.co/docs"
         icon={<CommandLineIcon className={iconClassName} />}
         className={linkClassName}
       />
       <QuickLink
-        text="Video Introduction"
-        url="https://www.youtube.com/watch?v=ni7HKq2LcgY"
-        icon={<PlayCircleIcon className={iconClassName} />}
-        className={linkClassName}
-      />
-      <QuickLink
-        text="Scorer Documentation"
-        url="https://docs.passport.gitcoin.co/building-with-passport/scorer-api"
-        icon={<BookOpenIcon className={iconClassName} />}
+        text="What is a Scorer?"
+        url="https://docs.passport.xyz/building-with-passport/passport-api/getting-access#projects-and-project-id"
+        icon={<QuestionMarkCircleIcon className={iconClassName} />}
         className={linkClassName}
       />
     </div>
   );
 };
 
-const SampleApplications = ({ className }: { className?: string }) => {
-  const classOverwrite = "py-2";
+const StampsAPI = ({ className }: { className?: string }) => {
+  const linkClassName = "text-purple-softpurple";
+  const iconClassName = "mr-2 w-3.5";
+
   return (
     <div
       className={
-        "rounded-md border border-gray-lightgray bg-white pb-24 text-base " +
+        "rounded-md border border-gray-lightgray bg-white text-base " +
         className
       }
     >
       <QuickLink
-        text="Sample Applications"
+        text="Stamps API"
         className="pt-6 text-xs text-purple-darkpurple"
       />
       <QuickLink
-        text="Gitcoin Passport Sample App"
-        url="https://github.com/gitcoinco/passport-scorer/tree/main/examples/example-score-a-passport"
-        className="pt-0 text-purple-softpurple"
+        text="Overview"
+        url="https://docs.passport.xyz/building-with-passport/stamps/introduction"
+        className={linkClassName}
+        icon={<WindowIcon className={iconClassName} />}
       />
       <QuickLink
-        text="Gitcoin Allo Protocol"
-        className="pt-0 pb-2 text-purple-softpurple"
-        url="https://github.com/gitcoinco/grants-stack/blob/45b6a3a00beb05090e039be2551a06636e873fbc/packages/grant-explorer/src/features/round/PassportConnect.tsx"
+        text="Quick Start Guide"
+        className={linkClassName}
+        url="https://docs.passport.xyz/building-with-passport/stamps/quick-start-guide"
+        icon={<FlagIcon className={iconClassName} />}
+      />
+      <QuickLink
+        text="API Reference"
+        className={linkClassName}
+        url="https://docs.passport.xyz/building-with-passport/passport-api/api-reference"
+        icon={<ListBulletIcon className={iconClassName} />}
+      />
+    </div>
+  );
+};
+
+const ModelsAPI = ({ className }: { className?: string }) => {
+  const linkClassName = "text-purple-softpurple";
+  const iconClassName = "mr-2 w-3.5";
+  return (
+    <div
+      className={
+        "rounded-md border border-gray-lightgray bg-white text-base " +
+        className
+      }
+    >
+      <QuickLink
+        text="Models API"
+        className="pt-6 text-xs text-purple-darkpurple"
+      />
+      <QuickLink
+        text="Overview"
+        url="https://docs.passport.xyz/building-with-passport/models"
+        className={linkClassName}
+        icon={<WindowIcon className={iconClassName} />}
+      />
+      <QuickLink
+        text="API Reference"
+        className={linkClassName}
+        url="https://docs.passport.xyz/building-with-passport/models/api-reference"
+        icon={<ListBulletIcon className={iconClassName} />}
       />
     </div>
   );
@@ -129,8 +172,11 @@ const Dashboard = () => {
           <Outlet />
         </div>
 
-        <QuickLinks className="col-span-4 md:col-span-3" />
-        <SampleApplications className="col-span-4 md:col-span-3" />
+        <div className="col-span-4 md:col-span-3">
+          <General className="col-span-4 md:col-span-3 mb-3" />
+          <StampsAPI className="col-span-4 md:col-span-3 mb-3" />
+          <ModelsAPI className="col-span-4 md:col-span-3 mb-3" />
+        </div>
       </PageWidthGrid>
       <Footer />
     </HeaderContentFooterGrid>
