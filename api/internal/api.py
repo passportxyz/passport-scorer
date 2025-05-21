@@ -124,7 +124,12 @@ async def get_score_v2(
     address: str,
 ) -> V2ScoreResponse:
     community = await aapi_get_object_or_404(with_read_db(Community), id=scorer_id)
-    return await ahandle_scoring(address, community)
+    score = await ahandle_scoring(address, community)
+
+    if score.error is not None:
+        raise APIException("Failed to calculate score.")
+
+    return score
 
 
 # TODO: check authentication for these endpoints. Ideally the embed service requires an internal

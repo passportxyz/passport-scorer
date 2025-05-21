@@ -83,18 +83,11 @@ async def ahandle_scoring(address: str, community):
     await ascore_passport(community, db_passport, address_lower, score)
     await score.asave()
 
-    raw_score = 0
-    threshold = 20
+    raw_score = score.evidence.get("rawScore", 0) if score.evidence else 0
+    threshold = score.evidence.get("threshold", 20) if score.evidence else 20
 
-    if score.evidence and "rawScore":
-        raw_score = score.evidence.get("rawScore")
-        threshold = score.evidence.get("threshold")
-
-    if raw_score is None:
-        raw_score = 0
-
-    if threshold is None:
-        threshold = 0
+    raw_score = 0 if raw_score is None else raw_score
+    threshold = 0 if threshold is None else threshold
 
     return V2ScoreResponse(
         address=address_lower,
