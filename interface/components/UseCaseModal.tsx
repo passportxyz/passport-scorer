@@ -354,7 +354,7 @@ const UseCaseDetails = ({
             onChange={(e) => {
               setScorerDescription(e.target.value);
             }}
-            placeholder="Enter Use Case Description"
+            placeholder="Please provide as much information about how you will use Passport for your use case as possible. If we see significant activity coming from a Scorer with a limited description, we may temporarily pause access until we are able to better understand the integration."
           />
         </div>
         <div className="flex flex-col">
