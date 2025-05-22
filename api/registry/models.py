@@ -87,6 +87,20 @@ class Score(models.Model):
     def __str__(self):
         return f"Score #{self.id}, score={self.score}, last_score_timestamp={self.last_score_timestamp}, status={self.status}, error={self.error}, evidence={self.evidence}, passport_id={self.passport_id}"
 
+    def clear_on_error(self, error_message: str):
+        """
+        Clears all fields that should be reset when an error occurs during scoring.
+        Update this method if new fields are added that should be cleared on error.
+        """
+        self.score = None
+        self.status = Score.Status.ERROR
+        self.last_score_timestamp = None
+        self.expiration_date = None
+        self.evidence = None
+        self.error = error_message
+        self.stamp_scores = None
+        self.stamps = None
+
 
 def serialize_score(score: Score):
     json_score = {}

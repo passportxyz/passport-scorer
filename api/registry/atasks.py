@@ -227,6 +227,7 @@ async def aupdate_passport(passport: Passport, deduped_passport_data) -> None:
             credential=stamp["credential"],
         )
 
+
 async def ascore_passport(
     community: Community, passport: Passport, address: str, score: Score
 ):
@@ -253,13 +254,7 @@ async def ascore_passport(
             exc_info=True,
         )
         if passport:
-            # Create a score with error status
-            score.score = None
-            score.status = Score.Status.ERROR
-            score.last_score_timestamp = None
-            score.expiration_date = None
-            score.evidence = None
-            score.error = e.detail
+            score.clear_on_error(str(e.detail))
     except Exception as e:
         log.error(
             "Error when handling passport submission. passport='%s' community='%s'",
@@ -268,10 +263,4 @@ async def ascore_passport(
             exc_info=True,
         )
         if passport:
-            # Create a score with error status
-            score.score = None
-            score.status = Score.Status.ERROR
-            score.last_score_timestamp = None
-            score.expiration_date = None
-            score.evidence = None
-            score.error = str(e)
+            score.clear_on_error(str(e))
