@@ -234,10 +234,7 @@ def _(scorer_community_with_gitcoin_default, scoring_failed_score_response):
         "expiration_date": None,
         "evidence": None,
         "error": "something bad",
-        "stamp_scores": {
-            "Ens": 0.208,
-            "Google": 0.525,
-        },
+        "stamp_scores": {},
     }
 
 
