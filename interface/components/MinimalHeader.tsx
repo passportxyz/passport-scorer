@@ -11,11 +11,8 @@ const getAssets = (mode?: UIMode) => {
   const darkMode = mode === "dark";
   return {
     gitcoinLogo: darkMode
-      ? "/assets/gitcoinLogoWhite.svg"
-      : "/assets/gitcoinLogoDark.svg",
-    scorerWord: darkMode
-      ? "/assets/scorerWordWhite.svg"
-      : "/assets/scorerWordBlack.svg",
+      ? "/assets/humanTechLogoWhite.svg"
+      : "/assets/humanTechLogoDark.svg",
     logoLine: "/assets/logoLine.svg",
     emphasisColor: darkMode ? "white" : "black",
   };
@@ -43,18 +40,16 @@ const MinimalHeader = ({
   className,
 }: MinimalHeaderProps): JSX.Element => {
   const assets = useMemo(() => getAssets(mode), [mode]);
+  const headerTextColor =
+    mode === "dark" ? "font-bold text-white" : "font-bold text-black";
 
   return (
     <div className={`flex h-16 ${className}`}>
       <div className="flex items-center">
-        <img className="" src={assets.gitcoinLogo} alt="Gitcoin Logo" />
+        <img className="w-10" src={assets.gitcoinLogo} alt="Gitcoin Logo" />
         <img className="mx-3 md:mx-6" src={assets.logoLine} alt="Logo Line" />
         <Logo />
-        <img
-          className="mx-3 hidden md:block"
-          src={assets.scorerWord}
-          alt="Scorer"
-        />
+        <span className={headerTextColor}>Developer Portal</span>
       </div>
     </div>
   );

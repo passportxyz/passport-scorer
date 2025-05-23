@@ -11,15 +11,11 @@ import {
   EllipsisVerticalIcon,
 } from "@heroicons/react/24/outline";
 
-// --- Next
-import { useRouter } from "next/router";
-
 import {
   Menu,
   MenuButton,
   MenuItem,
   MenuList,
-  Icon,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -31,21 +27,8 @@ import {
   useToast,
   IconButton,
 } from "@chakra-ui/react";
-import { UseCaseInterface, useCases } from "./UseCaseModal";
 import { SpinnerIcon } from "./CustomIcons";
 import { warningToast } from "./Toasts";
-
-interface UseCaseMap {
-  [k: string]: UseCaseInterface;
-}
-
-const useCasesByName = useCases.reduce(
-  (acc: UseCaseMap, useCase: UseCaseInterface) => {
-    acc[useCase.title] = useCase;
-    return acc;
-  },
-  {} as UseCaseMap
-);
 
 type CommunityCardProps = {
   community: Community;
@@ -63,7 +46,11 @@ type CommunityCardProps = {
 interface RenameModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaveChanges: (name: string, description: string, threshold: number) => Promise<void>;
+  onSaveChanges: (
+    name: string,
+    description: string,
+    threshold: number
+  ) => Promise<void>;
   name: string;
   description: string;
   threshold: number;
@@ -79,7 +66,9 @@ const RenameModal = ({
 }: RenameModalProps): JSX.Element => {
   const [scorerName, setScorerName] = useState("");
   const [scorerDescription, setScorerDescription] = useState("");
-  const [scorerThreshold, setScorerThreshold] = useState<string>(threshold.toString());
+  const [scorerThreshold, setScorerThreshold] = useState<string>(
+    threshold.toString()
+  );
   const [thresholdError, setThresholdError] = useState<string>("");
   const [inProgress, setInProgress] = useState(false);
 
@@ -96,7 +85,11 @@ const RenameModal = ({
   };
 
   const saveChanges = async () => {
-    if (scorerThreshold === "" || isNaN(Number(scorerThreshold)) || Number(scorerThreshold) <= 0) {
+    if (
+      scorerThreshold === "" ||
+      isNaN(Number(scorerThreshold)) ||
+      Number(scorerThreshold) <= 0
+    ) {
       setThresholdError("Threshold must be greater than 0");
       return;
     }
@@ -144,7 +137,7 @@ const RenameModal = ({
             }
             placeholder="Enter Use Case Description"
           />
-          <label className="text-gray-softgray font-librefranklin text-xs mt-4">
+          <label className="text-gray-softgray mt-4 font-librefranklin text-xs">
             Threshold
           </label>
           <Input
@@ -156,7 +149,11 @@ const RenameModal = ({
             value={scorerThreshold}
             onChange={(e) => {
               setScorerThreshold(e.target.value);
-              if (e.target.value === "" || isNaN(Number(e.target.value)) || Number(e.target.value) <= 0) {
+              if (
+                e.target.value === "" ||
+                isNaN(Number(e.target.value)) ||
+                Number(e.target.value) <= 0
+              ) {
                 setThresholdError("Threshold must be greater than 0");
               } else {
                 setThresholdError("");
@@ -165,13 +162,23 @@ const RenameModal = ({
             placeholder="Threshold"
           />
           {thresholdError && (
-            <span className="text-red-500 text-xs mt-1" data-testid="threshold-error">{thresholdError}</span>
+            <span
+              className="mt-1 text-xs text-red-500"
+              data-testid="threshold-error"
+            >
+              {thresholdError}
+            </span>
           )}
         </ModalBody>
         <ModalFooter>
           <button
             className="mb-2 flex w-full justify-center rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-4"
-            disabled={!scorerName || !scorerDescription || inProgress || !!thresholdError}
+            disabled={
+              !scorerName ||
+              !scorerDescription ||
+              inProgress ||
+              !!thresholdError
+            }
             onClick={saveChanges}
           >
             <SpinnerIcon inProgress={inProgress}></SpinnerIcon>
@@ -257,7 +264,6 @@ const CommunityCard = ({
   handleDeleteCommunity,
 }: CommunityCardProps): JSX.Element => {
   const toast = useToast();
-  let useCase = useCasesByName[community.use_case];
   let [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   let [isDeleteConfirmationModalOpen, setIsDeleteConfirmationModalOpen] =
     useState(false);
@@ -279,7 +285,11 @@ const CommunityCard = ({
     } catch (e) {}
   };
 
-  const saveChanges = async (name: string, description: string, threshold: number) => {
+  const saveChanges = async (
+    name: string,
+    description: string,
+    threshold: number
+  ) => {
     try {
       await handleUpdateCommunity(community.id, name, description, threshold);
       setIsRenameModalOpen(false);
@@ -297,9 +307,6 @@ const CommunityCard = ({
     }
   };
 
-  const useCaseIcon = useCase ? (
-    <Icon boxSize={19.5}>{useCase.icon("#6F3FF5")}</Icon>
-  ) : null;
   return (
     <div className="flex-col px-4 py-4 md:pl-4 md:pr-1.5">
       <RenameModal
@@ -322,8 +329,7 @@ const CommunityCard = ({
       >
         <div className="flex-auto md:basis-5/12">
           <p className="text-sm text-purple-gitcoinpurple">
-            {useCaseIcon}
-            {useCase?.title}
+            {community.use_case}
           </p>
           <p className="truncate text-base font-medium text-purple-darkpurple">
             {community.name}

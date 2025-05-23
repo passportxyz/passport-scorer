@@ -17,7 +17,7 @@ jest.mock("../../utils/account-requests.ts", () => ({
 }));
 
 describe("CommunityList", () => {
-  it("should open the use-case modal after clicking the `+ Scorer` button", async () => {
+  it("should open the scorer modal after clicking the `+ Scorer` button", async () => {
     (getCommunities as jest.Mock).mockResolvedValue([]);
     const { getByTestId, getByText, getAllByTestId } = render(
       <MemoryRouter>
@@ -28,17 +28,6 @@ describe("CommunityList", () => {
 
     const modalButton = getByTestId("no-values-add");
     fireEvent.click(modalButton as HTMLElement);
-
-    // Verify that the first step of the modal is shown
-    await waitFor(async () =>
-      expect(getByText("Select a Use Case")).toBeInTheDocument()
-    );
-
-    // Select the first use case and click Continue
-    const useCaseItems = getAllByTestId("use-case-item");
-    fireEvent.click(useCaseItems[0]);
-    const continueBtn = getByText("Continue");
-    fireEvent.click(continueBtn);
 
     // Now threshold input should be visible
     await waitFor(() => {

@@ -112,7 +112,7 @@ const APIKeyList = () => {
 
   const userInstructions = (
     <span className="pb-6 text-purple-softpurple lg:pt-3">
-      Use these API keys to programmatically access a Scorer.
+      Use API keys to access the Stamps API and Models API.
     </span>
   );
 
