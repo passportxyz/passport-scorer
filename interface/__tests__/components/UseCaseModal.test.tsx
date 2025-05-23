@@ -35,7 +35,7 @@ const noop = () => {};
 const refreshCommunities = jest.fn();
 
 describe("UseCaseModal", () => {
-  it("should display a list of use cases", async () => {
+  it("should display the creation modal for scorer", async () => {
     render(
       <UseCaseModal
         existingScorers={existingScorers}
@@ -44,10 +44,13 @@ describe("UseCaseModal", () => {
         refreshCommunities={refreshCommunities}
       />
     );
-    const useCaseItems = screen.getAllByTestId("use-case-item");
 
-    expect(screen.getByText("Select a Use Case")).toBeInTheDocument();
-    expect(useCaseItems.length).toBe(12);
+    expect(screen.getByTestId("use-case-name")).toBeInTheDocument();
+    expect(screen.getByTestId("use-case-name-input")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("use-case-description-input")
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("use-case-threshold-input")).toBeInTheDocument();
   });
 
   it("continue button should only be enabled when a use case is selected", async () => {
@@ -59,35 +62,40 @@ describe("UseCaseModal", () => {
         refreshCommunities={refreshCommunities}
       />
     );
+    const useCaseSelect = screen.getByTestId(
+      "use-case-name"
+    ) as HTMLSelectElement;
 
-    const useCaseItem = screen.getAllByTestId("use-case-item")[0];
-    const continueButton = screen.getByText(/Continue/i).closest("button");
+    // Wait for step 2 UI to be present
+    await waitFor(() => {
+      expect(screen.getByTestId("use-case-name-input")).toBeInTheDocument();
+    });
+    const thresholdInput = screen.getByTestId("use-case-threshold-input");
+    const continueBtn = screen.getByText(/Continue/i).closest("button");
+    // Fill in required fields first
+    const nameInput = screen.getByTestId("use-case-name-input");
+    const descriptionInput = screen.getByTestId("use-case-description-input");
+    fireEvent.change(nameInput, { target: { value: "Unique Test Name 123" } });
+    fireEvent.change(descriptionInput, {
+      target: { value: "This is my use case description" },
+    });
 
-    expect(continueButton).toBeDisabled();
+    // Now set a valid threshold
+    fireEvent.change(thresholdInput, { target: { value: "10" } });
 
-    fireEvent.click(useCaseItem as HTMLElement);
+    // Wait for all state updates before asserting
+    await waitFor(() => {
+      expect(continueBtn).toBeDisabled();
+    });
 
-    expect(continueButton).toBeEnabled();
-  });
+    // Change the use case selection
+    fireEvent.change(useCaseSelect, {
+      target: { value: useCaseSelect.options[1].value },
+    });
 
-  it("should switch to use case details step when continue button is clicked on first step", async () => {
-    render(
-      <UseCaseModal
-        existingScorers={existingScorers}
-        isOpen={true}
-        onClose={noop}
-        refreshCommunities={refreshCommunities}
-      />
-    );
-
-    const useCaseItem = screen.getAllByTestId("use-case-item")[0];
-    const continueButton = screen.getByText(/Continue/i).closest("button");
-
-    fireEvent.click(useCaseItem as HTMLElement);
-
-    fireEvent.click(continueButton as HTMLElement);
-
-    expect(screen.getByText("Use Case Details")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(continueBtn).not.toBeDisabled();
+    });
   });
 
   it("continue button should only be enabled when a use case name and description is filled", async () => {
@@ -100,12 +108,9 @@ describe("UseCaseModal", () => {
       />
     );
 
-    const useCaseItem = screen.getAllByTestId("use-case-item")[0];
-    const firstContinueButton = screen.getByText(/Continue/i).closest("button");
-
-    fireEvent.click(useCaseItem as HTMLElement);
-
-    fireEvent.click(firstContinueButton as HTMLElement);
+    const useCaseSelect = screen.getByTestId(
+      "use-case-name"
+    ) as HTMLSelectElement;
 
     const nameInput = screen.getByTestId("use-case-name-input");
     const descriptionInput = screen.getByTestId("use-case-description-input");
@@ -115,6 +120,9 @@ describe("UseCaseModal", () => {
 
     expect(secondContinueButton).toBeDisabled();
 
+    fireEvent.change(useCaseSelect, {
+      target: { value: useCaseSelect.options[1].value },
+    });
     fireEvent.change(nameInput, { target: { value: "My Use Case" } });
     fireEvent.change(descriptionInput, {
       target: { value: "This is my use case description" },
@@ -132,12 +140,9 @@ describe("UseCaseModal", () => {
         refreshCommunities={refreshCommunities}
       />
     );
-    const useCaseItem = screen.getAllByTestId("use-case-item")[0];
-    const firstContinueButton = screen.getByText(/Continue/i).closest("button");
-
-    fireEvent.click(useCaseItem as HTMLElement);
-
-    fireEvent.click(firstContinueButton as HTMLElement);
+    const useCaseSelect = screen.getByTestId(
+      "use-case-name"
+    ) as HTMLSelectElement;
 
     const nameInput = screen.getByTestId("use-case-name-input");
     const descriptionInput = screen.getByTestId("use-case-description-input");
@@ -147,6 +152,9 @@ describe("UseCaseModal", () => {
 
     expect(secondContinueButton).toBeDisabled();
 
+    fireEvent.change(useCaseSelect, {
+      target: { value: useCaseSelect.options[1].value },
+    });
     fireEvent.change(nameInput, { target: { value: "Existing 2" } });
     fireEvent.change(descriptionInput, {
       target: { value: "This is my use case description" },
@@ -173,12 +181,10 @@ describe("UseCaseModal", () => {
         refreshCommunities={refreshCommunities}
       />
     );
-    const useCaseItem = screen.getAllByTestId("use-case-item")[0];
-    const firstContinueButton = screen.getByText(/Continue/i).closest("button");
+    const useCaseSelect = screen.getByTestId(
+      "use-case-name"
+    ) as HTMLSelectElement;
 
-    fireEvent.click(useCaseItem as HTMLElement);
-
-    fireEvent.click(firstContinueButton as HTMLElement);
     // Wait for step 2 UI to be present
     await waitFor(() => {
       expect(screen.getByTestId("use-case-name-input")).toBeInTheDocument();
@@ -188,8 +194,21 @@ describe("UseCaseModal", () => {
     // Fill in required fields first
     const nameInput = screen.getByTestId("use-case-name-input");
     const descriptionInput = screen.getByTestId("use-case-description-input");
+    fireEvent.change(useCaseSelect, {
+      target: { value: useCaseSelect.options[1].value },
+    });
     fireEvent.change(nameInput, { target: { value: "Unique Test Name 123" } });
-    fireEvent.change(descriptionInput, { target: { value: "This is my use case description" } });
+    fireEvent.change(descriptionInput, {
+      target: { value: "This is my use case description" },
+    });
+    // Set invalid threshold
+    fireEvent.change(thresholdInput, { target: { value: "0" } });
+
+    // Check that the button is initially disabled
+    await waitFor(() => {
+      expect(continueBtn).toBeDisabled();
+    });
+
     // Now set a valid threshold
     fireEvent.change(thresholdInput, { target: { value: "10" } });
     // Wait for all state updates before asserting

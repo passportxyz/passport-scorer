@@ -7,8 +7,7 @@ import { ArrowBackIcon, SmallCloseIcon } from "@chakra-ui/icons";
 
 import {
   Input,
-  Text,
-  Icon,
+  Select,
   Center,
   Modal,
   ModalOverlay,
@@ -18,7 +17,6 @@ import {
   useToast,
 } from "@chakra-ui/react";
 
-import { PrimaryBtn } from "./PrimaryBtn";
 import { warningToast } from "./Toasts";
 import { Community, createCommunity } from "../utils/account-requests";
 
@@ -55,9 +53,7 @@ const UseCaseModal = ({
   refreshCommunities,
 }: UseCaseModalProps): JSX.Element => {
   const [wizardStep, setWizardStep] = useState(1);
-  const [useCase, setUseCase] = useState<UseCaseInterface | undefined>(
-    undefined
-  );
+  const [useCase, setUseCase] = useState("");
   const [scorerName, setScorerName] = useState("");
   const [scorerDescription, setScorerDescription] = useState("");
   const [threshold, setThreshold] = useState<string>("20");
@@ -76,7 +72,7 @@ const UseCaseModal = ({
   const closeModal = () => {
     setScorerName("");
     setScorerDescription("");
-    setUseCase(undefined);
+    setUseCase("");
     setWizardStep(1);
     setError("");
     onClose();
@@ -106,127 +102,34 @@ const UseCaseModal = ({
           </ModalHeader>
         )}
         <ModalBody className="flex h-screen w-full flex-col">
-          {wizardStep === 1 && (
-            <SelectUseCase
-              useCase={useCase}
-              setUseCase={setUseCase}
-              setWizardStep={setWizardStep}
-            />
-          )}
-
-          {wizardStep === 2 && (
-            <UseCaseDetails
-              useCase={useCase}
-              scorerName={scorerName}
-              scorerDescription={scorerDescription}
-              threshold={threshold}
-              setScorerName={setScorerName}
-              setScorerDescription={setScorerDescription}
-              setThreshold={setThreshold}
-              setWizardStep={setWizardStep}
-              closeModal={closeModal}
-              existingScorers={existingScorers}
-              refreshCommunities={refreshCommunities}
-            />
-          )}
+          <UseCaseDetails
+            useCase={useCase}
+            scorerName={scorerName}
+            scorerDescription={scorerDescription}
+            threshold={threshold}
+            setScorerName={setScorerName}
+            setScorerUseCase={setUseCase}
+            setScorerDescription={setScorerDescription}
+            setThreshold={setThreshold}
+            setWizardStep={setWizardStep}
+            closeModal={closeModal}
+            existingScorers={existingScorers}
+            refreshCommunities={refreshCommunities}
+          />
         </ModalBody>
       </ModalContent>
     </Modal>
   );
 };
 
-interface SelectUseCaseProps {
-  useCase: UseCaseInterface | undefined;
-  setUseCase: (useCase: UseCaseInterface) => void;
-  setWizardStep: (wizardStep: number) => void;
-}
-
-const SelectUseCase = ({
-  useCase,
-  setUseCase,
-  setWizardStep,
-}: SelectUseCaseProps) => {
-  return (
-    <>
-      <Center>
-        <div>
-          <svg
-            width="48"
-            height="48"
-            viewBox="0 0 48 48"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect width="48" height="48" rx="24" fill="#F0EBFF" />
-            <path
-              d="M16 17C16 16.4477 16.4477 16 17 16H31C31.5523 16 32 16.4477 32 17V19C32 19.5523 31.5523 20 31 20H17C16.4477 20 16 19.5523 16 19V17Z"
-              stroke="#6F3FF5"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M16 25C16 24.4477 16.4477 24 17 24H23C23.5523 24 24 24.4477 24 25V31C24 31.5523 23.5523 32 23 32H17C16.4477 32 16 31.5523 16 31V25Z"
-              stroke="#6F3FF5"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M28 25C28 24.4477 28.4477 24 29 24H31C31.5523 24 32 24.4477 32 25V31C32 31.5523 31.5523 32 31 32H29C28.4477 32 28 31.5523 28 31V25Z"
-              stroke="#6F3FF5"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-      </Center>
-      <Center className="mt-6">
-        <Text className="text-purple-darkpurple">Select a Use Case</Text>
-      </Center>
-      <Center className="my-2">
-        <Text className="text-purple-softpurple">
-          What will this Scorer be used for?
-        </Text>
-      </Center>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-        {useCases.map((item, index) => (
-          <div
-            key={index}
-            onClick={() => setUseCase(item)}
-            data-testid="use-case-item"
-            className={
-              "cursor-pointer rounded border bg-white px-6 py-4 shadow-sm hover:border-purple-gitcoinpurple focus:outline-none md:mt-2 " +
-              (useCase?.title === item.title
-                ? "border-purple-gitcoinpurple"
-                : "border-gray-300")
-            }
-          >
-            <div className="relative flex space-x-3">
-              <div className="min-w-0 flex-1 text-xs">
-                <span className="absolute inset-0" aria-hidden="true" />
-                <p className="mb-2 text-purple-darkpurple">{item.title}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <PrimaryBtn onClick={() => setWizardStep(2)} disabled={!useCase}>
-        Continue
-      </PrimaryBtn>
-    </>
-  );
-};
-
 interface UseCaseDetailsProps {
-  useCase: UseCaseInterface | undefined;
+  useCase: string;
   scorerName: string;
   scorerDescription: string;
   threshold: string;
   existingScorers: Community[];
   setScorerName: (name: string) => void;
+  setScorerUseCase: (useCase: string) => void;
   setScorerDescription: (description: string) => void;
   setThreshold: (threshold: string) => void;
   setWizardStep: (wizardStep: number) => void;
@@ -240,6 +143,7 @@ const UseCaseDetails = ({
   scorerDescription,
   threshold,
   existingScorers,
+  setScorerUseCase,
   setScorerName,
   setScorerDescription,
   setThreshold,
@@ -276,7 +180,7 @@ const UseCaseDetails = ({
       await createCommunity({
         name: scorerName,
         description: scorerDescription,
-        use_case: useCase!.title,
+        use_case: useCase,
         rule: "LIFO",
         scorer: "WEIGHTED_BINARY",
         threshold: parseFloat(threshold),
@@ -288,7 +192,15 @@ const UseCaseDetails = ({
     } catch (e) {
       toast(warningToast("Something went wrong. Please try again.", toast));
     }
-  }, [scorerName, scorerDescription, useCase, threshold, toast, closeModal]);
+  }, [
+    scorerName,
+    scorerDescription,
+    useCase,
+    threshold,
+    toast,
+    closeModal,
+    refreshCommunities,
+  ]);
 
   const switchToSelectMechanism = () => {
     // Check for duplicate name only on save
@@ -303,7 +215,7 @@ const UseCaseDetails = ({
     localStorage.setItem(
       "tempScorer",
       JSON.stringify({
-        useCase: useCases.indexOf(useCase!),
+        useCase: useCase,
         name: scorerName,
         description: scorerDescription,
       })
@@ -312,14 +224,79 @@ const UseCaseDetails = ({
     createScorer();
   };
 
+  console.log(
+    "??? continue",
+    !useCase ||
+      !scorerName ||
+      !scorerDescription ||
+      !!nameError ||
+      !!thresholdError
+  );
+  console.log("??? continue", {
+    useCase,
+    scorerName,
+    scorerDescription,
+    nameError,
+    thresholdError,
+  });
   return (
     <>
-      <p className="mt-10 text-xs">Use Case</p>
-      <div>
-        <p className="my-2 text-purple-gitcoinpurple">{useCase?.title}</p>
-      </div>
-      <hr className="my-6 text-gray-lightgray" />
-      <div className="flex flex-col gap-4">
+      <Center>
+        <div>
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 48 48"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <rect width="48" height="48" rx="24" fill="#F0EBFF" />
+            <path
+              d="M16 17C16 16.4477 16.4477 16 17 16H31C31.5523 16 32 16.4477 32 17V19C32 19.5523 31.5523 20 31 20H17C16.4477 20 16 19.5523 16 19V17Z"
+              stroke="#6F3FF5"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M16 25C16 24.4477 16.4477 24 17 24H23C23.5523 24 24 24.4477 24 25V31C24 31.5523 23.5523 32 23 32H17C16.4477 32 16 31.5523 16 31V25Z"
+              stroke="#6F3FF5"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M28 25C28 24.4477 28.4477 24 29 24H31C31.5523 24 32 24.4477 32 25V31C32 31.5523 31.5523 32 31 32H29C28.4477 32 28 31.5523 28 31V25Z"
+              stroke="#6F3FF5"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+      </Center>
+      <div className="mt-12 flex flex-col gap-4">
+        <div className="flex flex-col">
+          <label className="text-gray-softgray font-librefranklin text-xs">
+            Use Case
+          </label>
+
+          <Select
+            data-testid="use-case-name"
+            className="mt-2 text-blue-darkblue"
+            placeholder="Select your Use Case"
+            size="md"
+            onChange={(e) => {
+              console.log("setting useCase", e.target.value);
+              setScorerUseCase(e.target.value);
+            }}
+          >
+            {useCases.map((item, index) => (
+              <option key={index} value={item.title}>{item.title}</option>
+            ))}
+          </Select>
+        </div>
+
         <div className="flex flex-col">
           <label className="text-gray-softgray font-librefranklin text-xs">
             Name
@@ -354,7 +331,7 @@ const UseCaseDetails = ({
             onChange={(e) => {
               setScorerDescription(e.target.value);
             }}
-            placeholder="Please provide as much information about how you will use Passport for your use case as possible. If we see significant activity coming from a Scorer with a limited description, we may temporarily pause access until we are able to better understand the integration."
+            placeholder="Please provide information about how you will use Passport"
           />
         </div>
         <div className="flex flex-col">
@@ -388,7 +365,11 @@ const UseCaseDetails = ({
         className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
         onClick={switchToSelectMechanism}
         disabled={
-          !scorerName || !scorerDescription || !!nameError || !!thresholdError
+          !useCase ||
+          !scorerName ||
+          !scorerDescription ||
+          !!nameError ||
+          !!thresholdError
         }
       >
         Continue

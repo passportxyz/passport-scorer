@@ -9,9 +9,9 @@ const alchemyApiKey =
   process.env.NEXT_PUBLIC_PASSPORT_SCORER_ALCHEMY_API_KEY || "";
 
 const walletConnectOptions: WalletConnectOptions = {
- projectId:
-   (process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID as string) ||
-   "default-project-id",
+  projectId:
+    (process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID as string) ||
+    "default-project-id",
 };
 
 const onBoardExploreUrl =
@@ -34,8 +34,8 @@ const chains = [
 
 const appMetadata = {
   name: "Passport Scorer",
-  icon: "/assets/gitcoinLogoDark.svg",
-  logo: "/assets/gitcoinLogoDark.svg",
+  icon: "/assets/humanTechLogoDark.svg",
+  logo: "/assets/humanTechLogoDark.svg",
   explore: onBoardExploreUrl,
   description:
     "Take control of your online identity by creating a decentralized record of your credentials. By collecting “stamps” of validation for your identity and online reputation, you can gain access to the most trustworthy web3 experiences and maximize your ability to benefit from platforms like Gitcoin Grants. The more you verify your identity, the more opportunities you will have to vote and participate across the web3.",

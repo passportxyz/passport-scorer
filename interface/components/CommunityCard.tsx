@@ -11,15 +11,11 @@ import {
   EllipsisVerticalIcon,
 } from "@heroicons/react/24/outline";
 
-// --- Next
-import { useRouter } from "next/router";
-
 import {
   Menu,
   MenuButton,
   MenuItem,
   MenuList,
-  Icon,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -31,21 +27,8 @@ import {
   useToast,
   IconButton,
 } from "@chakra-ui/react";
-import { UseCaseInterface, useCases } from "./UseCaseModal";
 import { SpinnerIcon } from "./CustomIcons";
 import { warningToast } from "./Toasts";
-
-interface UseCaseMap {
-  [k: string]: UseCaseInterface;
-}
-
-const useCasesByName = useCases.reduce(
-  (acc: UseCaseMap, useCase: UseCaseInterface) => {
-    acc[useCase.title] = useCase;
-    return acc;
-  },
-  {} as UseCaseMap
-);
 
 type CommunityCardProps = {
   community: Community;
@@ -281,7 +264,6 @@ const CommunityCard = ({
   handleDeleteCommunity,
 }: CommunityCardProps): JSX.Element => {
   const toast = useToast();
-  let useCase = useCasesByName[community.use_case];
   let [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   let [isDeleteConfirmationModalOpen, setIsDeleteConfirmationModalOpen] =
     useState(false);
@@ -346,7 +328,9 @@ const CommunityCard = ({
         className="relative min-w-0 md:static md:flex"
       >
         <div className="flex-auto md:basis-5/12">
-          <p className="text-sm text-purple-gitcoinpurple">{useCase?.title}</p>
+          <p className="text-sm text-purple-gitcoinpurple">
+            {community.use_case}
+          </p>
           <p className="truncate text-base font-medium text-purple-darkpurple">
             {community.name}
           </p>
