@@ -8,7 +8,7 @@
     "start": "next start -p 3001",
     "lint": "next lint",
     "test": "jest",
-    "static": "next build && next export",
+    "static": "NEXT_PUBLIC_GIT_COMMIT_HASH=$(git rev-parse --short HEAD) next build && next export",
     "surge": "surge out",
     "lint:fix": "next lint && prettier --write ."
   },
