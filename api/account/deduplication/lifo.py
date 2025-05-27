@@ -126,8 +126,16 @@ async def arun_lifo_dedup(
                 # of the stamps nullifiers clash.
                 # The reason why this might be missing is because only one of
                 # the nullifiers was available last time the stamp git deduped
+
+                # Create set of all existing hashes to avoid duplicates
+                existing_hashes = (
+                    set(clashing_hashes)
+                    | {hash_link.hash for hash_link in this_users_hash_links}
+                    | {hash_link.hash for hash_link in forfeited_hash_links}
+                )
+
                 for nullifier_hash in nullifiers:
-                    if nullifier_hash not in clashing_hashes:
+                    if nullifier_hash not in existing_hashes:
                         clashing_hash_link = clasing_hash_links_by_hash[
                             clashing_hashes_for_stamp[0]
                         ]

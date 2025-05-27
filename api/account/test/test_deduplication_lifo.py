@@ -360,6 +360,82 @@ class LifoDeduplicationWith1NullifierTestCase(TransactionTestCase):
             ],
         )
 
+    @async_to_sync
+    async def test_backfill_duplicate_processing_bug(self):
+        """
+        Test for the backfill logic fix. Even though we can't reproduce the original bug
+        in the test environment, this test verifies that the backfill logic properly
+        handles existing hash links.
+        """
+
+        # Step 1: User A submits stamp with only hash-A
+        credential_a = {
+            "credential": {
+                "credentialSubject": {
+                    "nullifiers": ["hash-A"],  # only 1 nullifier
+                    "provider": "test_provider",
+                },
+                "expirationDate": "2099-02-21T15:30:51.720Z",
+            },
+        }
+
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community1,
+            {"stamps": [credential_a]},
+            "0xaddress_1",
+        )
+
+        # Should not be deduplicated (first submission)
+        self.assertEqual(len(deduped_passport["stamps"]), 1)
+        self.assertEqual(clashing_stamps, {})
+
+        # Step 2: User B submits stamp with ["hash-A", "hash-B"]
+        # This should clash on hash-A and backfill hash-B for User A
+        credential_ab = {
+            "credential": {
+                "credentialSubject": {
+                    "nullifiers": ["hash-A", "hash-B"],  # 2 nullifiers
+                    "provider": "test_provider",
+                },
+                "expirationDate": "2099-02-21T15:30:51.720Z",
+            },
+        }
+
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community1,
+            {"stamps": [credential_ab]},
+            "0xaddress_2",
+        )
+
+        # Should be deduplicated due to hash-A clash
+        self.assertEqual(len(deduped_passport["stamps"]), 0)
+        self.assertEqual(clashing_stamps, {"test_provider": credential_ab})
+
+        # Step 3: User B submits the SAME stamp again
+        # This should work without errors (the fix ensures no duplicate creation)
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community1,
+            {"stamps": [credential_ab]},
+            "0xaddress_2",
+        )
+
+        # Should still be deduplicated
+        self.assertEqual(len(deduped_passport["stamps"]), 0)
+        self.assertEqual(clashing_stamps, {"test_provider": credential_ab})
+
+        # Verify hash links are correct (no duplicates)
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_1", community=self.community1
+            )
+            .values_list("hash", "address")
+            .order_by("hash")
+        ]
+        self.assertListEqual(
+            hash_links, [("hash-A", "0xaddress_1"), ("hash-B", "0xaddress_1")]
+        )
+
 
 class LifoDeduplicationWith2NullifiersTestCase(LifoDeduplicationWith1NullifierTestCase):
     """
