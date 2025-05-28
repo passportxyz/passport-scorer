@@ -47,6 +47,38 @@ credential_with_2_nullifiers = {
     },
 }
 
+# Test credentials for multi-nullifier feature flag testing
+credential_with_mixed_nullifiers = {
+    "credential": {
+        "credentialSubject": {
+            "nullifiers": ["v0:test_hash", "v1:test_hash", "v2:test_hash"],
+            "provider": "test_provider",
+        },
+        "expirationDate": "2099-02-21T15:30:51.720Z",
+    },
+}
+
+# Additional test credentials for clash testing
+credential_with_v0_only = {
+    "credential": {
+        "credentialSubject": {
+            "nullifiers": ["v0:unique_hash"],
+            "provider": "test_provider_v0",
+        },
+        "expirationDate": "2099-02-21T15:30:51.720Z",
+    },
+}
+
+credential_with_v1_clash = {
+    "credential": {
+        "credentialSubject": {
+            "nullifiers": ["v0:different_hash", "v1:test_hash"],
+            "provider": "test_provider_v1_clash",
+        },
+        "expirationDate": "2099-02-21T15:30:51.720Z",
+    },
+}
+
 
 class LifoDeduplicationWith1NullifierTestCase(TransactionTestCase):
     def setUp(self):
@@ -398,3 +430,255 @@ class LifoDeduplicationWithHashTestCase(LifoDeduplicationWith1NullifierTestCase)
         self.expect_expiration_date = datetime.fromisoformat(
             self.credential["credential"]["expirationDate"]
         )
+
+
+class MultiNullifierFeatureFlagTestCase(TransactionTestCase):
+    """
+    Test cases for the FF_MULTI_NULLIFIER feature flag functionality
+    """
+
+    def setUp(self):
+        User.objects.create_user(username="admin", password="12345")
+        self.user = User.objects.create_user(username="testuser-1", password="12345")
+        self.user2 = User.objects.create_user(username="testuser-2", password="12345")
+
+        (self.account1, _) = Account.objects.get_or_create(
+            user=self.user, defaults={"address": "0x0"}
+        )
+        scorer1 = WeightedScorer.objects.create(
+            type=Scorer.Type.WEIGHTED, weights={"test_provider": 10}
+        )
+        self.community1 = Community.objects.create(
+            name="Community1", scorer=scorer1, rule=Rules.LIFO, account=self.account1
+        )
+
+        self.expect_expiration_date = datetime.fromisoformat(
+            credential_with_mixed_nullifiers["credential"]["expirationDate"]
+        )
+
+    @mock.patch("account.deduplication.lifo.settings.FF_MULTI_NULLIFIER", "off")
+    @async_to_sync
+    async def test_multi_nullifier_flag_off_filters_v0_only(self):
+        """
+        Test that when FF_MULTI_NULLIFIER is "off", only v0 nullifiers are processed
+        """
+        # Test with mixed nullifiers - should only process v0
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community1,
+            {"stamps": [credential_with_mixed_nullifiers]},
+            "0xaddress_1",
+        )
+
+        self.assertDictEqual(
+            deduped_passport, {"stamps": [credential_with_mixed_nullifiers]}
+        )
+        self.assertDictEqual(clashing_stamps, {})
+
+        # Check that only v0 nullifiers were stored
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_1", community=self.community1
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        self.assertListEqual(
+            hash_links,
+            [("v0:test_hash", self.expect_expiration_date)],
+        )
+
+    @mock.patch("account.deduplication.lifo.settings.FF_MULTI_NULLIFIER", "on")
+    @async_to_sync
+    async def test_multi_nullifier_flag_on_processes_all_nullifiers(self):
+        """
+        Test that when FF_MULTI_NULLIFIER is "on", all nullifiers are processed
+        """
+        # Test with mixed nullifiers - should process all
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community1,
+            {"stamps": [credential_with_mixed_nullifiers]},
+            "0xaddress_1",
+        )
+
+        self.assertDictEqual(
+            deduped_passport, {"stamps": [credential_with_mixed_nullifiers]}
+        )
+        self.assertDictEqual(clashing_stamps, {})
+
+        # Check that all nullifiers were stored
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_1", community=self.community1
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        expected_nullifiers = ["v0:test_hash", "v1:test_hash", "v2:test_hash"]
+        self.assertListEqual(
+            hash_links,
+            [
+                (nullifier, self.expect_expiration_date)
+                for nullifier in expected_nullifiers
+            ],
+        )
+
+    @mock.patch("account.deduplication.lifo.settings.FF_MULTI_NULLIFIER", "off")
+    @async_to_sync
+    async def test_multi_nullifier_flag_off_no_clash_on_v1_only(self):
+        """
+        Test that when FF_MULTI_NULLIFIER is "off", a clash on v1 nullifier only
+        does not trigger deduplication since v1 nullifiers are ignored
+        """
+        # First, submit a credential with mixed nullifiers to establish v1:test_hash
+        await alifo(
+            self.community1,
+            {"stamps": [credential_with_mixed_nullifiers]},
+            "0xaddress_1",
+        )
+
+        # Now submit a credential that has a clash on v1 but different v0
+        # With flag off, this should NOT be deduplicated since only v0 is checked
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community1,
+            {"stamps": [credential_with_v1_clash]},
+            "0xaddress_2",
+        )
+
+        # Should not be deduplicated since v1 clash is ignored when flag is off
+        self.assertDictEqual(deduped_passport, {"stamps": [credential_with_v1_clash]})
+        self.assertDictEqual(clashing_stamps, {})
+
+        # Check that the v0 nullifier from the new credential was stored
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_2", community=self.community1
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        self.assertListEqual(
+            hash_links,
+            [("v0:different_hash", self.expect_expiration_date)],
+        )
+
+    @mock.patch("account.deduplication.lifo.settings.FF_MULTI_NULLIFIER", "on")
+    @async_to_sync
+    async def test_multi_nullifier_flag_on_clash_on_v1_triggers_deduplication(self):
+        """
+        Test that when FF_MULTI_NULLIFIER is "on", a clash on v1 nullifier
+        triggers deduplication even if v0 nullifiers are different
+        """
+        # First, submit a credential with mixed nullifiers to establish v1:test_hash
+        await alifo(
+            self.community1,
+            {"stamps": [credential_with_mixed_nullifiers]},
+            "0xaddress_1",
+        )
+
+        self.assertEqual(
+            len(
+                [
+                    h
+                    async for h in HashScorerLink.objects.filter(
+                        address="0xaddress_1", community=self.community1
+                    )
+                ]
+            ),
+            3,
+        )
+
+        # Now submit a credential that has a clash on v1 but different v0
+        # With flag on, this SHOULD be deduplicated due to v1 clash
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community1,
+            {"stamps": [credential_with_v1_clash]},
+            "0xaddress_2",
+        )
+
+        # Should be deduplicated due to v1 clash when flag is on
+        self.assertDictEqual(deduped_passport, {"stamps": []})
+        self.assertDictEqual(
+            clashing_stamps,
+            {
+                "test_provider_v1_clash": credential_with_v1_clash,
+            },
+        )
+
+        # Check that no hash links were created for address_2 due to deduplication
+        address_2_hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_2", community=self.community1
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        self.assertListEqual(address_2_hash_links, [])
+
+        # Check that the hash link for address_1 was backfilled
+        self.assertEqual(
+            len(
+                [
+                    h
+                    async for h in HashScorerLink.objects.filter(
+                        address="0xaddress_1", community=self.community1
+                    )
+                ]
+            ),
+            4,
+        )
+
+    @mock.patch("account.deduplication.lifo.settings.FF_MULTI_NULLIFIER", "off")
+    @async_to_sync
+    async def test_multi_nullifier_flag_off_v0_clash_still_triggers_deduplication(self):
+        """
+        Test that when FF_MULTI_NULLIFIER is "off", a clash on v0 nullifier
+        still triggers deduplication as expected
+        """
+        # First, submit a credential with v0 nullifier
+        await alifo(
+            self.community1,
+            {"stamps": [credential_with_v0_only]},
+            "0xaddress_1",
+        )
+
+        # Now submit a credential that has the same v0 nullifier
+        # This should be deduplicated regardless of flag state
+        credential_with_same_v0 = {
+            "credential": {
+                "credentialSubject": {
+                    "nullifiers": ["v0:unique_hash", "v1:different_v1_hash"],
+                    "provider": "test_provider_same_v0",
+                },
+                "expirationDate": "2099-02-21T15:30:51.720Z",
+            },
+        }
+
+        deduped_passport, _, clashing_stamps = await alifo(
+            self.community1,
+            {"stamps": [credential_with_same_v0]},
+            "0xaddress_2",
+        )
+
+        # Should be deduplicated due to v0 clash
+        self.assertDictEqual(deduped_passport, {"stamps": []})
+        self.assertDictEqual(
+            clashing_stamps,
+            {
+                "test_provider_same_v0": credential_with_same_v0,
+            },
+        )
+
+        # Check that no hash links were created for address_2 due to deduplication
+        hash_links = [
+            h
+            async for h in HashScorerLink.objects.filter(
+                address="0xaddress_2", community=self.community1
+            )
+            .values_list("hash", "expires_at")
+            .order_by("hash")
+        ]
+        self.assertListEqual(hash_links, [])

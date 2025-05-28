@@ -1,6 +1,7 @@
 import copy
 from typing import Tuple
 
+from django.conf import settings
 from django.db import IntegrityError
 
 import api_logging as logging
@@ -36,7 +37,10 @@ async def alifo(
 
 def get_nullifiers(stamp: dict) -> list[str]:
     cs = stamp["credential"]["credentialSubject"]
-    return [cs["hash"]] if "hash" in cs else cs["nullifiers"]
+    unfiltered = [cs["hash"]] if "hash" in cs else cs["nullifiers"]
+    if settings.FF_MULTI_NULLIFIER == "on":
+        return unfiltered
+    return [nullifier for nullifier in unfiltered if nullifier.startswith("v0")]
 
 
 async def arun_lifo_dedup(

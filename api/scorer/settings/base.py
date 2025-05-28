@@ -489,6 +489,7 @@ MBD_API_RATE_LIMITING_FORM = env(
 )
 
 FF_V2_API = env("FF_V2_API", default="off")
+FF_MULTI_NULLIFIER = env("FF_MULTI_NULLIFIER", default="off")
 MEDIA_ROOT = env("MEDIA_ROOT", default="")
 
 # Max age of the system tests before we consider them outdated in seconds
