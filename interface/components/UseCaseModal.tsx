@@ -15,6 +15,9 @@ import {
   ModalBody,
   ModalHeader,
   useToast,
+  FormHelperText,
+  FormControl,
+  FormLabel
 } from "@chakra-ui/react";
 
 import { warningToast } from "./Toasts";
@@ -276,28 +279,7 @@ const UseCaseDetails = ({
         </div>
       </Center>
       <div className="mt-12 flex flex-col gap-4">
-        <div className="flex flex-col">
-          <label className="text-gray-softgray font-librefranklin text-xs">
-            Use Case
-          </label>
-
-          <Select
-            data-testid="use-case-name"
-            className="mt-2 text-blue-darkblue"
-            placeholder="Select your Use Case"
-            size="md"
-            onChange={(e) => {
-              console.log("setting useCase", e.target.value);
-              setScorerUseCase(e.target.value);
-            }}
-          >
-            {useCases.map((item, index) => (
-              <option key={index} value={item.title}>{item.title}</option>
-            ))}
-          </Select>
-        </div>
-
-        <div className="flex flex-col">
+        <FormControl className="flex flex-col">
           <label className="text-gray-softgray font-librefranklin text-xs">
             Name
           </label>
@@ -319,8 +301,8 @@ const UseCaseDetails = ({
               {nameError}
             </span>
           )}
-        </div>
-        <div className="flex flex-col">
+        </FormControl>
+        <FormControl className="flex flex-col">
           <label className="text-gray-softgray font-librefranklin text-xs">
             Description
           </label>
@@ -333,8 +315,29 @@ const UseCaseDetails = ({
             }}
             placeholder="Please provide information about how you will use Passport"
           />
-        </div>
-        <div className="flex flex-col">
+        </FormControl>
+        <FormControl className="flex flex-col">
+          <label className="text-gray-softgray font-librefranklin text-xs">
+            Use Case
+          </label>
+          <Select
+            data-testid="use-case-name"
+            className="mt-2 text-blue-darkblue"
+            placeholder="Select your Use Case"
+            size="md"
+            onChange={(e) => {
+              console.log("setting useCase", e.target.value);
+              setScorerUseCase(e.target.value);
+            }}
+          >
+            {useCases.map((item, index) => (
+              <option key={index} value={item.title}>
+                {item.title}
+              </option>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl className="flex flex-col">
           <label className="text-gray-softgray font-librefranklin text-xs">
             Threshold
           </label>
@@ -351,6 +354,13 @@ const UseCaseDetails = ({
             }}
             placeholder="Threshold"
           />
+          <FormHelperText>
+            We recommend using a score threshold of 20. Learn more about{" "}
+            <a className="text-purple-gitcoinpurple" href="https://docs.passport.xyz/building-with-passport/stamps/major-concepts/scoring-thresholds">
+              score thresholds
+            </a>
+            .
+          </FormHelperText>
           {thresholdError && (
             <span
               className="mt-1 text-xs text-red-500"
@@ -359,7 +369,7 @@ const UseCaseDetails = ({
               {thresholdError}
             </span>
           )}
-        </div>
+        </FormControl>
       </div>
       <button
         className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"

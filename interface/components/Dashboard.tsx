@@ -91,19 +91,19 @@ const StampsAPI = ({ className }: { className?: string }) => {
       }
     >
       <QuickLink
-        text="Stamps API"
+        text="Passport API"
         className="pt-6 text-xs text-purple-darkpurple"
       />
       <QuickLink
         text="Overview"
-        url="https://docs.passport.xyz/building-with-passport/stamps/introduction"
+        url="https://docs.passport.xyz/building-with-passport/stamps/passport-api"
         className={linkClassName}
         icon={<WindowIcon className={iconClassName} />}
       />
       <QuickLink
         text="Quick Start Guide"
         className={linkClassName}
-        url="https://docs.passport.xyz/building-with-passport/stamps/quick-start-guide"
+        url="https://docs.passport.xyz/building-with-passport/stamps/passport-api/quick-start-guide"
         icon={<FlagIcon className={iconClassName} />}
       />
       <QuickLink
