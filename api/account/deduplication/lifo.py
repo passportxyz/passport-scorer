@@ -1,8 +1,8 @@
 import copy
 from typing import Tuple
 
-from django.db import IntegrityError
 from django.conf import settings
+from django.db import IntegrityError
 
 import api_logging as logging
 from account.models import Community
