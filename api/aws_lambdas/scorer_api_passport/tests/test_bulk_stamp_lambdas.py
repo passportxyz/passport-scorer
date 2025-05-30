@@ -41,8 +41,8 @@ def test_patch(
 
     assert response["statusCode"] == 200
     assert body["stamps"][0]["provider"] == "Google"
-    assert body["score"]["evidence"]["rawScore"] > 0
-    assert body["score"]["status"] == "DONE"
+    assert Decimal(body["score"]["score"]) > Decimal(0)
+    assert Decimal(body["score"]["threshold"]) > Decimal(0)
     assert body["success"] is True
 
 
@@ -74,8 +74,8 @@ def test_delete(
 
     assert response["statusCode"] == 200
     assert len(body["stamps"]) == 0
-    assert body["score"]["evidence"]["rawScore"] == 0
-    assert body["score"]["status"] == "DONE"
+    assert Decimal(body["score"]["score"]) == Decimal(0)
+    assert Decimal(body["score"]["threshold"]) > Decimal(0)
     assert body["success"] is True
 
 
@@ -107,6 +107,6 @@ def test_post(
 
     assert response["statusCode"] == 201
     assert body["stamps"][0]["provider"] == "Google"
-    assert body["score"]["evidence"]["rawScore"] > 0
-    assert body["score"]["status"] == "DONE"
+    assert Decimal(body["score"]["score"]) > Decimal(0)
+    assert Decimal(body["score"]["threshold"]) > Decimal(0)
     assert body["success"] is True

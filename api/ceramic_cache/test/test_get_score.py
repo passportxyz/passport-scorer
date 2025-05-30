@@ -37,18 +37,13 @@ class TestBulkStampUpdates:
 
         assert response_data == {
             "address": scorer_passport.address.lower(),
-            "score": "0",
-            "status": "DONE",
+            "score": "0.00000",
             "last_score_timestamp": last_score_timestamp.isoformat(),
-            "expiration_date": None,
-            "evidence": {
-                "type": "ThresholdScoreCheck",
-                "success": False,
-                "rawScore": 0.0,
-                "threshold": 20.00000,
-            },
+            "expiration_timestamp": None,
+            "threshold": "20.00000",
+            "passing_score": False,
             "error": None,
-            "stamp_scores": {},
+            "stamps": {},
         }
 
     def test_get_score_when_score_not_expired(
@@ -110,18 +105,13 @@ class TestBulkStampUpdates:
 
         assert response_data == {
             "address": "0xc79bfbf4e4824cdb65c71f2eeb2d7f2db5da1fb8",
+            "score": "10.00000",
+            "passing_score": True,
             "error": None,
-            "evidence": {
-                "rawScore": 10.0,
-                "success": True,
-                "threshold": 5.0,
-                "type": "binary",
-            },
-            "expiration_date": score.expiration_date.isoformat(),
+            "expiration_timestamp": score.expiration_date.isoformat(),
             "last_score_timestamp": score.last_score_timestamp.isoformat(),
-            "score": "1.000000000",
-            "stamp_scores": {},
-            "status": "DONE",
+            "stamps": {},
+            "threshold": "5.00000",
         }
 
     def test_get_score_when_score_expired(
