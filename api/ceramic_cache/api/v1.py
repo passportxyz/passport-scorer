@@ -484,7 +484,6 @@ def handle_get_stamps(address):
 
 @router.get(
     "/score/{str:address}",
-    response=DetailedScoreResponse,
     auth=JWTDidAuth(),
 )
 def get_score(

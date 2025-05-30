@@ -90,20 +90,16 @@ def format_v2_score_response(
     score: Score,
     scorer_type: Scorer.Type,
 ) -> V2ScoreResponse:
-    raw_score = (
-        score.evidence.get("rawScore", Decimal(0)) if score.evidence else Decimal(0)
-    )
-    threshold = (
-        score.evidence.get("threshold", Decimal(20)) if score.evidence else Decimal(20)
-    )
+    raw_score = score.evidence.get("rawScore", "0") if score.evidence else "0"
+    threshold = score.evidence.get("threshold", "20") if score.evidence else "20"
 
-    raw_score = Decimal(0) if raw_score is None else raw_score
-    threshold = Decimal(0) if threshold is None else threshold
+    raw_score = Decimal(0) if raw_score is None else Decimal(raw_score)
+    threshold = Decimal(0) if threshold is None else Decimal(threshold)
 
     return V2ScoreResponse(
         address=score.passport.address,
         score=raw_score,
-        passing_score=(Decimal(raw_score) >= Decimal(threshold)),
+        passing_score=(raw_score >= threshold),
         threshold=threshold,
         last_score_timestamp=(
             score.last_score_timestamp.isoformat()

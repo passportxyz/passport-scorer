@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 import pytest
 from django.conf import settings
@@ -54,7 +55,7 @@ def test_score_get(
     body = json.loads(response["body"])
 
     assert response["statusCode"] == 200
-    assert body["evidence"]["rawScore"] == 10
+    assert body["score"] == "10.00000"
 
 
 def test_score_post(
@@ -77,7 +78,7 @@ def test_score_post(
     body = json.loads(response["body"])
 
     assert response["statusCode"] == 200
-    assert body["score"] == "0"
+    assert body["score"] == "0.00000"
     assert Score.objects.count() == 1
 
 
