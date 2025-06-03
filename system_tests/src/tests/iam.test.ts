@@ -116,7 +116,7 @@ describe("IAM (Simple)", () => {
   });
 });
 
-describe.only("IAM (Ens)", () => {
+describe("IAM (Ens)", () => {
   let address: string;
   let did: DID;
 
@@ -126,7 +126,7 @@ describe.only("IAM (Ens)", () => {
     ({ did, address } = await PassportUIUser.createFromWallet(wallet));
   });
 
-  it.only("POST /eas/scoreV2", async () => {
+  it("POST /eas/scoreV2", async () => {
     const type = "Ens";
     const types = ["Ens"];
 
