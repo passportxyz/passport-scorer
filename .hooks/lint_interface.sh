@@ -1,3 +1,6 @@
 #!/bin/bash
 
-cd interface && npx prettier --write ../$@
+cd interface
+for file in "$@"; do
+  npx prettier --write ../${file}
+done

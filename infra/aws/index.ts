@@ -153,9 +153,9 @@ const alarmResponseTime = {
   },
   sustain: {
     threshold: 2,
-    datapointsToAlarm: 3,
-    evaluationPeriods: 4,
-    period: 600,
+    datapointsToAlarm: 30,
+    evaluationPeriods: 40,
+    period: 60,
   },
 };
 

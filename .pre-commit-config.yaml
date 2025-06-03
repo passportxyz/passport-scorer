@@ -58,6 +58,7 @@ repos:
         name: lint interface
         entry: .hooks/lint_interface.sh
         language: system
+        files: ^interface/
         types_or:
           - ts
           - javascript
