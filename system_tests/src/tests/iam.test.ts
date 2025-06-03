@@ -116,7 +116,7 @@ describe("IAM (Simple)", () => {
   });
 });
 
-describe("IAM (NFT)", () => {
+describe.only("IAM (Ens)", () => {
   let address: string;
   let did: DID;
 
@@ -126,8 +126,9 @@ describe("IAM (NFT)", () => {
     ({ did, address } = await PassportUIUser.createFromWallet(wallet));
   });
 
-  it("POST /eas/scoreV2", async () => {
-    const type = "NFT";
+  it.only("POST /eas/scoreV2", async () => {
+    const type = "Ens";
+    const types = ["Ens"];
 
     const challengeResponse = await testRequest<{
       credential?: { credentialSubject?: { challenge?: unknown } };
@@ -161,7 +162,7 @@ describe("IAM (NFT)", () => {
         payload: {
           address,
           type,
-          types: [type],
+          types,
           signatureType: "EIP712",
           version,
           proofs: {
