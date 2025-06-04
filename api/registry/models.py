@@ -11,6 +11,7 @@ from django.dispatch import receiver
 from account.models import Community, EthAddressField
 from scorer.settings import (
     BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER,
+    BULK_MODEL_SCORE_REQUESTS_TRIGGER_FOLDER,
     BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
 )
 
@@ -257,6 +258,13 @@ def results_file_upload_to(_instance, filename):
     return os.path.join(BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER, new_filename)
 
 
+def trigger_processing_file_upload_to(_instance, filename):
+    # Generate a new filename with the current timestamp prefix
+    date_str = datetime.now().isoformat("_", "seconds").replace(":", "-")
+    new_filename = f"{date_str}_{filename}"
+    return os.path.join(BULK_MODEL_SCORE_REQUESTS_TRIGGER_FOLDER, new_filename)
+
+
 class BatchModelScoringRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     s3_filename = models.CharField(
@@ -285,8 +293,13 @@ class BatchModelScoringRequest(models.Model):
         choices=[(status.value, status) for status in BatchRequestStatus],
         default=BatchRequestStatus.PENDING,
     )
-    progress = models.IntegerField(
-        default=0, help_text="Progress in percentage: 0-100 ---- DEPRECATED ???"
+    progress = models.IntegerField(default=0, help_text="Progress in percentage: 0-100")
+    trigger_processing = models.FileField(
+        max_length=100,
+        null=True,
+        blank=True,
+        upload_to=trigger_processing_file_upload_to,
+        help_text="Will contain the exported data",
     )
 
     def __str__(self):

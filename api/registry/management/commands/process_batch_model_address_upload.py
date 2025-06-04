@@ -2,7 +2,6 @@ import asyncio
 import csv
 import json
 import time
-from datetime import datetime
 from io import StringIO
 from typing import AsyncGenerator, Dict, List
 
@@ -21,7 +20,6 @@ from registry.models import (
 )
 from scorer.settings import (
     BULK_MODEL_SCORE_BATCH_SIZE,
-    BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER,
     BULK_MODEL_SCORE_RETRY_SLEEP,
     BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
     BULK_SCORE_REQUESTS_BUCKET_NAME,
@@ -266,15 +264,13 @@ class Command(BaseCommand):
         return address, result
 
     async def create_and_upload_results_csv(self, request: BatchModelScoringRequest):
-        date_str = datetime.now().isoformat("_", "seconds").replace(":", "-")
-
         csv_buffer = StringIO()
         csv_writer = csv.writer(csv_buffer)
         csv_writer.writerow(["Address", "Result"])  # Header row
         async for item in request.items.all():
             csv_writer.writerow([item.address, json.dumps(item.result)])
 
-        filename = f"{date_str}_request_id_{request.id}.csv"
+        filename = f"request_id_{request.id}.csv"
 
         # Create a ContentFile
         content_file = ContentFile(csv_buffer.getvalue(), name=filename)
