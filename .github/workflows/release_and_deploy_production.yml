@@ -44,9 +44,10 @@ jobs:
           major_pattern: "(MAJOR)"
           minor_pattern: "(MINOR)"
           debug: true
+          bump_each_commit: true
 
       - name: Version2
         run: |
           echo "${{ steps.version.outputs.previous_version}}"
           echo "${{ steps.version.outputs.version_tag}}"
-          echo "${{ steps.version.outputs.debug_output}}"
+          echo '${{ steps.version.outputs.debug_output}}'
