@@ -31,3 +31,14 @@ jobs:
     steps:
       - name: Version
         run: echo "${{ needs.ref.outputs.version_tag }}"
+
+      - name: Version-2
+        id: version
+        uses: paulhatch/semantic-version@v5.0.2
+        with:
+          tag_prefix: "v"
+          major_pattern: "(MAJOR)"
+          minor_pattern: "(MINOR)"
+
+      - name: Version2
+        run: echo "${{ steps.version.outputs.version_tag}}"
