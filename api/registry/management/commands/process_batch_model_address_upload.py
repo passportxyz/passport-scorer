@@ -136,7 +136,7 @@ class Command(BaseCommand):
                 if len(batch_items) >= 1000:
                     await BatchModelScoringRequestItem.objects.abulk_create(
                         batch_items,
-                        update_conflicts=False,
+                        ignore_conflicts=True,
                         unique_fields=["batch_scoring_request", "address"],
                     )
                     batch_items = []
@@ -144,7 +144,7 @@ class Command(BaseCommand):
         if batch_items:
             await BatchModelScoringRequestItem.objects.abulk_create(
                 batch_items,
-                update_conflicts=False,
+                ignore_conflicts=True,
                 unique_fields=["batch_scoring_request", "address"],
             )
 
