@@ -18,6 +18,7 @@ from registry.api.schema import SubmitPassportPayload
 from registry.api.v1 import ahandle_submit_passport
 from registry.models import (
     BatchModelScoringRequest,
+    BatchModelScoringRequestItem,
     BatchRequestStatus,
     Event,
     GTCStakeEvent,
@@ -196,62 +197,17 @@ class BatchModelScoringRequestCsvImportForm(forms.Form):
 
 @admin.register(BatchModelScoringRequest)
 class BatchModelScoringRequestAdmin(ScorerModelAdmin):
-    change_list_template = "registry/batch_model_scoring_request_changelist.html"
-    list_display = ["id", "created_at"]
-    readonly_fields = [
-        field.name for field in BatchModelScoringRequest._meta.get_fields()
-    ] + ["address_list", "results"]
+    list_display = ["id", "created_at", "model_list", "progress", "status"]
+    # readonly_fields = [
+    #     field.name for field in BatchModelScoringRequest._meta.get_fields()
+    # ] + ["address_list", "results"]
 
-    def address_list(self, obj):
-        object_name = f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/{obj.s3_filename}"
-        return get_s3_client().generate_presigned_url(
-            "get_object",
-            Params={"Bucket": BULK_SCORE_REQUESTS_BUCKET_NAME, "Key": object_name},
-            ExpiresIn=ONE_HOUR,
-        )
 
-    def results(self, obj):
-        if obj.status != BatchRequestStatus.DONE:
-            return None
-
-        object_name = f"{BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER}/{obj.s3_filename}"
-        return get_s3_client().generate_presigned_url(
-            "get_object",
-            Params={"Bucket": BULK_SCORE_REQUESTS_BUCKET_NAME, "Key": object_name},
-            ExpiresIn=ONE_HOUR,
-        )
-
-    def get_urls(self):
-        return [
-            path("import-csv/", self.import_csv),
-        ] + super().get_urls()
-
-    def import_csv(self, request):
-        if request.method == "POST":
-            filename = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
-            object_name = f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/{filename}"
-
-            get_s3_client().upload_fileobj(
-                request.FILES["address_list"],
-                BULK_SCORE_REQUESTS_BUCKET_NAME,
-                object_name,
-            )
-
-            obj = BatchModelScoringRequest.objects.create(
-                model_list=request.POST.get("models"),
-                s3_filename=filename,
-                status=BatchRequestStatus.PENDING,
-            )
-
-            return redirect(f"../{obj.pk}/change/")
-
-        form = BatchModelScoringRequestCsvImportForm()
-        payload = {"form": form}
-        return render(
-            request,
-            "registry/batch_model_scoring_request_csv_import_form.html",
-            payload,
-        )
+@admin.register(BatchModelScoringRequestItem)
+class BatchModelScoringRequestItemAdmin(ScorerModelAdmin):
+    list_display = ["id", "batch_scoring_request", "address", "status"]
+    list_filter = ["batch_scoring_request"]
+    search_fields = ("address",)
 
 
 class WeightConfigurationItemInline(admin.TabularInline):

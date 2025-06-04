@@ -1,4 +1,6 @@
 import json
+import os.path
+from datetime import datetime
 from enum import Enum
 
 from django.core import serializers
@@ -7,9 +9,10 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
 from account.models import Community, EthAddressField
-
-# to avoid circular import issue
-from .weight_models import WeightConfiguration, WeightConfigurationItem
+from scorer.settings import (
+    BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER,
+    BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
+)
 
 
 class Passport(models.Model):
@@ -231,18 +234,82 @@ class BatchRequestStatus(str, Enum):
     PENDING = "PENDING"
     DONE = "DONE"
     ERROR = "ERROR"
+    # New status values
+    IMPORTING = "IMPORTING"
+    IMPORTING_DONE = "IMPORTING_DONE"
+    SCORING = "SCORING"
 
     def __str__(self):
         return f"{self.value}"
 
 
+def input_addresses_file_upload_to(_instance, filename):
+    # Generate a new filename with the current timestamp prefix
+    date_str = datetime.now().isoformat("_", "seconds").replace(":", "-")
+    new_filename = f"{date_str}_{filename}"
+    return os.path.join(BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER, new_filename)
+
+
+def results_file_upload_to(_instance, filename):
+    # Generate a new filename with the current timestamp prefix
+    date_str = datetime.now().isoformat("_", "seconds").replace(":", "-")
+    new_filename = f"{date_str}_{filename}"
+    return os.path.join(BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER, new_filename)
+
+
 class BatchModelScoringRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
-    s3_filename = models.CharField(max_length=100, null=False, blank=False)
+    s3_filename = models.CharField(
+        max_length=100,
+        null=False,
+        blank=False,
+        help_text="This is deprecated, in favour of `input_addresses_file`",
+        db_index=True,
+    )
+    input_addresses_file = models.FileField(
+        max_length=100,
+        null=True,
+        blank=True,
+        upload_to=input_addresses_file_upload_to,
+    )
+    results_file = models.FileField(
+        max_length=100,
+        null=True,
+        blank=True,
+        upload_to=results_file_upload_to,
+        help_text="Will contain the exported data",
+    )
     model_list = models.CharField(max_length=100, null=False, blank=False)
     status = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=[(status.value, status) for status in BatchRequestStatus],
         default=BatchRequestStatus.PENDING,
     )
-    progress = models.IntegerField(default=0, help_text="Progress in percentage: 0-100")
+    progress = models.IntegerField(
+        default=0, help_text="Progress in percentage: 0-100 ---- DEPRECATED ???"
+    )
+
+    def __str__(self):
+        return f"{self.id}"
+
+
+class BatchRequestItemStatus(str, Enum):
+    PENDING = "PENDING"
+    DONE = "DONE"
+    ERROR = "ERROR"
+
+
+class BatchModelScoringRequestItem(models.Model):
+    status = models.CharField(
+        max_length=20,
+        choices=[(status.value, status) for status in BatchRequestStatus],
+        default=BatchRequestStatus.PENDING,
+    )
+    batch_scoring_request = models.ForeignKey(
+        BatchModelScoringRequest, on_delete=models.PROTECT, related_name="items"
+    )
+    address = EthAddressField(null=False, blank=False, db_index=True)
+    result = models.JSONField(default=None, null=True, blank=True)
+
+    class Meta:
+        unique_together = ["batch_scoring_request", "address"]

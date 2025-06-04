@@ -459,14 +459,17 @@ INTERNAL_IPS = [
     # ...
 ]
 
+# TODO: drop this and fix all affected places
 BULK_SCORE_REQUESTS_BUCKET_NAME = env(
     "BULK_SCORE_REQUESTS_BUCKET_NAME", default="bulk-score-requests"
 )
 BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER = env(
-    "BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER", default="address-lists"
+    "BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER",
+    default="batch_model_scoring_request/address-lists",
 )
 BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER = env(
-    "BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER", default="model-score-results"
+    "BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER",
+    default="batch_model_scoring_request/results",
 )
 BULK_MODEL_SCORE_BATCH_SIZE = env("BULK_MODEL_SCORE_BATCH_SIZE", default=50)
 BULK_MODEL_SCORE_RETRY_SLEEP = env("BULK_MODEL_SCORE_RETRY_SLEEP", default=10)

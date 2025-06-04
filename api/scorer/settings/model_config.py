@@ -19,7 +19,7 @@ OPTIMISM_MODEL_ENDPOINT = env(
     "OPTIMISM_MODEL_ENDPOINT", default="http://localhost:5004/op-model-predict"
 )
 BASE_MODEL_ENDPOINT = env(
-    "BASE_MODEL_ENDPOINT", default="http://localhost:5002/base-stamp-predict"
+    "BASE_MODEL_ENDPOINT", default="http://localhost:5007/base-model-predict"
 )
 AGGREGATE_MODEL_ENDPOINT = env(
     "AGGREGATE_MODEL_ENDPOINT", default="http://localhost:5001/aggregate-model-predict"
