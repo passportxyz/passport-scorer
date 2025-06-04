@@ -32,6 +32,10 @@ jobs:
       - name: Version
         run: echo "${{ needs.ref.outputs.version_tag }}"
 
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Version-2
         id: version
         uses: paulhatch/semantic-version@v5.0.2
