@@ -94,6 +94,7 @@ const noStackPassportXyzCertificateArn = coreInfraStack.getOutput("passportXyzCe
 const codeBucketId = coreInfraStack.getOutput("codeBucketId");
 
 const passportAdminBucketName = coreInfraStack.getOutput("passportAdminBucketName");
+const passportAdminBucketId = coreInfraStack.getOutput("passportAdminBucketId");
 
 const vpcPublicSubnetId1 = vpcPublicSubnetIds.apply((values) => values[0]);
 
@@ -1530,15 +1531,21 @@ const createdTask = createTask({
   scorerSecretManagerArn: scorerSecret.arn,
 });
 
-export const s3TriggeredECSTask = createS3InitiatedECSTask({
-  bucketName: `bulk-score-requests-${stack}`,
-  clusterArn: cluster.arn,
-  taskDefinitionArn: createdTask.task.arn,
-  subnetIds: vpcPrivateSubnetIds,
-  securityGroupIds: [secgrp.id],
-  eventsStsAssumeRoleArn: createdTask.eventsStsAssumeRole.arn,
-  containerName: createdTask.containerName,
-});
+export const s3TriggeredECSTask = pulumi
+  .all([passportAdminBucketId, passportAdminBucketName])
+  .apply(([bucketId, bucketName]) => {
+    return createS3InitiatedECSTask({
+      bucketId,
+      bucketName,
+      legacyBucketName: `bulk-score-requests-${stack}`,
+      clusterArn: cluster.arn,
+      taskDefinitionArn: createdTask.task.arn,
+      subnetIds: vpcPrivateSubnetIds,
+      securityGroupIds: [secgrp.id],
+      eventsStsAssumeRoleArn: createdTask.eventsStsAssumeRole.arn,
+      containerName: createdTask.containerName,
+    });
+  });
 
 const CLOUDFLARE_ZONE_ID = op.read.parse(`op://DevOps/passport-scorer-${stack}-secrets/interface/CLOUDFLARE_ZONE_ID`);
 

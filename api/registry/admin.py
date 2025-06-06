@@ -196,6 +196,7 @@ class BatchModelScoringRequestAdmin(ScorerModelAdmin):
     #     field.name for field in BatchModelScoringRequest._meta.get_fields()
     # ] + ["address_list", "results"]
     readonly_fields = [
+        "s3_filename",
         "trigger_processing_file",
         "status",
         "progress",

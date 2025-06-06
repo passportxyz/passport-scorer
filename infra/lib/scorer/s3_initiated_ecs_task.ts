@@ -3,7 +3,9 @@ import { Input, Output } from "@pulumi/pulumi";
 import { defaultTags } from "../tags";
 
 export function createS3InitiatedECSTask({
+  bucketId,
   bucketName,
+  legacyBucketName,
   clusterArn,
   taskDefinitionArn,
   subnetIds,
@@ -11,7 +13,9 @@ export function createS3InitiatedECSTask({
   eventsStsAssumeRoleArn,
   containerName,
 }: {
+  bucketId: Output<string>;
   bucketName: string;
+  legacyBucketName: string;
   clusterArn: Output<string>;
   taskDefinitionArn: Output<string>;
   subnetIds: Output<any>;
@@ -19,9 +23,10 @@ export function createS3InitiatedECSTask({
   eventsStsAssumeRoleArn: Input<string>;
   containerName: string;
 }) {
-  // Create S3 bucket
-  const bucket = new aws.s3.Bucket(bucketName, {
-    bucket: bucketName,
+  // Create the legacy S3 bucket. We will not use this any more,
+  // but we want to keep the data in it for now
+  new aws.s3.Bucket(legacyBucketName, {
+    bucket: legacyBucketName,
     tags: {
       ...defaultTags,
       Name: bucketName,
@@ -30,7 +35,7 @@ export function createS3InitiatedECSTask({
 
   // Enable S3 event notifications to EventBridge
   new aws.s3.BucketNotification(`${bucketName}-notification`, {
-    bucket: bucket.id,
+    bucket: bucketId,
     eventbridge: true,
   });
 
@@ -113,7 +118,7 @@ export function createS3InitiatedECSTask({
   });
 
   return {
-    bucketName: bucket.id,
+    bucketId: bucketId,
     eventBridgeRuleArn: rule.arn,
   };
 }
