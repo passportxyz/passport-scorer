@@ -89,7 +89,9 @@ class Command(BaseCommand):
 
             model_list = request.model_list
 
-            processed_items = 0
+            processed_items = await request.items.filter(
+                status=BatchRequestStatus.DONE
+            ).acount()
             async for batch in self.process_request_in_batches(request):
                 try:
                     batch_results = await self.get_analysis(batch.values(), model_list)

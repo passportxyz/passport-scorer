@@ -288,6 +288,7 @@ class BatchModelScoringRequest(models.Model):
         max_length=20,
         choices=[(status.value, status) for status in BatchRequestStatus],
         default=BatchRequestStatus.PENDING,
+        db_index=True,
     )
     progress = models.IntegerField(default=0, help_text="Progress in percentage: 0-100")
     last_progress_update = models.DateTimeField(
@@ -321,6 +322,7 @@ class BatchModelScoringRequestItem(models.Model):
         max_length=20,
         choices=[(status.value, status) for status in BatchRequestItemStatus],
         default=BatchRequestItemStatus.PENDING,
+        db_index=True,
     )
     batch_scoring_request = models.ForeignKey(
         BatchModelScoringRequest, on_delete=models.PROTECT, related_name="items"
