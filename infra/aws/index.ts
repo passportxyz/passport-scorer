@@ -235,7 +235,12 @@ const alarmConfigurations: AlarmConfigurations = {
   "passport-v2-stamp-score": {
     ...defaultTargetAlarmConfiguration,
     targetResponseTime: {
-      ...alarmResponseTime,
+      sustain: {
+        threshold: 4,
+        datapointsToAlarm: 30,
+        evaluationPeriods: 40,
+        period: 60,
+      },
       burst: {
         ...alarmResponseTime.burst,
         datapointsToAlarm: 7,
