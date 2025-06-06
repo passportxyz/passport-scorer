@@ -235,10 +235,6 @@ class BatchRequestStatus(str, Enum):
     PENDING = "PENDING"
     DONE = "DONE"
     ERROR = "ERROR"
-    # New status values
-    IMPORTING = "IMPORTING"
-    IMPORTING_DONE = "IMPORTING_DONE"
-    SCORING = "SCORING"
 
     def __str__(self):
         return f"{self.value}"
@@ -294,12 +290,17 @@ class BatchModelScoringRequest(models.Model):
         default=BatchRequestStatus.PENDING,
     )
     progress = models.IntegerField(default=0, help_text="Progress in percentage: 0-100")
-    trigger_processing = models.FileField(
+    last_progress_update = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of last progress update",
+    )
+    trigger_processing_file = models.FileField(
         max_length=100,
         null=True,
         blank=True,
         upload_to=trigger_processing_file_upload_to,
-        help_text="Will contain the exported data",
+        help_text="Just a file that is created automatically to trigger the processing. An EventBridge rule will be watching for files created in this folder.",
     )
 
     def __str__(self):
@@ -311,12 +312,15 @@ class BatchRequestItemStatus(str, Enum):
     DONE = "DONE"
     ERROR = "ERROR"
 
+    def __str__(self):
+        return f"{self.value}"
+
 
 class BatchModelScoringRequestItem(models.Model):
     status = models.CharField(
         max_length=20,
-        choices=[(status.value, status) for status in BatchRequestStatus],
-        default=BatchRequestStatus.PENDING,
+        choices=[(status.value, status) for status in BatchRequestItemStatus],
+        default=BatchRequestItemStatus.PENDING,
     )
     batch_scoring_request = models.ForeignKey(
         BatchModelScoringRequest, on_delete=models.PROTECT, related_name="items"

@@ -2,6 +2,7 @@ import asyncio
 import csv
 import json
 import time
+from datetime import datetime, timezone
 from io import StringIO
 from typing import AsyncGenerator, Dict, List
 
@@ -40,37 +41,43 @@ class Command(BaseCommand):
         self.stdout.write(f"Received bucket name: `{S3_BUCKET}`")
         self.stdout.write(f"Received object key : `{S3_OBJECT_KEY}`")
 
-        s3_uri = f"s3://{S3_BUCKET}/{S3_OBJECT_KEY}"
-
-        # Find the request id from the filename.
-        filename = S3_OBJECT_KEY.split(f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/")[
-            -1
-        ]
         self.stdout.write(f"Search request with path: `{S3_OBJECT_KEY}`")
-
         request = await sync_to_async(BatchModelScoringRequest.objects.get)(
-            input_addresses_file=S3_OBJECT_KEY
+            trigger_processing_file=S3_OBJECT_KEY
         )
         self.stdout.write(f"Found request: {request.id}")
 
         await self.create_batch_request_items(request)
 
+        with request.trigger_processing_file.open("rb") as trigger_file:
+            data = json.load(trigger_file)
+            print(data)
+
+            if data["action"] == "score_all":
+                await BatchModelScoringRequestItem.objects.filter(
+                    batch_scoring_request=request
+                ).aupdate(status=BatchRequestItemStatus.PENDING)
+            elif data["action"] == "score_errors":
+                await BatchModelScoringRequestItem.objects.filter(
+                    batch_scoring_request=request, status=BatchRequestItemStatus.ERROR
+                ).aupdate(status=BatchRequestItemStatus.PENDING)
+
         total_items = await request.items.acount()
+        request.progress = 0
+        request.last_progress_update = datetime.now(timezone.utc)
+        request.status = BatchRequestStatus.PENDING
+        await request.asave()
 
         print("total_items", total_items)
         try:
-            self.stdout.write(f"Processing file: {s3_uri}")
+            self.stdout.write(f"Processing file: {S3_OBJECT_KEY}")
 
             model_list = request.model_list
 
-            results = []
             processed_items = 0
             async for batch in self.process_request_in_batches(request):
-                print("batch: ", batch)
                 try:
-                    print("batch.values() ", batch.values())
                     batch_results = await self.get_analysis(batch.values(), model_list)
-                    print("batch_results: ", batch_results)
 
                     for address, result in batch_results:
                         scoring_reqeust_item = batch[address.lower()]
@@ -107,7 +114,7 @@ class Command(BaseCommand):
             )
         except Exception as e:
             self.stderr.write(
-                self.style.ERROR(f"Error processing file {s3_uri}: {str(e)}")
+                self.style.ERROR(f"Error processing file {S3_OBJECT_KEY}: {str(e)}")
             )
             request.status = BatchRequestStatus.ERROR
             await sync_to_async(request.save)()
@@ -148,6 +155,7 @@ class Command(BaseCommand):
 
     async def update_progress(self, request, progress):
         request.progress = progress
+        request.last_progress_update = datetime.now(timezone.UTC)
         await sync_to_async(request.save)()
         self.stdout.write(f"Updated progress for request {request.id}: {progress}%")
 
@@ -172,7 +180,6 @@ class Command(BaseCommand):
             status=BatchRequestItemStatus.PENDING,
         ).order_by("id")
         while True:
-            print(" ... in while")
             if last_id:
                 query = base_query.filter(id__gt=last_id)
             else:
@@ -182,7 +189,6 @@ class Command(BaseCommand):
             async for item in query[:batch_size]:
                 batch[item.address.lower()] = item
                 last_id = item.id
-            print(" ... batch", batch)
 
             if not batch:
                 break
