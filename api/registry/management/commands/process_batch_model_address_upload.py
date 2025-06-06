@@ -51,7 +51,7 @@ class Command(BaseCommand):
             self.stdout.write(f"Received trigger_file_path: `{trigger_file_path}`")
             self.stdout.write(f"Received bucket name: `{S3_BUCKET}`")
             self.stdout.write(f"Received object key : `{S3_OBJECT_KEY}`")
-
+            self.stdout.write(f"Batch size          : `{BULK_MODEL_SCORE_BATCH_SIZE}`")
             if not trigger_file_path:
                 trigger_file_path = S3_OBJECT_KEY
 
@@ -83,13 +83,16 @@ class Command(BaseCommand):
             request.status = BatchRequestStatus.PENDING
             await request.asave()
 
-            print("total_items", total_items)
+            self.stdout.write(f"total_items {total_items}")
 
             self.stdout.write(f"Processing file: {trigger_file_path}")
 
             model_list = request.model_list
 
-            processed_items = 0
+            processed_items = await request.items.filter(
+                status=BatchRequestStatus.DONE
+            ).acount()
+            self.stdout.write("initial processed_items: {processed_items}")
             async for batch in self.process_request_in_batches(request):
                 try:
                     batch_results = await self.get_analysis(batch.values(), model_list)
@@ -109,6 +112,9 @@ class Command(BaseCommand):
 
                     processed_items += len(batch_results)
                     progress = int((processed_items / total_items) * 100)
+                    self.stdout.write(
+                        "progress {processed_items} / {total_items} => {progress}"
+                    )
                     await self.update_progress(request, progress)
                 except Exception as e:
                     self.stderr.write(
@@ -171,7 +177,7 @@ class Command(BaseCommand):
 
     async def update_progress(self, request, progress):
         request.progress = progress
-        request.last_progress_update = datetime.now(timezone.UTC)
+        request.last_progress_update = datetime.now(timezone.utc)
         await sync_to_async(request.save)()
         self.stdout.write(f"Updated progress for request {request.id}: {progress}%")
 
