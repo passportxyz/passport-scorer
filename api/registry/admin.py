@@ -429,7 +429,7 @@ class WeightConfigurationAdmin(admin.ModelAdmin):
         "updated_at",
     )
     search_fields = ("version", "description")
-    readonly_fields = ("created_at", "updated_at", "csv_source")
+    readonly_fields = ("s3_filename", "created_at", "updated_at", "csv_source")
     inlines = [WeightConfigurationItemInline]
 
     def csv_source_url(self, obj: WeightConfiguration):
