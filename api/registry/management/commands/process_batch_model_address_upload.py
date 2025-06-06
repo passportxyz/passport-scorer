@@ -8,11 +8,10 @@ from typing import AsyncGenerator, Dict, List
 
 from asgiref.sync import sync_to_async
 from django.core.files.base import ContentFile
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from eth_utils.address import to_checksum_address
 
 from passport.api import handle_get_analysis
-from registry.admin import get_s3_client
 from registry.models import (
     BatchModelScoringRequest,
     BatchModelScoringRequestItem,
@@ -22,8 +21,6 @@ from registry.models import (
 from scorer.settings import (
     BULK_MODEL_SCORE_BATCH_SIZE,
     BULK_MODEL_SCORE_RETRY_SLEEP,
-    BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
-    BULK_SCORE_REQUESTS_BUCKET_NAME,
     S3_BUCKET,
     S3_OBJECT_KEY,
 )
@@ -34,43 +31,59 @@ class Command(BaseCommand):
     average_lambda_duration = 0
     total_lambda_calls = 0
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "tigger-file",
+            nargs="?",
+            type=str,
+            default=None,
+            help="Path to the trigger file",
+        )
+
     def handle(self, *args, **options):
         asyncio.run(self.async_handle(*args, **options))
 
     async def async_handle(self, *args, **options):
-        self.stdout.write(f"Received bucket name: `{S3_BUCKET}`")
-        self.stdout.write(f"Received object key : `{S3_OBJECT_KEY}`")
-
-        self.stdout.write(f"Search request with path: `{S3_OBJECT_KEY}`")
-        request = await sync_to_async(BatchModelScoringRequest.objects.get)(
-            trigger_processing_file=S3_OBJECT_KEY
-        )
-        self.stdout.write(f"Found request: {request.id}")
-
-        await self.create_batch_request_items(request)
-
-        with request.trigger_processing_file.open("rb") as trigger_file:
-            data = json.load(trigger_file)
-            print(data)
-
-            if data["action"] == "score_all":
-                await BatchModelScoringRequestItem.objects.filter(
-                    batch_scoring_request=request
-                ).aupdate(status=BatchRequestItemStatus.PENDING)
-            elif data["action"] == "score_errors":
-                await BatchModelScoringRequestItem.objects.filter(
-                    batch_scoring_request=request, status=BatchRequestItemStatus.ERROR
-                ).aupdate(status=BatchRequestItemStatus.PENDING)
-
-        total_items = await request.items.acount()
-        request.progress = 0
-        request.last_progress_update = datetime.now(timezone.utc)
-        request.status = BatchRequestStatus.PENDING
-        await request.asave()
-
-        print("total_items", total_items)
         try:
-            self.stdout.write(f"Processing file: {S3_OBJECT_KEY}")
+            trigger_file_path = options.get("tigger-file")
+            self.stdout.write(f"Received trigger_file_path: `{trigger_file_path}`")
+            self.stdout.write(f"Received bucket name: `{S3_BUCKET}`")
+            self.stdout.write(f"Received object key : `{S3_OBJECT_KEY}`")
+
+            if not trigger_file_path:
+                trigger_file_path = S3_OBJECT_KEY
+
+            self.stdout.write(f"Search request with path: `{trigger_file_path}`")
+            request = await sync_to_async(BatchModelScoringRequest.objects.get)(
+                trigger_processing_file=trigger_file_path
+            )
+            self.stdout.write(f"Found request: {request.id}")
+
+            await self.create_batch_request_items(request)
+
+            with request.trigger_processing_file.open("rb") as trigger_file:
+                data = json.load(trigger_file)
+                print(data)
+
+                if data["action"] == "score_all":
+                    await BatchModelScoringRequestItem.objects.filter(
+                        batch_scoring_request=request
+                    ).aupdate(status=BatchRequestItemStatus.PENDING)
+                elif data["action"] == "score_errors":
+                    await BatchModelScoringRequestItem.objects.filter(
+                        batch_scoring_request=request,
+                        status=BatchRequestItemStatus.ERROR,
+                    ).aupdate(status=BatchRequestItemStatus.PENDING)
+
+            total_items = await request.items.acount()
+            request.progress = 0
+            request.last_progress_update = datetime.now(timezone.utc)
+            request.status = BatchRequestStatus.PENDING
+            await request.asave()
+
+            print("total_items", total_items)
+
+            self.stdout.write(f"Processing file: {trigger_file_path}")
 
             model_list = request.model_list
 
@@ -107,17 +120,17 @@ class Command(BaseCommand):
             # Update status to DONE
             request.status = BatchRequestStatus.DONE
             request.progress = 100
-            await sync_to_async(request.save)()
+            await request.asave()
 
             self.stdout.write(
                 self.style.SUCCESS(f"Successfully processed request: {request.id}")
             )
         except Exception as e:
             self.stderr.write(
-                self.style.ERROR(f"Error processing file {S3_OBJECT_KEY}: {str(e)}")
+                self.style.ERROR(f"Error processing file {trigger_file_path}: {str(e)}")
             )
             request.status = BatchRequestStatus.ERROR
-            await sync_to_async(request.save)()
+            await request.asave()
 
     async def create_batch_request_items(
         self, batch_scoring_request: BatchModelScoringRequest
@@ -158,16 +171,6 @@ class Command(BaseCommand):
         request.last_progress_update = datetime.now(timezone.UTC)
         await sync_to_async(request.save)()
         self.stdout.write(f"Updated progress for request {request.id}: {progress}%")
-
-    def download_from_s3(self, s3_filename):
-        try:
-            response = get_s3_client().get_object(
-                Bucket=BULK_SCORE_REQUESTS_BUCKET_NAME,
-                Key=f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/{s3_filename}",
-            )
-            return response["Body"]
-        except Exception as e:
-            raise CommandError(f"Failed to download file from S3: {str(e)}")
 
     async def process_request_in_batches(
         self,

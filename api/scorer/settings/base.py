@@ -479,7 +479,9 @@ BULK_MODEL_SCORE_BATCH_SIZE = env("BULK_MODEL_SCORE_BATCH_SIZE", default=50)
 BULK_MODEL_SCORE_RETRY_SLEEP = env("BULK_MODEL_SCORE_RETRY_SLEEP", default=10)
 
 S3_BUCKET = env("S3_BUCKET", default="bulk-score-requests")
-S3_OBJECT_KEY = env("S3_OBJECT_KEY", default="test_file.csv")
+S3_OBJECT_KEY = env(
+    "S3_OBJECT_KEY", default="batch_model_scoring_request/triggers/trigger_file.json"
+)
 S3_BUCKET_WAF = env("S3_BUCKET_WAF", default="passport-review-waf")
 
 DATA_SCIENCE_API_KEY = env("DATA_SCIENCE_API_KEY", default="abc")
