@@ -44,6 +44,8 @@ class Command(BaseCommand):
         asyncio.run(self.async_handle(*args, **options))
 
     async def async_handle(self, *args, **options):
+        trigger_file_path = None
+        request = None
         try:
             trigger_file_path = options.get("tigger-file")
             self.stdout.write(f"Received trigger_file_path: `{trigger_file_path}`")
@@ -129,8 +131,9 @@ class Command(BaseCommand):
             self.stderr.write(
                 self.style.ERROR(f"Error processing file {trigger_file_path}: {str(e)}")
             )
-            request.status = BatchRequestStatus.ERROR
-            await request.asave()
+            if request:
+                request.status = BatchRequestStatus.ERROR
+                await request.asave()
 
     async def create_batch_request_items(
         self, batch_scoring_request: BatchModelScoringRequest
