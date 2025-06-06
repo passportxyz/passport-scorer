@@ -1,0 +1,9 @@
+{% extends "admin/base_site.html" %} {% block content %}
+<form action="" method="get">
+  <input type="hidden" name="next" value="{{ next }}">
+  <input type="hidden" name="id" value="{{ id }}">
+  <button type="submit" name="confirm" value="confirm">Confirm</button>
+  <button type="submit" name="cancel"  value="cancel">Cancel</button>
+</form>
+
+{% endblock %}

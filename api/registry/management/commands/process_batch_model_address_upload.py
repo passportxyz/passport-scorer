@@ -2,22 +2,25 @@ import asyncio
 import csv
 import json
 import time
-from io import BytesIO, StringIO, TextIOWrapper
-from itertools import islice
+from datetime import datetime, timezone
+from io import StringIO
+from typing import AsyncGenerator, Dict, List
 
 from asgiref.sync import sync_to_async
-from django.core.management.base import BaseCommand, CommandError
+from django.core.files.base import ContentFile
+from django.core.management.base import BaseCommand
 from eth_utils.address import to_checksum_address
 
 from passport.api import handle_get_analysis
-from registry.admin import get_s3_client
-from registry.models import BatchModelScoringRequest, BatchRequestStatus
+from registry.models import (
+    BatchModelScoringRequest,
+    BatchModelScoringRequestItem,
+    BatchRequestItemStatus,
+    BatchRequestStatus,
+)
 from scorer.settings import (
     BULK_MODEL_SCORE_BATCH_SIZE,
-    BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER,
     BULK_MODEL_SCORE_RETRY_SLEEP,
-    BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
-    BULK_SCORE_REQUESTS_BUCKET_NAME,
     S3_BUCKET,
     S3_OBJECT_KEY,
 )
@@ -28,127 +31,179 @@ class Command(BaseCommand):
     average_lambda_duration = 0
     total_lambda_calls = 0
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "tigger-file",
+            nargs="?",
+            type=str,
+            default=None,
+            help="Path to the trigger file",
+        )
+
     def handle(self, *args, **options):
         asyncio.run(self.async_handle(*args, **options))
 
     async def async_handle(self, *args, **options):
-        self.stdout.write(f"Received bucket name: `{S3_BUCKET}`")
-        self.stdout.write(f"Received object key : `{S3_OBJECT_KEY}`")
-
-        s3_uri = f"s3://{S3_BUCKET}/{S3_OBJECT_KEY}"
-
-        # Find the request id from the filename.
-        filename = S3_OBJECT_KEY.split(f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/")[
-            -1
-        ]
-        self.stdout.write(f"Search request with filename: `{filename}`")
-
-        request = await sync_to_async(BatchModelScoringRequest.objects.get)(
-            s3_filename=filename
-        )
-
-        self.stdout.write(f"Found request: {request.id}")
         try:
-            self.stdout.write(f"Processing file: {s3_uri}")
+            trigger_file_path = options.get("tigger-file")
+            self.stdout.write(f"Received trigger_file_path: `{trigger_file_path}`")
+            self.stdout.write(f"Received bucket name: `{S3_BUCKET}`")
+            self.stdout.write(f"Received object key : `{S3_OBJECT_KEY}`")
 
-            # file = await sync_to_async(self.download_from_s3)(s3_uri)
-            file = await sync_to_async(self.download_from_s3)(filename)
+            if not trigger_file_path:
+                trigger_file_path = S3_OBJECT_KEY
 
-            if file:
-                self.stdout.write(self.style.SUCCESS("Got stream, processing CSV"))
-                bytes = BytesIO(file.read())
-                text = TextIOWrapper(bytes, encoding="utf-8")
+            self.stdout.write(f"Search request with path: `{trigger_file_path}`")
+            request = await sync_to_async(BatchModelScoringRequest.objects.get)(
+                trigger_processing_file=trigger_file_path
+            )
+            self.stdout.write(f"Found request: {request.id}")
 
-                csv_data = csv.reader(text)
+            await self.create_batch_request_items(request)
 
-                # Check if the first row is a header
-                first_row = next(csv_data)
-                if first_row[0].lower() == "address":
-                    # Skip the header and continue processing the CSV
-                    total_rows = sum(1 for row in csv_data)
-                else:
-                    # The first row is not a header, so include it in the processing
-                    total_rows = 1 + sum(
-                        1 for row in csv_data
-                    )  # Adding the first row already read
+            with request.trigger_processing_file.open("rb") as trigger_file:
+                data = json.load(trigger_file)
+                print(data)
 
-                # Reset the reader to the start of the file or just after the header
-                text.seek(0)
-                csv_data = csv.reader(text)
+                if data["action"] == "score_all":
+                    await BatchModelScoringRequestItem.objects.filter(
+                        batch_scoring_request=request
+                    ).aupdate(status=BatchRequestItemStatus.PENDING)
+                elif data["action"] == "score_errors":
+                    await BatchModelScoringRequestItem.objects.filter(
+                        batch_scoring_request=request,
+                        status=BatchRequestItemStatus.ERROR,
+                    ).aupdate(status=BatchRequestItemStatus.PENDING)
 
-                # Skip the header again if it was determined to be a header
-                if first_row[0].lower() == "address":
-                    next(csv_data)
+            total_items = await request.items.acount()
+            request.progress = 0
+            request.last_progress_update = datetime.now(timezone.utc)
+            request.status = BatchRequestStatus.PENDING
+            await request.asave()
 
-                model_list = request.model_list
+            print("total_items", total_items)
 
-                results = []
-                processed_rows = 0
-                for batch in self.process_csv_in_batches(csv_data):
-                    try:
-                        batch_results = await self.get_analysis(batch, model_list)
-                        results.extend(batch_results)
-                        processed_rows += len(batch_results)
-                        progress = int((processed_rows / total_rows) * 100)
-                        await self.update_progress(request, progress)
-                        if progress % 5 == 0:
-                            await self.create_and_upload_results_csv(
-                                request.id,
-                                results,
-                                f"{request.s3_filename}-partial-{progress}",
-                            )
-                    except Exception as e:
-                        self.stderr.write(
-                            self.style.ERROR(
-                                f"Error processing batch: {str(e)} - Processed rows: {processed_rows}, Total Rows: {total_rows}"
-                            )
+            self.stdout.write(f"Processing file: {trigger_file_path}")
+
+            model_list = request.model_list
+
+            processed_items = 0
+            async for batch in self.process_request_in_batches(request):
+                try:
+                    batch_results = await self.get_analysis(batch.values(), model_list)
+
+                    for address, result in batch_results:
+                        scoring_reqeust_item = batch[address.lower()]
+                        if isinstance(result, dict):
+                            scoring_reqeust_item.result = result
+                            scoring_reqeust_item.status = BatchRequestItemStatus.DONE
+                        else:
+                            scoring_reqeust_item.result = str(result)
+                            scoring_reqeust_item.status = BatchRequestItemStatus.ERROR
+
+                    await BatchModelScoringRequestItem.objects.abulk_update(
+                        batch.values(), fields=("result", "status")
+                    )
+
+                    processed_items += len(batch_results)
+                    progress = int((processed_items / total_items) * 100)
+                    await self.update_progress(request, progress)
+                except Exception as e:
+                    self.stderr.write(
+                        self.style.ERROR(
+                            f"Error processing batch: {str(e)} - Processed rows: {processed_items}, Total Rows: {total_items}"
                         )
+                    )
 
-                await self.create_and_upload_results_csv(
-                    request.id, results, request.s3_filename
-                )
+            await self.create_and_upload_results_csv(request)
 
             # Update status to DONE
             request.status = BatchRequestStatus.DONE
             request.progress = 100
-            await sync_to_async(request.save)()
+            await request.asave()
 
             self.stdout.write(
                 self.style.SUCCESS(f"Successfully processed request: {request.id}")
             )
         except Exception as e:
             self.stderr.write(
-                self.style.ERROR(f"Error processing file {s3_uri}: {str(e)}")
+                self.style.ERROR(f"Error processing file {trigger_file_path}: {str(e)}")
             )
             request.status = BatchRequestStatus.ERROR
-            await sync_to_async(request.save)()
+            await request.asave()
+
+    async def create_batch_request_items(
+        self, batch_scoring_request: BatchModelScoringRequest
+    ):
+        batch_items = []
+        with batch_scoring_request.input_addresses_file.open("r") as f:
+            first_row = True
+            for row in csv.reader(f):
+                print(row)
+                if first_row and row[0].lower() == "address":
+                    first_row = False
+                    continue
+                else:
+                    batch_items.append(
+                        BatchModelScoringRequestItem(
+                            batch_scoring_request=batch_scoring_request,
+                            address=row[0],
+                        )
+                    )
+
+                if len(batch_items) >= 1000:
+                    await BatchModelScoringRequestItem.objects.abulk_create(
+                        batch_items,
+                        ignore_conflicts=True,
+                        unique_fields=["batch_scoring_request", "address"],
+                    )
+                    batch_items = []
+
+        if batch_items:
+            await BatchModelScoringRequestItem.objects.abulk_create(
+                batch_items,
+                ignore_conflicts=True,
+                unique_fields=["batch_scoring_request", "address"],
+            )
 
     async def update_progress(self, request, progress):
         request.progress = progress
+        request.last_progress_update = datetime.now(timezone.UTC)
         await sync_to_async(request.save)()
         self.stdout.write(f"Updated progress for request {request.id}: {progress}%")
 
-    def download_from_s3(self, s3_filename):
-        try:
-            response = get_s3_client().get_object(
-                Bucket=BULK_SCORE_REQUESTS_BUCKET_NAME,
-                Key=f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/{s3_filename}",
-            )
-            return response["Body"]
-        except Exception as e:
-            raise CommandError(f"Failed to download file from S3: {str(e)}")
-
-    def process_csv_in_batches(self, csv_data, batch_size=BULK_MODEL_SCORE_BATCH_SIZE):
+    async def process_request_in_batches(
+        self,
+        batch_scoring_request: BatchModelScoringRequest,
+        batch_size=BULK_MODEL_SCORE_BATCH_SIZE,
+    ) -> AsyncGenerator[Dict[str, BatchModelScoringRequestItem], None]:
+        last_id = None
+        base_query = BatchModelScoringRequestItem.objects.filter(
+            batch_scoring_request=batch_scoring_request,
+            status=BatchRequestItemStatus.PENDING,
+        ).order_by("id")
         while True:
-            batch = list(islice(csv_data, batch_size))
+            if last_id:
+                query = base_query.filter(id__gt=last_id)
+            else:
+                query = base_query
+
+            batch = {}
+            async for item in query[:batch_size]:
+                batch[item.address.lower()] = item
+                last_id = item.id
+
             if not batch:
                 break
+
             yield batch
 
-    async def get_analysis(self, batch, model_list):
+    async def get_analysis(
+        self, batch_request_items: List[BatchModelScoringRequestItem], model_list: str
+    ):
         tasks = []
-        for row in batch:
-            address = row[0]
+        for batch_request_item in batch_request_items:
+            address = batch_request_item.address
             if not address or address == "":
                 continue
             try:
@@ -207,7 +262,7 @@ class Command(BaseCommand):
                 for model, score in analysis.details.models.items()
             }
         }
-        result = json.dumps(details_dict)
+        result = details_dict
 
         self.stdout.write(f"Processed address {address}:")
         self.stdout.write(f"  Duration: {duration:.2f} seconds")
@@ -217,19 +272,16 @@ class Command(BaseCommand):
 
         return address, result
 
-    async def create_and_upload_results_csv(self, request_id, results, filename):
+    async def create_and_upload_results_csv(self, request: BatchModelScoringRequest):
         csv_buffer = StringIO()
         csv_writer = csv.writer(csv_buffer)
         csv_writer.writerow(["Address", "Result"])  # Header row
-        for address, result in results:
-            csv_writer.writerow([address, result])
+        async for item in request.items.all():
+            csv_writer.writerow([item.address, json.dumps(item.result)])
 
-        # Upload to S3
-        s3_client = get_s3_client()
-        await sync_to_async(s3_client.put_object)(
-            Bucket=BULK_SCORE_REQUESTS_BUCKET_NAME,
-            Key=f"{BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER}/{filename}",
-            Body=csv_buffer.getvalue().encode("utf-8"),
-            ContentType="text/csv",
-        )
-        self.stdout.write(self.style.SUCCESS(f"Uploaded results to S3: {filename}"))
+        filename = f"request_id_{request.id}.csv"
+
+        # Create a ContentFile
+        content_file = ContentFile(csv_buffer.getvalue(), name=filename)
+
+        request.results_file = content_file

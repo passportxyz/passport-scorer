@@ -34,18 +34,18 @@ export function createS3InitiatedECSTask({
     eventbridge: true,
   });
 
-  const folders = ["address-lists/", "model-score-results/"];
-  folders.forEach((folder) => {
-    new aws.s3.BucketObject(`${folder}`, {
-      bucket: bucket.id,
-      key: folder,
-      content: "",
-      tags: {
-        ...defaultTags,
-        Name: folder,
-      },
-    });
-  });
+  // const folders = ["batch_model_scoring_request/triggers/"];
+  // folders.forEach((folder) => {
+  //   new aws.s3.BucketObject(`${folder}`, {
+  //     bucket: bucket.id,
+  //     key: folder,
+  //     content: "",
+  //     tags: {
+  //       ...defaultTags,
+  //       Name: folder,
+  //     },
+  //   });
+  // });
 
   // Create EventBridge rule
   const rule = new aws.cloudwatch.EventRule("s3-to-ecs-rule", {
@@ -59,7 +59,7 @@ export function createS3InitiatedECSTask({
         object: {
           key: [
             {
-              prefix: "address-lists/",
+              prefix: "batch_model_scoring_request/triggers/",
             },
           ],
         },

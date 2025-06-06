@@ -1,24 +1,25 @@
 import csv
-import io
+import json
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from io import StringIO
 
 import boto3
 from asgiref.sync import async_to_sync
 from django import forms
-from django.conf import settings
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
-from django.http import HttpResponse
+from django.core.files.base import ContentFile
 from django.shortcuts import redirect, render
+from django.template.response import TemplateResponse
 from django.urls import path
+from django.utils.timesince import timesince
 
 from registry.api.schema import SubmitPassportPayload
 from registry.api.v1 import ahandle_submit_passport
 from registry.models import (
     BatchModelScoringRequest,
-    BatchRequestStatus,
+    BatchModelScoringRequestItem,
     Event,
     GTCStakeEvent,
     HashScorerLink,
@@ -28,11 +29,6 @@ from registry.models import (
 )
 from registry.weight_models import WeightConfiguration, WeightConfigurationItem
 from scorer.scorer_admin import ScorerModelAdmin
-from scorer.settings import (
-    BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER,
-    BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER,
-    BULK_SCORE_REQUESTS_BUCKET_NAME,
-)
 
 ONE_HOUR = 60 * 60
 
@@ -185,73 +181,205 @@ class GTCStakeEventAdmin(ScorerModelAdmin):
     ]
 
 
-class BatchModelScoringRequestCsvImportForm(forms.Form):
-    models = forms.CharField(
-        max_length=100,
-        required=True,
-        help_text='Example: "nft,ethereum_activity"',
-    )
-    address_list = forms.FileField(required=True)
-
-
 @admin.register(BatchModelScoringRequest)
 class BatchModelScoringRequestAdmin(ScorerModelAdmin):
-    change_list_template = "registry/batch_model_scoring_request_changelist.html"
-    list_display = ["id", "created_at"]
+    list_display = [
+        "id",
+        "created_at",
+        "model_list",
+        "last_progress_update",
+        "last_progress_update_timedelta",
+        "progress",
+        "status",
+    ]
+    # readonly_fields = [
+    #     field.name for field in BatchModelScoringRequest._meta.get_fields()
+    # ] + ["address_list", "results"]
     readonly_fields = [
-        field.name for field in BatchModelScoringRequest._meta.get_fields()
-    ] + ["address_list", "results"]
+        "trigger_processing_file",
+        "status",
+        "progress",
+        "last_progress_update",
+        "results_file",
+    ]
 
-    def address_list(self, obj):
-        object_name = f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/{obj.s3_filename}"
-        return get_s3_client().generate_presigned_url(
-            "get_object",
-            Params={"Bucket": BULK_SCORE_REQUESTS_BUCKET_NAME, "Key": object_name},
-            ExpiresIn=ONE_HOUR,
-        )
-
-    def results(self, obj):
-        if obj.status != BatchRequestStatus.DONE:
-            return None
-
-        object_name = f"{BULK_MODEL_SCORE_REQUESTS_RESULTS_FOLDER}/{obj.s3_filename}"
-        return get_s3_client().generate_presigned_url(
-            "get_object",
-            Params={"Bucket": BULK_SCORE_REQUESTS_BUCKET_NAME, "Key": object_name},
-            ExpiresIn=ONE_HOUR,
-        )
+    def last_progress_update_timedelta(self, obj):
+        if obj.last_progress_update:
+            return (
+                timesince(obj.last_progress_update, datetime.now(timezone.utc)) + " ago"
+            )
+        else:
+            return " - "
 
     def get_urls(self):
-        return [
-            path("import-csv/", self.import_csv),
-        ] + super().get_urls()
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "custom-action-confirm-score/",
+                self.admin_site.admin_view(self.custom_confirm_rescore_view),
+                name="custom_action_confirm_score",
+            ),
+            path(
+                "custom-action-confirm-rescore-errors/",
+                self.admin_site.admin_view(self.custom_confirm_rescore_errors_view),
+                name="custom_action_confirm_rescore_errors",
+            ),
+            path(
+                "custom-action-confirm-rescore-all/",
+                self.admin_site.admin_view(self.custom_confirm_rescore_all_view),
+                name="custom_action_confirm_rescore_all",
+            ),
+        ]
+        return custom_urls + urls
 
-    def import_csv(self, request):
-        if request.method == "POST":
-            filename = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
-            object_name = f"{BULK_SCORE_REQUESTS_ADDRESS_LIST_FOLDER}/{filename}"
+    def custom_confirm_rescore_view(self, request):
+        # Get query params
+        next = request.GET.get("next")
+        obj_id = request.GET.get("id")
+        confirm = request.GET.get("confirm") == "confirm"
+        cancel = request.GET.get("cancel") == "cancel"
 
-            get_s3_client().upload_fileobj(
-                request.FILES["address_list"],
-                BULK_SCORE_REQUESTS_BUCKET_NAME,
-                object_name,
+        if cancel:
+            self.message_user(
+                request,
+                f"Scoring for request with id '{obj_id}' has been canceled",
+                level=messages.WARNING,
+                extra_tags="",
+                fail_silently=False,
             )
+            return redirect(next)
 
-            obj = BatchModelScoringRequest.objects.create(
-                model_list=request.POST.get("models"),
-                s3_filename=filename,
-                status=BatchRequestStatus.PENDING,
+        if confirm:
+            self.message_user(
+                request,
+                f"Scoring for request with id '{obj_id}' has been triggered",
+                level=messages.SUCCESS,
+                extra_tags="",
+                fail_silently=False,
             )
+            obj = BatchModelScoringRequest.objects.get(id=obj_id)
+            obj.trigger_processing_file = ContentFile(
+                json.dumps(
+                    {"action": "score", "batch_model_scoring_request_id": obj_id}
+                ),
+                name=f"{obj_id}_score.json",
+            )
+            obj.save()
+            return redirect(next)
 
-            return redirect(f"../{obj.pk}/change/")
-
-        form = BatchModelScoringRequestCsvImportForm()
-        payload = {"form": form}
-        return render(
-            request,
-            "registry/batch_model_scoring_request_csv_import_form.html",
-            payload,
+        context = dict(
+            self.admin_site.each_context(request),
+            title="Confirm scoring of pending items",
+            next=next,
+            id=obj_id,
         )
+        return TemplateResponse(
+            request,
+            "admin/registry/batchmodelscoringrequest/custom_action_confirm.html",
+            context,
+        )
+
+    def custom_confirm_rescore_errors_view(self, request):
+        next = request.GET.get("next")
+        obj_id = request.GET.get("id")
+        confirm = request.GET.get("confirm") == "confirm"
+        cancel = request.GET.get("cancel") == "cancel"
+
+        if cancel:
+            self.message_user(
+                request,
+                f"Rescoring errored items for request with id '{obj_id}' has been canceled",
+                level=messages.WARNING,
+                extra_tags="",
+                fail_silently=False,
+            )
+            return redirect(next)
+
+        if confirm:
+            self.message_user(
+                request,
+                f"Rescoring errored items for request with id '{obj_id}' has been triggered",
+                level=messages.SUCCESS,
+                extra_tags="",
+                fail_silently=False,
+            )
+            obj = BatchModelScoringRequest.objects.get(id=obj_id)
+            obj.trigger_processing_file = ContentFile(
+                json.dumps(
+                    {
+                        "action": "score_errors",
+                        "batch_model_scoring_request_id": obj_id,
+                    }
+                ),
+                name=f"{obj_id}_score_errors.json",
+            )
+            obj.save()
+            return redirect(next)
+
+        context = dict(
+            self.admin_site.each_context(request),
+            title="Confirm rescoring of errored items",
+            next=next,
+            id=obj_id,
+        )
+        return TemplateResponse(
+            request,
+            "admin/registry/batchmodelscoringrequest/custom_action_confirm.html",
+            context,
+        )
+
+    def custom_confirm_rescore_all_view(self, request):
+        next = request.GET.get("next")
+        obj_id = request.GET.get("id")
+        confirm = request.GET.get("confirm") == "confirm"
+        cancel = request.GET.get("cancel") == "cancel"
+
+        if cancel:
+            self.message_user(
+                request,
+                f"Rescoring all items for request with id '{obj_id}' has been canceled",
+                level=messages.WARNING,
+                extra_tags="",
+                fail_silently=False,
+            )
+            return redirect(next)
+
+        if confirm:
+            self.message_user(
+                request,
+                f"Rescoring all items for request with id '{obj_id}' has been triggered",
+                level=messages.SUCCESS,
+                extra_tags="",
+                fail_silently=False,
+            )
+            obj = BatchModelScoringRequest.objects.get(id=obj_id)
+            obj.trigger_processing_file = ContentFile(
+                json.dumps(
+                    {"action": "score_all", "batch_model_scoring_request_id": obj_id}
+                ),
+                name=f"{obj_id}_score_all.json",
+            )
+            obj.save()
+            return redirect(next)
+
+        context = dict(
+            self.admin_site.each_context(request),
+            title="Confirm rescoring all items",
+            next=next,
+            id=obj_id,
+        )
+        return TemplateResponse(
+            request,
+            "admin/registry/batchmodelscoringrequest/custom_action_confirm.html",
+            context,
+        )
+
+
+@admin.register(BatchModelScoringRequestItem)
+class BatchModelScoringRequestItemAdmin(ScorerModelAdmin):
+    list_display = ["id", "batch_scoring_request", "address", "status"]
+    list_filter = ["batch_scoring_request"]
+    search_fields = ("address",)
 
 
 class WeightConfigurationItemInline(admin.TabularInline):
