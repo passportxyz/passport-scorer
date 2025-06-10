@@ -1,6 +1,7 @@
 import json
 from copy import deepcopy
 from datetime import datetime
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -58,15 +59,16 @@ class TestBulkStampUpdates:
         sorted_sample_stamps = sorted(sample_stamps, key=lambda x: x["issuanceDate"])
 
         # Verify the returned score
+        assert "last_score_timestamp" in score
+        del score["last_score_timestamp"]
         assert score == {
             "address": sample_address.lower(),
             "error": None,
-            "evidence": None,
-            "expiration_date": None,
-            "last_score_timestamp": None,
-            "score": None,
-            "stamp_scores": {},
-            "status": "DONE",
+            "expiration_timestamp": None,
+            "score": "0.00000",
+            "stamps": {},
+            "threshold": "20.00000",
+            "passing_score": False,
         }
 
         # Verify the returned stamps
@@ -169,15 +171,16 @@ class TestBulkStampUpdates:
 
         assert len(stamps) == len(sample_providers)
 
+        assert "last_score_timestamp" in score
+        del score["last_score_timestamp"]
         assert score == {
             "address": sample_address.lower(),
             "error": None,
-            "evidence": None,
-            "expiration_date": None,
-            "last_score_timestamp": None,
-            "score": None,
-            "stamp_scores": {},
-            "status": "DONE",
+            "expiration_timestamp": None,
+            "stamps": {},
+            "threshold": "20.00000",
+            "score": "0.00000",
+            "passing_score": False,
         }
 
         sorted_stamps_returned = sorted(
@@ -295,15 +298,16 @@ class TestBulkStampUpdates:
 
         assert len(stamps) == len(sample_providers)
 
+        assert "last_score_timestamp" in score
+        del score["last_score_timestamp"]
         assert score == {
             "address": sample_address.lower(),
             "error": None,
-            "evidence": None,
-            "expiration_date": None,
-            "last_score_timestamp": None,
-            "score": None,
-            "stamp_scores": {},
-            "status": "DONE",
+            "expiration_timestamp": None,
+            "score": "0.00000",
+            "stamps": {},
+            "threshold": "20.00000",
+            "passing_score": False,
         }
 
         sorted_stamps_returned = sorted(
