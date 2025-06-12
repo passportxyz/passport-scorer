@@ -25,8 +25,11 @@ def _handler(event, _context, request, user_account, body):
     address = split_url[-1]
     scorer_id = split_url[-3]
 
-    if scorer_id < 0:
-        scorer_id = settings.DEMO_API_SCORER_ID
+    try:
+        if int(scorer_id) < 0:
+            scorer_id = settings.DEMO_API_SCORER_ID
+    except ValueError:
+        pass
 
     return async_to_sync(handle_scoring_for_account)(address, scorer_id, user_account)
 

@@ -334,7 +334,9 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
         analysis_tier_waf_json = json.dumps(analysis_tier_waf_rule, indent=3)
         self.upload_to_s3(analysis_tier_waf_json, file_name)
 
-    def manage_unlimited_waf_rule(self, name, priority, label, file_name):
+    def manage_unlimited_waf_rule(
+        self, name, priority, label, file_name, extra_keys=[]
+    ):
         # [ALLOW] Create rule for the unlimited keys
         ###################################################################################
         active_unlimited_keys = AccountAPIKey.objects.filter(
@@ -351,11 +353,28 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             active_unlimited_statements = self.generate_statements(
                 active_unlimited_keys
             )
-            if len(active_unlimited_statements) == 1:
+            if len(active_unlimited_statements) + len(extra_keys) == 1:
                 active_unlimited_condition = active_unlimited_statements[0]
             else:
                 active_unlimited_condition = {
-                    "OrStatement": {"Statements": active_unlimited_statements}
+                    "OrStatement": {
+                        "Statements": active_unlimited_statements
+                        + [
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": ekey,
+                                    "FieldToMatch": {
+                                        "SingleHeader": {"Name": "x-api-key"}
+                                    },
+                                    "TextTransformations": [
+                                        {"Priority": 0, "Type": "NONE"}
+                                    ],
+                                    "PositionalConstraint": "EXACTLY",
+                                }
+                            }
+                            for ekey in extra_keys
+                        ]
+                    }
                 }
 
             active_unlimited_waf_rule = {
@@ -549,6 +568,7 @@ class AccountAPIKeyAdmin(APIKeyAdmin):
             priority=110,
             label="Unlimited",
             file_name="0110_unlimited_label_rule.json",
+            extra_keys=["DEMO_API_KEY"],
         )
 
         # Create rule for the Tier 3 keys

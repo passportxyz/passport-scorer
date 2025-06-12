@@ -132,8 +132,11 @@ def format_v2_score_response(
 async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreResponse:
     check_rate_limit(request)
 
-    if scorer_id < 0:
-        scorer_id = settings.DEMO_API_SCORER_ID
+    try:
+        if int(scorer_id) < 0:
+            scorer_id = settings.DEMO_API_SCORER_ID
+    except ValueError:
+        pass
 
     try:
         return await handle_scoring_for_account(address, str(scorer_id), request.auth)
@@ -206,8 +209,11 @@ def get_score_history(
 
     check_rate_limit(request)
 
-    if scorer_id < 0:
-        scorer_id = settings.DEMO_API_SCORER_ID
+    try:
+        if int(scorer_id) < 0:
+            scorer_id = settings.DEMO_API_SCORER_ID
+    except ValueError:
+        pass
 
     community = api_get_object_or_404(Community, id=scorer_id, account=request.auth)
 
