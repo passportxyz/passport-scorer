@@ -131,6 +131,10 @@ def format_v2_score_response(
 @atrack_apikey_usage(track_response=True)
 async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreResponse:
     check_rate_limit(request)
+
+    if scorer_id < 0:
+        scorer_id = settings.DEMO_API_SCORER_ID
+
     try:
         return await handle_scoring_for_account(address, str(scorer_id), request.auth)
     except APIException as e:
@@ -201,6 +205,10 @@ def get_score_history(
         raise CreatedAtIsRequiredException()
 
     check_rate_limit(request)
+
+    if scorer_id < 0:
+        scorer_id = settings.DEMO_API_SCORER_ID
+
     community = api_get_object_or_404(Community, id=scorer_id, account=request.auth)
 
     try:
