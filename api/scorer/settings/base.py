@@ -508,6 +508,6 @@ SYSTEM_TESTS_MAX_AGE_BEFORE_OUTDATED = env.float(
 )
 
 
-DEMO_API_KEY = env("DEMO_API_KEY", None)
-DEMO_API_SCORER_ID = env("DEMO_API_SCORER_ID", None)
+DEMO_API_KEY = env("DEMO_API_KEY", default=None)
+DEMO_API_SCORER_ID = env("DEMO_API_SCORER_ID", default=None)
 DEMO_API_KEY_ALIASES = env.json("DEMO_API_KEY_ALIASES", default=[])
