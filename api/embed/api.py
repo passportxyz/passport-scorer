@@ -1,6 +1,7 @@
 from typing import Any, List
 
 from asgiref.sync import async_to_sync
+from django.conf import settings
 from ninja import Router, Schema
 from ninja_extra import NinjaExtraAPI
 
@@ -90,6 +91,12 @@ def handle_get_score(scorer_id: str, address: str) -> GetStampsWithV2ScoreRespon
     """
     Get the score for a given address and scorer_id
     """
+    try:
+        if int(scorer_id) < 0:
+            scorer_id = settings.DEMO_API_SCORER_ID
+    except ValueError:
+        pass
+
     address_lower = address.lower()
 
     user_account = Community.objects.get(id=scorer_id).account
