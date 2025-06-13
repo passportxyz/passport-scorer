@@ -93,6 +93,7 @@ import api_logging as logging  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
+from django.conf import settings
 from django.http import HttpRequest  # noqa: E402
 from django_ratelimit.exceptions import Ratelimited  # noqa: E402
 from ninja_extra.exceptions import APIException
@@ -250,6 +251,8 @@ def with_api_request_exception_handling(func):
 
             # Authenticate the API request
             api_key = sensitive_data.get("x-api-key", "")
+            if api_key in settings.DEMO_API_KEY_ALIASES:
+                api_key = settings.DEMO_API_KEY
             api_key_instance = ApiKey()
             request = lambda_to_django_request(api_key, event)
 

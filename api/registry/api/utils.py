@@ -195,6 +195,8 @@ class ApiKey(APIKeyHeader):
                 raise Unauthorized()
 
         try:
+            if key in settings.DEMO_API_KEY_ALIASES:
+                key = settings.DEMO_API_KEY
             api_key = AccountAPIKey.objects.get_from_key(key)
             request.api_key = api_key
             user_account = api_key.account
@@ -243,6 +245,8 @@ async def aapi_key(request):
     param_name = "X-API-Key"
     headers = request.headers
     key = headers.get(param_name)
+    if key in settings.DEMO_API_KEY_ALIASES:
+        key = settings.DEMO_API_KEY
 
     if not key:
         auth_header = request.META.get("HTTP_AUTHORIZATION", "")

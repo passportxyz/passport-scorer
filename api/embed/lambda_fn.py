@@ -33,6 +33,7 @@ from aws_lambdas.utils import (
 )
 
 """ Load the django apps after the aws_lambdas.utils """  # pylint: disable=pointless-string-statement
+from django.conf import settings
 from django.db import close_old_connections
 
 from account.models import AccountAPIKey, Community
@@ -151,6 +152,13 @@ def _handler_save_stamps(event, _context, body, _sensitive_date):
     """
 
     add_stamps_payload = AddStampsPayload(**body)
+
+    try:
+        if int(add_stamps_payload.scorer_id) < 0:
+            add_stamps_payload.scorer_id = settings.DEMO_API_SCORER_ID
+    except ValueError:
+        pass
+
     _address = get_path_params(event, pattern_internal_save_stamps)["address"]
     address_lower = validate_address_and_convert_to_lowercase(_address)
 
@@ -171,7 +179,12 @@ def lambda_handler_save_stamps(*args, **kwargs):
 @with_embed_request_exception_handling
 def _handler_get_rate_limit(_event, _context, body, sensitive_date):
     try:
-        api_key = AccountAPIKey.objects.get_from_key(sensitive_date["x-api-key"])
+        key = sensitive_date["x-api-key"]
+
+        if key in settings.DEMO_API_KEY_ALIASES:
+            key = settings.DEMO_API_KEY
+
+        api_key = AccountAPIKey.objects.get_from_key(key)
     except AccountAPIKey.DoesNotExist as exc:
         raise Unauthorized() from exc
 

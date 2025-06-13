@@ -3,6 +3,7 @@ This module provides a handler to manage API requests in AWS Lambda.
 """
 
 from asgiref.sync import async_to_sync
+from django.conf import settings
 from django.db import close_old_connections
 
 from aws_lambdas.utils import (
@@ -23,6 +24,13 @@ def _handler(event, _context, request, user_account, body):
     split_url = event["path"].split("/")
     address = split_url[-1]
     scorer_id = split_url[-3]
+
+    try:
+        if int(scorer_id) < 0:
+            scorer_id = settings.DEMO_API_SCORER_ID
+    except ValueError:
+        pass
+
     return async_to_sync(handle_scoring_for_account)(address, scorer_id, user_account)
 
 
