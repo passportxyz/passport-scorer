@@ -715,6 +715,7 @@ class CustomizationAdmin(ScorerModelAdmin):
                     "scorer_panel_text",
                     "scorer",
                     "use_custom_dashboard_panel",
+                    "custom_dashboard_panel_title",
                     "show_explanation_panel",
                 ],
             },
