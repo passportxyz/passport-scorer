@@ -65,14 +65,16 @@ ON CONFLICT DO NOTHING;
 ## Implementation Notes
 
 ### Multiplier Handling
-- Check if minting address exists in `HumanPointsMultiplier` table
+- **IMPORTANT**: Check if minting address exists in `registry_humanpointsmultiplier` table
 - If exists, multiply points by the multiplier value before insertion
+- If not exists, use default multiplier of 1 (no multiplication)
 - Query: `SELECT multiplier FROM registry_humanpointsmultiplier WHERE address = $1`
+- Apply multiplication BEFORE inserting into database
 
 ### Data to Extract from Events
-- `address`: The minter's address (convert to lowercase)
+- `address`: The minter's address (**MUST convert to lowercase** for consistency)
 - `tx_hash`: Transaction hash for deduplication
-- `timestamp`: Block timestamp
+- `timestamp`: **Use block timestamp from the event**, NOT current time
 - `chain_id`: For identifying which chain the mint occurred on
 
 ### Database Writes
@@ -85,17 +87,38 @@ ON CONFLICT DO NOTHING;
 ```rust
 // Pseudo-code
 on_passport_mint_event(event) {
+    // CRITICAL: Always lowercase addresses
     let address = event.minter.to_lowercase();
-    let multiplier = get_multiplier(address).unwrap_or(1);
+    
+    // Query multiplier from database
+    let multiplier = match get_multiplier(&address).await {
+        Some(m) => m,
+        None => 1,  // Default multiplier if not in table
+    };
+    
+    // Apply multiplier to base points
     let points = 300 * multiplier;
     
+    // Use block timestamp, not system time
     insert_points(
         address,
         "passport_mint",
         points,
-        event.timestamp,
+        event.block_timestamp,  // NOT Utc::now()
         event.tx_hash
     );
+}
+
+async fn get_multiplier(address: &str) -> Option<i32> {
+    // Query: SELECT multiplier FROM registry_humanpointsmultiplier WHERE address = $1
+    sqlx::query_scalar!(
+        "SELECT multiplier FROM registry_humanpointsmultiplier WHERE address = $1",
+        address
+    )
+    .fetch_optional(&pool)
+    .await
+    .ok()
+    .flatten()
 }
 ```
 
