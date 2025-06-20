@@ -332,3 +332,49 @@ class BatchModelScoringRequestItem(models.Model):
 
     class Meta:
         unique_together = ["batch_scoring_request", "address"]
+
+
+class HumanPointProgramStats(models.Model):
+    """Tracks passing scores for addresses in the Human Points Program"""
+    address = models.CharField(max_length=100, primary_key=True, db_index=True)
+    passing_scores = models.IntegerField(default=0)
+    
+    class Meta:
+        verbose_name = "Human Point Program Stats"
+        verbose_name_plural = "Human Point Program Stats"
+    
+    def __str__(self):
+        return f"HumanPointProgramStats - {self.address}: {self.passing_scores} passing scores"
+
+
+class HumanPoints(models.Model):
+    """Records individual human points earned by addresses"""
+    address = models.CharField(max_length=100, db_index=True)
+    action = models.CharField(max_length=50)
+    points = models.IntegerField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    tx_hash = models.CharField(max_length=100, null=True, blank=True)
+    
+    class Meta:
+        verbose_name = "Human Point"
+        verbose_name_plural = "Human Points"
+        indexes = [
+            models.Index(fields=['address', 'action']),
+            models.Index(fields=['timestamp']),
+        ]
+    
+    def __str__(self):
+        return f"HumanPoints - {self.address}: {self.points} points for {self.action}"
+
+
+class HumanPointsMultiplier(models.Model):
+    """Stores multipliers for addresses in the Human Points Program"""
+    address = models.CharField(max_length=100, primary_key=True)
+    multiplier = models.IntegerField(default=2)
+    
+    class Meta:
+        verbose_name = "Human Points Multiplier"
+        verbose_name_plural = "Human Points Multipliers"
+    
+    def __str__(self):
+        return f"HumanPointsMultiplier - {self.address}: {self.multiplier}x"

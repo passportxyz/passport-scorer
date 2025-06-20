@@ -9,8 +9,37 @@ The indexer will track two types of on-chain events:
 2. **Holonym SBT Mints** - Track only on Optimism
 
 ## Database Integration
-Write directly to the `HumanPoints` table in the scorer database:
+Write directly to the `registry_humanpoints` table in the scorer database.
 
+### Table Structure
+```sql
+-- Main points tracking table
+CREATE TABLE registry_humanpoints (
+    id BIGSERIAL PRIMARY KEY,
+    address VARCHAR(100) NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    points INTEGER NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    tx_hash VARCHAR(100)
+);
+
+-- Indexes
+CREATE INDEX registry_hu_address_5fea1a_idx ON registry_humanpoints(address, action);
+CREATE INDEX registry_hu_timesta_7c6e55_idx ON registry_humanpoints(timestamp);
+
+-- Unique constraints for deduplication
+CREATE UNIQUE INDEX idx_mint_actions 
+ON registry_humanpoints(address, action, tx_hash) 
+WHERE action IN ('passport_mint', 'holonym_mint');
+
+-- Multiplier lookup table
+CREATE TABLE registry_humanpointsmultiplier (
+    address VARCHAR(100) PRIMARY KEY,
+    multiplier INTEGER NOT NULL DEFAULT 2
+);
+```
+
+### Insert Query
 ```sql
 INSERT INTO registry_humanpoints (address, action, points, timestamp, tx_hash)
 VALUES ($1, $2, $3, $4, $5)

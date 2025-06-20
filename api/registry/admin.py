@@ -23,6 +23,9 @@ from registry.models import (
     Event,
     GTCStakeEvent,
     HashScorerLink,
+    HumanPointProgramStats,
+    HumanPoints,
+    HumanPointsMultiplier,
     Passport,
     Score,
     Stamp,
@@ -469,3 +472,31 @@ class WeightConfigurationAdmin(admin.ModelAdmin):
 
 
 admin.site.register(WeightConfigurationItem)
+
+
+@admin.register(HumanPointProgramStats)
+class HumanPointProgramStatsAdmin(ScorerModelAdmin):
+    list_display = ["address", "passing_scores"]
+    search_fields = ["address"]
+    ordering = ["-passing_scores", "address"]
+
+
+@admin.register(HumanPoints)
+class HumanPointsAdmin(ScorerModelAdmin):
+    list_display = ["address", "action", "points", "timestamp", "tx_hash"]
+    list_filter = ["action", "timestamp"]
+    search_fields = ["address", "tx_hash"]
+    ordering = ["-timestamp"]
+    date_hierarchy = "timestamp"
+    readonly_fields = ["timestamp"]
+    
+    def has_add_permission(self, request):
+        # Prevent manual addition through admin
+        return False
+
+
+@admin.register(HumanPointsMultiplier)
+class HumanPointsMultiplierAdmin(ScorerModelAdmin):
+    list_display = ["address", "multiplier"]
+    search_fields = ["address"]
+    ordering = ["address"]

@@ -85,6 +85,7 @@ class CommunityAdmin(ScorerModelAdmin):
         "account",
         "scorer_link",
         "use_case",
+        "human_points_program",
         "deleted_at",
     )
     raw_id_fields = ("account", "scorer")
@@ -96,6 +97,7 @@ class CommunityAdmin(ScorerModelAdmin):
         "deleted_at",
     )
     readonly_fields = ("scorer_link",)
+    list_filter = ("human_points_program",)
     actions = [recalculate_scores]
 
     def scorer_link(self, obj):
