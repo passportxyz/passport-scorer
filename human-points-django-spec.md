@@ -3,6 +3,19 @@
 ## Overview
 Implement a points tracking system for the Human Points Program that rewards users for various Gitcoin Passport actions.
 
+## Progress Status
+- ✅ Models created (HumanPointProgramStats, HumanPoints, HumanPointsMultiplier)
+- ✅ Community model updated with human_points_program field
+- ✅ Migrations created with unique constraints
+- ✅ Admin interfaces configured
+- ✅ Comprehensive test suite created:
+  - test_human_points_models.py - Model functionality tests
+  - test_human_points_scoring_integration.py - Async scoring integration tests
+  - test_human_points_constraints.py - Database constraint tests
+  - test_human_points_api_response.py - API response tests (pending implementation)
+- ⏳ Scoring integration in atasks.py (not implemented)
+- ⏳ API endpoint updates (not implemented)
+
 ## Database Models
 
 ### 1. Update Community Model
