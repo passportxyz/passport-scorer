@@ -20,7 +20,6 @@ CREATE TABLE registry_humanpoints (
     action VARCHAR(3) NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     tx_hash VARCHAR(100),
-    community_id INTEGER,  -- For mint actions, the community ID
     chain_id INTEGER       -- For mint actions, the blockchain ID
 );
 
@@ -38,12 +37,12 @@ WHERE action IN ('passport_mint', 'holonym_mint');
 
 ### Insert Query
 ```sql
--- For mint actions (PMT, HIM) with community and chain info
-INSERT INTO registry_humanpoints (address, action, timestamp, tx_hash, community_id, chain_id)
-VALUES ($1, $2, $3, $4, $5, $6)
+-- For mint actions (PMT, HIM) with chain info
+INSERT INTO registry_humanpoints (address, action, timestamp, tx_hash, chain_id)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT DO NOTHING;
 
--- For actions without community/chain info
+-- For actions without chain info
 INSERT INTO registry_humanpoints (address, action, timestamp, tx_hash)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT DO NOTHING;
@@ -53,15 +52,38 @@ ON CONFLICT DO NOTHING;
 
 ### 1. Passport Mints
 - **Action Code**: `PMT` (3-character code)
-- **Chains**: [TO BE FILLED - list of chains where passport can be minted]
-- **Contract**: [TO BE FILLED]
-- **Event**: [TO BE FILLED]
+
+Chain ID | Chain Descr. | EAS Address | schema UID
+0xa | OP Mainnet | 0x4200000000000000000000000000000000000021 | 0xda0257756063c891659fed52fd36ef7557f7b45d66f59645fd3c3b263b747254
+0xe708 | Linea | 0xaEF4103A04090071165F78D45D83A0C0782c2B2a | 0xa15ea01b11913fd412243156b40a8d5102ee9784172f82f9481e4c953fdd516d
+0xa4b1 | Arbitrum | 0xbD75f629A22Dc1ceD33dDA0b68c546A1c035c458 | 0x1f3dce6501d8aad23563c0cf4f0c32264aed9311cb050056ebf72774f89ba912
+0x144 | zkSync Era | 0x21d8d4eE83b80bc0Cc0f2B7df3117Cf212d02901 | 0xb68405dffc0b727188de5a3af2ecbbc544ab01aef5353409c5006ffff342d143
+0x82750 | Scroll | 0xC47300428b6AD2c7D03BB76D05A176058b47E6B0 | 0x1f3dce6501d8aad23563c0cf4f0c32264aed9311cb050056ebf72774f89ba912
+0x168 | Shape | 0x4200000000000000000000000000000000000021 | 0x1f3dce6501d8aad23563c0cf4f0c32264aed9311cb050056ebf72774f89ba912
+0x2105 | Base | 0x4200000000000000000000000000000000000021 | 0x1f3dce6501d8aad23563c0cf4f0c32264aed9311cb050056ebf72774f89ba912
+
+Watch the EAS contract for Attested events emitted when the attester calls EAS.
+Attestations are only accepted by the resolver if valid, so no need to validate or check sender.
+
+**EAS Attested Event Structure:**
+```solidity
+event Attested(
+    address indexed recipient,  // The address receiving the attestation (passport holder)
+    address indexed attester,   // The attester's address
+    bytes32 uid,               // Unique attestation identifier
+    bytes32 indexed schemaUID  // Must match the schema UID for each chain
+);
+```
+
+Extract the `recipient` address as the minter for passport mint tracking.
 
 ### 2. Holonym SBT Mints (Human ID)
 - **Action Code**: `HIM` (3-character code)
 - **Chain**: Optimism only
-- **Contract**: [TO BE FILLED]
-- **Event**: [TO BE FILLED]
+
+Contract address: 0x2AA822e264F8cc31A2b9C22f39e5551241e94DfB
+
+This inherits from IERC721 and emits a Transfer event when a new SBT is minted. These should each count as an SBT mint action.
 
 ## Implementation Notes
 
@@ -76,7 +98,6 @@ ON CONFLICT DO NOTHING;
 - `tx_hash`: Transaction hash for deduplication
 - `timestamp`: **Use block timestamp from the event**, NOT current time
 - `chain_id`: For identifying which chain the mint occurred on
-- `community_id`: **NEW** - For mint actions, extract the community ID from the event (if available)
 
 ### Database Writes
 - Use the existing database connection pool
@@ -91,16 +112,12 @@ on_passport_mint_event(event) {
     // CRITICAL: Always lowercase addresses
     let address = event.minter.to_lowercase();
     
-    // Extract community_id from event (implementation depends on event structure)
-    let community_id = event.community_id; // or however it's encoded in the event
-    
     // Use block timestamp, not system time
     insert_action(
         address,
         "PMT",                  // 3-character action code
         event.block_timestamp,  // NOT Utc::now()
         event.tx_hash,
-        Some(community_id),     // community ID
         Some(chain_id)          // chain ID
     );
 }
@@ -109,16 +126,12 @@ on_human_id_mint_event(event) {
     // CRITICAL: Always lowercase addresses
     let address = event.minter.to_lowercase();
     
-    // Extract community_id if available
-    let community_id = event.community_id;
-    
     // Use block timestamp, not system time
     insert_action(
         address,
         "HIM",                  // 3-character action code for Human ID mint
         event.block_timestamp,  // NOT Utc::now()
         event.tx_hash,
-        Some(community_id),
         Some(10)                // Optimism chain ID
     );
 }
@@ -136,7 +149,7 @@ The Django models have been refactored:
 - `HumanPointProgramStats` replaced with `HumanPointProgramScores`
 - The scoring system now tracks which specific communities an address has passing scores in
 - This ensures proper enforcement of the "3 different approved communities" requirement
-- The indexer only needs to populate `community_id` and `chain_id` fields - score tracking is handled by the scoring system
+- The indexer only needs to populate the `chain_id` field - score tracking is handled by the scoring system
 
 ## Temporary Nature
 This implementation is temporary for the points program duration. Consider:
@@ -147,5 +160,5 @@ This implementation is temporary for the points program duration. Consider:
 ## Testing
 - Test duplicate handling (same tx_hash)
 - Test multi-chain passport mint tracking
-- Test community_id and chain_id population for mint events
+- Test chain_id population for mint events
 - Test correct 3-character action codes (PMT, HIM)
