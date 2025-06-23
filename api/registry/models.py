@@ -334,17 +334,23 @@ class BatchModelScoringRequestItem(models.Model):
         unique_together = ["batch_scoring_request", "address"]
 
 
-class HumanPointProgramStats(models.Model):
-    """Tracks passing scores for addresses in the Human Points Program"""
-    address = models.CharField(max_length=100, primary_key=True, db_index=True)
-    passing_scores = models.IntegerField(default=0)
+class HumanPointProgramScores(models.Model):
+    """Tracks which communities an address has achieved passing scores in"""
+    address = models.CharField(max_length=100, db_index=True)
+    community = models.ForeignKey(
+        Community, related_name="human_point_scores", on_delete=models.CASCADE
+    )
     
     class Meta:
-        verbose_name = "Human Point Program Stats"
-        verbose_name_plural = "Human Point Program Stats"
+        verbose_name = "Human Point Program Score"
+        verbose_name_plural = "Human Point Program Scores"
+        unique_together = ["address", "community"]
+        indexes = [
+            models.Index(fields=['address']),
+        ]
     
     def __str__(self):
-        return f"HumanPointProgramStats - {self.address}: {self.passing_scores} passing scores"
+        return f"HumanPointProgramScores - {self.address} passed in {self.community.name}"
 
 
 class HumanPoints(models.Model):
@@ -354,6 +360,8 @@ class HumanPoints(models.Model):
     points = models.IntegerField()
     timestamp = models.DateTimeField(auto_now_add=True)
     tx_hash = models.CharField(max_length=100, null=True, blank=True)
+    community_id = models.IntegerField(null=True, blank=True, help_text="Community ID for mint actions")
+    chain_id = models.IntegerField(null=True, blank=True, help_text="Chain ID for mint actions")
     
     class Meta:
         verbose_name = "Human Point"
