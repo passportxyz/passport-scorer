@@ -389,8 +389,6 @@ impl PostgresClient {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_placeholder() {
         // Placeholder test - we'll implement proper SQL generation tests

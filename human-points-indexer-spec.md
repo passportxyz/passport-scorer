@@ -162,3 +162,46 @@ This implementation is temporary for the points program duration. Consider:
 - Test multi-chain passport mint tracking
 - Test chain_id population for mint events
 - Test correct 3-character action codes (PMT, HIM)
+
+## Implementation Progress
+
+### Completed ✅
+1. **Test Framework Refactoring**
+   - Created `sql_generation.rs` module with pure functions for SQL generation
+   - Removed complex mocking in favor of testable pure functions
+   - All SQL generation is now separate from database connections
+
+2. **SQL Generation Functions**
+   - Implemented `generate_human_points_sql()` for Human Points inserts
+   - Supports both passport mints (PMT) and Holonym mints (HIM)
+   - Handles optional chain_id parameter
+   - Ensures address lowercasing
+   - Uses `ON CONFLICT DO NOTHING` for deduplication
+
+3. **Comprehensive Test Coverage**
+   - Tests for all staking event types (existing functionality)
+   - Tests for Human Points SQL generation:
+     - Passport mint with chain_id
+     - Holonym SBT mint
+     - Address lowercase conversion
+     - Optional chain_id handling
+   - Edge case tests:
+     - Zero amounts
+     - Maximum block numbers
+     - Address case normalization
+
+### Not Yet Implemented 🚧
+1. **Event Handlers**
+   - EAS Attested event handler for passport mints
+   - Holonym SBT Transfer event handler
+   - Integration with existing indexer architecture
+
+2. **Configuration**
+   - Contract addresses for each chain
+   - Event signatures and decoding
+   - Feature flag for enabling/disabling Human Points
+
+3. **Main Indexer Integration**
+   - Adding Human Points indexers to main.rs
+   - Connecting event handlers to SQL generation functions
+   - Error handling and retry logic
