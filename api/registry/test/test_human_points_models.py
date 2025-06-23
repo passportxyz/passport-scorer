@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from account.models import Community
 from registry.models import (
-    HumanPointProgramScores,
+    HumanPointsCommunityQualifiedUsers,
     HumanPoints,
     HumanPointsConfig,
     HumanPointsMultiplier,
@@ -17,12 +17,12 @@ from registry.models import (
 pytestmark = pytest.mark.django_db
 
 
-class TestHumanPointProgramScores:
-    """Test the HumanPointProgramScores model"""
+class TestHumanPointsCommunityQualifiedUsers:
+    """Test the HumanPointsCommunityQualifiedUsers model"""
 
     def test_create_scores(self, scorer_community):
-        """Test creating a new HumanPointProgramScores entry"""
-        scores = HumanPointProgramScores.objects.create(
+        """Test creating a new HumanPointsCommunityQualifiedUsers entry"""
+        scores = HumanPointsCommunityQualifiedUsers.objects.create(
             address="0x1234567890123456789012345678901234567890",
             community=scorer_community,
         )
@@ -30,12 +30,12 @@ class TestHumanPointProgramScores:
         assert scores.community == scorer_community
         assert (
             str(scores)
-            == f"HumanPointProgramScores - 0x1234567890123456789012345678901234567890 passed in {scorer_community.name}"
+            == f"HumanPointsCommunityQualifiedUsers - 0x1234567890123456789012345678901234567890 qualified in {scorer_community.name}"
         )
 
     def test_community_required(self, scorer_community):
         """Test that community is required"""
-        scores = HumanPointProgramScores.objects.create(
+        scores = HumanPointsCommunityQualifiedUsers.objects.create(
             address="0x1234567890123456789012345678901234567890",
             community=scorer_community,
         )
@@ -43,14 +43,14 @@ class TestHumanPointProgramScores:
 
     def test_unique_together_constraint(self, scorer_community):
         """Test that address and community have unique_together constraint"""
-        scores1 = HumanPointProgramScores.objects.create(
+        scores1 = HumanPointsCommunityQualifiedUsers.objects.create(
             address="0x1234567890123456789012345678901234567890",
             community=scorer_community,
         )
 
         # Try to create another with same address and community should fail
         with pytest.raises(IntegrityError):
-            HumanPointProgramScores.objects.create(
+            HumanPointsCommunityQualifiedUsers.objects.create(
                 address="0x1234567890123456789012345678901234567890",
                 community=scorer_community,
             )
@@ -63,17 +63,17 @@ class TestHumanPointProgramScores:
         )
 
         # Create scores for same address in both communities
-        scores1 = HumanPointProgramScores.objects.create(
+        scores1 = HumanPointsCommunityQualifiedUsers.objects.create(
             address="0x1234567890123456789012345678901234567890",
             community=scorer_community,
         )
-        scores2 = HumanPointProgramScores.objects.create(
+        scores2 = HumanPointsCommunityQualifiedUsers.objects.create(
             address="0x1234567890123456789012345678901234567890", community=community2
         )
 
         # Both should exist
         assert (
-            HumanPointProgramScores.objects.filter(
+            HumanPointsCommunityQualifiedUsers.objects.filter(
                 address="0x1234567890123456789012345678901234567890"
             ).count()
             == 2
@@ -234,7 +234,6 @@ class TestHumanPointsConfig:
         assert config.action == HumanPoints.Action.HUMAN_KEYS
         assert config.points == 100
         assert config.active is True
-        assert config.effective_date is not None
 
     def test_default_active_true(self):
         """Test that active defaults to True"""
@@ -371,15 +370,15 @@ class TestHumanPointsIntegration:
 
         # Initially not eligible (no scores)
         assert (
-            HumanPointProgramScores.objects.filter(address=address).count() == 0
+            HumanPointsCommunityQualifiedUsers.objects.filter(address=address).count() == 0
         )  # Not eligible
 
         # Create a passing score to make eligible
-        HumanPointProgramScores.objects.create(
+        HumanPointsCommunityQualifiedUsers.objects.create(
             address=address, community=scorer_community
         )
         assert (
-            HumanPointProgramScores.objects.filter(address=address).count() >= 1
+            HumanPointsCommunityQualifiedUsers.objects.filter(address=address).count() >= 1
         )  # Eligible
 
     def test_scoring_bonus_awarded(self, scorer_account):
@@ -399,8 +398,8 @@ class TestHumanPointsIntegration:
             human_points_program=True,
             account=scorer_account,
         )
-        HumanPointProgramScores.objects.create(address=address, community=community1)
-        HumanPointProgramScores.objects.create(address=address, community=community2)
+        HumanPointsCommunityQualifiedUsers.objects.create(address=address, community=community1)
+        HumanPointsCommunityQualifiedUsers.objects.create(address=address, community=community2)
 
         # Simulate scoring in a 3rd community with human_points_program=True
         # that results in score >= 20
@@ -410,10 +409,10 @@ class TestHumanPointsIntegration:
             human_points_program=True,
             account=scorer_account,
         )
-        HumanPointProgramScores.objects.create(address=address, community=community3)
+        HumanPointsCommunityQualifiedUsers.objects.create(address=address, community=community3)
 
         # Check that 3 passing scores now exist
-        passing_scores_count = HumanPointProgramScores.objects.filter(
+        passing_scores_count = HumanPointsCommunityQualifiedUsers.objects.filter(
             address=address
         ).count()
         assert passing_scores_count == 3
