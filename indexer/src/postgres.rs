@@ -385,6 +385,38 @@ impl PostgresClient {
     ) -> Result<(), Error> {
         self.update_last_checked_block(0, &(block_number as u64)).await
     }
+
+    pub async fn insert_human_points(
+        &self,
+        address: &str,
+        action: &str,
+        timestamp: DateTime<Utc>,
+        tx_hash: &str,
+        chain_id: Option<i32>,
+    ) -> Result<(), Error> {
+        let client = self.pool.get().await.unwrap();
+        
+        match chain_id {
+            Some(chain) => {
+                client
+                    .execute(
+                        "INSERT INTO registry_humanpoints (address, action, timestamp, tx_hash, chain_id) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+                        &[&address, &action, &timestamp, &tx_hash, &chain],
+                    )
+                    .await?;
+            }
+            None => {
+                client
+                    .execute(
+                        "INSERT INTO registry_humanpoints (address, action, timestamp, tx_hash) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+                        &[&address, &action, &timestamp, &tx_hash],
+                    )
+                    .await?;
+            }
+        }
+        
+        Ok(())
+    }
 }
 
 #[cfg(test)]

@@ -96,7 +96,7 @@ fn test_self_stake_event_full_processing() {
 
 ### 2. Human Points (Future)
 - Passport mint: 300 points * multiplier
-- Holonym mint: 1000 points * multiplier
+- Human ID mint: 1000 points * multiplier
 - Multiplier lookup and application
 - Address lowercase conversion
 - Deduplication via ON CONFLICT

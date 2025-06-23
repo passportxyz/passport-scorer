@@ -378,11 +378,11 @@ mod tests {
     }
 
     #[test]
-    fn test_human_points_holonym_mint_sql_generation() {
+    fn test_human_points_human_id_mint_sql_generation() {
         let address = "0x7777777777777777777777777777777777777777";
-        let action = "HIM"; // Holonym ID mint
+        let action = "HIM"; // Human ID mint
         let timestamp = DateTime::from_timestamp(1700000000, 0).unwrap();
-        let tx_hash = "0xholonym456";
+        let tx_hash = "0xhumanid456";
         let chain_id = Some(10u32); // Optimism only
 
         let sql_calls = generate_human_points_sql(
