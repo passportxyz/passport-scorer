@@ -3,7 +3,8 @@ import pytest
 from django.db import IntegrityError, connection
 from django.db.utils import DataError
 
-from registry.models import HumanPoints, HumanPointsMultiplier, HumanPointProgramStats
+from registry.models import HumanPoints, HumanPointsMultiplier, HumanPointProgramScores
+from account.models import Community
 
 pytestmark = pytest.mark.django_db
 
@@ -194,21 +195,21 @@ class TestHumanPointsConstraints:
                 points=100
             )
     
-    def test_humanpointsprogramstats_primary_key(self):
-        """Test that address is primary key for HumanPointProgramStats"""
+    def test_humanpointsprogramscores_unique_constraint(self, scorer_community):
+        """Test that address and community have unique_together constraint for HumanPointProgramScores"""
         address = "0x1234567890123456789012345678901234567890"
         
         # Create first entry
-        HumanPointProgramStats.objects.create(
+        HumanPointProgramScores.objects.create(
             address=address,
-            passing_scores=1
+            community=scorer_community
         )
         
         # Try to create duplicate - should fail
         with pytest.raises(IntegrityError):
-            HumanPointProgramStats.objects.create(
+            HumanPointProgramScores.objects.create(
                 address=address,
-                passing_scores=2
+                community=scorer_community
             )
     
     def test_humanpointsmultiplier_primary_key(self):

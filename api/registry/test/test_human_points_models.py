@@ -5,61 +5,69 @@ from django.utils import timezone
 from datetime import datetime
 
 from account.models import Community
-from registry.models import HumanPointProgramStats, HumanPoints, HumanPointsMultiplier
+from registry.models import HumanPointProgramScores, HumanPoints, HumanPointsMultiplier
 
 pytestmark = pytest.mark.django_db
 
 
-class TestHumanPointProgramStats:
-    """Test the HumanPointProgramStats model"""
+class TestHumanPointProgramScores:
+    """Test the HumanPointProgramScores model"""
     
-    def test_create_stats(self):
-        """Test creating a new HumanPointProgramStats entry"""
-        stats = HumanPointProgramStats.objects.create(
+    def test_create_scores(self, scorer_community):
+        """Test creating a new HumanPointProgramScores entry"""
+        scores = HumanPointProgramScores.objects.create(
             address="0x1234567890123456789012345678901234567890",
-            passing_scores=5
+            community=scorer_community
         )
-        assert stats.address == "0x1234567890123456789012345678901234567890"
-        assert stats.passing_scores == 5
-        assert str(stats) == "HumanPointProgramStats - 0x1234567890123456789012345678901234567890: 5 passing scores"
+        assert scores.address == "0x1234567890123456789012345678901234567890"
+        assert scores.community == scorer_community
+        assert str(scores) == f"HumanPointProgramScores - 0x1234567890123456789012345678901234567890 passed in {scorer_community.name}"
     
-    def test_default_passing_scores(self):
-        """Test that passing_scores defaults to 0"""
-        stats = HumanPointProgramStats.objects.create(
-            address="0x1234567890123456789012345678901234567890"
-        )
-        assert stats.passing_scores == 0
-    
-    def test_address_as_primary_key(self):
-        """Test that address field acts as primary key"""
-        stats1 = HumanPointProgramStats.objects.create(
+    def test_community_required(self, scorer_community):
+        """Test that community is required"""
+        scores = HumanPointProgramScores.objects.create(
             address="0x1234567890123456789012345678901234567890",
-            passing_scores=3
+            community=scorer_community
+        )
+        assert scores.community == scorer_community
+    
+    def test_unique_together_constraint(self, scorer_community):
+        """Test that address and community have unique_together constraint"""
+        scores1 = HumanPointProgramScores.objects.create(
+            address="0x1234567890123456789012345678901234567890",
+            community=scorer_community
         )
         
-        # Try to create another with same address should fail
+        # Try to create another with same address and community should fail
         with pytest.raises(IntegrityError):
-            HumanPointProgramStats.objects.create(
+            HumanPointProgramScores.objects.create(
                 address="0x1234567890123456789012345678901234567890",
-                passing_scores=5
+                community=scorer_community
             )
     
-    def test_update_passing_scores(self):
-        """Test updating passing scores for an address"""
-        stats = HumanPointProgramStats.objects.create(
+    def test_multiple_communities_same_address(self, scorer_community, scorer_account):
+        """Test that same address can have scores in multiple communities"""
+        # Create another community
+        community2 = Community.objects.create(
+            name="Test Community 2",
+            description="Test",
+            account=scorer_account
+        )
+        
+        # Create scores for same address in both communities
+        scores1 = HumanPointProgramScores.objects.create(
             address="0x1234567890123456789012345678901234567890",
-            passing_scores=1
+            community=scorer_community
+        )
+        scores2 = HumanPointProgramScores.objects.create(
+            address="0x1234567890123456789012345678901234567890",
+            community=community2
         )
         
-        # Update passing scores
-        stats.passing_scores = 3
-        stats.save()
-        
-        # Verify update
-        updated_stats = HumanPointProgramStats.objects.get(
+        # Both should exist
+        assert HumanPointProgramScores.objects.filter(
             address="0x1234567890123456789012345678901234567890"
-        )
-        assert updated_stats.passing_scores == 3
+        ).count() == 2
 
 
 class TestHumanPoints:
@@ -243,38 +251,55 @@ class TestHumanPointsIntegration:
         total_points = HumanPoints.objects.filter(address=address).values_list('points', flat=True)
         assert sum(total_points) == 900
     
-    def test_check_eligibility(self):
+    def test_check_eligibility(self, scorer_community):
         """Test checking if an address is eligible (has at least 1 passing score)"""
         address = "0x1234567890123456789012345678901234567890"
         
-        # Initially not eligible
-        stats = HumanPointProgramStats.objects.create(
-            address=address,
-            passing_scores=0
-        )
-        assert stats.passing_scores < 1  # Not eligible
+        # Initially not eligible (no scores)
+        assert HumanPointProgramScores.objects.filter(address=address).count() == 0  # Not eligible
         
-        # Update to eligible
-        stats.passing_scores = 1
-        stats.save()
-        assert stats.passing_scores >= 1  # Eligible
+        # Create a passing score to make eligible
+        HumanPointProgramScores.objects.create(
+            address=address,
+            community=scorer_community
+        )
+        assert HumanPointProgramScores.objects.filter(address=address).count() >= 1  # Eligible
     
     def test_scoring_bonus_awarded(self):
         """Test awarding scoring bonus when reaching 3 passing scores"""
         address = "0x1234567890123456789012345678901234567890"
         
-        # Create stats with 2 passing scores
-        stats = HumanPointProgramStats.objects.create(
-            address=address,
-            passing_scores=2
+        # Create scores in 2 communities
+        community1 = Community.objects.create(
+            name="Community 1",
+            description="Test",
+            human_points_program=True,
+            account=scorer_community.account
         )
+        community2 = Community.objects.create(
+            name="Community 2",
+            description="Test",
+            human_points_program=True,
+            account=scorer_community.account
+        )
+        HumanPointProgramScores.objects.create(address=address, community=community1)
+        HumanPointProgramScores.objects.create(address=address, community=community2)
         
-        # Simulate scoring in a community with human_points_program=True
+        # Simulate scoring in a 3rd community with human_points_program=True
         # that results in score >= 20
-        stats.passing_scores = 3
-        stats.save()
+        community3 = Community.objects.create(
+            name="Community 3",
+            description="Test",
+            human_points_program=True,
+            account=scorer_community.account
+        )
+        HumanPointProgramScores.objects.create(address=address, community=community3)
         
-        # Award scoring bonus
+        # Check that 3 passing scores now exist
+        passing_scores_count = HumanPointProgramScores.objects.filter(address=address).count()
+        assert passing_scores_count == 3
+        
+        # Award scoring bonus (this would be done in the actual scoring logic)
         HumanPoints.objects.create(
             address=address,
             action="scoring_bonus",

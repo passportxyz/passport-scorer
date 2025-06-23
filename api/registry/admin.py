@@ -23,7 +23,7 @@ from registry.models import (
     Event,
     GTCStakeEvent,
     HashScorerLink,
-    HumanPointProgramStats,
+    HumanPointProgramScores,
     HumanPoints,
     HumanPointsMultiplier,
     Passport,
@@ -474,17 +474,18 @@ class WeightConfigurationAdmin(admin.ModelAdmin):
 admin.site.register(WeightConfigurationItem)
 
 
-@admin.register(HumanPointProgramStats)
-class HumanPointProgramStatsAdmin(ScorerModelAdmin):
-    list_display = ["address", "passing_scores"]
-    search_fields = ["address"]
-    ordering = ["-passing_scores", "address"]
+@admin.register(HumanPointProgramScores)
+class HumanPointProgramScoresAdmin(ScorerModelAdmin):
+    list_display = ["address", "community"]
+    list_filter = ["community"]
+    search_fields = ["address", "community__name"]
+    ordering = ["address", "community"]
 
 
 @admin.register(HumanPoints)
 class HumanPointsAdmin(ScorerModelAdmin):
-    list_display = ["address", "action", "points", "timestamp", "tx_hash"]
-    list_filter = ["action", "timestamp"]
+    list_display = ["address", "action", "points", "timestamp", "tx_hash", "community_id", "chain_id"]
+    list_filter = ["action", "timestamp", "chain_id"]
     search_fields = ["address", "tx_hash"]
     ordering = ["-timestamp"]
     date_hierarchy = "timestamp"

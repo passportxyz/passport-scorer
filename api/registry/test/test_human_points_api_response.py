@@ -15,7 +15,7 @@ from ninja_jwt.schema import RefreshToken
 
 from account.models import Account, Community, AccountAPIKey
 from registry.models import (
-    HumanPointProgramStats,
+    HumanPointProgramScores,
     HumanPoints,
     HumanPointsMultiplier,
     Passport,
@@ -68,12 +68,22 @@ class TestHumanPointsAPIResponse:
             "HTTP_X_API_KEY": api_key.secret
         }
     
-    def setup_human_points_data(self, address):
+    def setup_human_points_data(self, address, test_community, test_account):
         """Setup human points data for an address"""
-        # Create stats
-        HumanPointProgramStats.objects.create(
+        # Create scores in 2 communities
+        community2 = Community.objects.create(
+            name="Community 2",
+            description="Test",
+            human_points_program=True,
+            account=test_account
+        )
+        HumanPointProgramScores.objects.create(
             address=address,
-            passing_scores=2
+            community=test_community
+        )
+        HumanPointProgramScores.objects.create(
+            address=address,
+            community=community2
         )
         
         # Create multiplier
@@ -107,7 +117,7 @@ class TestHumanPointsAPIResponse:
         address = "0x1234567890123456789012345678901234567890"
         
         # Setup human points data
-        self.setup_human_points_data(address)
+        self.setup_human_points_data(address, test_community, test_community.account)
         
         # Mock stamp data
         mock_get_stamps.return_value = {
@@ -144,11 +154,7 @@ class TestHumanPointsAPIResponse:
         """Test points_data for address with no passing scores"""
         address = "0x2222222222222222222222222222222222222222"
         
-        # Create stats with 0 passing scores
-        HumanPointProgramStats.objects.create(
-            address=address,
-            passing_scores=0
-        )
+        # No passing scores for this address (no HumanPointProgramScores entries)
         
         # No points
         
@@ -204,7 +210,7 @@ class TestHumanPointsAPIResponse:
         address = "0x1234567890123456789012345678901234567890"
         
         # Setup human points data
-        self.setup_human_points_data(address)
+        self.setup_human_points_data(address, test_community, test_community.account)
         
         # Mock responses
         mock_get_stamps.return_value = {"stamps": []}
@@ -259,9 +265,9 @@ class TestHumanPointsAPIResponse:
         
         assert total == 1200
     
-    def test_eligibility_based_on_passing_scores(self):
+    def test_eligibility_based_on_passing_scores(self, scorer_community):
         """Test eligibility calculation based on passing scores"""
-        # Test various passing score values
+        # Test various passing score counts
         test_cases = [
             (0, False),  # Not eligible
             (1, True),   # Eligible
@@ -270,16 +276,25 @@ class TestHumanPointsAPIResponse:
             (5, True),   # Still eligible
         ]
         
-        for passing_scores, expected_eligible in test_cases:
-            address = f"0x{'0' * 39}{passing_scores}"
+        for passing_scores_count, expected_eligible in test_cases:
+            address = f"0x{'0' * 39}{passing_scores_count}"
             
-            stats = HumanPointProgramStats.objects.create(
-                address=address,
-                passing_scores=passing_scores
-            )
+            # Create the specified number of passing scores
+            for i in range(passing_scores_count):
+                community = Community.objects.create(
+                    name=f"Community {i} for {address}",
+                    description="Test",
+                    human_points_program=True,
+                    account=Community.objects.first().account
+                )
+                HumanPointProgramScores.objects.create(
+                    address=address,
+                    community=community
+                )
             
             # Check eligibility
-            is_eligible = stats.passing_scores >= 1
+            scores_count = HumanPointProgramScores.objects.filter(address=address).count()
+            is_eligible = scores_count >= 1
             assert is_eligible == expected_eligible
     
     def test_default_multiplier_when_not_in_table(self):
@@ -302,9 +317,9 @@ class TestHumanPointsAPIResponse:
         address = "0x1234567890123456789012345678901234567890"
         
         # Setup some data
-        HumanPointProgramStats.objects.create(
+        HumanPointProgramScores.objects.create(
             address=address,
-            passing_scores=1
+            community=test_community
         )
         HumanPoints.objects.create(
             address=address,

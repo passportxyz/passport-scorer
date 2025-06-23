@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from account.models import Community
 from registry.models import (
-    HumanPointProgramStats, 
+    HumanPointProgramScores, 
     HumanPoints, 
     HumanPointsMultiplier,
     Passport,
@@ -155,9 +155,19 @@ class TestHumanPointsScoringIntegration:
     async def test_scoring_bonus_on_third_passing_score(self, test_passport, human_points_community):
         """Test that scoring bonus is awarded when reaching 3 passing scores"""
         # Setup: Create 2 existing passing scores
-        stats, _ = HumanPointProgramStats.objects.get_or_create(
+        community2 = Community.objects.create(
+            name="Community 2",
+            description="Test",
+            human_points_program=True,
+            account=human_points_community.account
+        )
+        HumanPointProgramScores.objects.create(
             address=test_passport.address,
-            defaults={"passing_scores": 2}
+            community=human_points_community
+        )
+        HumanPointProgramScores.objects.create(
+            address=test_passport.address,
+            community=community2
         )
         
         # Mock scoring with score >= 20
@@ -173,9 +183,11 @@ class TestHumanPointsScoringIntegration:
                 human_points_community.id
             )
         
-        # Check that stats were updated
-        stats.refresh_from_db()
-        assert stats.passing_scores == 3
+        # Check that 3 passing scores now exist
+        passing_scores_count = HumanPointProgramScores.objects.filter(
+            address=test_passport.address
+        ).count()
+        assert passing_scores_count == 3
         
         # Check that scoring bonus was awarded
         bonus = HumanPoints.objects.get(
@@ -188,9 +200,9 @@ class TestHumanPointsScoringIntegration:
     async def test_no_scoring_bonus_before_third_score(self, test_passport, human_points_community):
         """Test that no bonus is awarded before reaching 3 passing scores"""
         # Setup: Create 1 existing passing score
-        stats, _ = HumanPointProgramStats.objects.get_or_create(
+        HumanPointProgramScores.objects.create(
             address=test_passport.address,
-            defaults={"passing_scores": 1}
+            community=human_points_community
         )
         
         # Mock scoring with score >= 20
@@ -206,9 +218,11 @@ class TestHumanPointsScoringIntegration:
                 human_points_community.id
             )
         
-        # Check that stats were updated
-        stats.refresh_from_db()
-        assert stats.passing_scores == 2
+        # Check that 2 passing scores now exist
+        passing_scores_count = HumanPointProgramScores.objects.filter(
+            address=test_passport.address
+        ).count()
+        assert passing_scores_count == 2
         
         # Check that NO scoring bonus was awarded
         bonus = HumanPoints.objects.filter(
@@ -246,9 +260,9 @@ class TestHumanPointsScoringIntegration:
         points = HumanPoints.objects.filter(address=test_passport.address)
         assert points.count() == 0
         
-        # Check that NO stats were created
-        stats = HumanPointProgramStats.objects.filter(address=test_passport.address)
-        assert stats.count() == 0
+        # Check that NO scores were created
+        scores = HumanPointProgramScores.objects.filter(address=test_passport.address)
+        assert scores.count() == 0
     
     @pytest.mark.asyncio
     async def test_duplicate_stamp_points_not_awarded(self, test_passport, valid_stamps_data, human_points_community):
