@@ -7,15 +7,16 @@ These tests mock the passport scoring process at appropriate levels:
 """
 
 from datetime import datetime, timezone
+from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from account.models import Community
 from ceramic_cache.models import CeramicCache
-from registry.atasks import score_passport_passport
+from registry.atasks import ascore_passport
 from registry.models import (
-    HumanPointProgramScores,
+    HumanPointsCommunityQualifiedUsers,
     HumanPoints,
     HumanPointsConfig,
     HumanPointsMultiplier,
@@ -25,6 +26,19 @@ from registry.models import (
 )
 
 pytestmark = pytest.mark.django_db
+
+
+def create_mock_credential(provider, did):
+    """Helper to create a mock credential with proper structure"""
+    return {
+        "type": ["VerifiableCredential"],
+        "proof": {},
+        "credentialSubject": {
+            "id": did,
+            "provider": provider,
+            "hash": f"v0.0.0:{provider}_hash_value",
+        }
+    }
 
 
 class TestHumanPointsScoringIntegration:
@@ -48,28 +62,29 @@ class TestHumanPointsScoringIntegration:
         )
 
     @pytest.fixture
-    def valid_stamps_data(self):
+    def valid_stamps_data(self, test_passport):
         """Mock validated stamps data that would be returned by avalidate_credentials"""
+        did = f"did:pkh:eip155:1:{test_passport.address}"
         return {
             "stamps": [
                 {
                     "provider": "humanKeysProvider",
-                    "credential": {"type": ["VerifiableCredential"], "proof": {}},
+                    "credential": create_mock_credential("humanKeysProvider", did),
                     "verified": True,
                 },
                 {
                     "provider": "gtcStakingBronze",
-                    "credential": {"type": ["VerifiableCredential"], "proof": {}},
+                    "credential": create_mock_credential("gtcStakingBronze", did),
                     "verified": True,
                 },
                 {
                     "provider": "BeginnerCommunityStaker",
-                    "credential": {"type": ["VerifiableCredential"], "proof": {}},
+                    "credential": create_mock_credential("BeginnerCommunityStaker", did),
                     "verified": True,
                 },
                 {
                     "provider": "someOtherProvider",  # Provider that doesn't award points
-                    "credential": {"type": ["VerifiableCredential"], "proof": {}},
+                    "credential": create_mock_credential("someOtherProvider", did),
                     "verified": True,
                 },
             ]
@@ -81,35 +96,63 @@ class TestHumanPointsScoringIntegration:
     ):
         """Test that points are awarded for valid stamps during scoring"""
         # First, set up the config table with point values
-        HumanPointsConfig.objects.create(
+        await HumanPointsConfig.objects.acreate(
             action=HumanPoints.Action.HUMAN_KEYS, points=100
         )
-        HumanPointsConfig.objects.create(
+        await HumanPointsConfig.objects.acreate(
             action=HumanPoints.Action.IDENTITY_STAKING_BRONZE, points=100
         )
-        HumanPointsConfig.objects.create(
+        await HumanPointsConfig.objects.acreate(
             action=HumanPoints.Action.COMMUNITY_STAKING_BEGINNER, points=100
         )
 
         # Create a multiplier for the address
-        HumanPointsMultiplier.objects.create(
+        await HumanPointsMultiplier.objects.acreate(
             address=test_passport.address, multiplier=2
+        )
+
+        # Create a passport in the community
+        test_passport.community = human_points_community
+        await test_passport.asave()
+
+        # Create a score object
+        score = await Score.objects.acreate(
+            passport=test_passport,
+            score=None,
+            status=Score.Status.PROCESSING
         )
 
         # Mock the async scoring components
         with (
+            patch("registry.atasks.aload_passport_data") as mock_load,
             patch("registry.atasks.avalidate_credentials") as mock_validate,
+            patch("registry.atasks.aprocess_deduplication") as mock_dedup,
+            patch("registry.atasks.aupdate_passport") as mock_update,
             patch("registry.atasks.acalculate_score") as mock_calculate_score,
         ):
+            # Mock passport data loading
+            mock_load.return_value = valid_stamps_data
+            
             # Mock validation to return our valid stamps
             mock_validate.return_value = valid_stamps_data
+            
+            # Mock deduplication to return the stamps unchanged
+            mock_dedup.return_value = (valid_stamps_data, {})
+            
+            # Mock update passport (no-op)
+            mock_update.return_value = None
 
-            # Mock score calculation to return score >= 20
-            mock_calculate_score.return_value = 25.0
+            # Mock score calculation to set score >= 20
+            async def mock_calc(passport, community_id, score, clashing_stamps):
+                score.score = Decimal("25.0")
+                score.status = Score.Status.DONE
+                return None
+            
+            mock_calculate_score.side_effect = mock_calc
 
-            # Run scoring (assuming the human points logic is added to ascore_passport)
-            await score_passport_passport(
-                test_passport.address, human_points_community.id
+            # Run scoring
+            await ascore_passport(
+                human_points_community, test_passport, test_passport.address, score
             )
 
         # Check that actions were recorded for valid stamps
@@ -127,8 +170,7 @@ class TestHumanPointsScoringIntegration:
         for expected_action in expected_actions:
             assert actions.filter(action=expected_action).exists()
 
-    @pytest.mark.asyncio
-    async def test_no_points_for_invalid_stamps(
+    def test_no_points_for_invalid_stamps(
         self, test_passport, human_points_community
     ):
         """Test that points are NOT awarded for invalid stamps"""
@@ -137,7 +179,7 @@ class TestHumanPointsScoringIntegration:
             "stamps": [
                 {
                     "provider": "gtcStakingSilver",
-                    "credential": {"type": ["VerifiableCredential"], "proof": {}},
+                    "credential": create_mock_credential("gtcStakingSilver", f"did:pkh:eip155:1:{test_passport.address}"),
                     "verified": False,  # This stamp failed validation
                 }
             ]
@@ -155,8 +197,8 @@ class TestHumanPointsScoringIntegration:
             mock_calculate_score.return_value = 25.0
 
             # Run scoring
-            await score_passport_passport(
-                test_passport.address, human_points_community.id
+            score_passport(
+                human_points_community.id, test_passport.address
             )
 
         # Check that no actions were recorded for invalid stamps
@@ -166,8 +208,7 @@ class TestHumanPointsScoringIntegration:
         )
         assert actions.count() == 0
 
-    @pytest.mark.asyncio
-    async def test_scoring_bonus_on_third_passing_score(
+    def test_scoring_bonus_on_third_passing_score(
         self, test_passport, human_points_community
     ):
         """Test that scoring bonus is awarded when reaching 3 passing scores"""
@@ -178,10 +219,10 @@ class TestHumanPointsScoringIntegration:
             human_points_program=True,
             account=human_points_community.account,
         )
-        HumanPointProgramScores.objects.create(
+        HumanPointsCommunityQualifiedUsers.objects.create(
             address=test_passport.address, community=human_points_community
         )
-        HumanPointProgramScores.objects.create(
+        HumanPointsCommunityQualifiedUsers.objects.create(
             address=test_passport.address, community=community2
         )
 
@@ -194,12 +235,12 @@ class TestHumanPointsScoringIntegration:
             mock_calculate_score.return_value = 22.0
 
             # Run scoring
-            await score_passport_passport(
-                test_passport.address, human_points_community.id
+            score_passport(
+                human_points_community.id, test_passport.address
             )
 
         # Check that 3 passing scores now exist
-        passing_scores_count = HumanPointProgramScores.objects.filter(
+        passing_scores_count = HumanPointsCommunityQualifiedUsers.objects.filter(
             address=test_passport.address
         ).count()
         assert passing_scores_count == 3
@@ -210,13 +251,12 @@ class TestHumanPointsScoringIntegration:
         )
         assert bonus.action == HumanPoints.Action.SCORING_BONUS
 
-    @pytest.mark.asyncio
-    async def test_no_scoring_bonus_before_third_score(
+    def test_no_scoring_bonus_before_third_score(
         self, test_passport, human_points_community
     ):
         """Test that no bonus is awarded before reaching 3 passing scores"""
         # Setup: Create 1 existing passing score
-        HumanPointProgramScores.objects.create(
+        HumanPointsCommunityQualifiedUsers.objects.create(
             address=test_passport.address, community=human_points_community
         )
 
@@ -229,12 +269,12 @@ class TestHumanPointsScoringIntegration:
             mock_calculate_score.return_value = 21.0
 
             # Run scoring
-            await score_passport_passport(
-                test_passport.address, human_points_community.id
+            score_passport(
+                human_points_community.id, test_passport.address
             )
 
         # Check that 2 passing scores now exist
-        passing_scores_count = HumanPointProgramScores.objects.filter(
+        passing_scores_count = HumanPointsCommunityQualifiedUsers.objects.filter(
             address=test_passport.address
         ).count()
         assert passing_scores_count == 2
@@ -245,8 +285,7 @@ class TestHumanPointsScoringIntegration:
         )
         assert bonus.count() == 0
 
-    @pytest.mark.asyncio
-    async def test_no_points_for_non_human_points_community(
+    def test_no_points_for_non_human_points_community(
         self, test_passport, scorer_community
     ):
         """Test that no points are awarded when community.human_points_program=False"""
@@ -262,7 +301,7 @@ class TestHumanPointsScoringIntegration:
                 "stamps": [
                     {
                         "provider": "humanKeysProvider",
-                        "credential": {"type": ["VerifiableCredential"]},
+                        "credential": create_mock_credential("humanKeysProvider", f"did:pkh:eip155:1:{test_passport.address}"),
                         "verified": True,
                     }
                 ]
@@ -270,18 +309,17 @@ class TestHumanPointsScoringIntegration:
             mock_calculate_score.return_value = 25.0
 
             # Run scoring
-            await score_passport_passport(test_passport.address, scorer_community.id)
+            score_passport(scorer_community.id, test_passport.address)
 
         # Check that NO actions were recorded
         actions = HumanPoints.objects.filter(address=test_passport.address)
         assert actions.count() == 0
 
         # Check that NO scores were created
-        scores = HumanPointProgramScores.objects.filter(address=test_passport.address)
+        scores = HumanPointsCommunityQualifiedUsers.objects.filter(address=test_passport.address)
         assert scores.count() == 0
 
-    @pytest.mark.asyncio
-    async def test_duplicate_stamp_points_not_awarded(
+    def test_duplicate_stamp_points_not_awarded(
         self, test_passport, valid_stamps_data, human_points_community
     ):
         """Test that points for the same stamp action are not duplicated"""
@@ -293,8 +331,8 @@ class TestHumanPointsScoringIntegration:
             mock_validate.return_value = valid_stamps_data
             mock_calculate_score.return_value = 22.0
 
-            await score_passport_passport(
-                test_passport.address, human_points_community.id
+            score_passport(
+                human_points_community.id, test_passport.address
             )
 
         initial_actions_count = HumanPoints.objects.filter(
@@ -309,8 +347,8 @@ class TestHumanPointsScoringIntegration:
             mock_validate.return_value = valid_stamps_data
             mock_calculate_score.return_value = 23.0
 
-            await score_passport_passport(
-                test_passport.address, human_points_community.id
+            score_passport(
+                human_points_community.id, test_passport.address
             )
 
         # Actions count should remain the same
@@ -319,8 +357,7 @@ class TestHumanPointsScoringIntegration:
         ).count()
         assert final_actions_count == initial_actions_count
 
-    @pytest.mark.asyncio
-    async def test_points_calculation_with_different_multipliers(
+    def test_points_calculation_with_different_multipliers(
         self, human_points_community
     ):
         """Test points calculation with different multiplier values"""
@@ -351,14 +388,14 @@ class TestHumanPointsScoringIntegration:
                     "stamps": [
                         {
                             "provider": "humanKeysProvider",
-                            "credential": {"type": ["VerifiableCredential"]},
+                            "credential": create_mock_credential("humanKeysProvider", f"did:pkh:eip155:1:{address}"),
                             "verified": True,
                         }
                     ]
                 }
                 mock_calculate_score.return_value = 20.0
 
-                await score_passport_passport(address, human_points_community.id)
+                score_passport(human_points_community.id, address)
 
             # Check action was recorded
             action = HumanPoints.objects.get(
@@ -372,8 +409,7 @@ class TestHumanPointsScoringIntegration:
             calculated_points = config.points * multiplier.multiplier
             assert calculated_points == 100 * multiplier_value
 
-    @pytest.mark.asyncio
-    async def test_all_stamp_types_award_correct_actions(
+    def test_all_stamp_types_award_correct_actions(
         self, test_passport, human_points_community
     ):
         """Test that all stamp types record the correct actions"""
@@ -409,7 +445,7 @@ class TestHumanPointsScoringIntegration:
             "stamps": [
                 {
                     "provider": provider,
-                    "credential": {"type": ["VerifiableCredential"]},
+                    "credential": create_mock_credential(provider, f"did:pkh:eip155:1:{test_passport.address}"),
                     "verified": True,
                 }
                 for provider, _ in stamp_mappings
@@ -424,8 +460,8 @@ class TestHumanPointsScoringIntegration:
             mock_validate.return_value = all_stamps_data
             mock_calculate_score.return_value = 30.0
 
-            await score_passport_passport(
-                test_passport.address, human_points_community.id
+            score_passport(
+                human_points_community.id, test_passport.address
             )
 
         # Verify all actions were recorded correctly

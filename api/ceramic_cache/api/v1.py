@@ -44,6 +44,7 @@ from stake.api import get_gtc_stake_for_address
 from stake.schema import StakeResponse
 from v2.api.api_stamps import format_v2_score_response, handle_scoring_for_account
 from v2.schema import V2ScoreResponse
+from registry.human_points_utils import aget_user_points_data
 
 from ..exceptions import (
     InternalServerException,
@@ -526,7 +527,12 @@ def handle_get_ui_score(
 
             return ret
 
-        return format_v2_score_response(score, scorer_type)
+        # Get points data if community has human_points_program enabled
+        points_data = None
+        if user_community.human_points_program:
+            points_data = async_to_sync(aget_user_points_data)(lower_address)
+
+        return format_v2_score_response(score, scorer_type, points_data)
 
     except Community.DoesNotExist as e:
         raise NotFoundApiException(

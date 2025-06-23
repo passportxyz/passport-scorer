@@ -15,6 +15,11 @@ from reader.passport_reader import aget_passport, get_did
 from registry.exceptions import NoPassportException
 from registry.models import Passport, Score, Stamp
 from registry.utils import get_utc_time, validate_credential, verify_issuer
+from registry.human_points_utils import (
+    arecord_stamp_actions,
+    acheck_and_award_scoring_bonus,
+    arecord_passing_score,
+)
 
 log = logging.getLogger(__name__)
 
@@ -245,6 +250,17 @@ async def ascore_passport(
         )
         await aupdate_passport(passport, deduped_passport_data)
         await acalculate_score(passport, community.pk, score, clashing_stamps)
+        
+        # Human Points Program integration
+        if community.human_points_program and score.score and score.score >= Decimal("20"):
+            # Record passing score for this community
+            await arecord_passing_score(address, community.pk)
+            
+            # Award human points for valid stamps
+            await arecord_stamp_actions(address, deduped_passport_data.get("stamps", []))
+            
+            # Check and award scoring bonus if qualified
+            await acheck_and_award_scoring_bonus(address, community.pk)
 
     except APIException as e:
         log.error(

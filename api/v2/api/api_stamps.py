@@ -45,7 +45,8 @@ from registry.utils import (
     reverse_lazy_with_query,
 )
 from scorer_weighted.models import Scorer
-from v2.schema import V2ScoreResponse
+from v2.schema import V2ScoreResponse, PointsData
+from registry.human_points_utils import aget_user_points_data
 
 from ..exceptions import ScoreDoesNotExist
 from .router import api_router
@@ -83,18 +84,34 @@ async def ahandle_scoring(address: str, community):
     await ascore_passport(community, db_passport, address_lower, score)
     await score.asave()
 
-    return format_v2_score_response(score, scorer_type)
+    # Get points data if community has human_points_program enabled
+    points_data = None
+    if community.human_points_program:
+        points_data = await aget_user_points_data(address_lower)
+
+    return format_v2_score_response(score, scorer_type, points_data)
 
 
 def format_v2_score_response(
     score: Score,
     scorer_type: Scorer.Type,
+    points_data: Dict[str, Any] = None,
 ) -> V2ScoreResponse:
     raw_score = score.evidence.get("rawScore", "0") if score.evidence else "0"
     threshold = score.evidence.get("threshold", "20") if score.evidence else "20"
 
     raw_score = Decimal(0) if raw_score is None else Decimal(raw_score)
     threshold = Decimal(0) if threshold is None else Decimal(threshold)
+
+    # Convert points_data dict to PointsData schema if provided
+    formatted_points_data = None
+    if points_data:
+        formatted_points_data = PointsData(
+            total_points=points_data["total_points"],
+            is_eligible=points_data["is_eligible"],
+            multiplier=points_data["multiplier"],
+            breakdown=points_data["breakdown"],
+        )
 
     return V2ScoreResponse(
         address=score.passport.address,
@@ -111,6 +128,7 @@ def format_v2_score_response(
         ),
         error=score.error,
         stamps=score.stamps if score.stamps is not None else {},
+        points_data=formatted_points_data,
     )
 
 
