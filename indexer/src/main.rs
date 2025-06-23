@@ -1,3 +1,4 @@
+mod human_points_indexer;
 mod legacy_staking_indexer;
 mod postgres;
 mod sql_generation;
@@ -8,6 +9,7 @@ use dotenv::dotenv;
 use ethers::core::types::Address;
 use eyre::Result;
 use futures::try_join;
+use human_points_indexer::HumanPointsIndexer;
 use legacy_staking_indexer::LegacyStakingIndexer;
 use postgres::PostgresClient;
 use staking_indexer::StakingIndexer;
@@ -41,7 +43,8 @@ async fn main() -> Result<()> {
             run_ethereum_indexer(postgres_client.clone(), &contract_address_eth_mainnet),
             run_optimism_indexer(postgres_client.clone(), &contract_address_op_mainnet),
             run_optimism_sepolia_indexer(postgres_client.clone(), &contract_address_op_sepolia),
-            run_arbitrum_indexer(postgres_client.clone(), &contract_address_arbitrum_mainnet)
+            run_arbitrum_indexer(postgres_client.clone(), &contract_address_arbitrum_mainnet),
+            run_human_points_indexers(postgres_client.clone())
         ) {
             Ok(_) => {
                 eprintln!("Warning - top-level join ended without error");
@@ -152,4 +155,63 @@ async fn run_optimism_sepolia_indexer(
     )
     .await?;
     op_sepolia_staking_indexer.listen_with_timeout_reset().await
+}
+
+async fn run_human_points_indexers(postgres_client: PostgresClient) -> Result<()> {
+    if get_env("HUMAN_POINTS_ENABLED") != "true" {
+        return Ok(());
+    }
+
+    let mut tasks = vec![];
+    
+    // Run Human Points indexer for each enabled chain
+    let chains = vec![
+        ("OPTIMISM", 10),
+        ("ARBITRUM", 42161),
+        ("BASE", 8453),
+        ("LINEA", 59144),
+        ("SCROLL", 534352),
+        ("ZKSYNC", 324),
+        ("SHAPE", 360),
+    ];
+    
+    for (chain_name, chain_id) in chains {
+        let env_key = format!("INDEXER_{}_ENABLED", chain_name);
+        let rpc_key = format!("INDEXER_{}_RPC_URL", chain_name);
+        
+        if get_env(&env_key) == "true" {
+            let rpc_url = get_env(&rpc_key);
+            let postgres_client = postgres_client.clone();
+            
+            tasks.push(tokio::spawn(async move {
+                run_human_points_for_chain(postgres_client, &rpc_url, chain_id).await
+            }));
+        }
+    }
+    
+    // Wait for all tasks
+    for task in tasks {
+        task.await??;
+    }
+    
+    Ok(())
+}
+
+async fn run_human_points_for_chain(
+    postgres_client: PostgresClient,
+    rpc_url: &str,
+    chain_id: u32,
+) -> Result<()> {
+    use ethers::providers::{Provider, Ws};
+    use std::sync::Arc;
+    
+    let provider = Provider::<Ws>::connect(rpc_url).await?;
+    let provider = Arc::new(provider);
+    let postgres_client = Arc::new(postgres_client);
+    
+    let indexer = Arc::new(HumanPointsIndexer::new(provider, postgres_client, chain_id));
+    match indexer.run().await {
+        Ok(_) => Ok(()),
+        Err(e) => Err(eyre::eyre!("Human Points indexer error: {}", e))
+    }
 }

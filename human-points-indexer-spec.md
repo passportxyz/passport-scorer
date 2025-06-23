@@ -6,7 +6,7 @@ Modify the existing Rust indexer to track on-chain minting events for the Human 
 ## Scope
 The indexer will track two types of on-chain events:
 1. **Passport Mints** - Track mints across multiple chains
-2. **Holonym SBT Mints** - Track only on Optimism
+2. **Human ID SBT Mints** - Track only on Optimism
 
 ## Database Integration
 Write directly to the `registry_humanpoints` table in the scorer database.
@@ -30,7 +30,7 @@ CREATE INDEX registry_hu_timesta_7c6e55_idx ON registry_humanpoints(timestamp);
 -- Unique constraints for deduplication
 CREATE UNIQUE INDEX idx_mint_actions 
 ON registry_humanpoints(address, action, tx_hash) 
-WHERE action IN ('passport_mint', 'holonym_mint');
+WHERE action IN ('passport_mint', 'human_id_mint');
 
 -- Note: No multiplier table needed - points calculation happens at query time
 ```
@@ -77,7 +77,7 @@ event Attested(
 
 Extract the `recipient` address as the minter for passport mint tracking.
 
-### 2. Holonym SBT Mints (Human ID)
+### 2. Human ID SBT Mints
 - **Action Code**: `HIM` (3-character code)
 - **Chain**: Optimism only
 
@@ -173,7 +173,7 @@ This implementation is temporary for the points program duration. Consider:
 
 2. **SQL Generation Functions**
    - Implemented `generate_human_points_sql()` for Human Points inserts
-   - Supports both passport mints (PMT) and Holonym mints (HIM)
+   - Supports both passport mints (PMT) and Human ID mints (HIM)
    - Handles optional chain_id parameter
    - Ensures address lowercasing
    - Uses `ON CONFLICT DO NOTHING` for deduplication
@@ -182,7 +182,7 @@ This implementation is temporary for the points program duration. Consider:
    - Tests for all staking event types (existing functionality)
    - Tests for Human Points SQL generation:
      - Passport mint with chain_id
-     - Holonym SBT mint
+     - Human ID SBT mint
      - Address lowercase conversion
      - Optional chain_id handling
    - Edge case tests:
@@ -193,7 +193,7 @@ This implementation is temporary for the points program duration. Consider:
 ### Not Yet Implemented 🚧
 1. **Event Handlers**
    - EAS Attested event handler for passport mints
-   - Holonym SBT Transfer event handler
+   - Human ID SBT Transfer event handler
    - Integration with existing indexer architecture
 
 2. **Configuration**
