@@ -7,6 +7,7 @@ from django.core import serializers
 from django.db import models
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 from account.models import Community, EthAddressField
 from scorer.settings import (
@@ -334,45 +335,57 @@ class BatchModelScoringRequestItem(models.Model):
         unique_together = ["batch_scoring_request", "address"]
 
 
-class HumanPointProgramScores(models.Model):
+class HumanPointsCommunityQualifiedUsers(models.Model):
     """Tracks which communities an address has achieved passing scores in"""
     address = models.CharField(max_length=100, db_index=True)
     community = models.ForeignKey(
-        Community, related_name="human_point_scores", on_delete=models.CASCADE
+        Community, related_name="human_points_qualified_users", on_delete=models.CASCADE
     )
     
     class Meta:
-        verbose_name = "Human Point Program Score"
-        verbose_name_plural = "Human Point Program Scores"
+        verbose_name = "Human Points Community Qualified User"
+        verbose_name_plural = "Human Points Community Qualified Users"
         unique_together = ["address", "community"]
         indexes = [
             models.Index(fields=['address']),
         ]
     
     def __str__(self):
-        return f"HumanPointProgramScores - {self.address} passed in {self.community.name}"
+        return f"HumanPointsCommunityQualifiedUsers - {self.address} qualified in {self.community.name}"
 
 
 class HumanPoints(models.Model):
-    """Records individual human points earned by addresses"""
+    """Records individual human points actions by addresses (normalized without point values)"""
+    # Example usage:
+    #   obj.action = HumanPoints.Action.PASSPORT_MINT
+    class Action(models.TextChoices):
+        SCORING_BONUS = "SCB"
+        HUMAN_KEYS = "HKY"
+        IDENTITY_STAKING_BRONZE = "ISB"
+        IDENTITY_STAKING_SILVER = "ISS"
+        IDENTITY_STAKING_GOLD = "ISG"
+        COMMUNITY_STAKING_BEGINNER = "CSB"
+        COMMUNITY_STAKING_EXPERIENCED = "CSE"
+        COMMUNITY_STAKING_TRUSTED = "CST"
+        PASSPORT_MINT = "PMT"
+        HUMAN_ID_MINT = "HIM"
+
     address = models.CharField(max_length=100, db_index=True)
-    action = models.CharField(max_length=50)
-    points = models.IntegerField()
+    action = models.CharField(max_length=3, choices=Action.choices, db_index=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     tx_hash = models.CharField(max_length=100, null=True, blank=True)
-    community_id = models.IntegerField(null=True, blank=True, help_text="Community ID for mint actions")
-    chain_id = models.IntegerField(null=True, blank=True, help_text="Chain ID for mint actions")
     
     class Meta:
         verbose_name = "Human Point"
         verbose_name_plural = "Human Points"
         indexes = [
             models.Index(fields=['address', 'action']),
+            models.Index(fields=['address', 'timestamp']),
             models.Index(fields=['timestamp']),
         ]
     
     def __str__(self):
-        return f"HumanPoints - {self.address}: {self.points} points for {self.action}"
+        return f"HumanPoints - {self.address}: {self.action}"
 
 
 class HumanPointsMultiplier(models.Model):
@@ -386,3 +399,20 @@ class HumanPointsMultiplier(models.Model):
     
     def __str__(self):
         return f"HumanPointsMultiplier - {self.address}: {self.multiplier}x"
+
+
+class HumanPointsConfig(models.Model):
+    """Configuration for point values per action type"""
+    action = models.CharField(max_length=50, unique=True, db_index=True)
+    points = models.IntegerField()
+    active = models.BooleanField(default=True)
+    
+    class Meta:
+        verbose_name = "Human Points Configuration"
+        verbose_name_plural = "Human Points Configurations"
+        indexes = [
+            models.Index(fields=['action', 'active']),
+        ]
+    
+    def __str__(self):
+        return f"HumanPointsConfig - {self.action}: {self.points} points {'(active)' if self.active else '(inactive)'}"
