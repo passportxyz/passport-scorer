@@ -8,6 +8,13 @@ from ninja import Schema
 from pydantic import field_serializer
 
 
+class PointsData(Schema):
+    total_points: int
+    is_eligible: bool
+    multiplier: int
+    breakdown: Dict[str, int]
+
+
 class V2StampScoreResponse(Schema):
     score: str
     dedup: bool
@@ -23,6 +30,7 @@ class V2ScoreResponse(Schema):
     threshold: Decimal
     error: Optional[str]
     stamps: Optional[Dict[str, V2StampScoreResponse]]
+    points_data: Optional[PointsData] = None
 
     @field_serializer("score")
     def serialize_score(self, score: Decimal, _info):

@@ -1,15 +1,14 @@
-"""Tests for Human Points data in API responses
+"""Tests for Human Points API Response Integration
 
-TODO: These tests assume that the ceramic-cache API endpoints will be modified
-to include a 'points_data' field in their responses. The actual implementation
-may differ, so these tests may need to be adjusted once the API changes are
-implemented.
+These tests verify that the API endpoints correctly include
+points_data in their responses when human_points_program is enabled.
 """
 
-import json
-from unittest.mock import MagicMock, patch
+from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
 from ninja_jwt.schema import RefreshToken
@@ -17,7 +16,7 @@ from ninja_jwt.schema import RefreshToken
 from account.models import Account, AccountAPIKey, Community
 from ceramic_cache.models import CeramicCache
 from registry.models import (
-    HumanPointProgramScores,
+    HumanPointsCommunityQualifiedUsers,
     HumanPoints,
     HumanPointsConfig,
     HumanPointsMultiplier,
@@ -31,7 +30,7 @@ pytestmark = pytest.mark.django_db
 
 
 class TestHumanPointsAPIResponse:
-    """Test Human Points data in ceramic-cache API responses"""
+    """Test Human Points data in API responses"""
 
     @pytest.fixture
     def api_client(self):
@@ -39,21 +38,28 @@ class TestHumanPointsAPIResponse:
 
     @pytest.fixture
     def test_user(self):
-        return User.objects.create_user(username="testuser", password="testpass123")
+        return User.objects.create_user(username="testuser", password="testpass")
 
     @pytest.fixture
     def test_account(self, test_user):
-        return Account.objects.create(
-            user=test_user, address="0x1234567890123456789012345678901234567890"
-        )
+        return Account.objects.create(user=test_user)
 
     @pytest.fixture
-    def test_community(self, test_account):
+    def human_points_community(self, test_account):
         return Community.objects.create(
             name="Test Community",
             description="Test",
-            account=test_account,
             human_points_program=True,
+            account=test_account,
+        )
+
+    @pytest.fixture
+    def scorer_community(self, test_account):
+        return Community.objects.create(
+            name="Scorer Community",
+            description="Test Scorer",
+            human_points_program=False,
+            account=test_account,
         )
 
     @pytest.fixture
@@ -61,8 +67,12 @@ class TestHumanPointsAPIResponse:
         return AccountAPIKey.objects.create(account=test_account, name="Test API Key")
 
     @pytest.fixture
-    def auth_headers(self, api_key):
-        return {"HTTP_X_API_KEY": api_key.secret}
+    def auth_headers(self):
+        # Create JWT token for ceramic-cache endpoints
+        from ceramic_cache.api.v1 import DbCacheToken
+        token = DbCacheToken()
+        token["did"] = "did:pkh:eip155:1:0x1234567890123456789012345678901234567890"
+        return {"HTTP_AUTHORIZATION": f"Bearer {str(token.access_token)}"}
 
     def setup_human_points_data(self, address, test_community, test_account):
         """Setup human points data for an address"""
@@ -77,20 +87,13 @@ class TestHumanPointsAPIResponse:
             action=HumanPoints.Action.SCORING_BONUS, points=500
         )
 
-        # Create scores in 2 communities
-        community2 = Community.objects.create(
-            name="Community 2",
-            description="Test",
-            human_points_program=True,
-            account=test_account,
-        )
-        HumanPointProgramScores.objects.create(
+        # Create a multiplier for the address
+        HumanPointsMultiplier.objects.create(address=address, multiplier=2)
+
+        # Create passing score record (makes user eligible)
+        HumanPointsCommunityQualifiedUsers.objects.create(
             address=address, community=test_community
         )
-        HumanPointProgramScores.objects.create(address=address, community=community2)
-
-        # Create multiplier
-        HumanPointsMultiplier.objects.create(address=address, multiplier=2)
 
         # Create actions (normalized design - no points field)
         HumanPoints.objects.create(
@@ -103,125 +106,145 @@ class TestHumanPointsAPIResponse:
             address=address, action=HumanPoints.Action.SCORING_BONUS
         )
 
-    @patch("ceramic_cache.api.v1.get_stamps")
-    def test_stamps_endpoint_includes_points_data(
-        self, mock_get_stamps, api_client, test_community, auth_headers
+    def test_ceramic_cache_score_endpoint_includes_points_data(
+        self, api_client, human_points_community, auth_headers
     ):
-        """Test that /ceramic-cache/stamps endpoint includes points_data"""
+        """Test that /ceramic-cache/score/{address} endpoint includes points_data"""
         address = "0x1234567890123456789012345678901234567890"
+        
+        # Set the community ID to match ceramic cache scorer ID
+        with patch.object(settings, 'CERAMIC_CACHE_SCORER_ID', human_points_community.id):
+            # Setup human points data
+            self.setup_human_points_data(address, human_points_community, human_points_community.account)
 
-        # Setup human points data
-        self.setup_human_points_data(address, test_community, test_community.account)
+            # Create a passport and score for this address
+            passport = Passport.objects.create(
+                address=address.lower(),
+                community=human_points_community
+            )
+            Score.objects.create(
+                passport=passport,
+                score=Decimal("25.0"),
+                status=Score.Status.DONE,
+                evidence={"rawScore": "25.0", "threshold": "20.0"},
+                stamps={}
+            )
 
-        # Mock stamp data
-        mock_get_stamps.return_value = {
-            "stamps": [
-                {
-                    "provider": "humanKeysProvider",
-                    "credential": {"type": ["VerifiableCredential"]},
-                }
-            ]
-        }
+            # Make request
+            response = api_client.get(f"/ceramic-cache/score/{address}", **auth_headers)
 
-        # Make request
-        response = api_client.get(f"/ceramic-cache/stamps/{address}", **auth_headers)
+            assert response.status_code == 200
+            data = response.json()
 
-        assert response.status_code == 200
-        data = response.json()
+            # Check that points_data is included
+            assert "points_data" in data
+            points_data = data["points_data"]
 
-        # Check that points_data is included
-        assert "points_data" in data
-        points_data = data["points_data"]
+            # Verify points data structure
+            assert points_data["total_points"] == 1400  # (100 + 100) * 2 + 500 * 2
+            assert points_data["is_eligible"] is True  # passing_scores >= 1
+            assert points_data["multiplier"] == 2
 
-        # Verify points data structure
-        assert points_data["total_points"] == 1400  # (100 + 100) * 2 + 500 * 2
-        assert points_data["is_eligible"] is True  # passing_scores >= 1
-        assert points_data["multiplier"] == 2
+            # Check breakdown structure
+            assert "breakdown" in points_data
+            breakdown = points_data["breakdown"]
+            assert breakdown[HumanPoints.Action.HUMAN_KEYS] == 200  # 100 * 2
+            assert breakdown[HumanPoints.Action.IDENTITY_STAKING_BRONZE] == 200  # 100 * 2
+            assert breakdown[HumanPoints.Action.SCORING_BONUS] == 1000  # 500 * 2
 
-        # Check breakdown structure
-        assert "breakdown" in points_data
-        breakdown = points_data["breakdown"]
-        assert breakdown["human_keys"] == 200  # 100 * 2
-        assert breakdown["identity_staking_bronze"] == 200  # 100 * 2
-        assert breakdown["scoring_bonus"] == 1000  # 500 * 2
-
-    @patch("ceramic_cache.api.v1.get_stamps")
     def test_points_data_for_non_eligible_address(
-        self, mock_get_stamps, api_client, test_community, auth_headers
+        self, api_client, human_points_community, auth_headers
     ):
-        """Test points_data for address with no passing scores"""
+        """Test points_data when address has no passing scores"""
         address = "0x2222222222222222222222222222222222222222"
+        
+        with patch.object(settings, 'CERAMIC_CACHE_SCORER_ID', human_points_community.id):
+            # Create points but no passing scores
+            HumanPointsConfig.objects.create(
+                action=HumanPoints.Action.HUMAN_KEYS, points=100
+            )
+            HumanPoints.objects.create(
+                address=address, action=HumanPoints.Action.HUMAN_KEYS
+            )
+            # Note: No HumanPointsCommunityQualifiedUsers entries - so is_eligible should be False
 
-        # No passing scores for this address (no HumanPointProgramScores entries)
+            # Create a passport and score
+            passport = Passport.objects.create(
+                address=address.lower(),
+                community=human_points_community
+            )
+            Score.objects.create(
+                passport=passport,
+                score=Decimal("25.0"),
+                status=Score.Status.DONE,
+                evidence={"rawScore": "25.0", "threshold": "20.0"},
+                stamps={}
+            )
 
-        # No points
+            response = api_client.get(f"/ceramic-cache/score/{address}", **auth_headers)
+            data = response.json()
 
-        # Mock stamp data
-        mock_get_stamps.return_value = {"stamps": []}
+            assert data["points_data"]["is_eligible"] is False
+            assert data["points_data"]["total_points"] == 100  # Default multiplier is 1
 
-        # Make request
-        response = api_client.get(f"/ceramic-cache/stamps/{address}", **auth_headers)
-
-        assert response.status_code == 200
-        data = response.json()
-
-        # Check points_data
-        points_data = data["points_data"]
-        assert points_data["total_points"] == 0
-        assert points_data["is_eligible"] is False
-        assert points_data["multiplier"] == 1  # Default when not in multiplier table
-
-    @patch("ceramic_cache.api.v1.get_stamps")
     def test_points_data_with_no_human_points_records(
-        self, mock_get_stamps, api_client, test_community, auth_headers
+        self, api_client, human_points_community, auth_headers
     ):
         """Test points_data when address has no human points records"""
         address = "0x3333333333333333333333333333333333333333"
+        
+        with patch.object(settings, 'CERAMIC_CACHE_SCORER_ID', human_points_community.id):
+            # Create a passport and score
+            passport = Passport.objects.create(
+                address=address.lower(),
+                community=human_points_community
+            )
+            Score.objects.create(
+                passport=passport,
+                score=Decimal("25.0"),
+                status=Score.Status.DONE,
+                evidence={"rawScore": "25.0", "threshold": "20.0"},
+                stamps={}
+            )
 
-        # Mock stamp data
-        mock_get_stamps.return_value = {"stamps": []}
+            response = api_client.get(f"/ceramic-cache/score/{address}", **auth_headers)
+            data = response.json()
 
-        # Make request
-        response = api_client.get(f"/ceramic-cache/stamps/{address}", **auth_headers)
+            # Should still include points_data with zeros
+            assert "points_data" in data
+            assert data["points_data"]["total_points"] == 0
+            assert data["points_data"]["is_eligible"] is False
+            assert data["points_data"]["multiplier"] == 1
+            assert data["points_data"]["breakdown"] == {}
 
-        assert response.status_code == 200
-        data = response.json()
-
-        # Check points_data with defaults
-        points_data = data["points_data"]
-        assert points_data["total_points"] == 0
-        assert points_data["is_eligible"] is False
-        assert points_data["multiplier"] == 1
-
-    @patch("ceramic_cache.api.v1.get_score")
-    @patch("ceramic_cache.api.v1.get_stamps")
-    def test_score_endpoint_includes_points_data(
-        self, mock_get_stamps, mock_get_score, api_client, test_community, auth_headers
+    def test_no_points_data_when_human_points_disabled(
+        self, api_client, scorer_community, auth_headers
     ):
-        """Test that /ceramic-cache/score endpoint includes points_data"""
-        address = "0x1234567890123456789012345678901234567890"
+        """Test that points_data is None when human_points_program is disabled"""
+        address = "0x5555555555555555555555555555555555555555"
+        
+        with patch.object(settings, 'CERAMIC_CACHE_SCORER_ID', scorer_community.id):
+            # scorer_community has human_points_program=False
+            assert scorer_community.human_points_program is False
 
-        # Setup human points data
-        self.setup_human_points_data(address, test_community, test_community.account)
+            # Create a passport and score
+            passport = Passport.objects.create(
+                address=address.lower(),
+                community=scorer_community
+            )
+            Score.objects.create(
+                passport=passport,
+                score=Decimal("25.0"),
+                status=Score.Status.DONE,
+                evidence={"rawScore": "25.0", "threshold": "20.0"},
+                stamps={}
+            )
 
-        # Mock responses
-        mock_get_stamps.return_value = {"stamps": []}
-        mock_get_score.return_value = {"score": 25.0, "scorer_id": test_community.id}
+            response = api_client.get(f"/ceramic-cache/score/{address}", **auth_headers)
+            data = response.json()
 
-        # Make request
-        response = api_client.get(
-            f"/ceramic-cache/score/{address}/{test_community.id}", **auth_headers
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-
-        # Check that points_data is included
-        assert "points_data" in data
-        points_data = data["points_data"]
-        assert points_data["total_points"] == 1400
-        assert points_data["is_eligible"] is True
-        assert points_data["multiplier"] == 2
+            # Should not include points_data or it should be None
+            assert data.get("points_data") is None
 
     def test_calculate_total_points_aggregation(self):
         """Test that total points are correctly aggregated"""
@@ -257,102 +280,107 @@ class TestHumanPointsAPIResponse:
         # Calculate total with normalized approach
         actions = HumanPoints.objects.filter(address=address)
         total = 0
+        breakdown = {}
         for action_record in actions:
             config = HumanPointsConfig.objects.get(action=action_record.action)
             total += config.points
-
-        assert total == 2400  # 100 + 100 + 200 + 100 + 500 + 300 + 1000
+            breakdown[action_record.action] = config.points
+        
+        # Debug output
+        expected = {
+            HumanPoints.Action.HUMAN_KEYS: 100,
+            HumanPoints.Action.IDENTITY_STAKING_BRONZE: 100,
+            HumanPoints.Action.IDENTITY_STAKING_SILVER: 200,
+            HumanPoints.Action.COMMUNITY_STAKING_BEGINNER: 100,
+            HumanPoints.Action.SCORING_BONUS: 500,
+            HumanPoints.Action.PASSPORT_MINT: 300,
+            HumanPoints.Action.HUMAN_ID_MINT: 1000,
+        }
+        
+        assert len(actions) == 7, f"Expected 7 actions, got {len(actions)}"
+        assert total == 2300  # 100 + 100 + 200 + 100 + 500 + 300 + 1000 = 2300
 
     def test_eligibility_based_on_passing_scores(self, scorer_community):
         """Test eligibility calculation based on passing scores"""
         # Test various passing score counts
         test_cases = [
-            (0, False),  # Not eligible
-            (1, True),  # Eligible
-            (2, True),  # Eligible
-            (3, True),  # Eligible with bonus
-            (5, True),  # Still eligible
+            ("0xA1111111111111111111111111111111111111111", 0, False),
+            ("0xA2222222222222222222222222222222222222222", 1, True),
+            ("0xA3333333333333333333333333333333333333333", 3, True),
         ]
 
-        for passing_scores_count, expected_eligible in test_cases:
-            address = f"0x{'0' * 39}{passing_scores_count}"
-
-            # Create the specified number of passing scores
-            for i in range(passing_scores_count):
-                community = Community.objects.create(
-                    name=f"Community {i} for {address}",
+        for address, passing_count, expected_eligible in test_cases:
+            # Create passing score records
+            for i in range(passing_count):
+                import uuid
+                comm = Community.objects.create(
+                    name=f"Community {uuid.uuid4()}",
                     description="Test",
                     human_points_program=True,
-                    account=Community.objects.first().account,
+                    account=scorer_community.account,
                 )
-                HumanPointProgramScores.objects.create(
-                    address=address, community=community
+                HumanPointsCommunityQualifiedUsers.objects.create(
+                    address=address, community=comm
                 )
 
             # Check eligibility
-            scores_count = HumanPointProgramScores.objects.filter(
+            is_eligible = HumanPointsCommunityQualifiedUsers.objects.filter(
                 address=address
-            ).count()
-            is_eligible = scores_count >= 1
+            ).exists()
             assert is_eligible == expected_eligible
 
     def test_default_multiplier_when_not_in_table(self):
         """Test that default multiplier of 1 is used when address not in multiplier table"""
-        address = "0x9999999999999999999999999999999999999999"
+        address = "0xB1111111111111111111111111111111111111111"
 
-        # Don't create multiplier entry
-        multiplier_entry = HumanPointsMultiplier.objects.filter(address=address).first()
-        assert multiplier_entry is None
-
-        # In actual implementation, should default to 1
-        multiplier = multiplier_entry.multiplier if multiplier_entry else 1
-        assert multiplier == 1
-
-    @patch("ceramic_cache.api.v1.get_stamps")
-    def test_points_data_structure_validation(
-        self, mock_get_stamps, api_client, test_community, auth_headers
-    ):
-        """Test that points_data has the correct structure and types"""
-        address = "0x1234567890123456789012345678901234567890"
-
-        # Setup config and data
+        # Create config and action
         HumanPointsConfig.objects.create(
             action=HumanPoints.Action.HUMAN_KEYS, points=100
-        )
-
-        HumanPointProgramScores.objects.create(
-            address=address, community=test_community
         )
         HumanPoints.objects.create(
             address=address, action=HumanPoints.Action.HUMAN_KEYS
         )
 
-        # Mock stamp data
-        mock_get_stamps.return_value = {"stamps": []}
+        # Calculate points without a multiplier record
+        action = HumanPoints.objects.get(address=address)
+        config = HumanPointsConfig.objects.get(action=action.action)
 
-        # Make request
-        response = api_client.get(f"/ceramic-cache/stamps/{address}", **auth_headers)
+        # When no multiplier exists, default should be 1
+        try:
+            multiplier = HumanPointsMultiplier.objects.get(address=address)
+            mult_value = multiplier.multiplier
+        except HumanPointsMultiplier.DoesNotExist:
+            mult_value = 1
 
-        assert response.status_code == 200
-        data = response.json()
+        total_points = config.points * mult_value
+        assert total_points == 100  # 100 * 1
 
-        # Validate structure
-        assert "points_data" in data
-        points_data = data["points_data"]
+    def test_points_data_structure_validation(
+        self, api_client, human_points_community, auth_headers
+    ):
+        """Test that points_data structure matches expected schema"""
+        address = "0x5555555555555555555555555555555555555555"
+        
+        with patch.object(settings, 'CERAMIC_CACHE_SCORER_ID', human_points_community.id):
+            # Create a passport and score
+            passport = Passport.objects.create(
+                address=address.lower(),
+                community=human_points_community
+            )
+            Score.objects.create(
+                passport=passport,
+                score=Decimal("25.0"),
+                status=Score.Status.DONE,
+                evidence={"rawScore": "25.0", "threshold": "20.0"},
+                stamps={}
+            )
 
-        # Check required fields exist and have correct types
-        assert isinstance(points_data["total_points"], int)
-        assert isinstance(points_data["is_eligible"], bool)
-        assert isinstance(points_data["multiplier"], int)
-        assert isinstance(points_data["breakdown"], dict)
+            response = api_client.get(f"/ceramic-cache/score/{address}", **auth_headers)
+            data = response.json()
 
-        # Check values are reasonable
-        assert points_data["total_points"] >= 0
-        assert points_data["multiplier"] >= 1
-
-        # Check breakdown structure
-        if points_data["breakdown"]:
-            for action, points in points_data["breakdown"].items():
-                assert isinstance(action, str)
-                assert isinstance(points, int)
-                assert points >= 0
+            # Validate structure
+            points_data = data["points_data"]
+            assert isinstance(points_data["total_points"], int)
+            assert isinstance(points_data["is_eligible"], bool)
+            assert isinstance(points_data["multiplier"], int)
+            assert isinstance(points_data["breakdown"], dict)

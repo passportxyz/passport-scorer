@@ -5,7 +5,7 @@ from django.db import IntegrityError, connection
 from django.db.utils import DataError
 
 from account.models import Community
-from registry.models import HumanPointProgramScores, HumanPoints, HumanPointsMultiplier
+from registry.models import HumanPointsCommunityQualifiedUsers, HumanPoints, HumanPointsMultiplier
 
 pytestmark = pytest.mark.django_db
 
@@ -157,14 +157,14 @@ class TestHumanPointsConstraints:
 
         # This should work
         HumanPoints.objects.create(
-            address=long_address, action="test_action", points=100
+            address=long_address, action="HKY"
         )
 
         # This should fail - address too long
         too_long_address = "0x" + "a" * 99  # Total 101 chars
         with pytest.raises(DataError):
             HumanPoints.objects.create(
-                address=too_long_address, action="test_action", points=100
+                address=too_long_address, action="HKY"
             )
 
     def test_action_length_constraint(self):
@@ -196,17 +196,17 @@ class TestHumanPointsConstraints:
             assert len(action) == 3
 
     def test_humanpointsprogramscores_unique_constraint(self, scorer_community):
-        """Test that address and community have unique_together constraint for HumanPointProgramScores"""
+        """Test that address and community have unique_together constraint for HumanPointsCommunityQualifiedUsers"""
         address = "0x1234567890123456789012345678901234567890"
 
         # Create first entry
-        HumanPointProgramScores.objects.create(
+        HumanPointsCommunityQualifiedUsers.objects.create(
             address=address, community=scorer_community
         )
 
         # Try to create duplicate - should fail
         with pytest.raises(IntegrityError):
-            HumanPointProgramScores.objects.create(
+            HumanPointsCommunityQualifiedUsers.objects.create(
                 address=address, community=scorer_community
             )
 
