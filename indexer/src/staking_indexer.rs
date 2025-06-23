@@ -498,8 +498,6 @@ impl<'a> StakingIndexer<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_placeholder() {
         // Placeholder test - we'll implement proper event processing tests
