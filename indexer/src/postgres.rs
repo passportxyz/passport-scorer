@@ -386,3 +386,15 @@ impl PostgresClient {
         self.update_last_checked_block(0, &(block_number as u64)).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_placeholder() {
+        // Placeholder test - we'll implement proper SQL generation tests
+        // after refactoring to use pure functions
+        assert!(true);
+    }
+}
