@@ -3,6 +3,15 @@
 ## Overview
 Modify the existing Rust indexer to track on-chain minting events for the Human Points Program.
 
+## ⚠️ IMPORTANT: Architecture Update (December 2024)
+The initial implementation created separate indexers for Human Points events. However, analysis revealed this approach has significant drawbacks:
+- Multiple RPC connections to the same chain
+- Duplicate retry/restart logic
+- Inconsistent block tracking between event types
+- Resource inefficiency
+
+**Recommended approach**: Refactor to a unified indexer architecture where each chain has a single indexer that handles multiple event types (staking, passport mints, Human ID mints). See the "Unified Architecture Design" section below for details.
+
 ## Scope
 The indexer will track two types of on-chain events:
 1. **Passport Mints** - Track mints across multiple chains
@@ -190,18 +199,116 @@ This implementation is temporary for the points program duration. Consider:
      - Maximum block numbers
      - Address case normalization
 
-### Not Yet Implemented 🚧
-1. **Event Handlers**
-   - EAS Attested event handler for passport mints
-   - Human ID SBT Transfer event handler
-   - Integration with existing indexer architecture
+4. **Initial Human Points Indexer Implementation**
+   - Created `human_points_indexer.rs` with basic event watching
+   - Implemented EAS Attested event handler for passport mints
+   - Implemented Human ID SBT Transfer event handler
+   - Integration with postgres client for data persistence
 
-2. **Configuration**
-   - Contract addresses for each chain
-   - Event signatures and decoding
-   - Feature flag for enabling/disabling Human Points
+### Current Implementation Status 🚧
+The Human Points indexer is new and needs to be built with the unified architecture from the start. The existing staking indexers will be migrated to this architecture.
 
-3. **Main Indexer Integration**
-   - Adding Human Points indexers to main.rs
-   - Connecting event handlers to SQL generation functions
-   - Error handling and retry logic
+### Required Implementation Steps
+1. **Unified Indexer Implementation**
+   - Single indexer per chain handling all event types
+   - Shared WebSocket connection and retry logic
+   - Event routing based on contract address
+   - Proper start block handling for each contract type
+
+3. **Robustness Features**
+   - Block tracking per event type
+   - Historical data processing from contract deployment
+   - Timeout/hang detection
+   - Automatic restart and recovery mechanisms
+
+## Unified Architecture Design
+
+### Current Issues with Separate Indexers
+The current implementation creates separate indexer instances for:
+- Staking events (one per chain)
+- Human Points events (one per chain)
+
+This causes:
+1. **Multiple RPC connections** to the same chain
+2. **Duplicate block tracking** - each indexer tracks its own "last processed block"
+3. **No shared retry logic** - each indexer implements its own timeout detection
+4. **Start block confusion** - staking start blocks don't align with passport/Human ID deployment blocks
+
+### Recommended Unified Design
+
+#### 1. Single Indexer Per Chain
+```rust
+pub struct UnifiedChainIndexer {
+    chain_config: ChainConfig,
+    provider: Arc<Provider<Ws>>,
+    postgres_client: Arc<PostgresClient>,
+}
+
+struct ChainConfig {
+    chain_id: u32,
+    rpc_url: String,
+    
+    // Feature flags
+    staking_enabled: bool,
+    human_points_enabled: bool,
+    
+    // Contract configs with individual start blocks
+    staking: Option<ContractConfig>,
+    passport_mint: Option<ContractConfig>,  
+    human_id_mint: Option<ContractConfig>,  // Only for Optimism
+}
+
+struct ContractConfig {
+    address: Address,
+    start_block: u64,  // Each contract has its own deployment block
+    schema_uid: Option<H256>,  // For EAS events
+}
+```
+
+#### 2. Keep Existing Block Tracking
+Continue using the current `stake_lastblock` table:
+```sql
+-- No changes needed to existing table
+CREATE TABLE stake_lastblock (
+    chain INTEGER,
+    block_number NUMERIC
+);
+```
+
+Each contract handler will simply check if the event block >= its deployment block before processing. This is simpler and avoids unnecessary complexity.
+
+#### 3. Single Event Processing Loop
+```rust
+impl UnifiedChainIndexer {
+    async fn process_all_events(&self) -> Result<()> {
+        // Get the last processed block for this chain
+        let query_start_block = self.get_query_start_block().await?;
+        
+        // Process historical blocks in batches
+        self.process_historical_blocks(query_start_block).await?;
+        
+        // Watch for new events with single connection
+        let filter = Filter::new().from_block(current_block);
+        let mut stream = self.provider.watch(&filter).await?;
+        
+        while let Some(log) = stream.next().await {
+            // Route to appropriate handler based on contract address
+            // Each handler checks if block >= deployment_block before processing
+            self.route_log(log).await?;
+        }
+    }
+}
+```
+
+### Migration Steps
+1. Build unified indexer structure for Human Points
+2. Refactor existing staking indexers to unified structure
+3. Update configuration to include all contract addresses per chain
+4. Test with historical reindexing
+
+### Benefits
+- **Single RPC connection per chain** - reduces resource usage
+- **Unified retry/restart logic** - all events benefit from robustness features
+- **Consistent block tracking** - no race conditions or missed blocks
+- **Easier operations** - one indexer to monitor/restart per chain
+- **Proper start block handling** - each contract uses its deployment block
