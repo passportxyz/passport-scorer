@@ -15,6 +15,7 @@ import pytest
 from account.models import Community
 from ceramic_cache.models import CeramicCache
 from registry.atasks import ascore_passport
+from registry.human_points_utils import arecord_stamp_actions
 from registry.models import (
     HumanPointsCommunityQualifiedUsers,
     HumanPoints,
@@ -28,21 +29,89 @@ from registry.models import (
 pytestmark = pytest.mark.django_db
 
 
-def create_mock_credential(provider, did):
+def create_mock_credential(provider, did, with_v1_nullifier=False):
     """Helper to create a mock credential with proper structure"""
-    return {
+    credential = {
         "type": ["VerifiableCredential"],
         "proof": {},
         "credentialSubject": {
             "id": did,
             "provider": provider,
-            "hash": f"v0.0.0:{provider}_hash_value",
         }
     }
+    
+    # Add nullifiers array for Human Keys (v1 nullifier)
+    if with_v1_nullifier:
+        credential["credentialSubject"]["nullifiers"] = [
+            f"v0:{provider}_nullifier",
+            f"v1:{provider}_nullifier"  # This makes it a Human Keys stamp
+        ]
+    else:
+        # Regular stamps just have a hash
+        credential["credentialSubject"]["hash"] = f"v0.0.0:{provider}_hash_value"
+    
+    return credential
 
 
 class TestHumanPointsScoringIntegration:
     """Test Human Points integration during passport scoring"""
+    
+    @pytest.mark.asyncio
+    async def test_human_keys_detection(self):
+        """Test that v1 nullifiers are correctly detected as Human Keys"""
+        # Create config for Human Keys
+        await HumanPointsConfig.objects.acreate(
+            action=HumanPoints.Action.HUMAN_KEYS, points=100
+        )
+        
+        address = "0x1234567890123456789012345678901234567890"
+        
+        # Test stamps with different nullifier configurations
+        test_stamps = [
+            # Stamp with v1 nullifier - should be detected as Human Keys
+            {
+                "provider": "anyProvider",
+                "credential": {
+                    "credentialSubject": {
+                        "nullifiers": ["v0:test", "v1:human_keys_nullifier"]
+                    }
+                }
+            },
+            # Stamp with only v0 nullifier - should NOT be detected
+            {
+                "provider": "anotherProvider",
+                "credential": {
+                    "credentialSubject": {
+                        "nullifiers": ["v0:only_v0"]
+                    }
+                }
+            },
+            # Stamp with no nullifiers - should NOT be detected
+            {
+                "provider": "providerWithoutNullifiers",
+                "credential": {
+                    "credentialSubject": {}
+                }
+            }
+        ]
+        
+        # Process stamps
+        await arecord_stamp_actions(address, test_stamps)
+        
+        # Check that only one Human Keys action was recorded
+        human_keys_actions = await HumanPoints.objects.filter(
+            address=address,
+            action=HumanPoints.Action.HUMAN_KEYS
+        ).acount()
+        
+        assert human_keys_actions == 1
+        
+        # Verify the correct nullifier was stored
+        human_keys_record = await HumanPoints.objects.aget(
+            address=address,
+            action=HumanPoints.Action.HUMAN_KEYS
+        )
+        assert human_keys_record.tx_hash == "v1:human_keys_nullifier"
 
     @pytest.fixture
     def human_points_community(self, scorer_account):
@@ -68,8 +137,8 @@ class TestHumanPointsScoringIntegration:
         return {
             "stamps": [
                 {
-                    "provider": "humanKeysProvider",
-                    "credential": create_mock_credential("humanKeysProvider", did),
+                    "provider": "someProviderWithHumanKeys",
+                    "credential": create_mock_credential("someProviderWithHumanKeys", did, with_v1_nullifier=True),
                     "verified": True,
                 },
                 {
@@ -91,6 +160,7 @@ class TestHumanPointsScoringIntegration:
         }
 
     @pytest.mark.asyncio
+    @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     async def test_award_points_for_stamps(
         self, test_passport, valid_stamps_data, human_points_community
     ):
@@ -146,6 +216,7 @@ class TestHumanPointsScoringIntegration:
             async def mock_calc(passport, community_id, score, clashing_stamps):
                 score.score = Decimal("25.0")
                 score.status = Score.Status.DONE
+                await score.asave()
                 return None
             
             mock_calculate_score.side_effect = mock_calc
@@ -164,6 +235,13 @@ class TestHumanPointsScoringIntegration:
             HumanPoints.Action.COMMUNITY_STAKING_BEGINNER,
             HumanPoints.Action.IDENTITY_STAKING_BRONZE,
         ]
+        
+        # Debug: print what we actually got
+        actual_actions = list(actions.values_list('action', flat=True))
+        print(f"Expected actions: {expected_actions}")
+        print(f"Actual actions: {actual_actions}")
+        print(f"Expected count: {len(expected_actions)}, Actual count: {actions.count()}")
+        
         assert actions.count() == len(expected_actions)
 
         # Verify actions were recorded (no points field in normalized design)
@@ -300,8 +378,8 @@ class TestHumanPointsScoringIntegration:
             mock_validate.return_value = {
                 "stamps": [
                     {
-                        "provider": "humanKeysProvider",
-                        "credential": create_mock_credential("humanKeysProvider", f"did:pkh:eip155:1:{test_passport.address}"),
+                        "provider": "someProviderWithHumanKeys",
+                        "credential": create_mock_credential("someProviderWithHumanKeys", f"did:pkh:eip155:1:{test_passport.address}", with_v1_nullifier=True),
                         "verified": True,
                     }
                 ]
@@ -387,8 +465,8 @@ class TestHumanPointsScoringIntegration:
                 mock_validate.return_value = {
                     "stamps": [
                         {
-                            "provider": "humanKeysProvider",
-                            "credential": create_mock_credential("humanKeysProvider", f"did:pkh:eip155:1:{address}"),
+                            "provider": "someProviderWithHumanKeys",
+                            "credential": create_mock_credential("someProviderWithHumanKeys", f"did:pkh:eip155:1:{address}", with_v1_nullifier=True),
                             "verified": True,
                         }
                     ]
@@ -428,7 +506,6 @@ class TestHumanPointsScoringIntegration:
 
         # Define all stamp types and their expected actions
         stamp_mappings = [
-            ("humanKeysProvider", HumanPoints.Action.HUMAN_KEYS),
             ("gtcStakingBronze", HumanPoints.Action.IDENTITY_STAKING_BRONZE),
             ("gtcStakingSilver", HumanPoints.Action.IDENTITY_STAKING_SILVER),
             ("gtcStakingGold", HumanPoints.Action.IDENTITY_STAKING_GOLD),
@@ -439,16 +516,23 @@ class TestHumanPointsScoringIntegration:
             ),
             ("TrustedCitizen", HumanPoints.Action.COMMUNITY_STAKING_TRUSTED),
         ]
+        
+        # Add a provider with v1 nullifier for Human Keys
+        stamp_mappings.append(("someProviderWithV1", HumanPoints.Action.HUMAN_KEYS))
 
         # Create stamps data for all providers
         all_stamps_data = {
             "stamps": [
                 {
                     "provider": provider,
-                    "credential": create_mock_credential(provider, f"did:pkh:eip155:1:{test_passport.address}"),
+                    "credential": create_mock_credential(
+                        provider, 
+                        f"did:pkh:eip155:1:{test_passport.address}",
+                        with_v1_nullifier=(action == HumanPoints.Action.HUMAN_KEYS)
+                    ),
                     "verified": True,
                 }
-                for provider, _ in stamp_mappings
+                for provider, action in stamp_mappings
             ]
         }
 

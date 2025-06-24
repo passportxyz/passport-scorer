@@ -15,7 +15,6 @@ from registry.models import (
 
 # Map stamp providers to Human Points actions
 STAMP_PROVIDER_TO_ACTION = {
-    "humanKeysProvider": HumanPoints.Action.HUMAN_KEYS,
     "gtcStakingBronze": HumanPoints.Action.IDENTITY_STAKING_BRONZE,
     "gtcStakingSilver": HumanPoints.Action.IDENTITY_STAKING_SILVER,
     "gtcStakingGold": HumanPoints.Action.IDENTITY_STAKING_GOLD,
@@ -73,31 +72,35 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
     Record Human Points actions based on valid stamps
     """
     for stamp in valid_stamps:
+        # First check if this stamp has a v1 nullifier (Human Key)
+        credential = stamp.get("credential", {})
+        credential_subject = credential.get("credentialSubject", {})
+        nullifiers = credential_subject.get("nullifiers", [])
+        
+        v1_nullifier = None
+        if isinstance(nullifiers, list):
+            for nullifier in nullifiers:
+                if nullifier and str(nullifier).startswith("v1"):
+                    v1_nullifier = nullifier
+                    break
+        
+        if v1_nullifier:
+            await HumanPoints.objects.aget_or_create(
+                address=address,
+                action=HumanPoints.Action.HUMAN_KEYS,
+                defaults={"tx_hash": v1_nullifier}
+            )
+        
+        # Check for provider-based actions
         provider = stamp.get("provider")
         action = STAMP_PROVIDER_TO_ACTION.get(provider)
         
         if action:
-            # For Human Keys, store nullifier in tx_hash field
-            tx_hash = None
-            if provider == "humanKeysProvider":
-                # Extract nullifier from credential following the same pattern as deduplication
-                credential = stamp.get("credential", {})
-                credential_subject = credential.get("credentialSubject", {})
-                
-                # Check for hash first (standard case), then nullifiers array (multi-nullifier case)
-                if "hash" in credential_subject:
-                    tx_hash = credential_subject["hash"]
-                elif "nullifiers" in credential_subject:
-                    # For multi-nullifier case, use the first nullifier
-                    nullifiers = credential_subject["nullifiers"]
-                    if nullifiers and isinstance(nullifiers, list):
-                        tx_hash = nullifiers[0]
-            
             # Use get_or_create to handle duplicates gracefully
             await HumanPoints.objects.aget_or_create(
                 address=address,
                 action=action,
-                defaults={"tx_hash": tx_hash}
+                defaults={"tx_hash": None}
             )
 
 
