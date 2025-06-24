@@ -3,6 +3,7 @@ mod legacy_staking_indexer;
 mod postgres;
 mod sql_generation;
 mod staking_indexer;
+mod unified_indexer;
 mod utils;
 
 use dotenv::dotenv;
