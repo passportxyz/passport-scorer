@@ -18,7 +18,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct PostgresClient {
-    pool: Pool,
+    pub pool: Pool,
 }
 
 impl PostgresClient {

@@ -172,6 +172,38 @@ This implementation is temporary for the points program duration. Consider:
 - Test chain_id population for mint events
 - Test correct 3-character action codes (PMT, HIM)
 
+## Background: How We Got Here
+
+### Current Production Status
+- **Staking Indexers**: ✅ **IN PRODUCTION** - These are live and processing real data. Must be preserved carefully during migration.
+- **Human Points Indexers**: 🚧 **NEW DEVELOPMENT** - Only exists in this development branch. No production data to preserve.
+
+### Initial Development Approach
+During development, we initially built separate indexers for Human Points events (passport mints and Human ID mints) alongside the existing production staking indexers. This resulted in:
+- Multiple WebSocket connections to the same RPC endpoint
+- Duplicate retry/timeout logic across indexers
+- Each indexer managing its own lifecycle independently
+- Human Points indexer lacking robustness features (block tracking, recovery, etc.)
+
+### The Problem
+Running multiple indexers per chain is inefficient and error-prone:
+- Resource waste from duplicate connections
+- Complex coordination between indexers
+- Inconsistent error handling and recovery
+- Difficult to maintain and monitor
+
+### The Solution: Unified Indexer Architecture
+Since Human Points is brand new, we can build it correctly from the start with a unified architecture:
+- **One indexer per chain** handling all event types
+- **Shared WebSocket connection** and retry logic
+- **Single block tracker per chain** (existing `stake_lastblock` table)
+- **Each contract handler checks deployment block** before processing events
+
+This approach allows us to:
+1. Build Human Points the right way from the beginning
+2. Carefully migrate production staking indexers without disruption
+3. Avoid creating technical debt we'd have to fix later
+
 ## Implementation Progress
 
 ### Completed ✅
@@ -199,27 +231,41 @@ This implementation is temporary for the points program duration. Consider:
      - Maximum block numbers
      - Address case normalization
 
-4. **Initial Human Points Indexer Implementation**
+4. **Initial Human Points Indexer Implementation** (Development only)
    - Created `human_points_indexer.rs` with basic event watching
    - Implemented EAS Attested event handler for passport mints
    - Implemented Human ID SBT Transfer event handler
    - Integration with postgres client for data persistence
+   - **Note**: This implementation is being replaced with unified architecture before production
+
+5. **Unified Indexer Implementation** ✅ (December 2024)
+   - Created `unified_indexer.rs` with `UnifiedChainIndexer` struct
+   - Single indexer per chain handling all event types (staking + Human Points)
+   - Shared WebSocket connection and retry logic
+   - Event routing based on contract address with deployment block checking
+   - Proper start block handling for each contract type
+   - Successfully integrated all existing robustness features:
+     - 15-minute timeout detection
+     - Automatic restart on errors
+     - Block tracking and recovery
+     - Historical block processing in batches
 
 ### Current Implementation Status 🚧
-The Human Points indexer is new and needs to be built with the unified architecture from the start. The existing staking indexers will be migrated to this architecture.
+The unified indexer architecture is complete and compiling successfully. The implementation includes:
 
-### Required Implementation Steps
-1. **Unified Indexer Implementation**
-   - Single indexer per chain handling all event types
-   - Shared WebSocket connection and retry logic
-   - Event routing based on contract address
-   - Proper start block handling for each contract type
+- **UnifiedChainIndexer** struct with shared provider and postgres client
+- **ContractConfig** with address, start_block, and contract type
+- **Event routing** that checks contract addresses and deployment blocks
+- **Human Points handlers**:
+  - Passport mint handler for EAS Attested events (validates schema UID)
+  - Human ID SBT handler for Transfer events (checks for mints from zero address)
+- **All staking event handlers** ported from the original implementation
+- **Robustness features** including timeout detection and automatic recovery
 
-3. **Robustness Features**
-   - Block tracking per event type
-   - Historical data processing from contract deployment
-   - Timeout/hang detection
-   - Automatic restart and recovery mechanisms
+### Next Steps
+1. **Update main.rs** to use the unified indexer instead of separate indexers
+2. **Integration testing** with forked networks
+3. **Gradual migration** of production staking indexers
 
 ## Unified Architecture Design
 
@@ -312,3 +358,84 @@ impl UnifiedChainIndexer {
 - **Consistent block tracking** - no race conditions or missed blocks
 - **Easier operations** - one indexer to monitor/restart per chain
 - **Proper start block handling** - each contract uses its deployment block
+
+## Next Steps
+
+### Phase 1: Build Unified Indexer Structure (Priority 1)
+1. **Create `unified_indexer.rs` module**
+   - Define `UnifiedChainIndexer` struct with shared WebSocket connection
+   - Implement event routing based on contract address
+   - Add deployment block checking in each handler
+
+2. **Implement Configuration Structure**
+   ```rust
+   struct ChainConfig {
+       chain_id: u32,
+       rpc_url: String,
+       staking: Option<ContractConfig>,
+       passport_mint: Option<ContractConfig>,
+       human_id_mint: Option<ContractConfig>, // Only Optimism
+   }
+   
+   struct ContractConfig {
+       address: Address,
+       start_block: u64, // Deployment block for this specific contract
+       // Additional contract-specific config
+   }
+   ```
+
+3. **Port Existing Robustness Features**
+   - Block tracking and recovery from `staking_indexer.rs`
+   - Timeout detection (15-minute no-event warning)
+   - Automatic restart on errors
+   - Historical block processing
+
+### Phase 2: Implement Human Points Handlers (Priority 2)
+1. **Passport Mint Handler**
+   - Watch EAS Attested events on specified addresses
+   - Validate schema UID matches expected value
+   - Extract recipient address and lowercase it
+   - Insert PMT action with chain_id
+
+2. **Human ID SBT Handler** (Optimism only)
+   - Watch Transfer events from Human ID contract
+   - Filter for minting events (from = zero address)
+   - Extract recipient address and lowercase it
+   - Insert HIM action with chain_id = 10
+
+### Phase 3: Migrate Staking Indexers (Priority 3) ⚠️ PRODUCTION DATA
+**CRITICAL**: This phase involves migrating production indexers. Extra care required!
+
+1. **Update each chain's staking handler**
+   - Move logic into unified indexer's event router
+   - Remove separate staking indexer instances
+   - Maintain existing SQL generation logic
+   - **MUST preserve all existing block tracking data**
+   - **Test thoroughly to ensure no staking events are missed**
+
+2. **Update `main.rs`**
+   - Replace multiple indexer spawns with one per chain
+   - Simplify error handling with fewer tasks
+   - **Consider running both old and new in parallel initially**
+
+### Phase 4: Testing & Deployment
+1. **Local Testing**
+   - Test with forked networks
+   - Verify no events are missed during migration
+   - Confirm block tracking works correctly
+
+2. **Staging Deployment**
+   - Deploy alongside existing indexers initially
+   - Compare outputs to ensure consistency
+   - Monitor resource usage improvements
+
+3. **Production Rollout**
+   - Gradually migrate chains one at a time
+   - Keep old indexers as backup initially
+   - Full cutover once confident
+
+### Key Implementation Considerations
+- **Backwards Compatibility**: Ensure existing `stake_lastblock` entries work unchanged
+- **Deployment Block Filtering**: Each handler must check `event.block >= deployment_block`
+- **Error Isolation**: One contract's errors shouldn't affect others on same chain
+- **Monitoring**: Add metrics for events processed per contract type
