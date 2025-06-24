@@ -4,15 +4,15 @@
 Implement a points tracking system for the Human Points Program that rewards users for various Gitcoin Passport actions.
 
 ## Progress Status
-- ✅ Models created (HumanPointProgramStats, HumanPoints, HumanPointsMultiplier)
+- ✅ Models created (HumanPointsCommunityQualifiedUsers, HumanPoints, HumanPointsMultiplier, HumanPointsConfig)
 - ✅ Community model updated with human_points_program field
-- ✅ Migrations created with unique constraints
+- ✅ Consolidated migration created with unique constraints (0049_humanpoints_models.py)
 - ✅ Admin interfaces configured
-- ✅ Comprehensive test suite created:
+- ✅ Comprehensive test suite created and passing:
   - test_human_points_models.py - Model functionality tests
   - test_human_points_scoring_integration.py - Async scoring integration tests
   - test_human_points_constraints.py - Database constraint tests
-  - test_human_points_api_response.py - API response tests (pending implementation)
+  - test_human_points_api_response.py - API response tests
 - ⏳ Scoring integration in atasks.py (not implemented)
 - ⏳ API endpoint updates (not implemented)
 
@@ -24,12 +24,19 @@ Add field to `account.Community`:
 human_points_program = models.BooleanField(default=False, help_text="Include this community in the Human Points Program stats.")
 ```
 
-### 2. Create HumanPointProgramStats Model
+### 2. Create HumanPointsCommunityQualifiedUsers Model
 New model in `registry` app:
 ```python
-class HumanPointProgramStats(models.Model):
-    address = models.CharField(max_length=100, primary_key=True, db_index=True)
-    passing_scores = models.IntegerField(default=0)
+class HumanPointsCommunityQualifiedUsers(models.Model):
+    address = models.CharField(max_length=100, db_index=True)
+    community = models.ForeignKey(
+        Community,
+        on_delete=models.CASCADE,
+        related_name="human_points_qualified_users",
+    )
+    
+    class Meta:
+        unique_together = [("address", "community")]
 ```
 
 ### 3. Create HumanPoints Model (Normalized)
@@ -86,7 +93,7 @@ class HumanPointsConfig(models.Model):
 ```
 
 ## Migrations
-Create unique constraints in migration:
+Consolidated migration (0049_humanpoints_models.py) creates unique constraints:
 ```python
 # Unique constraint for binary actions (stamps, staking, scoring bonus)
 migrations.RunSQL(
@@ -94,16 +101,10 @@ migrations.RunSQL(
     "WHERE action IN ('SCB', 'ISB', 'ISS', 'ISG', 'CSB', 'CSE', 'CST');"
 )
 
-# Unique constraint for mint actions (with tx_hash)
+# Unique constraint for actions that require tx_hash (mints and human keys)
 migrations.RunSQL(
-    "CREATE UNIQUE INDEX idx_mint_actions ON registry_humanpoints(address, action, tx_hash) "
-    "WHERE action IN ('PMT', 'HIM');"
-)
-
-# Unique constraint for human keys (using nullifier stored in tx_hash field)
-migrations.RunSQL(
-    "CREATE UNIQUE INDEX idx_human_keys ON registry_humanpoints(address, action, tx_hash) "
-    "WHERE action = 'HKY';"
+    "CREATE UNIQUE INDEX idx_tx_hash_actions ON registry_humanpoints(address, action, tx_hash) "
+    "WHERE action IN ('PMT', 'HIM', 'HKY');"
 )
 ```
 
@@ -114,8 +115,9 @@ All points logic should be implemented in the scoring flow (likely in `registry/
 
 When a passport is scored:
 1. **Update Community Stats**: If score >= 20 and community has `human_points_program=True`:
-   - Check HumanPointProgramScores to see how many approved communities this address has passed in
-   - If reaching 3 for the first time, add action 'scoring_bonus' to HumanPoints (binary, one per address)
+   - Add/update HumanPointsCommunityQualifiedUsers entry for this address and community
+   - Count how many approved communities this address has qualified for
+   - If reaching 3 for the first time, add action 'SCB' (scoring_bonus) to HumanPoints
 
 2. **Process Binary Stamps**:
    - Iterate through valid stamps in the passport
