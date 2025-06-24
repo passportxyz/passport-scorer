@@ -328,6 +328,39 @@ impl PostgresClient {
         }
     }
 
+    pub async fn get_total_event_count(&self, chain_id: u32) -> Result<i64, Error> {
+        let chain_id: i32 = chain_id as i32;
+        let client = self.pool.get().await.unwrap();
+        
+        // Count stake events
+        let stake_count_rows = client
+            .query(
+                "SELECT COUNT(*) FROM stake_stakeevent WHERE chain = $1",
+                &[&chain_id],
+            )
+            .await?;
+        
+        let stake_count: i64 = stake_count_rows
+            .get(0)
+            .map(|row| row.get("count"))
+            .unwrap_or(0);
+        
+        // Count human points events for this chain (only PMT and HIM actions)
+        let human_points_count_rows = client
+            .query(
+                "SELECT COUNT(*) FROM registry_humanpoints WHERE chain_id = $1 AND action IN ('PMT', 'HIM')",
+                &[&chain_id],
+            )
+            .await?;
+        
+        let human_points_count: i64 = human_points_count_rows
+            .get(0)
+            .map(|row| row.get("count"))
+            .unwrap_or(0);
+        
+        Ok(stake_count + human_points_count)
+    }
+
     pub async fn get_latest_block(&self, chain_id: u32) -> Result<u64, Error> {
         let chain_id: i32 = chain_id as i32;
         let client = self.pool.get().await.unwrap();
@@ -417,14 +450,128 @@ impl PostgresClient {
         
         Ok(())
     }
+
+    pub async fn add_human_points_event(
+        &self,
+        address: &str,
+        action: &str,
+        timestamp: DateTime<Utc>,
+        tx_hash: &str,
+        chain_id: Option<u32>,
+    ) -> Result<(), Error> {
+        use crate::sql_generation::generate_human_points_sql;
+        
+        let client = self.pool.get().await.unwrap();
+        
+        // Begin transaction
+        client.execute("BEGIN", &[]).await?;
+        
+        // Generate SQL calls
+        let sql_calls = generate_human_points_sql(
+            address,
+            action,
+            timestamp,
+            tx_hash,
+            chain_id,
+        );
+        
+        // Execute all SQL calls within transaction
+        let do_query = async {
+            for sql_call in sql_calls {
+                let params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = sql_call.params
+                    .iter()
+                    .map(|s| s as &(dyn tokio_postgres::types::ToSql + Sync))
+                    .collect();
+                client.execute(&sql_call.query, &params).await?;
+            }
+            Ok::<(), Error>(())
+        };
+        
+        match do_query.await {
+            Ok(_) => {
+                // Commit transaction
+                client.execute("COMMIT", &[]).await?;
+                eprintln!(
+                    "Debug - Recorded {} action for {} in tx {}",
+                    action, address, tx_hash
+                );
+            }
+            Err(e) => {
+                // Rollback transaction
+                client.execute("ROLLBACK", &[]).await?;
+                
+                // Check if it's a duplicate key error (expected for idempotent processing)
+                if format!("{:?}", e).contains("duplicate key value violates unique constraint") {
+                    // This is expected when reprocessing events, return Ok
+                    return Ok(());
+                }
+                
+                return Err(e);
+            }
+        }
+        
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    
     #[test]
-    fn test_placeholder() {
-        // Placeholder test - we'll implement proper SQL generation tests
-        // after refactoring to use pure functions
-        assert!(true);
+    fn test_add_human_points_event_parameters() {
+        // Test that the method correctly passes parameters to SQL generation
+        let address = "0xABCDEF1234567890123456789012345678901234";
+        let action = "PMT";
+        let timestamp = DateTime::from_timestamp(1700000000, 0).unwrap();
+        let tx_hash = "0xtest123";
+        let chain_id = Some(10u32);
+        
+        // We can't test the actual database interaction without a test database,
+        // but we can verify the SQL generation is called correctly
+        use crate::sql_generation::generate_human_points_sql;
+        
+        let sql_calls = generate_human_points_sql(
+            address,
+            action,
+            timestamp,
+            tx_hash,
+            chain_id,
+        );
+        
+        // Verify we get the expected SQL call
+        assert_eq!(sql_calls.len(), 1);
+        assert!(sql_calls[0].query.contains("INSERT INTO registry_humanpoints"));
+        assert!(sql_calls[0].query.contains("ON CONFLICT DO NOTHING"));
+        
+        // Verify parameters
+        assert_eq!(sql_calls[0].params[0], "0xabcdef1234567890123456789012345678901234"); // lowercase
+        assert_eq!(sql_calls[0].params[1], "PMT");
+        assert_eq!(sql_calls[0].params[3], "0xtest123");
+        assert_eq!(sql_calls[0].params[4], "10");
+    }
+    
+    #[test]
+    fn test_add_human_points_event_without_chain_id() {
+        let address = "0x7777777777777777777777777777777777777777";
+        let action = "HIM";
+        let timestamp = DateTime::from_timestamp(1700000000, 0).unwrap();
+        let tx_hash = "0xnochain";
+        let chain_id = None;
+        
+        use crate::sql_generation::generate_human_points_sql;
+        
+        let sql_calls = generate_human_points_sql(
+            address,
+            action,
+            timestamp,
+            tx_hash,
+            chain_id,
+        );
+        
+        // Verify parameters without chain_id
+        assert_eq!(sql_calls.len(), 1);
+        assert_eq!(sql_calls[0].params.len(), 4); // No chain_id parameter
+        assert!(!sql_calls[0].query.contains("chain_id"));
     }
 }

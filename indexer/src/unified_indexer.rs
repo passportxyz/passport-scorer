@@ -1,6 +1,6 @@
 use crate::{
     postgres::PostgresClient,
-    sql_generation::{generate_human_points_sql, unix_time_to_datetime},
+    sql_generation::unix_time_to_datetime,
     utils::{create_rpc_connection, StakeAmountOperation, StakeEventType},
 };
 use ethers::{
@@ -163,7 +163,7 @@ impl UnifiedChainIndexer {
     async fn throw_when_no_events_logged(&self) -> Result<()> {
         let mut timer_begin_event_count = self
             .postgres_client
-            .get_stake_event_count(self.chain_config.chain_id)
+            .get_total_event_count(self.chain_config.chain_id)
             .await?;
         loop {
             // Sleep for 15 minutes
@@ -171,12 +171,12 @@ impl UnifiedChainIndexer {
 
             let event_count = self
                 .postgres_client
-                .get_stake_event_count(self.chain_config.chain_id)
+                .get_total_event_count(self.chain_config.chain_id)
                 .await?;
 
             if event_count <= timer_begin_event_count {
                 return Err(eyre::eyre!(
-                    "No events logged in the last 15 minutes for chain {}, event count is {}",
+                    "No events logged in the last 15 minutes for chain {}, total event count is {}",
                     self.chain_config.chain_id,
                     event_count
                 ));
@@ -380,33 +380,26 @@ impl UnifiedChainIndexer {
                     return Ok(()); // Skip events with wrong schema
                 }
             }
+            
             let timestamp = self.get_timestamp_for_block(block_number).await?;
-
-            // Insert passport mint action
             let datetime_timestamp = unix_time_to_datetime(&(timestamp as u64));
-            let sql_calls = generate_human_points_sql(
-                &event.recipient.to_string().to_lowercase(),
-                "PMT",
-                datetime_timestamp,
-                &tx_hash,
-                Some(self.chain_config.chain_id),
-            );
-
-            // Execute the SQL calls
-            let client = self.postgres_client.pool.get().await.unwrap();
-            for sql_call in sql_calls {
-                // Convert params to references for execute
-                let params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = sql_call.params
-                    .iter()
-                    .map(|s| s as &(dyn tokio_postgres::types::ToSql + Sync))
-                    .collect();
-                client.execute(&sql_call.query, &params).await?;
+            
+            if let Err(err) = self
+                .postgres_client
+                .add_human_points_event(
+                    &event.recipient.to_string().to_lowercase(),
+                    "PMT",
+                    datetime_timestamp,
+                    &tx_hash,
+                    Some(self.chain_config.chain_id),
+                )
+                .await
+            {
+                eprintln!(
+                    "Error - Failed to process passport mint event for chain {}: {:?}",
+                    self.chain_config.chain_id, err
+                );
             }
-
-            eprintln!(
-                "Debug - Recorded passport mint for {} on chain {} in tx {}",
-                event.recipient, self.chain_config.chain_id, tx_hash
-            );
         }
 
         Ok(())
@@ -422,32 +415,24 @@ impl UnifiedChainIndexer {
             // Check if it's a mint (from address is zero)
             if event.from == Address::zero() {
                 let timestamp = self.get_timestamp_for_block(block_number).await?;
-
-                // Insert Human ID mint action
                 let datetime_timestamp = unix_time_to_datetime(&(timestamp as u64));
-                let sql_calls = generate_human_points_sql(
-                    &event.to.to_string().to_lowercase(),
-                    "HIM",
-                    datetime_timestamp,
-                    &tx_hash,
-                    Some(10), // Optimism chain ID
-                );
-
-                // Execute the SQL calls
-                let client = self.postgres_client.pool.get().await.unwrap();
-                for sql_call in sql_calls {
-                    // Convert params to references for execute
-                    let params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = sql_call.params
-                        .iter()
-                        .map(|s| s as &(dyn tokio_postgres::types::ToSql + Sync))
-                        .collect();
-                    client.execute(&sql_call.query, &params).await?;
+                
+                if let Err(err) = self
+                    .postgres_client
+                    .add_human_points_event(
+                        &event.to.to_string().to_lowercase(),
+                        "HIM",
+                        datetime_timestamp,
+                        &tx_hash,
+                        Some(self.chain_config.chain_id),
+                    )
+                    .await
+                {
+                    eprintln!(
+                        "Error - Failed to process Human ID mint event for chain {}: {:?}",
+                        self.chain_config.chain_id, err
+                    );
                 }
-
-                eprintln!(
-                    "Debug - Recorded Human ID mint for {} in tx {}",
-                    event.to, tx_hash
-                );
             }
         }
 
