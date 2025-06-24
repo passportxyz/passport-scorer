@@ -10,10 +10,10 @@ use dotenv::dotenv;
 use ethers::core::types::Address;
 use eyre::Result;
 use futures::try_join;
-use human_points_indexer::HumanPointsIndexer;
 use legacy_staking_indexer::LegacyStakingIndexer;
 use postgres::PostgresClient;
-use staking_indexer::StakingIndexer;
+use std::sync::Arc;
+use unified_indexer::{ChainConfig, ContractConfig, ContractType, UnifiedChainIndexer};
 use utils::get_env;
 
 pub const LEGACY_CONTRACT_START_BLOCK: i32 = 16403024;
@@ -39,13 +39,19 @@ async fn main() -> Result<()> {
             .parse::<Address>()
             .unwrap();
 
+        let postgres_client = Arc::new(postgres_client);
+        
         match try_join!(
             run_legacy_indexer(postgres_client.clone()),
-            run_ethereum_indexer(postgres_client.clone(), &contract_address_eth_mainnet),
-            run_optimism_indexer(postgres_client.clone(), &contract_address_op_mainnet),
-            run_optimism_sepolia_indexer(postgres_client.clone(), &contract_address_op_sepolia),
-            run_arbitrum_indexer(postgres_client.clone(), &contract_address_arbitrum_mainnet),
-            run_human_points_indexers(postgres_client.clone())
+            run_unified_ethereum_indexer(postgres_client.clone(), &contract_address_eth_mainnet),
+            run_unified_optimism_indexer(postgres_client.clone(), &contract_address_op_mainnet),
+            run_unified_optimism_sepolia_indexer(postgres_client.clone(), &contract_address_op_sepolia),
+            run_unified_arbitrum_indexer(postgres_client.clone(), &contract_address_arbitrum_mainnet),
+            run_unified_base_indexer(postgres_client.clone()),
+            run_unified_linea_indexer(postgres_client.clone()),
+            run_unified_scroll_indexer(postgres_client.clone()),
+            run_unified_zksync_indexer(postgres_client.clone()),
+            run_unified_shape_indexer(postgres_client.clone())
         ) {
             Ok(_) => {
                 eprintln!("Warning - top-level join ended without error");
@@ -59,18 +65,18 @@ async fn main() -> Result<()> {
     }
 }
 
-async fn run_legacy_indexer(postgres_client: PostgresClient) -> Result<()> {
+async fn run_legacy_indexer(postgres_client: Arc<PostgresClient>) -> Result<()> {
     if get_env("INDEXER_LEGACY_ENABLED") != "true" {
         return Ok(());
     }
 
     let ethereum_rpc_url = get_env("INDEXER_ETHEREUM_RPC_URL");
-    let legacy_staking_indexer = LegacyStakingIndexer::new(postgres_client, &ethereum_rpc_url);
+    let legacy_staking_indexer = LegacyStakingIndexer::new((*postgres_client).clone(), &ethereum_rpc_url);
     legacy_staking_indexer.listen_with_timeout_reset().await
 }
 
-async fn run_ethereum_indexer(
-    postgres_client: PostgresClient,
+async fn run_unified_ethereum_indexer(
+    postgres_client: Arc<PostgresClient>,
     contract_address: &Address,
 ) -> Result<()> {
     if get_env("INDEXER_ETHEREUM_ENABLED") != "true" {
@@ -81,18 +87,26 @@ async fn run_ethereum_indexer(
     let ethereum_start_block = get_env("INDEXER_ETHEREUM_START_BLOCK")
         .parse::<u64>()
         .unwrap();
-    let ethereum_staking_indexer = StakingIndexer::new(
-        postgres_client,
-        &ethereum_rpc_url,
-        ethereum_start_block,
-        contract_address,
-    )
-    .await?;
-    ethereum_staking_indexer.listen_with_timeout_reset().await
+    
+    let chain_config = ChainConfig {
+        chain_id: 1, // Ethereum mainnet
+        rpc_url: ethereum_rpc_url,
+        contracts: vec![
+            ContractConfig {
+                address: *contract_address,
+                start_block: ethereum_start_block,
+                contract_type: ContractType::Staking,
+                schema_uid: None,
+            },
+        ],
+    };
+    
+    let indexer = UnifiedChainIndexer::new(chain_config, postgres_client).await?;
+    indexer.run().await
 }
 
-async fn run_optimism_indexer(
-    postgres_client: PostgresClient,
+async fn run_unified_optimism_indexer(
+    postgres_client: Arc<PostgresClient>,
     contract_address: &Address,
 ) -> Result<()> {
     if get_env("INDEXER_OPTIMISM_ENABLED") != "true" {
@@ -103,18 +117,47 @@ async fn run_optimism_indexer(
     let optimism_start_block = get_env("INDEXER_OPTIMISM_START_BLOCK")
         .parse::<u64>()
         .unwrap();
-    let optimism_staking_indexer = StakingIndexer::new(
-        postgres_client,
-        &optimism_rpc_url,
-        optimism_start_block,
-        contract_address,
-    )
-    .await?;
-    optimism_staking_indexer.listen_with_timeout_reset().await
+    
+    let mut contracts = vec![
+        ContractConfig {
+            address: *contract_address,
+            start_block: optimism_start_block,
+            contract_type: ContractType::Staking,
+            schema_uid: None,
+        },
+    ];
+    
+    // Add Human Points contracts if enabled
+    if get_env("HUMAN_POINTS_ENABLED") == "true" {
+        // Passport mint on Optimism
+        contracts.push(ContractConfig {
+            address: "0x4200000000000000000000000000000000000021".parse()?,
+            start_block: 0, // TODO: Add actual deployment block
+            contract_type: ContractType::PassportMint,
+            schema_uid: Some("0xda0257756063c891659fed52fd36ef7557f7b45d66f59645fd3c3b263b747254".parse()?),
+        });
+        
+        // Human ID SBT on Optimism
+        contracts.push(ContractConfig {
+            address: "0x2AA822e264F8cc31A2b9C22f39e5551241e94DfB".parse()?,
+            start_block: 0, // TODO: Add actual deployment block
+            contract_type: ContractType::HumanIdMint,
+            schema_uid: None,
+        });
+    }
+    
+    let chain_config = ChainConfig {
+        chain_id: 10, // Optimism mainnet
+        rpc_url: optimism_rpc_url,
+        contracts,
+    };
+    
+    let indexer = UnifiedChainIndexer::new(chain_config, postgres_client).await?;
+    indexer.run().await
 }
 
-async fn run_arbitrum_indexer(
-    postgres_client: PostgresClient,
+async fn run_unified_arbitrum_indexer(
+    postgres_client: Arc<PostgresClient>,
     contract_address: &Address,
 ) -> Result<()> {
     if get_env("INDEXER_ARBITRUM_ENABLED") != "true" {
@@ -125,19 +168,40 @@ async fn run_arbitrum_indexer(
     let arbitrum_start_block = get_env("INDEXER_ARBITRUM_START_BLOCK")
         .parse::<u64>()
         .unwrap();
-    let arbitrum_staking_indexer = StakingIndexer::new(
-        postgres_client,
-        &arbitrum_rpc_url,
-        arbitrum_start_block,
-        contract_address,
-    )
-    .await?;
-    arbitrum_staking_indexer.listen_with_timeout_reset().await
+    
+    let mut contracts = vec![
+        ContractConfig {
+            address: *contract_address,
+            start_block: arbitrum_start_block,
+            contract_type: ContractType::Staking,
+            schema_uid: None,
+        },
+    ];
+    
+    // Add Human Points contracts if enabled
+    if get_env("HUMAN_POINTS_ENABLED") == "true" {
+        // Passport mint on Arbitrum
+        contracts.push(ContractConfig {
+            address: "0xbD75f629A22Dc1ceD33dDA0b68c546A1c035c458".parse()?,
+            start_block: 0, // TODO: Add actual deployment block
+            contract_type: ContractType::PassportMint,
+            schema_uid: Some("0x1f3dce6501d8aad23563c0cf4f0c32264aed9311cb050056ebf72774f89ba912".parse()?),
+        });
+    }
+    
+    let chain_config = ChainConfig {
+        chain_id: 42161, // Arbitrum mainnet
+        rpc_url: arbitrum_rpc_url,
+        contracts,
+    };
+    
+    let indexer = UnifiedChainIndexer::new(chain_config, postgres_client).await?;
+    indexer.run().await
 }
 
 
-async fn run_optimism_sepolia_indexer(
-    postgres_client: PostgresClient,
+async fn run_unified_optimism_sepolia_indexer(
+    postgres_client: Arc<PostgresClient>,
     contract_address: &Address,
 ) -> Result<()> {
     if get_env("INDEXER_OPTIMISM_SEPOLIA_ENABLED") != "true" {
@@ -148,71 +212,213 @@ async fn run_optimism_sepolia_indexer(
     let op_sepolia_start_block = get_env("INDEXER_OPTIMISM_SEPOLIA_START_BLOCK")
         .parse::<u64>()
         .unwrap();
-    let op_sepolia_staking_indexer = StakingIndexer::new(
-        postgres_client,
-        &op_sepolia_rpc_url,
-        op_sepolia_start_block,
-        contract_address,
-    )
-    .await?;
-    op_sepolia_staking_indexer.listen_with_timeout_reset().await
+    
+    let chain_config = ChainConfig {
+        chain_id: 11155420, // OP Sepolia
+        rpc_url: op_sepolia_rpc_url,
+        contracts: vec![
+            ContractConfig {
+                address: *contract_address,
+                start_block: op_sepolia_start_block,
+                contract_type: ContractType::Staking,
+                schema_uid: None,
+            },
+        ],
+    };
+    
+    let indexer = UnifiedChainIndexer::new(chain_config, postgres_client).await?;
+    indexer.run().await
 }
 
-async fn run_human_points_indexers(postgres_client: PostgresClient) -> Result<()> {
-    if get_env("HUMAN_POINTS_ENABLED") != "true" {
+async fn run_unified_base_indexer(
+    postgres_client: Arc<PostgresClient>,
+) -> Result<()> {
+    if get_env("INDEXER_BASE_ENABLED") != "true" {
         return Ok(());
     }
 
-    let mut tasks = vec![];
+    let base_rpc_url = get_env("INDEXER_BASE_RPC_URL");
     
-    // Run Human Points indexer for each enabled chain
-    let chains = vec![
-        ("OPTIMISM", 10),
-        ("ARBITRUM", 42161),
-        ("BASE", 8453),
-        ("LINEA", 59144),
-        ("SCROLL", 534352),
-        ("ZKSYNC", 324),
-        ("SHAPE", 360),
-    ];
+    let mut contracts = vec![];
     
-    for (chain_name, chain_id) in chains {
-        let env_key = format!("INDEXER_{}_ENABLED", chain_name);
-        let rpc_key = format!("INDEXER_{}_RPC_URL", chain_name);
-        
-        if get_env(&env_key) == "true" {
-            let rpc_url = get_env(&rpc_key);
-            let postgres_client = postgres_client.clone();
-            
-            tasks.push(tokio::spawn(async move {
-                run_human_points_for_chain(postgres_client, &rpc_url, chain_id).await
-            }));
-        }
+    // Add staking contract if exists
+    if let Ok(contract_address) = get_env("STAKING_CONTRACT_ADDRESS_BASE").parse::<Address>() {
+        let base_start_block = get_env("INDEXER_BASE_START_BLOCK")
+            .parse::<u64>()
+            .unwrap_or(0);
+        contracts.push(ContractConfig {
+            address: contract_address,
+            start_block: base_start_block,
+            contract_type: ContractType::Staking,
+            schema_uid: None,
+        });
     }
     
-    // Wait for all tasks
-    for task in tasks {
-        task.await??;
+    // Add Human Points contracts if enabled
+    if get_env("HUMAN_POINTS_ENABLED") == "true" {
+        // Passport mint on Base
+        contracts.push(ContractConfig {
+            address: "0x4200000000000000000000000000000000000021".parse()?,
+            start_block: 0, // TODO: Add actual deployment block
+            contract_type: ContractType::PassportMint,
+            schema_uid: Some("0x1f3dce6501d8aad23563c0cf4f0c32264aed9311cb050056ebf72774f89ba912".parse()?),
+        });
     }
     
-    Ok(())
+    if contracts.is_empty() {
+        return Ok(());
+    }
+    
+    let chain_config = ChainConfig {
+        chain_id: 8453, // Base mainnet
+        rpc_url: base_rpc_url,
+        contracts,
+    };
+    
+    let indexer = UnifiedChainIndexer::new(chain_config, postgres_client).await?;
+    indexer.run().await
 }
 
-async fn run_human_points_for_chain(
-    postgres_client: PostgresClient,
-    rpc_url: &str,
-    chain_id: u32,
+async fn run_unified_linea_indexer(
+    postgres_client: Arc<PostgresClient>,
 ) -> Result<()> {
-    use ethers::providers::{Provider, Ws};
-    use std::sync::Arc;
-    
-    let provider = Provider::<Ws>::connect(rpc_url).await?;
-    let provider = Arc::new(provider);
-    let postgres_client = Arc::new(postgres_client);
-    
-    let indexer = Arc::new(HumanPointsIndexer::new(provider, postgres_client, chain_id));
-    match indexer.run().await {
-        Ok(_) => Ok(()),
-        Err(e) => Err(eyre::eyre!("Human Points indexer error: {}", e))
+    if get_env("INDEXER_LINEA_ENABLED") != "true" {
+        return Ok(());
     }
+
+    let linea_rpc_url = get_env("INDEXER_LINEA_RPC_URL");
+    
+    let mut contracts = vec![];
+    
+    // Add Human Points contracts if enabled
+    if get_env("HUMAN_POINTS_ENABLED") == "true" {
+        // Passport mint on Linea
+        contracts.push(ContractConfig {
+            address: "0xaEF4103A04090071165F78D45D83A0C0782c2B2a".parse()?,
+            start_block: 0, // TODO: Add actual deployment block
+            contract_type: ContractType::PassportMint,
+            schema_uid: Some("0xa15ea01b11913fd412243156b40a8d5102ee9784172f82f9481e4c953fdd516d".parse()?),
+        });
+    }
+    
+    if contracts.is_empty() {
+        return Ok(());
+    }
+    
+    let chain_config = ChainConfig {
+        chain_id: 59144, // Linea mainnet
+        rpc_url: linea_rpc_url,
+        contracts,
+    };
+    
+    let indexer = UnifiedChainIndexer::new(chain_config, postgres_client).await?;
+    indexer.run().await
+}
+
+async fn run_unified_scroll_indexer(
+    postgres_client: Arc<PostgresClient>,
+) -> Result<()> {
+    if get_env("INDEXER_SCROLL_ENABLED") != "true" {
+        return Ok(());
+    }
+
+    let scroll_rpc_url = get_env("INDEXER_SCROLL_RPC_URL");
+    
+    let mut contracts = vec![];
+    
+    // Add Human Points contracts if enabled
+    if get_env("HUMAN_POINTS_ENABLED") == "true" {
+        // Passport mint on Scroll
+        contracts.push(ContractConfig {
+            address: "0xC47300428b6AD2c7D03BB76D05A176058b47E6B0".parse()?,
+            start_block: 0, // TODO: Add actual deployment block
+            contract_type: ContractType::PassportMint,
+            schema_uid: Some("0x1f3dce6501d8aad23563c0cf4f0c32264aed9311cb050056ebf72774f89ba912".parse()?),
+        });
+    }
+    
+    if contracts.is_empty() {
+        return Ok(());
+    }
+    
+    let chain_config = ChainConfig {
+        chain_id: 534352, // Scroll mainnet
+        rpc_url: scroll_rpc_url,
+        contracts,
+    };
+    
+    let indexer = UnifiedChainIndexer::new(chain_config, postgres_client).await?;
+    indexer.run().await
+}
+
+async fn run_unified_zksync_indexer(
+    postgres_client: Arc<PostgresClient>,
+) -> Result<()> {
+    if get_env("INDEXER_ZKSYNC_ENABLED") != "true" {
+        return Ok(());
+    }
+
+    let zksync_rpc_url = get_env("INDEXER_ZKSYNC_RPC_URL");
+    
+    let mut contracts = vec![];
+    
+    // Add Human Points contracts if enabled
+    if get_env("HUMAN_POINTS_ENABLED") == "true" {
+        // Passport mint on zkSync Era
+        contracts.push(ContractConfig {
+            address: "0x21d8d4eE83b80bc0Cc0f2B7df3117Cf212d02901".parse()?,
+            start_block: 0, // TODO: Add actual deployment block
+            contract_type: ContractType::PassportMint,
+            schema_uid: Some("0xb68405dffc0b727188de5a3af2ecbbc544ab01aef5353409c5006ffff342d143".parse()?),
+        });
+    }
+    
+    if contracts.is_empty() {
+        return Ok(());
+    }
+    
+    let chain_config = ChainConfig {
+        chain_id: 324, // zkSync Era mainnet
+        rpc_url: zksync_rpc_url,
+        contracts,
+    };
+    
+    let indexer = UnifiedChainIndexer::new(chain_config, postgres_client).await?;
+    indexer.run().await
+}
+
+async fn run_unified_shape_indexer(
+    postgres_client: Arc<PostgresClient>,
+) -> Result<()> {
+    if get_env("INDEXER_SHAPE_ENABLED") != "true" {
+        return Ok(());
+    }
+
+    let shape_rpc_url = get_env("INDEXER_SHAPE_RPC_URL");
+    
+    let mut contracts = vec![];
+    
+    // Add Human Points contracts if enabled
+    if get_env("HUMAN_POINTS_ENABLED") == "true" {
+        // Passport mint on Shape
+        contracts.push(ContractConfig {
+            address: "0x4200000000000000000000000000000000000021".parse()?,
+            start_block: 0, // TODO: Add actual deployment block
+            contract_type: ContractType::PassportMint,
+            schema_uid: Some("0x1f3dce6501d8aad23563c0cf4f0c32264aed9311cb050056ebf72774f89ba912".parse()?),
+        });
+    }
+    
+    if contracts.is_empty() {
+        return Ok(());
+    }
+    
+    let chain_config = ChainConfig {
+        chain_id: 360, // Shape mainnet
+        rpc_url: shape_rpc_url,
+        contracts,
+    };
+    
+    let indexer = UnifiedChainIndexer::new(chain_config, postgres_client).await?;
+    indexer.run().await
 }
