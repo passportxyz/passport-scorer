@@ -114,9 +114,6 @@ impl PostgresClient {
         Ok(())
     }
 
-    fn unix_time_to_datetime(&self, unix_time: &u64) -> DateTime<Utc> {
-        DateTime::from_timestamp(*unix_time as i64, 0).unwrap()
-    }
 
     pub async fn add_or_extend_stake(
         &self,
@@ -135,8 +132,8 @@ impl PostgresClient {
         let stakee = format!("{:#x}", stakee);
         let mut increase_amount = Decimal::from_u128(*increase_amount).unwrap();
         increase_amount.set_scale(18).unwrap();
-        let unlock_time = self.unix_time_to_datetime(unlock_time);
-        let lock_time = self.unix_time_to_datetime(block_timestamp);
+        let unlock_time = DateTime::from_timestamp(*unlock_time as i64, 0).unwrap();
+        let lock_time = DateTime::from_timestamp(*block_timestamp as i64, 0).unwrap();
         let block_number = Decimal::from_u64(*block_number).unwrap();
 
         let client = self.pool.get().await.unwrap();
@@ -459,119 +456,35 @@ impl PostgresClient {
         tx_hash: &str,
         chain_id: Option<u32>,
     ) -> Result<(), Error> {
-        use crate::sql_generation::generate_human_points_sql;
-        
+        let address = address.to_lowercase();
         let client = self.pool.get().await.unwrap();
         
-        // Begin transaction
-        client.execute("BEGIN", &[]).await?;
-        
-        // Generate SQL calls
-        let sql_calls = generate_human_points_sql(
-            address,
-            action,
-            timestamp,
-            tx_hash,
-            chain_id,
-        );
-        
-        // Execute all SQL calls within transaction
-        let do_query = async {
-            for sql_call in sql_calls {
-                let params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = sql_call.params
-                    .iter()
-                    .map(|s| s as &(dyn tokio_postgres::types::ToSql + Sync))
-                    .collect();
-                client.execute(&sql_call.query, &params).await?;
+        match chain_id {
+            Some(chain) => {
+                let chain: i32 = chain as i32;
+                client
+                    .execute(
+                        "INSERT INTO registry_humanpoints (address, action, timestamp, tx_hash, chain_id) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+                        &[&address, &action, &timestamp, &tx_hash, &chain],
+                    )
+                    .await?;
             }
-            Ok::<(), Error>(())
-        };
-        
-        match do_query.await {
-            Ok(_) => {
-                // Commit transaction
-                client.execute("COMMIT", &[]).await?;
-                eprintln!(
-                    "Debug - Recorded {} action for {} in tx {}",
-                    action, address, tx_hash
-                );
-            }
-            Err(e) => {
-                // Rollback transaction
-                client.execute("ROLLBACK", &[]).await?;
-                
-                // Check if it's a duplicate key error (expected for idempotent processing)
-                if format!("{:?}", e).contains("duplicate key value violates unique constraint") {
-                    // This is expected when reprocessing events, return Ok
-                    return Ok(());
-                }
-                
-                return Err(e);
+            None => {
+                client
+                    .execute(
+                        "INSERT INTO registry_humanpoints (address, action, timestamp, tx_hash) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+                        &[&address, &action, &timestamp, &tx_hash],
+                    )
+                    .await?;
             }
         }
+        
+        eprintln!(
+            "Debug - Recorded {} action for {} in tx {}",
+            action, address, tx_hash
+        );
         
         Ok(())
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_add_human_points_event_parameters() {
-        // Test that the method correctly passes parameters to SQL generation
-        let address = "0xABCDEF1234567890123456789012345678901234";
-        let action = "PMT";
-        let timestamp = DateTime::from_timestamp(1700000000, 0).unwrap();
-        let tx_hash = "0xtest123";
-        let chain_id = Some(10u32);
-        
-        // We can't test the actual database interaction without a test database,
-        // but we can verify the SQL generation is called correctly
-        use crate::sql_generation::generate_human_points_sql;
-        
-        let sql_calls = generate_human_points_sql(
-            address,
-            action,
-            timestamp,
-            tx_hash,
-            chain_id,
-        );
-        
-        // Verify we get the expected SQL call
-        assert_eq!(sql_calls.len(), 1);
-        assert!(sql_calls[0].query.contains("INSERT INTO registry_humanpoints"));
-        assert!(sql_calls[0].query.contains("ON CONFLICT DO NOTHING"));
-        
-        // Verify parameters
-        assert_eq!(sql_calls[0].params[0], "0xabcdef1234567890123456789012345678901234"); // lowercase
-        assert_eq!(sql_calls[0].params[1], "PMT");
-        assert_eq!(sql_calls[0].params[3], "0xtest123");
-        assert_eq!(sql_calls[0].params[4], "10");
-    }
-    
-    #[test]
-    fn test_add_human_points_event_without_chain_id() {
-        let address = "0x7777777777777777777777777777777777777777";
-        let action = "HIM";
-        let timestamp = DateTime::from_timestamp(1700000000, 0).unwrap();
-        let tx_hash = "0xnochain";
-        let chain_id = None;
-        
-        use crate::sql_generation::generate_human_points_sql;
-        
-        let sql_calls = generate_human_points_sql(
-            address,
-            action,
-            timestamp,
-            tx_hash,
-            chain_id,
-        );
-        
-        // Verify parameters without chain_id
-        assert_eq!(sql_calls.len(), 1);
-        assert_eq!(sql_calls[0].params.len(), 4); // No chain_id parameter
-        assert!(!sql_calls[0].query.contains("chain_id"));
-    }
-}
