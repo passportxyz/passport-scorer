@@ -250,8 +250,8 @@ This approach allows us to:
      - Block tracking and recovery
      - Historical block processing in batches
 
-### Current Implementation Status 🚧
-The unified indexer architecture is complete and compiling successfully. The implementation includes:
+### Current Implementation Status ✅
+The unified indexer architecture is complete and fully integrated. The implementation includes:
 
 - **UnifiedChainIndexer** struct with shared provider and postgres client
 - **ContractConfig** with address, start_block, and contract type
@@ -261,9 +261,15 @@ The unified indexer architecture is complete and compiling successfully. The imp
   - Human ID SBT handler for Transfer events (checks for mints from zero address)
 - **All staking event handlers** ported from the original implementation
 - **Robustness features** including timeout detection and automatic recovery
+- **Main.rs updated** (December 2024):
+  - Replaced all separate indexer spawning with unified indexers
+  - Each chain now has a single indexer handling all event types
+  - Added unified indexers for all Human Points chains (Base, Linea, Scroll, zkSync, Shape)
+  - Human Points contracts conditionally added based on `HUMAN_POINTS_ENABLED` flag
+  - Removed the old `run_human_points_indexers` function
 
 ### Next Steps
-1. **Update main.rs** to use the unified indexer instead of separate indexers
+1. **Update main.rs** to use the unified indexer instead of separate indexers ✅ (Completed Dec 2024)
 2. **Integration testing** with forked networks
 3. **Gradual migration** of production staking indexers
 
