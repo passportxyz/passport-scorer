@@ -1,8 +1,8 @@
 use crate::{
     postgres::PostgresClient,
-    sql_generation::unix_time_to_datetime,
     utils::{create_rpc_connection, StakeAmountOperation, StakeEventType},
 };
+use chrono::DateTime;
 use ethers::{
     contract::{abigen, EthEvent, EthLogDecode, LogMeta},
     core::types::{Address, Filter, Log, H256, U256},
@@ -382,7 +382,7 @@ impl UnifiedChainIndexer {
             }
             
             let timestamp = self.get_timestamp_for_block(block_number).await?;
-            let datetime_timestamp = unix_time_to_datetime(&(timestamp as u64));
+            let datetime_timestamp = DateTime::from_timestamp(timestamp as i64, 0).unwrap();
             
             if let Err(err) = self
                 .postgres_client
@@ -415,7 +415,7 @@ impl UnifiedChainIndexer {
             // Check if it's a mint (from address is zero)
             if event.from == Address::zero() {
                 let timestamp = self.get_timestamp_for_block(block_number).await?;
-                let datetime_timestamp = unix_time_to_datetime(&(timestamp as u64));
+                let datetime_timestamp = DateTime::from_timestamp(timestamp as i64, 0).unwrap();
                 
                 if let Err(err) = self
                     .postgres_client
