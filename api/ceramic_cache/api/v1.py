@@ -529,7 +529,7 @@ def handle_get_ui_score(
 
         # Get points data if community has human_points_program enabled
         points_data = None
-        if user_community.human_points_program:
+        if settings.HUMAN_POINTS_ENABLED and user_community.human_points_program:
             points_data = async_to_sync(aget_user_points_data)(lower_address)
 
         return format_v2_score_response(score, scorer_type, points_data)

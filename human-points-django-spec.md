@@ -13,8 +13,11 @@ Implement a points tracking system for the Human Points Program that rewards use
   - test_human_points_scoring_integration.py - Async scoring integration tests
   - test_human_points_constraints.py - Database constraint tests
   - test_human_points_api_response.py - API response tests
-- ⏳ Scoring integration in atasks.py (not implemented)
-- ⏳ API endpoint updates (not implemented)
+- ✅ Scoring integration in atasks.py (implemented)
+- ✅ API endpoint updates (V2 API returns points_data)
+- ✅ Feature flag implementation (implemented - HUMAN_POINTS_ENABLED setting)
+- ✅ Multiplier backfill management command (implemented - backfill_human_points_multipliers.py)
+- ✅ Human Keys nullifier extraction verification (implemented - updated to extract from credentialSubject)
 
 ## Database Models
 
@@ -256,3 +259,131 @@ This implementation is temporary for the points program duration. Consider:
 - Easy way to stop tracking without breaking existing functionality
 - Clean separation from core logic
 - Config table allows changing point values without code changes
+
+## ✅ All Implementation Tasks Completed
+
+### 1. Feature Flag Implementation (High Priority) ✅ COMPLETED
+Add a feature flag to control Human Points functionality:
+
+**Settings Configuration:**
+```python
+# In settings.py or environment-specific settings
+HUMAN_POINTS_ENABLED = env.bool("HUMAN_POINTS_ENABLED", default=True)
+```
+
+**Scoring Integration Update:**
+```python
+# In registry/atasks.py, wrap the Human Points logic:
+if settings.HUMAN_POINTS_ENABLED and community.human_points_program and score.score and score.score >= Decimal("20"):
+    # Record passing score for this community
+    await arecord_passing_score(address, community.pk)
+    
+    # Award human points for valid stamps
+    await arecord_stamp_actions(address, deduped_passport_data.get("stamps", []))
+    
+    # Check and award scoring bonus if qualified
+    await acheck_and_award_scoring_bonus(address, community.pk)
+```
+
+**API Response Update:**
+```python
+# In v2/api/api_stamps.py, conditionally include points_data:
+points_data = None
+if settings.HUMAN_POINTS_ENABLED and community.human_points_program:
+    points_data = await aget_user_points_data(address_lower)
+
+# Also update ceramic_cache/api/v1.py similarly
+```
+
+### 2. Multiplier Backfill Management Command (Medium Priority) ✅ COMPLETED
+Create a management command to identify and reward returning users:
+
+**File:** `api/registry/management/commands/backfill_human_points_multipliers.py`
+```python
+from django.core.management.base import BaseCommand
+from django.db import transaction
+from account.models import Community
+from registry.models import Score, HumanPointsMultiplier, HumanPointsCommunityQualifiedUsers
+
+class Command(BaseCommand):
+    help = 'Backfill multipliers for returning users based on passing scores'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--dry-run',
+            action='store_true',
+            help='Show what would be done without making changes',
+        )
+
+    def handle(self, *args, **options):
+        # Find all addresses with passing scores in human_points_program communities
+        qualified_addresses = (
+            HumanPointsCommunityQualifiedUsers.objects
+            .values_list('address', flat=True)
+            .distinct()
+        )
+        
+        # Filter for addresses that don't already have multipliers
+        existing_multipliers = HumanPointsMultiplier.objects.values_list('address', flat=True)
+        addresses_to_create = set(qualified_addresses) - set(existing_multipliers)
+        
+        self.stdout.write(f"Found {len(addresses_to_create)} addresses needing multipliers")
+        
+        if not options['dry_run']:
+            # Bulk create multipliers
+            multipliers = [
+                HumanPointsMultiplier(address=addr, multiplier=2)
+                for addr in addresses_to_create
+            ]
+            HumanPointsMultiplier.objects.bulk_create(
+                multipliers,
+                ignore_conflicts=True
+            )
+            self.stdout.write(self.style.SUCCESS(f"Created {len(multipliers)} multipliers"))
+        else:
+            self.stdout.write("Dry run - no changes made")
+```
+
+### 3. Human Keys Nullifier Investigation (Low Priority) ✅ COMPLETED
+Verify the structure of Human Keys credentials and update extraction if needed:
+
+1. **Research:** Check the actual credential structure for humanKeysProvider stamps
+2. **Update:** Modify the nullifier extraction logic in `human_points_utils.py` if needed
+
+**Investigation Results:**
+After examining the deduplication code in `account/deduplication/lifo.py`, the nullifier extraction has been updated to follow the same pattern:
+- Primary case: `credential.credentialSubject.hash` 
+- Multi-nullifier case: `credential.credentialSubject.nullifiers[0]`
+
+The implementation in `human_points_utils.py` has been updated to correctly extract nullifiers from the `credentialSubject` field.
+
+### 4. Initial Data Population ✅ COMPLETED
+Create fixtures or data migration for HumanPointsConfig:
+
+**File:** `api/registry/fixtures/human_points_config.json`
+```json
+[
+  {"model": "registry.humanpointsconfig", "fields": {"action": "SCB", "points": 500, "active": true}},
+  {"model": "registry.humanpointsconfig", "fields": {"action": "HKY", "points": 100, "active": true}},
+  {"model": "registry.humanpointsconfig", "fields": {"action": "ISB", "points": 100, "active": true}},
+  {"model": "registry.humanpointsconfig", "fields": {"action": "ISS", "points": 200, "active": true}},
+  {"model": "registry.humanpointsconfig", "fields": {"action": "ISG", "points": 500, "active": true}},
+  {"model": "registry.humanpointsconfig", "fields": {"action": "CSB", "points": 100, "active": true}},
+  {"model": "registry.humanpointsconfig", "fields": {"action": "CSE", "points": 200, "active": true}},
+  {"model": "registry.humanpointsconfig", "fields": {"action": "CST", "points": 500, "active": true}},
+  {"model": "registry.humanpointsconfig", "fields": {"action": "PMT", "points": 300, "active": true}},
+  {"model": "registry.humanpointsconfig", "fields": {"action": "HIM", "points": 1000, "active": true}}
+]
+```
+
+Load with: `python manage.py loaddata human_points_config`
+
+**Alternative: Data Migration**
+A data migration (0050_populate_human_points_config.py) has also been created that will automatically populate the HumanPointsConfig table when migrations are run. This is the preferred method for production deployments.
+
+### Testing Checklist
+- [ ] Test feature flag enables/disables Human Points in scoring
+- [ ] Test feature flag controls API response points_data field
+- [ ] Test multiplier backfill command with --dry-run
+- [ ] Test multiplier backfill command creates correct records
+- [ ] Verify Human Keys nullifier extraction with real credentials

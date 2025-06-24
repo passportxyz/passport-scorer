@@ -80,10 +80,18 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
             # For Human Keys, store nullifier in tx_hash field
             tx_hash = None
             if provider == "humanKeysProvider":
-                # Extract nullifier from credential if available
+                # Extract nullifier from credential following the same pattern as deduplication
                 credential = stamp.get("credential", {})
-                # This would need to be adjusted based on actual credential structure
-                tx_hash = credential.get("nullifier")
+                credential_subject = credential.get("credentialSubject", {})
+                
+                # Check for hash first (standard case), then nullifiers array (multi-nullifier case)
+                if "hash" in credential_subject:
+                    tx_hash = credential_subject["hash"]
+                elif "nullifiers" in credential_subject:
+                    # For multi-nullifier case, use the first nullifier
+                    nullifiers = credential_subject["nullifiers"]
+                    if nullifiers and isinstance(nullifiers, list):
+                        tx_hash = nullifiers[0]
             
             # Use get_or_create to handle duplicates gracefully
             await HumanPoints.objects.aget_or_create(
