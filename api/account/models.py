@@ -523,6 +523,9 @@ class Customization(models.Model):
     )
     scorer = models.OneToOneField(Community, on_delete=models.PROTECT)
     use_custom_dashboard_panel = models.BooleanField(default=False)
+    custom_dashboard_panel_title = models.CharField(
+        max_length=255, null=True, blank=True
+    )
 
     # CustomizationTheme
     customization_background_1 = RGBHexColorField(

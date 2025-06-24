@@ -684,6 +684,7 @@ def get_account_customization(request, dashboard_path: str):
                 "text": customization.scorer_panel_text,
             },
             dashboardPanel={
+                "customDashboardPanelTitle": customization.custom_dashboard_panel_title,
                 "logo": {
                     "image": customization.logo_image,
                     "caption": customization.logo_caption,
