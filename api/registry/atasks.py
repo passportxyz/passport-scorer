@@ -252,7 +252,7 @@ async def ascore_passport(
         await acalculate_score(passport, community.pk, score, clashing_stamps)
         
         # Human Points Program integration
-        if community.human_points_program and score.score and score.score >= Decimal("20"):
+        if settings.HUMAN_POINTS_ENABLED and community.human_points_program and score.score and score.score >= Decimal("20"):
             # Record passing score for this community
             await arecord_passing_score(address, community.pk)
             

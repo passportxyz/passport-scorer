@@ -1,0 +1,82 @@
+[
+  {
+    "model": "registry.humanpointsconfig",
+    "fields": {
+      "action": "SCB",
+      "points": 500,
+      "active": true
+    }
+  },
+  {
+    "model": "registry.humanpointsconfig",
+    "fields": {
+      "action": "HKY",
+      "points": 100,
+      "active": true
+    }
+  },
+  {
+    "model": "registry.humanpointsconfig",
+    "fields": {
+      "action": "ISB",
+      "points": 100,
+      "active": true
+    }
+  },
+  {
+    "model": "registry.humanpointsconfig",
+    "fields": {
+      "action": "ISS",
+      "points": 200,
+      "active": true
+    }
+  },
+  {
+    "model": "registry.humanpointsconfig",
+    "fields": {
+      "action": "ISG",
+      "points": 500,
+      "active": true
+    }
+  },
+  {
+    "model": "registry.humanpointsconfig",
+    "fields": {
+      "action": "CSB",
+      "points": 100,
+      "active": true
+    }
+  },
+  {
+    "model": "registry.humanpointsconfig",
+    "fields": {
+      "action": "CSE",
+      "points": 200,
+      "active": true
+    }
+  },
+  {
+    "model": "registry.humanpointsconfig",
+    "fields": {
+      "action": "CST",
+      "points": 500,
+      "active": true
+    }
+  },
+  {
+    "model": "registry.humanpointsconfig",
+    "fields": {
+      "action": "PMT",
+      "points": 300,
+      "active": true
+    }
+  },
+  {
+    "model": "registry.humanpointsconfig",
+    "fields": {
+      "action": "HIM",
+      "points": 1000,
+      "active": true
+    }
+  }
+]

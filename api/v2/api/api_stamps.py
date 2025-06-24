@@ -86,7 +86,7 @@ async def ahandle_scoring(address: str, community):
 
     # Get points data if community has human_points_program enabled
     points_data = None
-    if community.human_points_program:
+    if settings.HUMAN_POINTS_ENABLED and community.human_points_program:
         points_data = await aget_user_points_data(address_lower)
 
     return format_v2_score_response(score, scorer_type, points_data)
