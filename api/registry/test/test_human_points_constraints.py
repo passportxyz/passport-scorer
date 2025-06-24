@@ -17,10 +17,10 @@ class TestHumanPointsConstraints:
         """Test unique constraint for binary actions (stamps)"""
         address = "0x1234567890123456789012345678901234567890"
 
-        # Create first human_keys entry
+        # Create first scoring bonus entry (SCB is a true binary action)
         HumanPoints.objects.create(
             address=address,
-            action="HKY",  # Using the 3-letter code
+            action="SCB",  # Using the 3-letter code for scoring bonus
         )
 
         # Try to create duplicate - should fail with unique constraint
@@ -32,7 +32,7 @@ class TestHumanPointsConstraints:
                     INSERT INTO registry_humanpoints (address, action, timestamp)
                     VALUES (%s, %s, NOW())
                     """,
-                    [address, "HKY"],
+                    [address, "SCB"],
                 )
 
         # The error should be about unique constraint violation
@@ -47,7 +47,7 @@ class TestHumanPointsConstraints:
 
         # Create different binary actions for same address using 3-letter codes
         binary_actions = [
-            "HKY",  # human_keys
+            "SCB",  # scoring_bonus
             "ISB",  # identity_staking_bronze
             "ISS",  # identity_staking_silver
             "ISG",  # identity_staking_gold
