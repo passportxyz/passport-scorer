@@ -23,8 +23,8 @@ from registry.models import (
     Event,
     GTCStakeEvent,
     HashScorerLink,
-    HumanPointsCommunityQualifiedUsers,
     HumanPoints,
+    HumanPointsCommunityQualifiedUsers,
     HumanPointsConfig,
     HumanPointsMultiplier,
     Passport,
@@ -491,10 +491,6 @@ class HumanPointsAdmin(ScorerModelAdmin):
     ordering = ["-timestamp"]
     date_hierarchy = "timestamp"
     readonly_fields = ["timestamp"]
-    
-    def has_add_permission(self, request):
-        # Prevent manual addition through admin
-        return False
 
 
 @admin.register(HumanPointsMultiplier)
