@@ -35,7 +35,6 @@ pub async fn create_ethereum_indexer(
         .unwrap();
 
     let chain_config = ChainConfig {
-        chain_id: 1, // Ethereum mainnet
         rpc_url: ethereum_rpc_url,
         contracts: vec![ContractConfig {
             address: *contract_address,
@@ -91,7 +90,6 @@ pub async fn create_optimism_indexer(
     }
 
     let chain_config = ChainConfig {
-        chain_id: 10, // Optimism mainnet
         rpc_url: optimism_rpc_url,
         contracts,
     };
@@ -134,7 +132,6 @@ pub async fn create_arbitrum_indexer(
     }
 
     let chain_config = ChainConfig {
-        chain_id: 42161, // Arbitrum mainnet
         rpc_url: arbitrum_rpc_url,
         contracts,
     };
@@ -157,7 +154,6 @@ pub async fn create_optimism_sepolia_indexer(
         .unwrap();
 
     let chain_config = ChainConfig {
-        chain_id: 11155420, // OP Sepolia testnet
         rpc_url: op_sepolia_rpc_url,
         contracts: vec![ContractConfig {
             address: *contract_address,
@@ -210,7 +206,6 @@ pub async fn create_base_indexer(postgres_client: Arc<PostgresClient>) -> Result
     }
 
     let chain_config = ChainConfig {
-        chain_id: 8453, // Base mainnet
         rpc_url: base_rpc_url,
         contracts,
     };
@@ -245,7 +240,6 @@ pub async fn create_linea_indexer(postgres_client: Arc<PostgresClient>) -> Resul
     }
 
     let chain_config = ChainConfig {
-        chain_id: 59144, // Linea mainnet
         rpc_url: linea_rpc_url,
         contracts,
     };
@@ -280,7 +274,6 @@ pub async fn create_scroll_indexer(postgres_client: Arc<PostgresClient>) -> Resu
     }
 
     let chain_config = ChainConfig {
-        chain_id: 534352, // Scroll mainnet
         rpc_url: scroll_rpc_url,
         contracts,
     };
@@ -315,7 +308,6 @@ pub async fn create_zksync_indexer(postgres_client: Arc<PostgresClient>) -> Resu
     }
 
     let chain_config = ChainConfig {
-        chain_id: 324, // zkSync Era mainnet
         rpc_url: zksync_rpc_url,
         contracts,
     };
@@ -350,7 +342,6 @@ pub async fn create_shape_indexer(postgres_client: Arc<PostgresClient>) -> Resul
     }
 
     let chain_config = ChainConfig {
-        chain_id: 360, // Shape mainnet
         rpc_url: shape_rpc_url,
         contracts,
     };

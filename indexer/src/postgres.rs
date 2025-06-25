@@ -114,6 +114,9 @@ impl PostgresClient {
         Ok(())
     }
 
+    fn unix_time_to_datetime(&self, unix_time: &u64) -> DateTime<Utc> {
+        DateTime::from_timestamp(*unix_time as i64, 0).unwrap()
+    }
 
     pub async fn add_or_extend_stake(
         &self,
@@ -132,8 +135,8 @@ impl PostgresClient {
         let stakee = format!("{:#x}", stakee);
         let mut increase_amount = Decimal::from_u128(*increase_amount).unwrap();
         increase_amount.set_scale(18).unwrap();
-        let unlock_time = DateTime::from_timestamp(*unlock_time as i64, 0).unwrap();
-        let lock_time = DateTime::from_timestamp(*block_timestamp as i64, 0).unwrap();
+        let unlock_time = self.unix_time_to_datetime(unlock_time);
+        let lock_time = self.unix_time_to_datetime(block_timestamp);
         let block_number = Decimal::from_u64(*block_number).unwrap();
 
         let client = self.pool.get().await.unwrap();
@@ -306,25 +309,6 @@ impl PostgresClient {
         Ok(())
     }
 
-    pub async fn get_stake_event_count(&self, chain_id: u32) -> Result<i64, Error> {
-        let chain_id: i32 = chain_id as i32;
-        let client = self.pool.get().await.unwrap();
-        let count_rows = client
-            .query(
-                "SELECT COUNT(*) FROM stake_stakeevent WHERE chain = $1",
-                &[&chain_id],
-            )
-            .await?;
-
-        match count_rows.get(0) {
-            Some(row) => {
-                let count: i64 = row.get("count");
-                Ok(count)
-            }
-            None => Ok(0),
-        }
-    }
-
     pub async fn get_total_event_count(&self, chain_id: u32) -> Result<i64, Error> {
         let chain_id: i32 = chain_id as i32;
         let client = self.pool.get().await.unwrap();
@@ -414,38 +398,6 @@ impl PostgresClient {
         block_number: u32,
     ) -> Result<(), Error> {
         self.update_last_checked_block(0, &(block_number as u64)).await
-    }
-
-    pub async fn insert_human_points(
-        &self,
-        address: &str,
-        action: &str,
-        timestamp: DateTime<Utc>,
-        tx_hash: &str,
-        chain_id: Option<i32>,
-    ) -> Result<(), Error> {
-        let client = self.pool.get().await.unwrap();
-        
-        match chain_id {
-            Some(chain) => {
-                client
-                    .execute(
-                        "INSERT INTO registry_humanpoints (address, action, timestamp, tx_hash, chain_id) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
-                        &[&address, &action, &timestamp, &tx_hash, &chain],
-                    )
-                    .await?;
-            }
-            None => {
-                client
-                    .execute(
-                        "INSERT INTO registry_humanpoints (address, action, timestamp, tx_hash) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
-                        &[&address, &action, &timestamp, &tx_hash],
-                    )
-                    .await?;
-            }
-        }
-        
-        Ok(())
     }
 
     pub async fn add_human_points_event(
