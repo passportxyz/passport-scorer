@@ -82,7 +82,7 @@ impl UnifiedChainIndexer {
         postgres_client: Arc<PostgresClient>,
     ) -> Result<Self> {
         let chain_id = get_chain_id(&chain_config.rpc_url).await?;
-        
+
         Ok(Self {
             chain_config,
             chain_id,
@@ -144,10 +144,7 @@ impl UnifiedChainIndexer {
                 .await?;
             return Ok(requested_start_block);
         } else {
-            let latest_logged_block = self
-                .postgres_client
-                .get_latest_block(self.chain_id)
-                .await?;
+            let latest_logged_block = self.postgres_client.get_latest_block(self.chain_id).await?;
 
             if latest_logged_block > 0 {
                 return Ok(latest_logged_block + 1);
@@ -298,9 +295,7 @@ impl UnifiedChainIndexer {
             .map(|c| c.address)
             .collect();
 
-        let filter = Filter::new()
-            .address(addresses)
-            .from_block(from_block);
+        let filter = Filter::new().address(addresses).from_block(from_block);
 
         let mut stream = provider.watch(&filter).await?;
 
@@ -335,7 +330,8 @@ impl UnifiedChainIndexer {
         match &contract_config.contract_type {
             ContractType::Staking => self.process_staking_log(log, provider).await,
             ContractType::PassportMint => {
-                self.process_passport_mint_log(log, contract_config, provider).await
+                self.process_passport_mint_log(log, contract_config, provider)
+                    .await
             }
             ContractType::HumanIdMint => self.process_human_id_mint_log(log, provider).await,
         }
@@ -351,21 +347,22 @@ impl UnifiedChainIndexer {
             log_index: log.log_index.unwrap(),
             address: log.address,
         };
-        
-        if let Ok(event) = IdentityStakingEvents::decode_log(&log.into()) {
 
+        if let Ok(event) = IdentityStakingEvents::decode_log(&log.into()) {
             match event {
                 IdentityStakingEvents::SelfStakeFilter(event) => {
                     self.process_self_stake_event(&event, &meta, provider).await
                 }
                 IdentityStakingEvents::CommunityStakeFilter(event) => {
-                    self.process_community_stake_event(&event, &meta, provider).await
+                    self.process_community_stake_event(&event, &meta, provider)
+                        .await
                 }
                 IdentityStakingEvents::SelfStakeWithdrawnFilter(event) => {
                     self.process_self_stake_withdrawn_event(&event, &meta).await
                 }
                 IdentityStakingEvents::CommunityStakeWithdrawnFilter(event) => {
-                    self.process_community_stake_withdrawn_event(&event, &meta).await
+                    self.process_community_stake_withdrawn_event(&event, &meta)
+                        .await
                 }
                 IdentityStakingEvents::SlashFilter(event) => {
                     self.process_slash_event(&event, &meta).await
@@ -395,7 +392,7 @@ impl UnifiedChainIndexer {
         // Extract values before consuming log
         let block_number = log.block_number.unwrap().as_u64();
         let tx_hash = format!("{:?}", log.transaction_hash.unwrap());
-        
+
         // Parse as EAS Attested event
         if let Ok(event) = <AttestedEvent as EthLogDecode>::decode_log(&log.into()) {
             // Verify schema UID matches
@@ -404,10 +401,10 @@ impl UnifiedChainIndexer {
                     return Ok(()); // Skip events with wrong schema
                 }
             }
-            
+
             let timestamp = self.get_timestamp_for_block(provider, block_number).await?;
             let datetime_timestamp = DateTime::from_timestamp(timestamp as i64, 0).unwrap();
-            
+
             if let Err(err) = self
                 .postgres_client
                 .add_human_points_event(
@@ -433,14 +430,14 @@ impl UnifiedChainIndexer {
         // Extract values before consuming log
         let block_number = log.block_number.unwrap().as_u64();
         let tx_hash = format!("{:?}", log.transaction_hash.unwrap());
-        
+
         // Parse as Transfer event
         if let Ok(event) = <TransferEvent as EthLogDecode>::decode_log(&log.into()) {
             // Check if it's a mint (from address is zero)
             if event.from == Address::zero() {
                 let timestamp = self.get_timestamp_for_block(provider, block_number).await?;
                 let datetime_timestamp = DateTime::from_timestamp(timestamp as i64, 0).unwrap();
-                
+
                 if let Err(err) = self
                     .postgres_client
                     .add_human_points_event(
@@ -463,7 +460,11 @@ impl UnifiedChainIndexer {
         Ok(())
     }
 
-    async fn get_timestamp_for_block(&self, provider: &Provider<Ws>, block_number: u64) -> Result<i64> {
+    async fn get_timestamp_for_block(
+        &self,
+        provider: &Provider<Ws>,
+        block_number: u64,
+    ) -> Result<i64> {
         if let Ok(Some(block)) = provider.get_block(block_number).await {
             return Ok(block.timestamp.as_u64() as i64);
         }

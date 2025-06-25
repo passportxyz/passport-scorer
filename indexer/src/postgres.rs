@@ -312,7 +312,7 @@ impl PostgresClient {
     pub async fn get_total_event_count(&self, chain_id: u32) -> Result<i64, Error> {
         let chain_id: i32 = chain_id as i32;
         let client = self.pool.get().await.unwrap();
-        
+
         // Count stake events
         let stake_count_rows = client
             .query(
@@ -320,12 +320,12 @@ impl PostgresClient {
                 &[&chain_id],
             )
             .await?;
-        
+
         let stake_count: i64 = stake_count_rows
             .get(0)
             .map(|row| row.get("count"))
             .unwrap_or(0);
-        
+
         // Count human points events for this chain (only PMT and HIM actions)
         let human_points_count_rows = client
             .query(
@@ -333,12 +333,12 @@ impl PostgresClient {
                 &[&chain_id],
             )
             .await?;
-        
+
         let human_points_count: i64 = human_points_count_rows
             .get(0)
             .map(|row| row.get("count"))
             .unwrap_or(0);
-        
+
         Ok(stake_count + human_points_count)
     }
 
@@ -393,11 +393,9 @@ impl PostgresClient {
         Ok(())
     }
 
-    pub async fn update_last_checked_block_legacy(
-        &self,
-        block_number: u32,
-    ) -> Result<(), Error> {
-        self.update_last_checked_block(0, &(block_number as u64)).await
+    pub async fn update_last_checked_block_legacy(&self, block_number: u32) -> Result<(), Error> {
+        self.update_last_checked_block(0, &(block_number as u64))
+            .await
     }
 
     pub async fn add_human_points_event(
@@ -410,7 +408,7 @@ impl PostgresClient {
     ) -> Result<(), Error> {
         let address = address.to_lowercase();
         let client = self.pool.get().await.unwrap();
-        
+
         match chain_id {
             Some(chain) => {
                 let chain: i32 = chain as i32;
@@ -430,13 +428,12 @@ impl PostgresClient {
                     .await?;
             }
         }
-        
+
         eprintln!(
             "Debug - Recorded {} action for {} in tx {}",
             action, address, tx_hash
         );
-        
+
         Ok(())
     }
 }
-

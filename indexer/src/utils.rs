@@ -52,7 +52,7 @@ pub enum StakeEventType {
     SelfStakeWithdraw,
     CommunityStakeWithdraw,
     Slash,
-    Release
+    Release,
 }
 
 pub fn get_code_for_stake_event_type(event_type: &StakeEventType) -> &'static str {
