@@ -28,33 +28,41 @@ async def aget_user_points_data(address: str) -> Dict:
     """
     Get user's points data including total points, breakdown, and eligibility
     """
-    # Get all actions for this address
-    actions = HumanPoints.objects.filter(address=address).select_related()
+    from django.db import connection
+    from asgiref.sync import sync_to_async
     
-    # Get multiplier
-    try:
-        multiplier = await HumanPointsMultiplier.objects.aget(address=address)
-        mult_value = multiplier.multiplier
-    except HumanPointsMultiplier.DoesNotExist:
-        mult_value = 1
+    # Single efficient query to get all points data
+    query = """
+    SELECT 
+        COALESCE(SUM(hpc.points * COALESCE(hpm.multiplier, 1)), 0) as total_points,
+        COALESCE(MAX(hpm.multiplier), 1) as multiplier,
+        json_object_agg(hp.action, hpc.points * COALESCE(hpm.multiplier, 1)) 
+            FILTER (WHERE hp.action IS NOT NULL) as breakdown
+    FROM registry_humanpoints hp
+    INNER JOIN registry_humanpointsconfig hpc 
+        ON hp.action = hpc.action AND hpc.active = true
+    LEFT JOIN registry_humanpointsmultiplier hpm 
+        ON hp.address = hpm.address
+    WHERE hp.address = %s
+    GROUP BY hp.address
+    """
     
-    # Calculate points
-    points_breakdown = {}
-    total_points = 0
+    async with connection.cursor() as cursor:
+        # sync_to_async needed for raw SQL operations
+        await sync_to_async(cursor.execute)(query, [address])
+        row = await sync_to_async(cursor.fetchone)()
+        
+        if row:
+            total_points = int(row[0])
+            multiplier = int(row[1])
+            breakdown = row[2] or {}
+        else:
+            # No actions found for this user
+            total_points = 0
+            multiplier = 1
+            breakdown = {}
     
-    async for action in actions:
-        try:
-            config = await HumanPointsConfig.objects.aget(
-                action=action.action, active=True
-            )
-            points = config.points * mult_value
-            points_breakdown[action.action] = points
-            total_points += points
-        except HumanPointsConfig.DoesNotExist:
-            # Skip if no config found
-            continue
-    
-    # Check eligibility (has at least 1 passing score)
+    # Check eligibility separately (single query)
     is_eligible = await HumanPointsCommunityQualifiedUsers.objects.filter(
         address=address
     ).aexists()
@@ -62,46 +70,56 @@ async def aget_user_points_data(address: str) -> Dict:
     return {
         "total_points": total_points,
         "is_eligible": is_eligible,
-        "multiplier": mult_value,
-        "breakdown": points_breakdown,
+        "multiplier": multiplier,
+        "breakdown": breakdown,
     }
 
 
 async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
     """
-    Record Human Points actions based on valid stamps
+    Record Human Points actions based on valid stamps - optimized bulk version
     """
+    from asgiref.sync import sync_to_async
+    
+    # Collect all HumanPoints objects to create
+    objects_to_create = []
+    
     for stamp in valid_stamps:
-        # First check if this stamp has a v1 nullifier (Human Key)
+        # Check for Human Keys
         credential = stamp.get("credential", {})
         credential_subject = credential.get("credentialSubject", {})
         nullifiers = credential_subject.get("nullifiers", [])
         
-        v1_nullifier = None
         if isinstance(nullifiers, list):
             for nullifier in nullifiers:
                 if nullifier and str(nullifier).startswith("v1"):
-                    v1_nullifier = nullifier
+                    objects_to_create.append(
+                        HumanPoints(
+                            address=address,
+                            action=HumanPoints.Action.HUMAN_KEYS,
+                            tx_hash=nullifier
+                        )
+                    )
                     break
-        
-        if v1_nullifier:
-            await HumanPoints.objects.aget_or_create(
-                address=address,
-                action=HumanPoints.Action.HUMAN_KEYS,
-                defaults={"tx_hash": v1_nullifier}
-            )
         
         # Check for provider-based actions
         provider = stamp.get("provider")
         action = STAMP_PROVIDER_TO_ACTION.get(provider)
-        
         if action:
-            # Use get_or_create to handle duplicates gracefully
-            await HumanPoints.objects.aget_or_create(
-                address=address,
-                action=action,
-                defaults={"tx_hash": None}
+            objects_to_create.append(
+                HumanPoints(
+                    address=address,
+                    action=action,
+                    tx_hash=None
+                )
             )
+    
+    # Bulk create all at once, let DB handle conflicts
+    if objects_to_create:
+        # sync_to_async needed - Django doesn't provide async bulk_create
+        await sync_to_async(
+            HumanPoints.objects.bulk_create
+        )(objects_to_create, ignore_conflicts=True)
 
 
 async def acheck_and_award_scoring_bonus(address: str, community_id: int) -> bool:
@@ -114,19 +132,13 @@ async def acheck_and_award_scoring_bonus(address: str, community_id: int) -> boo
         address=address
     ).acount()
     
-    # Check if bonus already exists
-    bonus_exists = await HumanPoints.objects.filter(
-        address=address,
-        action=HumanPoints.Action.SCORING_BONUS
-    ).aexists()
-    
-    # Award bonus if qualified and not already awarded
-    if qualified_count >= 3 and not bonus_exists:
-        await HumanPoints.objects.acreate(
+    # Award bonus if qualified (let DB handle conflicts)
+    if qualified_count >= 3:
+        _, created = await HumanPoints.objects.aget_or_create(
             address=address,
             action=HumanPoints.Action.SCORING_BONUS
         )
-        return True
+        return created
     
     return False
 
