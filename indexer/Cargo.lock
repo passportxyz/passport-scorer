@@ -1922,6 +1922,7 @@ dependencies = [
  "eyre",
  "futures",
  "mockall",
+ "portpicker",
  "rust_decimal",
  "rust_decimal_macros",
  "rustls 0.23.20",
@@ -2596,6 +2597,15 @@ name = "pkg-config"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "953ec861398dccce10c670dfeaf3ec4911ca479e9c02154b3a215178c5f566f2"
+
+[[package]]
+name = "portpicker"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be97d76faf1bfab666e1375477b23fde79eccf0276e9b63b92a39d676a889ba9"
+dependencies = [
+ "rand",
+]
 
 [[package]]
 name = "postgres-protocol"

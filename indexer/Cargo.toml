@@ -23,3 +23,9 @@ rustls-pemfile = "2"
 
 [dev-dependencies]
 tokio-test = "0.4"
+portpicker = "0.1"
+
+[[test]]
+name = "e2e_tests"
+path = "tests/e2e_tests.rs"
+harness = true
