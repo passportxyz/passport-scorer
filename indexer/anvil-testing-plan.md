@@ -315,7 +315,8 @@ async fn test_self_stake_flow() {
     assert_eq!(stake_rows.len(), 1);
     assert_eq!(stake_rows[0].get::<_, rust_decimal::Decimal>("amount").to_string(), "1.000000000000000000");
     
-    ctx.cleanup().await;
+    ctx.cleanup().await?;
+    Ok(())
 }
 
 #[tokio::test]
@@ -363,7 +364,8 @@ async fn test_stake_withdraw_slash_flow() {
         "5.000000000000000000"
     );
     
-    ctx.cleanup().await;
+    ctx.cleanup().await?;
+    Ok(())
 }
 
 #[tokio::test]
@@ -408,7 +410,8 @@ async fn test_indexer_recovery_after_crash() {
     
     assert_eq!(count, 10);
     
-    ctx.cleanup().await;
+    ctx.cleanup().await?;
+    Ok(())
 }
 
 #[tokio::test] 
@@ -441,7 +444,8 @@ async fn test_human_points_minting() {
     assert_eq!(points[1].get::<_, i32>("points"), 1000);
     assert_eq!(points[1].get::<_, String>("action"), "humanity");
     
-    ctx.cleanup().await;
+    ctx.cleanup().await?;
+    Ok(())
 }
 ```
 
