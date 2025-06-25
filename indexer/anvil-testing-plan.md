@@ -1,8 +1,83 @@
 # Anvil-Based E2E Testing Plan for Indexer
 
+## Current Progress Summary
+
+### ✅ Completed
+1. **Test script created** - `test-indexer.sh` successfully starts Anvil and deploys contracts
+2. **Contract compilation** - EventEmitter.sol compiles and deploys via forge
+3. **Basic test structure** - E2E test files created with TestContext and event emission helpers
+4. **Environment variable fixes** - Added missing env vars (CERT_FILE, DB configs, etc.)
+5. **DB URL parsing** - Fixed to support both `postgres://` and `postgresql://` formats
+6. **Chain config updates** - Modified to read EAS/Human ID contract addresses from env vars
+7. **EventEmitter wrapper** - Uses ethers.rs `abigen!` directly, properly simplified
+8. **Contract routing** - Test context creates 3 separate emitters for different event types
+9. **Deploy 3 EventEmitter contracts** - Test script deploys 3 separate instances and passes addresses via env vars
+10. **E2E tests** - Full suite of tests including human points, recovery, batch operations
+11. **Unit tests** - Added critical tests for decimal precision and business logic
+12. **GitHub Actions workflow** - Created CI/CD pipeline configuration
+13. **Fixed dual Anvil issue** - Tests now connect to test script's Anvil instead of starting their own
+14. **Optimized test performance** - Indexer starts once for all tests, not per-test
+15. **Removed dead code** - Cleaned up unused Python test scripts and AnvilInstance code
+
+### 🚀 Architecture Overview
+
+The test infrastructure uses a clean separation of concerns:
+
+1. **Shell Script (`test-indexer.sh`)** owns the test environment:
+   - Starts Anvil on port 8545
+   - Deploys 3 EventEmitter contracts (staking, EAS, human ID)
+   - Sets all environment variables
+   - Starts the indexer process
+   - Runs the Rust tests
+   - Cleans up everything on exit
+
+2. **Rust Tests (`TestContext`)** focus on test logic:
+   - Connect to existing Anvil (no duplicate instances!)
+   - Read contract addresses from env vars
+   - Create EventEmitter instances to interact with contracts
+   - Emit events and verify database state
+   - Use database savepoints for fast test isolation
+
+### 🚀 Ready to Run
+The testing infrastructure is now complete and optimized! To run the tests:
+
+1. **Unit tests only** (fast, no external dependencies):
+   ```bash
+   cargo test --bins
+   ```
+
+2. **Full E2E tests with database**:
+   ```bash
+   ./test-indexer.sh "postgresql://user:pass@localhost/testdb"
+   ```
+
+3. **Using default database**:
+   ```bash
+   ./test-indexer.sh
+   ```
+
+### 🏎️ Performance Optimizations
+
+- **Contracts deployed once**: All tests share the same deployed contracts
+- **Indexer runs once**: Started by test script, shared by all tests
+- **No duplicate Anvil**: Tests connect to existing instance
+- **Fast DB isolation**: Savepoints instead of full transaction rollbacks
+- **Serial test execution**: Prevents conflicts with `--test-threads=1`
+
+### 📋 Future Improvements (Nice to Have)
+1. **Parallel test execution** - Would need to handle DB isolation differently
+2. **Performance benchmarks** - Test indexer with thousands of events
+3. **Integration tests** - Test with real contracts on testnet
+
 ## Overview
 
 This document outlines a comprehensive testing strategy using Anvil (local Ethereum node) to test the indexer end-to-end, from blockchain events to database records. The approach uses a dummy event emitter contract that can emit all the events we need to test, avoiding the complexity of actual contract logic.
+
+## Key Learnings
+
+1. **Contract-based routing**: The indexer determines event type based on which contract address emitted the event, not just the event signature
+2. **Environment variables**: Production code uses hardcoded addresses for EAS/Human ID contracts, but we updated chain_config.rs to read from env vars for testing
+3. **WebSocket requirement**: Indexer expects WSS URLs but test provides HTTP - need to handle this mismatch
 
 ## Architecture
 

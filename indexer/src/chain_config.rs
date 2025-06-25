@@ -71,8 +71,12 @@ pub async fn create_optimism_indexer(
     // Add Human Points contracts if enabled
     if get_env("HUMAN_POINTS_ENABLED") == "true" {
         // EAS contract for Passport mint on Optimism
+        let eas_address = std::env::var("INDEXER_OPTIMISM_EAS_CONTRACT")
+            .unwrap_or_else(|_| "0x4200000000000000000000000000000000000021".to_string())
+            .parse()?;
+        
         contracts.push(ContractConfig {
-            address: "0x4200000000000000000000000000000000000021".parse()?,
+            address: eas_address,
             start_block: 0, // TODO: Add actual deployment block
             contract_type: ContractType::PassportMint,
             schema_uid: Some(
@@ -81,8 +85,12 @@ pub async fn create_optimism_indexer(
         });
 
         // Human ID SBT contract on Optimism
+        let human_id_address = std::env::var("INDEXER_OPTIMISM_HUMAN_ID_CONTRACT")
+            .unwrap_or_else(|_| "0x2AA822e264F8cc31A2b9C22f39e5551241e94DfB".to_string())
+            .parse()?;
+            
         contracts.push(ContractConfig {
-            address: "0x2AA822e264F8cc31A2b9C22f39e5551241e94DfB".parse()?,
+            address: human_id_address,
             start_block: 0, // TODO: Add actual deployment block
             contract_type: ContractType::HumanIdMint,
             schema_uid: None,
@@ -121,8 +129,12 @@ pub async fn create_arbitrum_indexer(
     // Add Human Points contracts if enabled
     if get_env("HUMAN_POINTS_ENABLED") == "true" {
         // EAS contract for Passport mint on Arbitrum
+        let eas_address = std::env::var("INDEXER_ARBITRUM_EAS_CONTRACT")
+            .unwrap_or_else(|_| "0xbD75f629A22Dc1ceD33dDA0b68c546A1c035c458".to_string())
+            .parse()?;
+            
         contracts.push(ContractConfig {
-            address: "0xbD75f629A22Dc1ceD33dDA0b68c546A1c035c458".parse()?,
+            address: eas_address,
             start_block: 0, // TODO: Add actual deployment block
             contract_type: ContractType::PassportMint,
             schema_uid: Some(

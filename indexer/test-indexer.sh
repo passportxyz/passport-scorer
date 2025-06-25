@@ -27,7 +27,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-DB_URL="${1:-postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer}"
+DB_URL="${1:-postgresql://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer}"
 ANVIL_PORT="${ANVIL_PORT:-8545}"
 
 echo -e "${GREEN}🚀 Starting Indexer E2E Tests${NC}"
@@ -40,6 +40,9 @@ cleanup() {
     echo -e "${YELLOW}Cleaning up...${NC}"
     if [ ! -z "$ANVIL_PID" ]; then
         kill $ANVIL_PID 2>/dev/null || true
+    fi
+    if [ ! -z "$INDEXER_PID" ]; then
+        kill $INDEXER_PID 2>/dev/null || true
     fi
 }
 trap cleanup EXIT
@@ -83,8 +86,8 @@ for i in {1..10}; do
     sleep 1
 done
 
-# 2. Deploy event emitter contract
-echo -e "${GREEN}Deploying event emitter contract...${NC}"
+# 2. Deploy event emitter contracts (3 separate instances for different event types)
+echo -e "${GREEN}Deploying event emitter contracts...${NC}"
 
 # Anvil's default test account #0 (DO NOT USE ON REAL NETWORKS!)
 # This is a well-known test private key that comes with Anvil for local development only
@@ -98,30 +101,51 @@ if ! command -v forge &> /dev/null; then
     exit 1
 fi
 
-# Use forge to compile and deploy
 # Get the script directory to use absolute path
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Deploy staking contract emitter
+echo "Deploying staking event emitter..."
 FORGE_OUTPUT=$(forge create "$SCRIPT_DIR/contracts/test/EventEmitter.sol:EventEmitter" \
     --rpc-url http://localhost:$ANVIL_PORT \
     --private-key $ANVIL_TEST_PRIVATE_KEY \
     --json)
-EVENT_EMITTER=$(echo "$FORGE_OUTPUT" | jq -r '.deployedTo')
+STAKING_CONTRACT=$(echo "$FORGE_OUTPUT" | jq -r '.deployedTo')
 DEPLOY_TX=$(echo "$FORGE_OUTPUT" | jq -r '.transactionHash')
-
-# Get deployment block number
 DEPLOY_BLOCK=$(cast receipt $DEPLOY_TX --rpc-url http://localhost:$ANVIL_PORT --json | jq -r '.blockNumber' | xargs printf "%d")
+echo -e "${GREEN}Staking contract deployed at: $STAKING_CONTRACT${NC}"
 
-echo -e "${GREEN}Event emitter deployed at: $EVENT_EMITTER${NC}"
-echo -e "${GREEN}Deployment block: $DEPLOY_BLOCK${NC}"
+# Deploy EAS (passport mint) contract emitter
+echo "Deploying EAS event emitter..."
+FORGE_OUTPUT=$(forge create "$SCRIPT_DIR/contracts/test/EventEmitter.sol:EventEmitter" \
+    --rpc-url http://localhost:$ANVIL_PORT \
+    --private-key $ANVIL_TEST_PRIVATE_KEY \
+    --json)
+EAS_CONTRACT=$(echo "$FORGE_OUTPUT" | jq -r '.deployedTo')
+echo -e "${GREEN}EAS contract deployed at: $EAS_CONTRACT${NC}"
+
+# Deploy Human ID contract emitter
+echo "Deploying Human ID event emitter..."
+FORGE_OUTPUT=$(forge create "$SCRIPT_DIR/contracts/test/EventEmitter.sol:EventEmitter" \
+    --rpc-url http://localhost:$ANVIL_PORT \
+    --private-key $ANVIL_TEST_PRIVATE_KEY \
+    --json)
+HUMAN_ID_CONTRACT=$(echo "$FORGE_OUTPUT" | jq -r '.deployedTo')
+echo -e "${GREEN}Human ID contract deployed at: $HUMAN_ID_CONTRACT${NC}"
+
+echo -e "${GREEN}All contracts deployed. Using block $DEPLOY_BLOCK as start block${NC}"
 
 # Set START_BLOCK to deployment block unless overridden
 START_BLOCK="${START_BLOCK_OVERRIDE:-$DEPLOY_BLOCK}"
 
 # 3. Export environment variables for indexer
 export DB_URL="$DB_URL"
-export EVENT_EMITTER="$EVENT_EMITTER"
-export INDEXER_OPTIMISM_ENABLED="false"
+
+# Disable all chains except optimism for testing
+export INDEXER_LEGACY_ENABLED="false"
+export INDEXER_ETHEREUM_ENABLED="false"
 export INDEXER_ARBITRUM_ENABLED="false"
+export INDEXER_OPTIMISM_SEPOLIA_ENABLED="false"
 export INDEXER_BASE_ENABLED="false"
 export INDEXER_LINEA_ENABLED="false"
 export INDEXER_SCROLL_ENABLED="false"
@@ -131,12 +155,18 @@ export INDEXER_SHAPE_ENABLED="false"
 # Enable Optimism for testing
 export INDEXER_OPTIMISM_ENABLED="true"
 export INDEXER_OPTIMISM_RPC_URL="http://localhost:$ANVIL_PORT"
-export INDEXER_OPTIMISM_STAKING_CONTRACT="$EVENT_EMITTER"
-export INDEXER_OPTIMISM_EAS_CONTRACT="$EVENT_EMITTER"
-export INDEXER_OPTIMISM_HUMAN_ID_CONTRACT="$EVENT_EMITTER"
+export INDEXER_OPTIMISM_STAKING_CONTRACT="$STAKING_CONTRACT"
+export INDEXER_OPTIMISM_EAS_CONTRACT="$EAS_CONTRACT"
+export INDEXER_OPTIMISM_HUMAN_ID_CONTRACT="$HUMAN_ID_CONTRACT"
 export INDEXER_OPTIMISM_START_BLOCK="$START_BLOCK"
 
 export HUMAN_POINTS_ENABLED="true"
+
+# Export old-style contract addresses that main.rs still uses
+export STAKING_CONTRACT_ADDRESS_ETH_MAINNET="$STAKING_CONTRACT"
+export STAKING_CONTRACT_ADDRESS_OP_MAINNET="$STAKING_CONTRACT"
+export STAKING_CONTRACT_ADDRESS_ARBITRUM_MAINNET="$STAKING_CONTRACT"
+export STAKING_CONTRACT_ADDRESS_OP_SEPOLIA="$STAKING_CONTRACT"
 
 # Parse DB URL for individual components
 DB_USER=$(echo $DB_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
@@ -151,17 +181,28 @@ export DB_HOST
 export DB_PORT
 export DB_NAME
 
-# 4. Run test scenarios
+# Certificate file (empty for local testing)
+export CERT_FILE=""
+
+# 4. Start the indexer in the background
+echo -e "${GREEN}Starting indexer...${NC}"
+cargo run --bin indexer &
+INDEXER_PID=$!
+
+# Give indexer time to start and catch up
+echo "Waiting for indexer to start..."
+sleep 5
+
+# 5. Run test scenarios
 echo -e "${GREEN}Running test scenarios...${NC}"
 
-# Check if we should run Rust tests or Python scripts
-if [ -f "Cargo.toml" ] && grep -q "e2e_tests" Cargo.toml 2>/dev/null; then
-    echo "Running Rust E2E tests..."
-    cargo test --test e2e_tests -- --test-threads=1 --nocapture
-else
-    echo "Running test scripts..."
-    # Add Python test scripts here if needed
-    python3 tests/run_e2e_tests.py
-fi
+# Run Rust E2E tests
+echo "Running Rust E2E tests..."
+cargo test --test e2e_tests -- --test-threads=1 --nocapture
+TEST_EXIT_CODE=$?
 
-echo -e "${GREEN}✅ All tests completed successfully!${NC}"
+# Kill the indexer
+kill $INDEXER_PID 2>/dev/null || true
+
+# Exit with test exit code
+exit $TEST_EXIT_CODE

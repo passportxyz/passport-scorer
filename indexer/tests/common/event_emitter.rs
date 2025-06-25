@@ -1,5 +1,4 @@
 use ethers::prelude::*;
-use ethers::abi::{Abi, Token};
 use std::sync::Arc;
 
 abigen!(
@@ -30,16 +29,12 @@ abigen!(
 );
 
 pub struct EventEmitter {
-    contract: EventEmitterContract<SignerMiddleware<Provider<Http>, LocalWallet>>,
+    pub contract: EventEmitterContract<SignerMiddleware<Arc<Provider<Http>>, LocalWallet>>,
     pub address: Address,
 }
 
 impl EventEmitter {
-    pub async fn deploy(provider: Arc<Provider<Http>>) -> Result<Self, Box<dyn std::error::Error>> {
-        // Get the first account from anvil
-        let accounts = provider.get_accounts().await?;
-        let from = accounts[0];
-        
+    pub fn new(address: Address, provider: Arc<Provider<Http>>) -> Result<Self, Box<dyn std::error::Error>> {
         // Create a wallet from Anvil's default test account #0
         // This is a well-known test key - DO NOT USE ON REAL NETWORKS!
         // Address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
@@ -47,17 +42,12 @@ impl EventEmitter {
         
         let wallet = ANVIL_TEST_PRIVATE_KEY
             .parse::<LocalWallet>()?
-            .with_chain_id(provider.get_chainid().await?.as_u64());
+            .with_chain_id(10u64); // Hardcode chain ID for testing
         
         let client = SignerMiddleware::new(provider, wallet);
         let client = Arc::new(client);
         
-        // Deploy the contract
-        let contract = EventEmitterContract::deploy(client.clone(), ())?
-            .send()
-            .await?;
-        
-        let address = contract.address();
+        let contract = EventEmitterContract::new(address, client);
         
         Ok(Self { contract, address })
     }
