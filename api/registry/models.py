@@ -377,7 +377,10 @@ class HumanPoints(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     tx_hash = models.CharField(max_length=100, null=True, blank=True)
     chain_id = models.IntegerField(
-        null=True, blank=True, db_index=True, help_text="Chain ID for mint actions (PMT, HIM)"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Chain ID for mint actions (PMT, HIM)",
     )
 
     class Meta:
@@ -385,8 +388,6 @@ class HumanPoints(models.Model):
         verbose_name_plural = "Human Points"
         indexes = [
             models.Index(fields=["address", "action"]),
-            models.Index(fields=["address", "timestamp"]),
-            models.Index(fields=["timestamp"]),
             models.Index(fields=["chain_id", "action"]),
         ]
 
