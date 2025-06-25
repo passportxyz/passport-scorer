@@ -62,6 +62,7 @@ class Migration(migrations.Migration):
                 ),
                 ("timestamp", models.DateTimeField(auto_now_add=True)),
                 ("tx_hash", models.CharField(blank=True, max_length=100, null=True)),
+                ("chain_id", models.IntegerField(blank=True, null=True, db_index=True)),
             ],
             options={
                 "verbose_name": "Human Point",
@@ -72,12 +73,8 @@ class Migration(migrations.Migration):
                         name="registry_hu_address_5fea1a_idx",
                     ),
                     models.Index(
-                        fields=["address", "timestamp"], 
-                        name="registry_hu_address_642c68_idx"
-                    ),
-                    models.Index(
-                        fields=["timestamp"], 
-                        name="registry_hu_timesta_7c6e55_idx"
+                        fields=["chain_id", "action"],
+                        name="registry_hu_chain_id_action_idx"
                     ),
                 ],
             },
@@ -153,8 +150,9 @@ class Migration(migrations.Migration):
             reverse_sql="DROP INDEX IF EXISTS idx_binary_actions;"
         ),
         # Unique constraint for actions that require tx_hash (mints and human keys)
+        # For mint actions (PMT, HIM), we also need chain_id in the unique constraint
         migrations.RunSQL(
-            "CREATE UNIQUE INDEX idx_tx_hash_actions ON registry_humanpoints(address, action, tx_hash) "
+            "CREATE UNIQUE INDEX idx_tx_hash_actions ON registry_humanpoints(address, action, tx_hash, chain_id) "
             "WHERE action IN ('PMT', 'HIM', 'HKY');",
             reverse_sql="DROP INDEX IF EXISTS idx_tx_hash_actions;"
         ),

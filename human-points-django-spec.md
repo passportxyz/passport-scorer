@@ -64,6 +64,7 @@ class HumanPoints(models.Model):
     action = models.CharField(max_length=3, choices=Action.choices, db_index=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     tx_hash = models.CharField(max_length=100, null=True, blank=True)
+    chain_id = models.IntegerField(null=True, blank=True, db_index=True)  # Only set for mint actions (PMT, HIM)
 
     class Meta:
         # Unique constraints handled via migrations (see below)
@@ -71,6 +72,7 @@ class HumanPoints(models.Model):
             models.Index(fields=['address', 'action']),
             models.Index(fields=['address', 'timestamp']),
             models.Index(fields=['timestamp']),
+            models.Index(fields=['chain_id', 'action']),
         ]
 ```
 
@@ -105,8 +107,9 @@ migrations.RunSQL(
 )
 
 # Unique constraint for actions that require tx_hash (mints and human keys)
+# For mint actions (PMT, HIM), chain_id is also part of the unique constraint
 migrations.RunSQL(
-    "CREATE UNIQUE INDEX idx_tx_hash_actions ON registry_humanpoints(address, action, tx_hash) "
+    "CREATE UNIQUE INDEX idx_tx_hash_actions ON registry_humanpoints(address, action, tx_hash, chain_id) "
     "WHERE action IN ('PMT', 'HIM', 'HKY');"
 )
 ```
