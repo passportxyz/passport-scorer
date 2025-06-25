@@ -31,18 +31,31 @@ async fn main() -> Result<()> {
         let contract_address_op_sepolia = get_env("STAKING_CONTRACT_ADDRESS_OP_SEPOLIA")
             .parse::<Address>()
             .unwrap();
-        let contract_address_arbitrum_mainnet = get_env("STAKING_CONTRACT_ADDRESS_ARBITRUM_MAINNET")
-            .parse::<Address>()
-            .unwrap();
+        let contract_address_arbitrum_mainnet =
+            get_env("STAKING_CONTRACT_ADDRESS_ARBITRUM_MAINNET")
+                .parse::<Address>()
+                .unwrap();
 
         let postgres_client = Arc::new(postgres_client);
-        
+
         match try_join!(
             chain_config::create_legacy_indexer(postgres_client.clone()),
-            chain_config::create_ethereum_indexer(postgres_client.clone(), &contract_address_eth_mainnet),
-            chain_config::create_optimism_indexer(postgres_client.clone(), &contract_address_op_mainnet),
-            chain_config::create_optimism_sepolia_indexer(postgres_client.clone(), &contract_address_op_sepolia),
-            chain_config::create_arbitrum_indexer(postgres_client.clone(), &contract_address_arbitrum_mainnet),
+            chain_config::create_ethereum_indexer(
+                postgres_client.clone(),
+                &contract_address_eth_mainnet
+            ),
+            chain_config::create_optimism_indexer(
+                postgres_client.clone(),
+                &contract_address_op_mainnet
+            ),
+            chain_config::create_optimism_sepolia_indexer(
+                postgres_client.clone(),
+                &contract_address_op_sepolia
+            ),
+            chain_config::create_arbitrum_indexer(
+                postgres_client.clone(),
+                &contract_address_arbitrum_mainnet
+            ),
             chain_config::create_base_indexer(postgres_client.clone()),
             chain_config::create_linea_indexer(postgres_client.clone()),
             chain_config::create_scroll_indexer(postgres_client.clone()),
