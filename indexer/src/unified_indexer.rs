@@ -60,15 +60,20 @@ pub enum ContractType {
 
 #[derive(Debug, Clone)]
 pub struct ChainConfig {
-    pub chain_id: u32,
     pub rpc_url: String,
     pub contracts: Vec<ContractConfig>,
 }
 
 pub struct UnifiedChainIndexer {
     chain_config: ChainConfig,
-    provider: Arc<Provider<Ws>>,
+    chain_id: u32,
     postgres_client: Arc<PostgresClient>,
+}
+
+async fn get_chain_id(rpc_url: &String) -> Result<u32> {
+    let client = create_rpc_connection(rpc_url).await;
+    let chain_id = client.get_chainid().await?;
+    Ok(chain_id.as_u32())
 }
 
 impl UnifiedChainIndexer {
@@ -76,11 +81,11 @@ impl UnifiedChainIndexer {
         chain_config: ChainConfig,
         postgres_client: Arc<PostgresClient>,
     ) -> Result<Self> {
-        let provider = Arc::new(create_rpc_connection(&chain_config.rpc_url).await);
+        let chain_id = get_chain_id(&chain_config.rpc_url).await?;
         
         Ok(Self {
             chain_config,
-            provider,
+            chain_id,
             postgres_client,
         })
     }
@@ -91,7 +96,7 @@ impl UnifiedChainIndexer {
 
             println!(
                 "Debug - Starting unified indexer for chain {} at block {}",
-                self.chain_config.chain_id, query_start_block
+                self.chain_id, query_start_block
             );
 
             match try_join!(
@@ -102,7 +107,7 @@ impl UnifiedChainIndexer {
                 Ok(_) => {
                     eprintln!(
                         "Warning - unified indexer ended without error for chain {}",
-                        self.chain_config.chain_id
+                        self.chain_id
                     );
                 }
                 Err(err) => {
@@ -110,16 +115,16 @@ impl UnifiedChainIndexer {
                         .to_string()
                         .contains("No events logged in the last 15 minutes")
                     {
-                        eprintln!("Debug - resetting indexer due to no events logged in the last 15 minutes for chain {}", self.chain_config.chain_id);
+                        eprintln!("Debug - resetting indexer due to no events logged in the last 15 minutes for chain {}", self.chain_id);
                     } else if err.to_string().contains("Reindex requested for chain") {
                         eprintln!(
                             "Debug - resetting indexer due to reindex requested for chain {}",
-                            self.chain_config.chain_id
+                            self.chain_id
                         );
                     } else {
                         eprintln!(
                             "Warning - unified indexer ended with error for chain {}, {:?}",
-                            self.chain_config.chain_id, err
+                            self.chain_id, err
                         );
                     }
                 }
@@ -130,18 +135,18 @@ impl UnifiedChainIndexer {
     async fn get_query_start_block(&self) -> Result<u64> {
         let requested_start_block = self
             .postgres_client
-            .get_requested_start_block(self.chain_config.chain_id)
+            .get_requested_start_block(self.chain_id)
             .await?;
 
         if requested_start_block > 0 {
             self.postgres_client
-                .acknowledge_requested_start_block(self.chain_config.chain_id)
+                .acknowledge_requested_start_block(self.chain_id)
                 .await?;
             return Ok(requested_start_block);
         } else {
             let latest_logged_block = self
                 .postgres_client
-                .get_latest_block(self.chain_config.chain_id)
+                .get_latest_block(self.chain_id)
                 .await?;
 
             if latest_logged_block > 0 {
@@ -163,7 +168,7 @@ impl UnifiedChainIndexer {
     async fn throw_when_no_events_logged(&self) -> Result<()> {
         let mut timer_begin_event_count = self
             .postgres_client
-            .get_total_event_count(self.chain_config.chain_id)
+            .get_total_event_count(self.chain_id)
             .await?;
         loop {
             // Sleep for 15 minutes
@@ -171,13 +176,13 @@ impl UnifiedChainIndexer {
 
             let event_count = self
                 .postgres_client
-                .get_total_event_count(self.chain_config.chain_id)
+                .get_total_event_count(self.chain_id)
                 .await?;
 
             if event_count <= timer_begin_event_count {
                 return Err(eyre::eyre!(
                     "No events logged in the last 15 minutes for chain {}, total event count is {}",
-                    self.chain_config.chain_id,
+                    self.chain_id,
                     event_count
                 ));
             }
@@ -193,13 +198,13 @@ impl UnifiedChainIndexer {
 
             let requested_start_block = self
                 .postgres_client
-                .get_requested_start_block(self.chain_config.chain_id)
+                .get_requested_start_block(self.chain_id)
                 .await?;
 
             if requested_start_block > 0 {
                 return Err(eyre::eyre!(
                     "Reindex requested for chain {} at block {}",
-                    self.chain_config.chain_id,
+                    self.chain_id,
                     requested_start_block
                 ));
             }
@@ -207,7 +212,10 @@ impl UnifiedChainIndexer {
     }
 
     async fn get_current_block(&self) -> Result<u64> {
-        let block_number = self.provider.get_block_number().await?;
+        // Recreating client here because when this fails (with local hardhat node)
+        // it ruins the client and we need to recreate it
+        let client = create_rpc_connection(&self.chain_config.rpc_url).await;
+        let block_number = client.get_block_number().await?;
         Ok(block_number.as_u64())
     }
 
@@ -218,10 +226,11 @@ impl UnifiedChainIndexer {
         } else {
             eprintln!(
                 "Warning - Failed to fetch current block number for chain {}",
-                self.chain_config.chain_id
+                self.chain_id
             );
         }
 
+        let provider = Arc::new(create_rpc_connection(&self.chain_config.rpc_url).await);
         let mut query_start_block = initial_query_start_block;
 
         // Process historical blocks
@@ -229,7 +238,7 @@ impl UnifiedChainIndexer {
             let query_end_block = min(query_start_block + 999, current_block - 1);
             eprintln!(
                 "Debug - Querying past events for chain {} from block {} to block {}",
-                self.chain_config.chain_id, query_start_block, query_end_block
+                self.chain_id, query_start_block, query_end_block
             );
 
             // Create a filter for all contract addresses
@@ -245,14 +254,25 @@ impl UnifiedChainIndexer {
                 .from_block(query_start_block)
                 .to_block(query_end_block);
 
-            let logs = self.provider.get_logs(&filter).await?;
+            let logs = match provider.get_logs(&filter).await {
+                Ok(logs) => logs,
+                Err(err) => {
+                    return Err(eyre::eyre!(
+                        "Error - Failed to query events for chain {}: {}, {}, {:?}",
+                        self.chain_id,
+                        query_start_block,
+                        query_end_block,
+                        err
+                    ));
+                }
+            };
 
             for log in logs {
-                self.route_log(log).await?;
+                self.route_log(log, &provider).await?;
             }
 
             self.postgres_client
-                .update_last_checked_block(self.chain_config.chain_id, &query_end_block)
+                .update_last_checked_block(self.chain_id, &query_end_block)
                 .await?;
 
             query_start_block = query_end_block + 1;
@@ -260,7 +280,7 @@ impl UnifiedChainIndexer {
 
         eprintln!(
             "Debug - Finished querying past events for chain {}",
-            self.chain_config.chain_id
+            self.chain_id
         );
 
         // Watch for new events
@@ -268,7 +288,7 @@ impl UnifiedChainIndexer {
 
         eprintln!(
             "Debug - Listening for future events for chain {} from block {}",
-            self.chain_config.chain_id, from_block
+            self.chain_id, from_block
         );
 
         let addresses: Vec<Address> = self
@@ -282,16 +302,16 @@ impl UnifiedChainIndexer {
             .address(addresses)
             .from_block(from_block);
 
-        let mut stream = self.provider.watch(&filter).await?;
+        let mut stream = provider.watch(&filter).await?;
 
         while let Some(log) = stream.next().await {
-            self.route_log(log).await?;
+            self.route_log(log, &provider).await?;
         }
 
         Ok(())
     }
 
-    async fn route_log(&self, log: Log) -> Result<()> {
+    async fn route_log(&self, log: Log, provider: &Provider<Ws>) -> Result<()> {
         // Find which contract this log belongs to
         let contract_config = self
             .chain_config
@@ -313,15 +333,15 @@ impl UnifiedChainIndexer {
 
         // Route based on contract type
         match &contract_config.contract_type {
-            ContractType::Staking => self.process_staking_log(log).await,
+            ContractType::Staking => self.process_staking_log(log, provider).await,
             ContractType::PassportMint => {
-                self.process_passport_mint_log(log, contract_config).await
+                self.process_passport_mint_log(log, contract_config, provider).await
             }
-            ContractType::HumanIdMint => self.process_human_id_mint_log(log).await,
+            ContractType::HumanIdMint => self.process_human_id_mint_log(log, provider).await,
         }
     }
 
-    async fn process_staking_log(&self, log: Log) -> Result<()> {
+    async fn process_staking_log(&self, log: Log, provider: &Provider<Ws>) -> Result<()> {
         // Parse as staking event
         let meta = LogMeta {
             block_number: log.block_number.unwrap(),
@@ -336,10 +356,10 @@ impl UnifiedChainIndexer {
 
             match event {
                 IdentityStakingEvents::SelfStakeFilter(event) => {
-                    self.process_self_stake_event(&event, &meta).await
+                    self.process_self_stake_event(&event, &meta, provider).await
                 }
                 IdentityStakingEvents::CommunityStakeFilter(event) => {
-                    self.process_community_stake_event(&event, &meta).await
+                    self.process_community_stake_event(&event, &meta, provider).await
                 }
                 IdentityStakingEvents::SelfStakeWithdrawnFilter(event) => {
                     self.process_self_stake_withdrawn_event(&event, &meta).await
@@ -354,7 +374,10 @@ impl UnifiedChainIndexer {
                     self.process_release_event(&event, &meta).await
                 }
                 _ => {
-                    eprintln!("Debug - Unhandled staking event");
+                    eprintln!(
+                        "Debug - Unhandled staking event: tx_hash: {:?}, chain_id: {}",
+                        meta.transaction_hash, self.chain_id
+                    );
                     Ok(())
                 }
             }
@@ -367,6 +390,7 @@ impl UnifiedChainIndexer {
         &self,
         log: Log,
         contract_config: &ContractConfig,
+        provider: &Provider<Ws>,
     ) -> Result<()> {
         // Extract values before consuming log
         let block_number = log.block_number.unwrap().as_u64();
@@ -381,7 +405,7 @@ impl UnifiedChainIndexer {
                 }
             }
             
-            let timestamp = self.get_timestamp_for_block(block_number).await?;
+            let timestamp = self.get_timestamp_for_block(provider, block_number).await?;
             let datetime_timestamp = DateTime::from_timestamp(timestamp as i64, 0).unwrap();
             
             if let Err(err) = self
@@ -391,13 +415,13 @@ impl UnifiedChainIndexer {
                     "PMT",
                     datetime_timestamp,
                     &tx_hash,
-                    Some(self.chain_config.chain_id),
+                    Some(self.chain_id),
                 )
                 .await
             {
                 eprintln!(
                     "Error - Failed to process passport mint event for chain {}: {:?}",
-                    self.chain_config.chain_id, err
+                    self.chain_id, err
                 );
             }
         }
@@ -405,7 +429,7 @@ impl UnifiedChainIndexer {
         Ok(())
     }
 
-    async fn process_human_id_mint_log(&self, log: Log) -> Result<()> {
+    async fn process_human_id_mint_log(&self, log: Log, provider: &Provider<Ws>) -> Result<()> {
         // Extract values before consuming log
         let block_number = log.block_number.unwrap().as_u64();
         let tx_hash = format!("{:?}", log.transaction_hash.unwrap());
@@ -414,7 +438,7 @@ impl UnifiedChainIndexer {
         if let Ok(event) = <TransferEvent as EthLogDecode>::decode_log(&log.into()) {
             // Check if it's a mint (from address is zero)
             if event.from == Address::zero() {
-                let timestamp = self.get_timestamp_for_block(block_number).await?;
+                let timestamp = self.get_timestamp_for_block(provider, block_number).await?;
                 let datetime_timestamp = DateTime::from_timestamp(timestamp as i64, 0).unwrap();
                 
                 if let Err(err) = self
@@ -424,13 +448,13 @@ impl UnifiedChainIndexer {
                         "HIM",
                         datetime_timestamp,
                         &tx_hash,
-                        Some(self.chain_config.chain_id),
+                        Some(self.chain_id),
                     )
                     .await
                 {
                     eprintln!(
                         "Error - Failed to process Human ID mint event for chain {}: {:?}",
-                        self.chain_config.chain_id, err
+                        self.chain_id, err
                     );
                 }
             }
@@ -439,8 +463,8 @@ impl UnifiedChainIndexer {
         Ok(())
     }
 
-    async fn get_timestamp_for_block(&self, block_number: u64) -> Result<i64> {
-        if let Ok(Some(block)) = self.provider.get_block(block_number).await {
+    async fn get_timestamp_for_block(&self, provider: &Provider<Ws>, block_number: u64) -> Result<i64> {
+        if let Ok(Some(block)) = provider.get_block(block_number).await {
             return Ok(block.timestamp.as_u64() as i64);
         }
         Err(eyre::eyre!(
@@ -454,16 +478,17 @@ impl UnifiedChainIndexer {
         &self,
         event: &SelfStakeFilter,
         meta: &LogMeta,
+        provider: &Provider<Ws>,
     ) -> Result<()> {
         let block_number = meta.block_number.as_u64();
         let tx_hash = format!("{:?}", meta.transaction_hash);
-        let timestamp = self.get_timestamp_for_block(block_number).await? as u64;
+        let timestamp = self.get_timestamp_for_block(provider, block_number).await? as u64;
 
         if let Err(err) = self
             .postgres_client
             .add_or_extend_stake(
                 &StakeEventType::SelfStake,
-                self.chain_config.chain_id,
+                self.chain_id,
                 &event.staker,
                 &event.staker,
                 &event.amount,
@@ -476,7 +501,7 @@ impl UnifiedChainIndexer {
         {
             eprintln!(
                 "Error - Failed to process self stake event for chain {}: {:?}",
-                self.chain_config.chain_id, err
+                self.chain_id, err
             );
         }
         Ok(())
@@ -486,16 +511,17 @@ impl UnifiedChainIndexer {
         &self,
         event: &CommunityStakeFilter,
         meta: &LogMeta,
+        provider: &Provider<Ws>,
     ) -> Result<()> {
         let block_number = meta.block_number.as_u64();
         let tx_hash = format!("{:?}", meta.transaction_hash);
-        let timestamp = self.get_timestamp_for_block(block_number).await? as u64;
+        let timestamp = self.get_timestamp_for_block(provider, block_number).await? as u64;
 
         if let Err(err) = self
             .postgres_client
             .add_or_extend_stake(
                 &StakeEventType::CommunityStake,
-                self.chain_config.chain_id,
+                self.chain_id,
                 &event.staker,
                 &event.stakee,
                 &event.amount,
@@ -508,7 +534,7 @@ impl UnifiedChainIndexer {
         {
             eprintln!(
                 "Error - Failed to process community stake event for chain {}: {:?}",
-                self.chain_config.chain_id, err
+                self.chain_id, err
             );
         }
         Ok(())
@@ -525,8 +551,8 @@ impl UnifiedChainIndexer {
         if let Err(err) = self
             .postgres_client
             .update_stake_amount(
-                &StakeEventType::SelfStake,
-                self.chain_config.chain_id,
+                &StakeEventType::SelfStakeWithdraw,
+                self.chain_id,
                 &event.staker,
                 &event.staker,
                 &event.amount,
@@ -538,7 +564,7 @@ impl UnifiedChainIndexer {
         {
             eprintln!(
                 "Error - Failed to process self stake withdrawn event for chain {}: {:?}",
-                self.chain_config.chain_id, err
+                self.chain_id, err
             );
         }
         Ok(())
@@ -555,8 +581,8 @@ impl UnifiedChainIndexer {
         if let Err(err) = self
             .postgres_client
             .update_stake_amount(
-                &StakeEventType::CommunityStake,
-                self.chain_config.chain_id,
+                &StakeEventType::CommunityStakeWithdraw,
+                self.chain_id,
                 &event.staker,
                 &event.stakee,
                 &event.amount,
@@ -568,7 +594,7 @@ impl UnifiedChainIndexer {
         {
             eprintln!(
                 "Error - Failed to process community stake withdrawn event for chain {}: {:?}",
-                self.chain_config.chain_id, err
+                self.chain_id, err
             );
         }
         Ok(())
@@ -581,8 +607,8 @@ impl UnifiedChainIndexer {
         if let Err(err) = self
             .postgres_client
             .update_stake_amount(
-                &StakeEventType::SelfStake,
-                self.chain_config.chain_id,
+                &StakeEventType::Slash,
+                self.chain_id,
                 &event.staker,
                 &event.staker,
                 &event.amount,
@@ -594,7 +620,7 @@ impl UnifiedChainIndexer {
         {
             eprintln!(
                 "Error - Failed to process slash event for chain {}: {:?}",
-                self.chain_config.chain_id, err
+                self.chain_id, err
             );
         }
         Ok(())
@@ -607,8 +633,8 @@ impl UnifiedChainIndexer {
         if let Err(err) = self
             .postgres_client
             .update_stake_amount(
-                &StakeEventType::SelfStake,
-                self.chain_config.chain_id,
+                &StakeEventType::Release,
+                self.chain_id,
                 &event.staker,
                 &event.staker,
                 &event.amount,
@@ -620,7 +646,7 @@ impl UnifiedChainIndexer {
         {
             eprintln!(
                 "Error - Failed to process release event for chain {}: {:?}",
-                self.chain_config.chain_id, err
+                self.chain_id, err
             );
         }
         Ok(())
