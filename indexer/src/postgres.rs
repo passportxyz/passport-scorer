@@ -437,3 +437,46 @@ impl PostgresClient {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_decimal_macros::dec;
+
+    #[test]
+    fn test_decimal_precision_handling() {
+        // Test that our decimal handling maintains precision
+        let test_cases = vec![
+            ("1", dec!(0.000000000000000001)),
+            ("1000000000000000000", dec!(1.0)),
+            ("1500000000000000000", dec!(1.5)),
+            ("999999999999999999", dec!(0.999999999999999999)),
+            ("1000000000000000001", dec!(1.000000000000000001)),
+        ];
+        
+        for (wei_str, expected) in test_cases {
+            let mut decimal = Decimal::from_str(wei_str).unwrap();
+            decimal.set_scale(18).unwrap();
+            assert_eq!(
+                decimal, expected,
+                "Wei string {} should convert to {}",
+                wei_str, expected
+            );
+        }
+    }
+
+    #[test]
+    fn test_address_lowercase_normalization() {
+        // This mimics what happens in add_human_points_event
+        let test_addresses = vec![
+            ("0xABCDEF1234567890123456789012345678901234", "0xabcdef1234567890123456789012345678901234"),
+            ("0xAbCdEf1234567890123456789012345678901234", "0xabcdef1234567890123456789012345678901234"),
+            ("already_lowercase", "already_lowercase"),
+        ];
+        
+        for (input, expected) in test_addresses {
+            let normalized = input.to_lowercase();
+            assert_eq!(normalized, expected);
+        }
+    }
+}
