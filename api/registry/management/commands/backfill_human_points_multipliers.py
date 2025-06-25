@@ -1,107 +1,115 @@
+from decimal import Decimal
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Q
 
-from registry.models import HumanPointsMultiplier, HumanPointsCommunityQualifiedUsers
+from account.models import Community
+from registry.models import (
+    HumanPointsCommunityQualifiedUsers,
+    HumanPointsMultiplier,
+    Score,
+)
 
 
 class Command(BaseCommand):
-    help = 'Backfill multipliers for returning users based on passing scores'
+    help = "Backfill multipliers for returning users based on passing scores"
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--dry-run',
-            action='store_true',
-            help='Show what would be done without making changes',
+            "--dry-run",
+            action="store_true",
+            help="Show what would be done without making changes",
         )
         parser.add_argument(
-            '--batch-size',
+            "--batch-size",
             type=int,
             default=1000,
-            help='Number of records to process in each batch (default: 1000)',
+            help="Number of records to process in each batch (default: 1000)",
+        )
+        parser.add_argument(
+            "--scorer-id",
+            type=int,
+            default=335,
+            help="ID of the binary scorer to check for passing scores (default: 335)",
         )
 
     def handle(self, *args, **options):
-        dry_run = options['dry_run']
-        batch_size = options['batch_size']
-        
-        self.stdout.write("Finding addresses with passing scores in human_points_program communities...")
-        
-        # Find all unique addresses with passing scores
+        dry_run = options["dry_run"]
+        batch_size = options["batch_size"]
+        scorer_id = options["scorer_id"]
+
+        self.stdout.write(
+            f"Finding addresses with passing binary scores in scorer {scorer_id}..."
+        )
+
+        # Find all unique addresses with passing binary score (1) in the specified scorer
+        # This is typically a binary scorer where score=1 means pass
         qualified_addresses = (
-            HumanPointsCommunityQualifiedUsers.objects
-            .values_list('address', flat=True)
+            Score.objects.filter(
+                passport__community_id=scorer_id,
+                score=Decimal("1"),  # Binary pass score
+            )
+            .values_list("passport__address", flat=True)
             .distinct()
         )
-        
-        total_qualified = qualified_addresses.count()
-        self.stdout.write(f"Found {total_qualified} qualified addresses")
-        
-        # Get existing multipliers to exclude
-        existing_multipliers = set(
-            HumanPointsMultiplier.objects.values_list('address', flat=True)
+
+        # Convert to list to get count and for batching
+        qualified_addresses = list(qualified_addresses)
+        total_qualified = len(qualified_addresses)
+        self.stdout.write(
+            f"Found {total_qualified} qualified addresses with binary score = 1 in scorer {scorer_id}"
         )
-        self.stdout.write(f"Found {len(existing_multipliers)} existing multipliers")
-        
-        # Find addresses that need multipliers
-        addresses_to_create = []
-        for address in qualified_addresses.iterator(chunk_size=batch_size):
-            if address not in existing_multipliers:
-                addresses_to_create.append(address)
-        
-        self.stdout.write(f"Need to create multipliers for {len(addresses_to_create)} addresses")
-        
+
+        # Check how many already have multipliers
+        existing_multipliers = HumanPointsMultiplier.objects.filter(
+            address__in=qualified_addresses
+        ).values_list("address", flat=True)
+        existing_count = len(existing_multipliers)
+        to_create_count = total_qualified - existing_count
+
+        self.stdout.write(f"Addresses already with multipliers: {existing_count}")
+        self.stdout.write(f"Addresses needing multipliers: {to_create_count}")
+
         if dry_run:
             self.stdout.write(self.style.WARNING("DRY RUN - No changes will be made"))
-            # Show sample of addresses that would be updated
-            sample_size = min(10, len(addresses_to_create))
-            if sample_size > 0:
-                self.stdout.write("Sample addresses that would receive multipliers:")
-                for addr in addresses_to_create[:sample_size]:
-                    self.stdout.write(f"  - {addr}")
-                if len(addresses_to_create) > sample_size:
-                    self.stdout.write(f"  ... and {len(addresses_to_create) - sample_size} more")
-        else:
-            # Process in batches to avoid memory issues
-            created_count = 0
-            failed_count = 0
-            
-            for i in range(0, len(addresses_to_create), batch_size):
-                batch = addresses_to_create[i:i + batch_size]
-                multipliers = [
-                    HumanPointsMultiplier(address=addr, multiplier=2)
-                    for addr in batch
-                ]
-                
-                try:
-                    with transaction.atomic():
-                        HumanPointsMultiplier.objects.bulk_create(
-                            multipliers,
-                            ignore_conflicts=True
-                        )
-                    created_count += len(batch)
-                    self.stdout.write(f"Processed batch {i // batch_size + 1}: {len(batch)} addresses")
-                except Exception as e:
-                    failed_count += len(batch)
-                    self.stdout.write(
-                        self.style.ERROR(f"Failed to process batch {i // batch_size + 1}: {str(e)}")
+            return
+
+        # Process in batches to avoid memory issues
+        created_count = 0
+        failed_count = 0
+
+        for i in range(0, len(qualified_addresses), batch_size):
+            batch = qualified_addresses[i : i + batch_size]
+            multipliers = [
+                HumanPointsMultiplier(address=addr, multiplier=2) for addr in batch
+            ]
+
+            try:
+                with transaction.atomic():
+                    HumanPointsMultiplier.objects.bulk_create(
+                        multipliers, ignore_conflicts=True
                     )
-            
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"Backfill complete: Created {created_count} multipliers"
-                )
-            )
-            if failed_count > 0:
+                created_count += len(batch)
                 self.stdout.write(
-                    self.style.ERROR(f"Failed to create {failed_count} multipliers")
+                    f"Processed batch {i // batch_size + 1}: {len(batch)} addresses"
                 )
-        
-        # Summary statistics
-        self.stdout.write("\nSummary:")
-        self.stdout.write(f"  Total qualified addresses: {total_qualified}")
-        self.stdout.write(f"  Existing multipliers: {len(existing_multipliers)}")
-        self.stdout.write(f"  New multipliers needed: {len(addresses_to_create)}")
-        if not dry_run:
-            self.stdout.write(f"  Successfully created: {created_count}")
-            if failed_count > 0:
-                self.stdout.write(f"  Failed to create: {failed_count}")
+            except Exception as e:
+                failed_count += len(batch)
+                self.stdout.write(
+                    self.style.ERROR(
+                        f"Failed to process batch {i // batch_size + 1}: {str(e)}"
+                    )
+                )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Backfill complete: Created {created_count} multipliers"
+            )
+        )
+        if failed_count > 0:
+            self.stdout.write(
+                self.style.ERROR(f"Failed to create {failed_count} multipliers")
+            )
+
+        self.stdout.write("Done")
