@@ -1,0 +1,159 @@
+[0;32m🚀 Starting Indexer E2E Tests[0m
+Configuration:
+  DB_URL: postgresql://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+  ANVIL_PORT: 8545
+[0;32mStarting Anvil (local test blockchain) on port 8545...[0m
+[1;33mNote: This script manages Anvil automatically - you don't need to run it separately[0m
+Waiting for Anvil to start...
+[0;32mAnvil is ready![0m
+[0;32mDeploying event emitter contracts...[0m
+Deploying staking event emitter...
+[0;32mStaking contract deployed at: 0x5FbDB2315678afecb367f032d93F642f64180aa3[0m
+Deploying EAS event emitter...
+[0;32mEAS contract deployed at: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512[0m
+Deploying Human ID event emitter...
+[0;32mHuman ID contract deployed at: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0[0m
+[0;32mAll contracts deployed. Using block 2 as start block[0m
+[0;32mStarting indexer...[0m
+Waiting for indexer to start...
+warning: associated function `from_event_type` is never used
+  --> src/utils.rs:70:12
+   |
+69 | impl StakeAmountOperation {
+   | ------------------------- associated function in this implementation
+70 |     pub fn from_event_type(event_type: &StakeEventType) -> Self {
+   |            ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `indexer` (bin "indexer") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running `target/debug/indexer`
+cert_file: 
+Using NoTls
+Debug - Starting unified indexer for chain 10 at block 0
+Debug - Querying past events for chain 10 from block 0 to block 3
+Debug - Finished querying past events for chain 10
+Debug - Listening for future events for chain 10 from block 4
+[0;32mRunning test scenarios...[0m
+Running Rust E2E tests...
+warning: associated function `from_event_type` is never used
+  --> src/utils.rs:70:12
+   |
+69 | impl StakeAmountOperation {
+   | ------------------------- associated function in this implementation
+70 |     pub fn from_event_type(event_type: &StakeEventType) -> Self {
+   |            ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `indexer` (bin "indexer") generated 1 warning
+   Compiling indexer v0.1.0 (/Users/lucian/projects/worktrees/scorer--points-indexer/indexer)
+warning: unused import: `std::time::Duration`
+ --> tests/common/mod.rs:7:5
+  |
+7 | use std::time::Duration;
+  |     ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: variable does not need to be mutable
+ --> tests/e2e_tests.rs:8:9
+  |
+8 |     let mut ctx = TestContext::new().await?;
+  |         ----^^^
+  |         |
+  |         help: remove this `mut`
+  |
+  = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+  --> tests/e2e_tests.rs:49:9
+   |
+49 |     let mut ctx = TestContext::new().await?;
+   |         ----^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests/e2e_tests.rs:106:9
+    |
+106 |     let mut ctx = TestContext::new().await?;
+    |         ----^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests/e2e_tests.rs:167:9
+    |
+167 |     let mut ctx = TestContext::new().await?;
+    |         ----^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests/e2e_tests.rs:202:9
+    |
+202 |     let mut ctx = TestContext::new().await?;
+    |         ----^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests/e2e_tests.rs:241:9
+    |
+241 |     let mut ctx = TestContext::new().await?;
+    |         ----^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests/e2e_tests.rs:290:9
+    |
+290 |     let mut ctx = TestContext::new().await?;
+    |         ----^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> tests/e2e_tests.rs:354:9
+    |
+354 |     let mut ctx = TestContext::new().await?;
+    |         ----^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: field `address` is never read
+  --> tests/common/event_emitter.rs:33:9
+   |
+31 | pub struct EventEmitter {
+   |            ------------ field in this struct
+32 |     pub contract: EventEmitterContract<SignerMiddleware<Arc<Provider<Http>>, LocalWallet>>,
+33 |     pub address: Address,
+   |         ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: methods `emit_withdraw_for`, `emit_custom_attestation`, and `emit_human_id_transfer` are never used
+   --> tests/common/event_emitter.rs:100:18
+    |
+36  | impl EventEmitter {
+    | ----------------- methods in this implementation
+...
+100 |     pub async fn emit_withdraw_for(
+    |                  ^^^^^^^^^^^^^^^^^
+...
+173 |     pub async fn emit_custom_attestation(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^
+...
+202 |     pub async fn emit_human_id_transfer(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `indexer` (test "e2e_tests") generated 11 warnings (run `cargo fix --test "e2e_tests"` to apply 9 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.40s
+     Running tests/e2e_tests.rs (target/debug/deps/e2e_tests-4935342e3e09af07)
+
+running 8 tests
+test test_batch_withdraw_events ... Error: Error { kind: Db, cause: Some(DbError { severity: "ERROR", parsed_severity: Some(Error), code: SqlState(E42703), message: "column \"amount\" does not exist", detail: None, hint: None, position: Some(Original(8)), where_: None, schema: None, table: None, column: None, datatype: None, constraint: None, file: Some("parse_relation.c"), line: Some(3349), routine: Some("errorMissingColumn") }) }
+FAILED
+test test_duplicate_transaction_handling ... 

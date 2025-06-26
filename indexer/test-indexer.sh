@@ -44,6 +44,25 @@ cleanup() {
     if [ ! -z "$INDEXER_PID" ]; then
         kill $INDEXER_PID 2>/dev/null || true
     fi
+    
+    # Drop test tables if they exist
+    if [ ! -z "$TEST_TABLE_SUFFIX" ]; then
+        echo -e "${YELLOW}Dropping test tables...${NC}"
+        PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME <<EOF
+DROP TABLE IF EXISTS stake_stakeevent${TEST_TABLE_SUFFIX} CASCADE;
+DROP TABLE IF EXISTS stake_stake${TEST_TABLE_SUFFIX} CASCADE;
+DROP TABLE IF EXISTS stake_lastblock${TEST_TABLE_SUFFIX} CASCADE;
+DROP TABLE IF EXISTS stake_reindexrequest${TEST_TABLE_SUFFIX} CASCADE;
+DROP TABLE IF EXISTS registry_humanpoints${TEST_TABLE_SUFFIX} CASCADE;
+DROP TABLE IF EXISTS registry_gtcstakeevent${TEST_TABLE_SUFFIX} CASCADE;
+DROP SEQUENCE IF EXISTS stake_stakeevent${TEST_TABLE_SUFFIX}_id_seq;
+DROP SEQUENCE IF EXISTS stake_stake${TEST_TABLE_SUFFIX}_id_seq;
+DROP SEQUENCE IF EXISTS stake_lastblock${TEST_TABLE_SUFFIX}_id_seq;
+DROP SEQUENCE IF EXISTS stake_reindexrequest${TEST_TABLE_SUFFIX}_id_seq;
+DROP SEQUENCE IF EXISTS registry_humanpoints${TEST_TABLE_SUFFIX}_id_seq;
+DROP SEQUENCE IF EXISTS registry_gtcstakeevent${TEST_TABLE_SUFFIX}_id_seq;
+EOF
+    fi
 }
 trap cleanup EXIT
 
@@ -106,7 +125,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Deploy staking contract emitter
 echo "Deploying staking event emitter..."
-FORGE_OUTPUT=$(forge create "$SCRIPT_DIR/contracts/test/EventEmitter.sol:EventEmitter" \
+FORGE_OUTPUT=$(forge create "contracts/test/EventEmitter.sol:EventEmitter" \
     --rpc-url http://localhost:$ANVIL_PORT \
     --private-key $ANVIL_TEST_PRIVATE_KEY \
     --json)
@@ -117,7 +136,7 @@ echo -e "${GREEN}Staking contract deployed at: $STAKING_CONTRACT${NC}"
 
 # Deploy EAS (passport mint) contract emitter
 echo "Deploying EAS event emitter..."
-FORGE_OUTPUT=$(forge create "$SCRIPT_DIR/contracts/test/EventEmitter.sol:EventEmitter" \
+FORGE_OUTPUT=$(forge create "contracts/test/EventEmitter.sol:EventEmitter" \
     --rpc-url http://localhost:$ANVIL_PORT \
     --private-key $ANVIL_TEST_PRIVATE_KEY \
     --json)
@@ -126,7 +145,7 @@ echo -e "${GREEN}EAS contract deployed at: $EAS_CONTRACT${NC}"
 
 # Deploy Human ID contract emitter
 echo "Deploying Human ID event emitter..."
-FORGE_OUTPUT=$(forge create "$SCRIPT_DIR/contracts/test/EventEmitter.sol:EventEmitter" \
+FORGE_OUTPUT=$(forge create "contracts/test/EventEmitter.sol:EventEmitter" \
     --rpc-url http://localhost:$ANVIL_PORT \
     --private-key $ANVIL_TEST_PRIVATE_KEY \
     --json)
@@ -140,6 +159,7 @@ START_BLOCK="${START_BLOCK_OVERRIDE:-$DEPLOY_BLOCK}"
 
 # 3. Export environment variables for indexer
 export DB_URL="$DB_URL"
+export ANVIL_PORT="$ANVIL_PORT"
 
 # Disable all chains except optimism for testing
 export INDEXER_LEGACY_ENABLED="false"
@@ -154,7 +174,7 @@ export INDEXER_SHAPE_ENABLED="false"
 
 # Enable Optimism for testing
 export INDEXER_OPTIMISM_ENABLED="true"
-export INDEXER_OPTIMISM_RPC_URL="http://localhost:$ANVIL_PORT"
+export INDEXER_OPTIMISM_RPC_URL="ws://localhost:$ANVIL_PORT"
 export INDEXER_OPTIMISM_STAKING_CONTRACT="$STAKING_CONTRACT"
 export INDEXER_OPTIMISM_EAS_CONTRACT="$EAS_CONTRACT"
 export INDEXER_OPTIMISM_HUMAN_ID_CONTRACT="$HUMAN_ID_CONTRACT"
@@ -184,6 +204,34 @@ export DB_NAME
 # Certificate file (empty for local testing)
 export CERT_FILE=""
 
+# Create test tables with unique suffix
+TEST_ID=$(date +%s)
+export TEST_TABLE_SUFFIX="_test_${TEST_ID}"
+echo -e "${GREEN}Creating test tables with suffix: ${TEST_TABLE_SUFFIX}${NC}"
+
+# Create test tables by copying schema from existing tables
+echo -e "${GREEN}Checking if source tables exist...${NC}"
+PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "\dt stake_stakeevent, stake_stake, stake_lastblock, stake_reindexrequest, registry_humanpoints" || true
+
+PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME <<EOF
+-- Create test tables with same structure as production tables
+-- Note: INCLUDING ALL should include constraints, but we'll be explicit
+-- Create test tables - try INCLUDING ALL first to see the specific error
+CREATE TABLE IF NOT EXISTS stake_stakeevent${TEST_TABLE_SUFFIX} (LIKE stake_stakeevent INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS stake_stake${TEST_TABLE_SUFFIX} (LIKE stake_stake INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS stake_lastblock${TEST_TABLE_SUFFIX} (LIKE stake_lastblock INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS stake_reindexrequest${TEST_TABLE_SUFFIX} (LIKE stake_reindexrequest INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS registry_humanpoints${TEST_TABLE_SUFFIX} (LIKE registry_humanpoints INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS registry_gtcstakeevent${TEST_TABLE_SUFFIX} (LIKE registry_gtcstakeevent INCLUDING ALL);
+EOF
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to create test tables${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}Test tables created successfully${NC}"
+
 # 4. Start the indexer in the background
 echo -e "${GREEN}Starting indexer...${NC}"
 cargo run --bin indexer &
@@ -191,14 +239,14 @@ INDEXER_PID=$!
 
 # Give indexer time to start and catch up
 echo "Waiting for indexer to start..."
-sleep 5
+sleep 10
 
 # 5. Run test scenarios
 echo -e "${GREEN}Running test scenarios...${NC}"
 
 # Run Rust E2E tests
 echo "Running Rust E2E tests..."
-cargo test --test e2e_tests -- --test-threads=1 --nocapture
+cargo test --test e2e_tests ${CARGO_TEST_ARGS:-} -- --test-threads=1 --nocapture
 TEST_EXIT_CODE=$?
 
 # Kill the indexer

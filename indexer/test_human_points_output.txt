@@ -1,0 +1,139 @@
+[0;32m🚀 Starting Indexer E2E Tests[0m
+Configuration:
+  DB_URL: postgresql://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+  ANVIL_PORT: 8456
+[0;32mStarting Anvil (local test blockchain) on port 8456...[0m
+[1;33mNote: This script manages Anvil automatically - you don't need to run it separately[0m
+Waiting for Anvil to start...
+[0;32mAnvil is ready![0m
+[0;32mDeploying event emitter contracts...[0m
+Deploying staking event emitter...
+[0;32mStaking contract deployed at: 0x5FbDB2315678afecb367f032d93F642f64180aa3[0m
+Deploying EAS event emitter...
+[0;32mEAS contract deployed at: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512[0m
+Deploying Human ID event emitter...
+[0;32mHuman ID contract deployed at: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0[0m
+[0;32mAll contracts deployed. Using block 2 as start block[0m
+[0;32mCreating test tables with suffix: _test_1750974152[0m
+[0;32mChecking if source tables exist...[0m
+Did not find any relation named "stake_stakeevent,".
+\dt: extra argument "stake_stake," ignored
+\dt: extra argument "stake_lastblock," ignored
+\dt: extra argument "stake_reindexrequest," ignored
+\dt: extra argument "registry_humanpoints" ignored
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+[0;32mTest tables created successfully[0m
+[0;32mStarting indexer...[0m
+Waiting for indexer to start...
+   Compiling indexer v0.1.0 (/Users/lucian/projects/worktrees/scorer--points-indexer/indexer)
+error[E0716]: temporary value dropped while borrowed
+   --> src/postgres.rs:436:56
+    |
+436 |             if address.len() > 13 { &address } else { &format!("SHORTENED: {}", address) }, 
+    |             -------------------------------------------^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^--
+    |             |                                          |                                 |
+    |             |                                          |                                 temporary value is freed at the end of this statement
+    |             |                                          creates a temporary value which is freed while still in use
+    |             borrow later used here
+    |
+    = note: consider using a `let` binding to create a longer lived value
+    = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0716`.
+error: could not compile `indexer` (bin "indexer") due to 1 previous error
+[0;32mRunning test scenarios...[0m
+Running Rust E2E tests...
+   Compiling indexer v0.1.0 (/Users/lucian/projects/worktrees/scorer--points-indexer/indexer)
+warning: unused imports: `AtomicBool` and `Ordering`
+ --> tests/common/mod.rs:5:25
+  |
+5 | use std::sync::atomic::{AtomicBool, Ordering};
+  |                         ^^^^^^^^^^  ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `ethers::utils::parse_ether`
+   --> tests/common/mod.rs:175:9
+    |
+175 | pub use ethers::utils::parse_ether;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ethers::prelude`
+ --> tests/e2e_tests.rs:5:5
+  |
+5 | use ethers::prelude::*;
+  |     ^^^^^^^^^^^^^^^
+
+warning: methods `wait_for_indexer`, `wait_for_event_count`, and `cleanup` are never used
+   --> tests/common/mod.rs:72:18
+    |
+26  | impl TestContext {
+    | ---------------- methods in this implementation
+...
+72  |     pub async fn wait_for_indexer(&self, duration: std::time::Duration) {
+    |                  ^^^^^^^^^^^^^^^^
+...
+76  |     pub async fn wait_for_event_count(&self, table: &str, expected_count: i64, timeout: std::time::Duration) -> Result<(), Box<dyn std::e...
+    |                  ^^^^^^^^^^^^^^^^^^^^
+...
+143 |     pub async fn cleanup(self) -> Result<(), Box<dyn std::error::Error>> {
+    |                  ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: methods `emit_self_stake_withdrawn`, `emit_custom_attestation`, and `emit_human_id_transfer` are never used
+   --> tests/common/event_emitter.rs:105:18
+    |
+37  | impl EventEmitter {
+    | ----------------- methods in this implementation
+...
+105 |     pub async fn emit_self_stake_withdrawn(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+178 |     pub async fn emit_custom_attestation(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^
+...
+207 |     pub async fn emit_human_id_transfer(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `indexer` (test "e2e_tests") generated 5 warnings (run `cargo fix --test "e2e_tests"` to apply 2 suggestions)
+error[E0716]: temporary value dropped while borrowed
+   --> src/postgres.rs:436:56
+    |
+436 |             if address.len() > 13 { &address } else { &format!("SHORTENED: {}", address) }, 
+    |             -------------------------------------------^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^--
+    |             |                                          |                                 |
+    |             |                                          |                                 temporary value is freed at the end of this statement
+    |             |                                          creates a temporary value which is freed while still in use
+    |             borrow later used here
+    |
+    = note: consider using a `let` binding to create a longer lived value
+    = note: this error originates in the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0716`.
+error: could not compile `indexer` (bin "indexer") due to 1 previous error
+[1;33mCleaning up...[0m
+[1;33mDropping test tables...[0m
+DROP TABLE
+DROP TABLE
+DROP TABLE
+DROP TABLE
+DROP TABLE
+DROP TABLE
+NOTICE:  sequence "stake_stakeevent_test_1750974152_id_seq" does not exist, skipping
+DROP SEQUENCE
+NOTICE:  sequence "stake_stake_test_1750974152_id_seq" does not exist, skipping
+DROP SEQUENCE
+NOTICE:  sequence "stake_lastblock_test_1750974152_id_seq" does not exist, skipping
+DROP SEQUENCE
+NOTICE:  sequence "stake_reindexrequest_test_1750974152_id_seq" does not exist, skipping
+DROP SEQUENCE
+NOTICE:  sequence "registry_humanpoints_test_1750974152_id_seq" does not exist, skipping
+DROP SEQUENCE
+NOTICE:  sequence "registry_gtcstakeevent_test_1750974152_id_seq" does not exist, skipping
+DROP SEQUENCE
