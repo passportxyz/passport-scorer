@@ -295,8 +295,7 @@ impl UnifiedChainIndexer {
             .map(|c| c.address)
             .collect();
 
-        let filter = Filter::new().address(addresses).from_block(from_block);
-
+        let filter = Filter::new().address(addresses.clone()).from_block(from_block);
         let mut stream = provider.watch(&filter).await?;
 
         while let Some(log) = stream.next().await {

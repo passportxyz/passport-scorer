@@ -71,5 +71,8 @@ async fn main() -> Result<()> {
         }
         // Loop facilitates starting over and recreating all connections if anything fails
         // (aka if the above try_join ever completes)
+        
+        // Add a delay to prevent tight loop when all indexers are disabled (e.g., in tests)
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     }
 }

@@ -2,14 +2,14 @@
 pragma solidity ^0.8.0;
 
 contract EventEmitter {
-    // Staking events
-    event SelfStake(address indexed staker, uint256 amount, uint256 unlock_time);
-    event CommunityStake(address indexed staker, address indexed stakee, uint256 amount, uint256 unlock_time);
-    event Withdraw(address indexed staker, uint256 amount);
-    event WithdrawFor(address indexed staker, address indexed stakee, uint256 amount);
-    event WithdrawInBatch(address[] stakers, address[] stakees, uint256[] amounts);
-    event Slash(address[] users, uint256[] amounts);
-    event Release(address indexed user, uint256 amount);
+    // Staking events - must match IdentityStaking.sol signatures exactly
+    event SelfStake(address indexed staker, uint88 amount, uint64 unlockTime);
+    event CommunityStake(address indexed staker, address indexed stakee, uint88 amount, uint64 unlockTime);
+    event SelfStakeWithdrawn(address indexed staker, uint88 amount);
+    event CommunityStakeWithdrawn(address indexed staker, address indexed stakee, uint88 amount);
+    event Slash(address indexed staker, address indexed stakee, uint88 amount, uint16 round);
+    event Release(address indexed staker, address indexed stakee, uint88 amount);
+    event Burn(address indexed staker, address indexed stakee, uint88 amount);
     
     // Human Points events (EAS style)
     event Attested(
@@ -38,31 +38,44 @@ contract EventEmitter {
     
     // Emit any event on demand
     function emitSelfStake(address staker, uint256 amount, uint256 unlockTime) external {
-        emit SelfStake(staker, amount, unlockTime);
+        emit SelfStake(staker, uint88(amount), uint64(unlockTime));
     }
     
     function emitCommunityStake(address staker, address stakee, uint256 amount, uint256 unlockTime) external {
-        emit CommunityStake(staker, stakee, amount, unlockTime);
+        emit CommunityStake(staker, stakee, uint88(amount), uint64(unlockTime));
     }
     
+    function emitSelfStakeWithdrawn(address staker, uint256 amount) external {
+        emit SelfStakeWithdrawn(staker, uint88(amount));
+    }
+    
+    function emitCommunityStakeWithdrawn(address staker, address stakee, uint256 amount) external {
+        emit CommunityStakeWithdrawn(staker, stakee, uint88(amount));
+    }
+    
+    function emitSlash(address staker, address stakee, uint256 amount, uint256 round) external {
+        emit Slash(staker, stakee, uint88(amount), uint16(round));
+    }
+    
+    function emitRelease(address staker, address stakee, uint256 amount) external {
+        emit Release(staker, stakee, uint88(amount));
+    }
+    
+    function emitBurn(address staker, address stakee, uint256 amount) external {
+        emit Burn(staker, stakee, uint88(amount));
+    }
+    
+    // Legacy support for tests
     function emitWithdraw(address staker, uint256 amount) external {
-        emit Withdraw(staker, amount);
-    }
-    
-    function emitWithdrawFor(address staker, address stakee, uint256 amount) external {
-        emit WithdrawFor(staker, stakee, amount);
-    }
-    
-    function emitWithdrawInBatch(address[] memory stakers, address[] memory stakees, uint256[] memory amounts) external {
-        emit WithdrawInBatch(stakers, stakees, amounts);
+        // Assume self-stake withdrawal
+        emit SelfStakeWithdrawn(staker, uint88(amount));
     }
     
     function emitSlash(address[] memory users, uint256[] memory amounts) external {
-        emit Slash(users, amounts);
-    }
-    
-    function emitRelease(address user, uint256 amount) external {
-        emit Release(user, amount);
+        // Emit individual slash events
+        for (uint i = 0; i < users.length; i++) {
+            emit Slash(users[i], users[i], uint88(amounts[i]), 0);
+        }
     }
     
     function emitPassportAttestation(address recipient, bytes32 uid, uint256 chainId) external {
