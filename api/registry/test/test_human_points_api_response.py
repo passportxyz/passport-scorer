@@ -16,8 +16,8 @@ from ninja_jwt.schema import RefreshToken
 from account.models import Account, AccountAPIKey, Community
 from ceramic_cache.models import CeramicCache
 from registry.models import (
-    HumanPointsCommunityQualifiedUsers,
     HumanPoints,
+    HumanPointsCommunityQualifiedUsers,
     HumanPointsConfig,
     HumanPointsMultiplier,
     Passport,
@@ -70,6 +70,7 @@ class TestHumanPointsAPIResponse:
     def auth_headers(self):
         # Create JWT token for ceramic-cache endpoints
         from ceramic_cache.api.v1 import DbCacheToken
+
         token = DbCacheToken()
         token["did"] = "did:pkh:eip155:1:0x1234567890123456789012345678901234567890"
         return {"HTTP_AUTHORIZATION": f"Bearer {str(token.access_token)}"}
@@ -111,23 +112,26 @@ class TestHumanPointsAPIResponse:
     ):
         """Test that /ceramic-cache/score/{address} endpoint includes points_data"""
         address = "0x1234567890123456789012345678901234567890"
-        
+
         # Set the community ID to match ceramic cache scorer ID
-        with patch.object(settings, 'CERAMIC_CACHE_SCORER_ID', human_points_community.id):
+        with patch.object(
+            settings, "CERAMIC_CACHE_SCORER_ID", human_points_community.id
+        ):
             # Setup human points data
-            self.setup_human_points_data(address, human_points_community, human_points_community.account)
+            self.setup_human_points_data(
+                address, human_points_community, human_points_community.account
+            )
 
             # Create a passport and score for this address
             passport = Passport.objects.create(
-                address=address.lower(),
-                community=human_points_community
+                address=address.lower(), community=human_points_community
             )
             Score.objects.create(
                 passport=passport,
                 score=Decimal("25.0"),
                 status=Score.Status.DONE,
                 evidence={"rawScore": "25.0", "threshold": "20.0"},
-                stamps={}
+                stamps={},
             )
 
             # Make request
@@ -149,7 +153,9 @@ class TestHumanPointsAPIResponse:
             assert "breakdown" in points_data
             breakdown = points_data["breakdown"]
             assert breakdown[HumanPoints.Action.HUMAN_KEYS] == 200  # 100 * 2
-            assert breakdown[HumanPoints.Action.IDENTITY_STAKING_BRONZE] == 200  # 100 * 2
+            assert (
+                breakdown[HumanPoints.Action.IDENTITY_STAKING_BRONZE] == 200
+            )  # 100 * 2
             assert breakdown[HumanPoints.Action.SCORING_BONUS] == 1000  # 500 * 2
 
     def test_points_data_for_non_eligible_address(
@@ -157,8 +163,10 @@ class TestHumanPointsAPIResponse:
     ):
         """Test points_data when address has no passing scores"""
         address = "0x2222222222222222222222222222222222222222"
-        
-        with patch.object(settings, 'CERAMIC_CACHE_SCORER_ID', human_points_community.id):
+
+        with patch.object(
+            settings, "CERAMIC_CACHE_SCORER_ID", human_points_community.id
+        ):
             # Create points but no passing scores
             HumanPointsConfig.objects.create(
                 action=HumanPoints.Action.HUMAN_KEYS, points=100
@@ -170,15 +178,14 @@ class TestHumanPointsAPIResponse:
 
             # Create a passport and score
             passport = Passport.objects.create(
-                address=address.lower(),
-                community=human_points_community
+                address=address.lower(), community=human_points_community
             )
             Score.objects.create(
                 passport=passport,
                 score=Decimal("25.0"),
                 status=Score.Status.DONE,
                 evidence={"rawScore": "25.0", "threshold": "20.0"},
-                stamps={}
+                stamps={},
             )
 
             response = api_client.get(f"/ceramic-cache/score/{address}", **auth_headers)
@@ -192,19 +199,20 @@ class TestHumanPointsAPIResponse:
     ):
         """Test points_data when address has no human points records"""
         address = "0x3333333333333333333333333333333333333333"
-        
-        with patch.object(settings, 'CERAMIC_CACHE_SCORER_ID', human_points_community.id):
+
+        with patch.object(
+            settings, "CERAMIC_CACHE_SCORER_ID", human_points_community.id
+        ):
             # Create a passport and score
             passport = Passport.objects.create(
-                address=address.lower(),
-                community=human_points_community
+                address=address.lower(), community=human_points_community
             )
             Score.objects.create(
                 passport=passport,
                 score=Decimal("25.0"),
                 status=Score.Status.DONE,
                 evidence={"rawScore": "25.0", "threshold": "20.0"},
-                stamps={}
+                stamps={},
             )
 
             response = api_client.get(f"/ceramic-cache/score/{address}", **auth_headers)
@@ -222,22 +230,21 @@ class TestHumanPointsAPIResponse:
     ):
         """Test that points_data is None when human_points_program is disabled"""
         address = "0x5555555555555555555555555555555555555555"
-        
-        with patch.object(settings, 'CERAMIC_CACHE_SCORER_ID', scorer_community.id):
+
+        with patch.object(settings, "CERAMIC_CACHE_SCORER_ID", scorer_community.id):
             # scorer_community has human_points_program=False
             assert scorer_community.human_points_program is False
 
             # Create a passport and score
             passport = Passport.objects.create(
-                address=address.lower(),
-                community=scorer_community
+                address=address.lower(), community=scorer_community
             )
             Score.objects.create(
                 passport=passport,
                 score=Decimal("25.0"),
                 status=Score.Status.DONE,
                 evidence={"rawScore": "25.0", "threshold": "20.0"},
-                stamps={}
+                stamps={},
             )
 
             response = api_client.get(f"/ceramic-cache/score/{address}", **auth_headers)
@@ -285,7 +292,7 @@ class TestHumanPointsAPIResponse:
             config = HumanPointsConfig.objects.get(action=action_record.action)
             total += config.points
             breakdown[action_record.action] = config.points
-        
+
         # Debug output
         expected = {
             HumanPoints.Action.HUMAN_KEYS: 100,
@@ -296,7 +303,7 @@ class TestHumanPointsAPIResponse:
             HumanPoints.Action.PASSPORT_MINT: 300,
             HumanPoints.Action.HUMAN_ID_MINT: 1000,
         }
-        
+
         assert len(actions) == 7, f"Expected 7 actions, got {len(actions)}"
         assert total == 2300  # 100 + 100 + 200 + 100 + 500 + 300 + 1000 = 2300
 
@@ -313,6 +320,7 @@ class TestHumanPointsAPIResponse:
             # Create passing score records
             for i in range(passing_count):
                 import uuid
+
                 comm = Community.objects.create(
                     name=f"Community {uuid.uuid4()}",
                     description="Test",
@@ -360,19 +368,20 @@ class TestHumanPointsAPIResponse:
     ):
         """Test that points_data structure matches expected schema"""
         address = "0x5555555555555555555555555555555555555555"
-        
-        with patch.object(settings, 'CERAMIC_CACHE_SCORER_ID', human_points_community.id):
+
+        with patch.object(
+            settings, "CERAMIC_CACHE_SCORER_ID", human_points_community.id
+        ):
             # Create a passport and score
             passport = Passport.objects.create(
-                address=address.lower(),
-                community=human_points_community
+                address=address.lower(), community=human_points_community
             )
             Score.objects.create(
                 passport=passport,
                 score=Decimal("25.0"),
                 status=Score.Status.DONE,
                 evidence={"rawScore": "25.0", "threshold": "20.0"},
-                stamps={}
+                stamps={},
             )
 
             response = api_client.get(f"/ceramic-cache/score/{address}", **auth_headers)
@@ -384,3 +393,54 @@ class TestHumanPointsAPIResponse:
             assert isinstance(points_data["is_eligible"], bool)
             assert isinstance(points_data["multiplier"], int)
             assert isinstance(points_data["breakdown"], dict)
+
+    def test_v2_api_endpoint_does_not_include_points_data(
+        self, api_client, human_points_community, api_key
+    ):
+        """Test that v2 API endpoints do not include points_data even when human_points_program is enabled"""
+        from scorer_weighted.models import (
+            Scorer,
+            WeightConfiguration,
+            WeightConfigurationItem,
+        )
+
+        # Create a scorer for the community
+        scorer = Scorer.objects.create(type=Scorer.Type.WEIGHTED)
+        human_points_community.scorer = scorer
+        human_points_community.save()
+
+        # Create a weight configuration
+        weight_config = WeightConfiguration.objects.create(
+            scorer=scorer, active=True, threshold=Decimal("20.0")
+        )
+
+        address = "0x6666666666666666666666666666666666666666"
+
+        # Setup human points data
+        self.setup_human_points_data(
+            address, human_points_community, human_points_community.account
+        )
+
+        # Create a passport and score for this address
+        passport = Passport.objects.create(
+            address=address.lower(), community=human_points_community
+        )
+        Score.objects.create(
+            passport=passport,
+            score=Decimal("25.0"),
+            status=Score.Status.DONE,
+            evidence={"rawScore": "25.0", "threshold": "20.0"},
+            stamps={},
+        )
+
+        # Make request to v2 API endpoint
+        response = api_client.get(
+            f"/v2/stamps/{human_points_community.id}/score/{address}",
+            HTTP_X_API_KEY=api_key.secret,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check that points_data is NOT included in v2 API response
+        assert data.get("points_data") is None

@@ -38,6 +38,7 @@ from registry.exceptions import (
     InvalidLimitException,
     api_get_object_or_404,
 )
+from registry.human_points_utils import aget_user_points_data
 from registry.models import Event, Passport, Score
 from registry.utils import (
     decode_cursor,
@@ -45,8 +46,7 @@ from registry.utils import (
     reverse_lazy_with_query,
 )
 from scorer_weighted.models import Scorer
-from v2.schema import V2ScoreResponse, PointsData
-from registry.human_points_utils import aget_user_points_data
+from v2.schema import PointsData, V2ScoreResponse
 
 from ..exceptions import ScoreDoesNotExist
 from .router import api_router
@@ -56,13 +56,15 @@ METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 log = logging.getLogger(__name__)
 
 
-async def handle_scoring_for_account(address: str, scorer_id: str, user_account):
+async def handle_scoring_for_account(
+    address: str, scorer_id: str, user_account, include_human_points: bool = False
+):
     # Get community object
     user_community = await aget_scorer_by_id(scorer_id, user_account)
-    return await ahandle_scoring(address, user_community)
+    return await ahandle_scoring(address, user_community, include_human_points)
 
 
-async def ahandle_scoring(address: str, community):
+async def ahandle_scoring(address: str, community, include_human_points: bool = False):
     address_lower = address.lower()
     if not is_valid_address(address_lower):
         raise InvalidAddressException()
@@ -84,18 +86,25 @@ async def ahandle_scoring(address: str, community):
     await ascore_passport(community, db_passport, address_lower, score)
     await score.asave()
 
-    # Get points data if community has human_points_program enabled
+    # Get points data if community has human_points_program enabled and include_human_points is True
     points_data = None
-    if settings.HUMAN_POINTS_ENABLED and community.human_points_program:
+    if (
+        include_human_points
+        and settings.HUMAN_POINTS_ENABLED
+        and community.human_points_program
+    ):
         points_data = await aget_user_points_data(address_lower)
 
-    return format_v2_score_response(score, scorer_type, points_data)
+    return format_v2_score_response(
+        score, scorer_type, points_data, include_human_points
+    )
 
 
 def format_v2_score_response(
     score: Score,
     scorer_type: Scorer.Type,
     points_data: Dict[str, Any] = None,
+    include_human_points: bool = False,
 ) -> V2ScoreResponse:
     raw_score = score.evidence.get("rawScore", "0") if score.evidence else "0"
     threshold = score.evidence.get("threshold", "20") if score.evidence else "20"
@@ -103,9 +112,9 @@ def format_v2_score_response(
     raw_score = Decimal(0) if raw_score is None else Decimal(raw_score)
     threshold = Decimal(0) if threshold is None else Decimal(threshold)
 
-    # Convert points_data dict to PointsData schema if provided
+    # Convert points_data dict to PointsData schema if provided and include_human_points is True
     formatted_points_data = None
-    if points_data:
+    if include_human_points and points_data:
         formatted_points_data = PointsData(
             total_points=points_data["total_points"],
             is_eligible=points_data["is_eligible"],
