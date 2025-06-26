@@ -39,12 +39,12 @@ from registry.exceptions import (
     InvalidCommunityScoreRequestException,
     NotFoundApiException,
 )
+from registry.human_points_utils import aget_user_points_data
 from registry.models import Score
 from stake.api import get_gtc_stake_for_address
 from stake.schema import StakeResponse
 from v2.api.api_stamps import format_v2_score_response, handle_scoring_for_account
 from v2.schema import V2ScoreResponse
-from registry.human_points_utils import aget_user_points_data
 
 from ..exceptions import (
     InternalServerException,
@@ -532,7 +532,10 @@ def handle_get_ui_score(
         if settings.HUMAN_POINTS_ENABLED and user_community.human_points_program:
             points_data = async_to_sync(aget_user_points_data)(lower_address)
 
-        return format_v2_score_response(score, scorer_type, points_data)
+        # Include human points for ceramic-cache endpoints
+        return format_v2_score_response(
+            score, scorer_type, points_data, include_human_points=True
+        )
 
     except Community.DoesNotExist as e:
         raise NotFoundApiException(
@@ -661,7 +664,10 @@ def get_detailed_score_response_for_address(
 
     account = get_object_or_404(Account, community__id=scorer_id)
 
-    score = async_to_sync(handle_scoring_for_account)(address, str(scorer_id), account)
+    # Include human points for ceramic-cache endpoints
+    score = async_to_sync(handle_scoring_for_account)(
+        address, str(scorer_id), account, include_human_points=True
+    )
 
     return score
 
