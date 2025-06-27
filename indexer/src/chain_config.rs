@@ -77,7 +77,7 @@ pub async fn create_optimism_indexer(
         
         contracts.push(ContractConfig {
             address: eas_address,
-            start_block: 0, // TODO: Add actual deployment block
+            start_block: 138123811, // July 7th, 2025
             contract_type: ContractType::PassportMint,
             schema_uid: Some(
                 "0xda0257756063c891659fed52fd36ef7557f7b45d66f59645fd3c3b263b747254".parse()?,
@@ -91,7 +91,7 @@ pub async fn create_optimism_indexer(
             
         contracts.push(ContractConfig {
             address: human_id_address,
-            start_block: 0, // TODO: Add actual deployment block
+            start_block: 138123811, // July 7th, 2025
             contract_type: ContractType::HumanIdMint,
             schema_uid: None,
         });
@@ -135,7 +135,7 @@ pub async fn create_arbitrum_indexer(
             
         contracts.push(ContractConfig {
             address: eas_address,
-            start_block: 0, // TODO: Add actual deployment block
+            start_block: 355019547, // July 7th, 2025
             contract_type: ContractType::PassportMint,
             schema_uid: Some(
                 "0x1f3dce6501d8aad23563c0cf4f0c32264aed9311cb050056ebf72774f89ba912".parse()?,
@@ -205,7 +205,7 @@ pub async fn create_base_indexer(postgres_client: Arc<PostgresClient>) -> Result
         // EAS contract for Passport mint on Base
         contracts.push(ContractConfig {
             address: "0x4200000000000000000000000000000000000021".parse()?,
-            start_block: 0, // TODO: Add actual deployment block
+            start_block: 32528526, // July 7th, 2025
             contract_type: ContractType::PassportMint,
             schema_uid: Some(
                 "0x1f3dce6501d8aad23563c0cf4f0c32264aed9311cb050056ebf72774f89ba912".parse()?,
@@ -239,7 +239,7 @@ pub async fn create_linea_indexer(postgres_client: Arc<PostgresClient>) -> Resul
         // EAS contract for Passport mint on Linea
         contracts.push(ContractConfig {
             address: "0xaEF4103A04090071165F78D45D83A0C0782c2B2a".parse()?,
-            start_block: 0, // TODO: Add actual deployment block
+            start_block: 20777084, // July 7th, 2025
             contract_type: ContractType::PassportMint,
             schema_uid: Some(
                 "0xa15ea01b11913fd412243156b40a8d5102ee9784172f82f9481e4c953fdd516d".parse()?,
@@ -273,7 +273,7 @@ pub async fn create_scroll_indexer(postgres_client: Arc<PostgresClient>) -> Resu
         // EAS contract for Passport mint on Scroll
         contracts.push(ContractConfig {
             address: "0xC47300428b6AD2c7D03BB76D05A176058b47E6B0".parse()?,
-            start_block: 0, // TODO: Add actual deployment block
+            start_block: 17073673, // July 7th, 2025
             contract_type: ContractType::PassportMint,
             schema_uid: Some(
                 "0x1f3dce6501d8aad23563c0cf4f0c32264aed9311cb050056ebf72774f89ba912".parse()?,
@@ -307,7 +307,7 @@ pub async fn create_zksync_indexer(postgres_client: Arc<PostgresClient>) -> Resu
         // EAS contract for Passport mint on zkSync Era
         contracts.push(ContractConfig {
             address: "0x21d8d4eE83b80bc0Cc0f2B7df3117Cf212d02901".parse()?,
-            start_block: 0, // TODO: Add actual deployment block
+            start_block: 63028818, // July 7th, 2025
             contract_type: ContractType::PassportMint,
             schema_uid: Some(
                 "0xb68405dffc0b727188de5a3af2ecbbc544ab01aef5353409c5006ffff342d143".parse()?,
@@ -341,7 +341,7 @@ pub async fn create_shape_indexer(postgres_client: Arc<PostgresClient>) -> Resul
         // EAS contract for Passport mint on Shape
         contracts.push(ContractConfig {
             address: "0x4200000000000000000000000000000000000021".parse()?,
-            start_block: 0, // TODO: Add actual deployment block
+            start_block: 15050964, // July 7th, 2025
             contract_type: ContractType::PassportMint,
             schema_uid: Some(
                 "0x1f3dce6501d8aad23563c0cf4f0c32264aed9311cb050056ebf72774f89ba912".parse()?,
