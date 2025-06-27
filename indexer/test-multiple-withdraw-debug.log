@@ -1,0 +1,117 @@
+[0;32m🚀 Starting Indexer E2E Tests[0m
+Configuration:
+  DB_URL: postgresql://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+  ANVIL_PORT: 8457
+[0;32mStarting Anvil (local test blockchain) on port 8457...[0m
+[1;33mNote: This script manages Anvil automatically - you don't need to run it separately[0m
+Waiting for Anvil to start...
+[0;32mAnvil is ready![0m
+[0;32mDeploying event emitter contracts...[0m
+Deploying staking event emitter...
+[0;32mStaking contract deployed at: 0x5FbDB2315678afecb367f032d93F642f64180aa3[0m
+Deploying EAS event emitter...
+[0;32mEAS contract deployed at: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512[0m
+Deploying Human ID event emitter...
+[0;32mHuman ID contract deployed at: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0[0m
+[0;32mAll contracts deployed. Using block 2 as start block[0m
+[0;32mCreating test tables with suffix: _test_1751042811[0m
+[0;32mChecking if source tables exist...[0m
+Did not find any relation named "stake_stakeevent,".
+\dt: extra argument "stake_stake," ignored
+\dt: extra argument "stake_lastblock," ignored
+\dt: extra argument "stake_reindexrequest," ignored
+\dt: extra argument "registry_humanpoints" ignored
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+[0;32mTest tables created successfully[0m
+[0;32mStarting indexer...[0m
+Waiting for indexer to start...
+warning: associated function `from_event_type` is never used
+  --> src/utils.rs:70:12
+   |
+69 | impl StakeAmountOperation {
+   | ------------------------- associated function in this implementation
+70 |     pub fn from_event_type(event_type: &StakeEventType) -> Self {
+   |            ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `indexer` (bin "indexer") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.57s
+     Running `target/debug/indexer`
+cert_file: 
+Using NoTls
+Debug - Starting unified indexer for chain 10 at block 0
+Debug - Querying past events for chain 10 from block 0 to block 4
+Debug - Finished querying past events for chain 10
+Debug - Listening for future events for chain 10 from block 5
+[0;32mRunning test scenarios...[0m
+Running Rust E2E tests...
+warning: associated function `from_event_type` is never used
+  --> src/utils.rs:70:12
+   |
+69 | impl StakeAmountOperation {
+   | ------------------------- associated function in this implementation
+70 |     pub fn from_event_type(event_type: &StakeEventType) -> Self {
+   |            ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `indexer` (bin "indexer") generated 1 warning
+warning: field `provider` is never read
+  --> tests/common/mod.rs:22:9
+   |
+17 | pub struct TestContext {
+   |            ----------- field in this struct
+...
+22 |     pub provider: Arc<Provider<Http>>,
+   |         ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `indexer` (test "e2e_tests") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running tests/e2e_tests.rs (target/debug/deps/e2e_tests-4935342e3e09af07)
+
+running 1 test
+test test_multiple_withdraw_events ... Added or extended stake in block 15 on chain 10!
+Added or extended stake in block 22 on chain 10!
+emit_community_stake - Sending transaction from 0xaa02…7890 to 0xcc02…7890
+Added or extended stake in block 29 on chain 10!
+emit_community_stake - Transaction confirmed!
+emit_community_stake - Sending transaction from 0xbb02…7890 to 0xdd02…7890
+Added or extended stake in block 36 on chain 10!
+emit_community_stake - Transaction confirmed!
+Modified stake amount in block 43 on chain 10!
+Modified stake amount in block 50 on chain 10!
+Modified stake amount in block 57 on chain 10!
+Modified stake amount in block 64 on chain 10!
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 56.17s
+
+[1;33mCleaning up...[0m
+[1;33mDropping test tables...[0m
+DROP TABLE
+DROP TABLE
+DROP TABLE
+DROP TABLE
+DROP TABLE
+DROP TABLE
+NOTICE:  sequence "stake_stakeevent_test_1751042811_id_seq" does not exist, skipping
+DROP SEQUENCE
+NOTICE:  sequence "stake_stake_test_1751042811_id_seq" does not exist, skipping
+DROP SEQUENCE
+NOTICE:  sequence "stake_lastblock_test_1751042811_id_seq" does not exist, skipping
+DROP SEQUENCE
+NOTICE:  sequence "stake_reindexrequest_test_1751042811_id_seq" does not exist, skipping
+DROP SEQUENCE
+NOTICE:  sequence "registry_humanpoints_test_1751042811_id_seq" does not exist, skipping
+DROP SEQUENCE
+NOTICE:  sequence "registry_gtcstakeevent_test_1751042811_id_seq" does not exist, skipping
+DROP SEQUENCE
+./test-indexer.sh: line 39: 47967 Terminated: 15          cargo run --bin indexer

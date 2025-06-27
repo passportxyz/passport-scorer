@@ -125,10 +125,12 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Deploy staking contract emitter
 echo "Deploying staking event emitter..."
+cd e2e_tests
 FORGE_OUTPUT=$(forge create "contracts/test/EventEmitter.sol:EventEmitter" \
     --rpc-url http://localhost:$ANVIL_PORT \
     --private-key $ANVIL_TEST_PRIVATE_KEY \
     --json)
+cd ..
 STAKING_CONTRACT=$(echo "$FORGE_OUTPUT" | jq -r '.deployedTo')
 DEPLOY_TX=$(echo "$FORGE_OUTPUT" | jq -r '.transactionHash')
 DEPLOY_BLOCK=$(cast receipt $DEPLOY_TX --rpc-url http://localhost:$ANVIL_PORT --json | jq -r '.blockNumber' | xargs printf "%d")
@@ -136,19 +138,23 @@ echo -e "${GREEN}Staking contract deployed at: $STAKING_CONTRACT${NC}"
 
 # Deploy EAS (passport mint) contract emitter
 echo "Deploying EAS event emitter..."
+cd e2e_tests
 FORGE_OUTPUT=$(forge create "contracts/test/EventEmitter.sol:EventEmitter" \
     --rpc-url http://localhost:$ANVIL_PORT \
     --private-key $ANVIL_TEST_PRIVATE_KEY \
     --json)
+cd ..
 EAS_CONTRACT=$(echo "$FORGE_OUTPUT" | jq -r '.deployedTo')
 echo -e "${GREEN}EAS contract deployed at: $EAS_CONTRACT${NC}"
 
 # Deploy Human ID contract emitter
 echo "Deploying Human ID event emitter..."
+cd e2e_tests
 FORGE_OUTPUT=$(forge create "contracts/test/EventEmitter.sol:EventEmitter" \
     --rpc-url http://localhost:$ANVIL_PORT \
     --private-key $ANVIL_TEST_PRIVATE_KEY \
     --json)
+cd ..
 HUMAN_ID_CONTRACT=$(echo "$FORGE_OUTPUT" | jq -r '.deployedTo')
 echo -e "${GREEN}Human ID contract deployed at: $HUMAN_ID_CONTRACT${NC}"
 
