@@ -27,5 +27,5 @@ portpicker = "0.1"
 
 [[test]]
 name = "e2e_tests"
-path = "tests/e2e_tests.rs"
+path = "e2e_tests/e2e_tests.rs"
 harness = true
