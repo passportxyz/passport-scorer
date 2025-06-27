@@ -2,7 +2,6 @@ pub mod event_emitter;
 
 use ethers::prelude::*;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use tokio_postgres::{Client, NoTls};
 use event_emitter::EventEmitter;
 
@@ -20,7 +19,6 @@ pub struct TestContext {
     pub eas_emitter: EventEmitter,
     pub human_id_emitter: EventEmitter,
     pub db_client: Client,
-    pub provider: Arc<Provider<Http>>,
 }
 
 impl TestContext {
@@ -65,32 +63,7 @@ impl TestContext {
             eas_emitter,
             human_id_emitter,
             db_client,
-            provider,
         })
-    }
-    
-    pub async fn wait_for_indexer(&self, duration: std::time::Duration) {
-        tokio::time::sleep(duration).await;
-    }
-    
-    pub async fn wait_for_event_count(&self, table: &str, expected_count: i64, timeout: std::time::Duration) -> Result<(), Box<dyn std::error::Error>> {
-        let start = std::time::Instant::now();
-        loop {
-            let count_result = self.db_client
-                .query_one(&format!("SELECT COUNT(*) FROM {}", get_table_name(table)), &[])
-                .await?;
-            let count: i64 = count_result.get(0);
-            
-            if count >= expected_count {
-                return Ok(());
-            }
-            
-            if start.elapsed() > timeout {
-                return Err(format!("Timeout waiting for {} events in {}, found only {}", expected_count, table, count).into());
-            }
-            
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
     }
     
     pub async fn wait_for_stake_event_count(&self, addresses: &[&str], expected_count: i64, timeout: std::time::Duration) -> Result<(), Box<dyn std::error::Error>> {
@@ -116,37 +89,6 @@ impl TestContext {
         }
     }
     
-    pub async fn wait_for_human_points_count(&self, address: &str, expected_count: i64, timeout: std::time::Duration) -> Result<(), Box<dyn std::error::Error>> {
-        let start = std::time::Instant::now();
-        loop {
-            let count_result = self.db_client
-                .query_one(
-                    &format!("SELECT COUNT(*) FROM {} WHERE address = $1", get_table_name("registry_humanpoints")),
-                    &[&address]
-                )
-                .await?;
-            let count: i64 = count_result.get(0);
-            
-            if count >= expected_count {
-                return Ok(());
-            }
-            
-            if start.elapsed() > timeout {
-                return Err(format!("Timeout waiting for {} human points for address {}, found only {}", expected_count, address, count).into());
-            }
-            
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
-    }
-    
-    
-    pub async fn cleanup(self) -> Result<(), Box<dyn std::error::Error>> {
-        // Rollback DB changes to the savepoint to preserve original data
-        self.db_client.execute("ROLLBACK TO SAVEPOINT test_start", &[]).await?;
-        self.db_client.execute("COMMIT", &[]).await?;
-        
-        Ok(())
-    }
 }
 
 async fn setup_test_db() -> Result<Client, Box<dyn std::error::Error>> {

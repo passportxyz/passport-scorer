@@ -102,20 +102,6 @@ impl EventEmitter {
         Ok(tx)
     }
     
-    pub async fn emit_self_stake_withdrawn(
-        &self,
-        staker: Address,
-        amount: U256,
-    ) -> Result<TransactionReceipt, Box<dyn std::error::Error>> {
-        let tx = self.contract
-            .emit_self_stake_withdrawn(staker, amount)
-            .send()
-            .await?
-            .await?
-            .ok_or("No receipt")?;
-        Ok(tx)
-    }
-    
     pub async fn emit_community_stake_withdrawn(
         &self,
         staker: Address,
@@ -175,21 +161,6 @@ impl EventEmitter {
         Ok(tx)
     }
     
-    pub async fn emit_custom_attestation(
-        &self,
-        recipient: Address,
-        uid: H256,
-        schema_id: H256,
-    ) -> Result<TransactionReceipt, Box<dyn std::error::Error>> {
-        let tx = self.contract
-            .emit_custom_attestation(recipient, uid.into(), schema_id.into())
-            .send()
-            .await?
-            .await?
-            .ok_or("No receipt")?;
-        Ok(tx)
-    }
-    
     pub async fn emit_human_id_mint(
         &self,
         to: Address,
@@ -204,18 +175,4 @@ impl EventEmitter {
         Ok(tx)
     }
     
-    pub async fn emit_human_id_transfer(
-        &self,
-        from: Address,
-        to: Address,
-        token_id: U256,
-    ) -> Result<TransactionReceipt, Box<dyn std::error::Error>> {
-        let tx = self.contract
-            .emit_human_id_transfer(from, to, token_id)
-            .send()
-            .await?
-            .await?
-            .ok_or("No receipt")?;
-        Ok(tx)
-    }
 }

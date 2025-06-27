@@ -246,7 +246,7 @@ echo -e "${GREEN}Running test scenarios...${NC}"
 
 # Run Rust E2E tests
 echo "Running Rust E2E tests..."
-cargo test --test e2e_tests ${CARGO_TEST_ARGS:-} -- --test-threads=1 --nocapture
+RUST_BACKTRACE=1 cargo test --test e2e_tests ${CARGO_TEST_ARGS:-} -- --test-threads=1
 TEST_EXIT_CODE=$?
 
 # Kill the indexer
