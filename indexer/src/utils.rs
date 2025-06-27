@@ -67,6 +67,7 @@ pub fn get_code_for_stake_event_type(event_type: &StakeEventType) -> &'static st
 }
 
 impl StakeAmountOperation {
+    #[cfg(test)]
     pub fn from_event_type(event_type: &StakeEventType) -> Self {
         match event_type {
             StakeEventType::SelfStake | StakeEventType::CommunityStake | StakeEventType::Release => {
