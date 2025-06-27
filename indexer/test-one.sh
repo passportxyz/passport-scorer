@@ -3,5 +3,5 @@
 set -e
 
 # Run the full test script but with a specific test
-export CARGO_TEST_ARGS="test_events_in_same_block"
+export CARGO_TEST_ARGS="test_multiple_withdraw_events"
 ./test-indexer.sh
