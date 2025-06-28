@@ -38,7 +38,7 @@ from registry.exceptions import (
     InvalidLimitException,
     api_get_object_or_404,
 )
-from registry.human_points_utils import aget_user_points_data
+from registry.human_points_utils import get_user_points_data
 from registry.models import Event, Passport, Score
 from registry.utils import (
     decode_cursor,
@@ -93,7 +93,8 @@ async def ahandle_scoring(address: str, community, include_human_points: bool = 
         and settings.HUMAN_POINTS_ENABLED
         and community.human_points_program
     ):
-        points_data = await aget_user_points_data(address_lower)
+        from asgiref.sync import sync_to_async
+        points_data = await sync_to_async(get_user_points_data)(address_lower)
 
     return format_v2_score_response(
         score, scorer_type, points_data, include_human_points

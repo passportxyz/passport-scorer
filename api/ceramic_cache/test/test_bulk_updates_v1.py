@@ -69,6 +69,7 @@ class TestBulkStampUpdates:
             "stamps": {},
             "threshold": "20.00000",
             "passing_score": False,
+            "points_data": None,
         }
 
         # Verify the returned stamps
@@ -181,6 +182,7 @@ class TestBulkStampUpdates:
             "threshold": "20.00000",
             "score": "0.00000",
             "passing_score": False,
+            "points_data": None,
         }
 
         sorted_stamps_returned = sorted(
@@ -308,6 +310,7 @@ class TestBulkStampUpdates:
             "stamps": {},
             "threshold": "20.00000",
             "passing_score": False,
+            "points_data": None,
         }
 
         sorted_stamps_returned = sorted(

@@ -51,8 +51,8 @@ class TestHumanPointsBinaryScoringFix:
     ):
         """Test that human points are awarded when score == 1 (passing)"""
         # Set up config
-        await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.HUMAN_KEYS, points=100
+        await HumanPointsConfig.objects.aget_or_create(
+            action=HumanPoints.Action.HUMAN_KEYS, defaults={"points": 100}
         )
 
         # Create a score object
@@ -121,8 +121,8 @@ class TestHumanPointsBinaryScoringFix:
     ):
         """Test that NO human points are awarded when score == 0 (failing)"""
         # Set up config
-        await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.HUMAN_KEYS, points=100
+        await HumanPointsConfig.objects.aget_or_create(
+            action=HumanPoints.Action.HUMAN_KEYS, defaults={"points": 100}
         )
 
         # Create a score object

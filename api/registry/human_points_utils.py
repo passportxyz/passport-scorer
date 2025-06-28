@@ -2,7 +2,7 @@
 
 from typing import Dict, Optional
 
-from django.db import transaction
+from django.db import transaction, connection
 from django.db.models import F
 
 from registry.models import (
@@ -24,33 +24,39 @@ STAMP_PROVIDER_TO_ACTION = {
 }
 
 
-async def aget_user_points_data(address: str) -> Dict:
+def get_user_points_data(address: str) -> Dict:
     """
-    Get user's points data including total points, breakdown, and eligibility
+    Get user's total points with breakdown using raw SQL for efficiency.
+    Returns total points, eligibility status, multiplier, and points breakdown.
     """
-    from django.db import connection
-    from asgiref.sync import sync_to_async
-    
-    # Single efficient query to get all points data
+    # Single query to get total points, multiplier, and breakdown
     query = """
+    WITH action_totals AS (
+        SELECT 
+            hp.address,
+            hp.action,
+            SUM(hpc.points * COALESCE(hpm.multiplier, 1)) as action_points,
+            MAX(COALESCE(hpm.multiplier, 1)) as multiplier
+        FROM registry_humanpoints hp
+        INNER JOIN registry_humanpointsconfig hpc 
+            ON hp.action = hpc.action AND hpc.active = true
+        LEFT JOIN registry_humanpointsmultiplier hpm 
+            ON hp.address = hpm.address
+        WHERE hp.address = %s
+        GROUP BY hp.address, hp.action
+    )
     SELECT 
-        COALESCE(SUM(hpc.points * COALESCE(hpm.multiplier, 1)), 0) as total_points,
-        COALESCE(MAX(hpm.multiplier), 1) as multiplier,
-        json_object_agg(hp.action, hpc.points * COALESCE(hpm.multiplier, 1)) 
-            FILTER (WHERE hp.action IS NOT NULL) as breakdown
-    FROM registry_humanpoints hp
-    INNER JOIN registry_humanpointsconfig hpc 
-        ON hp.action = hpc.action AND hpc.active = true
-    LEFT JOIN registry_humanpointsmultiplier hpm 
-        ON hp.address = hpm.address
-    WHERE hp.address = %s
-    GROUP BY hp.address
+        COALESCE(SUM(action_points), 0) as total_points,
+        COALESCE(MAX(multiplier), 1) as multiplier,
+        JSON_OBJECT_AGG(action::text, action_points) 
+            FILTER (WHERE action IS NOT NULL) as breakdown
+    FROM action_totals
+    GROUP BY address
     """
     
-    async with connection.cursor() as cursor:
-        # sync_to_async needed for raw SQL operations
-        await sync_to_async(cursor.execute)(query, [address])
-        row = await sync_to_async(cursor.fetchone)()
+    with connection.cursor() as cursor:
+        cursor.execute(query, [address])
+        row = cursor.fetchone()
         
         if row:
             total_points = int(row[0])
@@ -63,9 +69,9 @@ async def aget_user_points_data(address: str) -> Dict:
             breakdown = {}
     
     # Check eligibility separately (single query)
-    is_eligible = await HumanPointsCommunityQualifiedUsers.objects.filter(
+    is_eligible = HumanPointsCommunityQualifiedUsers.objects.filter(
         address=address
-    ).aexists()
+    ).exists()
     
     return {
         "total_points": total_points,

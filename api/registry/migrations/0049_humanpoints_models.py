@@ -150,9 +150,8 @@ class Migration(migrations.Migration):
             reverse_sql="DROP INDEX IF EXISTS idx_binary_actions;"
         ),
         # Unique constraint for actions that require tx_hash (mints and human keys)
-        # For mint actions (PMT, HIM), we also need chain_id in the unique constraint
         migrations.RunSQL(
-            "CREATE UNIQUE INDEX idx_tx_hash_actions ON registry_humanpoints(address, action, tx_hash, chain_id) "
+            "CREATE UNIQUE INDEX idx_tx_hash_actions ON registry_humanpoints(address, action, tx_hash) "
             "WHERE action IN ('PMT', 'HIM', 'HKY');",
             reverse_sql="DROP INDEX IF EXISTS idx_tx_hash_actions;"
         ),
