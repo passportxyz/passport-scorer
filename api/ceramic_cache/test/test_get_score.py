@@ -5,7 +5,7 @@ import pytest
 from django.test import Client
 
 from ceramic_cache.models import CeramicCache
-from registry.api.schema import DetailedScoreResponse
+from ceramic_cache.api.schema import InternalV2ScoreResponse
 from registry.models import Passport, Score
 
 pytestmark = pytest.mark.django_db
@@ -44,6 +44,7 @@ class TestBulkStampUpdates:
             "passing_score": False,
             "error": None,
             "stamps": {},
+            "points_data": None,
         }
 
     def test_get_score_when_score_not_expired(
@@ -73,21 +74,17 @@ class TestBulkStampUpdates:
 
         mocked_score_response_data = dict(
             address=passport.address.lower(),
-            score="0.000000000",
-            status=Score.Status.DONE,
-            last_score_timestamp=future_expiration_date.isoformat(),
-            expiration_date=future_expiration_date.isoformat(),
+            score="10.00000",
+            passing_score=True,
+            last_score_timestamp=score.last_score_timestamp.isoformat(),
+            expiration_timestamp=score.expiration_date.isoformat(),
+            threshold="5.00000",
             error=None,
-            stamp_scores={},
-            evidence={
-                "rawScore": "7",
-                "type": "binary",
-                "success": True,
-                "threshold": "5",
-            },
+            stamps={},
+            points_data=None,
         )
 
-        mocked_score_response = DetailedScoreResponse(**mocked_score_response_data)
+        mocked_score_response = InternalV2ScoreResponse(**mocked_score_response_data)
 
         mocker.patch(
             "ceramic_cache.api.v1.get_detailed_score_response_for_address",
@@ -112,6 +109,7 @@ class TestBulkStampUpdates:
             "last_score_timestamp": score.last_score_timestamp.isoformat(),
             "stamps": {},
             "threshold": "5.00000",
+            "points_data": None,
         }
 
     def test_get_score_when_score_expired(
@@ -141,21 +139,17 @@ class TestBulkStampUpdates:
 
         mocked_score_response_data = dict(
             address=passport.address.lower(),
-            score="0.000000000",
-            status=Score.Status.DONE,
+            score="7.00000",
+            passing_score=True,
             last_score_timestamp=future_expiration_date.isoformat(),
-            expiration_date=future_expiration_date.isoformat(),
+            expiration_timestamp=future_expiration_date.isoformat(),
+            threshold="5.00000",
             error=None,
-            stamp_scores={},
-            evidence={
-                "rawScore": 7.0,
-                "type": "binary",
-                "success": True,
-                "threshold": 5.0,
-            },
+            stamps={},
+            points_data=None,
         )
 
-        mocked_score_response = DetailedScoreResponse(**mocked_score_response_data)
+        mocked_score_response = InternalV2ScoreResponse(**mocked_score_response_data)
 
         mocker.patch(
             "ceramic_cache.api.v1.get_detailed_score_response_for_address",

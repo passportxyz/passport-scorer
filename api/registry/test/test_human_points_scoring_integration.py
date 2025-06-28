@@ -60,8 +60,8 @@ class TestHumanPointsScoringIntegration:
     async def test_human_keys_detection(self):
         """Test that v1 nullifiers are correctly detected as Human Keys"""
         # Create config for Human Keys
-        await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.HUMAN_KEYS, points=100
+        await HumanPointsConfig.objects.aget_or_create(
+            action=HumanPoints.Action.HUMAN_KEYS, defaults={"points": 100}
         )
 
         address = "0x1234567890123456789012345678901234567890"
@@ -162,14 +162,14 @@ class TestHumanPointsScoringIntegration:
     ):
         """Test that points are awarded for valid stamps during scoring"""
         # First, set up the config table with point values
-        await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.HUMAN_KEYS, points=100
+        await HumanPointsConfig.objects.aget_or_create(
+            action=HumanPoints.Action.HUMAN_KEYS, defaults={"points": 100}
         )
-        await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.IDENTITY_STAKING_BRONZE, points=100
+        await HumanPointsConfig.objects.aget_or_create(
+            action=HumanPoints.Action.IDENTITY_STAKING_BRONZE, defaults={"points": 100}
         )
-        await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.COMMUNITY_STAKING_BEGINNER, points=100
+        await HumanPointsConfig.objects.aget_or_create(
+            action=HumanPoints.Action.COMMUNITY_STAKING_BEGINNER, defaults={"points": 100}
         )
 
         # Create a multiplier for the address
@@ -221,7 +221,7 @@ class TestHumanPointsScoringIntegration:
             )
 
         # Check that actions were recorded for valid stamps
-        actions = HumanPoints.objects.filter(address=test_passport.address)
+        actions = await HumanPoints.objects.filter(address=test_passport.address).acount()
 
         # Should have actions for human_keys, community_staking_beginner, and identity_staking_bronze
         expected_actions = [
@@ -230,19 +230,14 @@ class TestHumanPointsScoringIntegration:
             HumanPoints.Action.IDENTITY_STAKING_BRONZE,
         ]
 
-        # Debug: print what we actually got
-        actual_actions = list(actions.values_list("action", flat=True))
-        print(f"Expected actions: {expected_actions}")
-        print(f"Actual actions: {actual_actions}")
-        print(
-            f"Expected count: {len(expected_actions)}, Actual count: {actions.count()}"
-        )
-
-        assert actions.count() == len(expected_actions)
+        assert actions == len(expected_actions)
 
         # Verify actions were recorded (no points field in normalized design)
         for expected_action in expected_actions:
-            assert actions.filter(action=expected_action).exists()
+            exists = await HumanPoints.objects.filter(
+                address=test_passport.address, action=expected_action
+            ).aexists()
+            assert exists
 
     @pytest.mark.skip(reason="score_passport function doesn't exist - needs update")
     def test_no_points_for_invalid_stamps(self, test_passport, human_points_community):
@@ -438,8 +433,8 @@ class TestHumanPointsScoringIntegration:
     ):
         """Test points calculation with different multiplier values"""
         # Set up config
-        HumanPointsConfig.objects.create(
-            action=HumanPoints.Action.HUMAN_KEYS, points=100
+        HumanPointsConfig.objects.get_or_create(
+            action=HumanPoints.Action.HUMAN_KEYS, defaults={"points": 100}
         )
 
         addresses = [
@@ -505,7 +500,7 @@ class TestHumanPointsScoringIntegration:
             (HumanPoints.Action.COMMUNITY_STAKING_TRUSTED, 500),
         ]
         for action, points in configs:
-            HumanPointsConfig.objects.create(action=action, points=points)
+            HumanPointsConfig.objects.get_or_create(action=action, defaults={"points": points})
 
         # Define all stamp types and their expected actions
         stamp_mappings = [

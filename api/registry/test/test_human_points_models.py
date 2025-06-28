@@ -228,8 +228,8 @@ class TestHumanPointsConfig:
 
     def test_create_config(self):
         """Test creating a new HumanPointsConfig entry"""
-        config = HumanPointsConfig.objects.create(
-            action=HumanPoints.Action.HUMAN_KEYS, points=100
+        config, _ = HumanPointsConfig.objects.get_or_create(
+            action=HumanPoints.Action.HUMAN_KEYS, defaults={"points": 100}
         )
         assert config.action == HumanPoints.Action.HUMAN_KEYS
         assert config.points == 100
@@ -237,13 +237,18 @@ class TestHumanPointsConfig:
 
     def test_default_active_true(self):
         """Test that active defaults to True"""
-        config = HumanPointsConfig.objects.create(
-            action=HumanPoints.Action.SCORING_BONUS, points=500
+        config, _ = HumanPointsConfig.objects.get_or_create(
+            action=HumanPoints.Action.SCORING_BONUS, defaults={"points": 500}
         )
         assert config.active is True
 
     def test_unique_action_constraint(self):
         """Test that action must be unique"""
+        # Clean up any existing config from migrations
+        HumanPointsConfig.objects.filter(
+            action=HumanPoints.Action.PASSPORT_MINT
+        ).delete()
+        
         HumanPointsConfig.objects.create(
             action=HumanPoints.Action.PASSPORT_MINT, points=300
         )
@@ -270,7 +275,7 @@ class TestHumanPointsConfig:
         ]
 
         for action, points in configs:
-            HumanPointsConfig.objects.create(action=action, points=points)
+            HumanPointsConfig.objects.get_or_create(action=action, defaults={"points": points})
 
         # Verify all were created
         assert HumanPointsConfig.objects.count() == len(configs)
@@ -327,14 +332,14 @@ class TestHumanPointsIntegration:
         address = "0x1234567890123456789012345678901234567890"
 
         # First, populate config table
-        HumanPointsConfig.objects.create(
-            action=HumanPoints.Action.HUMAN_KEYS, points=100
+        HumanPointsConfig.objects.get_or_create(
+            action=HumanPoints.Action.HUMAN_KEYS, defaults={"points": 100}
         )
-        HumanPointsConfig.objects.create(
-            action=HumanPoints.Action.IDENTITY_STAKING_BRONZE, points=100
+        HumanPointsConfig.objects.get_or_create(
+            action=HumanPoints.Action.IDENTITY_STAKING_BRONZE, defaults={"points": 100}
         )
-        HumanPointsConfig.objects.create(
-            action=HumanPoints.Action.SCORING_BONUS, points=500
+        HumanPointsConfig.objects.get_or_create(
+            action=HumanPoints.Action.SCORING_BONUS, defaults={"points": 500}
         )
 
         # Create multiplier

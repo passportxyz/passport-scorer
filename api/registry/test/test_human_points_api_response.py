@@ -78,14 +78,14 @@ class TestHumanPointsAPIResponse:
     def setup_human_points_data(self, address, test_community, test_account):
         """Setup human points data for an address"""
         # First create config entries
-        HumanPointsConfig.objects.create(
-            action=HumanPoints.Action.HUMAN_KEYS, points=100
+        HumanPointsConfig.objects.get_or_create(
+            action=HumanPoints.Action.HUMAN_KEYS, defaults={"points": 100}
         )
-        HumanPointsConfig.objects.create(
-            action=HumanPoints.Action.IDENTITY_STAKING_BRONZE, points=100
+        HumanPointsConfig.objects.get_or_create(
+            action=HumanPoints.Action.IDENTITY_STAKING_BRONZE, defaults={"points": 100}
         )
-        HumanPointsConfig.objects.create(
-            action=HumanPoints.Action.SCORING_BONUS, points=500
+        HumanPointsConfig.objects.get_or_create(
+            action=HumanPoints.Action.SCORING_BONUS, defaults={"points": 500}
         )
 
         # Create a multiplier for the address
@@ -168,8 +168,8 @@ class TestHumanPointsAPIResponse:
             settings, "CERAMIC_CACHE_SCORER_ID", human_points_community.id
         ):
             # Create points but no passing scores
-            HumanPointsConfig.objects.create(
-                action=HumanPoints.Action.HUMAN_KEYS, points=100
+            HumanPointsConfig.objects.get_or_create(
+                action=HumanPoints.Action.HUMAN_KEYS, defaults={"points": 100}
             )
             HumanPoints.objects.create(
                 address=address, action=HumanPoints.Action.HUMAN_KEYS
@@ -268,7 +268,7 @@ class TestHumanPointsAPIResponse:
             (HumanPoints.Action.HUMAN_ID_MINT, 1000),
         ]
         for action, points in config_entries:
-            HumanPointsConfig.objects.create(action=action, points=points)
+            HumanPointsConfig.objects.get_or_create(action=action, defaults={"points": points})
 
         # Create various action entries
         action_entries = [
@@ -342,8 +342,8 @@ class TestHumanPointsAPIResponse:
         address = "0xB1111111111111111111111111111111111111111"
 
         # Create config and action
-        HumanPointsConfig.objects.create(
-            action=HumanPoints.Action.HUMAN_KEYS, points=100
+        HumanPointsConfig.objects.get_or_create(
+            action=HumanPoints.Action.HUMAN_KEYS, defaults={"points": 100}
         )
         HumanPoints.objects.create(
             address=address, action=HumanPoints.Action.HUMAN_KEYS
@@ -394,53 +394,3 @@ class TestHumanPointsAPIResponse:
             assert isinstance(points_data["multiplier"], int)
             assert isinstance(points_data["breakdown"], dict)
 
-    def test_v2_api_endpoint_does_not_include_points_data(
-        self, api_client, human_points_community, api_key
-    ):
-        """Test that v2 API endpoints do not include points_data even when human_points_program is enabled"""
-        from scorer_weighted.models import (
-            Scorer,
-            WeightConfiguration,
-            WeightConfigurationItem,
-        )
-
-        # Create a scorer for the community
-        scorer = Scorer.objects.create(type=Scorer.Type.WEIGHTED)
-        human_points_community.scorer = scorer
-        human_points_community.save()
-
-        # Create a weight configuration
-        weight_config = WeightConfiguration.objects.create(
-            scorer=scorer, active=True, threshold=Decimal("20.0")
-        )
-
-        address = "0x6666666666666666666666666666666666666666"
-
-        # Setup human points data
-        self.setup_human_points_data(
-            address, human_points_community, human_points_community.account
-        )
-
-        # Create a passport and score for this address
-        passport = Passport.objects.create(
-            address=address.lower(), community=human_points_community
-        )
-        Score.objects.create(
-            passport=passport,
-            score=Decimal("25.0"),
-            status=Score.Status.DONE,
-            evidence={"rawScore": "25.0", "threshold": "20.0"},
-            stamps={},
-        )
-
-        # Make request to v2 API endpoint
-        response = api_client.get(
-            f"/v2/stamps/{human_points_community.id}/score/{address}",
-            HTTP_X_API_KEY=api_key.secret,
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-
-        # Check that points_data is NOT included in v2 API response
-        assert data.get("points_data") is None

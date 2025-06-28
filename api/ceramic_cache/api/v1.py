@@ -39,7 +39,7 @@ from registry.exceptions import (
     InvalidCommunityScoreRequestException,
     NotFoundApiException,
 )
-from registry.human_points_utils import aget_user_points_data
+from registry.human_points_utils import get_user_points_data
 from registry.models import Score
 from stake.api import get_gtc_stake_for_address
 from stake.schema import StakeResponse
@@ -64,6 +64,8 @@ from .schema import (
     DeleteStampPayload,
     GetStampResponse,
     GetStampsWithV2ScoreResponse,
+    GetStampsWithInternalV2ScoreResponse,
+    InternalV2ScoreResponse,
 )
 
 log = logging.getLogger(__name__)
@@ -129,7 +131,7 @@ class JWTDidAuth(JWTDidAuthentication, HttpBearer):
 
 
 @router.post(
-    "stamps/bulk", response={201: GetStampsWithV2ScoreResponse}, auth=JWTDidAuth()
+    "stamps/bulk", response={201: GetStampsWithInternalV2ScoreResponse}, auth=JWTDidAuth()
 )
 def cache_stamps(request, payload: List[CacheStampPayload]):
     try:
@@ -211,12 +213,12 @@ def handle_add_stamps(
     payload: List[CacheStampPayload],
     stamp_creator: CeramicCache.SourceApp,
     alternate_scorer_id: Optional[int] = None,
-) -> GetStampsWithV2ScoreResponse:
+) -> GetStampsWithInternalV2ScoreResponse:
     stamps_response = handle_add_stamps_only(
         address, payload, stamp_creator, alternate_scorer_id
     )
     scorer_id = alternate_scorer_id or settings.CERAMIC_CACHE_SCORER_ID
-    return GetStampsWithV2ScoreResponse(
+    return GetStampsWithInternalV2ScoreResponse(
         success=stamps_response.success,
         stamps=stamps_response.stamps,
         score=get_detailed_score_response_for_address(address, scorer_id=scorer_id),
@@ -224,7 +226,7 @@ def handle_add_stamps(
 
 
 @router.patch(
-    "stamps/bulk", response={200: GetStampsWithV2ScoreResponse}, auth=JWTDidAuth()
+    "stamps/bulk", response={200: GetStampsWithInternalV2ScoreResponse}, auth=JWTDidAuth()
 )
 def patch_stamps(request, payload: List[CacheStampPayload]):
     try:
@@ -242,7 +244,7 @@ def patch_stamps(request, payload: List[CacheStampPayload]):
 
 def handle_patch_stamps(
     address: str, payload: List[CacheStampPayload]
-) -> GetStampsWithV2ScoreResponse:
+) -> GetStampsWithInternalV2ScoreResponse:
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
         raise TooManyStampsException()
 
@@ -285,7 +287,7 @@ def handle_patch_stamps(
         revocation__isnull=True,
     )
 
-    return GetStampsWithV2ScoreResponse(
+    return GetStampsWithInternalV2ScoreResponse(
         success=True,
         stamps=[
             CachedStampResponse(
@@ -371,7 +373,7 @@ def delete_stamps(request, payload: List[DeleteStampPayload]):
 
 def handle_delete_stamps(
     address: str, payload: List[DeleteStampPayload]
-) -> GetStampsWithV2ScoreResponse:
+) -> GetStampsWithInternalV2ScoreResponse:
     if len(payload) > settings.MAX_BULK_CACHE_SIZE:
         raise TooManyStampsException()
 
@@ -391,7 +393,7 @@ def handle_delete_stamps(
         address=address, deleted_at__isnull=True, revocation__isnull=True
     )
 
-    return GetStampsWithV2ScoreResponse(
+    return GetStampsWithInternalV2ScoreResponse(
         success=True,
         stamps=[
             CachedStampResponse(
@@ -486,16 +488,17 @@ def handle_get_stamps(address):
 @router.get(
     "/score/{str:address}",
     auth=JWTDidAuth(),
+    response=InternalV2ScoreResponse,
 )
 def get_score(
     request, address: str, alternate_scorer_id: Optional[int] = None
-) -> V2ScoreResponse:
+) -> InternalV2ScoreResponse:
     return handle_get_ui_score(address, alternate_scorer_id)
 
 
 def handle_get_ui_score(
     address: str, alternate_scorer_id: Optional[int]
-) -> V2ScoreResponse:
+) -> InternalV2ScoreResponse:
     scorer_id = alternate_scorer_id or settings.CERAMIC_CACHE_SCORER_ID
     lower_address = address.lower()
 
@@ -510,7 +513,7 @@ def handle_get_ui_score(
 
         score = None
         try:
-            score = Score.objects.get(
+            score = Score.objects.select_related('passport').get(
                 passport__address=lower_address, passport__community=user_community
             )
         except Score.DoesNotExist:
@@ -530,7 +533,7 @@ def handle_get_ui_score(
         # Get points data if community has human_points_program enabled
         points_data = None
         if settings.HUMAN_POINTS_ENABLED and user_community.human_points_program:
-            points_data = async_to_sync(aget_user_points_data)(lower_address)
+            points_data = get_user_points_data(lower_address)
 
         # Include human points for ceramic-cache endpoints
         return format_v2_score_response(
@@ -557,10 +560,10 @@ def handle_get_ui_score(
 
 @router.post(
     "/score/{str:address}",
-    response=DetailedScoreResponse,
+    response=InternalV2ScoreResponse,
     auth=JWTDidAuth(),
 )
-def calc_score(request, address: str, payload: CalcScorePayload) -> V2ScoreResponse:
+def calc_score(request, address: str, payload: CalcScorePayload) -> InternalV2ScoreResponse:
     return get_detailed_score_response_for_address(address, payload.alternate_scorer_id)
 
 
@@ -658,7 +661,7 @@ def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
 
 def get_detailed_score_response_for_address(
     address: str, scorer_id: Optional[int]
-) -> V2ScoreResponse:
+) -> InternalV2ScoreResponse:
     if not scorer_id:
         raise InternalServerException("Scorer ID not set")
 
