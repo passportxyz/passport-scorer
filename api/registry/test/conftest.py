@@ -31,9 +31,9 @@ def weight_config(request):
             "threshold": 20.0,
             "active": True,
             "description": "Test",
-        }
+        },
     )
-    
+
     # If not created, ensure it's active
     if not created:
         config.active = True
@@ -41,7 +41,7 @@ def weight_config(request):
 
     # Clear existing items and recreate
     config.weights.all().delete()
-    
+
     for provider, weight in weights_to_use.items():
         WeightConfigurationItem.objects.create(
             weight_configuration=config,

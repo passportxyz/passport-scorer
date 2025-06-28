@@ -6,7 +6,6 @@ import scorer_weighted.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scorer_weighted", "0004_rescorerequest"),
     ]

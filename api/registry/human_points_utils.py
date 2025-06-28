@@ -2,16 +2,15 @@
 
 from typing import Dict, Optional
 
-from django.db import transaction, connection
+from django.db import connection, transaction
 from django.db.models import F
 
 from registry.models import (
     HumanPoints,
+    HumanPointsCommunityQualifiedUsers,
     HumanPointsConfig,
     HumanPointsMultiplier,
-    HumanPointsCommunityQualifiedUsers,
 )
-
 
 # Map stamp providers to Human Points actions
 STAMP_PROVIDER_TO_ACTION = {
@@ -53,11 +52,11 @@ def get_user_points_data(address: str) -> Dict:
     FROM action_totals
     GROUP BY address
     """
-    
+
     with connection.cursor() as cursor:
         cursor.execute(query, [address])
         row = cursor.fetchone()
-        
+
         if row:
             total_points = int(row[0])
             multiplier = int(row[1])
@@ -67,12 +66,12 @@ def get_user_points_data(address: str) -> Dict:
             total_points = 0
             multiplier = 1
             breakdown = {}
-    
+
     # Check eligibility separately (single query)
     is_eligible = HumanPointsCommunityQualifiedUsers.objects.filter(
         address=address
     ).exists()
-    
+
     return {
         "total_points": total_points,
         "is_eligible": is_eligible,
@@ -86,16 +85,16 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
     Record Human Points actions based on valid stamps - optimized bulk version
     """
     from asgiref.sync import sync_to_async
-    
+
     # Collect all HumanPoints objects to create
     objects_to_create = []
-    
+
     for stamp in valid_stamps:
         # Check for Human Keys
         credential = stamp.get("credential", {})
         credential_subject = credential.get("credentialSubject", {})
         nullifiers = credential_subject.get("nullifiers", [])
-        
+
         if isinstance(nullifiers, list):
             for nullifier in nullifiers:
                 if nullifier and str(nullifier).startswith("v1"):
@@ -103,29 +102,25 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
                         HumanPoints(
                             address=address,
                             action=HumanPoints.Action.HUMAN_KEYS,
-                            tx_hash=nullifier
+                            tx_hash=nullifier,
                         )
                     )
                     break
-        
+
         # Check for provider-based actions
         provider = stamp.get("provider")
         action = STAMP_PROVIDER_TO_ACTION.get(provider)
         if action:
             objects_to_create.append(
-                HumanPoints(
-                    address=address,
-                    action=action,
-                    tx_hash=None
-                )
+                HumanPoints(address=address, action=action, tx_hash=None)
             )
-    
+
     # Bulk create all at once, let DB handle conflicts
     if objects_to_create:
         # sync_to_async needed - Django doesn't provide async bulk_create
-        await sync_to_async(
-            HumanPoints.objects.bulk_create
-        )(objects_to_create, ignore_conflicts=True)
+        await sync_to_async(HumanPoints.objects.bulk_create)(
+            objects_to_create, ignore_conflicts=True
+        )
 
 
 async def acheck_and_award_scoring_bonus(address: str, community_id: int) -> bool:
@@ -137,15 +132,14 @@ async def acheck_and_award_scoring_bonus(address: str, community_id: int) -> boo
     qualified_count = await HumanPointsCommunityQualifiedUsers.objects.filter(
         address=address
     ).acount()
-    
+
     # Award bonus if qualified (let DB handle conflicts)
     if qualified_count >= 3:
         _, created = await HumanPoints.objects.aget_or_create(
-            address=address,
-            action=HumanPoints.Action.SCORING_BONUS
+            address=address, action=HumanPoints.Action.SCORING_BONUS
         )
         return created
-    
+
     return False
 
 
@@ -154,6 +148,5 @@ async def arecord_passing_score(address: str, community_id: int) -> None:
     Record that an address achieved a passing score in a community
     """
     await HumanPointsCommunityQualifiedUsers.objects.aget_or_create(
-        address=address,
-        community_id=community_id
+        address=address, community_id=community_id
     )

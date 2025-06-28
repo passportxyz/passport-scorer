@@ -4,8 +4,8 @@ from django.db import migrations
 
 def populate_human_points_config(apps, schema_editor):
     """Populate initial HumanPointsConfig data"""
-    HumanPointsConfig = apps.get_model('registry', 'HumanPointsConfig')
-    
+    HumanPointsConfig = apps.get_model("registry", "HumanPointsConfig")
+
     configs = [
         ("SCB", 500),  # SCORING_BONUS
         ("HKY", 100),  # HUMAN_KEYS
@@ -16,32 +16,41 @@ def populate_human_points_config(apps, schema_editor):
         ("CSE", 200),  # COMMUNITY_STAKING_EXPERIENCED
         ("CST", 500),  # COMMUNITY_STAKING_TRUSTED
         ("PMT", 300),  # PASSPORT_MINT
-        ("HIM", 1000), # HUMAN_ID_MINT
+        ("HIM", 1000),  # HUMAN_ID_MINT
     ]
-    
+
     for action, points in configs:
         HumanPointsConfig.objects.get_or_create(
-            action=action,
-            defaults={'points': points, 'active': True}
+            action=action, defaults={"points": points, "active": True}
         )
 
 
 def reverse_populate_human_points_config(apps, schema_editor):
     """Remove initial HumanPointsConfig data"""
-    HumanPointsConfig = apps.get_model('registry', 'HumanPointsConfig')
+    HumanPointsConfig = apps.get_model("registry", "HumanPointsConfig")
     HumanPointsConfig.objects.filter(
-        action__in=["SCB", "HKY", "ISB", "ISS", "ISG", "CSB", "CSE", "CST", "PMT", "HIM"]
+        action__in=[
+            "SCB",
+            "HKY",
+            "ISB",
+            "ISS",
+            "ISG",
+            "CSB",
+            "CSE",
+            "CST",
+            "PMT",
+            "HIM",
+        ]
     ).delete()
 
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('registry', '0049_humanpoints_models'),
+        ("registry", "0049_humanpoints_models"),
     ]
 
     operations = [
         migrations.RunPython(
-            populate_human_points_config,
-            reverse_populate_human_points_config
+            populate_human_points_config, reverse_populate_human_points_config
         ),
     ]

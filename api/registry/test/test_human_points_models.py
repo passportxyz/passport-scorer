@@ -8,8 +8,8 @@ from django.utils import timezone
 
 from account.models import Community
 from registry.models import (
-    HumanPointsCommunityQualifiedUsers,
     HumanPoints,
+    HumanPointsCommunityQualifiedUsers,
     HumanPointsConfig,
     HumanPointsMultiplier,
 )
@@ -248,7 +248,7 @@ class TestHumanPointsConfig:
         HumanPointsConfig.objects.filter(
             action=HumanPoints.Action.PASSPORT_MINT
         ).delete()
-        
+
         HumanPointsConfig.objects.create(
             action=HumanPoints.Action.PASSPORT_MINT, points=300
         )
@@ -275,7 +275,9 @@ class TestHumanPointsConfig:
         ]
 
         for action, points in configs:
-            HumanPointsConfig.objects.get_or_create(action=action, defaults={"points": points})
+            HumanPointsConfig.objects.get_or_create(
+                action=action, defaults={"points": points}
+            )
 
         # Verify all were created
         assert HumanPointsConfig.objects.count() == len(configs)
@@ -375,7 +377,8 @@ class TestHumanPointsIntegration:
 
         # Initially not eligible (no scores)
         assert (
-            HumanPointsCommunityQualifiedUsers.objects.filter(address=address).count() == 0
+            HumanPointsCommunityQualifiedUsers.objects.filter(address=address).count()
+            == 0
         )  # Not eligible
 
         # Create a passing score to make eligible
@@ -383,7 +386,8 @@ class TestHumanPointsIntegration:
             address=address, community=scorer_community
         )
         assert (
-            HumanPointsCommunityQualifiedUsers.objects.filter(address=address).count() >= 1
+            HumanPointsCommunityQualifiedUsers.objects.filter(address=address).count()
+            >= 1
         )  # Eligible
 
     def test_scoring_bonus_awarded(self, scorer_account):
@@ -403,8 +407,12 @@ class TestHumanPointsIntegration:
             human_points_program=True,
             account=scorer_account,
         )
-        HumanPointsCommunityQualifiedUsers.objects.create(address=address, community=community1)
-        HumanPointsCommunityQualifiedUsers.objects.create(address=address, community=community2)
+        HumanPointsCommunityQualifiedUsers.objects.create(
+            address=address, community=community1
+        )
+        HumanPointsCommunityQualifiedUsers.objects.create(
+            address=address, community=community2
+        )
 
         # Simulate scoring in a 3rd community with human_points_program=True
         # that results in score >= 20
@@ -414,7 +422,9 @@ class TestHumanPointsIntegration:
             human_points_program=True,
             account=scorer_account,
         )
-        HumanPointsCommunityQualifiedUsers.objects.create(address=address, community=community3)
+        HumanPointsCommunityQualifiedUsers.objects.create(
+            address=address, community=community3
+        )
 
         # Check that 3 passing scores now exist
         passing_scores_count = HumanPointsCommunityQualifiedUsers.objects.filter(

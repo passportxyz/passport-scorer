@@ -4,8 +4,8 @@ from decimal import Decimal
 import pytest
 from django.test import Client
 
-from ceramic_cache.models import CeramicCache
 from ceramic_cache.api.schema import InternalV2ScoreResponse
+from ceramic_cache.models import CeramicCache
 from registry.models import Passport, Score
 
 pytestmark = pytest.mark.django_db
