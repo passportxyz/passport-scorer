@@ -169,7 +169,8 @@ class TestHumanPointsScoringIntegration:
             action=HumanPoints.Action.IDENTITY_STAKING_BRONZE, defaults={"points": 100}
         )
         await HumanPointsConfig.objects.aget_or_create(
-            action=HumanPoints.Action.COMMUNITY_STAKING_BEGINNER, defaults={"points": 100}
+            action=HumanPoints.Action.COMMUNITY_STAKING_BEGINNER,
+            defaults={"points": 100},
         )
 
         # Create a multiplier for the address
@@ -221,7 +222,9 @@ class TestHumanPointsScoringIntegration:
             )
 
         # Check that actions were recorded for valid stamps
-        actions = await HumanPoints.objects.filter(address=test_passport.address).acount()
+        actions = await HumanPoints.objects.filter(
+            address=test_passport.address
+        ).acount()
 
         # Should have actions for human_keys, community_staking_beginner, and identity_staking_bronze
         expected_actions = [
@@ -500,7 +503,9 @@ class TestHumanPointsScoringIntegration:
             (HumanPoints.Action.COMMUNITY_STAKING_TRUSTED, 500),
         ]
         for action, points in configs:
-            HumanPointsConfig.objects.get_or_create(action=action, defaults={"points": points})
+            HumanPointsConfig.objects.get_or_create(
+                action=action, defaults={"points": points}
+            )
 
         # Define all stamp types and their expected actions
         stamp_mappings = [

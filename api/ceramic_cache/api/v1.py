@@ -63,8 +63,8 @@ from .schema import (
     ComposeDBStatusPayload,
     DeleteStampPayload,
     GetStampResponse,
-    GetStampsWithV2ScoreResponse,
     GetStampsWithInternalV2ScoreResponse,
+    GetStampsWithV2ScoreResponse,
     InternalV2ScoreResponse,
 )
 
@@ -131,7 +131,9 @@ class JWTDidAuth(JWTDidAuthentication, HttpBearer):
 
 
 @router.post(
-    "stamps/bulk", response={201: GetStampsWithInternalV2ScoreResponse}, auth=JWTDidAuth()
+    "stamps/bulk",
+    response={201: GetStampsWithInternalV2ScoreResponse},
+    auth=JWTDidAuth(),
 )
 def cache_stamps(request, payload: List[CacheStampPayload]):
     try:
@@ -226,7 +228,9 @@ def handle_add_stamps(
 
 
 @router.patch(
-    "stamps/bulk", response={200: GetStampsWithInternalV2ScoreResponse}, auth=JWTDidAuth()
+    "stamps/bulk",
+    response={200: GetStampsWithInternalV2ScoreResponse},
+    auth=JWTDidAuth(),
 )
 def patch_stamps(request, payload: List[CacheStampPayload]):
     try:
@@ -513,7 +517,7 @@ def handle_get_ui_score(
 
         score = None
         try:
-            score = Score.objects.select_related('passport').get(
+            score = Score.objects.select_related("passport").get(
                 passport__address=lower_address, passport__community=user_community
             )
         except Score.DoesNotExist:
@@ -563,7 +567,9 @@ def handle_get_ui_score(
     response=InternalV2ScoreResponse,
     auth=JWTDidAuth(),
 )
-def calc_score(request, address: str, payload: CalcScorePayload) -> InternalV2ScoreResponse:
+def calc_score(
+    request, address: str, payload: CalcScorePayload
+) -> InternalV2ScoreResponse:
     return get_detailed_score_response_for_address(address, payload.alternate_scorer_id)
 
 

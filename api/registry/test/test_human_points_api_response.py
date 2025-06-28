@@ -268,7 +268,9 @@ class TestHumanPointsAPIResponse:
             (HumanPoints.Action.HUMAN_ID_MINT, 1000),
         ]
         for action, points in config_entries:
-            HumanPointsConfig.objects.get_or_create(action=action, defaults={"points": points})
+            HumanPointsConfig.objects.get_or_create(
+                action=action, defaults={"points": points}
+            )
 
         # Create various action entries
         action_entries = [
@@ -393,4 +395,3 @@ class TestHumanPointsAPIResponse:
             assert isinstance(points_data["is_eligible"], bool)
             assert isinstance(points_data["multiplier"], int)
             assert isinstance(points_data["breakdown"], dict)
-

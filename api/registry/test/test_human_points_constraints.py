@@ -5,7 +5,11 @@ from django.db import IntegrityError, connection
 from django.db.utils import DataError
 
 from account.models import Community
-from registry.models import HumanPointsCommunityQualifiedUsers, HumanPoints, HumanPointsMultiplier
+from registry.models import (
+    HumanPoints,
+    HumanPointsCommunityQualifiedUsers,
+    HumanPointsMultiplier,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -156,16 +160,12 @@ class TestHumanPointsConstraints:
         long_address = "0x" + "a" * 98  # Total 100 chars
 
         # This should work
-        HumanPoints.objects.create(
-            address=long_address, action="HKY"
-        )
+        HumanPoints.objects.create(address=long_address, action="HKY")
 
         # This should fail - address too long
         too_long_address = "0x" + "a" * 99  # Total 101 chars
         with pytest.raises(DataError):
-            HumanPoints.objects.create(
-                address=too_long_address, action="HKY"
-            )
+            HumanPoints.objects.create(address=too_long_address, action="HKY")
 
     def test_action_length_constraint(self):
         """Test action field length constraint"""

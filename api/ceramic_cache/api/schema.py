@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 from ninja_schema import Schema
 
 from registry.api.v1 import DetailedScoreResponse
-from v2.schema import V2ScoreResponse, PointsData
+from v2.schema import PointsData, V2ScoreResponse
 
 from ..models import CeramicCache
 
@@ -35,6 +35,7 @@ class GetStampResponse(Schema):
 
 class InternalV2ScoreResponse(V2ScoreResponse):
     """Internal score response that includes human points data when available"""
+
     points_data: Optional[PointsData] = None
 
 
@@ -44,6 +45,7 @@ class GetStampsWithV2ScoreResponse(GetStampResponse):
 
 class GetStampsWithInternalV2ScoreResponse(GetStampResponse):
     """Internal response that includes stamps and score with human points data"""
+
     score: InternalV2ScoreResponse
 
 

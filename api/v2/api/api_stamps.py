@@ -94,6 +94,7 @@ async def ahandle_scoring(address: str, community, include_human_points: bool = 
         and community.human_points_program
     ):
         from asgiref.sync import sync_to_async
+
         points_data = await sync_to_async(get_user_points_data)(address_lower)
 
     return format_v2_score_response(
