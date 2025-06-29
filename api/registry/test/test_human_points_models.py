@@ -15,6 +15,9 @@ from registry.models import (
 )
 
 pytestmark = pytest.mark.django_db
+from scorer.test.conftest import scorer_account, scorer_user  # noqa: F401
+
+from .conftest import weight_config  # noqa: F401
 
 
 class TestHumanPointsCommunityQualifiedUsers:

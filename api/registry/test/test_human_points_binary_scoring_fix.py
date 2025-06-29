@@ -22,6 +22,11 @@ from registry.models import (
 
 pytestmark = pytest.mark.django_db
 
+# Import the required fixtures from conftest
+from scorer.test.conftest import scorer_account, scorer_user  # noqa: F401
+
+from .conftest import weight_config  # noqa: F401
+
 
 class TestHumanPointsBinaryScoringFix:
     """Test the fix for Human Points binary scoring logic"""
@@ -45,6 +50,7 @@ class TestHumanPointsBinaryScoringFix:
         )
 
     @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     async def test_human_points_awarded_for_passing_binary_score(
         self, test_passport, human_points_community
@@ -115,6 +121,7 @@ class TestHumanPointsBinaryScoringFix:
         assert human_keys_actions == 1, "Human Keys action should be recorded"
 
     @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     async def test_no_human_points_for_failing_binary_score(
         self, test_passport, human_points_community
@@ -185,6 +192,7 @@ class TestHumanPointsBinaryScoringFix:
         assert human_keys_actions == 0, "Human Keys action should NOT be recorded"
 
     @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     async def test_old_logic_would_never_trigger(
         self, test_passport, human_points_community

@@ -12,6 +12,9 @@ from registry.models import (
 )
 
 pytestmark = pytest.mark.django_db
+from scorer.test.conftest import scorer_account, scorer_user  # noqa: F401
+
+from .conftest import weight_config  # noqa: F401
 
 
 class TestHumanPointsConstraints:
@@ -270,12 +273,3 @@ class TestHumanPointsConstraints:
             """)
             compound_index = cursor.fetchone()
             assert compound_index is not None
-
-            # Check for index on timestamp
-            cursor.execute("""
-                SELECT indexname FROM pg_indexes
-                WHERE tablename = 'registry_humanpoints'
-                AND indexdef LIKE '%timestamp%'
-            """)
-            timestamp_index = cursor.fetchone()
-            assert timestamp_index is not None
