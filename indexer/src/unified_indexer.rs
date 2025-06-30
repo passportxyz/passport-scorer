@@ -232,7 +232,7 @@ impl UnifiedChainIndexer {
 
         // Process historical blocks
         while query_start_block < current_block - 1 {
-            let query_end_block = min(query_start_block + 999, current_block - 1);
+            let query_end_block = min(query_start_block + 499, current_block - 1);
             eprintln!(
                 "Debug - Querying past events for chain {} from block {} to block {}",
                 self.chain_id, query_start_block, query_end_block

@@ -384,7 +384,8 @@ impl PostgresClient {
         client
             .execute(
                 &format!(
-                    "UPDATE {} SET block_number = $2 WHERE chain = $1 AND block_number < $2",
+                    "INSERT INTO {} (chain, block_number) VALUES ($1, $2) ON CONFLICT (chain) DO UPDATE SET block_number = GREATEST(EXCLUDED.block_number, {}.block_number)",
+                    get_table_name("stake_lastblock"),
                     get_table_name("stake_lastblock")
                 ),
                 &[&chain_id, &block_number],
