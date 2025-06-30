@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("account", "0042_community_human_points_program"),
+        ("account", "0043_community_human_points_program"),
         ("registry", "0048_alter_batchmodelscoringrequest_status_and_more"),
     ]
 
