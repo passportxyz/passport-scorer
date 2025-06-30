@@ -24,12 +24,23 @@ from scorer.test.conftest import (
 def weight_config(request):
     weights_to_use = getattr(request, "param", GITCOIN_PASSPORT_WEIGHTS)
 
-    config = WeightConfiguration.objects.create(
+    # Use get_or_create to avoid version conflicts
+    config, created = WeightConfiguration.objects.get_or_create(
         version="v1",
-        threshold=20.0,
-        active=True,
-        description="Test",
+        defaults={
+            "threshold": 20.0,
+            "active": True,
+            "description": "Test",
+        },
     )
+
+    # If not created, ensure it's active
+    if not created:
+        config.active = True
+        config.save()
+
+    # Clear existing items and recreate
+    config.weights.all().delete()
 
     for provider, weight in weights_to_use.items():
         WeightConfigurationItem.objects.create(

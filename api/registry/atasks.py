@@ -13,6 +13,11 @@ from account.deduplication.lifo import alifo
 from account.models import AccountAPIKeyAnalytics, Community, Rules
 from reader.passport_reader import aget_passport, get_did
 from registry.exceptions import NoPassportException
+from registry.human_points_utils import (
+    acheck_and_award_scoring_bonus,
+    arecord_passing_score,
+    arecord_stamp_actions,
+)
 from registry.models import Passport, Score, Stamp
 from registry.utils import get_utc_time, validate_credential, verify_issuer
 
@@ -245,6 +250,24 @@ async def ascore_passport(
         )
         await aupdate_passport(passport, deduped_passport_data)
         await acalculate_score(passport, community.pk, score, clashing_stamps)
+
+        # Human Points Program integration
+        # Check if score is passing (all scorers now return 1 for pass, 0 for fail)
+        if (
+            settings.HUMAN_POINTS_ENABLED
+            and community.human_points_program
+            and score.score == Decimal("1")
+        ):
+            # Record passing score for this community
+            await arecord_passing_score(address, community.pk)
+
+            # Award human points for valid stamps
+            await arecord_stamp_actions(
+                address, deduped_passport_data.get("stamps", [])
+            )
+
+            # Check and award scoring bonus if qualified
+            await acheck_and_award_scoring_bonus(address, community.pk)
 
     except APIException as e:
         log.error(

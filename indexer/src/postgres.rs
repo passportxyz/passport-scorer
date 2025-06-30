@@ -16,9 +16,17 @@ use crate::{
     LEGACY_CONTRACT_START_BLOCK,
 };
 
+fn get_table_name(base_name: &str) -> String {
+    if let Ok(suffix) = std::env::var("TEST_TABLE_SUFFIX") {
+        format!("{}{}", base_name, suffix)
+    } else {
+        base_name.to_string()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PostgresClient {
-    pool: Pool,
+    pub pool: Pool,
 }
 
 impl PostgresClient {
@@ -84,9 +92,9 @@ impl PostgresClient {
         let mut decimal_amount = Decimal::from_str(amount).unwrap();
         let _ = decimal_amount.set_scale(18).unwrap();
         let client = self.pool.get().await.unwrap();
-        client.execute("INSERT INTO registry_gtcstakeevent (event_type, round_id, staker, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",&[&"SelfStake", &round_id, &staker, &decimal_amount, &staked, &block_number, &tx_hash]).await?;
+        client.execute(&format!("INSERT INTO {} (event_type, round_id, staker, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)", get_table_name("registry_gtcstakeevent")),&[&"SelfStake", &round_id, &staker, &decimal_amount, &staked, &block_number, &tx_hash]).await?;
         println!(
-            "Row inserted into registry_gtcstakeevent with type SelfStake for block {} for legacy contract!",
+            "Row inserted into {} with type SelfStake for block {} for legacy contract!", get_table_name("registry_gtcstakeevent"),
             block_number
         );
         Ok(())
@@ -106,9 +114,9 @@ impl PostgresClient {
         let mut decimal_amount = Decimal::from_str(amount).unwrap();
         let _ = decimal_amount.set_scale(18).unwrap();
         let client = self.pool.get().await.unwrap();
-        client.execute("INSERT INTO registry_gtcstakeevent (event_type, round_id, staker, address, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", &[&"Xstake", &round_id, &staker, &user, &decimal_amount, &staked, &block_number, &tx_hash]).await?;
+        client.execute(&format!("INSERT INTO {} (event_type, round_id, staker, address, amount, staked, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", get_table_name("registry_gtcstakeevent")), &[&"Xstake", &round_id, &staker, &user, &decimal_amount, &staked, &block_number, &tx_hash]).await?;
         println!(
-            "Row inserted into registry_gtcstakeevent with type Xstake for block {} for legacy contract!",
+            "Row inserted into {} with type Xstake for block {} for legacy contract!", get_table_name("registry_gtcstakeevent"),
             block_number
         );
         Ok(())
@@ -147,22 +155,18 @@ impl PostgresClient {
         let do_query = async {
             // Log raw event
             client.execute(
-                concat!(
-                    "INSERT INTO stake_stakeevent (event_type, chain, staker, stakee, amount, unlock_time, block_number, tx_hash)",
-                    " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+                &format!(
+                    "INSERT INTO {} (event_type, chain, staker, stakee, amount, unlock_time, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                    get_table_name("stake_stakeevent")
                 ),
                 &[&get_code_for_stake_event_type(event_type), &chain_id, &staker, &stakee, &increase_amount, &unlock_time, &block_number, &tx_hash]
             ).await?;
 
             // Log current stake state
             client.execute(
-                concat!(
-                    "INSERT INTO stake_stake as stake (chain, staker, stakee, unlock_time, lock_time, last_updated_in_block, current_amount)",
-                    " VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (chain, staker, stakee) DO UPDATE",
-                    " SET unlock_time = GREATEST(EXCLUDED.unlock_time, stake.unlock_time),",
-                    "     lock_time = GREATEST(EXCLUDED.lock_time, stake.lock_time),",
-                    "     last_updated_in_block = GREATEST(EXCLUDED.last_updated_in_block, stake.last_updated_in_block),",
-                    "     current_amount = stake.current_amount + EXCLUDED.current_amount",
+                &format!(
+                    "INSERT INTO {} as stake (chain, staker, stakee, unlock_time, lock_time, last_updated_in_block, current_amount) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (chain, staker, stakee) DO UPDATE SET unlock_time = GREATEST(EXCLUDED.unlock_time, stake.unlock_time), lock_time = GREATEST(EXCLUDED.lock_time, stake.lock_time), last_updated_in_block = GREATEST(EXCLUDED.last_updated_in_block, stake.last_updated_in_block), current_amount = stake.current_amount + EXCLUDED.current_amount",
+                    get_table_name("stake_stake")
                 ),
                 &[&chain_id, &staker, &stakee, &unlock_time, &lock_time, &block_number, &increase_amount]
             ).await?;
@@ -227,9 +231,9 @@ impl PostgresClient {
         let do_query = async {
             // Log raw event
             client.execute(
-                    concat!(
-                        "INSERT INTO stake_stakeevent (event_type, chain, staker, stakee, amount, block_number, tx_hash)",
-                        " VALUES ($1, $2, $3, $4, $5, $6, $7)"
+                    &format!(
+                        "INSERT INTO {} (event_type, chain, staker, stakee, amount, block_number, tx_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                        get_table_name("stake_stakeevent")
                     ),
                     &[&get_code_for_stake_event_type(event_type), &chain_id, &staker, &stakee, &amount, &block_number, &tx_hash],
                 )
@@ -238,11 +242,9 @@ impl PostgresClient {
             // Log current stake state
             client
                 .execute(
-                    concat!(
-                        "UPDATE stake_stake as stake",
-                        " SET current_amount = current_amount + $1,",
-                        "     last_updated_in_block = GREATEST($5, stake.last_updated_in_block)",
-                        " WHERE chain = $2 AND staker = $3 AND stakee = $4",
+                    &format!(
+                        "UPDATE {} as stake SET current_amount = current_amount + $1, last_updated_in_block = GREATEST($5, stake.last_updated_in_block) WHERE chain = $2 AND staker = $3 AND stakee = $4",
+                        get_table_name("stake_stake")
                     ),
                     &[&amount, &chain_id, &staker, &stakee, &block_number],
                 )
@@ -283,7 +285,7 @@ impl PostgresClient {
         let client = self.pool.get().await.unwrap();
         let start_block_rows = client
             .query(
-                "SELECT start_block_number FROM stake_reindexrequest WHERE chain = $1 AND pending = true",
+                &format!("SELECT start_block_number FROM {} WHERE chain = $1 AND pending = true", get_table_name("stake_reindexrequest")),
                 &[&chain_id],
             )
             .await?;
@@ -302,30 +304,44 @@ impl PostgresClient {
         let client = self.pool.get().await.unwrap();
         client
             .execute(
-                "UPDATE stake_reindexrequest SET pending = false WHERE chain = $1 and pending = true",
+                &format!("UPDATE {} SET pending = false WHERE chain = $1 and pending = true", get_table_name("stake_reindexrequest")),
                 &[&chain_id],
             )
             .await?;
         Ok(())
     }
 
-    pub async fn get_stake_event_count(&self, chain_id: u32) -> Result<i64, Error> {
+    pub async fn get_total_event_count(&self, chain_id: u32) -> Result<i64, Error> {
         let chain_id: i32 = chain_id as i32;
         let client = self.pool.get().await.unwrap();
-        let count_rows = client
+
+        // Count stake events
+        let stake_count_rows = client
             .query(
-                "SELECT COUNT(*) FROM stake_stakeevent WHERE chain = $1",
+                &format!("SELECT COUNT(*) FROM {} WHERE chain = $1", get_table_name("stake_stakeevent")),
                 &[&chain_id],
             )
             .await?;
 
-        match count_rows.get(0) {
-            Some(row) => {
-                let count: i64 = row.get("count");
-                Ok(count)
-            }
-            None => Ok(0),
-        }
+        let stake_count: i64 = stake_count_rows
+            .get(0)
+            .map(|row| row.get("count"))
+            .unwrap_or(0);
+
+        // Count human points events for this chain (only PMT and HIM actions)
+        let human_points_count_rows = client
+            .query(
+                &format!("SELECT COUNT(*) FROM {} WHERE chain_id = $1 AND action IN ('PMT', 'HIM')", get_table_name("registry_humanpoints")),
+                &[&chain_id],
+            )
+            .await?;
+
+        let human_points_count: i64 = human_points_count_rows
+            .get(0)
+            .map(|row| row.get("count"))
+            .unwrap_or(0);
+
+        Ok(stake_count + human_points_count)
     }
 
     pub async fn get_latest_block(&self, chain_id: u32) -> Result<u64, Error> {
@@ -333,7 +349,7 @@ impl PostgresClient {
         let client = self.pool.get().await.unwrap();
         let latest_block_rows = client
             .query(
-                "SELECT block_number FROM stake_lastblock WHERE chain = $1 LIMIT 1;",
+                &format!("SELECT block_number FROM {} WHERE chain = $1 LIMIT 1;", get_table_name("stake_lastblock")),
                 &[&chain_id],
             )
             .await?;
@@ -367,10 +383,10 @@ impl PostgresClient {
 
         client
             .execute(
-                concat!(
-                    "UPDATE stake_lastblock",
-                    " SET block_number = $2",
-                    " WHERE chain = $1 AND block_number < $2",
+                &format!(
+                    "INSERT INTO {} (chain, block_number) VALUES ($1, $2) ON CONFLICT (chain) DO UPDATE SET block_number = GREATEST(EXCLUDED.block_number, {}.block_number)",
+                    get_table_name("stake_lastblock"),
+                    get_table_name("stake_lastblock")
                 ),
                 &[&chain_id, &block_number],
             )
@@ -379,10 +395,90 @@ impl PostgresClient {
         Ok(())
     }
 
-    pub async fn update_last_checked_block_legacy(
+    pub async fn update_last_checked_block_legacy(&self, block_number: u32) -> Result<(), Error> {
+        self.update_last_checked_block(0, &(block_number as u64))
+            .await
+    }
+
+    pub async fn add_human_points_event(
         &self,
-        block_number: u32,
+        address: &str,
+        action: &str,
+        timestamp: DateTime<Utc>,
+        tx_hash: &str,
+        chain_id: Option<u32>,
     ) -> Result<(), Error> {
-        self.update_last_checked_block(0, &(block_number as u64)).await
+        let address = address.to_lowercase();
+        let client = self.pool.get().await.unwrap();
+
+        match chain_id {
+            Some(chain) => {
+                let chain: i32 = chain as i32;
+                client
+                    .execute(
+                        &format!("INSERT INTO {} (address, action, timestamp, tx_hash, chain_id) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING", get_table_name("registry_humanpoints")),
+                        &[&address, &action, &timestamp, &tx_hash, &chain],
+                    )
+                    .await?;
+            }
+            None => {
+                client
+                    .execute(
+                        &format!("INSERT INTO {} (address, action, timestamp, tx_hash) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING", get_table_name("registry_humanpoints")),
+                        &[&address, &action, &timestamp, &tx_hash],
+                    )
+                    .await?;
+            }
+        }
+
+        eprintln!(
+            "Debug - Recorded {} action for {} in tx {}",
+            action, address, tx_hash
+        );
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_decimal_macros::dec;
+
+    #[test]
+    fn test_decimal_precision_handling() {
+        // Test that our decimal handling maintains precision
+        let test_cases = vec![
+            ("1", dec!(0.000000000000000001)),
+            ("1000000000000000000", dec!(1.0)),
+            ("1500000000000000000", dec!(1.5)),
+            ("999999999999999999", dec!(0.999999999999999999)),
+            ("1000000000000000001", dec!(1.000000000000000001)),
+        ];
+        
+        for (wei_str, expected) in test_cases {
+            let mut decimal = Decimal::from_str(wei_str).unwrap();
+            decimal.set_scale(18).unwrap();
+            assert_eq!(
+                decimal, expected,
+                "Wei string {} should convert to {}",
+                wei_str, expected
+            );
+        }
+    }
+
+    #[test]
+    fn test_address_lowercase_normalization() {
+        // This mimics what happens in add_human_points_event
+        let test_addresses = vec![
+            ("0xABCDEF1234567890123456789012345678901234", "0xabcdef1234567890123456789012345678901234"),
+            ("0xAbCdEf1234567890123456789012345678901234", "0xabcdef1234567890123456789012345678901234"),
+            ("already_lowercase", "already_lowercase"),
+        ];
+        
+        for (input, expected) in test_addresses {
+            let normalized = input.to_lowercase();
+            assert_eq!(normalized, expected);
+        }
     }
 }

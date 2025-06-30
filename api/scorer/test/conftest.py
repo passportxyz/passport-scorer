@@ -125,8 +125,12 @@ def ui_scorer(scorer_community_with_binary_scorer):
 
 
 @pytest.fixture
-def scorer_community_with_weighted_scorer(mocker, scorer_account, weight_config, threshold=20):
-    scorer = WeightedScorer.objects.create(type=Scorer.Type.WEIGHTED, threshold=threshold)
+def scorer_community_with_weighted_scorer(
+    mocker, scorer_account, weight_config, threshold=20
+):
+    scorer = WeightedScorer.objects.create(
+        type=Scorer.Type.WEIGHTED, threshold=threshold
+    )
     community = Community.objects.create(
         name="My Community",
         description="My Community description",

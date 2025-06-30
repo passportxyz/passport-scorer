@@ -101,7 +101,7 @@ impl<'a> LegacyStakingIndexer<'a> {
         // You can make eth_getLogs requests with up to a 2K block range and no limit on the response size
         // Reducing to 1k because of occasional timeout issues
         while last_queried_block < current_block.as_u32() {
-            let next_block_range = last_queried_block.clone() + 1000;
+            let next_block_range = last_queried_block.clone() + 499;
             let previous_events_query = id_staking_contract
                 .events()
                 .from_block(last_queried_block)
@@ -144,7 +144,9 @@ impl<'a> LegacyStakingIndexer<'a> {
                 }
             }
 
-            self.postgres_client.update_last_checked_block_legacy(next_block_range).await?;
+            self.postgres_client
+                .update_last_checked_block_legacy(next_block_range)
+                .await?;
             last_queried_block = next_block_range;
         }
 

@@ -499,7 +499,11 @@ class CommunityTestCase(TestCase):
             name="Threshold Community",
             description="desc",
         )
-        scorer = account_community.get_scorer() if hasattr(account_community, "get_scorer") else None
+        scorer = (
+            account_community.get_scorer()
+            if hasattr(account_community, "get_scorer")
+            else None
+        )
         self.assertIsNotNone(scorer)
         # Only test threshold update if scorer has threshold attribute
         if hasattr(scorer, "threshold"):

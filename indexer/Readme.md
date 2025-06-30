@@ -1,72 +1,66 @@
-# Ethereum Event Listener with Postgres
+## Foundry
 
-## Overview
+**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
 
-This Rust project listens to events emitted by a specific Ethereum smart contract and stores them in a PostgreSQL database. It uses the `ethers-rs` library for Ethereum interaction and `tokio-postgres` for database operations.
+Foundry consists of:
 
-The smart contract events we're interested in are `selfStake` and `xStake`, each having specific parameters that are stored in the PostgreSQL database.
+-   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
+-   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
+-   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
+-   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
 
-## Dependencies
+## Documentation
 
-- **Rust** (latest stable version)
-- **PostgreSQL** (latest stable version)
-- [`dotenv`](https://crates.io/crates/dotenv) for environment variable management
-- [`tokio`](https://crates.io/crates/tokio) for asynchronous runtime
-- [`tokio-postgres`](https://crates.io/crates/tokio-postgres) for interacting with PostgreSQL
-- [`ethers`](https://crates.io/crates/ethers) for Ethereum interaction
-- [`eyre`](https://crates.io/crates/eyre) for error handling
+https://book.getfoundry.sh/
 
-## Setup
+## Usage
 
-### Environment Variables
+### Build
 
-Create a `.env` file in the root directory and add the following:
-
-```env
-RPC_URL=your_ethereum_websockets_rpc_url
-DATABASE_URL=your_postgresql_database_url
+```shell
+$ forge build
 ```
 
-Replace `your_ethereum_rpc_url` and `your_postgresql_database_url` with your Ethereum RPC Websockets URL and PostgreSQL database URL, respectively.
+### Test
 
-### PostgreSQL
+```shell
+$ forge test
+```
 
-Make sure you have PostgreSQL installed and running. Create a new database and user if needed.
+### Format
 
-### Rust and Cargo
+```shell
+$ forge fmt
+```
 
-If you don't have Rust and Cargo installed, you can install them from [here](https://rustup.rs/).
+### Gas Snapshots
 
-## Running the Project
+```shell
+$ forge snapshot
+```
 
-1. **Clone the repository**:
+### Anvil
 
-   ```bash
-   git clone https://github.com/yourusername/yourrepository.git
-   ```
+```shell
+$ anvil
+```
 
-2. **Navigate into the project directory**:
+### Deploy
 
-   ```bash
-   cd yourrepository
-   ```
+```shell
+$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+```
 
-3. **Build the project**:
+### Cast
 
-   ```bash
-   cargo build
-   ```
+```shell
+$ cast <subcommand>
+```
 
-4. **Run the project**:
+### Help
 
-   ```bash
-   cargo run
-   ```
-
-The program will start listening for `selfStake` and `xStake` events from the specified smart contract starting from a specific block number. Events will be stored in the PostgreSQL database as they are detected.
-
-## Further Work
-
-1. Implement more comprehensive error-handling.
-2. Allow listening to multiple contracts.
-3. Implement data validation and type-checking before inserting into the database.
+```shell
+$ forge --help
+$ anvil --help
+$ cast --help
+```

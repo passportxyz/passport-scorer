@@ -323,7 +323,9 @@ class TestScorePassportTestCase(TransactionTestCase):
                 action=Event.Action.LIFO_DEDUPLICATION
             ).count() == len(mocked_duplicate_stamps["stamps"])
 
-            assert Decimal(Score.objects.get(passport=passport).evidence["rawScore"]) == Decimal(
+            assert Decimal(
+                Score.objects.get(passport=passport).evidence["rawScore"]
+            ) == Decimal(
                 sum(
                     mocked_weights[s["credential"]["credentialSubject"]["provider"]]
                     for s in mocked_non_duplicate_stamps["stamps"]

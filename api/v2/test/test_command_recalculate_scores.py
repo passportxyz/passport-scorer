@@ -270,18 +270,18 @@ class TestRecalculatScores:
             assert s.evidence is not None
 
         s1 = Score.objects.get(passport=weighted_scorer_passports[0])
-        assert s1.evidence["rawScore"] == '1'
+        assert s1.evidence["rawScore"] == "1"
         assert len(s1.stamp_scores) == 1
         assert "FirstEthTxnProvider" in s1.stamp_scores
 
         s2 = Score.objects.get(passport=weighted_scorer_passports[1])
-        assert s2.evidence["rawScore"] == '2'
+        assert s2.evidence["rawScore"] == "2"
         assert len(s2.stamp_scores) == 2
         assert "FirstEthTxnProvider" in s2.stamp_scores
         assert "Google" in s2.stamp_scores
 
         s3 = Score.objects.get(passport=weighted_scorer_passports[2])
-        assert s3.evidence["rawScore"] == '3'
+        assert s3.evidence["rawScore"] == "3"
         assert len(s3.stamp_scores) == 3
         assert "FirstEthTxnProvider" in s3.stamp_scores
         assert "Google" in s3.stamp_scores
@@ -332,18 +332,18 @@ class TestRecalculatScores:
             assert s.evidence is not None
 
         s1 = Score.objects.get(passport=weighted_scorer_passports[0])
-        assert s1.evidence["rawScore"] == '75'
+        assert s1.evidence["rawScore"] == "75"
         assert len(s1.stamp_scores) == 1
         assert "FirstEthTxnProvider" in s1.stamp_scores
 
         s2 = Score.objects.get(passport=weighted_scorer_passports[1])
-        assert s2.evidence["rawScore"] == '76'
+        assert s2.evidence["rawScore"] == "76"
         assert len(s2.stamp_scores) == 2
         assert "FirstEthTxnProvider" in s2.stamp_scores
         assert "Google" in s2.stamp_scores
 
         s3 = Score.objects.get(passport=weighted_scorer_passports[2])
-        assert s3.evidence["rawScore"] == '77'
+        assert s3.evidence["rawScore"] == "77"
         assert len(s3.stamp_scores) == 3
         assert "FirstEthTxnProvider" in s3.stamp_scores
         assert "Google" in s3.stamp_scores

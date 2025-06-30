@@ -52,7 +52,7 @@ pub enum StakeEventType {
     SelfStakeWithdraw,
     CommunityStakeWithdraw,
     Slash,
-    Release
+    Release,
 }
 
 pub fn get_code_for_stake_event_type(event_type: &StakeEventType) -> &'static str {
@@ -63,5 +63,80 @@ pub fn get_code_for_stake_event_type(event_type: &StakeEventType) -> &'static st
         StakeEventType::CommunityStakeWithdraw => "CSW",
         StakeEventType::Slash => "SLA",
         StakeEventType::Release => "REL",
+    }
+}
+
+impl StakeAmountOperation {
+    #[cfg(test)]
+    pub fn from_event_type(event_type: &StakeEventType) -> Self {
+        match event_type {
+            StakeEventType::SelfStake | StakeEventType::CommunityStake | StakeEventType::Release => {
+                StakeAmountOperation::Add
+            }
+            StakeEventType::SelfStakeWithdraw
+            | StakeEventType::CommunityStakeWithdraw
+            | StakeEventType::Slash => StakeAmountOperation::Subtract,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_stake_amount_operation_from_event_type() {
+        // Test that Add operations are correctly identified
+        assert!(matches!(
+            StakeAmountOperation::from_event_type(&StakeEventType::SelfStake),
+            StakeAmountOperation::Add
+        ));
+        assert!(matches!(
+            StakeAmountOperation::from_event_type(&StakeEventType::CommunityStake),
+            StakeAmountOperation::Add
+        ));
+        assert!(matches!(
+            StakeAmountOperation::from_event_type(&StakeEventType::Release),
+            StakeAmountOperation::Add
+        ));
+
+        // Test that Subtract operations are correctly identified
+        assert!(matches!(
+            StakeAmountOperation::from_event_type(&StakeEventType::SelfStakeWithdraw),
+            StakeAmountOperation::Subtract
+        ));
+        assert!(matches!(
+            StakeAmountOperation::from_event_type(&StakeEventType::CommunityStakeWithdraw),
+            StakeAmountOperation::Subtract
+        ));
+        assert!(matches!(
+            StakeAmountOperation::from_event_type(&StakeEventType::Slash),
+            StakeAmountOperation::Subtract
+        ));
+    }
+
+    #[test]
+    fn test_stake_event_type_codes() {
+        // Verify all event types have unique codes
+        let codes = vec![
+            get_code_for_stake_event_type(&StakeEventType::SelfStake),
+            get_code_for_stake_event_type(&StakeEventType::CommunityStake),
+            get_code_for_stake_event_type(&StakeEventType::SelfStakeWithdraw),
+            get_code_for_stake_event_type(&StakeEventType::CommunityStakeWithdraw),
+            get_code_for_stake_event_type(&StakeEventType::Slash),
+            get_code_for_stake_event_type(&StakeEventType::Release),
+        ];
+
+        // Check all codes are unique
+        let unique_codes: std::collections::HashSet<_> = codes.iter().collect();
+        assert_eq!(codes.len(), unique_codes.len(), "Event type codes must be unique");
+
+        // Verify specific mappings
+        assert_eq!(get_code_for_stake_event_type(&StakeEventType::SelfStake), "SST");
+        assert_eq!(get_code_for_stake_event_type(&StakeEventType::CommunityStake), "CST");
+        assert_eq!(get_code_for_stake_event_type(&StakeEventType::SelfStakeWithdraw), "SSW");
+        assert_eq!(get_code_for_stake_event_type(&StakeEventType::CommunityStakeWithdraw), "CSW");
+        assert_eq!(get_code_for_stake_event_type(&StakeEventType::Slash), "SLA");
+        assert_eq!(get_code_for_stake_event_type(&StakeEventType::Release), "REL");
     }
 }

@@ -124,18 +124,23 @@ class BinaryWeightedScorerMixin:
 
     def compute_score(self, passport_ids, community_id: int) -> List[ScoreData]:
         from .computation import calculate_weighted_score
+
         rawScores = calculate_weighted_score(self, passport_ids, community_id)
         binaryScores = [self._score_to_binary(s["sum_of_weights"]) for s in rawScores]
         return self._make_score_data(rawScores, binaryScores)
 
-    def recompute_score(self, passport_ids, stamps, community_id: int) -> List[ScoreData]:
+    def recompute_score(
+        self, passport_ids, stamps, community_id: int
+    ) -> List[ScoreData]:
         from .computation import recalculate_weighted_score
+
         rawScores = recalculate_weighted_score(self, passport_ids, stamps, community_id)
         binaryScores = [self._score_to_binary(s["sum_of_weights"]) for s in rawScores]
         return self._make_score_data(rawScores, binaryScores)
 
     async def acompute_score(self, passport_ids, community_id: int) -> List[ScoreData]:
         from .computation import acalculate_weighted_score
+
         rawScores = await acalculate_weighted_score(self, passport_ids, community_id)
         binaryScores = [self._score_to_binary(s["sum_of_weights"]) for s in rawScores]
         return self._make_score_data(rawScores, binaryScores)

@@ -430,6 +430,11 @@ class Community(models.Model):
         max_length=42, unique=True, null=True, blank=True
     )
 
+    human_points_program = models.BooleanField(
+        default=False,
+        help_text="Include this community in the Human Points Program stats.",
+    )
+
     def __repr__(self):
         return f"<Community {self.name}>"
 

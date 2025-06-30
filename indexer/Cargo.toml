@@ -2,6 +2,7 @@
 name = "indexer"
 version = "0.1.0"
 edition = "2021"
+default-run = "indexer"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -20,3 +21,12 @@ tokio-postgres = { version = "0.7.10", features = ["with-chrono-0_4"] }
 tokio-postgres-rustls = "0.12"
 rustls = "0.23"
 rustls-pemfile = "2"
+
+[dev-dependencies]
+tokio-test = "0.4"
+portpicker = "0.1"
+
+[[test]]
+name = "e2e_tests"
+path = "e2e_tests/e2e_tests.rs"
+harness = true
