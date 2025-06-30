@@ -110,6 +110,7 @@ class TestHumanPointsAPIResponse:
             address=address, action=HumanPoints.Action.SCORING_BONUS
         )
 
+    @patch("ceramic_cache.api.v1.settings.HUMAN_POINTS_ENABLED", True)
     def test_ceramic_cache_score_endpoint_includes_points_data(
         self, api_client, human_points_community, auth_headers
     ):
@@ -161,6 +162,7 @@ class TestHumanPointsAPIResponse:
             )  # 100 * 2
             assert breakdown[HumanPoints.Action.SCORING_BONUS] == 1000  # 500 * 2
 
+    @patch("ceramic_cache.api.v1.settings.HUMAN_POINTS_ENABLED", True)
     def test_points_data_for_non_eligible_address(
         self, api_client, human_points_community, auth_headers
     ):
@@ -197,6 +199,7 @@ class TestHumanPointsAPIResponse:
             assert data["points_data"]["is_eligible"] is False
             assert data["points_data"]["total_points"] == 100  # Default multiplier is 1
 
+    @patch("ceramic_cache.api.v1.settings.HUMAN_POINTS_ENABLED", True)
     def test_points_data_with_no_human_points_records(
         self, api_client, human_points_community, auth_headers
     ):
@@ -368,6 +371,7 @@ class TestHumanPointsAPIResponse:
         total_points = config.points * mult_value
         assert total_points == 100  # 100 * 1
 
+    @patch("ceramic_cache.api.v1.settings.HUMAN_POINTS_ENABLED", True)
     def test_points_data_structure_validation(
         self, api_client, human_points_community, auth_headers
     ):
