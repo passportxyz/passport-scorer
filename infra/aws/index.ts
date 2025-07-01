@@ -109,11 +109,6 @@ const rdsSecretArn = coreInfraStack.getOutput("rdsSecretArn");
 
 const albDnsName = coreInfraStack.getOutput("coreAlbDns");
 const albHostedZoneId = coreInfraStack.getOutput("coreAlbZoneId");
-const CERAMIC_CACHE_SCORER_ID_CONFG = Object({
-  review: 1,
-  staging: 14,
-  production: 335,
-});
 
 const alarm5xx = {
   burst: {
@@ -260,8 +255,6 @@ const alarmConfigurations: AlarmConfigurations = {
     },
   },
 };
-
-const CERAMIC_CACHE_SCORER_ID = CERAMIC_CACHE_SCORER_ID_CONFG[stack];
 
 type EcsTaskConfigurationType = {
   memory: number;
@@ -1602,7 +1595,6 @@ if (stack === "production") {
 createV2Api({
   httpsListener,
   dockerLambdaImage: dockerGtcSubmitPassportLambdaImage,
-  ceramicCacheScorerId: CERAMIC_CACHE_SCORER_ID,
   alarmConfigurations: alarmConfigurations,
   httpLambdaRole: httpLambdaRole,
   alb: alb,
