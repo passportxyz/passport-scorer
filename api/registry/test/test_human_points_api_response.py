@@ -319,9 +319,9 @@ class TestHumanPointsAPIResponse:
         """Test eligibility calculation based on passing scores"""
         # Test various passing score counts
         test_cases = [
-            ("0xA1111111111111111111111111111111111111111", 0, False),
-            ("0xA2222222222222222222222222222222222222222", 1, True),
-            ("0xA3333333333333333333333333333333333333333", 3, True),
+            ("0xA111111111111111111111111111111111111111", 0, False),
+            ("0xA222222222222222222222222222222222222222", 1, True),
+            ("0xA333333333333333333333333333333333333333", 3, True),
         ]
 
         for address, passing_count, expected_eligible in test_cases:
@@ -347,7 +347,7 @@ class TestHumanPointsAPIResponse:
 
     def test_default_multiplier_when_not_in_table(self):
         """Test that default multiplier of 1 is used when address not in multiplier table"""
-        address = "0xB1111111111111111111111111111111111111111"
+        address = "0xB11111111111111111111111111111111111111"
 
         # Create config and action
         HumanPointsConfig.objects.get_or_create(
