@@ -9,7 +9,6 @@ import { runCommand } from "../layer";
 export function createMonitoringLambdaFunction(config: {
   snsAlertsTopicArn: pulumi.Input<string>;
   httpsListenerArn: pulumi.Input<string>;
-  ceramicCacheScorerId: number;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   vpcId: pulumi.Input<string>;
   vpcPrivateSubnetIds: pulumi.Input<any>;

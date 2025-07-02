@@ -6,7 +6,6 @@ import { createAppLambdaGeneric } from "./lambda_generic";
 export function createAppApiLambdaFunctions(config: {
   snsAlertsTopicArn: pulumi.Input<string>;
   httpsListenerArn: pulumi.Input<string>;
-  ceramicCacheScorerId: number;
   scorerSecret: aws.secretsmanager.Secret;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   vpcId: pulumi.Input<string>;
