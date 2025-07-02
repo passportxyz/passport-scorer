@@ -13,7 +13,6 @@ export function createEmbedLambdaGeneric(config: {
   description: string;
   snsAlertsTopicArn: pulumi.Input<string>;
   httpsListenerArn: pulumi.Input<string>;
-  ceramicCacheScorerId: number;
   scorerSecret: aws.secretsmanager.Secret;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   vpcId: pulumi.Input<string>;
@@ -42,10 +41,6 @@ export function createEmbedLambdaGeneric(config: {
     {
       name: "FF_API_ANALYTICS",
       value: "on",
-    },
-    {
-      name: "CERAMIC_CACHE_SCORER_ID",
-      value: `${config.ceramicCacheScorerId}`,
     },
     {
       name: "SCORER_SERVER_SSM_ARN",
