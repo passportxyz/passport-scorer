@@ -160,13 +160,13 @@ class TestHumanPointsConstraints:
     def test_address_length_constraint(self):
         """Test address field length constraint"""
         # Max length is 100 characters
-        long_address = "0x" + "a" * 98  # Total 100 chars
+        long_address = "0x" + "a" * 40  # Total 42 chars
 
         # This should work
         HumanPoints.objects.create(address=long_address, action="HKY")
 
         # This should fail - address too long
-        too_long_address = "0x" + "a" * 99  # Total 101 chars
+        too_long_address = "0x" + "a" * 41  # Total 42 chars
         with pytest.raises(DataError):
             HumanPoints.objects.create(address=too_long_address, action="HKY")
 

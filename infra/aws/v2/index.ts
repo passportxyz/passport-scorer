@@ -16,7 +16,6 @@ export function createV2Api({
   dockerLambdaImage,
   privateSubnetSecurityGroup,
   vpcPrivateSubnetIds,
-  ceramicCacheScorerId,
   scorerSecret,
   pagerdutyTopic,
   httpRoleAttachments,
@@ -29,7 +28,6 @@ export function createV2Api({
   dockerLambdaImage: pulumi.Output<string>;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   vpcPrivateSubnetIds: pulumi.Output<any>;
-  ceramicCacheScorerId: number;
   scorerSecret: aws.secretsmanager.Secret;
   pagerdutyTopic: aws.sns.Topic;
   httpRoleAttachments: aws.iam.RolePolicyAttachment[];
@@ -64,10 +62,6 @@ export function createV2Api({
       {
         name: "FF_API_ANALYTICS",
         value: "on",
-      },
-      {
-        name: "CERAMIC_CACHE_SCORER_ID",
-        value: `${ceramicCacheScorerId}`,
       },
       {
         name: "SCORER_SERVER_SSM_ARN",

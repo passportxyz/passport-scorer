@@ -337,7 +337,7 @@ class BatchModelScoringRequestItem(models.Model):
 class HumanPointsCommunityQualifiedUsers(models.Model):
     """Tracks which communities an address has achieved passing scores in"""
 
-    address = models.CharField(max_length=100, db_index=True)
+    address = EthAddressField(db_index=True)
     community = models.ForeignKey(
         Community, related_name="human_points_qualified_users", on_delete=models.CASCADE
     )
@@ -371,7 +371,7 @@ class HumanPoints(models.Model):
         PASSPORT_MINT = "PMT"
         HUMAN_ID_MINT = "HIM"
 
-    address = models.CharField(max_length=100, db_index=True)
+    address = EthAddressField(db_index=True)
     action = models.CharField(max_length=3, choices=Action.choices, db_index=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     tx_hash = models.CharField(max_length=100, null=True, blank=True)
@@ -397,7 +397,7 @@ class HumanPoints(models.Model):
 class HumanPointsMultiplier(models.Model):
     """Stores multipliers for addresses in the Human Points Program"""
 
-    address = models.CharField(max_length=100, primary_key=True)
+    address = EthAddressField(primary_key=True)
     multiplier = models.IntegerField(default=2)
 
     class Meta:
@@ -413,7 +413,7 @@ class HumanPointsConfig(models.Model):
 
     action = models.CharField(max_length=50, unique=True, db_index=True)
     points = models.IntegerField()
-    active = models.BooleanField(default=True)
+    active = models.BooleanField(default=True, db_index=True)
 
     class Meta:
         verbose_name = "Human Points Configuration"
