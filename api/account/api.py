@@ -654,11 +654,13 @@ def get_account_customization(request, dashboard_path: str):
         scorer = customization.scorer.scorer
 
         weights = get_default_weights()
+        threshold = get_default_threshold()
 
         if scorer and getattr(scorer, "weightedscorer", None):
             weights = scorer.weightedscorer.weights
         elif scorer and getattr(scorer, "binaryweightedscorer", None):
             weights = scorer.binaryweightedscorer.weights
+            threshold = scorer.binaryweightedscorer.threshold
 
         weights.update(customization.get_customization_dynamic_weights())
 
@@ -707,6 +709,7 @@ def get_account_customization(request, dashboard_path: str):
             scorer={
                 "weights": weights,
                 "id": customization.scorer.id,
+                "threshold": threshold,
             },
             includedChainIds=included_chain_ids,
             showExplanationPanel=customization.show_explanation_panel,
