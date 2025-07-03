@@ -5,6 +5,14 @@ pub fn get_env(var: &str) -> String {
     env::var(var).unwrap_or_else(|_| panic!("Required environment variable \"{}\" not set", var))
 }
 
+pub fn get_env_with_default(var: &str, default: &str) -> String {
+    env::var(var).unwrap_or_else(|_| default.to_string())
+}
+
+pub fn get_env_optional(var: &str) -> Option<String> {
+    env::var(var).ok()
+}
+
 pub async fn create_rpc_connection(rpc_url: &String) -> Provider<Ws> {
     let mut num_retries = 0;
     let delay_base: u64 = 2;
