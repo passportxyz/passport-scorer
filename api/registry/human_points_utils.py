@@ -1,15 +1,13 @@
 """Utility functions for Human Points functionality"""
 
-from typing import Dict, Optional
+from typing import Dict
 
-from django.db import connection, transaction
+from django.db import connection
 from django.db.models import F
 
 from registry.models import (
     HumanPoints,
     HumanPointsCommunityQualifiedUsers,
-    HumanPointsConfig,
-    HumanPointsMultiplier,
 )
 
 # Map stamp providers to Human Points actions
@@ -30,42 +28,45 @@ def get_user_points_data(address: str) -> Dict:
     """
     # Single query to get total points, multiplier, and breakdown
     query = """
-    WITH action_totals AS (
-        SELECT 
+        SELECT
             hp.address,
             hp.action,
+            hp.chain_id,
             SUM(hpc.points * COALESCE(hpm.multiplier, 1)) as action_points,
             MAX(COALESCE(hpm.multiplier, 1)) as multiplier
         FROM registry_humanpoints hp
-        INNER JOIN registry_humanpointsconfig hpc 
+        INNER JOIN registry_humanpointsconfig hpc
             ON hp.action = hpc.action AND hpc.active = true
-        LEFT JOIN registry_humanpointsmultiplier hpm 
+        LEFT JOIN registry_humanpointsmultiplier hpm
             ON hp.address = hpm.address
         WHERE hp.address = %s
-        GROUP BY hp.address, hp.action
-    )
-    SELECT 
-        COALESCE(SUM(action_points), 0) as total_points,
-        COALESCE(MAX(multiplier), 1) as multiplier,
-        JSON_OBJECT_AGG(action::text, action_points) 
-            FILTER (WHERE action IS NOT NULL) as breakdown
-    FROM action_totals
-    GROUP BY address
+        GROUP BY hp.address, hp.action, hp.chain_id
     """
+
+    total_points = 0
+    multiplier = 1
+    breakdown = {}
 
     with connection.cursor() as cursor:
         cursor.execute(query, [address])
-        row = cursor.fetchone()
+        rows = cursor.fetchall()
+        multiplier = rows[0][4] if rows else 1
 
-        if row:
-            total_points = int(row[0])
-            multiplier = int(row[1])
-            breakdown = row[2] or {}
-        else:
-            # No actions found for this user
-            total_points = 0
-            multiplier = 1
-            breakdown = {}
+        for row in rows:
+            points = row[3]
+            total_points += points
+            chain_id = row[2]
+            breakdown_key = row[1]
+
+            if chain_id:
+                breakdown[f"{breakdown_key}_{chain_id}"] = points
+                breakdown[breakdown_key] = (
+                    points
+                    if breakdown_key not in breakdown
+                    else breakdown[breakdown_key] + points
+                )
+            else:
+                breakdown[breakdown_key] = points
 
     # Check eligibility separately (single query)
     is_eligible = HumanPointsCommunityQualifiedUsers.objects.filter(
