@@ -60,13 +60,12 @@ def get_user_points_data(address: str) -> Dict:
 
             if chain_id:
                 breakdown[f"{breakdown_key}_{chain_id}"] = points
-                breakdown[breakdown_key] = (
-                    points
-                    if breakdown_key not in breakdown
-                    else breakdown[breakdown_key] + points
-                )
-            else:
-                breakdown[breakdown_key] = points
+
+            breakdown[breakdown_key] = (
+                points
+                if breakdown_key not in breakdown
+                else breakdown[breakdown_key] + points
+            )
 
     # Check eligibility separately (single query)
     is_eligible = HumanPointsCommunityQualifiedUsers.objects.filter(
