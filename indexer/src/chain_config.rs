@@ -74,7 +74,7 @@ pub async fn create_optimism_indexer(
         let eas_address = std::env::var("INDEXER_OPTIMISM_EAS_CONTRACT")
             .unwrap_or_else(|_| "0x4200000000000000000000000000000000000021".to_string())
             .parse()?;
-        
+
         contracts.push(ContractConfig {
             address: eas_address,
             start_block: 138123811, // July 7th, 2025
@@ -88,7 +88,7 @@ pub async fn create_optimism_indexer(
         let human_id_address = std::env::var("INDEXER_OPTIMISM_HUMAN_ID_CONTRACT")
             .unwrap_or_else(|_| "0x2AA822e264F8cc31A2b9C22f39e5551241e94DfB".to_string())
             .parse()?;
-            
+
         contracts.push(ContractConfig {
             address: human_id_address,
             start_block: 138123811, // July 7th, 2025
@@ -132,7 +132,7 @@ pub async fn create_arbitrum_indexer(
         let eas_address = std::env::var("INDEXER_ARBITRUM_EAS_CONTRACT")
             .unwrap_or_else(|_| "0xbD75f629A22Dc1ceD33dDA0b68c546A1c035c458".to_string())
             .parse()?;
-            
+
         contracts.push(ContractConfig {
             address: eas_address,
             start_block: 355019547, // July 7th, 2025
@@ -165,14 +165,28 @@ pub async fn create_optimism_sepolia_indexer(
         .parse::<u64>()
         .unwrap();
 
+    let mut contracts = vec![ContractConfig {
+        address: *contract_address,
+        start_block: op_sepolia_start_block,
+        contract_type: ContractType::Staking,
+        schema_uid: None,
+    }];
+
+    if get_env("HUMAN_POINTS_ENABLED") == "true" {
+        // EAS contract for Passport mint on Optimism Sepolia
+        contracts.push(ContractConfig {
+            address: "0x4200000000000000000000000000000000000021".parse()?,
+            start_block: 29876951, // July 3rd, 2025
+            contract_type: ContractType::PassportMint,
+            schema_uid: Some(
+                "0x81d8758ccd97bbeea7642df29001f6046a676b3c24f808c4297db5ee36838dd8".parse()?,
+            ),
+        });
+    }
+
     let chain_config = ChainConfig {
         rpc_url: op_sepolia_rpc_url,
-        contracts: vec![ContractConfig {
-            address: *contract_address,
-            start_block: op_sepolia_start_block,
-            contract_type: ContractType::Staking,
-            schema_uid: None,
-        }],
+        contracts: contracts,
     };
 
     let indexer = UnifiedChainIndexer::new(chain_config, postgres_client).await?;
