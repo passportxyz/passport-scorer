@@ -110,6 +110,46 @@ class TestHumanPointsAPIResponse:
             address=address, action=HumanPoints.Action.SCORING_BONUS
         )
 
+    def setup_human_points_data_with_chain_id(
+        self, address, test_community, test_account
+    ):
+        """Setup human points data for an address"""
+        # First create config entries
+        HumanPointsConfig.objects.update_or_create(
+            action=HumanPoints.Action.PASSPORT_MINT, defaults={"points": 100}
+        )
+        HumanPointsConfig.objects.update_or_create(
+            action=HumanPoints.Action.IDENTITY_STAKING_BRONZE, defaults={"points": 100}
+        )
+        HumanPointsConfig.objects.update_or_create(
+            action=HumanPoints.Action.SCORING_BONUS, defaults={"points": 500}
+        )
+
+        # Create a multiplier for the address
+        HumanPointsMultiplier.objects.update_or_create(address=address, multiplier=1)
+
+        # Create passing score record (makes user eligible)
+        HumanPointsCommunityQualifiedUsers.objects.update_or_create(
+            address=address, community=test_community
+        )
+
+        # Create actions (normalized design - no points field)
+        HumanPoints.objects.create(
+            address=address, action=HumanPoints.Action.PASSPORT_MINT, chain_id=1
+        )
+        HumanPoints.objects.create(
+            address=address, action=HumanPoints.Action.PASSPORT_MINT, chain_id=2
+        )
+        HumanPoints.objects.create(
+            address=address, action=HumanPoints.Action.PASSPORT_MINT, chain_id=3
+        )
+        HumanPoints.objects.create(
+            address=address, action=HumanPoints.Action.IDENTITY_STAKING_BRONZE
+        )
+        HumanPoints.objects.create(
+            address=address, action=HumanPoints.Action.SCORING_BONUS
+        )
+
     @patch("ceramic_cache.api.v1.settings.HUMAN_POINTS_ENABLED", True)
     def test_ceramic_cache_score_endpoint_includes_points_data(
         self, api_client, human_points_community, auth_headers
@@ -161,6 +201,59 @@ class TestHumanPointsAPIResponse:
                 breakdown[HumanPoints.Action.IDENTITY_STAKING_BRONZE] == 200
             )  # 100 * 2
             assert breakdown[HumanPoints.Action.SCORING_BONUS] == 1000  # 500 * 2
+
+    @patch("ceramic_cache.api.v1.settings.HUMAN_POINTS_ENABLED", True)
+    def test_ceramic_cache_score_endpoint_includes_points_data_and_chain_id(
+        self, api_client, human_points_community, auth_headers
+    ):
+        """Test that /ceramic-cache/score/{address} endpoint includes points_data"""
+        address = "0x1234567890123456789012345678901234567890"
+
+        # Set the community ID to match ceramic cache scorer ID
+        with patch.object(
+            settings, "CERAMIC_CACHE_SCORER_ID", human_points_community.id
+        ):
+            # Setup human points data
+            self.setup_human_points_data_with_chain_id(
+                address, human_points_community, human_points_community.account
+            )
+
+            # Create a passport and score for this address
+            passport = Passport.objects.create(
+                address=address.lower(), community=human_points_community
+            )
+            Score.objects.create(
+                passport=passport,
+                score=Decimal("25.0"),
+                status=Score.Status.DONE,
+                evidence={"rawScore": "25.0", "threshold": "20.0"},
+                stamps={},
+            )
+
+            # Make request
+            response = api_client.get(f"/ceramic-cache/score/{address}", **auth_headers)
+
+            assert response.status_code == 200
+            data = response.json()
+
+            # Check that points_data is included
+            assert "points_data" in data
+            points_data = data["points_data"]
+
+            # Verify points data structure
+            assert points_data["total_points"] == 900
+            assert points_data["is_eligible"] is True  # passing_scores >= 1
+            assert points_data["multiplier"] == 1
+
+            # Check breakdown structure
+            assert "breakdown" in points_data
+            breakdown = points_data["breakdown"]
+            assert breakdown[HumanPoints.Action.PASSPORT_MINT] == 300  # 300
+            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_1"] == 100  # 100
+            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_1"] == 100  # 100
+            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_1"] == 100  # 100
+            assert breakdown[HumanPoints.Action.IDENTITY_STAKING_BRONZE] == 100  # 100
+            assert breakdown[HumanPoints.Action.SCORING_BONUS] == 500  # 500
 
     @patch("ceramic_cache.api.v1.settings.HUMAN_POINTS_ENABLED", True)
     def test_points_data_for_non_eligible_address(
