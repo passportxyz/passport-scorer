@@ -437,7 +437,7 @@ impl UnifiedChainIndexer {
             if let Err(err) = self
                 .postgres_client
                 .add_human_points_event(
-                    &event.recipient.to_string().to_lowercase(),
+                    &format!("{:#x}", event.recipient),
                     "PMT",
                     datetime_timestamp,
                     &tx_hash,
@@ -470,7 +470,7 @@ impl UnifiedChainIndexer {
                 if let Err(err) = self
                     .postgres_client
                     .add_human_points_event(
-                        &event.to.to_string().to_lowercase(),
+                        &format!("{:#x}", event.to),
                         "HIM",
                         datetime_timestamp,
                         &tx_hash,
@@ -686,6 +686,61 @@ impl UnifiedChainIndexer {
 #[cfg(test)]
 mod tests {
     use std::env;
+    use ethers::types::Address;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_address_formatting_with_ellipsis() {
+        // Test that addresses are being formatted with ellipsis using to_string()
+        let address = Address::from_str("0x1234567890123456789012345678901234567890").unwrap();
+        let formatted = address.to_string();
+        
+        // This test demonstrates the problem - addresses are truncated with ellipsis
+        println!("Address formatted with to_string(): {}", formatted);
+        assert!(formatted.contains("…"), "Expected address to contain ellipsis, got: {}", formatted);
+        assert!(formatted.len() < 42, "Expected truncated address length, got: {}", formatted.len());
+    }
+
+    #[test]
+    fn test_correct_address_formatting() {
+        // Test the correct way to format addresses without ellipsis
+        let address = Address::from_str("0x1234567890123456789012345678901234567890").unwrap();
+        let correct_format = format!("{:#x}", address);
+        
+        println!("Address formatted correctly: {}", correct_format);
+        assert!(!correct_format.contains("…"), "Address should not contain ellipsis");
+        assert_eq!(correct_format.len(), 42, "Expected full address length of 42 characters");
+        assert!(correct_format.starts_with("0x"), "Address should start with 0x");
+    }
+
+    #[test]
+    fn test_human_points_address_formatting() {
+        // Test various real addresses to ensure they're formatted correctly
+        let test_addresses = vec![
+            "0x1234567890123456789012345678901234567890",
+            "0xABCDEF1234567890123456789012345678901234",
+            "0xdf699e42a90b3558e4fdd715b2a65893f636a780", // Example from user
+            "0x0000000000000000000000000000000000000000",
+            "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+        ];
+
+        for addr_str in test_addresses {
+            let address = Address::from_str(addr_str).unwrap();
+            
+            // Test the old way (produces ellipsis)
+            let old_format = address.to_string().to_lowercase();
+            println!("Old format for {}: {}", addr_str, old_format);
+            
+            // Test the new way (produces full address)
+            let new_format = format!("{:#x}", address);
+            println!("New format for {}: {}", addr_str, new_format);
+            
+            // Verify new format is correct
+            assert_eq!(new_format.len(), 42, "Address should be 42 characters");
+            assert!(!new_format.contains("…"), "Address should not contain ellipsis");
+            assert_eq!(new_format.to_lowercase(), addr_str.to_lowercase());
+        }
+    }
 
     #[test]
     fn test_human_points_timestamp_parsing() {
