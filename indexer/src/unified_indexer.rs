@@ -12,6 +12,7 @@ use eyre::Result;
 use futures::try_join;
 use std::{
     cmp::{max, min},
+    env,
     sync::Arc,
 };
 
@@ -68,6 +69,7 @@ pub struct UnifiedChainIndexer {
     chain_config: ChainConfig,
     chain_id: u32,
     postgres_client: Arc<PostgresClient>,
+    human_points_start_timestamp: Option<u64>,
 }
 
 async fn get_chain_id(rpc_url: &String) -> Result<u32> {
@@ -83,10 +85,22 @@ impl UnifiedChainIndexer {
     ) -> Result<Self> {
         let chain_id = get_chain_id(&chain_config.rpc_url).await?;
 
+        let human_points_start_timestamp: Option<u64> = env::var("HUMAN_POINTS_START_TIMESTAMP")
+            .ok()
+            .and_then(|s| s.parse().ok());
+
+        if let Some(timestamp) = human_points_start_timestamp {
+            eprintln!(
+                "Debug - Human Points activation timestamp set to {} for chain {}",
+                timestamp, chain_id
+            );
+        }
+
         Ok(Self {
             chain_config,
             chain_id,
             postgres_client,
+            human_points_start_timestamp,
         })
     }
 
@@ -323,6 +337,22 @@ impl UnifiedChainIndexer {
         if block_number < contract_config.start_block {
             // Skip events before contract deployment
             return Ok(());
+        }
+
+        // Check if Human Points events should be filtered by timestamp
+        if let Some(start_timestamp) = self.human_points_start_timestamp {
+            if matches!(
+                contract_config.contract_type,
+                ContractType::PassportMint | ContractType::HumanIdMint
+            ) {
+                // Get the block timestamp
+                let block_timestamp = self.get_timestamp_for_block(provider, block_number).await?;
+                
+                if block_timestamp < start_timestamp as i64 {
+                    // Skip this event - it's before Human Points activation
+                    return Ok(());
+                }
+            }
         }
 
         // Route based on contract type
@@ -650,5 +680,34 @@ impl UnifiedChainIndexer {
             );
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+
+    #[test]
+    fn test_human_points_timestamp_parsing() {
+        // Test valid timestamp
+        env::set_var("HUMAN_POINTS_START_TIMESTAMP", "1736899200");
+        let parsed: Option<u64> = env::var("HUMAN_POINTS_START_TIMESTAMP")
+            .ok()
+            .and_then(|s| s.parse().ok());
+        assert_eq!(parsed, Some(1736899200));
+        
+        // Test invalid timestamp
+        env::set_var("HUMAN_POINTS_START_TIMESTAMP", "invalid");
+        let parsed: Option<u64> = env::var("HUMAN_POINTS_START_TIMESTAMP")
+            .ok()
+            .and_then(|s| s.parse().ok());
+        assert_eq!(parsed, None);
+        
+        // Test missing env var
+        env::remove_var("HUMAN_POINTS_START_TIMESTAMP");
+        let parsed: Option<u64> = env::var("HUMAN_POINTS_START_TIMESTAMP")
+            .ok()
+            .and_then(|s| s.parse().ok());
+        assert_eq!(parsed, None);
     }
 }
