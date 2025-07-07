@@ -257,6 +257,7 @@ async def ascore_passport(
             settings.HUMAN_POINTS_ENABLED
             and community.human_points_program
             and score.score == Decimal("1")
+            and datetime.now(timezone.utc).timestamp() >= settings.HUMAN_POINTS_START_TIMESTAMP
         ):
             # Record passing score for this community
             await arecord_passing_score(address, community.pk)
