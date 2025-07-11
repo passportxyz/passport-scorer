@@ -372,7 +372,7 @@ class HumanPoints(models.Model):
         HUMAN_ID_MINT = "HIM"
         HUMAN_TECH_GOV_ID = "HGO"
         HUMAN_TECH_PHONE = "HPH"
-        HUMAN_TECH_PROOF_OF_CLEAN_HANDS = "HPC"
+        HUMAN_TECH_PROOF_OF_CLEAN_HANDS = "HCH"
         HUMAN_TECH_BIOMETRIC = "HBI"
 
     address = EthAddressField(db_index=True)
