@@ -73,7 +73,8 @@ class TestHumanPointsBinaryScoringFix:
                     "provider": "humanKeys",
                     "credential": {
                         "credentialSubject": {
-                            "nullifiers": ["v0:test", "v1:human_keys_nullifier"]
+                            "provider": "humanKeys",
+                            "nullifiers": ["v0:test", "v1:human_keys_nullifier"],
                         }
                     },
                 }

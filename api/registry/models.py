@@ -378,7 +378,7 @@ class HumanPoints(models.Model):
     address = EthAddressField(db_index=True)
     action = models.CharField(max_length=3, choices=Action.choices, db_index=True)
     timestamp = models.DateTimeField(auto_now_add=True)
-    tx_hash = models.CharField(max_length=100, null=True, blank=True)
+    tx_hash = models.CharField(max_length=100, null=False, blank=True, default="")
     chain_id = models.IntegerField(
         null=False,
         blank=False,
@@ -400,10 +400,12 @@ class HumanPoints(models.Model):
             models.Index(fields=["address", "action"]),
             models.Index(fields=["chain_id", "action"]),
         ]
+
         constraints = [
             models.UniqueConstraint(
-                fields=["address", "action", "chain_id", "provider"],
+                fields=["address", "action", "chain_id", "provider", "tx_hash"],
                 name="unique_human_points_constraint",
+                # nulls_distinct=True. ---- not yet suppoerted in django 4.2
             )
         ]
 
