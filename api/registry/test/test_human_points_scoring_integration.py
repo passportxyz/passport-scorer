@@ -74,14 +74,18 @@ class TestHumanPointsScoringIntegration:
                 "provider": "anyProvider",
                 "credential": {
                     "credentialSubject": {
-                        "nullifiers": ["v0:test", "v1:human_keys_nullifier"]
+                        "provider": "anyProvider",
+                        "nullifiers": ["v0:test", "v1:human_keys_nullifier"],
                     }
                 },
             },
             # Stamp with only v0 nullifier - should NOT be detected
             {
                 "provider": "anotherProvider",
-                "credential": {"credentialSubject": {"nullifiers": ["v0:only_v0"]}},
+                "credential": {
+                    "provider": "anotherProvider",
+                    "credentialSubject": {"nullifiers": ["v0:only_v0"]},
+                },
             },
             # Stamp with no nullifiers - should NOT be detected
             {
@@ -137,7 +141,7 @@ class TestHumanPointsScoringIntegration:
                     "verified": True,
                 },
                 {
-                    "provider": "gtcStakingBronze",
+                    "provider": "SelfStakingBronze",
                     "credential": create_mock_credential("gtcStakingBronze", did),
                     "verified": True,
                 },

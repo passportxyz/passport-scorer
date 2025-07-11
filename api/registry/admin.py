@@ -485,7 +485,7 @@ class HumanPointsCommunityQualifiedUsersAdmin(ScorerModelAdmin):
 
 @admin.register(HumanPoints)
 class HumanPointsAdmin(ScorerModelAdmin):
-    list_display = ["address", "action", "timestamp", "tx_hash"]
+    list_display = ["address", "action", "provider", "chain_id", "timestamp", "tx_hash"]
     list_filter = ["action", "timestamp"]
     search_fields = ["address", "tx_hash"]
     ordering = ["-timestamp"]

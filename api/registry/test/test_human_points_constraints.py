@@ -36,10 +36,10 @@ class TestHumanPointsConstraints:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    INSERT INTO registry_humanpoints (address, action, timestamp)
-                    VALUES (%s, %s, NOW())
+                    INSERT INTO registry_humanpoints (address, action, timestamp, chain_id, provider, tx_hash)
+                    VALUES (%s, %s, NOW(), %s, %s, %s)
                     """,
-                    [address, "SCB"],
+                    [address, "SCB", 0, "", ""],
                 )
 
         # The error should be about unique constraint violation
@@ -88,10 +88,10 @@ class TestHumanPointsConstraints:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    INSERT INTO registry_humanpoints (address, action, tx_hash, timestamp)
-                    VALUES (%s, %s, %s, NOW())
+                    INSERT INTO registry_humanpoints (address, action, tx_hash, timestamp, chain_id, provider)
+                    VALUES (%s, %s, %s, NOW(), %s, %s)
                     """,
-                    [address, "PMT", tx_hash],
+                    [address, "PMT", tx_hash, 0, ""],
                 )
 
         assert (
@@ -145,10 +145,10 @@ class TestHumanPointsConstraints:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    INSERT INTO registry_humanpoints (address, action, timestamp)
-                    VALUES (%s, %s, NOW())
+                    INSERT INTO registry_humanpoints (address, action, timestamp, chain_id, provider, tx_hash)
+                    VALUES (%s, %s, NOW(), %s, %s, %s)
                     """,
-                    [address, "SCB"],
+                    [address, "SCB", 0, "", ""],
                 )
 
         # The error should be about unique constraint violation
@@ -235,7 +235,7 @@ class TestHumanPointsConstraints:
             # tx_hash not provided, should default to None
         )
 
-        assert points.tx_hash is None
+        assert points.tx_hash is ""
 
     def test_human_keys_unique_with_nullifier(self):
         """Test unique constraint for human_keys using nullifier in tx_hash field"""

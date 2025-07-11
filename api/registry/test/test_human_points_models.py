@@ -94,7 +94,7 @@ class TestHumanPoints:
         )
         assert points.address == "0x1234567890123456789012345678901234567890"
         assert points.action == HumanPoints.Action.HUMAN_KEYS
-        assert points.tx_hash is None
+        assert points.tx_hash is ""
         assert points.timestamp is not None
         assert (
             str(points)

@@ -373,11 +373,11 @@ class TestHumanPointsAPIResponse:
 
         # Create various action entries
         action_entries = [
-            (HumanPoints.Action.HUMAN_KEYS, None),
-            (HumanPoints.Action.IDENTITY_STAKING_BRONZE, None),
-            (HumanPoints.Action.IDENTITY_STAKING_SILVER, None),
-            (HumanPoints.Action.COMMUNITY_STAKING_BEGINNER, None),
-            (HumanPoints.Action.SCORING_BONUS, None),
+            (HumanPoints.Action.HUMAN_KEYS, ""),
+            (HumanPoints.Action.IDENTITY_STAKING_BRONZE, ""),
+            (HumanPoints.Action.IDENTITY_STAKING_SILVER, ""),
+            (HumanPoints.Action.COMMUNITY_STAKING_BEGINNER, ""),
+            (HumanPoints.Action.SCORING_BONUS, ""),
             (HumanPoints.Action.PASSPORT_MINT, "0xmint1"),
             (HumanPoints.Action.HUMAN_ID_MINT, "0xmint2"),
         ]

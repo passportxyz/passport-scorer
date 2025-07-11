@@ -378,12 +378,19 @@ class HumanPoints(models.Model):
     address = EthAddressField(db_index=True)
     action = models.CharField(max_length=3, choices=Action.choices, db_index=True)
     timestamp = models.DateTimeField(auto_now_add=True)
-    tx_hash = models.CharField(max_length=100, null=True, blank=True)
+    tx_hash = models.CharField(max_length=100, null=False, blank=True, default="")
     chain_id = models.IntegerField(
-        null=True,
-        blank=True,
+        null=False,
+        blank=False,
+        default=0,
         db_index=True,
         help_text="Chain ID for mint actions (PMT, HIM)",
+    )
+    provider = models.CharField(
+        db_index=True,
+        default="",
+        max_length=100,
+        help_text="Provider is relevant to track the human key points",
     )
 
     class Meta:
@@ -392,6 +399,14 @@ class HumanPoints(models.Model):
         indexes = [
             models.Index(fields=["address", "action"]),
             models.Index(fields=["chain_id", "action"]),
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["address", "action", "chain_id", "provider", "tx_hash"],
+                name="unique_human_points_constraint",
+                # nulls_distinct=True. ---- not yet suppoerted in django 4.2
+            )
         ]
 
     def __str__(self):

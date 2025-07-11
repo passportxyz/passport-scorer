@@ -13,9 +13,9 @@ from registry.models import (
 
 # Map stamp providers to Human Points actions
 STAMP_PROVIDER_TO_ACTION = {
-    "gtcStakingBronze": HumanPoints.Action.IDENTITY_STAKING_BRONZE,
-    "gtcStakingSilver": HumanPoints.Action.IDENTITY_STAKING_SILVER,
-    "gtcStakingGold": HumanPoints.Action.IDENTITY_STAKING_GOLD,
+    "SelfStakingBronze": HumanPoints.Action.IDENTITY_STAKING_BRONZE,
+    "SelfStakingSilver": HumanPoints.Action.IDENTITY_STAKING_SILVER,
+    "SelfStakingGold": HumanPoints.Action.IDENTITY_STAKING_GOLD,
     "BeginnerCommunityStaker": HumanPoints.Action.COMMUNITY_STAKING_BEGINNER,
     "ExperiencedCommunityStaker": HumanPoints.Action.COMMUNITY_STAKING_EXPERIENCED,
     "TrustedCitizen": HumanPoints.Action.COMMUNITY_STAKING_TRUSTED,
@@ -108,6 +108,7 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
                             address=address,
                             action=HumanPoints.Action.HUMAN_KEYS,
                             tx_hash=nullifier,
+                            provider=credential_subject.get("provider"),
                         )
                     )
                     break
@@ -117,7 +118,7 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
         action = STAMP_PROVIDER_TO_ACTION.get(provider)
         if action:
             objects_to_create.append(
-                HumanPoints(address=address, action=action, tx_hash=None)
+                HumanPoints(address=address, action=action, tx_hash="")
             )
 
     # Bulk create all at once, let DB handle conflicts
