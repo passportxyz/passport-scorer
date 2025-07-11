@@ -8,6 +8,7 @@ from django.db.models import F
 from registry.models import (
     HumanPoints,
     HumanPointsCommunityQualifiedUsers,
+    HumanPointsConfig,
 )
 
 # Map stamp providers to Human Points actions
@@ -18,6 +19,10 @@ STAMP_PROVIDER_TO_ACTION = {
     "BeginnerCommunityStaker": HumanPoints.Action.COMMUNITY_STAKING_BEGINNER,
     "ExperiencedCommunityStaker": HumanPoints.Action.COMMUNITY_STAKING_EXPERIENCED,
     "TrustedCitizen": HumanPoints.Action.COMMUNITY_STAKING_TRUSTED,
+    "HolonymGovIdProvider": HumanPoints.Action.HUMAN_TECH_GOV_ID,
+    "HolonymPhone": HumanPoints.Action.HUMAN_TECH_PHONE,
+    "CleanHands": HumanPoints.Action.HUMAN_TECH_PROOF_OF_CLEAN_HANDS,
+    "Biometrics": HumanPoints.Action.HUMAN_TECH_BIOMETRIC,
 }
 
 
@@ -150,3 +155,21 @@ async def arecord_passing_score(address: str, community_id: int) -> None:
     await HumanPointsCommunityQualifiedUsers.objects.aget_or_create(
         address=address, community_id=community_id
     )
+
+
+def get_possible_points_data() -> Dict:
+    """
+    Get user's total points with breakdown using raw SQL for efficiency.
+    Returns total points, eligibility status, multiplier, and points breakdown.
+    """
+    possible_points_data_breakdown = {
+        c.action: c.points for c in HumanPointsConfig.objects.all() if c.active
+    }
+    possible_points_data = {
+        "total_points": 0,
+        "breakdown": possible_points_data_breakdown,
+        "is_eligible": False,
+        "multiplier": 0,
+    }
+
+    return possible_points_data

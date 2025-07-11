@@ -38,7 +38,7 @@ from registry.exceptions import (
     InvalidLimitException,
     api_get_object_or_404,
 )
-from registry.human_points_utils import get_user_points_data
+from registry.human_points_utils import get_possible_points_data, get_user_points_data
 from registry.models import Event, Passport, Score
 from registry.utils import (
     decode_cursor,
@@ -96,9 +96,10 @@ async def ahandle_scoring(address: str, community, include_human_points: bool = 
         from asgiref.sync import sync_to_async
 
         points_data = await sync_to_async(get_user_points_data)(address_lower)
+        possible_points_data = await sync_to_async(get_possible_points_data)()
 
     return format_v2_score_response(
-        score, scorer_type, points_data, include_human_points
+        score, scorer_type, points_data, possible_points_data, include_human_points
     )
 
 
@@ -106,6 +107,7 @@ def format_v2_score_response(
     score: Score,
     scorer_type: Scorer.Type,
     points_data: Dict[str, Any] = None,
+    possible_points_data: Dict[str, Any] = None,
     include_human_points: bool = False,
 ) -> V2ScoreResponse:
     raw_score = score.evidence.get("rawScore", "0") if score.evidence else "0"
@@ -122,6 +124,12 @@ def format_v2_score_response(
             is_eligible=points_data["is_eligible"],
             multiplier=points_data["multiplier"],
             breakdown=points_data["breakdown"],
+        )
+        formatted_possible_points_data = PointsData(
+            total_points=possible_points_data["total_points"],
+            is_eligible=possible_points_data["is_eligible"],
+            multiplier=possible_points_data["multiplier"],
+            breakdown=possible_points_data["breakdown"],
         )
 
     return V2ScoreResponse(
@@ -140,6 +148,7 @@ def format_v2_score_response(
         error=score.error,
         stamps=score.stamps if score.stamps is not None else {},
         points_data=formatted_points_data,
+        possible_points_data=formatted_possible_points_data,
     )
 
 
