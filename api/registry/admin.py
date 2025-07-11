@@ -502,8 +502,14 @@ class HumanPointsMultiplierAdmin(ScorerModelAdmin):
 
 @admin.register(HumanPointsConfig)
 class HumanPointsConfigAdmin(ScorerModelAdmin):
-    list_display = ["action", "points", "active"]
+    list_display = ["action_display", "points", "active"]
     list_filter = ["active"]
     search_fields = ["action"]
     ordering = ["action"]
     readonly_fields = []
+
+    def action_display(self, obj):
+        """Display action with both code and human-readable name"""
+        return f"{obj.action} - {obj.get_action_display()}"
+
+    action_display.short_description = "Action"

@@ -370,6 +370,10 @@ class HumanPoints(models.Model):
         COMMUNITY_STAKING_TRUSTED = "CST"
         PASSPORT_MINT = "PMT"
         HUMAN_ID_MINT = "HIM"
+        HUMAN_TECH_GOV_ID = "HGO"
+        HUMAN_TECH_PHONE = "HPH"
+        HUMAN_TECH_PROOF_OF_CLEAN_HANDS = "HPC"
+        HUMAN_TECH_BIOMETRIC = "HBI"
 
     address = EthAddressField(db_index=True)
     action = models.CharField(max_length=3, choices=Action.choices, db_index=True)
@@ -411,7 +415,9 @@ class HumanPointsMultiplier(models.Model):
 class HumanPointsConfig(models.Model):
     """Configuration for point values per action type"""
 
-    action = models.CharField(max_length=50, unique=True, db_index=True)
+    action = models.CharField(
+        choices=HumanPoints.Action.choices, max_length=50, unique=True, db_index=True
+    )
     points = models.IntegerField()
     active = models.BooleanField(default=True, db_index=True)
 

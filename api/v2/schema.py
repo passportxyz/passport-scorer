@@ -31,6 +31,7 @@ class V2ScoreResponse(Schema):
     error: Optional[str]
     stamps: Optional[Dict[str, V2StampScoreResponse]]
     points_data: Optional[PointsData] = None
+    possible_points_data: Optional[PointsData] = None
 
     @field_serializer("score")
     def serialize_score(self, score: Decimal, _info):
