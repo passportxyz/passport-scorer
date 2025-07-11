@@ -536,6 +536,7 @@ def handle_get_ui_score(
 
         # Get points data if community has human_points_program enabled
         points_data = None
+        possible_points_data = None
         if settings.HUMAN_POINTS_ENABLED and user_community.human_points_program:
             points_data = get_user_points_data(lower_address)
             possible_points_data = get_possible_points_data()

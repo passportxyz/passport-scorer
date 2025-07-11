@@ -133,6 +133,7 @@ class ValidateLambdaValidateApiKeyTestCase(TestCase):
             },
             "threshold": "20.00000",
             "points_data": None,
+            "possible_points_data": None,
         }
         assert sorted(
             [d["stamp"] for d in data["stamps"]],

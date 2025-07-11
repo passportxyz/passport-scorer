@@ -88,6 +88,7 @@ async def ahandle_scoring(address: str, community, include_human_points: bool = 
 
     # Get points data if community has human_points_program enabled and include_human_points is True
     points_data = None
+    possible_points_data = None
     if (
         include_human_points
         and settings.HUMAN_POINTS_ENABLED
@@ -118,6 +119,7 @@ def format_v2_score_response(
 
     # Convert points_data dict to PointsData schema if provided and include_human_points is True
     formatted_points_data = None
+    formatted_possible_points_data = None
     if include_human_points and points_data:
         formatted_points_data = PointsData(
             total_points=points_data["total_points"],

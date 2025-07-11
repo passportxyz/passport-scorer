@@ -45,6 +45,7 @@ class TestBulkStampUpdates:
             "error": None,
             "stamps": {},
             "points_data": None,
+            "possible_points_data": None,
         }
 
     def test_get_score_when_score_not_expired(
@@ -82,6 +83,7 @@ class TestBulkStampUpdates:
             error=None,
             stamps={},
             points_data=None,
+            possible_points_data=None,
         )
 
         mocked_score_response = InternalV2ScoreResponse(**mocked_score_response_data)
@@ -110,6 +112,7 @@ class TestBulkStampUpdates:
             "stamps": {},
             "threshold": "5.00000",
             "points_data": None,
+            "possible_points_data": None,
         }
 
     def test_get_score_when_score_expired(
@@ -147,6 +150,7 @@ class TestBulkStampUpdates:
             error=None,
             stamps={},
             points_data=None,
+            possible_points_data=None,
         )
 
         mocked_score_response = InternalV2ScoreResponse(**mocked_score_response_data)
