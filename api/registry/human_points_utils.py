@@ -13,9 +13,9 @@ from registry.models import (
 
 # Map stamp providers to Human Points actions
 STAMP_PROVIDER_TO_ACTION = {
-    "gtcStakingBronze": HumanPoints.Action.IDENTITY_STAKING_BRONZE,
-    "gtcStakingSilver": HumanPoints.Action.IDENTITY_STAKING_SILVER,
-    "gtcStakingGold": HumanPoints.Action.IDENTITY_STAKING_GOLD,
+    "SelfStakingBronze": HumanPoints.Action.IDENTITY_STAKING_BRONZE,
+    "SelfStakingSilver": HumanPoints.Action.IDENTITY_STAKING_SILVER,
+    "SelfStakingGold": HumanPoints.Action.IDENTITY_STAKING_GOLD,
     "BeginnerCommunityStaker": HumanPoints.Action.COMMUNITY_STAKING_BEGINNER,
     "ExperiencedCommunityStaker": HumanPoints.Action.COMMUNITY_STAKING_EXPERIENCED,
     "TrustedCitizen": HumanPoints.Action.COMMUNITY_STAKING_TRUSTED,
