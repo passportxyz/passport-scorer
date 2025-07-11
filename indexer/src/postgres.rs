@@ -416,16 +416,16 @@ impl PostgresClient {
                 let chain: i32 = chain as i32;
                 client
                     .execute(
-                        &format!("INSERT INTO {} (address, action, timestamp, tx_hash, chain_id) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING", get_table_name("registry_humanpoints")),
-                        &[&address, &action, &timestamp, &tx_hash, &chain],
+                        &format!("INSERT INTO {} (address, action, timestamp, tx_hash, chain_id, provider) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING", get_table_name("registry_humanpoints")),
+                        &[&address, &action, &timestamp, &tx_hash, &chain, &""],
                     )
                     .await?;
             }
             None => {
                 client
                     .execute(
-                        &format!("INSERT INTO {} (address, action, timestamp, tx_hash) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING", get_table_name("registry_humanpoints")),
-                        &[&address, &action, &timestamp, &tx_hash],
+                        &format!("INSERT INTO {} (address, action, timestamp, tx_hash, chain_id, provider) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING", get_table_name("registry_humanpoints")),
+                        &[&address, &action, &timestamp, &tx_hash, &0, &""],
                     )
                     .await?;
             }
@@ -455,7 +455,7 @@ mod tests {
             ("999999999999999999", dec!(0.999999999999999999)),
             ("1000000000000000001", dec!(1.000000000000000001)),
         ];
-        
+
         for (wei_str, expected) in test_cases {
             let mut decimal = Decimal::from_str(wei_str).unwrap();
             decimal.set_scale(18).unwrap();
@@ -475,7 +475,7 @@ mod tests {
             ("0xAbCdEf1234567890123456789012345678901234", "0xabcdef1234567890123456789012345678901234"),
             ("already_lowercase", "already_lowercase"),
         ];
-        
+
         for (input, expected) in test_addresses {
             let normalized = input.to_lowercase();
             assert_eq!(normalized, expected);
