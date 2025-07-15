@@ -539,7 +539,8 @@ def handle_get_ui_score(
         possible_points_data = None
         if settings.HUMAN_POINTS_ENABLED and user_community.human_points_program:
             points_data = get_user_points_data(lower_address)
-            possible_points_data = get_possible_points_data()
+            multiplier = points_data.get("multiplier", 1)
+            possible_points_data = get_possible_points_data(multiplier)
 
         # Include human points for ceramic-cache endpoints
         return format_v2_score_response(
