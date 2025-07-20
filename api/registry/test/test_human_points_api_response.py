@@ -188,19 +188,19 @@ class TestHumanPointsAPIResponse:
             assert "points_data" in data
             points_data = data["points_data"]
 
-            # Verify points data structure
-            assert points_data["total_points"] == 1400  # (100 + 100) * 2 + 500 * 2
+            # Verify points data structure - now using raw points without multiplication
+            assert points_data["total_points"] == 700  # 100 + 100 + 500 (raw points)
             assert points_data["is_eligible"] is True  # passing_scores >= 1
             assert points_data["multiplier"] == 2
 
-            # Check breakdown structure
+            # Check breakdown structure - now using raw points without multiplication
             assert "breakdown" in points_data
             breakdown = points_data["breakdown"]
-            assert breakdown[HumanPoints.Action.HUMAN_KEYS] == 200  # 100 * 2
+            assert breakdown[HumanPoints.Action.HUMAN_KEYS] == 100  # raw points
             assert (
-                breakdown[HumanPoints.Action.IDENTITY_STAKING_BRONZE] == 200
-            )  # 100 * 2
-            assert breakdown[HumanPoints.Action.SCORING_BONUS] == 1000  # 500 * 2
+                breakdown[HumanPoints.Action.IDENTITY_STAKING_BRONZE] == 100
+            )  # raw points
+            assert breakdown[HumanPoints.Action.SCORING_BONUS] == 500  # raw points
 
     @patch("ceramic_cache.api.v1.settings.HUMAN_POINTS_ENABLED", True)
     def test_ceramic_cache_score_endpoint_includes_points_data_and_chain_id(
@@ -240,20 +240,20 @@ class TestHumanPointsAPIResponse:
             assert "points_data" in data
             points_data = data["points_data"]
 
-            # Verify points data structure
-            assert points_data["total_points"] == 900
+            # Verify points data structure - now using raw points without multiplication
+            assert points_data["total_points"] == 800  # 100*3 + 100 + 500 (raw points)
             assert points_data["is_eligible"] is True  # passing_scores >= 1
             assert points_data["multiplier"] == 1
 
-            # Check breakdown structure
+            # Check breakdown structure - now using raw points without multiplication
             assert "breakdown" in points_data
             breakdown = points_data["breakdown"]
-            assert breakdown[HumanPoints.Action.PASSPORT_MINT] == 300  # 300
-            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_1"] == 100  # 100
-            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_1"] == 100  # 100
-            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_1"] == 100  # 100
-            assert breakdown[HumanPoints.Action.IDENTITY_STAKING_BRONZE] == 100  # 100
-            assert breakdown[HumanPoints.Action.SCORING_BONUS] == 500  # 500
+            assert breakdown[HumanPoints.Action.PASSPORT_MINT] == 300  # 100*3 (raw points)
+            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_1"] == 100  # raw points
+            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_2"] == 100  # raw points
+            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_3"] == 100  # raw points
+            assert breakdown[HumanPoints.Action.IDENTITY_STAKING_BRONZE] == 100  # raw points
+            assert breakdown[HumanPoints.Action.SCORING_BONUS] == 500  # raw points
 
     @patch("ceramic_cache.api.v1.settings.HUMAN_POINTS_ENABLED", True)
     def test_points_data_for_non_eligible_address(
