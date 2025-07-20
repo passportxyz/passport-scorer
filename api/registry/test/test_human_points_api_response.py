@@ -241,19 +241,19 @@ class TestHumanPointsAPIResponse:
             points_data = data["points_data"]
 
             # Verify points data structure - now using raw points without multiplication
-            assert points_data["total_points"] == 800  # 100*3 + 100 + 500 (raw points)
+            assert points_data["total_points"] == 900 
             assert points_data["is_eligible"] is True  # passing_scores >= 1
             assert points_data["multiplier"] == 1
 
             # Check breakdown structure - now using raw points without multiplication
             assert "breakdown" in points_data
             breakdown = points_data["breakdown"]
-            assert breakdown[HumanPoints.Action.PASSPORT_MINT] == 300  # 100*3 (raw points)
-            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_1"] == 100  # raw points
-            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_2"] == 100  # raw points
-            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_3"] == 100  # raw points
-            assert breakdown[HumanPoints.Action.IDENTITY_STAKING_BRONZE] == 100  # raw points
-            assert breakdown[HumanPoints.Action.SCORING_BONUS] == 500  # raw points
+            assert breakdown[HumanPoints.Action.PASSPORT_MINT] == 300
+            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_1"] == 100
+            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_2"] == 100
+            assert breakdown[f"{HumanPoints.Action.PASSPORT_MINT}_3"] == 100
+            assert breakdown[HumanPoints.Action.IDENTITY_STAKING_BRONZE] == 100
+            assert breakdown[HumanPoints.Action.SCORING_BONUS] == 500 
 
     @patch("ceramic_cache.api.v1.settings.HUMAN_POINTS_ENABLED", True)
     def test_points_data_for_non_eligible_address(
