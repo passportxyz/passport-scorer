@@ -161,11 +161,10 @@ async def arecord_passing_score(address: str, community_id: int) -> None:
 def get_possible_points_data(multiplier: int) -> Dict:
     """
     Get user's total points with breakdown using raw SQL for efficiency.
-    Uses the provided multiplier to calculate the possible points.
     Returns total points, eligibility status, multiplier, and points breakdown.
     """
     possible_points_data_breakdown = {
-        c.action: (c.points * multiplier) for c in HumanPointsConfig.objects.all() if c.active
+        c.action: c.points for c in HumanPointsConfig.objects.all() if c.active
     }
     possible_points_data = {
         "total_points": 0,
@@ -173,5 +172,4 @@ def get_possible_points_data(multiplier: int) -> Dict:
         "is_eligible": False,
         "multiplier": multiplier,
     }
-
     return possible_points_data
