@@ -361,7 +361,7 @@ class TestHumanPointsIntegration:
             address=address, action=HumanPoints.Action.SCORING_BONUS
         )
 
-        # Calculate total with normalized approach
+        # Calculate total with normalized approach - now using raw points without multiplication
         actions = HumanPoints.objects.filter(address=address)
         multiplier = HumanPointsMultiplier.objects.get(address=address)
 
@@ -370,9 +370,9 @@ class TestHumanPointsIntegration:
             config = HumanPointsConfig.objects.get(
                 action=action_record.action, active=True
             )
-            total += config.points * multiplier.multiplier
+            total += config.points  # No multiplication
 
-        assert total == 1400  # (100 + 100) * 2 + 500 * 2
+        assert total == 700  # 100 + 100 + 500 (raw points)
 
     def test_check_eligibility(self, scorer_community):
         """Test checking if an address is eligible (has at least 1 passing score)"""

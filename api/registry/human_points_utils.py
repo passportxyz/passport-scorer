@@ -37,7 +37,7 @@ def get_user_points_data(address: str) -> Dict:
             hp.address,
             hp.action,
             hp.chain_id,
-            SUM(hpc.points * COALESCE(hpm.multiplier, 1)) as action_points,
+            SUM(hpc.points) as action_points,
             MAX(COALESCE(hpm.multiplier, 1)) as multiplier
         FROM registry_humanpoints hp
         INNER JOIN registry_humanpointsconfig hpc
