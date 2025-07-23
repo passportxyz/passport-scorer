@@ -102,7 +102,7 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
 
         if isinstance(nullifiers, list):
             for nullifier in nullifiers:
-                if nullifier and str(nullifier).startswith("v1"):
+                if nullifier and credential_subject.get("provider"):
                     objects_to_create.append(
                         HumanPoints(
                             address=address,
