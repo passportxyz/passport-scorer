@@ -340,7 +340,7 @@ impl UnifiedChainIndexer {
         }
 
         // Check if Human Points events should be filtered by timestamp
-        if let Some(start_timestamp) = self.human_points_start_timestamp {
+        if let Some(mut start_timestamp) = self.human_points_start_timestamp {
             if matches!(
                 contract_config.contract_type,
                 ContractType::PassportMint | ContractType::HumanIdMint
@@ -348,6 +348,11 @@ impl UnifiedChainIndexer {
                 // Get the block timestamp
                 let block_timestamp = self.get_timestamp_for_block(provider, block_number).await?;
                 
+                // For Human ID mints, we want to also include logs up to 1 year prior to human_points_start_timestamp
+                if matches!(contract_config.contract_type, ContractType::HumanIdMint) {
+                    start_timestamp -= 31536000;
+                }
+
                 if block_timestamp < start_timestamp as i64 {
                     // Skip this event - it's before Human Points activation
                     return Ok(());
