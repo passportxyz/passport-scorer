@@ -1,8 +1,5 @@
 """Utility functions for Human Points functionality"""
 
-import logging
-logger = logging.getLogger(__name__)
-
 from typing import Dict
 
 from django.db import connection
@@ -99,10 +96,13 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
     seen_actions = set()
 
     for stamp in valid_stamps:
-        # Check for Human Keys
         credential = stamp.get("credential", {})
         credential_subject = credential.get("credentialSubject", {})
         provider = stamp.get("provider") or credential_subject.get("provider")
+
+        action = STAMP_PROVIDER_TO_ACTION.get(provider)
+        if not action:
+            continue
 
         # Award 100 points per verified credential (not per nullifier)
         obj = HumanPoints(
@@ -117,17 +117,11 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
             seen_actions.add(key)
 
         # --- Staking credentials and other mapped actions ---
-        action = STAMP_PROVIDER_TO_ACTION.get(provider)
-        if action:
-            key2 = (address, action, provider)
-            obj2 = HumanPoints(address=address, action=action, tx_hash="", provider=provider or "")
-            if key2 not in seen_actions:
-                objects_to_create.append(obj2)
-                seen_actions.add(key2)
-        else:
-            logger.debug(f"Stamp ignored for address {address}: provider={provider}")
-            if provider:
-                logger.warning(f"Unmapped provider for Human Points: '{provider}' (address: {address})")
+        key2 = (address, action, provider)
+        obj2 = HumanPoints(address=address, action=action, tx_hash="", provider=provider or "")
+        if key2 not in seen_actions:
+            objects_to_create.append(obj2)
+            seen_actions.add(key2)
 
     # Bulk create all at once, let DB handle conflicts
     if objects_to_create:
