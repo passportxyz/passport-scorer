@@ -87,43 +87,44 @@ def get_user_points_data(address: str) -> Dict:
 
 async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
     """
-    Record Human Points actions based on valid stamps - optimized bulk version
+    Record Human Points actions based on valid stamps - now awards 100 points per verified credential (not per v1 nullifier).
     """
     from asgiref.sync import sync_to_async
 
     # Collect all HumanPoints objects to create
     objects_to_create = []
+    seen_actions = set()
 
     for stamp in valid_stamps:
-        # Check for Human Keys
         credential = stamp.get("credential", {})
         credential_subject = credential.get("credentialSubject", {})
-        nullifiers = credential_subject.get("nullifiers", [])
+        provider = stamp.get("provider") or credential_subject.get("provider")
 
-        if isinstance(nullifiers, list):
-            for nullifier in nullifiers:
-                if nullifier and str(nullifier).startswith("v1"):
-                    objects_to_create.append(
-                        HumanPoints(
-                            address=address,
-                            action=HumanPoints.Action.HUMAN_KEYS,
-                            tx_hash=nullifier,
-                            provider=credential_subject.get("provider"),
-                        )
-                    )
-                    break
-
-        # Check for provider-based actions
-        provider = stamp.get("provider")
         action = STAMP_PROVIDER_TO_ACTION.get(provider)
-        if action:
-            objects_to_create.append(
-                HumanPoints(address=address, action=action, tx_hash="")
-            )
+        if not action:
+            continue
+
+        # Award 100 points per verified credential (not per nullifier)
+        obj = HumanPoints(
+            address=address,
+            action=HumanPoints.Action.HUMAN_KEYS,
+            tx_hash=credential.get("issuanceDate", ""),  # Use issuanceDate for uniqueness
+            provider=provider or "",
+        )
+        key = (address, HumanPoints.Action.HUMAN_KEYS, provider, credential.get("issuanceDate", ""))
+        if key not in seen_actions:
+            objects_to_create.append(obj)
+            seen_actions.add(key)
+
+        # --- Staking credentials and other mapped actions ---
+        key2 = (address, action, provider)
+        obj2 = HumanPoints(address=address, action=action, tx_hash="", provider=provider or "")
+        if key2 not in seen_actions:
+            objects_to_create.append(obj2)
+            seen_actions.add(key2)
 
     # Bulk create all at once, let DB handle conflicts
     if objects_to_create:
-        # sync_to_async needed - Django doesn't provide async bulk_create
         await sync_to_async(HumanPoints.objects.bulk_create)(
             objects_to_create, ignore_conflicts=True
         )
