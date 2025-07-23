@@ -1,5 +1,8 @@
 """Utility functions for Human Points functionality"""
 
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import Dict
 
 from django.db import connection
