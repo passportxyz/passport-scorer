@@ -59,7 +59,7 @@ class TestHumanPointsScoringIntegration:
     @pytest.mark.asyncio
     @pytest.mark.django_db(transaction=True)
     async def test_human_keys_detection(self):
-        """Test that v1 nullifiers are correctly detected as Human Keys"""
+        """Test that Human Keys are awarded per credential, not per v1 nullifier"""
         # Create config for Human Keys
         await HumanPointsConfig.objects.aget_or_create(
             action=HumanPoints.Action.HUMAN_KEYS, defaults={"points": 100}
@@ -69,7 +69,7 @@ class TestHumanPointsScoringIntegration:
 
         # Test stamps with different nullifier configurations
         test_stamps = [
-            # Stamp with v1 nullifier - should be detected as Human Keys
+            # Stamp with v1 nullifier
             {
                 "provider": "anyProvider",
                 "credential": {
@@ -79,7 +79,7 @@ class TestHumanPointsScoringIntegration:
                     }
                 },
             },
-            # Stamp with only v0 nullifier - should NOT be detected
+            # Stamp with only v0 nullifier
             {
                 "provider": "anotherProvider",
                 "credential": {
@@ -87,7 +87,7 @@ class TestHumanPointsScoringIntegration:
                     "credentialSubject": {"nullifiers": ["v0:only_v0"]},
                 },
             },
-            # Stamp with no nullifiers - should NOT be detected
+            # Stamp with no nullifiers
             {
                 "provider": "providerWithoutNullifiers",
                 "credential": {"credentialSubject": {}},
@@ -97,18 +97,11 @@ class TestHumanPointsScoringIntegration:
         # Process stamps
         await arecord_stamp_actions(address, test_stamps)
 
-        # Check that only one Human Keys action was recorded
+        # Check that one Human Keys action is recorded per credential
         human_keys_actions = await HumanPoints.objects.filter(
             address=address, action=HumanPoints.Action.HUMAN_KEYS
         ).acount()
-
-        assert human_keys_actions == 1
-
-        # Verify the correct nullifier was stored
-        human_keys_record = await HumanPoints.objects.aget(
-            address=address, action=HumanPoints.Action.HUMAN_KEYS
-        )
-        assert human_keys_record.tx_hash == "v1:human_keys_nullifier"
+        assert human_keys_actions == len(test_stamps)
 
     @pytest.fixture
     def human_points_community(self, scorer_account):
@@ -232,9 +225,9 @@ class TestHumanPointsScoringIntegration:
             address=test_passport.address
         ).acount()
 
-        # Should have actions for human_keys, community_staking_beginner, and identity_staking_bronze
+        # Should have actions for each credential (Human Keys), community_staking_beginner, and identity_staking_bronze
         expected_actions = [
-            HumanPoints.Action.HUMAN_KEYS,
+            *[HumanPoints.Action.HUMAN_KEYS for _ in valid_stamps_data["stamps"]],
             HumanPoints.Action.COMMUNITY_STAKING_BEGINNER,
             HumanPoints.Action.IDENTITY_STAKING_BRONZE,
         ]
