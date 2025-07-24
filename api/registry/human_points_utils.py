@@ -102,13 +102,13 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
 
         if isinstance(nullifiers, list):
             for nullifier in nullifiers:
-                if nullifier and (str(nullifier).startswith("v1") or str(nullifier).startswith("v0")):
+                if nullifier and str(nullifier).startswith("v1"):
                     objects_to_create.append(
                         HumanPoints(
                             address=address,
                             action=HumanPoints.Action.HUMAN_KEYS,
                             tx_hash=nullifier,
-                            provider=credential_subject.get("provider") or "",
+                            provider=credential_subject.get("provider"),
                         )
                     )
                     break
