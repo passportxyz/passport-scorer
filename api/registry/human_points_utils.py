@@ -108,7 +108,7 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
                             address=address,
                             action=HumanPoints.Action.HUMAN_KEYS,
                             tx_hash=nullifier,
-                            provider=credential_subject.get("provider"),
+                            provider=credential_subject.get("provider") or "",
                         )
                     )
                     break
