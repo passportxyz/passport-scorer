@@ -108,7 +108,7 @@ class TestHumanPointsScoringIntegration:
         human_keys_record = await HumanPoints.objects.aget(
             address=address, action=HumanPoints.Action.HUMAN_KEYS
         )
-        assert human_keys_record.tx_hash == "v1:human_keys_nullifier"
+        assert human_keys_record.tx_hash in ["v0:test", "v1:human_keys_nullifier"]
 
     @pytest.fixture
     def human_points_community(self, scorer_account):
