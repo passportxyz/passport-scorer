@@ -89,6 +89,7 @@ def get_user_points_data(address: str) -> Dict:
 async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
     """
     Record Human Points actions based on valid stamps - optimized bulk version
+    Uses provider as key for deduplication since nullifiers can rotate after 6 months
     """
     from asgiref.sync import sync_to_async
 
@@ -100,43 +101,40 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
         credential = stamp.get("credential", {})
         credential_subject = credential.get("credentialSubject", {})
         nullifiers = credential_subject.get("nullifiers", [])
+        provider = credential_subject.get("provider")
 
-        if isinstance(nullifiers, list):
+        if isinstance(nullifiers, list) and provider:
             has_nullifiers = False
-            should_append = False
-            nullifier_to_append = None
             
-            # Check all nullifiers first to see if any already exist
-            # For example: if we have ["v0:abc", "v1:def"], we check both before appending
-            existing_nullifiers = set()
+            # Check if any nullifiers exist
             for nullifier in nullifiers:
                 if nullifier and (str(nullifier).startswith("v1") or str(nullifier).startswith("v0")):
                     has_nullifiers = True
-                    # Check if this nullifier already exists in the database
-                    existing_record = await HumanPoints.objects.filter(
-                        address=address,
-                        action=HumanPoints.Action.HUMAN_KEYS,
-                        tx_hash=nullifier
-                    ).afirst()
-                    
-                    if existing_record:
-                        existing_nullifiers.add(nullifier)
+                    break
             
-            # Only append if we have nullifiers and none of them exist in the database
-            # This ensures we don't create duplicate entries even if some nullifiers already exist
-            if has_nullifiers and len(existing_nullifiers) == 0:
-                # Use the first v1 nullifier, or first v0 nullifier if no v1 exists
-                for nullifier in nullifiers:
-                    if nullifier and (str(nullifier).startswith("v1") or str(nullifier).startswith("v0")):
-                        objects_to_create.append(
-                            HumanPoints(
-                                address=address,
-                                action=HumanPoints.Action.HUMAN_KEYS,
-                                tx_hash=nullifier,
-                                provider=credential_subject.get("provider") or "",
+            # Only process if we have nullifiers
+            if has_nullifiers:
+                # Check if this provider already exists in the database for this address
+                existing_record = await HumanPoints.objects.filter(
+                    address=address,
+                    action=HumanPoints.Action.HUMAN_KEYS,
+                    provider=provider
+                ).afirst()
+                
+                # Only create if no existing record for this provider
+                if not existing_record:
+                    # Use the v0 or v1 nullifier
+                    for nullifier in nullifiers:
+                        if nullifier and (str(nullifier).startswith("v0") or str(nullifier).startswith("v1")):
+                            objects_to_create.append(
+                                HumanPoints(
+                                    address=address,
+                                    action=HumanPoints.Action.HUMAN_KEYS,
+                                    tx_hash=nullifier,
+                                    provider=provider,
+                                )
                             )
-                        )
-                        break  # Only append one action per stamp
+                            break  # Only append one action per stamp
 
         # Check for provider-based actions only if there are no nullifiers
         if not has_nullifiers:
