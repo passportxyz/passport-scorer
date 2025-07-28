@@ -136,14 +136,14 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
                             )
                             break  # Only append one action per stamp
 
-        # Check for provider-based actions only if there are no nullifiers
-        if not has_nullifiers:
-            provider = stamp.get("provider")
-            action = STAMP_PROVIDER_TO_ACTION.get(provider)
-            if action:
-                objects_to_create.append(
-                    HumanPoints(address=address, action=action, tx_hash="")
-                )
+        # Check for provider-based actions
+        provider = stamp.get("provider")
+        action = STAMP_PROVIDER_TO_ACTION.get(provider)
+        if action:
+            objects_to_create.append(
+                HumanPoints(address=address, action=action, tx_hash="")
+            )
+
 
     # Bulk create all at once, let DB handle conflicts
     if objects_to_create:
