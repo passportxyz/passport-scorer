@@ -83,8 +83,10 @@ class TestHumanPointsScoringIntegration:
             {
                 "provider": "anotherProvider",
                 "credential": {
-                    "provider": "anotherProvider",
-                    "credentialSubject": {"nullifiers": ["v0:only_v0"]},
+                    "credentialSubject": {
+                        "provider": "anotherProvider",
+                        "nullifiers": ["v0:only_v0"]
+                    },
                 },
             },
             # Stamp with no nullifiers - should NOT be detected
