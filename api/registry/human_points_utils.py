@@ -101,20 +101,42 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
         credential_subject = credential.get("credentialSubject", {})
         nullifiers = credential_subject.get("nullifiers", [])
 
-        has_nullifiers = False
         if isinstance(nullifiers, list):
+            has_nullifiers = False
+            should_append = False
+            nullifier_to_append = None
+            
+            # Check all nullifiers first to see if any already exist
+            # For example: if we have ["v0:abc", "v1:def"], we check both before appending
+            existing_nullifiers = set()
             for nullifier in nullifiers:
                 if nullifier and (str(nullifier).startswith("v1") or str(nullifier).startswith("v0")):
-                    objects_to_create.append(
-                        HumanPoints(
-                            address=address,
-                            action=HumanPoints.Action.HUMAN_KEYS,
-                            tx_hash=nullifier,
-                            provider=credential_subject.get("provider") or "",
-                        )
-                    )
                     has_nullifiers = True
-                    break
+                    # Check if this nullifier already exists in the database
+                    existing_record = await HumanPoints.objects.filter(
+                        address=address,
+                        action=HumanPoints.Action.HUMAN_KEYS,
+                        tx_hash=nullifier
+                    ).afirst()
+                    
+                    if existing_record:
+                        existing_nullifiers.add(nullifier)
+            
+            # Only append if we have nullifiers and none of them exist in the database
+            # This ensures we don't create duplicate entries even if some nullifiers already exist
+            if has_nullifiers and len(existing_nullifiers) == 0:
+                # Use the first v1 nullifier, or first v0 nullifier if no v1 exists
+                for nullifier in nullifiers:
+                    if nullifier and (str(nullifier).startswith("v1") or str(nullifier).startswith("v0")):
+                        objects_to_create.append(
+                            HumanPoints(
+                                address=address,
+                                action=HumanPoints.Action.HUMAN_KEYS,
+                                tx_hash=nullifier,
+                                provider=credential_subject.get("provider") or "",
+                            )
+                        )
+                        break  # Only append one action per stamp
 
         # Check for provider-based actions only if there are no nullifiers
         if not has_nullifiers:
