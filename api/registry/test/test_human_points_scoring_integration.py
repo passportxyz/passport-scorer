@@ -232,11 +232,10 @@ class TestHumanPointsScoringIntegration:
             address=test_passport.address
         ).acount()
 
-        # Should have actions for human_keys, community_staking_beginner, and identity_staking_bronze
+        # Should have only HUMAN_KEYS action from the stamp with v1 nullifier
+        # Provider-based actions are no longer recorded in the current implementation
         expected_actions = [
             HumanPoints.Action.HUMAN_KEYS,
-            HumanPoints.Action.COMMUNITY_STAKING_BEGINNER,
-            HumanPoints.Action.IDENTITY_STAKING_BRONZE,
         ]
 
         assert actions == len(expected_actions)
