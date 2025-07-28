@@ -101,9 +101,9 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
         credential = stamp.get("credential", {})
         credential_subject = credential.get("credentialSubject", {})
         nullifiers = credential_subject.get("nullifiers", [])
-        provider = credential_subject.get("provider")
+        credential_provider = credential_subject.get("provider")
 
-        if isinstance(nullifiers, list) and provider:
+        if isinstance(nullifiers, list) and credential_provider:
             has_nullifiers = False
             
             # Check if any nullifiers exist
@@ -118,7 +118,7 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
                 existing_record = await HumanPoints.objects.filter(
                     address=address,
                     action=HumanPoints.Action.HUMAN_KEYS,
-                    provider=provider
+                    provider=credential_provider
                 ).afirst()
                 
                 # Only create if no existing record for this provider
@@ -131,14 +131,14 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
                                     address=address,
                                     action=HumanPoints.Action.HUMAN_KEYS,
                                     tx_hash=nullifier,
-                                    provider=provider,
+                                    provider=credential_provider,
                                 )
                             )
                             break  # Only append one action per stamp
 
         # Check for provider-based actions
-        provider = stamp.get("provider")
-        action = STAMP_PROVIDER_TO_ACTION.get(provider)
+        stamp_provider = stamp.get("provider")
+        action = STAMP_PROVIDER_TO_ACTION.get(stamp_provider)
         if action:
             objects_to_create.append(
                 HumanPoints(address=address, action=action, tx_hash="")
