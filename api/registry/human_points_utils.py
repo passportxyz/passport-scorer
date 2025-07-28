@@ -102,24 +102,25 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
 
         if isinstance(nullifiers, list):
             for nullifier in nullifiers:
-                if nullifier and str(nullifier).startswith("v1"):
+                if nullifier and (str(nullifier).startswith("v1") or str(nullifier).startswith("v0")):
                     objects_to_create.append(
                         HumanPoints(
                             address=address,
                             action=HumanPoints.Action.HUMAN_KEYS,
                             tx_hash=nullifier,
-                            provider=credential_subject.get("provider"),
+                            provider=credential_subject.get("provider") or "",
                         )
                     )
                     break
 
-        # Check for provider-based actions
-        provider = stamp.get("provider")
-        action = STAMP_PROVIDER_TO_ACTION.get(provider)
-        if action:
-            objects_to_create.append(
-                HumanPoints(address=address, action=action, tx_hash="")
-            )
+        # NOTE: as we are checking for v0 and v1 nullifiers, we don't need to check for provider-based actions anymore
+        # # Check for provider-based actions
+        # provider = stamp.get("provider")
+        # action = STAMP_PROVIDER_TO_ACTION.get(provider)
+        # if action:
+        #     objects_to_create.append(
+        #         HumanPoints(address=address, action=action, tx_hash="")
+        #     )
 
     # Bulk create all at once, let DB handle conflicts
     if objects_to_create:
