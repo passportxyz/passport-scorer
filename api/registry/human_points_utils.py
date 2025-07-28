@@ -45,6 +45,7 @@ def get_user_points_data(address: str) -> Dict:
         LEFT JOIN registry_humanpointsmultiplier hpm
             ON hp.address = hpm.address
         WHERE hp.address = %s
+            AND hp.action != 'HIM'
         GROUP BY hp.address, hp.action, hp.chain_id
     """
 
