@@ -101,20 +101,13 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
         credential = stamp.get("credential", {})
         credential_subject = credential.get("credentialSubject", {})
         nullifiers = credential_subject.get("nullifiers", [])
-        credential_provider = credential_subject.get("provider")
-
-        if isinstance(nullifiers, list) and credential_provider:
-            has_nullifiers = False
+        
+        # Process Human Keys if we have at least one valid nullifier and a provider
+        if isinstance(nullifiers, list) and any(nullifiers):
+            credential_provider = credential_subject.get("provider")
             
-            # Check if any nullifiers exist
-            for nullifier in nullifiers:
-                if nullifier and (str(nullifier).startswith("v1") or str(nullifier).startswith("v0")):
-                    has_nullifiers = True
-                    break
-            
-            # Only process if we have nullifiers
-            if has_nullifiers:
-                # Check if this provider already exists in the database for this address
+            if credential_provider:
+                # Check if this provider already exists in the database
                 existing_record = await HumanPoints.objects.filter(
                     address=address,
                     action=HumanPoints.Action.HUMAN_KEYS,
@@ -123,18 +116,17 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
                 
                 # Only create if no existing record for this provider
                 if not existing_record:
-                    # Use the v0 or v1 nullifier
-                    for nullifier in nullifiers:
-                        if nullifier and (str(nullifier).startswith("v0") or str(nullifier).startswith("v1")):
-                            objects_to_create.append(
-                                HumanPoints(
-                                    address=address,
-                                    action=HumanPoints.Action.HUMAN_KEYS,
-                                    tx_hash=nullifier,
-                                    provider=credential_provider,
-                                )
+                    # Use the latest valid nullifier (last one in array)
+                    latest_nullifier = next((n for n in reversed(nullifiers) if n), None)
+                    if latest_nullifier:
+                        objects_to_create.append(
+                            HumanPoints(
+                                address=address,
+                                action=HumanPoints.Action.HUMAN_KEYS,
+                                tx_hash=latest_nullifier,
+                                provider=credential_provider,
                             )
-                            break  # Only append one action per stamp
+                        )
 
         # Check for provider-based actions
         stamp_provider = stamp.get("provider")
