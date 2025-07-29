@@ -147,7 +147,7 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
 
 async def acheck_and_award_scoring_bonus(address: str, community_id: int) -> bool:
     """
-    Check if user qualifies for scoring bonus (3+ passing scores)
+    Check if user qualifies for scoring bonus (4+ passing scores)
     Returns True if bonus was newly awarded
     """
     # Check current passing scores count
@@ -156,7 +156,7 @@ async def acheck_and_award_scoring_bonus(address: str, community_id: int) -> boo
     ).acount()
 
     # Award bonus if qualified (let DB handle conflicts)
-    if qualified_count >= 3:
+    if qualified_count >= 4:
         _, created = await HumanPoints.objects.aget_or_create(
             address=address, action=HumanPoints.Action.SCORING_BONUS
         )
