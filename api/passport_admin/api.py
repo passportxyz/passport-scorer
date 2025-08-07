@@ -72,6 +72,7 @@ def get_banners(request, application: Optional[str] = "passport"):
                 link=b.link,
                 banner_id=b.pk,
                 application=b.application,
+                display_on_all_dashboards=b.display_on_all_dashboards,
             )
             for b in banners
         ]
