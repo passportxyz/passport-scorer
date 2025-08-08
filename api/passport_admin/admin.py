@@ -26,9 +26,9 @@ class PassportAdmin(admin.ModelAdmin):
     Admin class for PassportBanner.
     """
 
-    list_display = ("content", "link", "is_active", "application")
+    list_display = ("content", "link", "is_active", "application", "display_on_all_dashboards")
     search_fields = ("content", "is_active", "link")
-    list_filter = ("is_active", "application")
+    list_filter = ("is_active", "application", "display_on_all_dashboards")
 
 
 # ScorerModelAdmin

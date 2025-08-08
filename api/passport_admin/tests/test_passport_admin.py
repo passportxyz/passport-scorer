@@ -29,6 +29,7 @@ class TestPassPortAdmin:
                 "banner_id": banner.id,
                 "content": "test",
                 "link": "test",
+                "display_on_all_dashboards": True,
             }
         ]
 
@@ -49,6 +50,7 @@ class TestPassPortAdmin:
                 "banner_id": banner_passport.id,
                 "content": "test",
                 "link": "test",
+                "display_on_all_dashboards": True,
             }
         ]
         # Test getting staking banners
@@ -63,6 +65,7 @@ class TestPassPortAdmin:
                 "banner_id": banner_staking.id,
                 "content": "test_staking",
                 "link": "test_staking_link",
+                "display_on_all_dashboards": True,
             }
         ]
 

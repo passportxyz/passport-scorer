@@ -28,6 +28,10 @@ class PassportBanner(models.Model):
         default="passport",
         db_index=True,
     )
+    display_on_all_dashboards = models.BooleanField(
+        default=True,
+        help_text="When checked, this banner will be displayed on all Passport App dashboards (including custom dashboards). When unchecked, this banner will only be displayed on the standard Passport App dashboard and will not appear in custom dashboards."
+    )
 
 
 class DismissedBanners(models.Model):

@@ -14,6 +14,7 @@ class Banner(Schema):
     link: Optional[str] = None
     banner_id: int
     application: str = "passport"
+    display_on_all_dashboards: bool = True
 
 
 class NotificationSchema(Schema):
