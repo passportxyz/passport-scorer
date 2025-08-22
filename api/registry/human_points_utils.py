@@ -2,9 +2,11 @@
 
 from typing import Dict
 
+from django.conf import settings
 from django.db import connection
 from django.db.models import F
 
+from account.models import AddressList
 from registry.models import (
     HumanPoints,
     HumanPointsCommunityQualifiedUsers,
@@ -101,23 +103,25 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
         credential = stamp.get("credential", {})
         credential_subject = credential.get("credentialSubject", {})
         nullifiers = credential_subject.get("nullifiers", [])
-        
+
         # Process Human Keys if we have at least one valid nullifier and a provider
         if isinstance(nullifiers, list) and any(nullifiers):
             credential_provider = credential_subject.get("provider")
-            
+
             if credential_provider:
                 # Check if this provider already exists in the database
                 existing_record = await HumanPoints.objects.filter(
                     address=address,
                     action=HumanPoints.Action.HUMAN_KEYS,
-                    provider=credential_provider
+                    provider=credential_provider,
                 ).afirst()
-                
+
                 # Only create if no existing record for this provider
                 if not existing_record:
                     # Use the latest valid nullifier (last one in array)
-                    latest_nullifier = next((n for n in reversed(nullifiers) if n), None)
+                    latest_nullifier = next(
+                        (n for n in reversed(nullifiers) if n), None
+                    )
                     if latest_nullifier:
                         objects_to_create.append(
                             HumanPoints(
@@ -135,7 +139,6 @@ async def arecord_stamp_actions(address: str, valid_stamps: list) -> None:
             objects_to_create.append(
                 HumanPoints(address=address, action=action, tx_hash="")
             )
-
 
     # Bulk create all at once, let DB handle conflicts
     if objects_to_create:
@@ -189,3 +192,31 @@ def get_possible_points_data(multiplier: int) -> Dict:
         "multiplier": multiplier,
     }
     return possible_points_data
+
+
+async def acheck_and_award_misc_points(address: str):
+    """
+    Check and award miscellaneous points (MetaMask OG, etc.) for qualifying addresses.
+
+    Args:
+        address: The address to check for eligibility
+    """
+    # Award MetaMask OG points if on list (limit 5000)
+    if settings.HUMAN_POINTS_MTA_ENABLED:
+        try:
+            mta_list = await AddressList.objects.aget(name="MetaMaskOG")
+            # Check if address is on the list (case-insensitive)
+            if await mta_list.addresses.filter(address=address.lower()).aexists():
+                # Check if we've already awarded 5000 MetaMask OG points
+                mta_count = await HumanPoints.objects.filter(
+                    action=HumanPoints.Action.METAMASK_OG
+                ).acount()
+
+                if mta_count < 5000:
+                    # Award MetaMask OG points (will create or get existing)
+                    await HumanPoints.objects.aget_or_create(
+                        address=address.lower(), action=HumanPoints.Action.METAMASK_OG
+                    )
+        except AddressList.DoesNotExist:
+            # MetaMask OG list doesn't exist yet, skip MetaMask OG points
+            pass
