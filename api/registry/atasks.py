@@ -14,6 +14,7 @@ from account.models import AccountAPIKeyAnalytics, Community, Rules
 from reader.passport_reader import aget_passport, get_did
 from registry.exceptions import NoPassportException
 from registry.human_points_utils import (
+    acheck_and_award_misc_points,
     acheck_and_award_scoring_bonus,
     arecord_passing_score,
     arecord_stamp_actions,
@@ -257,7 +258,8 @@ async def ascore_passport(
             settings.HUMAN_POINTS_ENABLED
             and community.human_points_program
             and score.score == Decimal("1")
-            and datetime.now(timezone.utc).timestamp() >= settings.HUMAN_POINTS_START_TIMESTAMP
+            and datetime.now(timezone.utc).timestamp()
+            >= settings.HUMAN_POINTS_START_TIMESTAMP
         ):
             # Record passing score for this community
             await arecord_passing_score(address, community.pk)
@@ -269,6 +271,9 @@ async def ascore_passport(
 
             # Check and award scoring bonus if qualified
             await acheck_and_award_scoring_bonus(address, community.pk)
+
+            # Check and award miscellaneous points (MetaMask OG, etc.)
+            await acheck_and_award_misc_points(address)
 
     except APIException as e:
         log.error(
