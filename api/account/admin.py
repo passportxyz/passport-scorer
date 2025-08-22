@@ -1,3 +1,4 @@
+import codecs
 import csv
 import json
 from math import exp
