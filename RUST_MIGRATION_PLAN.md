@@ -7,6 +7,10 @@ endpoint `/v2/stamps/{scorerId}/score/{address}` to a high-performance Rust
 implementation. The migration aims to achieve 10-100x performance improvement
 while maintaining full compatibility with the existing system.
 
+**Important**: This POC maintains exact database operation parity with Python
+to ensure accurate performance comparison. All DB reads/writes match Django's
+patterns to isolate Rust/Python language performance differences.
+
 ### Key Benefits
 - **Response time**: 500-2000ms → 100-150ms
 - **Cold starts**: 2-5 seconds → 50ms (AWS Lambda)
@@ -44,18 +48,35 @@ The `/v2/stamps/{scorerId}/score/{address}` endpoint:
 5. **Persists results** to multiple database tables
 6. **Returns score and stamp data** to the client
 
+### Simplifications from Python Implementation
+
+1. **Nullifiers Only**: Only support `credentialSubject.nullifiers` array field (no legacy `hash` field)
+2. **No Feature Flags**: Always process all nullifiers (no FF_MULTI_NULLIFIER filtering)
+3. **Required Array**: All credentials must have 1+ nullifiers in the array
+4. **Django Compatibility**: Must write exact same data to existing Django tables
+
 ### Database Operations
 
 #### Tables Involved
 - `ceramic_cache` - Source of user credentials (READ)
+  - Filter: `deleted_at IS NULL AND revocation IS NULL`
+  - Select latest stamp per provider by `updated_at`
 - `registry_passport` - User passport records (WRITE)
+  - Upsert with `ON CONFLICT (address, community_id)`
 - `registry_stamp` - Validated stamps per passport (WRITE)
+  - DELETE all, then bulk INSERT new stamps
 - `registry_score` - Calculated scores (WRITE)
+  - Must populate: score, status, evidence, stamp_scores, stamps, expiration_date
+  - See "Django Compatibility" section for exact field formats
 - `registry_hashscorerlink` - Deduplication tracking (READ/WRITE)
+  - Bulk upsert with retry logic for concurrent requests
 - `registry_event` - Event tracking for audit (WRITE)
+  - LIFO_DEDUPLICATION events for clashing stamps
+  - SCORE_UPDATE event (must be created after score save)
 - `account_apikey` - API authentication (READ)
 - `account_community` - Community settings (READ)
 - `scorer_weighted_binaryweightedscorer` - Scoring weights (READ)
+- `account_customization` - Custom weights per community (READ)
 - `human_points_passingscorerecord` - Human points tracking (WRITE)
 - `human_points_stampaction` - Stamp verification tracking (WRITE)
 - `human_points_bonusaward` - Bonus points awards (WRITE)
@@ -114,6 +135,165 @@ aws-config = "1.0"
 aws-sdk-cloudwatch = "1.0"
 ```
 
+### Clean Internal Models Architecture
+
+To facilitate future migration to the simplified data architecture while maintaining Django compatibility, 
+the implementation uses clean internal models with translation layers:
+
+```rust
+// Clean internal models aligned with future architecture
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StampData {
+    provider: String,
+    credential: Value,
+    nullifiers: Vec<String>,
+    expires_at: DateTime<Utc>,
+    weight: Decimal,
+    was_deduped: bool,
+}
+
+#[derive(Debug)]
+struct ScoringResult {
+    address: String,
+    community_id: i32,
+    binary_score: Decimal,
+    raw_score: Decimal,  
+    threshold: Decimal,
+    valid_stamps: Vec<StampData>,
+    deduped_stamps: Vec<StampData>,
+    expires_at: Option<DateTime<Utc>>,
+    timestamp: DateTime<Utc>,
+}
+
+// V2 API Response types (matching Python schema)
+#[derive(Serialize)]
+struct V2StampScoreResponse {
+    score: String,
+    dedup: bool,
+    expiration_date: Option<String>,
+}
+
+#[derive(Serialize)]
+struct V2ScoreResponse {
+    address: String,
+    score: Option<String>,  // Formatted with 5 decimals
+    passing_score: bool,
+    threshold: String,  // Formatted with 5 decimals
+    last_score_timestamp: Option<String>,
+    expiration_timestamp: Option<String>,
+    error: Option<String>,
+    stamps: HashMap<String, V2StampScoreResponse>,
+    // Optional fields for Human Points
+    // points_data: Option<PointsData>,
+    // possible_points_data: Option<PointsData>,
+}
+
+// Translation layer for Django compatibility
+impl ScoringResult {
+    // Convert to V2 API response format
+    fn to_v2_response(&self) -> V2ScoreResponse {
+        let mut stamps = HashMap::new();
+        
+        // Add valid stamps with their weights
+        for stamp in &self.valid_stamps {
+            stamps.insert(stamp.provider.clone(), V2StampScoreResponse {
+                score: format!("{:.5}", stamp.weight),
+                dedup: false,
+                expiration_date: Some(stamp.expires_at.to_rfc3339()),
+            });
+        }
+        
+        // Add deduped stamps with zero score
+        for stamp in &self.deduped_stamps {
+            stamps.insert(stamp.provider.clone(), V2StampScoreResponse {
+                score: "0.00000".to_string(),
+                dedup: true,
+                expiration_date: Some(stamp.expires_at.to_rfc3339()),
+            });
+        }
+        
+        V2ScoreResponse {
+            address: self.address.clone(),
+            score: Some(format!("{:.5}", self.binary_score)),
+            passing_score: self.binary_score >= Decimal::from(1),
+            threshold: format!("{:.5}", self.threshold),
+            last_score_timestamp: Some(self.timestamp.to_rfc3339()),
+            expiration_timestamp: self.expires_at.map(|t| t.to_rfc3339()),
+            error: None,
+            stamps,
+        }
+    }
+    
+    // Convert to Django database fields
+    fn to_django_score_fields(&self) -> DjangoScoreFields {
+        let mut stamp_scores = HashMap::new();
+        
+        // Only valid stamps go in stamp_scores (for scoring logic)
+        for stamp in &self.valid_stamps {
+            stamp_scores.insert(stamp.provider.clone(), stamp.weight.to_f64().unwrap());
+        }
+        
+        DjangoScoreFields {
+            score: self.binary_score,
+            status: "DONE".to_string(),
+            last_score_timestamp: self.timestamp,
+            expiration_date: self.expires_at,
+            error: None,
+            evidence: json!({
+                "type": "ThresholdScoreCheck",
+                "success": self.binary_score == Decimal::from(1),
+                "rawScore": self.raw_score.to_string(),
+                "threshold": self.threshold.to_string()
+            }),
+            stamp_scores: serde_json::to_value(stamp_scores).unwrap(),
+            stamps: self.to_v2_response().stamps, // Reuse V2 format
+        }
+    }
+    
+    // Future: Convert to single event row for new architecture
+    fn to_scoring_event(&self) -> ScoringEvent {
+        ScoringEvent {
+            address: self.address.clone(),
+            community_id: self.community_id,
+            score: self.binary_score,
+            threshold: self.threshold,
+            raw_score: self.raw_score,
+            stamps_snapshot: json!({
+                "valid": &self.valid_stamps,
+                "deduped": &self.deduped_stamps,
+            }),
+            weights: self.valid_stamps.iter()
+                .map(|s| (s.provider.clone(), s.weight))
+                .collect(),
+            expires_at: self.expires_at,
+            timestamp: self.timestamp,
+            scorer_version: env!("CARGO_PKG_VERSION"),
+        }
+    }
+}
+
+// Future architecture types (for dual-writing preparation)
+#[derive(Debug)]
+struct ScoringEvent {
+    address: String,
+    community_id: i32,
+    score: Decimal,
+    threshold: Decimal,
+    raw_score: Decimal,
+    stamps_snapshot: Value,
+    weights: HashMap<String, Decimal>,
+    expires_at: Option<DateTime<Utc>>,
+    timestamp: DateTime<Utc>,
+    scorer_version: String,
+}
+```
+
+This clean model architecture provides:
+1. **Separation of concerns** - Core logic works with clean models, not Django quirks
+2. **Future-ready** - Easy transition to event-driven architecture
+3. **Type safety** - Rust's type system ensures correct transformations
+4. **Single source of truth** - One model generates all output formats
+
 ### Database Connection with RDS Proxy
 
 ```rust
@@ -141,6 +321,24 @@ async fn get_pool() -> Result<&'static PgPool> {
     Ok(DB_POOL.get().unwrap())
 }
 ```
+
+### Django Compatibility Requirements
+
+The clean internal models translate to Django's expected table formats. The `DjangoScoreFields` struct 
+shows the exact fields that must be populated in the `registry_score` table:
+
+#### Critical Django Behaviors to Maintain
+
+1. **Score Update Event**: Django creates SCORE_UPDATE event via pre_save signal when status="DONE"
+   - Rust must manually create this event after saving score
+
+2. **Deduped Stamps in Response**: 
+   - Appear in `stamps` dict with score="0.00000" and dedup=true
+   - Do NOT appear in `stamp_scores` or have weight=0
+
+3. **Provider Deduplication in Scoring**:
+   - Only first stamp per provider contributes weight
+   - Subsequent stamps with same provider get score=0
 
 ### Core Scoring Logic
 
@@ -176,7 +374,7 @@ async fn validate_api_key(
 }
 ```
 
-#### 2. Credential Validation
+#### 2. Credential Validation (Simplified)
 ```rust
 async fn validate_credentials_batch(
     credentials: &[CeramicCacheRow],
@@ -185,7 +383,7 @@ async fn validate_credentials_batch(
     use didkit::{VerifiableCredential, DIDKit};
     
     let mut valid_stamps = Vec::new();
-    let did = format!("did:pkh:eip155:1:{}", address);
+    let did = format!("did:pkh:eip155:1:{}", address.to_lowercase());
     
     for cred in credentials {
         let vc: VerifiableCredential = 
@@ -196,14 +394,48 @@ async fn validate_credentials_batch(
             continue;
         }
         
+        // Verify issuer is trusted
+        if !TRUSTED_IAM_ISSUERS.contains(&vc.issuer) {
+            continue;
+        }
+        
+        // Validate required fields
+        let cs = &vc.credential_subject;
+        
+        // IMPORTANT: Only support nullifiers array (no hash field)
+        let nullifiers = cs.get("nullifiers")
+            .and_then(|n| n.as_array())
+            .ok_or("Missing nullifiers array")?;
+        
+        if nullifiers.is_empty() {
+            continue; // Must have at least 1 nullifier
+        }
+        
+        // Verify DID matches
+        if cs.get("id").and_then(|id| id.as_str())
+            .map(|id| id.to_lowercase() != did)
+            .unwrap_or(true) {
+            continue;
+        }
+        
         // Verify credential signature/proof using didkit
-        let verification = 
-            DIDKit::verify_credential(&vc, None).await?;
-        if verification.errors.is_empty() {
+        let verification = DIDKit::verify_credential(
+            &json!(vc).to_string(),
+            r#"{"proofPurpose":"assertionMethod"}"#
+        ).await?;
+        
+        let verification: serde_json::Value = 
+            serde_json::from_str(&verification)?;
+        
+        if verification["errors"].as_array()
+            .map(|e| e.is_empty()).unwrap_or(false) {
             valid_stamps.push(ValidStamp {
-                provider: cred.provider.clone(),
+                provider: cs["provider"].as_str().unwrap().to_string(),
                 credential: cred.stamp.clone(),
-                nullifiers: extract_nullifiers(&vc),
+                nullifiers: nullifiers.iter()
+                    .filter_map(|n| n.as_str())
+                    .map(|s| s.to_string())
+                    .collect(),
                 expires_at: vc.expiration_date,
             });
         }
@@ -213,7 +445,7 @@ async fn validate_credentials_batch(
 }
 ```
 
-#### 3. LIFO Deduplication
+#### 3. LIFO Deduplication (Simplified - Nullifiers Only)
 ```rust
 async fn lifo_dedup(
     stamps: &[ValidStamp],
@@ -221,7 +453,28 @@ async fn lifo_dedup(
     community_id: i32,
     tx: &mut Transaction<'_, Postgres>
 ) -> Result<(Vec<ValidStamp>, HashMap<String, StampInfo>)> {
-    // Extract all nullifiers from stamps
+    const MAX_RETRIES: u8 = 5;
+    let mut retry_count = 0;
+    
+    loop {
+        match lifo_dedup_attempt(stamps, address, community_id, tx).await {
+            Ok(result) => return Ok(result),
+            Err(e) if is_integrity_error(&e) && retry_count < MAX_RETRIES => {
+                retry_count += 1;
+                continue; // Retry on concurrent hash link conflicts
+            }
+            Err(e) => return Err(e),
+        }
+    }
+}
+
+async fn lifo_dedup_attempt(
+    stamps: &[ValidStamp],
+    address: &str,
+    community_id: i32,
+    tx: &mut Transaction<'_, Postgres>
+) -> Result<(Vec<ValidStamp>, HashMap<String, StampInfo>)> {
+    // Extract ALL nullifiers from stamps (no filtering)
     let all_nullifiers: Vec<String> = stamps
         .iter()
         .flat_map(|s| s.nullifiers.clone())
@@ -240,59 +493,101 @@ async fn lifo_dedup(
     .fetch_all(&mut **tx)
     .await?;
     
-    // Identify clashing hashes 
-    // (owned by other addresses and not expired)
+    let now = Utc::now();
     let mut clashing_hashes = HashSet::new();
+    let mut expired_hashes = HashSet::new();
+    let mut owned_hashes = HashSet::new();
+    
     for link in &existing_links {
-        if link.address != address 
-            && link.expires_at > Utc::now() {
+        if link.address == address {
+            owned_hashes.insert(link.hash.clone());
+        } else if link.expires_at > now {
             clashing_hashes.insert(link.hash.clone());
+        } else {
+            expired_hashes.insert(link.hash.clone());
         }
     }
     
-    // Filter stamps and prepare hash links for bulk insert
     let mut deduped_stamps = Vec::new();
     let mut clashing_stamps_map = HashMap::new();
-    let mut hash_link_data = Vec::new();
+    let mut hash_links_to_create = Vec::new();
+    let mut hash_links_to_update = Vec::new();
     
     for stamp in stamps {
-        let has_clash = stamp.nullifiers
+        // Stamp is deduped if ANY nullifier clashes
+        let clashing_nullifiers: Vec<_> = stamp.nullifiers
             .iter()
-            .any(|n| clashing_hashes.contains(n));
+            .filter(|n| clashing_hashes.contains(*n))
+            .collect();
         
-        if !has_clash {
+        if clashing_nullifiers.is_empty() {
+            // No clashes - stamp is valid
             deduped_stamps.push(stamp.clone());
             
             for nullifier in &stamp.nullifiers {
-                hash_link_data.push((
-                    nullifier.clone(),
-                    address.to_string(),
-                    community_id,
-                    stamp.expires_at,
-                ));
+                if owned_hashes.contains(nullifier) {
+                    // Already owned, maybe update expiration
+                    hash_links_to_update.push((
+                        nullifier.clone(),
+                        address.to_string(),
+                        community_id,
+                        stamp.expires_at,
+                    ));
+                } else if expired_hashes.contains(nullifier) {
+                    // Take over expired link
+                    hash_links_to_update.push((
+                        nullifier.clone(),
+                        address.to_string(),
+                        community_id,
+                        stamp.expires_at,
+                    ));
+                } else {
+                    // Create new link
+                    hash_links_to_create.push((
+                        nullifier.clone(),
+                        address.to_string(),
+                        community_id,
+                        stamp.expires_at,
+                    ));
+                }
             }
         } else {
-            // Track clashing stamps for event recording
+            // Has clashes - stamp is deduped
             clashing_stamps_map.insert(
                 stamp.provider.clone(),
                 StampInfo {
-                    nullifiers: stamp.nullifiers.clone(),
+                    nullifiers: stamp.nullifiers.clone(), // ALL nullifiers
                     credential: stamp.credential.clone(),
                 }
             );
+            
+            // IMPORTANT: Backfill non-clashing nullifiers with clashing owner's data
+            let first_clash = clashing_nullifiers[0];
+            let clash_owner = existing_links.iter()
+                .find(|l| &l.hash == first_clash)
+                .unwrap();
+            
+            for nullifier in &stamp.nullifiers {
+                if !clashing_hashes.contains(nullifier) && 
+                   !owned_hashes.contains(nullifier) {
+                    // Backfill with clashing owner's data
+                    hash_links_to_create.push((
+                        nullifier.clone(),
+                        clash_owner.address.clone(),
+                        community_id,
+                        clash_owner.expires_at,
+                    ));
+                }
+            }
         }
     }
     
-    // Bulk upsert hash links using UNNEST
-    if !hash_link_data.is_empty() {
-        let hashes: Vec<String> = 
-            hash_link_data.iter().map(|h| h.0.clone()).collect();
-        let addresses: Vec<String> = 
-            hash_link_data.iter().map(|h| h.1.clone()).collect();
-        let community_ids: Vec<i32> = 
-            hash_link_data.iter().map(|h| h.2).collect();
-        let expires_ats: Vec<DateTime<Utc>> = 
-            hash_link_data.iter().map(|h| h.3).collect();
+    // Bulk operations for hash links
+    if !hash_links_to_create.is_empty() {
+        let hashes: Vec<_> = hash_links_to_create.iter().map(|h| &h.0).collect();
+        let addresses: Vec<_> = hash_links_to_create.iter().map(|h| &h.1).collect();
+        let community_ids: Vec<_> = hash_links_to_create.iter().map(|h| h.2).collect();
+        let expires_ats: Vec<_> = hash_links_to_create.iter().map(|h| h.3).collect();
         
         sqlx::query!(
             r#"
@@ -301,32 +596,62 @@ async fn lifo_dedup(
             SELECT * FROM UNNEST(
                 $1::text[], $2::text[], $3::int[], $4::timestamptz[]
             )
-            ON CONFLICT (hash, community_id) 
-            DO UPDATE SET 
-                address = EXCLUDED.address,
-                expires_at = EXCLUDED.expires_at
-            WHERE registry_hashscorerlink.expires_at < NOW()
             "#,
-            &hashes,
-            &addresses,
-            &community_ids,
-            &expires_ats
+            &hashes[..], &addresses[..], &community_ids[..], &expires_ats[..]
         )
         .execute(&mut **tx)
         .await?;
+    }
+    
+    if !hash_links_to_update.is_empty() {
+        // Update expired or owned links
+        for (hash, addr, comm_id, expires) in &hash_links_to_update {
+            sqlx::query!(
+                r#"
+                UPDATE registry_hashscorerlink 
+                SET address = $1, expires_at = $2
+                WHERE hash = $3 AND community_id = $4
+                "#,
+                addr, expires, hash, comm_id
+            )
+            .execute(&mut **tx)
+            .await?;
+        }
+    }
+    
+    // Verify expected number of links were created/updated
+    let expected_count = hash_links_to_create.len() + hash_links_to_update.len();
+    let actual_count = sqlx::query_scalar!(
+        r#"
+        SELECT COUNT(*) 
+        FROM registry_hashscorerlink
+        WHERE address = $1 AND community_id = $2 
+            AND hash = ANY($3)
+        "#,
+        address,
+        community_id,
+        &all_nullifiers
+    )
+    .fetch_one(&mut **tx)
+    .await?: Option<i64>;
+    
+    if actual_count != Some(expected_count as i64) {
+        return Err("Unexpected number of hash links".into());
     }
     
     Ok((deduped_stamps, clashing_stamps_map))
 }
 ```
 
-#### 4. Score Calculation
+#### 4. Score Calculation with Clean Models
 ```rust
-async fn calculate_score(
-    stamps: &[ValidStamp],
-    scorer_id: i32,
+async fn build_scoring_result(
+    address: &str,
+    community_id: i32,
+    deduped_stamps: &[ValidStamp],
+    clashing_stamps: &HashMap<String, StampInfo>,
     tx: &mut Transaction<'_, Postgres>
-) -> Result<ScoreData> {
+) -> Result<ScoringResult> {
     // Fetch scorer configuration
     let scorer = sqlx::query!(
         r#"
@@ -334,7 +659,7 @@ async fn calculate_score(
         FROM scorer_weighted_binaryweightedscorer 
         WHERE scorer_ptr_id = $1
         "#,
-        scorer_id
+        community_id
     )
     .fetch_one(&mut **tx)
     .await?;
@@ -343,13 +668,15 @@ async fn calculate_score(
         serde_json::from_value(scorer.weights)?;
     let threshold = scorer.threshold;
     
-    // Calculate weighted sum (only count each provider once)
+    // Build clean stamp data
+    let mut valid_stamps = Vec::new();
+    let mut deduped_stamps_data = Vec::new();
     let mut sum = Decimal::from(0);
-    let mut stamp_scores = HashMap::new();
     let mut seen_providers = HashSet::new();
     let mut earliest_expiration: Option<DateTime<Utc>> = None;
     
-    for stamp in stamps {
+    // Process valid stamps
+    for stamp in deduped_stamps {
         if seen_providers.insert(stamp.provider.clone()) {
             let weight = weights
                 .get(&stamp.provider)
@@ -357,13 +684,16 @@ async fn calculate_score(
                 .unwrap_or_default();
             sum += weight;
             
-            stamp_scores.insert(stamp.provider.clone(), json!({
-                "score": format!("{:.5}", weight),
-                "dedup": false,
-                "expiration_date": stamp.expires_at
-            }));
+            valid_stamps.push(StampData {
+                provider: stamp.provider.clone(),
+                credential: stamp.credential.clone(),
+                nullifiers: stamp.nullifiers.clone(),
+                expires_at: stamp.expires_at,
+                weight,
+                was_deduped: false,
+            });
             
-            // Track earliest expiration for score expiration
+            // Track earliest expiration
             match earliest_expiration {
                 None => 
                     earliest_expiration = Some(stamp.expires_at),
@@ -374,6 +704,18 @@ async fn calculate_score(
         }
     }
     
+    // Process deduped stamps
+    for (provider, stamp_info) in clashing_stamps {
+        deduped_stamps_data.push(StampData {
+            provider: provider.clone(),
+            credential: stamp_info.credential.clone(),
+            nullifiers: stamp_info.nullifiers.clone(),
+            expires_at: Utc::now(), // Use current time or fetch from DB
+            weight: Decimal::from(0),
+            was_deduped: true,
+        });
+    }
+    
     // Binary score: 1 if sum >= threshold, 0 otherwise
     let binary_score = if sum >= threshold { 
         Decimal::from(1) 
@@ -381,17 +723,16 @@ async fn calculate_score(
         Decimal::from(0) 
     };
     
-    let evidence = json!({
-        "rawScore": sum.to_string(),
-        "threshold": threshold.to_string(),
-        "success": binary_score == Decimal::from(1)
-    });
-    
-    Ok(ScoreData {
-        score: binary_score,
-        evidence,
-        stamps: serde_json::to_value(stamp_scores)?,
-        expiration_date: earliest_expiration,
+    Ok(ScoringResult {
+        address: address.to_string(),
+        community_id,
+        binary_score,
+        raw_score: sum,
+        threshold,
+        valid_stamps,
+        deduped_stamps: deduped_stamps_data,
+        expires_at: earliest_expiration,
+        timestamp: Utc::now(),
     })
 }
 ```
@@ -587,6 +928,8 @@ async fn process_human_points(
 
 ### Complete Endpoint Implementation
 
+Using the clean internal models, the endpoint implementation becomes clearer and more maintainable:
+
 ```rust
 #[instrument(skip(pool))]
 async fn score_address(
@@ -689,19 +1032,24 @@ async fn score_address(
         .await?;
     }
     
-    // 6. Calculate score
-    let score_data = 
-        calculate_score(&deduped_stamps, scorer_id, &mut tx)
-            .await?;
+    // 6. Build clean scoring result
+    let scoring_result = build_scoring_result(
+        &address,
+        scorer_id,
+        &deduped_stamps,
+        &clashing_stamps,
+        &mut tx
+    ).await?;
     
-    // 7. Persist score
+    // 7. Persist score using Django format
+    let django_fields = scoring_result.to_django_score_fields();
     let score_record = sqlx::query!(
         r#"
         INSERT INTO registry_score (
             passport_id, score, status, last_score_timestamp, 
-            evidence, stamps, expiration_date
+            evidence, stamps, stamp_scores, expiration_date
         )
-        VALUES ($1, $2, 'DONE', NOW(), $3, $4, $5)
+        VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7)
         ON CONFLICT (passport_id) 
         DO UPDATE SET
             score = EXCLUDED.score,
@@ -709,15 +1057,18 @@ async fn score_address(
             last_score_timestamp = EXCLUDED.last_score_timestamp,
             evidence = EXCLUDED.evidence,
             stamps = EXCLUDED.stamps,
+            stamp_scores = EXCLUDED.stamp_scores,
             expiration_date = EXCLUDED.expiration_date
         RETURNING score, last_score_timestamp, evidence, 
                   stamps, expiration_date
         "#,
         passport_id,
-        score_data.score,
-        score_data.evidence,
-        score_data.stamps,
-        score_data.expiration_date
+        django_fields.score,
+        django_fields.status,
+        django_fields.evidence,
+        serde_json::to_value(&django_fields.stamps)?,
+        django_fields.stamp_scores,
+        django_fields.expiration_date
     )
     .fetch_one(&mut *tx)
     .await?;
@@ -732,8 +1083,8 @@ async fn score_address(
         process_human_points(
             &address, 
             scorer_id, 
-            &score_data.score,
-            &deduped_stamps, 
+            &scoring_result.binary_score,
+            &scoring_result.valid_stamps, 
             &mut tx
         ).await?;
     }
@@ -742,24 +1093,12 @@ async fn score_address(
     tx.commit().await?;
     
     info!(
-        score = %score_data.score,
+        score = %scoring_result.binary_score,
         "Scoring complete"
     );
     
-    // Format response
-    Ok(Json(V2ScoreResponse {
-        address: address.clone(),
-        score: score_record.score.unwrap_or_default(),
-        passing_score: score_record.score.unwrap_or_default() 
-            >= Decimal::from(1),
-        threshold: extract_threshold(&score_record.evidence),
-        last_score_timestamp: score_record.last_score_timestamp
-            .map(|t| t.to_rfc3339()),
-        expiration_timestamp: score_record.expiration_date
-            .map(|t| t.to_rfc3339()),
-        error: None,
-        stamps: score_record.stamps.unwrap_or_default(),
-    }))
+    // Return clean V2 response
+    Ok(Json(scoring_result.to_v2_response()))
 }
 ```
 
@@ -980,27 +1319,86 @@ aws lambda update-function-code \
    - Mitigation: Use Decimal type consistently
    - Testing: Compare scores for 10k+ addresses
 
-## Success Criteria
+## Implementation Verification Checklist
 
-### Performance Metrics
+### 1. Data Loading from CeramicCache
+- [ ] Filter by `deleted_at IS NULL AND revocation IS NULL`
+- [ ] Select latest stamp per provider using `updated_at`
+- [ ] Handle case-insensitive address matching
+- [ ] Parse credential JSON correctly
+
+### 2. Credential Validation (Nullifiers Only)
+- [ ] Extract nullifiers from `credentialSubject.nullifiers` array
+- [ ] Reject credentials without nullifiers array or with empty array
+- [ ] Verify DID format: `did:pkh:eip155:1:{address}` (lowercase)
+- [ ] Check issuer is in TRUSTED_IAM_ISSUERS list
+- [ ] Verify expiration date is in future (timezone-aware)
+- [ ] Call didkit with exact JSON format and `proofPurpose="assertionMethod"`
+- [ ] Match credentialSubject.id with expected DID (case-insensitive)
+
+### 3. LIFO Deduplication
+- [ ] Process ALL nullifiers (no v0 filtering)
+- [ ] Implement 5-retry mechanism for IntegrityError
+- [ ] Check if ANY nullifier in stamp clashes with existing hash links
+- [ ] Handle expired hash links (can be reassigned)
+- [ ] Backfill non-clashing nullifiers when some clash
+- [ ] Verify expected count of hash links after operations
+- [ ] Use bulk INSERT with UNNEST for performance
+
+### 4. Score Calculation
+- [ ] Only first stamp per provider contributes weight
+- [ ] Check for Customization model weight overrides
+- [ ] Calculate binary score: 1 if sum >= threshold, else 0
+- [ ] Use Decimal type with proper precision (5 decimal places)
+- [ ] Set score expiration to earliest stamp expiration
+
+### 5. Django Table Compatibility
+- [ ] registry_passport: Upsert with ON CONFLICT
+- [ ] registry_stamp: DELETE all, then bulk INSERT
+- [ ] registry_score fields:
+  - [ ] `score`: Binary decimal (0 or 1)
+  - [ ] `status`: "DONE" for success
+  - [ ] `evidence`: JSON with type, success, rawScore, threshold
+  - [ ] `stamp_scores`: Provider -> weight mapping
+  - [ ] `stamps`: Provider -> {score, dedup, expiration_date}
+  - [ ] `expiration_date`: Earliest stamp expiration
+- [ ] Include deduped stamps in `stamps` with score="0.00000"
+
+### 6. Event Recording
+- [ ] Create LIFO_DEDUPLICATION events for clashing stamps
+  - [ ] Include all nullifiers in event data
+  - [ ] Set community field on event
+- [ ] Create SCORE_UPDATE event after score save
+  - [ ] Include serialized score in data
+  - [ ] Set community field on event
+
+### 7. Human Points Integration
+- [ ] Check if enabled and score == 1
+- [ ] Verify timestamp >= HUMAN_POINTS_START_TIMESTAMP
+- [ ] Record passing score with ON CONFLICT DO NOTHING
+- [ ] Record stamp actions for all valid stamps
+- [ ] Award scoring bonus if 4+ passing communities
+- [ ] Check for MetaMask OG bonus ("metamaskDeveloperDao")
+
+### 8. API Response Format
+- [ ] Return V2ScoreResponse structure
+- [ ] Format scores with 5 decimal places in stamps dict
+- [ ] Set passing_score boolean based on score >= 1
+- [ ] Use ISO 8601 for all timestamps
+- [ ] Include both valid and deduped stamps in response
+
+### 9. Database Operations
+- [ ] All operations in single atomic transaction
+- [ ] Maintain exact same operation order as Python
+- [ ] Use same indexes and query patterns
+- [ ] Handle concurrent requests properly
+
+### 10. Performance Targets
 - [ ] P95 latency < 200ms
 - [ ] P99 latency < 500ms
 - [ ] Cold start < 100ms
 - [ ] Memory usage < 256MB
 - [ ] 0% increase in error rate
-
-### Functional Requirements
-- [ ] 100% score parity with Django
-- [ ] All stamps correctly validated
-- [ ] LIFO deduplication working correctly
-- [ ] API response format unchanged
-- [ ] Database writes atomic and consistent
-
-### Operational Goals
-- [ ] CloudWatch logs properly structured
-- [ ] Alerts configured for anomalies
-- [ ] Rollback procedure documented
-- [ ] Team trained on Rust debugging
 
 ## Team Resources
 
@@ -1048,6 +1446,44 @@ aws lambda update-function-code \
 - Final documentation
 - Team knowledge transfer
 
+## Implementation Notes for Development Team
+
+### Critical Points
+
+1. **Nullifiers Simplification**: 
+   - Only support `nullifiers` array field (no `hash` field)
+   - No feature flag filtering - process ALL nullifiers
+   - Credentials must have 1+ nullifiers
+
+2. **Clean Models Architecture**:
+   - Use `ScoringResult` as the core internal model
+   - Translate to Django format only at database boundaries
+   - Keep V2 API response generation separate from DB logic
+   - This prepares for future event-driven architecture
+
+3. **Django Compatibility**:
+   - Must write exact same data structure to existing tables
+   - Don't forget the SCORE_UPDATE event (Django creates via signal)
+   - The `to_django_score_fields()` method handles all quirks
+
+4. **Future Migration Path**:
+   - Clean models align with future `scoring_events` table
+   - Add feature flag for dual-writing when ready
+   - The `to_scoring_event()` method is ready for future use
+   - Minimal code changes needed for migration
+
+5. **Exact DB Parity**:
+   - This POC maintains all DB operations to isolate language performance
+   - Don't optimize DB access patterns yet - match Django exactly
+   - Future iterations can optimize after proving base performance
+
+6. **Testing Priority**:
+   - LIFO deduplication with concurrent requests
+   - Exact score calculation matching
+   - Django table field formats vs clean model translation
+   - Event creation
+   - V2 API response format
+
 ## Conclusion
 
 This migration represents a significant performance improvement opportunity
@@ -1059,4 +1495,6 @@ with manageable risk. The Rust implementation will provide:
 4. **Improved developer experience with type safety**
 
 The key to success is thorough testing, gradual rollout, and maintaining the
-ability to rollback quickly if issues arise.
+ability to rollback quickly if issues arise. The simplifications (nullifiers-only,
+no feature flags) make the implementation cleaner while maintaining compatibility
+with modern credentials.
