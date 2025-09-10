@@ -374,7 +374,89 @@ async fn validate_api_key(
 }
 ```
 
-#### 2. Credential Validation (Simplified)
+#### 2. API Key Validation
+```rust
+use hex;
+use sha2::{Sha256, Digest};
+
+#[derive(Debug, Clone)]
+struct ApiKeyData {
+    id: i32,
+    account_id: i32,
+    submit_passports: bool,
+    read_scores: bool,
+    rate_limit: Option<String>,
+}
+
+async fn validate_api_key(
+    headers: &HeaderMap,
+    pool: &PgPool
+) -> Result<ApiKeyData> {
+    // Check X-API-Key header first, then Authorization
+    let api_key = headers
+        .get("X-API-Key")
+        .or_else(|| {
+            headers.get("Authorization")
+                .and_then(|h| h.to_str().ok())
+                .and_then(|s| s.split_whitespace().nth(1))
+                .map(|s| HeaderValue::from_str(s).ok())
+                .flatten()
+        })
+        .ok_or("Missing API key")?;
+    
+    let key_str = api_key.to_str()?;
+    
+    // Check for demo key aliases
+    let final_key = if is_demo_alias(key_str) {
+        std::env::var("DEMO_API_KEY")?
+    } else {
+        key_str.to_string()
+    };
+    
+    // Extract prefix (first 8 chars) and hash the key
+    let prefix = &final_key[..8.min(final_key.len())];
+    let hashed_key = hash_api_key(&final_key);
+    
+    // Look up by prefix and verify hash
+    let api_key_data = sqlx::query_as!(
+        ApiKeyData,
+        r#"
+        SELECT 
+            id, 
+            account_id, 
+            submit_passports,
+            read_scores,
+            rate_limit
+        FROM account_accountapikey
+        WHERE prefix = $1 AND hashed_key = $2
+        AND revoked = false
+        "#,
+        prefix,
+        hashed_key
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|_| "Invalid API key")?;
+    
+    // Check permissions
+    if !api_key_data.read_scores {
+        return Err("API key lacks read_scores permission");
+    }
+    
+    Ok(api_key_data)
+}
+
+fn hash_api_key(key: &str) -> String {
+    // djangorestframework-api-key uses a custom hashing scheme
+    // This is a simplified version - verify exact implementation
+    let mut hasher = Sha256::new();
+    hasher.update(key.as_bytes());
+    let result = hasher.finalize();
+    hex::encode(result)
+}
+```
+
+#### 3. Credential Validation (Simplified)
 ```rust
 async fn validate_credentials_batch(
     credentials: &[CeramicCacheRow],
@@ -445,7 +527,7 @@ async fn validate_credentials_batch(
 }
 ```
 
-#### 3. LIFO Deduplication (Simplified - Nullifiers Only)
+#### 4. LIFO Deduplication (Simplified - Nullifiers Only)
 ```rust
 async fn lifo_dedup(
     stamps: &[ValidStamp],
@@ -643,7 +725,7 @@ async fn lifo_dedup_attempt(
 }
 ```
 
-#### 4. Score Calculation with Clean Models
+#### 5. Score Calculation with Clean Models
 ```rust
 async fn build_scoring_result(
     address: &str,
@@ -737,7 +819,7 @@ async fn build_scoring_result(
 }
 ```
 
-#### 5. Event Recording
+#### 6. Event Recording
 ```rust
 async fn record_events(
     address: &str,
@@ -807,7 +889,7 @@ async fn record_events(
 }
 ```
 
-#### 6. Human Points Integration (Optional)
+#### 7. Human Points Integration (REQUIRED for v1)
 ```rust
 async fn process_human_points(
     address: &str,
@@ -945,8 +1027,17 @@ async fn score_address(
         ));
     }
     
-    // API key validation
+    // Validate API key and check permissions
     let api_key_data = validate_api_key(&headers, &pool).await?;
+    
+    // Track API usage for analytics
+    track_api_key_usage(
+        api_key_data.id,
+        &request.path(),
+        &headers,
+        None,  // No payload for GET request
+        &pool
+    ).await?;
     
     // Start database transaction for atomicity
     let mut tx = pool.begin().await?;
@@ -1077,17 +1168,14 @@ async fn score_address(
     record_events(&address, scorer_id, &clashing_stamps, &mut tx)
         .await?;
     
-    // 9. Process Human Points (if enabled)
-    if std::env::var("HUMAN_POINTS_ENABLED")
-        .unwrap_or_else(|_| "false".to_string()) == "true" {
-        process_human_points(
-            &address, 
-            scorer_id, 
-            &scoring_result.binary_score,
-            &scoring_result.valid_stamps, 
-            &mut tx
-        ).await?;
-    }
+    // 9. Process Human Points (REQUIRED for v1)
+    process_human_points(
+        &address, 
+        scorer_id, 
+        &scoring_result.binary_score,
+        &scoring_result.valid_stamps, 
+        &mut tx
+    ).await?;
     
     // Commit transaction
     tx.commit().await?;
@@ -1420,31 +1508,208 @@ aws lambda update-function-code \
 - GitHub Issues: passport-scorer-rust
 - AWS Support: Performance optimization
 
+## Phased Implementation Plan
+
+### Phase 1: Data Models & Schema (Days 1-3)
+**Output:** Complete type definitions and database schema
+- Define core Rust structs matching Django models
+- Create database schema types with sqlx compile-time verification
+- Build translation layers between clean models and Django formats
+- Unit tests for all model conversions
+- **Deliverable:** Compilable types module with 100% test coverage
+
+### Phase 2: Database Layer (Days 4-6)
+**Output:** Verified database access layer
+- Implement RDS Proxy connection pooling
+- Create read operations for ceramic_cache, scorer configs, API keys
+- Create write operations for passport, stamps, scores, events
+- Integration tests against test database
+- **Deliverable:** Database module passing all integration tests
+
+### Phase 3: API Key & Credential Validation (Days 7-9)
+**Output:** Working authentication and credential processor
+- Implement API key validation matching djangorestframework-api-key hashing
+- Create usage tracking in AccountAPIKeyAnalytics
+- Integrate didkit for credential verification
+- Implement nullifier extraction (simplified logic)
+- Build expiration and issuer checks
+- Test against production credential samples
+- **Deliverable:** Auth module validating 1000+ production credentials
+
+### Phase 4: LIFO Deduplication (Days 10-12)
+**Output:** Working deduplication engine
+- Implement hash link checking logic
+- Build 5-retry mechanism for concurrent conflicts
+- Create bulk upsert operations with UNNEST
+- Handle nullifier backfilling for partial clashes
+- Stress test with concurrent requests
+- **Deliverable:** Dedup module handling 100+ concurrent requests
+
+### Phase 5: Score Calculation (Days 13-14)
+**Output:** Accurate scoring engine
+- Implement weight lookup with customization support
+- Build binary score calculation (1 if sum >= threshold, else 0)
+- Create evidence formatting for Django compatibility
+- Validate against 1000+ production scores
+- **Deliverable:** Scoring module with <0.01% discrepancy rate
+
+### Phase 6: Human Points Integration (Days 15-17)
+**Output:** Complete Human Points processing
+- Implement all 15 action types with proper mapping
+- Create bulk insertion for registry_humanpoints
+- Build qualified users tracking
+- Implement scoring bonus logic (4+ communities)
+- Add MetaMask OG list integration with 5000 limit
+- Test all stamp provider mappings
+- **Deliverable:** Human Points module matching Python behavior exactly
+
+### Phase 7: API Response & Events (Days 18-19)
+**Output:** Complete API endpoint
+- Format V2ScoreResponse structure with 5 decimal precision
+- Implement event recording (LIFO_DEDUPLICATION, SCORE_UPDATE)
+- Add complete error handling and logging
+- End-to-end tests matching Python responses exactly
+- **Deliverable:** Full endpoint passing all acceptance tests
+
+### Phase 8: Lambda Deployment (Days 20-21)
+**Output:** Deployable Lambda function
+- Create Lambda handler with proper error handling
+- Add structured logging with tracing
+- Configure build pipeline for ARM64
+- Set up CloudWatch metrics and alarms
+- Deploy to staging environment
+- **Deliverable:** Lambda deployed to staging with monitoring
+
+### Phase 9: Performance Testing (Days 22-24)
+**Output:** Performance benchmarks and optimizations
+- Load test individual components
+- Profile and optimize hot paths
+- Verify memory usage under load (<256MB)
+- Ensure P95 latency <200ms, P99 <500ms
+- Document performance gains vs Django
+- **Deliverable:** Performance report showing 10x improvement
+
+### Phase 10: Shadow Mode Testing (Days 25-28)
+**Output:** Validation report
+- Deploy alongside Django with 1% traffic split
+- Compare responses for accuracy
+- Monitor latency and error rates
+- Fix any discrepancies found
+- Gradually increase to 5% traffic
+- **Deliverable:** Shadow mode report with 0% discrepancy
+
+### Phase 11: Production Rollout (Week 5)
+**Output:** Live Rust endpoint
+- Day 1: Increase to 10% traffic, monitor closely
+- Day 2: Increase to 25% if metrics good
+- Day 3: Increase to 50%, keep Django as fallback
+- Day 4: Increase to 75%, prepare rollback plan
+- Day 5: Full 100% cutover with Django dormant
+- **Deliverable:** Production endpoint serving 100% traffic
+
+### Phase 12: Cleanup & Documentation (Week 6)
+**Output:** Complete migration
+- Monitor for 1 week at 100% traffic
+- Document lessons learned
+- Create runbook for operations team
+- Knowledge transfer sessions
+- Plan Django removal timeline
+- **Deliverable:** Complete documentation and handover
+
+## Parallel Work Opportunities
+
+Teams can work in parallel on:
+- **Track 1:** Phases 1-2 (Data models & Database)
+- **Track 2:** Phase 3 (API Key & Credentials) - can start after Phase 1
+- **Track 3:** Phase 6 (Human Points) - can start after Phase 2
+- **Track 4:** Phase 8 (Lambda setup) - can start immediately
+
+This allows multiple developers to contribute simultaneously, reducing overall timeline from 6 weeks to potentially 4 weeks with proper coordination.
+
 ## Timeline
 
-### Week 1-2: Development
-- Set up Rust project structure
-- Implement core scoring logic
-- Add comprehensive tests
-- Local testing with production data
+### Week 1: Foundation
+- Days 1-3: Phase 1 (Data Models)
+- Days 4-6: Phase 2 (Database Layer)
+- Days 7: Phase 3 begins (API & Credentials)
 
-### Week 3-4: Integration
-- Deploy to staging environment
-- Integration testing
-- Performance benchmarking
-- Shadow mode deployment
+### Week 2: Core Logic
+- Days 8-9: Complete Phase 3
+- Days 10-12: Phase 4 (LIFO Dedup)
+- Days 13-14: Phase 5 (Scoring)
 
-### Week 5-6: Rollout
-- Gradual traffic migration
-- Monitor and optimize
-- Document findings
-- Full cutover
+### Week 3: Features & Integration
+- Days 15-17: Phase 6 (Human Points)
+- Days 18-19: Phase 7 (API & Events)
+- Days 20-21: Phase 8 (Lambda Deployment)
 
-### Week 7-8: Cleanup
-- Remove Django endpoint
-- Optimize Lambda configuration
-- Final documentation
-- Team knowledge transfer
+### Week 4: Testing & Validation
+- Days 22-24: Phase 9 (Performance Testing)
+- Days 25-28: Phase 10 (Shadow Mode)
+
+### Week 5: Production Rollout
+- Phase 11: Gradual traffic migration
+
+### Week 6: Completion
+- Phase 12: Cleanup & Documentation
+
+## Success Criteria & Rollback Plan
+
+### Success Criteria
+
+Each phase must meet these criteria before proceeding:
+
+#### Functional Criteria
+- **Response Accuracy:** 100% match with Django responses (excluding timestamps)
+- **Human Points:** Exact match on points calculation and action recording
+- **Deduplication:** Identical LIFO behavior including edge cases
+- **API Compatibility:** No breaking changes to API contract
+
+#### Performance Criteria
+- **P50 Latency:** <100ms (vs Django ~800ms)
+- **P95 Latency:** <200ms (vs Django ~1500ms)
+- **P99 Latency:** <500ms (vs Django ~2000ms)
+- **Cold Start:** <100ms (vs Django 2-5 seconds)
+- **Memory Usage:** <256MB per Lambda instance
+- **Error Rate:** 0% increase from baseline
+
+#### Operational Criteria
+- **Monitoring:** All key metrics visible in CloudWatch
+- **Alerting:** PagerDuty alerts configured for errors
+- **Logging:** Structured JSON logs with correlation IDs
+- **Tracing:** Distributed tracing enabled
+
+### Rollback Procedures
+
+#### Immediate Rollback Triggers
+- Error rate increases by >0.1%
+- P95 latency exceeds Django baseline
+- Any data inconsistency detected
+- Human Points calculation errors
+- Memory usage exceeds 512MB
+
+#### Rollback Steps
+1. **Route traffic back to Django** (API Gateway weighted routing)
+2. **Preserve Rust Lambda logs** for debugging
+3. **Create incident report** with metrics and logs
+4. **Hotfix if possible** without full rollback
+5. **Re-test in staging** before retry
+
+#### Rollback Timeline
+- **0-5 minutes:** Automated rollback on critical alerts
+- **5-15 minutes:** Manual rollback decision by on-call
+- **15+ minutes:** Incident commander takes over
+
+### Monitoring Dashboard
+
+Create CloudWatch dashboard with:
+- Request rate comparison (Django vs Rust)
+- Latency percentiles (P50, P95, P99)
+- Error rates by status code
+- Human Points action counts
+- Database connection pool metrics
+- Lambda cold starts frequency
+- Memory and CPU utilization
 
 ## Implementation Notes for Development Team
 
