@@ -43,6 +43,7 @@ pub struct ValidStamp {
 pub struct StampInfo {
     pub nullifiers: Vec<String>,
     pub credential: Value,
+    pub expires_at: DateTime<Utc>,  // Expiration from the clashing hash link
 }
 
 /// Future event-driven architecture model

@@ -120,3 +120,55 @@ Successfully completed Phase 1 of Rust migration for Passport Scorer v2 endpoint
 ### Project Structure
 
 Created at `/workspace/project/rust-scorer/` with full Cargo.toml dependencies and modular code organization.
+
+## Phase 2 Implementation Complete
+
+Successfully completed Phase 2 - Database Layer with:
+- Connection pooling with r2d2 and diesel
+- Read/write operations for all Django tables
+- Comprehensive error handling
+- Bulk operations support
+
+## Phase 3 Implementation Complete
+
+Successfully completed Phase 3 - API Key & Credential Validation:
+
+### API Key Validation (`auth/api_key.rs`)
+- SHA512 hashing matching djangorestframework-api-key v2 exactly
+- Format: "sha512$$<hex_hash>" 
+- X-API-Key header checked first, then Authorization header
+- Demo key aliases support via environment variable
+- Constant-time comparison for security
+- API usage tracking to AccountAPIKeyAnalytics table
+
+### Credential Validation (`auth/credentials.rs`)
+- Validates credentials from CeramicCache
+- Only supports nullifiers array (no legacy hash field)
+- Checks: provider, nullifiers non-empty, DID match, expiration, trusted issuer
+- Full DIDKit integration for signature verification
+- Returns ValidatedCredential with provider, nullifiers, expiration
+
+## Phase 4 Implementation Complete
+
+Successfully completed Phase 4 - LIFO Deduplication:
+
+### LIFO Algorithm Implementation (`dedup/lifo.rs`)
+- 5-retry mechanism for concurrent IntegrityError handling
+- Hash link checking categorizes nullifiers as owned/clashing/expired
+- Stamps deduped if ANY nullifiers clash with existing non-expired hash links
+- Expired hash links can be taken over by new addresses
+- Self-owned hash links get expiration updates
+- Backfill mechanism for partial nullifier clashes
+- Bulk operations using UNNEST for performance
+
+### Testing Status
+- Unit tests passing for all phases
+- Integration tests created (require DATABASE_URL)
+
+## Migration Progress Summary
+
+- **Phase 1**: Data Models & Schema ✅
+- **Phase 2**: Database Layer ✅
+- **Phase 3**: API Key & Credential Validation ✅
+- **Phase 4**: LIFO Deduplication ✅
+- **Phase 5**: Score Calculation (Next)

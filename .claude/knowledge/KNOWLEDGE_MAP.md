@@ -4,7 +4,7 @@
 
 ## 🏗️ Architecture
 
-- [Scoring Flow Architecture](architecture/scoring_flow.md) - V2 API scoring endpoint flow, event recording, Rust migration requirements, and Phase 1 implementation
+- [Scoring Flow Architecture](architecture/scoring_flow.md) - V2 API scoring endpoint flow, event recording, Rust migration Phases 1-4 complete
 
 ## 🎨 Patterns
 
@@ -18,7 +18,7 @@
 
 ## 🔌 API
 
-- [Authentication](api/authentication.md) - API key mechanism and permissions
+- [Authentication](api/authentication.md) - API key mechanism, djangorestframework-api-key v2 hashing, and Rust implementation
 - [Human Points System](api/human_points.md) - Complete points tracking implementation
 
 ## 📦 Dependencies

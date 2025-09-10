@@ -63,3 +63,77 @@ Key architectural decisions:
 **Files**: rust-scorer/src/auth/api_key.rs, rust-scorer/src/auth/credentials.rs, test_api_key_hash.py
 ---
 
+### [20:44] [architecture] Rust Migration Phase Status
+**Details**: Phases 1-3 of the Rust migration are complete:
+- Phase 1: Data Models & Schema (complete with clean internal models, Django compatibility, V2 API types, translation layers, 7 passing tests)
+- Phase 2: Database Layer (complete with connection pooling, read/write operations, error handling, bulk operations)
+- Phase 3: API Key & Credential Validation (complete with full didkit signature verification)
+
+Phase 4 is LIFO Deduplication implementation (Days 10-12) which includes:
+- Implement hash link checking logic
+- Build 5-retry mechanism for concurrent conflicts
+- Create bulk upsert operations with UNNEST
+- Handle nullifier backfilling for partial clashes
+- Stress test with concurrent requests
+**Files**: RUST_MIGRATION_PLAN.md, rust-scorer/src/models/, rust-scorer/src/db/
+---
+
+### [20:58] [architecture] Rust Migration Phase 4 - LIFO Deduplication Complete
+**Details**: Successfully completed Phase 4 of Rust migration implementing LIFO deduplication.
+
+Key Implementation:
+1. Created /workspace/project/rust-scorer/src/dedup/ module with full LIFO logic
+2. Implements 5-retry mechanism for concurrent IntegrityError handling
+3. Hash link checking logic that categorizes nullifiers as owned/clashing/expired
+4. Backfill mechanism for partial nullifier clashes (when some but not all nullifiers clash)
+5. Bulk operations using UNNEST for performance
+
+LIFO Algorithm:
+- Stamps are deduped if ANY of their nullifiers clash with existing non-expired hash links
+- Expired hash links can be taken over by new addresses
+- Self-owned hash links get expiration updates
+- When stamps partially clash, non-clashing nullifiers are backfilled with the clashing owner's data
+
+Testing:
+- 4 unit tests passing for core logic (nullifier extraction, clash detection, backfill logic)
+- Integration tests created in tests/lifo_integration.rs (require DATABASE_URL)
+
+Next Phase: Phase 5 - Score Calculation with weight lookup and binary score calculation
+**Files**: rust-scorer/src/dedup/lifo.rs, rust-scorer/src/dedup/mod.rs, rust-scorer/tests/lifo_integration.rs
+---
+
+### [21:19] [architecture] Rust scorer module structure
+**Details**: The rust-scorer implementation has completed Phases 1-4:
+- Phase 1: Data models in src/models/ with internal, django, v2_api, and translation layers
+- Phase 2: Database layer in src/db/ with connection pooling, read/write operations, and error handling
+- Phase 3: Authentication in src/auth/ with API key validation and credential verification via didkit
+- Phase 4: LIFO deduplication in src/dedup/ with 5-retry mechanism and bulk operations
+
+Phase 5 (Score Calculation) is the next step - needs to implement the actual scoring logic that:
+1. Fetches scorer configuration (weights, threshold)
+2. Applies provider deduplication (only first stamp per provider scores)
+3. Calculates weighted sum and binary score (1 if sum >= threshold, else 0)
+4. Handles customization overrides
+5. Tracks earliest expiration date
+**Files**: rust-scorer/src/lib.rs, RUST_MIGRATION_PLAN.md
+---
+
+### [21:23] [gotchas] Phase 5 Score Calculation Implementation Details
+**Details**: Phase 5 (Score Calculation) has been successfully implemented in rust-scorer/src/scoring/calculation.rs with the following key features:
+
+1. **Weight Lookup with Customization Support**: The load_scorer_config function checks for customization overrides first via load_customization, then falls back to base scorer weights. Customization uses custom weights but still takes threshold from base scorer.
+
+2. **Provider Deduplication**: Only the first stamp per provider contributes weight - subsequent stamps with the same provider get weight=0 and are added to deduped_stamps list. This is critical for correct scoring.
+
+3. **Binary Score Calculation**: Exactly matches Python - returns Decimal(1) if raw_score >= threshold, else Decimal(0). Uses >= operator for threshold comparison.
+
+4. **Decimal Type with Proper Precision**: All weights and scores use rust_decimal::Decimal type for exact precision matching Python's Decimal. Will need 5 decimal place formatting when converting to API response.
+
+5. **Earliest Expiration Tracking**: Tracks the earliest expires_at timestamp from all valid stamps to set the score's expiration date.
+
+6. **Clean Model Architecture**: Scoring logic works with clean StampData models from LIFO result, applies weights, and builds ScoringResult that can be translated to Django format at boundaries.
+
+Unit tests verify all edge cases including provider dedup, threshold boundaries, unknown providers, and expiration tracking.
+**Files**: rust-scorer/src/scoring/calculation.rs
+---
+
