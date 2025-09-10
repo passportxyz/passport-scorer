@@ -66,3 +66,27 @@ Ready for Phase 2: Database Layer implementation.
 **Files**: rust-scorer/src/models/internal.rs, rust-scorer/src/models/django.rs, rust-scorer/src/models/v2_api.rs, rust-scorer/src/models/translation.rs, rust-scorer/src/models/tests.rs, rust-scorer/PHASE1_COMPLETE.md
 ---
 
+### [14:46] [gotcha] Django model field verification needed
+**Details**: User questioned the Django model changes made in Phase 2. The changes included adding timestamp fields (created_at, updated_at) and modifying field names/types to match what the database queries expect. These changes were made based on the SQL queries in read_ops.rs and write_ops.rs, but weren't verified against the actual Django models in the Python codebase. Need to cross-check with actual Django model definitions to ensure accuracy.
+**Files**: rust-scorer/src/models/django.rs, rust-scorer/src/db/read_ops.rs, rust-scorer/src/db/write_ops.rs
+---
+
+### [14:48] [architecture] Django model field verification results
+**Details**: After checking the actual Django models, found several discrepancies in the Rust Django model structs:
+
+1. **CeramicCache**: Has many additional fields not in Rust model - proof_value, type, compose_db fields, issuance_date, expiration_date, source fields. The Rust model is missing these but they may not be needed for scoring.
+
+2. **BinaryWeightedScorer**: The actual model inherits from Scorer and doesn't have created_at/updated_at fields directly. It has: scorer_ptr_id (FK to Scorer), weights (JSONField), threshold (DecimalField).
+
+3. **HashScorerLink**: Does NOT have created_at/updated_at fields in Django. Only has: hash, community (FK), address, expires_at with unique_together on hash+community.
+
+4. **AccountAPIKey**: Has many rate limit fields not in Rust model - rate_limit, analysis_rate_limit, embed_rate_limit. Missing historical_endpoint field.
+
+5. **Community**: Has account (FK), deleted_at, and other fields. Does have created_at but NOT updated_at.
+
+6. **Customization**: Has scorer field as OneToOneField to Community, not community_id. Has many more fields for UI customization.
+
+The Rust models were created based on what the SQL queries expect, but some fields added (like created_at/updated_at) don't actually exist in Django models. This could cause runtime SQL errors when querying non-existent columns.
+**Files**: rust-scorer/src/models/django.rs, api/ceramic_cache/models.py, api/scorer_weighted/models.py, api/registry/models.py, api/account/models.py
+---
+

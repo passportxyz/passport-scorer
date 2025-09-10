@@ -15,7 +15,7 @@ lambda_runtime = "0.14"
 
 # Database
 sqlx = { version = "0.8", features = [
-    "runtime-tokio", "postgres", "json", "chrono", "rust_decimal", "uuid"
+    "runtime-tokio", "postgres", "json", "chrono", "rust_decimal", "uuid", "macros"
 ] }
 
 # Async runtime

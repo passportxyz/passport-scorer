@@ -70,10 +70,10 @@ pub struct DjangoCeramicCache {
     pub address: String,
     pub provider: String,
     pub stamp: Value,
-    pub proof_value: String,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: DateTime<Utc>,
+    pub proof_value: String,  // CRITICAL: Used for revocation and uniqueness
     pub deleted_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 /// Django account_community table
@@ -83,7 +83,7 @@ pub struct DjangoCommunity {
     pub name: String,
     pub description: String,
     pub human_points_program: bool,
-    pub rule: String,
+    pub created_at: Option<DateTime<Utc>>,  // nullable in Django
 }
 
 /// Django scorer_weighted_binaryweightedscorer table
@@ -98,22 +98,24 @@ pub struct DjangoBinaryWeightedScorer {
 #[derive(Debug, Clone, FromRow)]
 pub struct DjangoCustomization {
     pub id: i32,
-    pub scorer_id: i32,
-    pub weights: Option<Value>,
+    pub scorer_id: i32,  // OneToOneField to Community
+    pub weights: Option<Value>,  // nullable in Django
 }
 
 /// Django account_accountapikey table
 #[derive(Debug, Clone, FromRow)]
 pub struct DjangoApiKey {
     pub id: i32,
-    pub account_id: i32,
     pub prefix: String,
     pub hashed_key: String,
+    pub account_id: i32,
+    pub name: String,
+    pub revoked: bool,
     pub submit_passports: bool,
     pub read_scores: bool,
     pub create_scorers: bool,
-    pub rate_limit: Option<String>,
-    pub revoked: bool,
+    pub created: DateTime<Utc>,
+    pub expiry_date: Option<DateTime<Utc>>,
 }
 
 /// Django registry_humanpoints table (Human Points)
