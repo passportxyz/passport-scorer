@@ -165,10 +165,26 @@ Successfully completed Phase 4 - LIFO Deduplication:
 - Unit tests passing for all phases
 - Integration tests created (require DATABASE_URL)
 
+## Phase 5 Implementation Complete
+
+Successfully completed Phase 5 - Score Calculation:
+
+### Score Calculation Implementation (`scoring/calculation.rs`)
+- **Weight Lookup with Customization**: Checks customization overrides first, falls back to base scorer weights
+- **Provider Deduplication**: Only first stamp per provider contributes weight (critical for correct scoring)
+- **Binary Score Calculation**: Returns Decimal(1) if raw_score >= threshold, else Decimal(0)
+- **Decimal Precision**: Uses rust_decimal::Decimal for exact precision matching Python
+- **Expiration Tracking**: Tracks earliest expires_at from all valid stamps
+- **Clean Architecture**: Works with clean StampData models, translates to Django format at boundaries
+
+### Testing Coverage
+- Unit tests verify provider dedup, threshold boundaries, unknown providers, expiration tracking
+- All edge cases covered with comprehensive test suite
+
 ## Migration Progress Summary
 
 - **Phase 1**: Data Models & Schema ✅
 - **Phase 2**: Database Layer ✅
 - **Phase 3**: API Key & Credential Validation ✅
 - **Phase 4**: LIFO Deduplication ✅
-- **Phase 5**: Score Calculation (Next)
+- **Phase 5**: Score Calculation ✅

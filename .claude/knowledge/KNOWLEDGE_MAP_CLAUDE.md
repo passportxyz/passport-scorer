@@ -2,7 +2,7 @@
 
 ## 🏗️ Architecture
 
-- @architecture/scoring_flow.md - V2 API scoring endpoint flow, event recording, Rust migration requirements, and Phase 1 implementation
+- @architecture/scoring_flow.md - V2 API scoring endpoint flow, event recording, Rust migration Phases 1-5 complete
 
 ## 🎨 Patterns
 
@@ -13,6 +13,7 @@
 - @gotchas/nullifier_handling.md - Feature flags, array vs hash field, and Rust simplifications
 - @gotchas/event_data_structure.md - Score update event serialization format
 - @gotchas/django_model_discrepancies.md - Field mismatches between Rust models and actual Django models
+- @gotchas/score_calculation.md - Phase 5 implementation details, provider dedup, decimal precision
 
 ## 🔌 API
 
