@@ -105,18 +105,37 @@ pub async fn validate_credential(
         return Ok(None);
     }
     
-    // TODO: Verify the credential signature using didkit
-    // IMPORTANT: For now, we're NOT verifying the cryptographic signature of credentials
-    // This means we're trusting that credentials in the CeramicCache are already verified
-    // The full didkit verification will be implemented when needed
-    //
-    // When ready to implement, use:
-    // - didkit::ssi::vc::Credential to parse
-    // - LinkedDataProofOptions with ProofPurpose::AssertionMethod
-    // - DID_METHODS.to_resolver() for DID resolution
-    // - vc.verify() to check the signature
+    // Verify the credential signature using didkit's underlying ssi library
+    // The Python didkit FFI wraps this Rust functionality
+    use didkit::ssi::vc::{Credential, LinkedDataProofOptions, ProofPurpose};
+    use didkit::ssi::jsonld::ContextLoader;
+    use didkit::DID_METHODS;
     
-    debug!("Skipping credential signature verification (not implemented yet)");
+    // Parse the credential
+    let vc: Credential = serde_json::from_value(credential.clone())
+        .map_err(|e| {
+            warn!("Failed to parse credential: {}", e);
+            DatabaseError::InvalidData(format!("Invalid credential format: {}", e))
+        })?;
+    
+    // Set up verification options to match Python's {"proofPurpose":"assertionMethod"}
+    let proof_options = LinkedDataProofOptions {
+        proof_purpose: Some(ProofPurpose::AssertionMethod),
+        ..Default::default()
+    };
+    
+    // Verify the credential
+    let resolver = DID_METHODS.to_resolver();
+    let mut context_loader = ContextLoader::default();
+    let result = vc.verify(Some(proof_options), &*resolver, &mut context_loader).await;
+    
+    // Check verification result
+    if !result.errors.is_empty() {
+        warn!("Credential verification failed: {:?}", result.errors);
+        return Ok(None);
+    }
+    
+    debug!("Credential signature verified successfully");
     
     info!("Credential validated successfully for provider: {}", provider);
     
