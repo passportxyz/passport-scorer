@@ -126,8 +126,14 @@ rl.on('line', (line) => {
         } else if (request.method === 'shutdown') {
             respond(request.id, {});
             process.exit(0);
+        } else if (request.method === 'notifications/initialized') {
+            // This is a notification, not a request - don't respond
+            return;
         } else {
-            respondError(request.id, -32601, `Method not found: ${request.method}`);
+            // Only send error for requests with IDs (not notifications)
+            if (request.id !== undefined) {
+                respondError(request.id, -32601, `Method not found: ${request.method}`);
+            }
         }
     } catch (error) {
         // Invalid JSON or other parsing errors
