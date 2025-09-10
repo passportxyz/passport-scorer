@@ -871,7 +871,24 @@ async fn record_events(
         .await?;
     }
     
-    // Record score update event
+    // Record score update event (Django creates via pre_save signal)
+    // Must match Django's serializers.serialize() format exactly
+    let score_event_data = json!({
+        "model": "registry.score",
+        "pk": score_id,  // The Score model's primary key
+        "fields": {
+            "passport": passport_id,
+            "score": score.to_string(),  // Decimal as string
+            "last_score_timestamp": last_score_timestamp.to_rfc3339(),
+            "status": "DONE",
+            "error": null,
+            "evidence": evidence,
+            "stamp_scores": stamp_scores,
+            "stamps": stamps,
+            "expiration_date": expiration_date.map(|d| d.to_rfc3339())
+        }
+    });
+    
     sqlx::query!(
         r#"
         INSERT INTO registry_event 
@@ -879,7 +896,7 @@ async fn record_events(
         VALUES ('SCORE_UPDATE', $1, $2, $3, NOW())
         "#,
         address,
-        json!({"scorer_id": community_id}),
+        score_event_data,
         community_id
     )
     .execute(&mut **tx)
@@ -1304,19 +1321,19 @@ artillery run load-test.yml
 
 ## Deployment Strategy
 
-### Phase 1: Shadow Mode (Week 1-2)
+### Deployment Step 1: Shadow Mode (Week 1-2)
 - Deploy Rust Lambda alongside Django
 - Route 1% of traffic for comparison
 - Monitor performance and accuracy
 - No user impact if issues arise
 
-### Phase 2: Gradual Rollout (Week 3-4)
+### Deployment Step 2: Gradual Rollout (Week 3-4)
 - Increase traffic percentage: 5% → 25% → 50%
 - Monitor error rates and latency
 - A/B test performance metrics
 - Maintain Django as fallback
 
-### Phase 3: Full Migration (Week 5)
+### Deployment Step 3: Full Migration (Week 5)
 - Route 100% traffic to Rust
 - Keep Django dormant for rollback
 - Monitor for edge cases
@@ -1534,7 +1551,7 @@ aws lambda update-function-code \
 - Implement nullifier extraction (simplified logic)
 - Build expiration and issuer checks
 - Test against production credential samples
-- **Deliverable:** Auth module validating 1000+ production credentials
+- **Deliverable:** Auth module validating production credentials
 
 ### Phase 4: LIFO Deduplication (Days 10-12)
 **Output:** Working deduplication engine
@@ -1543,15 +1560,14 @@ aws lambda update-function-code \
 - Create bulk upsert operations with UNNEST
 - Handle nullifier backfilling for partial clashes
 - Stress test with concurrent requests
-- **Deliverable:** Dedup module handling 100+ concurrent requests
+- **Deliverable:** Dedup module handling concurrent requests
 
 ### Phase 5: Score Calculation (Days 13-14)
 **Output:** Accurate scoring engine
 - Implement weight lookup with customization support
 - Build binary score calculation (1 if sum >= threshold, else 0)
 - Create evidence formatting for Django compatibility
-- Validate against 1000+ production scores
-- **Deliverable:** Scoring module with <0.01% discrepancy rate
+- **Deliverable:** Validate against production scores
 
 ### Phase 6: Human Points Integration (Days 15-17)
 **Output:** Complete Human Points processing
