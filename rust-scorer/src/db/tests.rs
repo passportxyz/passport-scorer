@@ -2,7 +2,7 @@
 mod integration_tests {
     use super::super::*;
     use sqlx::PgPool;
-    use rust_decimal_macros::dec;
+    
     
     // These tests require a test database to be set up
     // They use the SQLx test macro which manages test transactions
@@ -11,13 +11,13 @@ mod integration_tests {
     async fn test_upsert_passport(pool: PgPool) -> sqlx::Result<()> {
         let mut tx = pool.begin().await?;
         
-        let passport_id = upsert_passport(
+        let _passport_id = upsert_passport(
             &mut tx,
             "0x1234567890abcdef",
             1
         ).await.unwrap();
         
-        assert!(passport_id > 0);
+        assert!(_passport_id > 0);
         
         // Test idempotency - should return same ID
         let passport_id2 = upsert_passport(
@@ -26,7 +26,7 @@ mod integration_tests {
             1
         ).await.unwrap();
         
-        assert_eq!(passport_id, passport_id2);
+        assert_eq!(_passport_id, passport_id2);
         
         tx.rollback().await?;
         Ok(())
@@ -72,7 +72,7 @@ mod integration_tests {
         let mut tx = pool.begin().await?;
         
         // Create test passport
-        let passport_id = upsert_passport(
+        let _passport_id = upsert_passport(
             &mut tx,
             "0xtest_address",
             1

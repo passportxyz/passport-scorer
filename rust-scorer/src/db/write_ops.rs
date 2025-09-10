@@ -525,7 +525,7 @@ pub async fn award_metamask_og_bonus(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
     
     // Integration tests will be added when we have a test database setup
 }

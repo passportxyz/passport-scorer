@@ -1,5 +1,6 @@
 pub mod models;
 pub mod db;
+pub mod auth;
 
 // Re-export commonly used types
 pub use models::{

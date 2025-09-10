@@ -340,7 +340,7 @@ pub async fn count_metamask_og_awards(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
     
     // Integration tests will be added when we have a test database setup
 }

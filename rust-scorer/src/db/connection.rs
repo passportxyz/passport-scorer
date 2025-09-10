@@ -169,7 +169,7 @@ mod tests {
     async fn test_retry_limit_exceeded() {
         let mut call_count = 0;
         
-        let result = with_retry(2, || {
+        let result: Result<()> = with_retry(2, || {
             call_count += 1;
             async move {
                 Err(DatabaseError::IntegrityError("test error".to_string()))
