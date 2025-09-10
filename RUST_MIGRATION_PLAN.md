@@ -1765,6 +1765,111 @@ Create CloudWatch dashboard with:
    - Event creation
    - V2 API response format
 
+## Implementation Progress & Discrepancies
+
+### ✅ Phase 1: Data Models & Schema - COMPLETE
+**Completed:** September 10, 2025
+
+#### What Was Implemented:
+- **Location:** `/workspace/project/rust-scorer/src/models/`
+- **Core Internal Models** (`internal.rs`):
+  - `StampData` - Clean model for stamp information
+  - `ScoringResult` - Main scoring result model  
+  - `ValidStamp` - Validated credential model
+  - `StampInfo` - Clashing stamp information
+  - `ScoringEvent` - Future event-driven architecture model
+  - `CeramicCredential` - Credential parsing structures
+
+- **Django-Compatible Models** (`django.rs`):
+  - All Django table structs with `FromRow` derives
+  - Exact field mapping to existing database schema
+  
+- **V2 API Response Types** (`v2_api.rs`):
+  - `V2ScoreResponse` with 5 decimal place formatting
+  - `V2StampScoreResponse` for individual stamps
+  - `PointsData` for Human Points
+  
+- **Translation Layers** (`translation.rs`):
+  - `to_v2_response()` - Convert to API format
+  - `to_django_score_fields()` - Django database format
+  - `to_scoring_event()` - Future event architecture
+  - `create_score_update_event_data()` - Django event format
+
+- **Tests** (`tests.rs`): 7 comprehensive unit tests, all passing
+
+#### Key Architectural Decisions:
+1. **Clean Model Separation**: Business logic uses clean models, not Django quirks
+2. **Translation at Boundaries**: Django compatibility only at DB/API boundaries  
+3. **Future-Ready**: Event-driven architecture methods prepared
+4. **Single Source of Truth**: One model generates all output formats
+
+### ✅ Phase 2: Database Layer - COMPLETE
+**Completed:** September 10, 2025
+
+#### What Was Implemented:
+- **Location:** `/workspace/project/rust-scorer/src/db/`
+- **Connection Module** (`connection.rs`):
+  - RDS Proxy pooling with 5 connections (low because proxy handles actual pooling)
+  - Lazy initialization for Lambda cold starts
+  - Retry logic with exponential backoff and jitter
+  - Health check functionality
+
+- **Error Handling** (`errors.rs`):
+  - Custom `DatabaseError` enum
+  - Integrity error detection for LIFO retries
+  - PostgreSQL error code handling
+
+- **Read Operations** (`read_ops.rs`) - 10 functions:
+  - `load_ceramic_cache` - With critical `proof_value` field
+  - `get_latest_stamps_per_provider` - DISTINCT ON deduplication
+  - `load_scorer_config` - Binary weighted scorer
+  - `load_community` - With human_points_program flag
+  - `validate_api_key` - Permission checks
+  - `load_hash_scorer_links` - LIFO deduplication
+  - `load_customization` - Weight overrides
+  - `get_passport_id` - Existing passport lookup
+  - `count_passing_scores` - Human Points qualification
+  - `count_metamask_og_awards` - 5000 limit check
+
+- **Write Operations** (`write_ops.rs`) - 11 functions:
+  - `upsert_passport` - ON CONFLICT handling
+  - `delete_stamps` - Bulk removal
+  - `bulk_insert_stamps` - UNNEST for performance
+  - `upsert_score` - All Django fields
+  - `bulk_upsert_hash_links` - 5-retry LIFO logic
+  - `verify_hash_links` - Validation
+  - `insert_dedup_events` - Event tracking
+  - `insert_score_update_event` - Django format
+  - `record_passing_score` - Human Points
+  - `record_stamp_actions` - Stamp verification
+  - `award_scoring_bonus` - 4+ communities
+  - `award_metamask_og_bonus` - Limited to 5000
+
+#### Critical Discrepancies Fixed:
+1. **SQLx Compile-Time Macros**: Switched to runtime queries due to no DB at compile time
+2. **Django Model Fields**: 
+   - `HashScorerLink`: Removed non-existent `created_at`/`updated_at`
+   - `BinaryWeightedScorer`: Removed non-existent timestamps
+   - `Community`: Only has `created_at` (nullable), no `updated_at`
+   - `Customization`: Uses `scorer_id` not `community_id`
+   - `CeramicCache`: Added critical missing `proof_value` field
+3. **Query Approach**: Used runtime queries instead of compile-time for flexibility
+
+#### Implementation Notes:
+- Maintained exact Django query patterns for POC comparison
+- All operations in single atomic transaction
+- Bulk operations using PostgreSQL UNNEST
+- Case-insensitive address matching with LOWER()
+
+### Phase 3-12: Pending Implementation
+
+The remaining phases are ready to implement with the foundation from Phases 1-2:
+- API Key validation needs djangorestframework-api-key hashing implementation
+- DIDKit integration pending for credential validation
+- LIFO deduplication logic framework in place, needs completion
+- Human Points tables and operations ready, needs business logic
+- Lambda deployment configuration pending
+
 ## Conclusion
 
 This migration represents a significant performance improvement opportunity
@@ -1779,3 +1884,5 @@ The key to success is thorough testing, gradual rollout, and maintaining the
 ability to rollback quickly if issues arise. The simplifications (nullifiers-only,
 no feature flags) make the implementation cleaner while maintaining compatibility
 with modern credentials.
+
+**Current Status:** Phases 1-2 complete with solid foundation for remaining work.
