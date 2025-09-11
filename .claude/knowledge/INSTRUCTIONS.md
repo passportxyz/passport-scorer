@@ -8,25 +8,28 @@ Use remember with these parameters:
 - **details**: Specific information discovered
 - **files**: Related file paths (optional)
 
-✅ ALWAYS capture when you:
-- Understand how something works
-- Find configuration or setup details
-- Discover a pattern or convention
-- Hit a surprising behavior
-- Learn about dependencies or integrations
-- Figure out a workflow or process
+✅ CAPTURE when discovering:
+- How things actually work in this project
+- Architecture, patterns, or conventions
+- Configuration details or requirements
+- Dependencies, integrations, or APIs
+- Non-obvious behaviors or gotchas
+- Workflows, processes, or project-specific details
 
 ❌ DON'T capture:
-- Syntax errors or typos
-- Temporary debugging info
-- Personal TODOs (use TodoWrite instead)
+- Issues you're actively fixing in this session
+- Requirements for the current in-flight issue
+- Temporary debugging output
+- Generic programming knowledge (not project-specific)
+
+When in doubt, capture it - better to remember too much than miss important discoveries.
 
 ## ⚠️ Remember Knowledge First
 
 Unless explicitly prompted by the user, do not create minor dev/LLM-facing documentation. Use remember instead.
 
-## ⚠️ Manual Mim Process
-After making commits with significant remembered knowledge, **remind the user** to run:
+## ⚠️ Automatic Mim Processing
+After making commits with significant remembered knowledge, **run this command yourself**:
 ```bash
 ./mim-coalesce
 ```
