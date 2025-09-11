@@ -1,0 +1,252 @@
+#!/bin/bash
+set -o pipefail
+
+# Mím - Persistent Memory for Claude Code
+# Main entry point for all mim commands
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MIM_COALESCE_SCRIPT="$SCRIPT_DIR/mim-coalesce"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+show_help() {
+  echo "⚡ Mím - Persistent Memory for Claude Code"
+  echo ""
+  echo "USAGE:"
+  echo "  mim <command> [options]"
+  echo ""
+  echo "COMMANDS:"
+  echo "  coalesce     Process remembered knowledge into documentation"
+  echo "  distill      Automatically clean up duplicates and conflicts in documentation"
+  echo "  distill refine  Apply user-guided refinements from distill report"
+  echo ""
+  echo "EXAMPLES:"
+  echo "  mim coalesce              # Process session.md into organized docs"
+  echo "  mim distill               # Auto-clean docs and generate review report"
+  echo "  mim distill refine        # Apply user comments from distill report"
+  echo ""
+}
+
+ensure_distill_dir() {
+  if [ ! -d ".claude/knowledge/distill" ]; then
+    mkdir -p ".claude/knowledge/distill"
+    echo "📁 Created .claude/knowledge/distill directory for reports"
+  fi
+}
+
+run_coalesce() {
+  echo "🔨 Running mim coalesce..."
+  if [ -f "$MIM_COALESCE_SCRIPT" ]; then
+    "$MIM_COALESCE_SCRIPT" "$@"
+  else
+    echo -e "${RED}❌ Error: mim-coalesce script not found at $MIM_COALESCE_SCRIPT${NC}"
+    exit 1
+  fi
+}
+
+run_distill() {
+  echo "🧹 Running mim distill..."
+  echo "🔍 Scanning documentation for duplicates, conflicts, and outdated information..."
+  echo ""
+  echo "   [This may take several minutes to analyze all documentation]"
+  echo ""
+
+  ensure_distill_dir
+
+  # Create backup before making changes
+  if [ -d ".claude/knowledge" ]; then
+    BACKUP_DIR=".claude/knowledge/distill/backup_$(date +%Y%m%d_%H%M%S)"
+    echo "💾 Creating backup at $BACKUP_DIR"
+    cp -r .claude/knowledge "$BACKUP_DIR"
+  fi
+
+  claude \
+    --verbose \
+    --allowedTools Read,Write,MultiEdit,Glob,Grep,Bash \
+    --append-system-prompt "You are Mim's distillation aspect, tasked with cleaning and organizing documentation. You scan for duplicates, outdated information, conflicts, and inconsistencies across all documentation files including CLAUDE.md and .claude/knowledge/ files. Your goal is to auto-fix clear issues and report items that need human review." \
+    --print --output-format stream-json "Execute this MANDATORY distillation process:
+
+1. **SCAN AND ANALYZE**:
+   - Read CLAUDE.md and all files in .claude/knowledge/
+   - Identify: exact duplicates, near-duplicates, conflicting information, outdated content, broken references
+   - Categorize issues into: AUTO_FIX (clear duplicates/broken refs) and REQUIRES_REVIEW (conflicts/ambiguous)
+
+2. **AUTO-FIX CLEAR ISSUES**:
+   - Remove exact duplicate sections
+   - Fix broken @ references and file paths
+   - Remove obviously outdated timestamps/versions
+   - Consolidate redundant information
+   - Track all changes made for the report
+
+3. **GENERATE DISTILL REPORT**:
+   Create distill-report.md with these sections:
+
+   ## Automated Changes
+   [List all auto-fixes made with before/after diffs]
+   
+   ## Requires Review
+   [List conflicts and ambiguous issues that need human guidance]
+   
+   For each review item, provide:
+   - **Issue**: Clear description of the conflict/problem
+   - **Location**: File path and line numbers
+   - **Options**: Suggested resolutions
+   - **Action Needed**: <!-- USER: Add your decision here -->
+
+4. **COMPLETION**:
+   - If review items exist, instruct user to run: mim distill refine
+   - If no review items, report successful cleanup completion
+
+IMPORTANT: Only auto-fix issues that are objectively clear (exact duplicates, broken references). Leave anything subjective or conflicting for human review." | \
+  while IFS= read -r line; do
+    # Extract and print text messages
+    text=$(echo "$line" | jq -r 'select(.message.content[0].type == "text") | .message.content[0].text' 2>/dev/null)
+    if [ -n "$text" ]; then
+      echo "$text"
+    fi
+    
+    # Extract and print tool usage
+    tool=$(echo "$line" | jq -r 'select(.message.content[0].type == "tool_use") | .message.content[0].name' 2>/dev/null)
+    if [ -n "$tool" ]; then
+      echo "[Using tool: $tool]"
+    fi
+  done
+
+  if [ $? -eq 0 ]; then
+    echo ""
+    echo "✨ Distillation complete!"
+    if [ -f "distill-report.md" ]; then
+      echo ""
+      echo "📋 Distill report generated at distill-report.md"
+      
+      # Check if there are review items
+      if grep -q "## Requires Review" "distill-report.md" && [ "$(grep -A 10 "## Requires Review" "distill-report.md" | wc -l)" -gt 2 ]; then
+        echo -e "${YELLOW}⚠️  Some issues require human review${NC}"
+        echo "📝 Edit distill-report.md to add your decisions, then run:"
+        echo -e "${BLUE}   mim distill refine${NC}"
+      else
+        echo -e "${GREEN}✅ No manual review required - all issues were auto-fixed${NC}"
+      fi
+    fi
+    
+    # Commit changes if any were made
+    if ! git diff --quiet; then
+      echo ""
+      echo "📜 Committing distillation changes..."
+      git add .
+      git commit -m "🧹 Distill documentation: auto-clean duplicates and conflicts"
+    fi
+  else
+    echo ""
+    echo -e "${RED}💀 Distillation failed! Check the output above for errors.${NC}"
+    exit 1
+  fi
+}
+
+run_distill_refine() {
+  echo "🎯 Running mim distill refine..."
+  
+  if [ ! -f "distill-report.md" ]; then
+    echo -e "${RED}❌ Error: No distill report found at distill-report.md${NC}"
+    echo "Run 'mim distill' first to generate a report."
+    exit 1
+  fi
+
+  # Check if report has user comments
+  if ! grep -q "<!-- USER:" "distill-report.md"; then
+    echo -e "${YELLOW}⚠️  No user comments found in distill-report.md${NC}"
+    echo "Please edit distill-report.md and add your decisions in the <!-- USER: --> comments."
+    exit 1
+  fi
+
+  echo "🔍 Processing user-guided refinements from distill report..."
+  echo ""
+  echo "   [Applying your decisions to documentation]"
+  echo ""
+
+  claude \
+    --verbose \
+    --allowedTools Read,Write,MultiEdit,Glob,Grep \
+    --append-system-prompt "You are Mim's refinement aspect, applying human-guided decisions from the distill report. You process only items where users have provided specific guidance in <!-- USER: --> comments." \
+    --print --output-format stream-json "Execute this MANDATORY refinement process:
+
+1. **READ DISTILL REPORT**:
+   - Read distill-report.md completely
+   - Identify all items in 'Requires Review' section that have <!-- USER: --> comments with decisions
+
+2. **APPLY USER DECISIONS**:
+   - For each item with user guidance, apply the requested changes
+   - Make precise edits based on user instructions
+   - Preserve user intent while maintaining documentation quality
+
+3. **UPDATE REPORT**:
+   - Mark processed items as COMPLETED
+   - Leave a summary of changes applied
+   - Keep the report as a record of the refinement session
+
+4. **VERIFICATION**:
+   - Ensure all user-requested changes were applied correctly
+   - Verify documentation consistency after changes
+   - Report completion status
+
+IMPORTANT: Only process items with explicit user guidance. Never make subjective decisions on behalf of the user." | \
+  while IFS= read -r line; do
+    # Extract and print text messages
+    text=$(echo "$line" | jq -r 'select(.message.content[0].type == "text") | .message.content[0].text' 2>/dev/null)
+    if [ -n "$text" ]; then
+      echo "$text"
+    fi
+    
+    # Extract and print tool usage
+    tool=$(echo "$line" | jq -r 'select(.message.content[0].type == "tool_use") | .message.content[0].name' 2>/dev/null)
+    if [ -n "$tool" ]; then
+      echo "[Using tool: $tool]"
+    fi
+  done
+
+  if [ $? -eq 0 ]; then
+    echo ""
+    echo "✨ Refinement complete!"
+    echo ""
+    echo "📜 Committing refined documentation..."
+    git add .
+    git commit -m "🎯 Apply user-guided documentation refinements"
+    echo ""
+    echo -e "${GREEN}🔥 All refinements applied successfully!${NC}"
+  else
+    echo ""
+    echo -e "${RED}💀 Refinement failed! Check the output above for errors.${NC}"
+    exit 1
+  fi
+}
+
+# Main command dispatcher
+case "$1" in
+  "coalesce")
+    shift
+    run_coalesce "$@"
+    ;;
+  "distill")
+    if [ "$2" = "refine" ]; then
+      shift 2
+      run_distill_refine "$@"
+    else
+      shift
+      run_distill "$@"
+    fi
+    ;;
+  "help"|"--help"|"-h"|"")
+    show_help
+    ;;
+  *)
+    echo -e "${RED}❌ Unknown command: $1${NC}"
+    echo ""
+    show_help
+    exit 1
+    ;;
+esac
