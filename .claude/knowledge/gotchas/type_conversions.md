@@ -1,8 +1,8 @@
 # Type Conversion Requirements
 
-## [2025-11-13] Type Conversions Between Modules
+## Type Conversions Between Modules
 
-Phase 7 revealed multiple type conversions needed between modules:
+Multiple type conversions are needed between modules:
 
 1. **ValidatedCredential → ValidStamp**: From auth module to internal model for scoring
 2. **StampData → ValidStamp**: From LIFO result for bulk_insert_stamps

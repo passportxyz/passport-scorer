@@ -13,9 +13,9 @@ The project already uses Pulumi (TypeScript) for Lambda deployments with a sophi
 7. **VPC** with private subnets and security groups
 8. **Python Lambda handlers** in api/v2/aws_lambdas/
 
-## Phase 8 - Rust Lambda Deployment
+## Rust Lambda Deployment
 
-Phase 8 of Rust migration completed on November 14, 2024. Created complete Lambda deployment infrastructure:
+Completed Lambda deployment infrastructure for Rust scorer:
 
 ### Implementation Details
 
@@ -33,7 +33,7 @@ Phase 8 of Rust migration completed on November 14, 2024. Created complete Lambd
 - **Separate Docker tag** (RUST_DOCKER_IMAGE_TAG) for independent deployment
 - **Weighted routing strategy** documented for future gradual rollout
 
-### Performance Targets for Phase 9
+### Performance Targets
 
 - Cold start <100ms (vs Python 2-5s)
 - P50 <100ms, P95 <200ms, P99 <500ms

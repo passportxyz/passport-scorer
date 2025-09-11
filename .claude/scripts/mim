@@ -143,6 +143,7 @@ run_distill() {
 1. **SCAN AND ANALYZE ALL KNOWLEDGE FILES**:
    - Read ALL *.md files in .claude/knowledge/ EXCEPT session.md (raw capture file)
    - Understand special files: KNOWLEDGE_MAP.md (user index), KNOWLEDGE_MAP_CLAUDE.md (Claude index)
+   - DO NOT DELETE either KNOWLEDGE_MAP, we want both the markdown-link and claude-reference versions
    - Perform CROSS-FILE analysis to detect duplicates between different knowledge files
    - Identify: exact duplicates, near-duplicates, conflicting information, outdated content, junk/useless info, broken references
    - Categorize issues into: AUTO_FIX (clear duplicates/junk/broken refs) and REQUIRES_REVIEW (conflicts/ambiguous)
@@ -259,6 +260,7 @@ run_distill_refine() {
    - For each user input block, apply the requested changes to the appropriate files
    - Knowledge files are in .claude/knowledge/ (various topic .md files)
    - Special files: KNOWLEDGE_MAP.md (user index) and KNOWLEDGE_MAP_CLAUDE.md (Claude index)
+   - DO NOT DELETE either KNOWLEDGE_MAP, we want both the markdown-link and claude-reference versions
    - Make precise edits based on user instructions
    - If changes affect the knowledge maps, update both consistently
 

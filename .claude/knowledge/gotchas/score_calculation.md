@@ -1,8 +1,6 @@
 # Score Calculation Gotchas
 
-## [2025-09-10] Phase 5 Score Calculation Implementation Details
-
-Phase 5 (Score Calculation) has specific implementation requirements:
+## Score Calculation Implementation Details
 
 ### Weight Lookup with Customization Support
 The load_scorer_config function checks for customization overrides first via load_customization, then falls back to base scorer weights. **Important**: Customization uses custom weights but still takes threshold from base scorer.

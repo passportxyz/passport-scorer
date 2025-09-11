@@ -1,8 +1,8 @@
 # Django Model Field Discrepancies
 
-## [2025-11-13] Confirmed Django Table Schema
+## Confirmed Django Table Schema
 
-Phase 7 testing confirmed the actual Django database schema differs from initial assumptions:
+The actual Django database schema differs from initial assumptions:
 
 - **registry_passport**: Has only id, address, community_id (NO created_at/updated_at fields)
 - **registry_stamp**: Has only id, passport_id, provider, credential (NO timestamps)
