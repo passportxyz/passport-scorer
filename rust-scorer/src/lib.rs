@@ -4,6 +4,7 @@ pub mod auth;
 pub mod dedup;
 pub mod scoring;
 pub mod human_points;
+pub mod api;
 
 // Re-export commonly used types
 pub use models::{

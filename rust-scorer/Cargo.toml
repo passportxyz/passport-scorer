@@ -9,9 +9,9 @@ axum = "0.8"
 tower = "0.5"
 tower-http = { version = "0.6", features = ["trace"] }
 
-# Lambda runtime
-lambda-web = "0.2"
-lambda_runtime = "0.14"
+# Lambda runtime (optional)
+lambda-web = { version = "0.2", optional = true }
+lambda_runtime = { version = "0.14", optional = true }
 
 # Database
 sqlx = { version = "0.8", features = [
@@ -44,3 +44,8 @@ anyhow = "1.0"
 
 [dev-dependencies]
 pretty_assertions = "1.4"
+tower = { version = "0.4", features = ["util"] }
+
+[features]
+default = []
+lambda = ["lambda-web", "lambda_runtime"]

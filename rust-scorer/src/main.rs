@@ -1,5 +1,5 @@
 
-fn main() {
-    println!("Passport Scorer - Rust Migration Phase 1 Complete!");
-    println!("Module structure ready for Phase 2: Database Layer");
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    rust_scorer::api::server::run_server().await
 }
