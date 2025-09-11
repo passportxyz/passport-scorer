@@ -2,7 +2,7 @@
 
 ## 🏗️ Architecture
 
-- @architecture/scoring_flow.md - V2 API scoring endpoint flow, event recording, Rust migration Phases 1-7 complete
+- @architecture/scoring_flow.md - V2 API scoring endpoint flow, event recording, Rust migration Phases 1-8 complete
 
 ## 🎨 Patterns
 
@@ -35,3 +35,7 @@
 ## 🔄 Workflows
 
 - @workflows/rust_testing.md - Test organization and database setup
+
+## 🚀 Deployment
+
+- @deployment/lambda_infrastructure.md - Pulumi-based Lambda deployment with ALB integration, Phase 8 complete

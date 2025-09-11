@@ -1,10 +1,10 @@
 # 📚 Project Knowledge Map
 
-*Last updated: 2025-11-13*
+*Last updated: 2025-11-14*
 
 ## 🏗️ Architecture
 
-- [Scoring Flow Architecture](architecture/scoring_flow.md) - V2 API scoring endpoint flow, event recording, Rust migration Phases 1-7 complete
+- [Scoring Flow Architecture](architecture/scoring_flow.md) - V2 API scoring endpoint flow, event recording, Rust migration Phases 1-8 complete
 
 ## 🎨 Patterns
 
@@ -37,3 +37,7 @@
 ## 🔄 Workflows
 
 - [Rust Testing](workflows/rust_testing.md) - Test organization and database setup
+
+## 🚀 Deployment
+
+- [Lambda Infrastructure](deployment/lambda_infrastructure.md) - Pulumi-based Lambda deployment with ALB integration, Phase 8 complete
