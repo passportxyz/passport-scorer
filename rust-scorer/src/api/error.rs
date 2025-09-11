@@ -85,6 +85,7 @@ impl From<crate::db::DatabaseError> for ApiError {
             crate::db::DatabaseError::QueryError(e) => ApiError::Database(e.to_string()),
             crate::db::DatabaseError::SerializationError(e) => ApiError::Internal(e.to_string()),
             crate::db::DatabaseError::InvalidData(msg) => ApiError::Validation(msg),
+            crate::db::DatabaseError::Unauthorized(msg) => ApiError::Unauthorized(msg),
             crate::db::DatabaseError::RetryLimitExceeded { attempts } => {
                 ApiError::Database(format!("Retry limit exceeded after {} attempts", attempts))
             }

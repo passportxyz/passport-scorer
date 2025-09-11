@@ -53,7 +53,7 @@ pub fn create_app(pool: PgPool) -> Router {
     Router::new()
         // Main v2 scoring endpoint
         .route(
-            "/v2/stamps/:scorer_id/score/:address",
+            "/v2/stamps/{scorer_id}/score/{address}",
             get(score_address_handler),
         )
         // Health check endpoint

@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use sqlx::PgPool;
 
 use crate::models::{
-    ScoringResult, StampData, StampInfo,
+    ScoringResult, StampData,
 };
 use crate::db::{DatabaseError, read_ops};
 use crate::dedup::LifoResult;
@@ -186,6 +186,7 @@ pub fn build_scoring_result(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::StampInfo;
     use rust_decimal_macros::dec;
     use serde_json::json;
     

@@ -59,7 +59,7 @@ impl ApiKeyValidator {
                 ))?
                 .to_string()
         } else {
-            return Err(DatabaseError::InvalidData(
+            return Err(DatabaseError::Unauthorized(
                 "No API key provided".to_string()
             ));
         };

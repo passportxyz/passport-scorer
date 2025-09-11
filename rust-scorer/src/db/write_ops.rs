@@ -18,10 +18,10 @@ pub async fn upsert_passport(
     
     let row = sqlx::query(
         r#"
-        INSERT INTO registry_passport (address, community_id, created_at, updated_at)
-        VALUES (LOWER($1), $2, NOW(), NOW())
+        INSERT INTO registry_passport (address, community_id)
+        VALUES (LOWER($1), $2)
         ON CONFLICT (address, community_id)
-        DO UPDATE SET updated_at = NOW()
+        DO UPDATE SET address = EXCLUDED.address
         RETURNING id
         "#
     )

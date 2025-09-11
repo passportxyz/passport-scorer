@@ -23,6 +23,9 @@ pub enum DatabaseError {
     #[error("Invalid data: {0}")]
     InvalidData(String),
     
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
+    
     #[error("Retry limit exceeded after {attempts} attempts")]
     RetryLimitExceeded { attempts: u8 },
 }

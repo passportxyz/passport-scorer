@@ -106,7 +106,7 @@ async fn process_score_request(
 
     // Track API usage for analytics
     ApiKeyValidator::track_usage(
-        &mut **tx,
+        tx,
         api_key_data.id,
         &format!("/v2/stamps/{}/score/{}", scorer_id, address),
         "GET",
@@ -119,10 +119,8 @@ async fn process_score_request(
     ).await?;
 
     // 2. Check if community exists and get configuration
-    let community = load_community(scorer_id, &mut **tx).await?;
-    if community.deleted_at.is_some() {
-        return Err(ApiError::NotFound(format!("Scorer {} not found", scorer_id)));
-    }
+    let community = load_community(pool, scorer_id).await?;
+    // Note: DjangoCommunity doesn't have deleted_at field
 
     info!(
         human_points_enabled = community.human_points_program,
@@ -130,11 +128,11 @@ async fn process_score_request(
     );
 
     // 3. Upsert passport record
-    let passport_id = upsert_passport(address, scorer_id, &mut **tx).await?;
+    let passport_id = upsert_passport(tx, address, scorer_id).await?;
     info!(passport_id = passport_id, "Passport record upserted");
 
     // 4. Load credentials from CeramicCache
-    let ceramic_cache_entries = load_ceramic_cache(address, &mut **tx).await?;
+    let ceramic_cache_entries = load_ceramic_cache(pool, address).await?;
     
     info!(
         total_credentials = ceramic_cache_entries.len(),
@@ -147,31 +145,52 @@ async fn process_score_request(
             address,
             scorer_id,
             passport_id,
-            &mut **tx
+            tx
         ).await?;
         
         return Ok(Json(zero_response));
     }
 
     // 5. Get latest stamps per provider (deduplicated by updated_at)
-    let latest_stamps = get_latest_stamps_per_provider(&ceramic_cache_entries)?;
+    let latest_stamps = get_latest_stamps_per_provider(pool, address).await?;
     
     info!(
         deduped_by_provider = latest_stamps.len(),
         "Deduplicated stamps by provider"
     );
 
-    // 6. Validate credentials
-    let valid_stamps = validate_credentials_batch(&latest_stamps, address).await
+    // 6. Validate credentials - extract stamp JSON from ceramic cache
+    let stamp_values: Vec<serde_json::Value> = latest_stamps
+        .iter()
+        .map(|c| c.stamp.clone())
+        .collect();
+    
+    let validated_credentials = validate_credentials_batch(&stamp_values, address).await
         .map_err(|e| ApiError::Validation(e.to_string()))?;
+    
+    // Convert ValidatedCredential to ValidStamp for internal use
+    let valid_stamps: Vec<crate::models::internal::ValidStamp> = validated_credentials
+        .into_iter()
+        .map(|vc| crate::models::internal::ValidStamp {
+            provider: vc.provider,
+            credential: vc.credential,
+            nullifiers: vc.nullifiers,
+            expires_at: vc.expires_at,
+        })
+        .collect();
     
     info!(
         valid_count = valid_stamps.len(),
         "Validated credentials"
     );
 
-    // 7. Apply LIFO deduplication
-    let lifo_result = lifo_dedup(&valid_stamps, address, scorer_id, &mut **tx).await?;
+    // 7. Load scorer weights first (needed for LIFO)
+    let scorer_config = crate::db::read_ops::load_scorer_config(pool, scorer_id).await?;
+    let weights: HashMap<String, Decimal> = serde_json::from_value(scorer_config.weights)
+        .map_err(|e| ApiError::Internal(format!("Failed to parse weights: {}", e)))?;
+    
+    // 8. Apply LIFO deduplication
+    let lifo_result = lifo_dedup(&valid_stamps, address, scorer_id, &weights, tx).await?;
     
     info!(
         valid_after_lifo = lifo_result.valid_stamps.len(),
@@ -179,25 +198,35 @@ async fn process_score_request(
         "Applied LIFO deduplication"
     );
 
-    // 8. Delete existing stamps and insert new valid ones
-    delete_stamps(passport_id, &mut **tx).await?;
+    // 9. Delete existing stamps and insert new valid ones
+    delete_stamps(tx, passport_id).await?;
     
     // Insert valid stamps
     if !lifo_result.valid_stamps.is_empty() {
+        // Convert StampData back to ValidStamp for bulk insert
+        let stamps_for_insert: Vec<crate::models::internal::ValidStamp> = lifo_result.valid_stamps
+            .iter()
+            .map(|sd| crate::models::internal::ValidStamp {
+                provider: sd.provider.clone(),
+                credential: sd.credential.clone(),
+                nullifiers: sd.nullifiers.clone(),
+                expires_at: sd.expires_at,
+            })
+            .collect();
+        
         crate::db::write_ops::bulk_insert_stamps(
+            tx,
             passport_id,
-            &lifo_result.valid_stamps,
-            &mut **tx,
+            &stamps_for_insert,
         ).await?;
     }
 
-    // 9. Calculate score
+    // 10. Calculate score
     let scoring_result = calculate_score(
         address,
         scorer_id,
-        lifo_result.valid_stamps,
-        lifo_result.clashing_stamps,
-        &mut **tx,
+        lifo_result,
+        pool,
     ).await?;
 
     info!(
@@ -207,54 +236,67 @@ async fn process_score_request(
         "Calculated score"
     );
 
-    // 10. Persist score using Django format
+    // 11. Persist score using Django format
     let django_fields = scoring_result.to_django_score_fields();
-    let score_id = upsert_score(passport_id, &django_fields, &mut **tx).await?;
+    let score_id = upsert_score(tx, passport_id, &django_fields).await?;
 
-    // 11. Record events
+    // 12. Record events
     // Record LIFO deduplication events
     if !scoring_result.deduped_stamps.is_empty() {
+        // Convert deduped stamps to the format expected by insert_dedup_events
+        let mut clashing_stamps_map = HashMap::new();
+        for stamp in &scoring_result.deduped_stamps {
+            clashing_stamps_map.insert(
+                stamp.provider.clone(),
+                crate::models::internal::StampInfo {
+                    nullifiers: stamp.nullifiers.clone(),
+                    credential: stamp.credential.clone(),
+                    expires_at: stamp.expires_at,
+                },
+            );
+        }
+        
         crate::db::write_ops::insert_dedup_events(
+            tx,
             address,
             scorer_id,
-            &scoring_result.deduped_stamps,
-            &mut **tx,
+            &clashing_stamps_map,
         ).await?;
     }
 
     // Record score update event
     insert_score_update_event(
+        tx,
         address,
         scorer_id,
         score_id,
         passport_id,
         &django_fields,
-        &mut **tx,
     ).await?;
 
-    // 12. Process Human Points if enabled
+    // 13. Process Human Points if enabled
     let mut points_data = None;
     let mut possible_points_data = None;
 
     if community.human_points_program && scoring_result.binary_score == Decimal::from(1) {
         // Process human points within transaction
-        process_human_points(&scoring_result, true, &mut **tx).await?;
+        process_human_points(&scoring_result, true, tx).await?;
         
         info!("Processed human points");
 
         // Get points data for response if requested
         if include_human_points {
-            points_data = Some(get_user_points_data(address, &mut **tx).await?);
+            points_data = Some(get_user_points_data(address, pool).await?);
             
             if let Some(ref pd) = points_data {
-                possible_points_data = Some(get_possible_points_data(pd.multiplier, &mut **tx).await?);
+                possible_points_data = Some(get_possible_points_data(pd.multiplier, pool).await?);
             }
             
             info!("Loaded human points data for response");
         }
     }
 
-    // 13. Build V2 response
+    // 14. Build V2 response
     let mut response = scoring_result.to_v2_response();
     response.points_data = points_data;
     response.possible_points_data = possible_points_data;
@@ -301,19 +343,19 @@ async fn create_zero_score_response(
             "threshold": "0"
         }),
         stamp_scores: serde_json::json!({}),
-        stamps: serde_json::json!({}),
+        stamps: HashMap::new(),
     };
 
-    let score_id = upsert_score(passport_id, &score_fields, tx).await?;
+    let score_id = upsert_score(tx, passport_id, &score_fields).await?;
     
     // Record score update event
     insert_score_update_event(
+        tx,
         address,
         scorer_id,
         score_id,
         passport_id,
         &score_fields,
-        tx,
     ).await?;
 
     Ok(zero_response)

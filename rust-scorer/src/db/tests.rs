@@ -5,10 +5,14 @@ mod integration_tests {
     
     
     // These tests require a test database to be set up
-    // They use the SQLx test macro which manages test transactions
+    // Run with: DATABASE_URL=postgresql://... cargo test -- --ignored
     
-    #[sqlx::test]
-    async fn test_upsert_passport(pool: PgPool) -> sqlx::Result<()> {
+    #[tokio::test]
+    #[ignore] // Run with: cargo test test_upsert_passport -- --ignored
+    async fn test_upsert_passport() -> Result<()> {
+        let database_url = std::env::var("DATABASE_URL")
+            .expect("DATABASE_URL must be set for integration tests");
+        let pool = PgPool::connect(&database_url).await?;
         let mut tx = pool.begin().await?;
         
         let _passport_id = upsert_passport(
@@ -32,8 +36,12 @@ mod integration_tests {
         Ok(())
     }
     
-    #[sqlx::test]
-    async fn test_load_ceramic_cache(pool: PgPool) -> sqlx::Result<()> {
+    #[tokio::test]
+    #[ignore] // Run with: cargo test test_load_ceramic_cache -- --ignored
+    async fn test_load_ceramic_cache() -> Result<()> {
+        let database_url = std::env::var("DATABASE_URL")
+            .expect("DATABASE_URL must be set for integration tests");
+        let pool = PgPool::connect(&database_url).await?;
         // This test would need test data in the ceramic_cache table
         let stamps = load_ceramic_cache(
             &pool,
@@ -67,8 +75,12 @@ mod integration_tests {
         Ok(())
     }
     
-    #[sqlx::test]
-    async fn test_hash_link_operations(pool: PgPool) -> sqlx::Result<()> {
+    #[tokio::test]
+    #[ignore] // Run with: cargo test test_hash_link_operations -- --ignored
+    async fn test_hash_link_operations() -> Result<()> {
+        let database_url = std::env::var("DATABASE_URL")
+            .expect("DATABASE_URL must be set for integration tests");
+        let pool = PgPool::connect(&database_url).await?;
         let mut tx = pool.begin().await?;
         
         // Create test passport

@@ -231,6 +231,12 @@ async fn lifo_dedup_attempt(
     // Calculate count before moving vectors
     let links_processed = hash_links_to_create.len() + hash_links_to_update.len();
     
+    // Collect nullifiers that should belong to current address (from valid stamps only)
+    let mut nullifiers_for_current_address = Vec::new();
+    for stamp in &valid_stamps {
+        nullifiers_for_current_address.extend(stamp.nullifiers.clone());
+    }
+    
     // Perform bulk hash link operations
     bulk_upsert_hash_links(
         tx,
@@ -239,11 +245,12 @@ async fn lifo_dedup_attempt(
     ).await?;
     
     // Verify expected number of links were created/updated
+    // Only verify nullifiers that should belong to the current address
     let verification_success = verify_hash_links(
         tx,
         address,
         community_id,
-        &all_nullifiers
+        &nullifiers_for_current_address
     ).await?;
     
     // Check if verification succeeded

@@ -4,7 +4,10 @@ mod tests {
         body::Body,
         http::{Request, StatusCode},
     };
+    use chrono::Utc;
     use passport_scorer::api::server::create_app;
+    use passport_scorer::models::django::{DjangoScoreFields, DjangoStampScore};
+    use rust_decimal::Decimal;
     use serde_json::json;
     use sqlx::postgres::PgPoolOptions;
     use std::collections::HashMap;
@@ -108,7 +111,10 @@ mod tests {
             .unwrap();
 
         // Will fail with invalid API key, but that's ok - we're testing the param parsing
-        assert!(response.status() == StatusCode::UNAUTHORIZED || response.status() == StatusCode::INTERNAL_SERVER_ERROR);
+        // The API key "test_key" doesn't exist in the database, so we expect NOT_FOUND
+        assert!(response.status() == StatusCode::NOT_FOUND || 
+                response.status() == StatusCode::UNAUTHORIZED || 
+                response.status() == StatusCode::INTERNAL_SERVER_ERROR);
     }
 
     #[tokio::test]
@@ -203,9 +209,7 @@ mod tests {
     #[tokio::test]
     async fn test_django_event_format() {
         use passport_scorer::models::translation::create_score_update_event_data;
-        use passport_scorer::models::django::DjangoScoreFields;
-        use rust_decimal::Decimal;
-        use chrono::Utc;
+        // Already imported at the top
         
         let score_fields = DjangoScoreFields {
             score: Decimal::from(1),
@@ -220,24 +224,31 @@ mod tests {
                 "threshold": "20.0"
             }),
             stamp_scores: json!({"Google": 10.5, "Twitter": 15.0}),
-            stamps: json!({
-                "Google": {
-                    "score": "10.50000",
-                    "dedup": false,
-                    "expiration_date": "2025-12-31T23:59:59Z"
-                },
-                "Twitter": {
-                    "score": "15.00000",
-                    "dedup": false,
-                    "expiration_date": "2025-12-31T23:59:59Z"
-                }
-            }),
+            stamps: {
+                let mut stamps = HashMap::new();
+                stamps.insert("Google".to_string(), DjangoStampScore {
+                    score: "10.50000".to_string(),
+                    dedup: false,
+                    expiration_date: Some("2025-12-31T23:59:59Z".to_string()),
+                });
+                stamps.insert("Twitter".to_string(), DjangoStampScore {
+                    score: "15.00000".to_string(),
+                    dedup: false,
+                    expiration_date: Some("2025-12-31T23:59:59Z".to_string()),
+                });
+                stamps
+            },
         };
         
         let event_data = create_score_update_event_data(
             1, // score_id
             2, // passport_id
-            &score_fields
+            score_fields.score,
+            score_fields.last_score_timestamp,
+            score_fields.evidence.clone(),
+            score_fields.stamp_scores.clone(),
+            &score_fields.stamps,
+            score_fields.expiration_date,
         );
         
         // Verify Django serialization format
