@@ -6,6 +6,7 @@ import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 import { stack, defaultTags } from "../../lib/tags";
 import { secretsManager } from "infra-libs";
 import { AlarmConfigurations } from "../../lib/scorer/loadBalancer";
+import { createRustScorerLambda } from "./rust-scorer";
 
 /// This function will create the infra for the V2 API
 /// For now this will:
@@ -14,6 +15,7 @@ import { AlarmConfigurations } from "../../lib/scorer/loadBalancer";
 export function createV2Api({
   httpsListener,
   dockerLambdaImage,
+  dockerRustScorerImage,
   privateSubnetSecurityGroup,
   vpcPrivateSubnetIds,
   scorerSecret,
@@ -26,6 +28,7 @@ export function createV2Api({
 }: {
   httpsListener: pulumi.Output<aws.alb.Listener>;
   dockerLambdaImage: pulumi.Output<string>;
+  dockerRustScorerImage?: pulumi.Output<string>;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   vpcPrivateSubnetIds: pulumi.Output<any>;
   scorerSecret: aws.secretsmanager.Secret;
@@ -217,4 +220,20 @@ export function createV2Api({
       },
     ],
   });
+  
+  // Deploy Rust scorer Lambda if image is provided
+  if (dockerRustScorerImage) {
+    createRustScorerLambda({
+      httpsListener,
+      dockerRustScorerImage,
+      privateSubnetSecurityGroup,
+      vpcPrivateSubnetIds,
+      scorerSecret,
+      pagerdutyTopic,
+      httpRoleAttachments,
+      httpLambdaRole,
+      alb,
+      alarmConfigurations,
+    });
+  }
 }

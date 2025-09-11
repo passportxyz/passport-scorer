@@ -49,8 +49,11 @@ pub async fn create_connection_pool() -> Result<PgPool, Box<dyn std::error::Erro
     Ok(pool)
 }
 
-pub fn create_app(pool: PgPool) -> Router {
-    Router::new()
+pub async fn create_app() -> Result<Router, Box<dyn std::error::Error>> {
+    // Create database connection pool
+    let pool = create_connection_pool().await?;
+    
+    Ok(Router::new()
         // Main v2 scoring endpoint
         .route(
             "/v2/stamps/{scorer_id}/score/{address}",
@@ -61,7 +64,7 @@ pub fn create_app(pool: PgPool) -> Router {
         // Add connection pool as state
         .with_state(pool)
         // Add tracing layer for observability
-        .layer(TraceLayer::new_for_http())
+        .layer(TraceLayer::new_for_http()))
 }
 
 async fn health_check() -> &'static str {
@@ -74,11 +77,8 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     
     info!("Starting Passport Scorer Rust server");
     
-    // Create database connection pool
-    let pool = create_connection_pool().await?;
-    
     // Create the app
-    let app = create_app(pool);
+    let app = create_app().await?;
     
     // Get the port from environment or use default
     let port = env::var("PORT")
@@ -96,27 +96,3 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-// For Lambda deployment
-#[cfg(feature = "lambda")]
-pub async fn lambda_handler() -> Result<(), Box<dyn std::error::Error>> {
-    use lambda_web::{is_running_on_lambda, run};
-    
-    // Initialize tracing
-    init_tracing();
-    
-    info!("Starting Passport Scorer Lambda function");
-    
-    // Create database connection pool
-    let pool = create_connection_pool().await?;
-    
-    // Create the app
-    let app = create_app(pool);
-    
-    if is_running_on_lambda() {
-        // Run as Lambda
-        run(app).await
-    } else {
-        // Run as regular server for local testing
-        run_server().await
-    }
-}

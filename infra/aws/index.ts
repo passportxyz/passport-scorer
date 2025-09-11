@@ -70,6 +70,14 @@ export const verifierDockerImage = pulumi
     ([acc, region]) => `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-verifier:${DOCKER_IMAGE_TAG}`
   );
 
+// Rust scorer Lambda image - using separate tag for independent deployment
+const RUST_DOCKER_IMAGE_TAG = process.env.RUST_DOCKER_IMAGE_TAG || "rust-latest";
+export const dockerRustScorerImage = pulumi
+  .all([current, regionData])
+  .apply(
+    ([acc, region]) => `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-scorer:${RUST_DOCKER_IMAGE_TAG}`
+  );
+
 const pagerDutyIntegrationEndpoint = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`
 );
@@ -1591,6 +1599,7 @@ if (stack === "production") {
 createV2Api({
   httpsListener,
   dockerLambdaImage: dockerGtcSubmitPassportLambdaImage,
+  dockerRustScorerImage: dockerRustScorerImage,
   alarmConfigurations: alarmConfigurations,
   httpLambdaRole: httpLambdaRole,
   alb: alb,
