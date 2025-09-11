@@ -92,7 +92,7 @@ fn should_process_human_points(
 /// Record that an address achieved a passing score in a community
 async fn record_passing_score(
     address: &str,
-    community_id: i32,
+    community_id: i64,
     tx: &mut Transaction<'_, Postgres>,
 ) -> Result<(), DatabaseError> {
     sqlx::query(

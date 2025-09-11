@@ -33,7 +33,7 @@ pub struct ScoreQueryParams {
 
 #[instrument(skip(pool, headers), fields(scorer_id, address))]
 pub async fn score_address_handler(
-    Path((scorer_id, address)): Path<(i32, String)>,
+    Path((scorer_id, address)): Path<(i64, String)>,
     Query(params): Query<ScoreQueryParams>,
     State(pool): State<PgPool>,
     headers: HeaderMap,
@@ -80,7 +80,7 @@ pub async fn score_address_handler(
 
 async fn process_score_request(
     address: &str,
-    scorer_id: i32,
+    scorer_id: i64,
     include_human_points: bool,
     headers: &HeaderMap,
     pool: &PgPool,
@@ -107,7 +107,7 @@ async fn process_score_request(
     // Track API usage for analytics
     ApiKeyValidator::track_usage(
         tx,
-        api_key_data.id,
+        &api_key_data.id,
         &format!("/v2/stamps/{}/score/{}", scorer_id, address),
         "GET",
         200,  // Status code
@@ -158,6 +158,11 @@ async fn process_score_request(
         deduped_by_provider = latest_stamps.len(),
         "Deduplicated stamps by provider"
     );
+    
+    println!("DEBUG: Found {} stamps for address {}", latest_stamps.len(), address);
+    for stamp in &latest_stamps {
+        println!("  - Provider: {}", stamp.provider);
+    }
 
     // 6. Validate credentials - extract stamp JSON from ceramic cache
     let stamp_values: Vec<serde_json::Value> = latest_stamps
@@ -167,6 +172,8 @@ async fn process_score_request(
     
     let validated_credentials = validate_credentials_batch(&stamp_values, address).await
         .map_err(|e| ApiError::Validation(e.to_string()))?;
+    
+    println!("DEBUG: Validated {} credentials out of {}", validated_credentials.len(), stamp_values.len());
     
     // Convert ValidatedCredential to ValidStamp for internal use
     let valid_stamps: Vec<crate::models::internal::ValidStamp> = validated_credentials
@@ -183,6 +190,8 @@ async fn process_score_request(
         valid_count = valid_stamps.len(),
         "Validated credentials"
     );
+    
+    println!("DEBUG: Valid stamps after conversion: {}", valid_stamps.len());
 
     // 7. Load scorer weights first (needed for LIFO)
     let scorer_config = crate::db::read_ops::load_scorer_config(pool, scorer_id).await?;
@@ -312,17 +321,17 @@ async fn process_score_request(
 
 async fn create_zero_score_response(
     address: &str,
-    scorer_id: i32,
-    passport_id: i32,
+    scorer_id: i64,
+    passport_id: i64,
     tx: &mut Transaction<'_, Postgres>,
 ) -> ApiResult<V2ScoreResponse> {
     let zero_response = V2ScoreResponse {
         address: address.to_string(),
         score: Some("0.00000".to_string()),
         passing_score: false,
-        threshold: "0.00000".to_string(),
-        last_score_timestamp: Some(chrono::Utc::now().to_rfc3339()),
+        last_score_timestamp: Some(crate::models::v2_api::format_datetime_python(chrono::Utc::now())),
         expiration_timestamp: None,
+        threshold: "0.00000".to_string(),
         error: None,
         stamps: HashMap::new(),
         points_data: None,

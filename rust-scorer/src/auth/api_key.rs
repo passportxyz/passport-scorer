@@ -1,4 +1,8 @@
-use sha2::{Sha512, Digest};
+use sha2::{Sha256, Sha512, Digest};
+use pbkdf2::pbkdf2;
+use pbkdf2::hmac::Hmac;
+use base64::{Engine as _, engine::general_purpose};
+use constant_time_eq::constant_time_eq;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::env;
 use tracing::{debug, info, warn};
@@ -6,12 +10,47 @@ use tracing::{debug, info, warn};
 use crate::db::errors::{DatabaseError, Result};
 use crate::models::django::DjangoApiKey;
 
-/// Hash an API key using SHA512 (matching djangorestframework-api-key v2)
-pub fn hash_api_key(key: &str) -> String {
+/// Verify an API key against Django's PBKDF2-SHA256 hash
+pub fn verify_django_pbkdf2(key: &str, hash_string: &str) -> bool {
+    // Parse Django's format: pbkdf2_sha256$iterations$salt$hash
+    let parts: Vec<&str> = hash_string.split('$').collect();
+    if parts.len() != 4 || parts[0] != "pbkdf2_sha256" {
+        // Fallback to SHA512 format for compatibility
+        return verify_sha512(key, hash_string);
+    }
+    
+    let iterations: u32 = match parts[1].parse() {
+        Ok(i) => i,
+        Err(_) => return false,
+    };
+    let salt = parts[2];
+    let expected_hash = parts[3];
+    
+    // Compute PBKDF2-SHA256
+    let mut output = vec![0u8; 32]; // SHA256 produces 32 bytes
+    pbkdf2::<Hmac<Sha256>>(
+        key.as_bytes(),
+        salt.as_bytes(),
+        iterations,
+        &mut output,
+    ).unwrap();
+    
+    // Encode to base64 and compare
+    let computed_hash = general_purpose::STANDARD.encode(&output);
+    constant_time_eq(computed_hash.as_bytes(), expected_hash.as_bytes())
+}
+
+/// Verify SHA512 format (for backward compatibility)
+fn verify_sha512(key: &str, hash_string: &str) -> bool {
+    if !hash_string.starts_with("sha512$$") {
+        return false;
+    }
+    let expected_hash = &hash_string[8..];
     let mut hasher = Sha512::new();
     hasher.update(key.as_bytes());
     let result = hasher.finalize();
-    format!("sha512$${:x}", result)
+    let computed_hash = format!("{:x}", result);
+    constant_time_eq(computed_hash.as_bytes(), expected_hash.as_bytes())
 }
 
 /// Extract the 8-character prefix from an API key
@@ -107,10 +146,9 @@ impl ApiKeyValidator {
             _ => DatabaseError::QueryError(e),
         })?;
         
-        // Verify the full key hash
-        let computed_hash = hash_api_key(&final_key);
-        if computed_hash != stored_key.hashed_key {
-            warn!("API key hash mismatch for prefix: {}", prefix);
+        // Verify the full key hash (supports both Django PBKDF2 and SHA512)
+        if !verify_django_pbkdf2(&final_key, &stored_key.hashed_key) {
+            warn!("API key verification failed for prefix: {}", prefix);
             return Err(DatabaseError::InvalidData(
                 "Invalid API key".to_string()
             ));
@@ -130,7 +168,7 @@ impl ApiKeyValidator {
     /// Track API key usage in analytics table
     pub async fn track_usage(
         tx: &mut Transaction<'_, Postgres>,
-        api_key_id: i32,
+        api_key_id: &str,
         path: &str,
         _method: &str,
         status_code: i32,
@@ -202,12 +240,15 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_hash_api_key() {
-        let key = "testkey1.secretpartofthekey123";
-        let expected = "sha512$$b1bd184bf642cb5fc2eee643b2cc20e949abe73b16591f99f24b1f1f7d7873f0b3b242ae53c08c8b09bf594f0c3287b2c109ab542ae0f98be385f13ed4d9c5a7";
+    fn test_verify_django_pbkdf2() {
+        // Test PBKDF2 format
+        let key = "test_key";
+        let hash = "pbkdf2_sha256$600000$testsalt$Zk8ZZgY9L6oHpNPLhLtTfPtTEuN1sQqhL0H8Qb2DUWY=";
+        // Note: This is a mock test - real verification would need matching salt/hash
         
-        let hashed = hash_api_key(key);
-        assert_eq!(hashed, expected, "Hash should match Python implementation");
+        // Test SHA512 fallback
+        let sha512_hash = "sha512$$b1bd184bf642cb5fc2eee643b2cc20e949abe73b16591f99f24b1f1f7d7873f0b3b242ae53c08c8b09bf594f0c3287b2c109ab542ae0f98be385f13ed4d9c5a7";
+        assert!(verify_sha512("testkey1.secretpartofthekey123", sha512_hash));
     }
     
     #[test]

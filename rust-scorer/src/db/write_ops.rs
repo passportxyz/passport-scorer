@@ -12,8 +12,8 @@ use crate::models::internal::{ValidStamp, StampInfo};
 pub async fn upsert_passport(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
-    community_id: i32,
-) -> Result<i32> {
+    community_id: i64,
+) -> Result<i64> {
     debug!("Upserting passport for address: {} and community: {}", address, community_id);
     
     let row = sqlx::query(
@@ -31,7 +31,7 @@ pub async fn upsert_passport(
     .await
     .map_err(|e| DatabaseError::QueryError(e))?;
     
-    let passport_id: i32 = row.get("id");
+    let passport_id: i64 = row.get("id");
     
     info!("Upserted passport with ID: {}", passport_id);
     Ok(passport_id)
@@ -40,7 +40,7 @@ pub async fn upsert_passport(
 /// Delete all existing stamps for a passport
 pub async fn delete_stamps(
     tx: &mut Transaction<'_, Postgres>,
-    passport_id: i32,
+    passport_id: i64,
 ) -> Result<u64> {
     debug!("Deleting existing stamps for passport_id: {}", passport_id);
     
@@ -60,7 +60,7 @@ pub async fn delete_stamps(
 /// Bulk insert stamps
 pub async fn bulk_insert_stamps(
     tx: &mut Transaction<'_, Postgres>,
-    passport_id: i32,
+    passport_id: i64,
     stamps: &[ValidStamp],
 ) -> Result<u64> {
     if stamps.is_empty() {
@@ -72,14 +72,13 @@ pub async fn bulk_insert_stamps(
     
     let providers: Vec<String> = stamps.iter().map(|s| s.provider.clone()).collect();
     let credentials: Vec<JsonValue> = stamps.iter().map(|s| s.credential.clone()).collect();
-    let passport_ids: Vec<i32> = vec![passport_id; stamps.len()];
+    let passport_ids: Vec<i64> = vec![passport_id; stamps.len()];
     
     let result = sqlx::query(
         r#"
-        INSERT INTO registry_stamp (passport_id, provider, credential, created_at, updated_at)
+        INSERT INTO registry_stamp (passport_id, provider, credential)
         SELECT * FROM UNNEST($1::int[], $2::text[], $3::jsonb[]) 
-        AS t(passport_id, provider, credential), 
-        (SELECT NOW() as created_at, NOW() as updated_at) AS times
+        AS t(passport_id, provider, credential)
         "#
     )
     .bind(&passport_ids[..])
@@ -97,9 +96,9 @@ pub async fn bulk_insert_stamps(
 /// Upsert a score record
 pub async fn upsert_score(
     tx: &mut Transaction<'_, Postgres>,
-    passport_id: i32,
+    passport_id: i64,
     score_fields: &DjangoScoreFields,
-) -> Result<i32> {
+) -> Result<i64> {
     debug!("Upserting score for passport_id: {}", passport_id);
     
     let row = sqlx::query(
@@ -113,11 +112,9 @@ pub async fn upsert_score(
             stamps, 
             stamp_scores, 
             expiration_date,
-            error,
-            created_at,
-            updated_at
+            error
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (passport_id)
         DO UPDATE SET
             score = EXCLUDED.score,
@@ -127,8 +124,7 @@ pub async fn upsert_score(
             stamps = EXCLUDED.stamps,
             stamp_scores = EXCLUDED.stamp_scores,
             expiration_date = EXCLUDED.expiration_date,
-            error = EXCLUDED.error,
-            updated_at = NOW()
+            error = EXCLUDED.error
         RETURNING id
         "#
     )
@@ -145,7 +141,7 @@ pub async fn upsert_score(
     .await
     .map_err(|e| DatabaseError::QueryError(e))?;
     
-    let score_id: i32 = row.get("id");
+    let score_id: i64 = row.get("id");
     
     info!("Upserted score with ID: {} (score: {})", score_id, score_fields.score);
     Ok(score_id)
@@ -154,8 +150,8 @@ pub async fn upsert_score(
 /// Bulk upsert hash scorer links with retry logic for LIFO deduplication
 pub async fn bulk_upsert_hash_links(
     tx: &mut Transaction<'_, Postgres>,
-    links_to_create: Vec<(String, String, i32, DateTime<Utc>)>, // (hash, address, community_id, expires_at)
-    links_to_update: Vec<(String, String, i32, DateTime<Utc>)>,
+    links_to_create: Vec<(String, String, i64, DateTime<Utc>)>, // (hash, address, community_id, expires_at)
+    links_to_update: Vec<(String, String, i64, DateTime<Utc>)>,
 ) -> Result<()> {
     debug!("Upserting {} new and {} existing hash links", 
         links_to_create.len(), links_to_update.len());
@@ -164,7 +160,7 @@ pub async fn bulk_upsert_hash_links(
     if !links_to_create.is_empty() {
         let hashes: Vec<String> = links_to_create.iter().map(|l| l.0.clone()).collect();
         let addresses: Vec<String> = links_to_create.iter().map(|l| l.1.clone()).collect();
-        let community_ids: Vec<i32> = links_to_create.iter().map(|l| l.2).collect();
+        let community_ids: Vec<i64> = links_to_create.iter().map(|l| l.2).collect();
         let expires_ats: Vec<DateTime<Utc>> = links_to_create.iter().map(|l| l.3).collect();
         
         sqlx::query(
@@ -224,7 +220,7 @@ pub async fn bulk_upsert_hash_links(
 pub async fn verify_hash_links(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
-    community_id: i32,
+    community_id: i64,
     expected_nullifiers: &[String],
 ) -> Result<bool> {
     debug!("Verifying hash links for {} expected nullifiers", expected_nullifiers.len());
@@ -261,7 +257,7 @@ pub async fn verify_hash_links(
 pub async fn insert_dedup_events(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
-    community_id: i32,
+    community_id: i64,
     clashing_stamps: &HashMap<String, StampInfo>,
 ) -> Result<u64> {
     if clashing_stamps.is_empty() {
@@ -276,7 +272,7 @@ pub async fn insert_dedup_events(
     let mut community_ids = Vec::new();
     
     for (provider, stamp_info) in clashing_stamps {
-        actions.push("LIFO_DEDUPLICATION".to_string());
+        actions.push("LDP".to_string());
         addresses.push(address.to_string());
         data_values.push(serde_json::json!({
             "nullifiers": stamp_info.nullifiers,
@@ -311,9 +307,9 @@ pub async fn insert_dedup_events(
 pub async fn insert_score_update_event(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
-    community_id: i32,
-    score_id: i32,
-    passport_id: i32,
+    community_id: i64,
+    score_id: i64,
+    passport_id: i64,
     score_fields: &DjangoScoreFields,
 ) -> Result<()> {
     debug!("Inserting SCORE_UPDATE event for score_id: {}", score_id);
@@ -338,7 +334,7 @@ pub async fn insert_score_update_event(
     sqlx::query(
         r#"
         INSERT INTO registry_event (action, address, data, community_id, created_at)
-        VALUES ('SCORE_UPDATE', $1, $2, $3, NOW())
+        VALUES ('SCU', $1, $2, $3, NOW())
         "#
     )
     .bind(address)
@@ -356,7 +352,7 @@ pub async fn insert_score_update_event(
 pub async fn record_passing_score(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
-    community_id: i32,
+    community_id: i64,
 ) -> Result<()> {
     debug!("Recording passing score for Human Points");
     

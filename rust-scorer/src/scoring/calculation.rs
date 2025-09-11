@@ -27,7 +27,7 @@ pub struct ScorerConfig {
 /// * `ScoringResult` - Complete scoring information including binary score, raw score, stamps, etc.
 pub async fn calculate_score(
     address: &str,
-    community_id: i32,
+    community_id: i64,
     lifo_result: LifoResult,
     pool: &PgPool,
 ) -> Result<ScoringResult, DatabaseError> {
@@ -46,33 +46,11 @@ pub async fn calculate_score(
 }
 
 /// Load scorer configuration including weights and threshold
-/// Checks for customization overrides first, then falls back to base scorer
 async fn load_scorer_config(
-    community_id: i32,
+    community_id: i64,
     pool: &PgPool,
 ) -> Result<ScorerConfig, DatabaseError> {
-    // First try to load customization
-    let customization = read_ops::load_customization(pool, community_id).await?;
-    
-    // If customization exists and has weights, use those
-    if let Some(custom) = customization {
-        if let Some(weights_json) = custom.weights {
-            let weights: HashMap<String, Decimal> = serde_json::from_value(weights_json)
-                .map_err(|e| DatabaseError::QueryError(
-                    sqlx::Error::Decode(Box::new(e))
-                ))?;
-            
-            // Still need to get threshold from base scorer
-            let scorer = read_ops::load_scorer_config(pool, community_id).await?;
-            
-            return Ok(ScorerConfig {
-                weights,
-                threshold: scorer.threshold,
-            });
-        }
-    }
-    
-    // Fall back to base scorer configuration
+    // Load scorer configuration (weights are always from scorer tables)
     let scorer = read_ops::load_scorer_config(pool, community_id).await?;
     
     let weights: HashMap<String, Decimal> = serde_json::from_value(scorer.weights)
@@ -96,7 +74,7 @@ async fn load_scorer_config(
 /// 5. Constructs clean StampData objects for both valid and deduped stamps
 pub fn build_scoring_result(
     address: &str,
-    community_id: i32,
+    community_id: i64,
     lifo_result: LifoResult,
     scorer_config: ScorerConfig,
 ) -> Result<ScoringResult, DatabaseError> {

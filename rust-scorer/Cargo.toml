@@ -37,6 +37,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 hex = "0.4"
 sha2 = "0.10"
+base64 = "0.22"
+pbkdf2 = "0.12"
+constant_time_eq = "0.3"
 
 # Error handling
 thiserror = "2.0"

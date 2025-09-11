@@ -25,7 +25,7 @@ pub async fn load_ceramic_cache(
             deleted_at,
             created_at,
             updated_at
-        FROM ceramic_cache
+        FROM ceramic_cache_ceramiccache
         WHERE LOWER(address) = LOWER($1)
             AND deleted_at IS NULL
         ORDER BY provider, updated_at DESC
@@ -58,7 +58,7 @@ pub async fn get_latest_stamps_per_provider(
             deleted_at,
             created_at,
             updated_at
-        FROM ceramic_cache
+        FROM ceramic_cache_ceramiccache
         WHERE LOWER(address) = LOWER($1)
             AND deleted_at IS NULL
         ORDER BY provider, updated_at DESC
@@ -76,11 +76,12 @@ pub async fn get_latest_stamps_per_provider(
 /// Load binary weighted scorer configuration
 pub async fn load_scorer_config(
     pool: &PgPool,
-    scorer_id: i32,
+    scorer_id: i64,
 ) -> Result<DjangoBinaryWeightedScorer> {
     debug!("Loading scorer config for scorer_id: {}", scorer_id);
     
-    let scorer = sqlx::query_as::<_, DjangoBinaryWeightedScorer>(
+    // Try BinaryWeightedScorer first, then fall back to WeightedScorer
+    let scorer = match sqlx::query_as::<_, DjangoBinaryWeightedScorer>(
         r#"
         SELECT
             scorer_ptr_id,
@@ -93,12 +94,32 @@ pub async fn load_scorer_config(
     .bind(scorer_id)
     .fetch_one(pool)
     .await
-    .map_err(|e| match e {
-        sqlx::Error::RowNotFound => DatabaseError::NotFound(
-            format!("Scorer configuration not found for scorer_id: {}", scorer_id)
-        ),
-        _ => DatabaseError::QueryError(e),
-    })?;
+    {
+        Ok(scorer) => scorer,
+        Err(sqlx::Error::RowNotFound) => {
+            // Try WeightedScorer table as fallback
+            sqlx::query_as::<_, DjangoBinaryWeightedScorer>(
+                r#"
+                SELECT
+                    scorer_ptr_id,
+                    weights,
+                    threshold
+                FROM scorer_weighted_weightedscorer
+                WHERE scorer_ptr_id = $1
+                "#
+            )
+            .bind(scorer_id)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| match e {
+                sqlx::Error::RowNotFound => DatabaseError::NotFound(
+                    format!("Scorer configuration not found for scorer_id: {}", scorer_id)
+                ),
+                _ => DatabaseError::QueryError(e),
+            })?
+        }
+        Err(e) => return Err(DatabaseError::QueryError(e)),
+    };
     
     info!("Loaded scorer config with threshold: {}", scorer.threshold);
     Ok(scorer)
@@ -107,7 +128,7 @@ pub async fn load_scorer_config(
 /// Load community settings
 pub async fn load_community(
     pool: &PgPool,
-    community_id: i32,
+    community_id: i64,
 ) -> Result<DjangoCommunity> {
     debug!("Loading community settings for community_id: {}", community_id);
     
@@ -198,7 +219,7 @@ pub async fn validate_api_key(
 /// Load existing hash scorer links for deduplication check
 pub async fn load_hash_scorer_links(
     tx: &mut Transaction<'_, Postgres>,
-    community_id: i32,
+    community_id: i64,
     nullifiers: &[String],
 ) -> Result<Vec<DjangoHashScorerLink>> {
     debug!("Loading hash scorer links for {} nullifiers", nullifiers.len());
@@ -229,7 +250,7 @@ pub async fn load_hash_scorer_links(
 /// Check if customization exists for a community
 pub async fn load_customization(
     pool: &PgPool,
-    community_id: i32,
+    community_id: i64,
 ) -> Result<Option<DjangoCustomization>> {
     debug!("Loading customization for community_id: {}", community_id);
     
@@ -237,8 +258,7 @@ pub async fn load_customization(
         r#"
         SELECT
             id,
-            scorer_id,
-            weights
+            scorer_id
         FROM account_customization
         WHERE scorer_id = $1
         "#
@@ -261,8 +281,8 @@ pub async fn load_customization(
 pub async fn get_passport_id(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
-    community_id: i32,
-) -> Result<Option<i32>> {
+    community_id: i64,
+) -> Result<Option<i64>> {
     debug!("Getting passport ID for address: {} and community: {}", address, community_id);
     
     let row = sqlx::query(
@@ -279,7 +299,7 @@ pub async fn get_passport_id(
     .await
     .map_err(|e| DatabaseError::QueryError(e))?;
     
-    let passport_id = row.map(|r| r.get::<i32, _>("id"));
+    let passport_id = row.map(|r| r.get::<i64, _>("id"));
     
     if let Some(id) = passport_id {
         info!("Found existing passport with ID: {}", id);

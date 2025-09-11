@@ -19,7 +19,7 @@ pub struct StampData {
 #[derive(Debug)]
 pub struct ScoringResult {
     pub address: String,
-    pub community_id: i32,
+    pub community_id: i64,
     pub binary_score: Decimal,
     pub raw_score: Decimal,
     pub threshold: Decimal,
@@ -50,7 +50,7 @@ pub struct StampInfo {
 #[derive(Debug, Serialize)]
 pub struct ScoringEvent {
     pub address: String,
-    pub community_id: i32,
+    pub community_id: i64,
     pub score: Decimal,
     pub threshold: Decimal,
     pub raw_score: Decimal,

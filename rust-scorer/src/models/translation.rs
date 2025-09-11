@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use super::{
     DjangoScoreFields, DjangoStampScore, ScoringEvent, ScoringResult,
-    V2ScoreResponse, V2StampScoreResponse, format_decimal_5,
+    V2ScoreResponse, V2StampScoreResponse, format_decimal_5, format_datetime_python,
 };
 
 impl ScoringResult {
@@ -21,7 +21,7 @@ impl ScoringResult {
                 V2StampScoreResponse {
                     score: format_decimal_5(stamp.weight),
                     dedup: false,
-                    expiration_date: Some(stamp.expires_at.to_rfc3339()),
+                    expiration_date: Some(format_datetime_python(stamp.expires_at)),
                 },
             );
         }
@@ -33,18 +33,18 @@ impl ScoringResult {
                 V2StampScoreResponse {
                     score: "0.00000".to_string(),
                     dedup: true,
-                    expiration_date: Some(stamp.expires_at.to_rfc3339()),
+                    expiration_date: Some(format_datetime_python(stamp.expires_at)),
                 },
             );
         }
         
         V2ScoreResponse {
             address: self.address.clone(),
-            score: Some(format_decimal_5(self.binary_score)),
+            score: Some(format_decimal_5(self.raw_score)),
             passing_score: self.binary_score >= Decimal::from(1),
+            last_score_timestamp: Some(format_datetime_python(self.timestamp)),
+            expiration_timestamp: self.expires_at.map(format_datetime_python),
             threshold: format_decimal_5(self.threshold),
-            last_score_timestamp: Some(self.timestamp.to_rfc3339()),
-            expiration_timestamp: self.expires_at.map(|t| t.to_rfc3339()),
             error: None,
             stamps,
             points_data: None,
@@ -127,8 +127,8 @@ impl ScoringResult {
 
 /// Create SCORE_UPDATE event data matching Django's serializers.serialize() format
 pub fn create_score_update_event_data(
-    score_id: i32,
-    passport_id: i32,
+    score_id: i64,
+    passport_id: i64,
     score: Decimal,
     last_score_timestamp: DateTime<Utc>,
     evidence: serde_json::Value,

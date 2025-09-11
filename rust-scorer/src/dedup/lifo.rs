@@ -43,7 +43,7 @@ pub struct LifoResult {
 pub async fn lifo_dedup(
     stamps: &[ValidStamp],
     address: &str,
-    community_id: i32,
+    community_id: i64,
     weights: &HashMap<String, Decimal>,
     tx: &mut Transaction<'_, Postgres>,
 ) -> Result<LifoResult, DatabaseError> {
@@ -88,7 +88,7 @@ pub async fn lifo_dedup(
 async fn lifo_dedup_attempt(
     stamps: &[ValidStamp],
     address: &str,
-    community_id: i32,
+    community_id: i64,
     weights: &HashMap<String, Decimal>,
     tx: &mut Transaction<'_, Postgres>,
 ) -> Result<LifoResult, DatabaseError> {

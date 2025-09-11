@@ -6,11 +6,12 @@ use tracing::{debug, info, warn};
 
 use crate::db::errors::{DatabaseError, Result};
 
-/// List of trusted IAM issuers - hardcoded for now but easy to make configurable
+/// List of trusted IAM issuers - matches Python's TRUSTED_IAM_ISSUERS
 const TRUSTED_IAM_ISSUERS: &[&str] = &[
     "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
     "did:key:z6MkgfaeGaQe4R3yV9hmZnJhfWqgGJnCPfuQCbDBpDwYREQV",
-    // Add more issuers as needed
+    "did:key:z6Mkwg65BN2xg6qicufGYR9Sxn3NWwfBxRFrKVEPrZXVAx3z",
+    "did:ethr:0xd6fc34345bc8c8e5659a35bed9629d5558d48c4e",
 ];
 
 /// Represents a validated credential

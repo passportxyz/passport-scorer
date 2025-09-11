@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -10,21 +11,18 @@ pub struct V2StampScoreResponse {
     pub expiration_date: Option<String>,
 }
 
-/// Main V2 API response structure
+/// Main V2 API response structure - field order matches Python for exact compatibility
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct V2ScoreResponse {
     pub address: String,
     pub score: Option<String>,  // Formatted with 5 decimals
     pub passing_score: bool,
-    pub threshold: String,  // Formatted with 5 decimals
     pub last_score_timestamp: Option<String>,
     pub expiration_timestamp: Option<String>,
+    pub threshold: String,  // Formatted with 5 decimals
     pub error: Option<String>,
     pub stamps: HashMap<String, V2StampScoreResponse>,
-    // Optional fields for Human Points
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub points_data: Option<PointsData>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub possible_points_data: Option<PointsData>,
 }
 
@@ -54,6 +52,14 @@ pub fn format_percentage(value: Decimal) -> String {
     format!("{:.2}%", value * Decimal::from(100))
 }
 
+/// Format a datetime to ISO 8601 with 6 decimal places for microseconds (Python compatibility)
+pub fn format_datetime_python(dt: DateTime<Utc>) -> String {
+    // Format with 6 decimal places for microseconds like Python does
+    let base = dt.format("%Y-%m-%dT%H:%M:%S");
+    let micros = dt.timestamp_subsec_micros();
+    format!("{}.{:06}+00:00", base, micros)
+}
+
 impl V2ScoreResponse {
     /// Create an error response
     pub fn error(address: String, error_message: String) -> Self {
@@ -61,9 +67,9 @@ impl V2ScoreResponse {
             address,
             score: None,
             passing_score: false,
-            threshold: "0.00000".to_string(),
             last_score_timestamp: None,
             expiration_timestamp: None,
+            threshold: "0.00000".to_string(),
             error: Some(error_message),
             stamps: HashMap::new(),
             points_data: None,

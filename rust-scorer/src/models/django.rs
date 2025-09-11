@@ -8,9 +8,9 @@ use std::collections::HashMap;
 /// Django registry_passport table
 #[derive(Debug, Clone, FromRow)]
 pub struct DjangoPassport {
-    pub id: i32,
+    pub id: i64,
     pub address: String,
-    pub community_id: i32,
+    pub community_id: i64,
 }
 
 /// Django registry_score table fields
@@ -37,8 +37,8 @@ pub struct DjangoStampScore {
 /// Django registry_stamp table
 #[derive(Debug, Clone, FromRow)]
 pub struct DjangoStamp {
-    pub id: i32,
-    pub passport_id: i32,
+    pub id: i64,
+    pub passport_id: i64,
     pub provider: String,
     pub credential: Value,
 }
@@ -46,10 +46,10 @@ pub struct DjangoStamp {
 /// Django registry_hashscorerlink table
 #[derive(Debug, Clone, FromRow)]
 pub struct DjangoHashScorerLink {
-    pub id: i32,
+    pub id: i64,
     pub hash: String,
     pub address: String,
-    pub community_id: i32,
+    pub community_id: i64,
     pub expires_at: DateTime<Utc>,
 }
 
@@ -59,14 +59,14 @@ pub struct DjangoEvent {
     pub action: String,
     pub address: String,
     pub data: Value,
-    pub community_id: i32,
+    pub community_id: i64,
     pub created_at: DateTime<Utc>,
 }
 
 /// Django ceramic_cache table
 #[derive(Debug, Clone, FromRow)]
 pub struct DjangoCeramicCache {
-    pub id: i32,
+    pub id: i64,
     pub address: String,
     pub provider: String,
     pub stamp: Value,
@@ -79,7 +79,7 @@ pub struct DjangoCeramicCache {
 /// Django account_community table
 #[derive(Debug, Clone, FromRow)]
 pub struct DjangoCommunity {
-    pub id: i32,
+    pub id: i64,
     pub name: String,
     pub description: String,
     pub human_points_program: bool,
@@ -89,7 +89,7 @@ pub struct DjangoCommunity {
 /// Django scorer_weighted_binaryweightedscorer table
 #[derive(Debug, Clone, FromRow)]
 pub struct DjangoBinaryWeightedScorer {
-    pub scorer_ptr_id: i32,
+    pub scorer_ptr_id: i64,
     pub weights: Value,
     pub threshold: Decimal,
 }
@@ -97,18 +97,19 @@ pub struct DjangoBinaryWeightedScorer {
 /// Django account_customization table
 #[derive(Debug, Clone, FromRow)]
 pub struct DjangoCustomization {
-    pub id: i32,
-    pub scorer_id: i32,  // OneToOneField to Community
-    pub weights: Option<Value>,  // nullable in Django
+    pub id: i64,
+    pub scorer_id: i64,  // OneToOneField to Community
+    // Note: weights field doesn't exist in account_customization table
+    // This table is for UI customization, not scorer weights
 }
 
 /// Django account_accountapikey table
 #[derive(Debug, Clone, FromRow)]
 pub struct DjangoApiKey {
-    pub id: i32,
+    pub id: String,
     pub prefix: String,
     pub hashed_key: String,
-    pub account_id: i32,
+    pub account_id: i64,
     pub name: String,
     pub revoked: bool,
     pub submit_passports: bool,
@@ -133,6 +134,6 @@ pub struct DjangoHumanPoints {
 #[derive(Debug, Clone)]
 pub struct DjangoHumanPointsQualifiedUser {
     pub address: String,
-    pub community_id: i32,
+    pub community_id: i64,
     pub created_at: DateTime<Utc>,
 }
