@@ -23,6 +23,4 @@ Django's serialize function outputs a structure like:
 }]
 ```
 
-**Important**: The RUST_MIGRATION_PLAN.md incorrectly states on line 882 that the data should be `json!({"scorer_id": community_id})`. It should actually be the full serialized Score model.
-
-See `api/registry/models.py` and `RUST_MIGRATION_PLAN.md:882`
+See `api/registry/models.py`

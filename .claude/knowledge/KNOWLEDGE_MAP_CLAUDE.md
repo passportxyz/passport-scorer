@@ -10,11 +10,12 @@
 
 ## ⚠️ Gotchas
 
-- @gotchas/nullifier_handling.md - Feature flags, array vs hash field, and Rust simplifications
+- @gotchas/nullifier_handling.md - Python feature flags vs Rust simplifications for nullifiers  
 - @gotchas/event_data_structure.md - Score update event serialization format
-- @gotchas/django_model_discrepancies.md - Field mismatches between Rust models and actual Django models
-- @gotchas/score_calculation.md - Phase 5 implementation details, provider dedup, decimal precision
+- @gotchas/django_model_discrepancies.md - Confirmed Django table schema without timestamps
+- @gotchas/score_calculation.md - Score calculation details, provider dedup, decimal precision
 - @gotchas/type_conversions.md - Module boundary type conversions required in Phase 7
+- @gotchas/human_points_implementation.md - Human Points Phase 6 Rust implementation details
 
 ## 🔌 API
 

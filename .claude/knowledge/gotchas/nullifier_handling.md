@@ -1,10 +1,9 @@
 # Nullifier Handling Gotchas
 
-## [2025-09-09] Nullifier Multi vs Single Mode
+## [2025-09-09] Python Nullifier Feature Flag
 
-The `get_nullifiers` function in `lifo.py` has a feature flag `FF_MULTI_NULLIFIER` that controls whether all nullifiers are used or only v0-prefixed ones:
+The Python `get_nullifiers` function in `lifo.py` has a feature flag `FF_MULTI_NULLIFIER` that controls whether all nullifiers are used or only v0-prefixed ones:
 - When OFF (default): only nullifiers starting with 'v0' are used for deduplication
-- This is critical for exact parity - the Rust implementation must respect this feature flag
 - The nullifiers come from `credential.credentialSubject.nullifiers` array or `.hash` field
 - See `api/account/deduplication/lifo.py:38-44`
 
