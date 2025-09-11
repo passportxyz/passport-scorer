@@ -179,8 +179,9 @@ run_distill() {
    - Save report to ./distill-report.md (repository root, NOT in .claude/knowledge/)
    - If review items exist, instruct user to run: mim distill refine
    - If no review items, report successful cleanup completion
+   - DO NOT commit any changes - commits are handled by 'mim distill refine'
 
-IMPORTANT: Process ALL knowledge files except session.md. Perform cross-file deduplication. Clean up junk/useless content aggressively. Use multi-line USER INPUT blocks for easier editing." | stream_claude_output
+IMPORTANT: Process ALL knowledge files except session.md. Perform cross-file deduplication. Clean up junk/useless content aggressively. Use multi-line USER INPUT blocks for easier editing. DO NOT COMMIT CHANGES - the user will commit during the refine step." | stream_claude_output
 
   if [ $? -eq 0 ]; then
     echo ""
@@ -196,15 +197,10 @@ IMPORTANT: Process ALL knowledge files except session.md. Perform cross-file ded
         echo -e "${BLUE}   mim distill refine${NC}"
       else
         echo -e "${GREEN}✅ No manual review required - all issues were auto-fixed${NC}"
+        echo ""
+        echo "📝 Changes have been made but NOT committed."
+        echo "Run 'mim distill refine' to commit the changes."
       fi
-    fi
-    
-    # Commit changes if any were made
-    if ! git diff --quiet; then
-      echo ""
-      echo "📜 Committing distillation changes..."
-      git add .
-      git commit -m "🧹 Distill documentation: auto-clean duplicates and conflicts"
     fi
   else
     echo ""
@@ -222,22 +218,33 @@ run_distill_refine() {
     exit 1
   fi
 
-  # Check if report has user input
-  if ! grep -q "<!-- USER INPUT START -->" "./distill-report.md"; then
-    echo -e "${YELLOW}⚠️  No user input found in distill-report.md${NC}"
-    echo "Please edit distill-report.md and add your decisions between the USER INPUT tags."
-    exit 1
+  # Check if report has review items that need user input
+  has_review_items=false
+  if grep -q "## Requires Review" "./distill-report.md" && [ "$(grep -A 10 "## Requires Review" "./distill-report.md" | wc -l)" -gt 2 ]; then
+    has_review_items=true
   fi
-  
-  # Check if user actually added content between the tags
-  user_content=$(awk '/<!-- USER INPUT START -->/{flag=1;next}/<!-- USER INPUT END -->/{flag=0}flag' "./distill-report.md" | grep -v '^[[:space:]]*$' | grep -v '<!-- Add your decision/instructions here -->')
-  if [ -z "$user_content" ]; then
-    echo -e "${YELLOW}⚠️  No user decisions found between USER INPUT tags${NC}"
-    echo "Please edit distill-report.md and add your decisions between:"
-    echo "  <!-- USER INPUT START -->"
-    echo "  [Your decisions here]"
-    echo "  <!-- USER INPUT END -->"
-    exit 1
+
+  # If there are review items, check for user input
+  if [ "$has_review_items" = true ]; then
+    # Check if report has user input
+    if ! grep -q "<!-- USER INPUT START -->" "./distill-report.md"; then
+      echo -e "${YELLOW}⚠️  No user input found in distill-report.md${NC}"
+      echo "Please edit distill-report.md and add your decisions between the USER INPUT tags."
+      exit 1
+    fi
+    
+    # Check if user actually added content between the tags
+    user_content=$(awk '/<!-- USER INPUT START -->/{flag=1;next}/<!-- USER INPUT END -->/{flag=0}flag' "./distill-report.md" | grep -v '^[[:space:]]*$' | grep -v '<!-- Add your decision/instructions here -->')
+    if [ -z "$user_content" ]; then
+      echo -e "${YELLOW}⚠️  No user decisions found between USER INPUT tags${NC}"
+      echo "Please edit distill-report.md and add your decisions between:"
+      echo "  <!-- USER INPUT START -->"
+      echo "  [Your decisions here]"
+      echo "  <!-- USER INPUT END -->"
+      exit 1
+    fi
+  else
+    echo "ℹ️  No review items found - only auto-fixes to commit"
   fi
 
   echo "🔍 Processing user-guided refinements from distill report..."
@@ -248,16 +255,16 @@ run_distill_refine() {
   claude \
     --verbose \
     --allowedTools "$ALLOWED_TOOLS" \
-    --append-system-prompt "You are Mim's refinement aspect, applying human-guided decisions from the distill report. The report is at ./distill-report.md (repository root). You process items where users have provided guidance between <!-- USER INPUT START --> and <!-- USER INPUT END --> tags. Remember that knowledge files are in .claude/knowledge/ and include various topic files plus the special KNOWLEDGE_MAP.md and KNOWLEDGE_MAP_CLAUDE.md files." \
+    --append-system-prompt "You are Mim's refinement aspect, completing the distillation process. The report is at ./distill-report.md (repository root). If there are items with user guidance between <!-- USER INPUT START --> and <!-- USER INPUT END --> tags, apply those decisions. If there are only auto-fixes and no review items, simply delete the report to mark completion. Remember that knowledge files are in .claude/knowledge/ and include various topic files plus the special KNOWLEDGE_MAP.md and KNOWLEDGE_MAP_CLAUDE.md files." \
     --print --output-format stream-json "Execute this MANDATORY refinement process:
 
 1. **READ DISTILL REPORT FROM ./distill-report.md**:
    - Read ./distill-report.md (repository root) completely
-   - Find all <!-- USER INPUT START --> ... <!-- USER INPUT END --> blocks
-   - Parse the user's decisions/instructions from between these tags
+   - Check if there are any <!-- USER INPUT START --> ... <!-- USER INPUT END --> blocks
+   - If present, parse the user's decisions/instructions from between these tags
 
-2. **APPLY USER DECISIONS TO KNOWLEDGE FILES**:
-   - For each user input block, apply the requested changes to the appropriate files
+2. **APPLY USER DECISIONS TO KNOWLEDGE FILES (if any)**:
+   - If user input blocks exist, apply the requested changes to the appropriate files
    - Knowledge files are in .claude/knowledge/ (various topic .md files)
    - Special files: KNOWLEDGE_MAP.md (user index) and KNOWLEDGE_MAP_CLAUDE.md (Claude index)
    - DO NOT DELETE either KNOWLEDGE_MAP, we want both the markdown-link and claude-reference versions
@@ -265,15 +272,15 @@ run_distill_refine() {
    - If changes affect the knowledge maps, update both consistently
 
 3. **DELETE THE REPORT**:
-   - After successfully applying all refinements, delete ./distill-report.md
+   - After successfully applying any refinements (or if only auto-fixes), delete ./distill-report.md
    - This indicates the refinement session is complete
 
 4. **VERIFICATION**:
-   - Ensure all user-requested changes were applied correctly
+   - If user decisions were applied, ensure all changes were applied correctly
    - Verify consistency between KNOWLEDGE_MAP.md and KNOWLEDGE_MAP_CLAUDE.md if modified
-   - Report completion status and list of files modified
+   - Report completion status and list of files modified (if any)
 
-IMPORTANT: Only process items with explicit user guidance in USER INPUT blocks. The report is at ./distill-report.md (repository root)." | stream_claude_output
+IMPORTANT: The report is at ./distill-report.md (repository root). If there are no user input blocks, just delete the report to mark completion (changes were already made during distill)." | stream_claude_output
 
   if [ $? -eq 0 ]; then
     echo ""
