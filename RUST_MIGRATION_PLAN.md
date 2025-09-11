@@ -1571,15 +1571,74 @@ aws lambda update-function-code \
 
 **Completed:** September 10, 2025
 
-### Phase 6: Human Points Integration (Days 15-17)
+### Phase 6: Human Points Integration (Days 15-17) ✅ COMPLETE
 **Output:** Complete Human Points processing
-- Implement all 15 action types with proper mapping
-- Create bulk insertion for registry_humanpoints
-- Build qualified users tracking
-- Implement scoring bonus logic (4+ communities)
-- Add MetaMask OG list integration with 5000 limit
-- Test all stamp provider mappings
-- **Deliverable:** Human Points module matching Python behavior exactly
+- ✅ Implement all 15 action types with proper mapping
+- ✅ Create bulk insertion for registry_humanpoints (using UNNEST)
+- ✅ Build qualified users tracking
+- ✅ Implement scoring bonus logic (4+ communities)
+- ✅ Add MetaMask OG list integration with 5000 limit
+- ✅ Test all stamp provider mappings
+- ✅ Points calculation from config tables for V2 response
+- **Deliverable:** ✅ Human Points module matching Python behavior exactly
+
+**Completed:** September 11, 2025
+
+#### Implementation Details:
+- **Location:** `/workspace/project/rust-scorer/src/human_points/`
+- **Key Functions:**
+  - `process_human_points()` - Main entry point, processes all Human Points within transaction
+  - `get_user_points_data()` - Calculates user's total points with breakdown for V2 response
+  - `get_possible_points_data()` - Returns all available points from config table
+- **Environment Variables:**
+  - `HUMAN_POINTS_ENABLED` - Enable/disable Human Points processing
+  - `HUMAN_POINTS_START_TIMESTAMP` - Minimum timestamp for eligibility
+  - `HUMAN_POINTS_MTA_ENABLED` - Enable MetaMask OG bonus
+- **Quirks Preserved:**
+  - Human Keys uses provider as dedup key, latest nullifier as tx_hash
+  - MetaMask OG checks `account_addresslist` table with 5000 global limit
+  - Points exclude HIM (Human ID Mint) actions from totals
+
+#### Critical Notes for Phase 7 Team:
+
+1. **Integration Point:**
+   ```rust
+   // After calculating score (Phase 5)
+   let scoring_result = calculate_score(...).await?;
+   
+   // Check if community has human_points_program enabled
+   let community = load_community(...).await?;
+   
+   // Process Human Points if enabled (within same transaction!)
+   if community.human_points_program {
+       process_human_points(&scoring_result, true, &mut tx).await?;
+   }
+   ```
+
+2. **V2 Response Points Data:**
+   ```rust
+   // Only include if `include_human_points=true` query param
+   let points_data = if include_human_points && community.human_points_program {
+       Some(get_user_points_data(&address, &pool).await?)
+   } else {
+       None
+   };
+   
+   let possible_points_data = if let Some(ref pd) = points_data {
+       Some(get_possible_points_data(pd.multiplier, &pool).await?)
+   } else {
+       None
+   };
+   ```
+
+3. **Database Tables Used:**
+   - Writes: `registry_humanpoints`, `registry_humanpointscommunityqualifiedusers`
+   - Reads: `registry_humanpointsconfig`, `registry_humanpointsmultiplier`, `account_addresslist[member]`
+
+4. **Testing:**
+   - 6 unit tests in `src/human_points/processing.rs`
+   - 5 integration tests in `tests/test_human_points.rs`
+   - All tests passing, bulk insert with UNNEST verified
 
 ### Phase 7: API Response & Events (Days 18-19)
 **Output:** Complete API endpoint
@@ -1968,12 +2027,33 @@ Create CloudWatch dashboard with:
 - Covers provider dedup, threshold boundaries, expiration tracking, unknown providers
 - Tests verified against expected Python behavior
 
-### Phase 6-12: Pending Implementation
+### Phase 7: API Response & Events - Ready to Implement
 
-The remaining phases are ready to implement with the foundation from Phases 1-5:
-- Human Points needs the `ScoringResult` from Phase 5 to determine eligibility
-- API Response formatting can use `ScoringResult.to_v2_response()` method
-- Lambda deployment configuration pending
+With Phases 1-6 complete, Phase 7 has everything needed:
+
+**Available Building Blocks:**
+- `ScoringResult.to_v2_response()` - Converts to V2 API format
+- `create_score_update_event_data()` - Creates Django-compatible event data
+- `process_human_points()` - Handles all Human Points logic
+- `get_user_points_data()` / `get_possible_points_data()` - For points in response
+
+**Key Integration Tasks:**
+1. Wire up the full scoring flow in axum endpoint
+2. Parse `include_human_points` query parameter
+3. Call Human Points functions if enabled
+4. Format final V2ScoreResponse with optional points_data
+5. Ensure all operations in single transaction
+6. Record SCORE_UPDATE event after score save
+
+**Important Reminders:**
+- Check `community.human_points_program` flag
+- Points data only included when `include_human_points=true`
+- All DB operations must be in same transaction
+- Event recording happens AFTER score persistence (mimics Django signal)
+
+### Phase 8-12: Pending Implementation
+
+Remaining phases for Lambda deployment, performance testing, and production rollout.
 
 ## Conclusion
 
@@ -1990,4 +2070,4 @@ ability to rollback quickly if issues arise. The simplifications (nullifiers-onl
 no feature flags) make the implementation cleaner while maintaining compatibility
 with modern credentials.
 
-**Current Status:** Phases 1-5 complete. Score calculation with customization support fully implemented and tested.
+**Current Status:** Phases 1-6 complete. Human Points integration fully implemented with all 15 action types, MetaMask OG support, and comprehensive tests.
