@@ -82,7 +82,7 @@ mod tests {
         let response = result.to_v2_response();
         
         assert_eq!(response.address, "0x1234567890abcdef");
-        assert_eq!(response.score, Some("1.00000".to_string()));
+        assert_eq!(response.score, Some("15.75000".to_string()));  // Now returns raw score, not binary
         assert_eq!(response.passing_score, true);
         assert_eq!(response.threshold, "15.00000");
         assert!(response.last_score_timestamp.is_some());
