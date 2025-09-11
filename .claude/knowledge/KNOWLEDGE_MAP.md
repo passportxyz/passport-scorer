@@ -1,6 +1,6 @@
 # 📚 Project Knowledge Map
 
-*Last updated: 2025-11-14*
+*Last updated: 2025-09-11*
 
 ## 🏗️ Architecture
 
@@ -17,14 +17,20 @@
 - [Django Model Discrepancies](gotchas/django_model_discrepancies.md) - Confirmed Django table schema without timestamps
 - [Score Calculation](gotchas/score_calculation.md) - Score calculation details, provider dedup, decimal precision
 - [Type Conversions](gotchas/type_conversions.md) - Module boundary type conversions required
+- [Scorer ID Confusion](gotchas/scorer_id_confusion.md) - API scorer_id vs database community_id naming
 
 ## 🔌 API
 
-- [Authentication](api/authentication.md) - API key mechanism and permissions
+- [Authentication](api/authentication.md) - API key PBKDF2-SHA256 hashing and field types
 - [Human Points](api/human_points.md) - Complete points tracking implementation and Rust specifics
 - [Axum Routing](api/axum_routing.md) - Axum 0.8 route parameter syntax changes
 - [Database Signatures](api/database_signatures.md) - Database operation signature alignment
 - [Error Handling](api/error_handling.md) - HTTP status code mapping
+
+## 💾 Database
+
+- [Field Types](database/field_types.md) - Correct BIGINT and VARCHAR types for Django tables
+- [Scorer Tables](database/scorer_tables.md) - BinaryWeightedScorer vs WeightedScorer dual table support
 
 ## 📦 Dependencies
 
