@@ -181,6 +181,27 @@ Successfully completed Phase 5 - Score Calculation:
 - Unit tests verify provider dedup, threshold boundaries, unknown providers, expiration tracking
 - All edge cases covered with comprehensive test suite
 
+## Phase 6 Implementation Complete
+
+Successfully completed Phase 6 - Human Points Integration:
+
+### Human Points Implementation (`human_points/`)
+- **Module Structure**: Clean modular design with `models.rs` (action types/mappings) and `processing.rs` (core logic)
+- **All 15 Action Types**: SCB, HKY, ISB/ISS/ISG, CSB/CSE/CST, PMT, HIM, HGO/HPH/HCH/HBI, MTA
+- **Environment Config**: Simple std::env::var() approach for HUMAN_POINTS_ENABLED, _START_TIMESTAMP, _MTA_ENABLED
+- **Key Features**:
+  - Provider-based deduplication for Human Keys (latest nullifier as tx_hash)
+  - 4+ community scoring bonus logic
+  - MetaMask OG list checking with 5000 award limit
+  - Bulk operations using PostgreSQL UNNEST
+  - Points calculation with multiplier support (excluding HIM actions)
+  - All operations within same transaction as score persistence
+- **Direct SQL**: No ORM overhead, direct queries for performance
+
+### Testing Coverage
+- 6 unit tests covering config loading, action mappings, eligibility checks
+- Integration point via `process_human_points()` function
+
 ## Migration Progress Summary
 
 - **Phase 1**: Data Models & Schema ✅
@@ -188,3 +209,4 @@ Successfully completed Phase 5 - Score Calculation:
 - **Phase 3**: API Key & Credential Validation ✅
 - **Phase 4**: LIFO Deduplication ✅
 - **Phase 5**: Score Calculation ✅
+- **Phase 6**: Human Points Integration ✅
