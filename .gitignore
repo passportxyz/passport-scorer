@@ -20,3 +20,8 @@ api/requirements.txt
 infra/aws/__pythonDeps.zip
 infra/aws/lambda_function_payload.zip
 python-layer-code.zip
+
+# Log analysis artifacts
+log
+tracing.folded
+flamegraph.svg
