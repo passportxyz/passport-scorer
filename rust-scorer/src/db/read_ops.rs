@@ -8,6 +8,7 @@ use crate::models::django::{
 };
 
 /// Load credentials from ceramic_cache for an address
+#[tracing::instrument(skip(pool), fields(address = %address))]
 pub async fn load_ceramic_cache(
     pool: &PgPool,
     address: &str,

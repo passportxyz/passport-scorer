@@ -40,6 +40,7 @@ pub struct LifoResult {
 ///
 /// # Returns
 /// * `LifoResult` containing valid stamps and clashing stamps info
+#[tracing::instrument(skip(stamps, weights, tx), fields(stamp_count = stamps.len(), address = %address, community_id = community_id))]
 pub async fn lifo_dedup(
     stamps: &[ValidStamp],
     address: &str,

@@ -24,6 +24,7 @@ pub struct ValidatedCredential {
 }
 
 /// Validate a single credential
+#[tracing::instrument(skip(credential), fields(address))]
 pub async fn validate_credential(
     credential: &Value,
     address: &str,

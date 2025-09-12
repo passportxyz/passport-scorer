@@ -3542,6 +3542,7 @@ dependencies = [
  "tower 0.5.2",
  "tower-http",
  "tracing",
+ "tracing-flame",
  "tracing-subscriber",
 ]
 
@@ -5780,6 +5781,17 @@ checksum = "b9d12581f227e93f094d3af2ae690a574abb8a2b9b7a96e7cfe9647b2b617678"
 dependencies = [
  "once_cell",
  "valuable",
+]
+
+[[package]]
+name = "tracing-flame"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bae117ee14789185e129aaee5d93750abe67fdc5a9a62650452bfe4e122a3a9"
+dependencies = [
+ "lazy_static",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

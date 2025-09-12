@@ -10,7 +10,11 @@ use std::time::Duration;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter, prelude::*};
-use tracing_flame::FlameLayer;
+use tracing_flame::{FlameLayer, FlushGuard};
+use once_cell::sync::OnceCell;
+
+// Global storage for the flame guard to keep it alive
+static FLAME_GUARD: OnceCell<FlushGuard<std::io::BufWriter<std::fs::File>>> = OnceCell::new();
 
 use crate::api::handler::score_address_handler;
 
@@ -32,11 +36,11 @@ pub fn init_tracing() {
     // Add flame layer if FLAME environment variable is set
     if env::var("FLAME").is_ok() {
         eprintln!("🔥 Flame tracing enabled - writing to ./tracing.folded");
-        let (flame_layer, _guard) = FlameLayer::with_file("./tracing.folded")
+        let (flame_layer, guard) = FlameLayer::with_file("./tracing.folded")
             .expect("Could not create flame layer");
         
-        // We leak the guard to keep it alive for the duration of the program
-        std::mem::forget(_guard);
+        // Store the guard globally to keep it alive and ensure flushing
+        FLAME_GUARD.set(guard).ok();
         
         registry.with(flame_layer).init();
     } else {
@@ -92,6 +96,19 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     
     info!("Starting Passport Scorer Rust server");
     
+    // Set up ctrl-c handler to flush flame data
+    let shutdown = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install CTRL+C signal handler");
+        eprintln!("Shutting down gracefully...");
+        
+        // Flame data will auto-flush when guard is dropped at program exit
+        if FLAME_GUARD.get().is_some() {
+            eprintln!("Flame data will be flushed to tracing.folded");
+        }
+    };
+    
     // Create the app
     let app = create_app().await?;
     
@@ -104,9 +121,11 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     
     info!("Server listening on {}", addr);
     
-    // Run the server
+    // Run the server with graceful shutdown
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown)
+        .await?;
     
     Ok(())
 }
