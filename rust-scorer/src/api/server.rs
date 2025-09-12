@@ -10,11 +10,13 @@ use std::time::Duration;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter, prelude::*};
+use tracing_flame::FlameLayer;
 
 use crate::api::handler::score_address_handler;
 
 pub fn init_tracing() {
-    tracing_subscriber::registry()
+    // Normal JSON logging always enabled
+    let registry = tracing_subscriber::registry()
         .with(
             fmt::layer()
                 .json() // JSON format for CloudWatch
@@ -25,8 +27,21 @@ pub fn init_tracing() {
         .with(
             EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| EnvFilter::new("info"))
-        )
-        .init();
+        );
+    
+    // Add flame layer if FLAME environment variable is set
+    if env::var("FLAME").is_ok() {
+        eprintln!("🔥 Flame tracing enabled - writing to ./tracing.folded");
+        let (flame_layer, _guard) = FlameLayer::with_file("./tracing.folded")
+            .expect("Could not create flame layer");
+        
+        // We leak the guard to keep it alive for the duration of the program
+        std::mem::forget(_guard);
+        
+        registry.with(flame_layer).init();
+    } else {
+        registry.init();
+    }
 }
 
 pub async fn create_connection_pool() -> Result<PgPool, Box<dyn std::error::Error>> {
