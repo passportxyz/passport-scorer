@@ -38,3 +38,9 @@ Works generically with any JSON tracing logs from tracing-subscriber configured 
 ### Files
 
 - `rust-scorer/src/bin/log-analyzer.rs` - Tool implementation
+
+## [2025-09-12] Tool Removal
+
+The custom log-analyzer tool will be removed as part of the telemetry migration. It was a custom tool built to parse JSON tracing logs and generate ASCII flame charts, but it's being replaced with proper OpenTelemetry distributed tracing that exports to Jaeger/X-Ray for professional visualization.
+
+See `rust-scorer/TELEMETRY_IMPLEMENTATION_PLAN.md`
