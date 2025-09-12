@@ -48,3 +48,7 @@
 ## 🚀 Deployment
 
 - [Lambda Infrastructure](deployment/lambda_infrastructure.md) - Pulumi-based Lambda deployment with ALB integration
+
+## 🛠️ Tools
+
+- [Log Analyzer](tools/log_analyzer.md) - Rust tracing log performance analyzer with flame charts
