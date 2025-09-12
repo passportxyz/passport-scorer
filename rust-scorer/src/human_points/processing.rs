@@ -136,7 +136,7 @@ async fn record_stamp_actions(
     let mut addresses = Vec::new();
     let mut actions = Vec::new();
     let mut tx_hashes = Vec::new();
-    let mut providers: Vec<Option<String>> = Vec::new();
+    let mut providers = Vec::new();  // Changed: Use Vec<String> not Vec<Option<String>>
     let mut chain_ids = Vec::new();
     
     for stamp in valid_stamps {
@@ -150,7 +150,7 @@ async fn record_stamp_actions(
             addresses.push(address.to_string());
             actions.push("HKY".to_string());
             tx_hashes.push(latest_nullifier);
-            providers.push(Some(stamp.provider.clone()));
+            providers.push(stamp.provider.clone());  // Changed: Provider is the stamp provider
             chain_ids.push(0);
         }
         
@@ -159,7 +159,7 @@ async fn record_stamp_actions(
             addresses.push(address.to_string());
             actions.push(action.as_str().to_string());
             tx_hashes.push(String::new());
-            providers.push(None);
+            providers.push(String::new());  // Changed: Empty string instead of None
             chain_ids.push(0);
         }
     }
@@ -215,7 +215,7 @@ async fn check_and_award_scoring_bonus(
             r#"
             INSERT INTO registry_humanpoints 
                 (address, action, tx_hash, provider, chain_id, timestamp)
-            VALUES ($1, 'SCB', '', NULL, 0, NOW())
+            VALUES ($1, 'SCB', '', '', 0, NOW())
             ON CONFLICT (address, action, chain_id, provider, tx_hash) DO NOTHING
             "#
         )
@@ -276,7 +276,7 @@ async fn check_and_award_metamask_og(
             r#"
             INSERT INTO registry_humanpoints 
                 (address, action, tx_hash, provider, chain_id, timestamp)
-            VALUES ($1, 'MTA', '', NULL, 0, NOW())
+            VALUES ($1, 'MTA', '', '', 0, NOW())
             ON CONFLICT (address, action, chain_id, provider, tx_hash) DO NOTHING
             "#
         )
@@ -364,19 +364,14 @@ pub async fn get_user_points_data(
     Ok(PointsData {
         total_points,
         is_eligible,
-        multiplier: multiplier as f64,
-        breakdown: breakdown.into_iter()
-            .map(|(k, v)| (k, crate::models::PointBreakdown { 
-                points: v,
-                chain_id: None,  // Chain ID is embedded in the key for chain-specific entries
-            }))
-            .collect(),
+        multiplier,  // Already an i32
+        breakdown,   // Already a HashMap<String, i32>
     })
 }
 
 /// Get possible points data (all available points with current multiplier)
 pub async fn get_possible_points_data(
-    multiplier: f64,
+    multiplier: i32,
     pool: &PgPool,
 ) -> Result<PointsData, DatabaseError> {
     // Get all active point configurations
@@ -388,24 +383,17 @@ pub async fn get_possible_points_data(
     .map_err(DatabaseError::QueryError)?;
     
     let mut breakdown = HashMap::new();
-    let mut total_points = 0;
     
     for (action, points) in configs {
-        // Skip HIM actions from total
-        if action != "HIM" {
-            total_points += points;
-            breakdown.insert(
-                action,
-                crate::models::PointBreakdown { 
-                    points,
-                    chain_id: None,
-                }
-            );
-        }
+        // Include all actions in breakdown, including HIM
+        breakdown.insert(action, points);
     }
     
+    // NOTE: Django returns total_points: 0 for possible_points_data even though
+    // the breakdown values sum to more. This reuses the PointsData struct in a way
+    // that should probably be refactored to use separate types for user vs possible points.
     Ok(PointsData {
-        total_points,
+        total_points: 0,  // Matches Django behavior
         is_eligible: false,  // Not applicable for possible points
         multiplier,
         breakdown,

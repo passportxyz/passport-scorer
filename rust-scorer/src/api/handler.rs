@@ -81,7 +81,7 @@ pub async fn score_address_handler(
 async fn process_score_request(
     address: &str,
     scorer_id: i64,
-    include_human_points: bool,
+    _include_human_points: bool,  // Prefixed with _ since we're temporarily always including for testing
     headers: &HeaderMap,
     pool: &PgPool,
     tx: &mut Transaction<'_, Postgres>,
@@ -293,8 +293,10 @@ async fn process_score_request(
         
         info!("Processed human points");
 
-        // Get points data for response if requested
-        if include_human_points {
+        // ⚠️ TEMPORARY: Always include human points data in response for testing
+        // TODO: Remove this and use include_human_points parameter once testing is complete
+        // if include_human_points {
+        if true {  // ALWAYS INCLUDE FOR TESTING - REMOVE THIS!
             points_data = Some(get_user_points_data(address, pool).await?);
             
             if let Some(ref pd) = points_data {

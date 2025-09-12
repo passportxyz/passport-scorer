@@ -31,15 +31,8 @@ pub struct V2ScoreResponse {
 pub struct PointsData {
     pub total_points: i32,
     pub is_eligible: bool,
-    pub multiplier: f64,
-    pub breakdown: HashMap<String, PointBreakdown>,
-}
-
-/// Individual point breakdown
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PointBreakdown {
-    pub points: i32,
-    pub chain_id: Option<i32>,
+    pub multiplier: i32,  // Django uses integer, not float
+    pub breakdown: HashMap<String, i32>,  // Django uses flat integers, not nested objects
 }
 
 /// Format a decimal with 5 decimal places for API response
