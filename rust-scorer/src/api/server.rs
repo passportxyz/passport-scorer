@@ -10,42 +10,82 @@ use std::time::Duration;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter, prelude::*};
-use tracing_flame::{FlameLayer, FlushGuard};
-use once_cell::sync::OnceCell;
-
-// Global storage for the flame guard to keep it alive
-static FLAME_GUARD: OnceCell<FlushGuard<std::io::BufWriter<std::fs::File>>> = OnceCell::new();
+use opentelemetry::KeyValue;
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
+use opentelemetry_otlp::SpanExporter;
+use tracing_opentelemetry::OpenTelemetryLayer;
 
 use crate::api::handler::score_address_handler;
 
 pub fn init_tracing() {
-    // Normal JSON logging always enabled
-    let registry = tracing_subscriber::registry()
+    // Get OpenTelemetry configuration from environment
+    let otel_endpoint = env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
+        .unwrap_or_else(|_| "http://localhost:4317".to_string());
+    
+    let enable_otel = env::var("OTEL_ENABLED")
+        .unwrap_or_else(|_| "true".to_string()) == "true";
+    
+    
+    // Base subscriber with JSON logging for CloudWatch
+    let subscriber = tracing_subscriber::registry()
         .with(
             fmt::layer()
                 .json() // JSON format for CloudWatch
                 .with_target(false)
-                .with_current_span(true)
-                .with_span_list(true)
+                .with_span_events(fmt::format::FmtSpan::CLOSE) // Log span close with duration
         )
         .with(
             EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("info"))
+                .unwrap_or_else(|_| EnvFilter::new("info,sqlx=info,hyper=warn,tower=warn,h2=error"))
         );
     
-    // Add flame layer if FLAME environment variable is set
-    if env::var("FLAME").is_ok() {
-        eprintln!("🔥 Flame tracing enabled - writing to ./tracing.folded");
-        let (flame_layer, guard) = FlameLayer::with_file("./tracing.folded")
-            .expect("Could not create flame layer");
-        
-        // Store the guard globally to keep it alive and ensure flushing
-        FLAME_GUARD.set(guard).ok();
-        
-        registry.with(flame_layer).init();
+    // Add OpenTelemetry layer if enabled
+    if enable_otel {
+        match init_opentelemetry(&otel_endpoint) {
+            Ok(provider) => {
+                info!("OpenTelemetry initialized with endpoint: {}", otel_endpoint);
+                let tracer = provider.tracer("rust-scorer");
+                subscriber
+                    .with(OpenTelemetryLayer::new(tracer))
+                    .init();
+            }
+            Err(e) => {
+                eprintln!("Failed to initialize OpenTelemetry: {}. Continuing with logs only.", e);
+                subscriber.init();
+            }
+        }
     } else {
-        registry.init();
+        info!("OpenTelemetry disabled, using JSON logging only");
+        subscriber.init();
     }
+}
+
+fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::error::Error>> {
+    let environment = env::var("ENVIRONMENT")
+        .unwrap_or_else(|_| "development".to_string());
+
+    let resource = Resource::builder()
+        .with_attribute(KeyValue::new("service.name", "rust-scorer"))
+        .with_attribute(KeyValue::new("service.version", env!("CARGO_PKG_VERSION")))
+        .with_attribute(KeyValue::new("deployment.environment", environment))
+        .build();
+
+    // Set endpoint via environment variable (unsafe in Rust 1.66+)
+    unsafe {
+        env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", endpoint);
+    }
+    
+    let exporter = SpanExporter::builder()
+        .with_tonic()
+        .build()?;
+    
+    let provider = SdkTracerProvider::builder()
+        .with_resource(resource)
+        .with_batch_exporter(exporter)
+        .build();
+
+    Ok(provider)
 }
 
 pub async fn create_connection_pool() -> Result<PgPool, Box<dyn std::error::Error>> {
@@ -96,17 +136,12 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     
     info!("Starting Passport Scorer Rust server");
     
-    // Set up ctrl-c handler to flush flame data
+    // Set up ctrl-c handler for graceful shutdown
     let shutdown = async {
         tokio::signal::ctrl_c()
             .await
             .expect("failed to install CTRL+C signal handler");
         eprintln!("Shutting down gracefully...");
-        
-        // Flame data will auto-flush when guard is dropped at program exit
-        if FLAME_GUARD.get().is_some() {
-            eprintln!("Flame data will be flushed to tracing.folded");
-        }
     };
     
     // Create the app

@@ -28,9 +28,6 @@ pub fn verify_django_pbkdf2(key: &str, hash_string: &str) -> bool {
     let expected_hash = parts[3];
     
     // Compute PBKDF2-SHA256
-    let span = tracing::info_span!("pbkdf2_computation", iterations = iterations);
-    let _enter = span.enter();
-    
     let mut output = vec![0u8; 32]; // SHA256 produces 32 bytes
     pbkdf2::<Hmac<Sha256>>(
         key.as_bytes(),

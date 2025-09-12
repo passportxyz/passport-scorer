@@ -25,6 +25,7 @@ pub struct ScorerConfig {
 /// 
 /// # Returns
 /// * `ScoringResult` - Complete scoring information including binary score, raw score, stamps, etc.
+#[tracing::instrument(skip(lifo_result, pool), fields(address = %address, community_id = community_id))]
 pub async fn calculate_score(
     address: &str,
     community_id: i64,

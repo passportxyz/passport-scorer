@@ -2,6 +2,7 @@
 name = "passport-scorer"
 version = "0.1.0"
 edition = "2024"
+default-run = "passport-scorer"
 
 [dependencies]
 # Web framework
@@ -35,7 +36,10 @@ rust_decimal_macros = "1.37"
 once_cell = "1.21"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter", "registry"] }
-tracing-flame = "0.2"
+tracing-opentelemetry = "0.31"
+opentelemetry = "0.30"
+opentelemetry_sdk = { version = "0.30", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.30", features = ["grpc-tonic", "trace"] }
 hex = "0.4"
 sha2 = "0.10"
 base64 = "0.22"

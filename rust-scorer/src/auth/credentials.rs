@@ -150,6 +150,7 @@ pub async fn validate_credential(
 }
 
 /// Validate multiple credentials
+#[tracing::instrument(skip(credentials), fields(count = credentials.len(), address = %address))]
 pub async fn validate_credentials_batch(
     credentials: &[Value],
     address: &str,

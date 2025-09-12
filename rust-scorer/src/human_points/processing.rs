@@ -44,6 +44,7 @@ impl HumanPointsConfig {
 /// 3. Records stamp actions (Human Keys and provider-based actions)
 /// 4. Awards scoring bonus if user has 4+ passing communities
 /// 5. Awards MetaMask OG bonus if eligible
+#[tracing::instrument(skip(scoring_result, tx), fields(address = %scoring_result.address, community_id = scoring_result.community_id))]
 pub async fn process_human_points(
     scoring_result: &ScoringResult,
     community_has_program: bool,

@@ -99,21 +99,16 @@ async fn process_score_request(
     tx: &mut Transaction<'_, Postgres>,
 ) -> ApiResult<Json<V2ScoreResponse>> {
     // 1. Validate API key and check permissions
-    let api_key_data = {
-        let span = tracing::info_span!("api_key_validation");
-        let _enter = span.enter();
-        
-        let x_api_key = headers.get("X-API-Key")
-            .and_then(|h| h.to_str().ok());
-        let auth_header = headers.get("Authorization")
-            .and_then(|h| h.to_str().ok());
-        
-        ApiKeyValidator::validate(
-            pool,
-            x_api_key,
-            auth_header,
-        ).await?
-    };
+    let x_api_key = headers.get("X-API-Key")
+        .and_then(|h| h.to_str().ok());
+    let auth_header = headers.get("Authorization")
+        .and_then(|h| h.to_str().ok());
+    
+    let api_key_data = ApiKeyValidator::validate(
+        pool,
+        x_api_key,
+        auth_header,
+    ).await?;
     
     if !api_key_data.read_scores {
         return Err(ApiError::Unauthorized(
@@ -176,46 +171,31 @@ async fn process_score_request(
         "Deduplicated stamps by provider"
     );
     
-    println!("DEBUG: Found {} stamps for address {}", latest_stamps.len(), address);
-    for stamp in &latest_stamps {
-        println!("  - Provider: {}", stamp.provider);
-    }
 
     // 6. Validate credentials - extract stamp JSON from ceramic cache
-    let valid_stamps = {
-        let span = tracing::info_span!("credential_validation", count = latest_stamps.len());
-        let _enter = span.enter();
-        
-        let stamp_values: Vec<serde_json::Value> = latest_stamps
-            .iter()
-            .map(|c| c.stamp.clone())
-            .collect();
-        
-        let validated_credentials = validate_credentials_batch(&stamp_values, address).await
-            .map_err(|e| ApiError::Validation(e.to_string()))?;
-        
-        println!("DEBUG: Validated {} credentials out of {}", validated_credentials.len(), stamp_values.len());
-        
-        // Convert ValidatedCredential to ValidStamp for internal use
-        let valid_stamps: Vec<crate::models::internal::ValidStamp> = validated_credentials
-            .into_iter()
-            .map(|vc| crate::models::internal::ValidStamp {
-                provider: vc.provider,
-                credential: vc.credential,
-                nullifiers: vc.nullifiers,
-                expires_at: vc.expires_at,
-            })
-            .collect();
-        
-        info!(
-            valid_count = valid_stamps.len(),
-            "Validated credentials"
-        );
-        
-        valid_stamps
-    };
+    let stamp_values: Vec<serde_json::Value> = latest_stamps
+        .iter()
+        .map(|c| c.stamp.clone())
+        .collect();
     
-    println!("DEBUG: Valid stamps after conversion: {}", valid_stamps.len());
+    let validated_credentials = validate_credentials_batch(&stamp_values, address).await
+        .map_err(|e| ApiError::Validation(e.to_string()))?;
+    
+    // Convert ValidatedCredential to ValidStamp for internal use
+    let valid_stamps: Vec<crate::models::internal::ValidStamp> = validated_credentials
+        .into_iter()
+        .map(|vc| crate::models::internal::ValidStamp {
+            provider: vc.provider,
+            credential: vc.credential,
+            nullifiers: vc.nullifiers,
+            expires_at: vc.expires_at,
+        })
+        .collect();
+    
+    info!(
+        valid_count = valid_stamps.len(),
+        "Validated credentials"
+    );
 
     // 7. Load scorer weights first (needed for LIFO)
     let scorer_config = crate::db::read_ops::load_scorer_config(pool, scorer_id).await?;
@@ -223,11 +203,7 @@ async fn process_score_request(
         .map_err(|e| ApiError::Internal(format!("Failed to parse weights: {}", e)))?;
     
     // 8. Apply LIFO deduplication
-    let lifo_result = {
-        let span = tracing::info_span!("lifo_deduplication");
-        let _enter = span.enter();
-        lifo_dedup(&valid_stamps, address, scorer_id, &weights, tx).await?
-    };
+    let lifo_result = lifo_dedup(&valid_stamps, address, scorer_id, &weights, tx).await?;
     
     info!(
         valid_after_lifo = lifo_result.valid_stamps.len(),
@@ -236,44 +212,35 @@ async fn process_score_request(
     );
 
     // 9. Delete existing stamps and insert new valid ones
-    {
-        let span = tracing::info_span!("stamp_persistence");
-        let _enter = span.enter();
+    delete_stamps(tx, passport_id).await?;
+    
+    // Insert valid stamps
+    if !lifo_result.valid_stamps.is_empty() {
+        // Convert StampData back to ValidStamp for bulk insert
+        let stamps_for_insert: Vec<crate::models::internal::ValidStamp> = lifo_result.valid_stamps
+            .iter()
+            .map(|sd| crate::models::internal::ValidStamp {
+                provider: sd.provider.clone(),
+                credential: sd.credential.clone(),
+                nullifiers: sd.nullifiers.clone(),
+                expires_at: sd.expires_at,
+            })
+            .collect();
         
-        delete_stamps(tx, passport_id).await?;
-        
-        // Insert valid stamps
-        if !lifo_result.valid_stamps.is_empty() {
-            // Convert StampData back to ValidStamp for bulk insert
-            let stamps_for_insert: Vec<crate::models::internal::ValidStamp> = lifo_result.valid_stamps
-                .iter()
-                .map(|sd| crate::models::internal::ValidStamp {
-                    provider: sd.provider.clone(),
-                    credential: sd.credential.clone(),
-                    nullifiers: sd.nullifiers.clone(),
-                    expires_at: sd.expires_at,
-                })
-                .collect();
-            
-            crate::db::write_ops::bulk_insert_stamps(
-                tx,
-                passport_id,
-                &stamps_for_insert,
-            ).await?;
-        }
+        crate::db::write_ops::bulk_insert_stamps(
+            tx,
+            passport_id,
+            &stamps_for_insert,
+        ).await?;
     }
 
     // 10. Calculate score
-    let scoring_result = {
-        let span = tracing::info_span!("score_calculation");
-        let _enter = span.enter();
-        calculate_score(
-            address,
-            scorer_id,
-            lifo_result,
-            pool,
-        ).await?
-    };
+    let scoring_result = calculate_score(
+        address,
+        scorer_id,
+        lifo_result,
+        pool,
+    ).await?;
 
     info!(
         binary_score = %scoring_result.binary_score,
