@@ -1,6 +1,6 @@
 # 📚 Project Knowledge Map
 
-*Last updated: 2025-09-11*
+*Last updated: 2025-09-12*
 
 ## 🏗️ Architecture
 
@@ -18,6 +18,7 @@
 - [Score Calculation](gotchas/score_calculation.md) - Score calculation details, provider dedup, decimal precision
 - [Type Conversions](gotchas/type_conversions.md) - Module boundary type conversions required
 - [Scorer ID Confusion](gotchas/scorer_id_confusion.md) - API scorer_id vs database community_id naming
+- [Human Points Provider Handling](gotchas/human_points_provider_handling.md) - Django CharField NULL vs empty string conversion
 
 ## 🔌 API
 

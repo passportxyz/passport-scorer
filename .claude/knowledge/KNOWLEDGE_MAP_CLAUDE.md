@@ -16,6 +16,7 @@
 - @gotchas/score_calculation.md - Score calculation details, provider dedup, decimal precision
 - @gotchas/type_conversions.md - Module boundary type conversions required
 - @gotchas/scorer_id_confusion.md - API scorer_id vs database community_id naming
+- @gotchas/human_points_provider_handling.md - Django CharField NULL vs empty string conversion
 
 ## 🔌 API
 
