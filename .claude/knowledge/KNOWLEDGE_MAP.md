@@ -1,7 +1,5 @@
 # 📚 Project Knowledge Map
 
-*Last updated: 2025-09-12*
-
 ## 🏗️ Architecture
 
 - [Scoring Flow Architecture](architecture/scoring_flow.md) - V2 API scoring endpoint flow, event recording, Rust migration complete
@@ -49,7 +47,3 @@
 ## 🚀 Deployment
 
 - [Lambda Infrastructure](deployment/lambda_infrastructure.md) - Pulumi-based Lambda deployment with ALB integration
-
-## 🛠️ Tools
-
-- [Log Analyzer](tools/log_analyzer.md) - Rust tracing log performance analyzer with flame charts

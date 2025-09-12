@@ -1,0 +1,4 @@
+Address,Result
+0xd5680a051302d427efa518238fda2c848eebe715,"{""models"": {""optimism"": {""score"": 75, ""first_funder"": null, ""num_transactions"": 100, ""first_funder_amount"": null, ""first_funder_timestamp"": null}}}"
+0xd5680a051302d427efa518238fda2c848eebe714,"{""models"": {""optimism"": {""score"": 75, ""first_funder"": null, ""num_transactions"": 100, ""first_funder_amount"": null, ""first_funder_timestamp"": null}}}"
+0x0636f974d29d947d4946b2091d769ec6d2d415de,"{""models"": {""optimism"": {""score"": 75, ""first_funder"": null, ""num_transactions"": 100, ""first_funder_amount"": null, ""first_funder_timestamp"": null}}}"

@@ -5,8 +5,6 @@
 ### Weight Lookup with Customization Support
 The load_scorer_config function checks for customization overrides first via load_customization, then falls back to base scorer weights. **Important**: Customization uses custom weights but still takes threshold from base scorer.
 
-### Provider Deduplication
-Only the first stamp per provider contributes weight - subsequent stamps with the same provider get weight=0 and are added to deduped_stamps list. This is critical for correct scoring and matches Python behavior.
 
 ### Binary Score Calculation
 Exactly matches Python - returns Decimal(1) if raw_score >= threshold, else Decimal(0). Uses >= operator for threshold comparison (not just >).
