@@ -29,7 +29,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
         
-        let json: Value = serde_json::from_str(&line)?;
+        // Skip non-JSON lines (cargo output, etc)
+        let json: Value = match serde_json::from_str(&line) {
+            Ok(v) => v,
+            Err(_) => continue,  // Skip non-JSON lines
+        };
         
         let timestamp_str = json["timestamp"].as_str().unwrap_or("");
         let timestamp = chrono::DateTime::parse_from_rfc3339(timestamp_str)
@@ -66,12 +70,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 entry.1 = Some(ts);  // Update end time
             }
             
-            // Add event if there's a message
+            // Add event if there's a message or summary
             if let Some(fields) = json["fields"].as_object() {
-                if let Some(msg) = fields["message"].as_str() {
+                // Try message first, then summary for SQL queries
+                let msg = fields.get("message")
+                    .and_then(|v| v.as_str())
+                    .or_else(|| fields.get("summary").and_then(|v| v.as_str()));
+                
+                if let Some(msg) = msg {
+                    // For SQL summaries, also include timing info if available
+                    let display_msg = if fields.contains_key("summary") {
+                        // SQL query with timing info
+                        let elapsed = fields.get("elapsed")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("?");
+                        format!("[SQL {}] {}", elapsed, msg)
+                    } else {
+                        msg.to_string()
+                    };
+                    
                     span_events.push(SpanEvent {
                         timestamp: ts,
-                        message: msg.to_string(),
+                        message: display_msg,
                         span_stack: span_stack.clone(),
                         level: span_stack.len(),
                     });

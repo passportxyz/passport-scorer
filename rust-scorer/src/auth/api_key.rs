@@ -11,6 +11,7 @@ use crate::db::errors::{DatabaseError, Result};
 use crate::models::django::DjangoApiKey;
 
 /// Verify an API key against Django's PBKDF2-SHA256 hash
+#[tracing::instrument(skip(key), fields(hash_type = %hash_string.split('$').next().unwrap_or("unknown")))]
 pub fn verify_django_pbkdf2(key: &str, hash_string: &str) -> bool {
     // Parse Django's format: pbkdf2_sha256$iterations$salt$hash
     let parts: Vec<&str> = hash_string.split('$').collect();
@@ -27,6 +28,9 @@ pub fn verify_django_pbkdf2(key: &str, hash_string: &str) -> bool {
     let expected_hash = parts[3];
     
     // Compute PBKDF2-SHA256
+    let span = tracing::info_span!("pbkdf2_computation", iterations = iterations);
+    let _enter = span.enter();
+    
     let mut output = vec![0u8; 32]; // SHA256 produces 32 bytes
     pbkdf2::<Hmac<Sha256>>(
         key.as_bytes(),
@@ -79,6 +83,7 @@ pub struct ApiKeyValidator;
 impl ApiKeyValidator {
     /// Validate an API key and return the key data
     /// Checks X-API-Key header first, then Authorization header
+    #[tracing::instrument(skip(pool, x_api_key, auth_header), fields(api_key_prefix))]
     pub async fn validate(
         pool: &PgPool,
         x_api_key: Option<&str>,
@@ -114,8 +119,10 @@ impl ApiKeyValidator {
         
         // Extract prefix for database lookup
         let prefix = extract_prefix(&final_key);
+        tracing::Span::current().record("api_key_prefix", prefix);
         
         // Look up API key by prefix
+        debug!(prefix, "Looking up API key in database");
         let stored_key = sqlx::query_as::<_, DjangoApiKey>(
             r#"
             SELECT
@@ -147,6 +154,7 @@ impl ApiKeyValidator {
         })?;
         
         // Verify the full key hash (supports both Django PBKDF2 and SHA512)
+        debug!("Verifying API key hash");
         if !verify_django_pbkdf2(&final_key, &stored_key.hashed_key) {
             warn!("API key verification failed for prefix: {}", prefix);
             return Err(DatabaseError::InvalidData(
@@ -166,6 +174,7 @@ impl ApiKeyValidator {
     }
     
     /// Track API key usage in analytics table
+    #[tracing::instrument(skip_all, fields(api_key_id = %api_key_id, path = %path, status_code = status_code))]
     pub async fn track_usage(
         tx: &mut Transaction<'_, Postgres>,
         api_key_id: &str,

@@ -7,7 +7,7 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::collections::HashMap;
-use tracing::{error, info, instrument};
+use tracing::{error, info};
 
 use crate::api::error::{ApiError, ApiResult};
 use crate::auth::api_key::ApiKeyValidator;
@@ -31,17 +31,21 @@ pub struct ScoreQueryParams {
     pub include_human_points: bool,
 }
 
-#[instrument(skip(pool, headers), fields(scorer_id, address))]
+#[tracing::instrument(
+    skip(pool, headers),
+    fields(
+        scorer_id = scorer_id,
+        address = %address,
+        include_human_points = params.include_human_points
+    )
+)]
 pub async fn score_address_handler(
     Path((scorer_id, address)): Path<(i64, String)>,
     Query(params): Query<ScoreQueryParams>,
     State(pool): State<PgPool>,
     headers: HeaderMap,
 ) -> ApiResult<Json<V2ScoreResponse>> {
-    info!(
-        include_human_points = params.include_human_points,
-        "Processing score request"
-    );
+    info!("Processing score request");
 
     // Input validation
     let address = address.to_lowercase();
@@ -78,6 +82,14 @@ pub async fn score_address_handler(
     }
 }
 
+#[tracing::instrument(
+    skip(headers, pool, tx),
+    fields(
+        address = %address,
+        scorer_id = scorer_id,
+        include_human_points = _include_human_points
+    )
+)]
 async fn process_score_request(
     address: &str,
     scorer_id: i64,
@@ -87,16 +99,21 @@ async fn process_score_request(
     tx: &mut Transaction<'_, Postgres>,
 ) -> ApiResult<Json<V2ScoreResponse>> {
     // 1. Validate API key and check permissions
-    let x_api_key = headers.get("X-API-Key")
-        .and_then(|h| h.to_str().ok());
-    let auth_header = headers.get("Authorization")
-        .and_then(|h| h.to_str().ok());
-    
-    let api_key_data = ApiKeyValidator::validate(
-        pool,
-        x_api_key,
-        auth_header,
-    ).await?;
+    let api_key_data = {
+        let span = tracing::info_span!("api_key_validation");
+        let _enter = span.enter();
+        
+        let x_api_key = headers.get("X-API-Key")
+            .and_then(|h| h.to_str().ok());
+        let auth_header = headers.get("Authorization")
+            .and_then(|h| h.to_str().ok());
+        
+        ApiKeyValidator::validate(
+            pool,
+            x_api_key,
+            auth_header,
+        ).await?
+    };
     
     if !api_key_data.read_scores {
         return Err(ApiError::Unauthorized(
@@ -165,41 +182,52 @@ async fn process_score_request(
     }
 
     // 6. Validate credentials - extract stamp JSON from ceramic cache
-    let stamp_values: Vec<serde_json::Value> = latest_stamps
-        .iter()
-        .map(|c| c.stamp.clone())
-        .collect();
-    
-    let validated_credentials = validate_credentials_batch(&stamp_values, address).await
-        .map_err(|e| ApiError::Validation(e.to_string()))?;
-    
-    println!("DEBUG: Validated {} credentials out of {}", validated_credentials.len(), stamp_values.len());
-    
-    // Convert ValidatedCredential to ValidStamp for internal use
-    let valid_stamps: Vec<crate::models::internal::ValidStamp> = validated_credentials
-        .into_iter()
-        .map(|vc| crate::models::internal::ValidStamp {
-            provider: vc.provider,
-            credential: vc.credential,
-            nullifiers: vc.nullifiers,
-            expires_at: vc.expires_at,
-        })
-        .collect();
-    
-    info!(
-        valid_count = valid_stamps.len(),
-        "Validated credentials"
-    );
+    let valid_stamps = {
+        let span = tracing::info_span!("credential_validation", count = latest_stamps.len());
+        let _enter = span.enter();
+        
+        let stamp_values: Vec<serde_json::Value> = latest_stamps
+            .iter()
+            .map(|c| c.stamp.clone())
+            .collect();
+        
+        let validated_credentials = validate_credentials_batch(&stamp_values, address).await
+            .map_err(|e| ApiError::Validation(e.to_string()))?;
+        
+        println!("DEBUG: Validated {} credentials out of {}", validated_credentials.len(), stamp_values.len());
+        
+        // Convert ValidatedCredential to ValidStamp for internal use
+        let valid_stamps: Vec<crate::models::internal::ValidStamp> = validated_credentials
+            .into_iter()
+            .map(|vc| crate::models::internal::ValidStamp {
+                provider: vc.provider,
+                credential: vc.credential,
+                nullifiers: vc.nullifiers,
+                expires_at: vc.expires_at,
+            })
+            .collect();
+        
+        info!(
+            valid_count = valid_stamps.len(),
+            "Validated credentials"
+        );
+        
+        valid_stamps
+    };
     
     println!("DEBUG: Valid stamps after conversion: {}", valid_stamps.len());
 
     // 7. Load scorer weights first (needed for LIFO)
     let scorer_config = crate::db::read_ops::load_scorer_config(pool, scorer_id).await?;
-    let weights: HashMap<String, Decimal> = serde_json::from_value(scorer_config.weights)
+    let weights: HashMap<String, Decimal> = serde_json::from_value(scorer_config.weights.clone())
         .map_err(|e| ApiError::Internal(format!("Failed to parse weights: {}", e)))?;
     
     // 8. Apply LIFO deduplication
-    let lifo_result = lifo_dedup(&valid_stamps, address, scorer_id, &weights, tx).await?;
+    let lifo_result = {
+        let span = tracing::info_span!("lifo_deduplication");
+        let _enter = span.enter();
+        lifo_dedup(&valid_stamps, address, scorer_id, &weights, tx).await?
+    };
     
     info!(
         valid_after_lifo = lifo_result.valid_stamps.len(),
@@ -208,35 +236,44 @@ async fn process_score_request(
     );
 
     // 9. Delete existing stamps and insert new valid ones
-    delete_stamps(tx, passport_id).await?;
-    
-    // Insert valid stamps
-    if !lifo_result.valid_stamps.is_empty() {
-        // Convert StampData back to ValidStamp for bulk insert
-        let stamps_for_insert: Vec<crate::models::internal::ValidStamp> = lifo_result.valid_stamps
-            .iter()
-            .map(|sd| crate::models::internal::ValidStamp {
-                provider: sd.provider.clone(),
-                credential: sd.credential.clone(),
-                nullifiers: sd.nullifiers.clone(),
-                expires_at: sd.expires_at,
-            })
-            .collect();
+    {
+        let span = tracing::info_span!("stamp_persistence");
+        let _enter = span.enter();
         
-        crate::db::write_ops::bulk_insert_stamps(
-            tx,
-            passport_id,
-            &stamps_for_insert,
-        ).await?;
+        delete_stamps(tx, passport_id).await?;
+        
+        // Insert valid stamps
+        if !lifo_result.valid_stamps.is_empty() {
+            // Convert StampData back to ValidStamp for bulk insert
+            let stamps_for_insert: Vec<crate::models::internal::ValidStamp> = lifo_result.valid_stamps
+                .iter()
+                .map(|sd| crate::models::internal::ValidStamp {
+                    provider: sd.provider.clone(),
+                    credential: sd.credential.clone(),
+                    nullifiers: sd.nullifiers.clone(),
+                    expires_at: sd.expires_at,
+                })
+                .collect();
+            
+            crate::db::write_ops::bulk_insert_stamps(
+                tx,
+                passport_id,
+                &stamps_for_insert,
+            ).await?;
+        }
     }
 
     // 10. Calculate score
-    let scoring_result = calculate_score(
-        address,
-        scorer_id,
-        lifo_result,
-        pool,
-    ).await?;
+    let scoring_result = {
+        let span = tracing::info_span!("score_calculation");
+        let _enter = span.enter();
+        calculate_score(
+            address,
+            scorer_id,
+            lifo_result,
+            pool,
+        ).await?
+    };
 
     info!(
         binary_score = %scoring_result.binary_score,
