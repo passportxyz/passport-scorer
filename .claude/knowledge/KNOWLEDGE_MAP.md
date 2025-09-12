@@ -19,6 +19,7 @@
 - [Type Conversions](gotchas/type_conversions.md) - Module boundary type conversions required
 - [Scorer ID Confusion](gotchas/scorer_id_confusion.md) - API scorer_id vs database community_id naming
 - [Human Points Provider Handling](gotchas/human_points_provider_handling.md) - Django CharField NULL vs empty string conversion
+- [Performance Analysis](gotchas/performance_analysis.md) - Flamegraphs vs distributed tracing for I/O-bound services
 
 ## 🔌 API
 
