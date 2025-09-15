@@ -45,7 +45,7 @@ class ScoreData:
             self.expiration_date = datetime.now(timezone.utc) + timedelta(days=90)
 
 
-class TestMetaMaskOGPointsFeature:
+class TestMetaMaskOG2PointsFeature:
     """Test MetaMask OG points awarding functionality"""
 
     @pytest.mark.asyncio
@@ -70,12 +70,12 @@ class TestMetaMaskOGPointsFeature:
         )
 
         # Create MetaMask OG address list
-        mta_list = await AddressList.objects.acreate(name="MetaMaskOG")
+        mta_list = await AddressList.objects.acreate(name="MetaMaskOG2")
         await mta_list.addresses.acreate(address=address.lower())
 
         # Create MetaMask OG points config
         await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.METAMASK_OG, points=1000, active=True
+            action=HumanPoints.Action.METAMASK_OG_2, points=1000, active=True
         )
 
         # Mock successful validation with stamps
@@ -98,15 +98,15 @@ class TestMetaMaskOGPointsFeature:
 
         # Assert MetaMask OG points were awarded
         mta_points = await HumanPoints.objects.filter(
-            address=address.lower(), action=HumanPoints.Action.METAMASK_OG
+            address=address.lower(), action=HumanPoints.Action.METAMASK_OG_2
         ).acount()
         assert mta_points == 1
 
         # Verify the action was recorded correctly
         mta_point = await HumanPoints.objects.aget(
-            address=address.lower(), action=HumanPoints.Action.METAMASK_OG
+            address=address.lower(), action=HumanPoints.Action.METAMASK_OG_2
         )
-        assert mta_point.action == HumanPoints.Action.METAMASK_OG
+        assert mta_point.action == HumanPoints.Action.METAMASK_OG_2
 
     @pytest.mark.asyncio
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
@@ -130,12 +130,12 @@ class TestMetaMaskOGPointsFeature:
         )
 
         # Create MetaMask OG address list with our address
-        mta_list = await AddressList.objects.acreate(name="MetaMaskOG")
+        mta_list = await AddressList.objects.acreate(name="MetaMaskOG2")
         await mta_list.addresses.acreate(address=address.lower())
 
         # Create MetaMask OG points config
         await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.METAMASK_OG, points=1000, active=True
+            action=HumanPoints.Action.METAMASK_OG_2, points=1000, active=True
         )
 
         # Mock validation
@@ -158,7 +158,7 @@ class TestMetaMaskOGPointsFeature:
 
         # Assert NO MetaMask OG points were awarded
         mta_points = await HumanPoints.objects.filter(
-            address=address.lower(), action=HumanPoints.Action.METAMASK_OG
+            address=address.lower(), action=HumanPoints.Action.METAMASK_OG_2
         ).acount()
         assert mta_points == 0
 
@@ -184,12 +184,12 @@ class TestMetaMaskOGPointsFeature:
         )
 
         # Create MetaMask OG address list WITHOUT our address
-        mta_list = await AddressList.objects.acreate(name="MetaMaskOG")
+        mta_list = await AddressList.objects.acreate(name="MetaMaskOG2")
         await mta_list.addresses.acreate(address="0xDifferentAddress")
 
         # Create MetaMask OG points config
         await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.METAMASK_OG, points=1000, active=True
+            action=HumanPoints.Action.METAMASK_OG_2, points=1000, active=True
         )
 
         # Mock validation
@@ -212,7 +212,7 @@ class TestMetaMaskOGPointsFeature:
 
         # Assert NO MetaMask OG points were awarded
         mta_points = await HumanPoints.objects.filter(
-            address=address.lower(), action=HumanPoints.Action.METAMASK_OG
+            address=address.lower(), action=HumanPoints.Action.METAMASK_OG_2
         ).acount()
         assert mta_points == 0
 
@@ -238,12 +238,12 @@ class TestMetaMaskOGPointsFeature:
         )
 
         # Create MetaMask OG address list
-        mta_list = await AddressList.objects.acreate(name="MetaMaskOG")
+        mta_list = await AddressList.objects.acreate(name="MetaMaskOG2")
         await mta_list.addresses.acreate(address=address.lower())
 
         # Create MetaMask OG points config
         await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.METAMASK_OG, points=1000, active=True
+            action=HumanPoints.Action.METAMASK_OG_2, points=1000, active=True
         )
 
         # Mock validation
@@ -266,7 +266,7 @@ class TestMetaMaskOGPointsFeature:
 
         # Assert NO MetaMask OG points were awarded (feature disabled)
         mta_points = await HumanPoints.objects.filter(
-            address=address.lower(), action=HumanPoints.Action.METAMASK_OG
+            address=address.lower(), action=HumanPoints.Action.METAMASK_OG_2
         ).acount()
         assert mta_points == 0
 
@@ -289,11 +289,11 @@ class TestMetaMaskOGPointsFeature:
         )
 
         # Create MetaMask OG address list
-        mta_list = await AddressList.objects.acreate(name="MetaMaskOG")
+        mta_list = await AddressList.objects.acreate(name="MetaMaskOG2")
 
         # Create MetaMask OG points config
         await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.METAMASK_OG, points=1000, active=True
+            action=HumanPoints.Action.METAMASK_OG_2, points=1000, active=True
         )
 
         # Mock validation and scoring
@@ -307,7 +307,7 @@ class TestMetaMaskOGPointsFeature:
         for i in range(4999):
             addr = f"0x{i:040x}"
             await HumanPoints.objects.acreate(
-                address=addr, action=HumanPoints.Action.METAMASK_OG
+                address=addr, action=HumanPoints.Action.METAMASK_OG_2
             )
 
         # Add two more addresses to the list
@@ -329,7 +329,7 @@ class TestMetaMaskOGPointsFeature:
 
             # Assert 5000th address got points
             mta_points_5000 = await HumanPoints.objects.filter(
-                address=address_5000.lower(), action=HumanPoints.Action.METAMASK_OG
+                address=address_5000.lower(), action=HumanPoints.Action.METAMASK_OG_2
             ).acount()
             assert mta_points_5000 == 1
 
@@ -344,13 +344,13 @@ class TestMetaMaskOGPointsFeature:
 
             # Assert 5001st address did NOT get points
             mta_points_5001 = await HumanPoints.objects.filter(
-                address=address_5001.lower(), action=HumanPoints.Action.METAMASK_OG
+                address=address_5001.lower(), action=HumanPoints.Action.METAMASK_OG_2
             ).acount()
             assert mta_points_5001 == 0
 
             # Verify total count is exactly 5000
             total_mta_points = await HumanPoints.objects.filter(
-                action=HumanPoints.Action.METAMASK_OG
+                action=HumanPoints.Action.METAMASK_OG_2
             ).acount()
             assert total_mta_points == 5000
 
@@ -377,12 +377,12 @@ class TestMetaMaskOGPointsFeature:
         )
 
         # Create MetaMask OG address list with lowercase address
-        mta_list = await AddressList.objects.acreate(name="MetaMaskOG")
+        mta_list = await AddressList.objects.acreate(name="MetaMaskOG2")
         await mta_list.addresses.acreate(address=address_lower)
 
         # Create MetaMask OG points config
         await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.METAMASK_OG, points=1000, active=True
+            action=HumanPoints.Action.METAMASK_OG_2, points=1000, active=True
         )
 
         # Mock validation
@@ -411,7 +411,7 @@ class TestMetaMaskOGPointsFeature:
 
         # Assert MetaMask OG points were awarded (case-insensitive match)
         mta_points = await HumanPoints.objects.filter(
-            address=address_lower, action=HumanPoints.Action.METAMASK_OG
+            address=address_lower, action=HumanPoints.Action.METAMASK_OG_2
         ).acount()
         assert mta_points == 1
 
@@ -437,12 +437,12 @@ class TestMetaMaskOGPointsFeature:
         )
 
         # Create MetaMask OG address list
-        mta_list = await AddressList.objects.acreate(name="MetaMaskOG")
+        mta_list = await AddressList.objects.acreate(name="MetaMaskOG2")
         await mta_list.addresses.acreate(address=address.lower())
 
         # Create MetaMask OG points config
         await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.METAMASK_OG, points=1000, active=True
+            action=HumanPoints.Action.METAMASK_OG_2, points=1000, active=True
         )
 
         # Mock validation
@@ -468,7 +468,7 @@ class TestMetaMaskOGPointsFeature:
 
         # Assert only one MTA point entry exists
         mta_points = await HumanPoints.objects.filter(
-            address=address.lower(), action=HumanPoints.Action.METAMASK_OG
+            address=address.lower(), action=HumanPoints.Action.METAMASK_OG_2
         ).acount()
         assert mta_points == 1
 
@@ -497,7 +497,7 @@ class TestMetaMaskOGPointsFeature:
 
         # Create MetaMask OG points config
         await HumanPointsConfig.objects.acreate(
-            action=HumanPoints.Action.METAMASK_OG, points=1000, active=True
+            action=HumanPoints.Action.METAMASK_OG_2, points=1000, active=True
         )
 
         # Mock validation
@@ -520,6 +520,6 @@ class TestMetaMaskOGPointsFeature:
 
         # Assert NO MetaMask OG points were awarded
         mta_points = await HumanPoints.objects.filter(
-            address=address.lower(), action=HumanPoints.Action.METAMASK_OG
+            address=address.lower(), action=HumanPoints.Action.METAMASK_OG_2
         ).acount()
         assert mta_points == 0
