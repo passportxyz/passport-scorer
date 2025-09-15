@@ -204,18 +204,18 @@ async def acheck_and_award_misc_points(address: str):
     # Award MetaMask OG points if on list (limit 5000)
     if settings.HUMAN_POINTS_MTA_ENABLED:
         try:
-            mta_list = await AddressList.objects.aget(name="MetaMaskOG")
+            mta_list = await AddressList.objects.aget(name="MetaMaskOG2")
             # Check if address is on the list (case-insensitive)
             if await mta_list.addresses.filter(address=address.lower()).aexists():
                 # Check if we've already awarded 5000 MetaMask OG points
                 mta_count = await HumanPoints.objects.filter(
-                    action=HumanPoints.Action.METAMASK_OG
+                    action=HumanPoints.Action.METAMASK_OG_2
                 ).acount()
 
                 if mta_count < 5000:
                     # Award MetaMask OG points (will create or get existing)
                     await HumanPoints.objects.aget_or_create(
-                        address=address.lower(), action=HumanPoints.Action.METAMASK_OG
+                        address=address.lower(), action=HumanPoints.Action.METAMASK_OG_2
                     )
         except AddressList.DoesNotExist:
             # MetaMask OG list doesn't exist yet, skip MetaMask OG points

@@ -375,6 +375,7 @@ class HumanPoints(models.Model):
         HUMAN_TECH_PROOF_OF_CLEAN_HANDS = "HCH"
         HUMAN_TECH_BIOMETRIC = "HBI"
         METAMASK_OG = "MTA"
+        METAMASK_OG_2 = "MM2"
 
     address = EthAddressField(db_index=True)
     action = models.CharField(max_length=3, choices=Action.choices, db_index=True)
