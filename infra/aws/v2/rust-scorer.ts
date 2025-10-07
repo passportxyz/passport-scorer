@@ -45,16 +45,6 @@ export function createRustScorerLambda({
       name: "LOGGING_STRATEGY",
       value: "structlog_json",
     },
-    // Use RDS Proxy for database connections
-    {
-      name: "RDS_PROXY_URL",
-      value: secretsManager.getSecret({
-        vault: "DevOps",
-        repo: "passport-scorer",
-        env: stack,
-        key: "RDS_PROXY_URL",
-      }),
-    },
     {
       name: "HUMAN_POINTS_ENABLED",
       value: "true",
@@ -131,12 +121,10 @@ export function createRustScorerLambda({
           },
         },
         {
-          httpHeaders: [
-            {
-              httpHeaderName: "X-Use-Rust-Scorer",
-              values: ["true"],
-            },
-          ],
+          httpHeader: {
+            httpHeaderName: "X-Use-Rust-Scorer",
+            values: ["true"],
+          },
         },
       ],
       // Higher priority (lower number) to catch before Python Lambda

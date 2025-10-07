@@ -176,7 +176,8 @@ jobs:
 
   docker-rust-scorer:
     name: Build and push docker image for Rust scorer Lambda
-    runs-on: ubuntu-latest
+    # Use native ARM64 runner for faster builds (free in public repos)
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Load secret
         id: op-load-secret
