@@ -1,3 +1,0 @@
-- Track community for mints
-- Track communities scored, need score in >= 3 communities
-- Migration for one-time multiplier fill? Or do as command? Can we set aside a migration?
