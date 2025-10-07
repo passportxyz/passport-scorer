@@ -557,6 +557,16 @@ export const createSharedLambdaResources = ({ rescoreQueue }: { rescoreQueue: aw
     ],
   });
 
+  const lambdaXRayPolicyDocument = aws.iam.getPolicyDocument({
+    statements: [
+      {
+        effect: "Allow",
+        actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
+        resources: ["*"],
+      },
+    ],
+  });
+
   const lambdaLoggingPolicy = new aws.iam.Policy("lambdaLoggingPolicy", {
     path: "/",
     description: "IAM policy for logging from a lambda",
@@ -578,6 +588,13 @@ export const createSharedLambdaResources = ({ rescoreQueue }: { rescoreQueue: aw
       (lambdaSecretsManagerPolicyDocument) => lambdaSecretsManagerPolicyDocument.json
     ),
     tags: { ...defaultTags, Name: "lambdaSecretManagerPolicy" },
+  });
+
+  const lambdaXRayPolicy = new aws.iam.Policy("lambdaXRayPolicy", {
+    path: "/",
+    description: "IAM policy for AWS X-Ray distributed tracing",
+    policy: lambdaXRayPolicyDocument.then((lambdaXRayPolicyDocument) => lambdaXRayPolicyDocument.json),
+    tags: { ...defaultTags, Name: "lambdaXRayPolicy" },
   });
 
   const assumeRole = aws.iam.getPolicyDocument({
@@ -613,6 +630,11 @@ export const createSharedLambdaResources = ({ rescoreQueue }: { rescoreQueue: aw
   const lambdaSecretsManagerRoleAttachment = new aws.iam.RolePolicyAttachment("lambdaSecretManagerRoleAttachment", {
     role: httpLambdaRole.name,
     policyArn: lambdaSecretsManagerPolicy.arn,
+  });
+
+  const lambdaXRayRoleAttachment = new aws.iam.RolePolicyAttachment("lambdaXRayRoleAttachment", {
+    role: httpLambdaRole.name,
+    policyArn: lambdaXRayPolicy.arn,
   });
 
   const queueLambdaRole = new aws.iam.Role("queueLambdaRole", {
@@ -664,7 +686,12 @@ export const createSharedLambdaResources = ({ rescoreQueue }: { rescoreQueue: aw
 
   return {
     httpLambdaRole,
-    httpRoleAttachments: [lambdaLogRoleAttachment, lambdaEc2RoleAttachment, lambdaSecretsManagerRoleAttachment],
+    httpRoleAttachments: [
+      lambdaLogRoleAttachment,
+      lambdaEc2RoleAttachment,
+      lambdaSecretsManagerRoleAttachment,
+      lambdaXRayRoleAttachment,
+    ],
     queueLambdaRole,
     queueRoleAttachments: [
       queueLambdaLogRoleAttachment,

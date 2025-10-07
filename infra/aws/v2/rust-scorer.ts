@@ -4,6 +4,9 @@ import { buildHttpLambdaFn } from "../../lib/scorer/new_service";
 import { secretsManager } from "infra-libs";
 import { stack, defaultTags } from "../../lib/tags";
 
+// Get current AWS region for OTEL Lambda layer ARN
+const regionData = aws.getRegion({});
+
 export function createRustScorerLambda({
   httpsListener,
   dockerRustScorerImage,
@@ -64,6 +67,23 @@ export function createRustScorerLambda({
       name: "HUMAN_POINTS_MTA_ENABLED",
       value: "true",
     },
+    // OpenTelemetry configuration for AWS X-Ray
+    {
+      name: "ENVIRONMENT",
+      value: stack,
+    },
+    {
+      name: "OTEL_ENABLED",
+      value: "true",
+    },
+    {
+      name: "OTEL_EXPORTER_OTLP_ENDPOINT",
+      value: "http://localhost:4318", // AWS ADOT collector endpoint (HTTP)
+    },
+    {
+      name: "AWS_LAMBDA_EXEC_WRAPPER",
+      value: "/opt/otel-instrument", // Enable X-Ray auto-instrumentation
+    },
   ].sort(secretsManager.sortByName);
 
   const lambdaSettings = {
@@ -86,7 +106,13 @@ export function createRustScorerLambda({
       memorySize: 256,
       timeout: 30,
       dockerCmd: ["bootstrap"], // Rust Lambda runtime executable
-      
+
+      // AWS OTEL Lambda Layer for X-Ray integration (ARM64)
+      // See: https://aws-otel.github.io/docs/getting-started/lambda/lambda-arm
+      layers: regionData.then(region => [
+        `arn:aws:lambda:${region.name}:901920570463:layer:aws-otel-collector-arm64-ver-0-102-1:2`
+      ]),
+
       // Header-based routing - only route to Rust when X-Use-Rust-Scorer header is present
       httpListenerRulePaths: [
         {
