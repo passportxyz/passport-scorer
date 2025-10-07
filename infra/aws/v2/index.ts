@@ -220,7 +220,7 @@ export function createV2Api({
       },
     ],
   });
-  
+
   // Deploy Rust scorer Lambda if image is provided
   if (dockerRustScorerImage) {
     createRustScorerLambda({

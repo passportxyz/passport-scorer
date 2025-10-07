@@ -109,8 +109,8 @@ export function createRustScorerLambda({
 
       // AWS OTEL Lambda Layer for X-Ray integration (ARM64)
       // See: https://aws-otel.github.io/docs/getting-started/lambda/lambda-arm
-      layers: regionData.then(region => [
-        `arn:aws:lambda:${region.name}:901920570463:layer:aws-otel-collector-arm64-ver-0-102-1:2`
+      layers: regionData.then((region) => [
+        `arn:aws:lambda:${region.name}:901920570463:layer:aws-otel-collector-arm64-ver-0-102-1:2`,
       ]),
 
       // Header-based routing - only route to Rust when X-Use-Rust-Scorer header is present
@@ -131,10 +131,12 @@ export function createRustScorerLambda({
           },
         },
         {
-          httpHeaders: [{
-            httpHeaderName: "X-Use-Rust-Scorer",
-            values: ["true"],
-          }],
+          httpHeaders: [
+            {
+              httpHeaderName: "X-Use-Rust-Scorer",
+              values: ["true"],
+            },
+          ],
         },
       ],
       // Higher priority (lower number) to catch before Python Lambda
@@ -143,20 +145,20 @@ export function createRustScorerLambda({
     alarmConfigurations
   );
 
-  /* 
+  /*
    * Future: Weighted Target Group Routing
    * ----------------------------------------
    * Instead of header-based routing, you can use ALB weighted routing
    * to gradually roll out the Rust implementation:
-   * 
+   *
    * const rustTargetGroup = new aws.lb.TargetGroup("rust-scorer-tg", {
    *   name: "rust-scorer-tg",
    *   targetType: "lambda",
    *   tags: { ...defaultTags, Name: "rust-scorer-tg" },
    * });
-   * 
+   *
    * const pythonTargetGroup = // existing Python Lambda target group
-   * 
+   *
    * new aws.lb.ListenerRule("scorer-weighted-rule", {
    *   listenerArn: httpsListener.arn,
    *   priority: 100,
@@ -179,7 +181,7 @@ export function createRustScorerLambda({
    *   ],
    *   tags: { ...defaultTags, Name: "scorer-weighted-rule" },
    * });
-   * 
+   *
    * This allows gradual rollout:
    * - Start with 5% traffic to Rust
    * - Monitor metrics and error rates
