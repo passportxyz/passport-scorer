@@ -74,6 +74,8 @@ pub async fn score_address_handler(
                 .map_err(|e| ApiError::Database(format!("Failed to commit transaction: {}", e)))?;
 
             // Force flush traces in Lambda before response
+            // TODO: Test if this force flush is actually necessary - BatchSpanProcessor
+            // might export automatically when spans close, or ADOT layer might handle it
             if std::env::var("AWS_LAMBDA_FUNCTION_NAME").is_ok() {
                 println!("🔵 OTEL: Forcing span flush before Lambda response...");
                 opentelemetry::global::force_flush_tracer_provider();
