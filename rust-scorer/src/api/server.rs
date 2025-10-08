@@ -166,29 +166,10 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
 
     println!("🔵 OTEL: Building TracerProvider with BatchSpanProcessor (wrapped with debug)");
 
-    // In Lambda, use a much shorter batch interval to ensure timely exports
-    let provider = if env::var("AWS_LAMBDA_FUNCTION_NAME").is_ok() {
-        use opentelemetry_sdk::trace::{BatchConfig, BatchSpanProcessor};
-        use std::time::Duration;
-
-        let batch_config = BatchConfig::default()
-            .with_scheduled_delay(Duration::from_secs(1)); // 1 second in Lambda vs default 5 seconds
-
-        println!("🔵 OTEL: Using 1-second batch interval for Lambda environment");
-
-        let processor = BatchSpanProcessor::new(debug_exporter, batch_config);
-
-        SdkTracerProvider::builder()
-            .with_resource(resource)
-            .with_span_processor(processor)
-            .build()
-    } else {
-        // Use default batch config (5 seconds) for non-Lambda
-        SdkTracerProvider::builder()
-            .with_resource(resource)
-            .with_batch_exporter(debug_exporter)
-            .build()
-    };
+    let provider = SdkTracerProvider::builder()
+        .with_resource(resource)
+        .with_batch_exporter(debug_exporter)
+        .build();
 
     println!("✅ OTEL: TracerProvider built successfully");
     Ok(provider)
