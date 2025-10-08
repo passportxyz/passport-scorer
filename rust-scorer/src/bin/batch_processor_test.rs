@@ -8,9 +8,10 @@ fn init_telemetry() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔧 Initializing OTLP with BatchSpanProcessor...");
 
     // Build OTLP exporter for HTTP
+    // MUST include /v1/traces path!
     let exporter = SpanExporter::builder()
         .with_http()
-        .with_endpoint("http://localhost:4318")
+        .with_endpoint("http://localhost:4318/v1/traces")
         .build()?;
 
     println!("✅ Exporter created");

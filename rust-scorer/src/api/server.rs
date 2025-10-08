@@ -27,14 +27,14 @@ pub fn init_tracing() {
         .unwrap_or_else(|_| if is_lambda { "true" } else { "false" }.to_string()) == "true";
 
     // In Lambda with ADOT layer, the collector is at localhost:4317 (gRPC) or localhost:4318 (HTTP)
-    // For local development, we can use the same endpoints if running a local collector
+    // IMPORTANT: Must include /v1/traces path for HTTP endpoint!
     let otel_endpoint = env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
         .unwrap_or_else(|_| {
             if is_lambda {
                 // In Lambda, use localhost since ADOT layer runs the collector
-                "http://localhost:4318".to_string() // HTTP endpoint for ADOT
+                "http://localhost:4318/v1/traces".to_string() // HTTP endpoint with full path
             } else {
-                "http://localhost:4317".to_string() // gRPC for local development
+                "http://localhost:4318/v1/traces".to_string() // HTTP for local development too
             }
         });
 
