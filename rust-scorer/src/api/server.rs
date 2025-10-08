@@ -91,7 +91,7 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
 pub async fn create_connection_pool() -> Result<PgPool, Box<dyn std::error::Error>> {
     let database_url = env::var("DATABASE_URL")
         .or_else(|_| env::var("RDS_PROXY_URL"))
-        .expect("DATABASE_URL or RDS_PROXY_URL must be set");
+        .expect("DATABASE_URL or RDS_PROXY_URL must be set (either directly or via SCORER_SERVER_SSM_ARN)");
     
     info!("Creating database connection pool");
     
@@ -109,6 +109,11 @@ pub async fn create_connection_pool() -> Result<PgPool, Box<dyn std::error::Erro
 }
 
 pub async fn create_app() -> Result<Router, Box<dyn std::error::Error>> {
+    // Load secrets from AWS Secrets Manager if SCORER_SERVER_SSM_ARN is set
+    // This happens at startup (Lambda cold start or local/ECS server initialization)
+    // Mimics Python Lambda behavior in api/aws_lambdas/utils.py:36-58
+    crate::secrets::load_secrets_from_manager().await?;
+
     // Create database connection pool
     let pool = create_connection_pool().await?;
     
@@ -133,9 +138,9 @@ async fn health_check() -> &'static str {
 pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
     init_tracing();
-    
+
     info!("Starting Passport Scorer Rust server");
-    
+
     // Set up ctrl-c handler for graceful shutdown
     let shutdown = async {
         tokio::signal::ctrl_c()

@@ -10,9 +10,10 @@ axum = "0.8"
 tower = "0.5"
 tower-http = { version = "0.6", features = ["trace"] }
 
-# Lambda runtime (optional)
-lambda-web = { version = "0.2", optional = true }
-lambda_runtime = { version = "0.14", optional = true }
+
+# AWS SDK for Secrets Manager
+aws-config = { version = "1.5", features = ["behavior-version-latest"] }
+aws-sdk-secretsmanager = "1.60"
 
 # Database
 sqlx = { version = "0.8", features = [
@@ -56,4 +57,3 @@ tower = { version = "0.4", features = ["util"] }
 
 [features]
 default = []
-lambda = ["lambda-web", "lambda_runtime"]

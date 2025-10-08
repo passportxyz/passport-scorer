@@ -57,6 +57,10 @@ export function createRustScorerLambda({
       name: "HUMAN_POINTS_MTA_ENABLED",
       value: "true",
     },
+    {
+      name: "SCORER_SERVER_SSM_ARN",
+      value: scorerSecret.arn,
+    },
     // OpenTelemetry configuration for AWS X-Ray
     {
       name: "ENVIRONMENT",
