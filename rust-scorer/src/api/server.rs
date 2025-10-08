@@ -69,6 +69,12 @@ pub fn init_tracing() {
                 let tracer = provider.tracer("rust-scorer");
                 println!("✅ OTEL: Tracer created, attaching to subscriber");
 
+                // Test if we can create a span directly
+                use opentelemetry::trace::Tracer;
+                let test_span = tracer.start("INIT-TEST-SPAN");
+                drop(test_span);
+                println!("🔵 OTEL: Created test span during init");
+
                 subscriber
                     .with(OpenTelemetryLayer::new(tracer))
                     .init();
