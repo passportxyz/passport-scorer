@@ -190,6 +190,10 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.11.0
       - name: Setup cargo-lambda
         uses: jaxxstorm/action-install-gh-release@v1.12.0
         with:
@@ -201,8 +205,8 @@ jobs:
         working-directory: ./rust-scorer
         run: |
           export SQLX_OFFLINE=true
-          # Use native build on ARM64 runner with Cargo compiler (no Zig required)
-          cargo lambda build --release --output-format zip --compiler cargo
+          # Use Zig cross-compilation to target AL2023's glibc 2.34
+          cargo lambda build --release --arm64 --output-format zip
           echo "artifact_name=rust-scorer-${{ inputs.docker_tag }}.zip" >> $GITHUB_OUTPUT
       - name: Upload artifact
         uses: actions/upload-artifact@v4
