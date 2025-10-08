@@ -26,14 +26,8 @@ pub fn init_tracing() {
     let enable_otel = env::var("OTEL_ENABLED")
         .unwrap_or_else(|_| if is_lambda { "true" } else { "false" }.to_string()) == "true";
 
-    // Configure OTLP endpoint based on environment
-    // Lambda: ADOT layer expects base URL without /v1/traces path
-    // Local: Direct OTLP export needs full /v1/traces path
-    let otel_endpoint = if is_lambda {
-        "http://localhost:4318".to_string()  // AWS ADOT layer (no path)
-    } else {
-        "http://localhost:4318/v1/traces".to_string()  // Local Jaeger/OTLP (with path)
-    };
+    // OTLP endpoint - always use full path with /v1/traces
+    let otel_endpoint = "http://localhost:4318/v1/traces".to_string();
 
     // Base subscriber with JSON logging for CloudWatch
     let subscriber = tracing_subscriber::registry()
