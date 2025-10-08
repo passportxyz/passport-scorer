@@ -76,10 +76,10 @@ pub async fn score_address_handler(
             // Force flush traces in Lambda before response
             // TODO: Test if this force flush is actually necessary - BatchSpanProcessor
             // might export automatically when spans close, or ADOT layer might handle it
+            // TODO: Find the correct force_flush API for opentelemetry 0.30
             if std::env::var("AWS_LAMBDA_FUNCTION_NAME").is_ok() {
-                println!("🔵 OTEL: Forcing span flush before Lambda response...");
-                opentelemetry::global::force_flush_tracer_provider();
-                println!("✅ OTEL: Span flush complete");
+                println!("🔵 OTEL: Need to force flush spans here but API not found yet");
+                // opentelemetry::global::force_flush_tracer_provider(); // This doesn't exist
             }
 
             Ok(response)
