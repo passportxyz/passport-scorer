@@ -17,7 +17,8 @@ exporters:
     # Uncomment to override: region: us-east-1
 
   # Debug exporter for troubleshooting (remove in production)
-  logging:
+  # NOTE: ADOT v0.86.0+ uses 'debug' instead of 'logging'
+  debug:
 
 processors:
   # Memory limiter prevents out of memory situations
@@ -37,10 +38,10 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [awsxray, logging]
+      exporters: [awsxray, debug]
 
     # Metrics pipeline (if needed in future)
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [logging]
+      exporters: [debug]
