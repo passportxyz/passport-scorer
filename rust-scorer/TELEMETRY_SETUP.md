@@ -34,23 +34,36 @@ The `build-lambda-zip.sh` script:
 
 ## Testing Telemetry
 
-### Local Testing
+### Local Testing with Jaeger
 
-1. Run a local OTEL collector:
+1. Start Jaeger using Docker Compose:
 ```bash
-docker run -p 4317:4317 -p 4318:4318 otel/opentelemetry-collector:latest
+docker-compose -f docker-compose.jaeger.yml up -d
 ```
 
-2. Set environment variables:
+2. Run the test script (which sets up environment and runs the app):
+```bash
+./test-telemetry.sh
+```
+
+Or run manually:
 ```bash
 export OTEL_ENABLED=true
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-```
-
-3. Run the application:
-```bash
+export OTEL_SERVICE_NAME=rust-scorer-local
 cargo run
 ```
+
+3. View traces in Jaeger UI:
+   - Open http://localhost:16686
+   - Select "rust-scorer-local" service
+   - Click "Find Traces"
+
+4. Test the telemetry binary:
+```bash
+cargo run --bin test_telemetry
+```
+This creates sample spans to verify the instrumentation is working.
 
 ### Lambda Testing
 
