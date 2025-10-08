@@ -1,5 +1,5 @@
 use passport_scorer::api::server;
-use tracing::{info, info_span};
+use tracing::{info, info_span, Instrument};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -17,40 +17,60 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✅ Telemetry initialized!");
 
-    // Create some test spans
-    let span = info_span!("test_main_operation");
-    let _guard = span.enter();
+    // Use async instrumentation for proper span context
+    test_spans().await;
 
-    info!("Starting test operation");
-
-    // Simulate some nested operations
-    {
-        let span = info_span!("database_operation", operation = "load_scorer");
-        let _guard = span.enter();
-        info!("Loading scorer configuration");
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    }
-
-    {
-        let span = info_span!("validation", stamps_count = 5);
-        let _guard = span.enter();
-        info!("Validating credentials");
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-    }
-
-    {
-        let span = info_span!("score_calculation", address = "0x123...");
-        let _guard = span.enter();
-        info!("Calculating score");
-        tokio::time::sleep(tokio::time::Duration::from_millis(75)).await;
-    }
-
-    info!("Test operation completed");
-
-    // Give time for spans to be exported
-    println!("⏳ Waiting for spans to export...");
+    // Give time for spans to export (SimpleSpanProcessor exports immediately)
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     println!("🎉 Test complete! Check Jaeger UI at http://localhost:16686");
+    println!("   Service: rust-scorer-test");
     Ok(())
+}
+
+#[tracing::instrument]
+async fn test_spans() {
+    info!("Starting test operation");
+
+    // Simulate nested operations with proper async instrumentation
+    database_operation().await;
+    validation_operation().await;
+    score_calculation().await;
+
+    info!("Test operation completed");
+}
+
+#[tracing::instrument(fields(operation = "load_scorer", db_name = "postgres"))]
+async fn database_operation() {
+    info!("Loading scorer configuration");
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    info!("Scorer loaded successfully");
+}
+
+#[tracing::instrument(fields(stamps_count = 5, valid_count = 3))]
+async fn validation_operation() {
+    info!("Validating credentials");
+    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+    info!("Validation complete");
+}
+
+#[tracing::instrument(fields(address = "0x1234567890abcdef", scorer_id = 1))]
+async fn score_calculation() {
+    info!("Calculating score");
+
+    // Simulate sub-operations
+    let weight_span = info_span!("apply_weights");
+    async {
+        info!("Applying scorer weights");
+        tokio::time::sleep(tokio::time::Duration::from_millis(25)).await;
+    }.instrument(weight_span).await;
+
+    let threshold_span = info_span!("check_threshold");
+    async {
+        info!("Checking threshold");
+        tokio::time::sleep(tokio::time::Duration::from_millis(25)).await;
+    }.instrument(threshold_span).await;
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(25)).await;
+    info!("Score calculated: 15.5");
 }
