@@ -72,7 +72,7 @@ export const verifierDockerImage = pulumi
 
 // Rust scorer Lambda zip archive
 import * as fs from "fs";
-const rustScorerZipPath = "../rust-scorer-artifact/bootstrap.zip";
+const rustScorerZipPath = "../../rust-scorer-artifact/bootstrap.zip";
 const rustScorerZipArchive = fs.existsSync(rustScorerZipPath)
   ? new pulumi.asset.FileArchive(rustScorerZipPath)
   : undefined;
