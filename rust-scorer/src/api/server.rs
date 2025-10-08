@@ -26,12 +26,8 @@ pub fn init_tracing() {
     let enable_otel = env::var("OTEL_ENABLED")
         .unwrap_or_else(|_| if is_lambda { "true" } else { "false" }.to_string()) == "true";
 
-    // OTLP endpoint - Lambda needs base URL, local needs full path
-    let otel_endpoint = if is_lambda {
-        "http://localhost:4318".to_string()
-    } else {
-        "http://localhost:4318/v1/traces".to_string()
-    };
+    // OTLP endpoint - needs full path with /v1/traces
+    let otel_endpoint = "http://localhost:4318/v1/traces".to_string();
 
     // Base subscriber with JSON logging for CloudWatch
     let subscriber = tracing_subscriber::registry()
