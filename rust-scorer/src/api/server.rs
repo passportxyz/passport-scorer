@@ -26,8 +26,12 @@ pub fn init_tracing() {
     let enable_otel = env::var("OTEL_ENABLED")
         .unwrap_or_else(|_| if is_lambda { "true" } else { "false" }.to_string()) == "true";
 
-    // OTLP endpoint - needs full path with /v1/traces
-    let otel_endpoint = "http://localhost:4318/v1/traces".to_string();
+    // OTLP endpoint - try 127.0.0.1 in case localhost doesn't resolve in Lambda
+    let otel_endpoint = if is_lambda {
+        "http://127.0.0.1:4318/v1/traces".to_string()
+    } else {
+        "http://localhost:4318/v1/traces".to_string()
+    };
 
     // Base subscriber with JSON logging for CloudWatch
     let subscriber = tracing_subscriber::registry()
@@ -113,6 +117,7 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
     // Use BatchSpanProcessor - it works in async contexts!
     // SimpleSpanProcessor causes panics in async runtime
     println!("🔵 OTEL: Building TracerProvider with BatchSpanProcessor");
+
     let provider = SdkTracerProvider::builder()
         .with_resource(resource)
         .with_batch_exporter(exporter)
