@@ -96,12 +96,22 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
             .build()?
     };
 
-    // Use BatchSpanProcessor - it works in async contexts!
-    // SimpleSpanProcessor causes panics in async runtime
-    let provider = SdkTracerProvider::builder()
-        .with_resource(resource)
-        .with_batch_exporter(exporter)
-        .build();
+    // Use appropriate processor based on environment
+    // Lambda: SimpleSpanProcessor for immediate export before freeze
+    // Local: BatchSpanProcessor for better performance
+    let provider = if env::var("AWS_LAMBDA_FUNCTION_NAME").is_ok() {
+        // Lambda needs immediate export before function freezes
+        SdkTracerProvider::builder()
+            .with_resource(resource)
+            .with_simple_exporter(exporter)
+            .build()
+    } else {
+        // Local can use batch for better performance
+        SdkTracerProvider::builder()
+            .with_resource(resource)
+            .with_batch_exporter(exporter)
+            .build()
+    };
 
     Ok(provider)
 }
