@@ -23,5 +23,8 @@ service:
       receivers: [otlp]
       exporters: [debug]
   telemetry:
+    logs:
+      level: debug
     metrics:
+      level: none
       address: localhost:8888
