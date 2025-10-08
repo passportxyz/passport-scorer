@@ -200,7 +200,7 @@ jobs:
           cargo lambda build --release --arm64 --output-format zip
           echo "artifact_name=rust-scorer-${{ inputs.docker_tag }}.zip" >> $GITHUB_OUTPUT
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: rust-scorer-${{ inputs.docker_tag }}.zip
           path: ./rust-scorer/target/lambda/rust-scorer/bootstrap.zip
@@ -428,7 +428,7 @@ jobs:
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v3
       - name: Download Rust scorer artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: rust-scorer-${{ inputs.docker_tag }}.zip
           path: ./rust-scorer-artifact/
