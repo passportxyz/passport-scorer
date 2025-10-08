@@ -204,15 +204,11 @@ jobs:
           # Use native build on ARM64 runner with Cargo compiler (no Zig required)
           cargo lambda build --release --output-format zip --compiler cargo
           echo "artifact_name=rust-scorer-${{ inputs.docker_tag }}.zip" >> $GITHUB_OUTPUT
-          # Debug: show what files were created
-          echo "Contents of target/lambda:"
-          ls -la target/lambda/ || echo "target/lambda/ not found"
-          find target -name "*.zip" -o -name "bootstrap" || echo "No zip or bootstrap files found"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: rust-scorer-${{ inputs.docker_tag }}.zip
-          path: ./rust-scorer/target/lambda/rust-scorer/bootstrap.zip
+          path: ./rust-scorer/target/lambda/passport-scorer/bootstrap.zip
           retention-days: 1
 
   build-app:
