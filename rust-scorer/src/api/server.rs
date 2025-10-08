@@ -26,8 +26,12 @@ pub fn init_tracing() {
     let enable_otel = env::var("OTEL_ENABLED")
         .unwrap_or_else(|_| if is_lambda { "true" } else { "false" }.to_string()) == "true";
 
-    // OTLP endpoint - always use full path with /v1/traces
-    let otel_endpoint = "http://localhost:4318/v1/traces".to_string();
+    // OTLP endpoint - Lambda needs base URL, local needs full path
+    let otel_endpoint = if is_lambda {
+        "http://localhost:4318".to_string()
+    } else {
+        "http://localhost:4318/v1/traces".to_string()
+    };
 
     // Base subscriber with JSON logging for CloudWatch
     let subscriber = tracing_subscriber::registry()
@@ -96,22 +100,12 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
             .build()?
     };
 
-    // Use appropriate processor based on environment
-    // Lambda: SimpleSpanProcessor for immediate export before freeze
-    // Local: BatchSpanProcessor for better performance
-    let provider = if env::var("AWS_LAMBDA_FUNCTION_NAME").is_ok() {
-        // Lambda needs immediate export before function freezes
-        SdkTracerProvider::builder()
-            .with_resource(resource)
-            .with_simple_exporter(exporter)
-            .build()
-    } else {
-        // Local can use batch for better performance
-        SdkTracerProvider::builder()
-            .with_resource(resource)
-            .with_batch_exporter(exporter)
-            .build()
-    };
+    // Use BatchSpanProcessor - it works in async contexts!
+    // SimpleSpanProcessor causes panics in async runtime
+    let provider = SdkTracerProvider::builder()
+        .with_resource(resource)
+        .with_batch_exporter(exporter)
+        .build();
 
     Ok(provider)
 }
