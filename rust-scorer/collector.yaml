@@ -2,54 +2,26 @@
 # This configuration file tells the ADOT layer how to process and export telemetry data
 
 receivers:
-  # Receive OTLP data from the application
   otlp:
     protocols:
       grpc:
-        endpoint: localhost:4317
+        endpoint: "localhost:4317"
       http:
-        endpoint: localhost:4318
+        endpoint: "localhost:4318"
 
 exporters:
-  # Export traces to AWS X-Ray
-  awsxray:
-    # The region is auto-detected in Lambda environment
-    # Uncomment to override: region: us-east-1
-
-  # Debug exporter for troubleshooting (remove in production)
-  # NOTE: ADOT v0.86.0+ uses 'debug' instead of 'logging'
   debug:
-
-processors:
-  # Memory limiter prevents out of memory situations
-  memory_limiter:
-    check_interval: 1s
-    limit_mib: 256
-    spike_limit_mib: 50
-
-  # Batch processor helps reduce API calls
-  batch:
-    timeout: 10s
-    send_batch_size: 50
+    verbosity: detailed
+  awsxray:
 
 service:
   pipelines:
-    # Trace pipeline configuration
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
       exporters: [awsxray, debug]
-
-    # Metrics pipeline (if needed in future)
     metrics:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
       exporters: [debug]
-
-  # Telemetry for the collector itself
   telemetry:
-    logs:
-      level: info
     metrics:
-      level: none
       address: localhost:8888

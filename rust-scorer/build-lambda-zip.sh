@@ -20,7 +20,7 @@ cargo lambda build --release --arm64 --output-format zip
 # Add collector.yaml to the zip if it exists
 if [ -f "collector.yaml" ]; then
     echo "Adding collector.yaml to Lambda package..."
-    cd target/lambda/rust-scorer
+    cd target/lambda/passport-scorer
     # Extract existing zip, add collector.yaml, and rezip
     unzip -q bootstrap.zip
     cp ../../../collector.yaml .
@@ -32,11 +32,11 @@ if [ -f "collector.yaml" ]; then
 fi
 
 echo "Build complete!"
-echo "Zip artifact location: target/lambda/rust-scorer/bootstrap.zip"
+echo "Zip artifact location: target/lambda/passport-scorer/bootstrap.zip"
 
 # Verify collector.yaml is in the package
 echo "Verifying package contents..."
-if unzip -l target/lambda/rust-scorer/bootstrap.zip | grep -q collector.yaml; then
+if unzip -l target/lambda/passport-scorer/bootstrap.zip | grep -q collector.yaml; then
     echo "✅ collector.yaml is in the package"
 else
     echo "❌ WARNING: collector.yaml is NOT in the package!"
@@ -46,5 +46,5 @@ fi
 # Copy to deployment location expected by Pulumi
 echo "Copying to deployment location..."
 mkdir -p ../rust-scorer-artifact
-cp target/lambda/rust-scorer/bootstrap.zip ../rust-scorer-artifact/
+cp target/lambda/passport-scorer/bootstrap.zip ../rust-scorer-artifact/
 echo "Deployment artifact ready at: ../rust-scorer-artifact/bootstrap.zip"
