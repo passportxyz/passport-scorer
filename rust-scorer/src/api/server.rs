@@ -33,13 +33,21 @@ pub fn init_tracing() {
         "http://localhost:4318/v1/traces".to_string()
     };
 
-    // Base subscriber with JSON logging for CloudWatch
+    // Base subscriber - only add fmt layer if NOT using OTEL (they conflict)
     let subscriber = tracing_subscriber::registry()
         .with(
-            fmt::layer()
-                .json() // JSON format for CloudWatch
-                .with_target(false)
-                .with_span_events(fmt::format::FmtSpan::CLOSE) // Log span close with duration
+            if !enable_otel {
+                // Only add fmt layer when NOT using OpenTelemetry
+                Some(fmt::layer()
+                    .json() // JSON format for CloudWatch
+                    .with_target(false)
+                    .with_span_events(fmt::format::FmtSpan::CLOSE)) // Log span close with duration
+            } else {
+                // When using OTEL, still need basic logging but without span events
+                Some(fmt::layer()
+                    .json()
+                    .with_target(false))
+            }
         )
         .with(
             EnvFilter::try_from_default_env()
