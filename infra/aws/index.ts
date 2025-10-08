@@ -85,6 +85,28 @@ const rustScorerZipArchive = fs.existsSync(rustScorerZipPath)
   ? new pulumi.asset.FileArchive(rustScorerZipPath)
   : undefined;
 
+// IAM Policy for deployment user/role to access AWS OTEL Lambda layers
+// This policy needs to be attached to the github-dpopp IAM user or GitHub OIDC role
+// used for deployments. Pulumi will output the ARN - attach manually via AWS Console.
+const awsOtelLayerAccessPolicy = new aws.iam.Policy("awsOtelLayerAccessPolicy", {
+  name: "passport-scorer-aws-otel-layer-access",
+  description: "Allows accessing AWS ADOT Lambda layers from official AWS account (901920570463)",
+  policy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Action: "lambda:GetLayerVersion",
+        Resource: "arn:aws:lambda:*:901920570463:layer:aws-otel-collector-*",
+      },
+    ],
+  }),
+  tags: { ...defaultTags, Name: "awsOtelLayerAccessPolicy" },
+});
+
+// Export the policy ARN so it can be manually attached to deployment IAM user/role
+export const awsOtelLayerAccessPolicyArn = awsOtelLayerAccessPolicy.arn;
+
 const pagerDutyIntegrationEndpoint = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`
 );
