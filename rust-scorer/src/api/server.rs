@@ -114,13 +114,47 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
         exporter
     };
 
-    // Use BatchSpanProcessor - it works in async contexts!
-    // SimpleSpanProcessor causes panics in async runtime
-    println!("🔵 OTEL: Building TracerProvider with BatchSpanProcessor");
+    // Wrap exporter with debugging to see if it's being called
+    use opentelemetry_sdk::trace::{SpanData, SpanExporter as SpanExporterTrait};
+    use std::fmt::Debug;
+
+    #[derive(Debug)]
+    struct DebugExporter<E> {
+        inner: E,
+    }
+
+    impl<E: SpanExporterTrait> SpanExporterTrait for DebugExporter<E> {
+        async fn export(&self, spans: Vec<SpanData>) -> opentelemetry_sdk::error::OTelSdkResult {
+            println!("🔴 OTEL EXPORT: Attempting to export {} spans", spans.len());
+            for span in &spans {
+                println!("  - Span: {} ({:?})", span.name, span.span_kind);
+            }
+            let result = self.inner.export(spans).await;
+            match &result {
+                Ok(_) => println!("🔴 OTEL EXPORT: Success"),
+                Err(e) => println!("🔴 OTEL EXPORT: Error = {:?}", e),
+            }
+            result
+        }
+
+        fn shutdown(&mut self) -> opentelemetry_sdk::error::OTelSdkResult {
+            println!("🔴 OTEL EXPORT: Shutdown called");
+            self.inner.shutdown()
+        }
+
+        fn force_flush(&mut self) -> opentelemetry_sdk::error::OTelSdkResult {
+            println!("🔴 OTEL EXPORT: Force flush called");
+            self.inner.force_flush()
+        }
+    }
+
+    let debug_exporter = DebugExporter { inner: exporter };
+
+    println!("🔵 OTEL: Building TracerProvider with BatchSpanProcessor (wrapped with debug)");
 
     let provider = SdkTracerProvider::builder()
         .with_resource(resource)
-        .with_batch_exporter(exporter)
+        .with_batch_exporter(debug_exporter)
         .build();
 
     println!("✅ OTEL: TracerProvider built successfully");
