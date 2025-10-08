@@ -96,7 +96,10 @@ const awsOtelLayerAccessPolicy = new aws.iam.Policy("awsOtelLayerAccessPolicy", 
     Statement: [
       {
         Effect: "Allow",
-        Action: "lambda:GetLayerVersion",
+        Action: [
+          "lambda:GetLayerVersion",
+          "lambda:GetLayerVersionByArn",
+        ],
         Resource: "arn:aws:lambda:*:901920570463:layer:aws-otel-collector-*",
       },
     ],
