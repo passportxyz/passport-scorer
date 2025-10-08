@@ -72,6 +72,14 @@ pub async fn score_address_handler(
         Ok(response) => {
             tx.commit().await
                 .map_err(|e| ApiError::Database(format!("Failed to commit transaction: {}", e)))?;
+
+            // Force flush traces in Lambda before response
+            if std::env::var("AWS_LAMBDA_FUNCTION_NAME").is_ok() {
+                println!("🔵 OTEL: Forcing span flush before Lambda response...");
+                opentelemetry::global::force_flush_tracer_provider();
+                println!("✅ OTEL: Span flush complete");
+            }
+
             Ok(response)
         }
         Err(e) => {
