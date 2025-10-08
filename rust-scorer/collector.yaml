@@ -45,3 +45,11 @@ service:
       receivers: [otlp]
       processors: [memory_limiter, batch]
       exporters: [debug]
+
+  # Telemetry for the collector itself
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: none
+      address: localhost:8888
