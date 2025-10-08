@@ -24,7 +24,9 @@ if [ -f "collector.yaml" ]; then
     # Extract existing zip, add collector.yaml, and rezip
     unzip -q bootstrap.zip
     cp ../../../collector.yaml .
-    zip -q bootstrap.zip collector.yaml
+    # Remove old zip and create new one with all files
+    rm bootstrap.zip
+    zip -q -r bootstrap.zip bootstrap collector.yaml
     cd ../../..
     echo "collector.yaml added to package"
 fi
