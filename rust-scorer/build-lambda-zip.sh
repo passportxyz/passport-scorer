@@ -33,3 +33,18 @@ fi
 
 echo "Build complete!"
 echo "Zip artifact location: target/lambda/rust-scorer/bootstrap.zip"
+
+# Verify collector.yaml is in the package
+echo "Verifying package contents..."
+if unzip -l target/lambda/rust-scorer/bootstrap.zip | grep -q collector.yaml; then
+    echo "✅ collector.yaml is in the package"
+else
+    echo "❌ WARNING: collector.yaml is NOT in the package!"
+    exit 1
+fi
+
+# Copy to deployment location expected by Pulumi
+echo "Copying to deployment location..."
+mkdir -p ../rust-scorer-artifact
+cp target/lambda/rust-scorer/bootstrap.zip ../rust-scorer-artifact/
+echo "Deployment artifact ready at: ../rust-scorer-artifact/bootstrap.zip"
