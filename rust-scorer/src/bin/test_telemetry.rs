@@ -15,13 +15,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔧 Initializing telemetry...");
     server::init_tracing();
 
-    println!("✅ Telemetry initialized!");
+    println!("✅ Telemetry initialized with BatchSpanProcessor!");
 
     // Use async instrumentation for proper span context
     test_spans().await;
 
-    // Give time for spans to export (SimpleSpanProcessor exports immediately)
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    // CRITICAL for BatchSpanProcessor: Wait for batch timeout!
+    println!("⏳ Waiting for BatchSpanProcessor to export (5 second batch interval)...");
+    tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
+
+    // Provider will flush on drop when program exits
 
     println!("🎉 Test complete! Check Jaeger UI at http://localhost:16686");
     println!("   Service: rust-scorer-test");

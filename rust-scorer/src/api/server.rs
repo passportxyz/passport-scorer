@@ -119,17 +119,10 @@ fn init_opentelemetry(endpoint: &str, is_lambda: bool) -> Result<SdkTracerProvid
     };
     eprintln!("✅ Exporter built successfully");
 
-    // Use SimpleSpanProcessor for Lambda (exports immediately)
-    // For testing, let's use SimpleSpanProcessor even for non-Lambda to ensure immediate export
-    let provider = if is_lambda || true {  // Force SimpleSpanProcessor for testing
-        eprintln!("📤 Using SimpleSpanProcessor for immediate span export");
-        use opentelemetry_sdk::trace::SimpleSpanProcessor;
-        SdkTracerProvider::builder()
-            .with_resource(resource)
-            .with_span_processor(SimpleSpanProcessor::new(exporter))
-            .build()
-    } else {
-        eprintln!("📦 Using BatchSpanProcessor");
+    // Use BatchSpanProcessor - it works in async contexts!
+    // SimpleSpanProcessor causes panics in async runtime
+    let provider = {
+        eprintln!("📦 Using BatchSpanProcessor for async-safe export");
         SdkTracerProvider::builder()
             .with_resource(resource)
             .with_batch_exporter(exporter)
