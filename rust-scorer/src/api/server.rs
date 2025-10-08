@@ -13,7 +13,7 @@ use tracing_subscriber::{fmt, EnvFilter, prelude::*};
 use opentelemetry::KeyValue;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
-use opentelemetry_otlp::SpanExporter;
+use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use tracing_opentelemetry::OpenTelemetryLayer;
 
 use crate::api::handler::score_address_handler;
@@ -71,15 +71,20 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
         .with_attribute(KeyValue::new("deployment.environment", environment))
         .build();
 
-    // Set endpoint via environment variable (unsafe in Rust 1.66+)
-    unsafe {
-        env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", endpoint);
-    }
-    
-    let exporter = SpanExporter::builder()
-        .with_tonic()
-        .build()?;
-    
+    // Check if endpoint is HTTP or gRPC based
+    let exporter = if endpoint.starts_with("http://") || endpoint.starts_with("https://") {
+        // HTTP endpoint (AWS ADOT collector uses HTTP on port 4318)
+        SpanExporter::builder()
+            .with_http()
+            .with_endpoint(endpoint)
+            .build()?
+    } else {
+        // gRPC endpoint (default for local development)
+        SpanExporter::builder()
+            .with_tonic()
+            .build()?
+    };
+
     let provider = SdkTracerProvider::builder()
         .with_resource(resource)
         .with_batch_exporter(exporter)
