@@ -191,13 +191,16 @@ jobs:
         with:
           toolchain: stable
       - name: Install cargo-lambda
-        run: cargo install cargo-lambda
+        run: |
+          # Install from pre-built binary (much faster than cargo install)
+          curl -L --proto '=https' --tlsv1.2 -sSf https://github.com/cargo-lambda/cargo-lambda/releases/latest/download/cargo-lambda-aarch64-unknown-linux-musl.tar.gz | tar -xz -C ~/.cargo/bin
       - name: Build Lambda zip
         id: build
         working-directory: ./rust-scorer
         run: |
           export SQLX_OFFLINE=true
-          cargo lambda build --release --arm64 --output-format zip
+          # Use native build on ARM64 runner (no cross-compilation needed, so no Zig required)
+          cargo lambda build --release --output-format zip
           echo "artifact_name=rust-scorer-${{ inputs.docker_tag }}.zip" >> $GITHUB_OUTPUT
       - name: Upload artifact
         uses: actions/upload-artifact@v4
