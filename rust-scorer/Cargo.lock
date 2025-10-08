@@ -4292,6 +4292,7 @@ dependencies = [
  "opentelemetry_sdk",
  "pbkdf2",
  "pretty_assertions",
+ "rand 0.8.5",
  "reqwest 0.12.23",
  "rust_decimal",
  "rust_decimal_macros",
