@@ -18,7 +18,6 @@ exporters:
 
   # Debug exporter for troubleshooting (remove in production)
   logging:
-    loglevel: info
 
 processors:
   # Memory limiter prevents out of memory situations
