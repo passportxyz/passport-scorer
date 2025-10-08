@@ -20,7 +20,7 @@ aws-sdk-secretsmanager = "1.60"
 
 # Database
 sqlx = { version = "0.8", features = [
-    "runtime-tokio", "postgres", "json", "chrono", "rust_decimal", "uuid", "macros"
+    "runtime-tokio", "postgres", "json", "chrono", "rust_decimal", "uuid", "macros", "tls-rustls"
 ] }
 
 # Async runtime
