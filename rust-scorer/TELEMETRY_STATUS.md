@@ -74,11 +74,28 @@ let exporter = SpanExporter::builder()
 - [ ] SDK export works (blocked by endpoint issue)
 - [ ] Traces appear in Jaeger UI
 
-## Next Steps for Fix
+## Fix Applied
 
-1. Update `src/api/server.rs` to use full endpoint URL with `/v1/traces`
-2. Test with `cargo run --bin test_telemetry`
-3. Verify traces appear in Jaeger UI at http://localhost:16686
+✅ **Fixed in commit d420324**
+- Updated all endpoints to use full URL: `http://localhost:4318/v1/traces`
+- Files updated:
+  - `src/api/server.rs`
+  - `src/bin/test_telemetry.rs`
+  - `src/bin/batch_processor_test.rs`
+
+## How to Test
+
+```bash
+# Run the test with correct endpoint
+cargo run --bin test_telemetry
+
+# Or run the batch processor test
+cargo run --bin batch_processor_test
+
+# Check Jaeger UI
+open http://localhost:16686
+# Look for service: "rust-scorer-test" or "batch-processor-test"
+```
 
 ## Environment Variables
 
