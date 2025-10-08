@@ -7,7 +7,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Note: In Rust 1.72+, set_var is unsafe
     unsafe {
         std::env::set_var("OTEL_ENABLED", "true");
-        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318/v1/traces");
+        // Endpoint is now hardcoded in server.rs based on environment detection
         std::env::set_var("OTEL_SERVICE_NAME", "rust-scorer-test");
         std::env::set_var("RUST_LOG", "info");
     }

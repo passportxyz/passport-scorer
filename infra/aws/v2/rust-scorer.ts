@@ -71,10 +71,6 @@ export function createRustScorerLambda({
       value: "true",
     },
     {
-      name: "OTEL_EXPORTER_OTLP_ENDPOINT",
-      value: "http://localhost:4318/v1/traces", // AWS ADOT collector endpoint with full path
-    },
-    {
       name: "OPENTELEMETRY_COLLECTOR_CONFIG_URI",
       value: "/var/task/collector.yaml", // Path to ADOT collector configuration
     },

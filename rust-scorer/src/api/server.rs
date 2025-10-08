@@ -26,16 +26,14 @@ pub fn init_tracing() {
     let enable_otel = env::var("OTEL_ENABLED")
         .unwrap_or_else(|_| if is_lambda { "true" } else { "false" }.to_string()) == "true";
 
-    // In Lambda with ADOT layer, the collector is at localhost:4317 (gRPC) or localhost:4318 (HTTP)
-    // IMPORTANT: Must include /v1/traces path for HTTP endpoint!
-    let mut otel_endpoint = env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
-        .unwrap_or_else(|_| "http://localhost:4318".to_string());
-
-    // CRITICAL: Ensure we have the /v1/traces path for HTTP endpoints
-    // The OTLP SDK doesn't auto-append it like it should
-    if otel_endpoint.starts_with("http") && !otel_endpoint.contains("/v1/") {
-        otel_endpoint = format!("{}/v1/traces", otel_endpoint);
-    }
+    // Configure OTLP endpoint based on environment
+    // Lambda: ADOT layer expects base URL without /v1/traces path
+    // Local: Direct OTLP export needs full /v1/traces path
+    let otel_endpoint = if is_lambda {
+        "http://localhost:4318".to_string()  // AWS ADOT layer (no path)
+    } else {
+        "http://localhost:4318/v1/traces".to_string()  // Local Jaeger/OTLP (with path)
+    };
 
     // Base subscriber with JSON logging for CloudWatch
     let subscriber = tracing_subscriber::registry()
