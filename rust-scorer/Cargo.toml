@@ -11,6 +11,9 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["trace"] }
 
 
+# Lambda runtime for HTTP events
+lambda_http = "0.13"
+
 # AWS SDK for Secrets Manager
 aws-config = { version = "1.5", features = ["behavior-version-latest"] }
 aws-sdk-secretsmanager = "1.60"
