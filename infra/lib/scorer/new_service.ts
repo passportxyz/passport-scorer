@@ -729,6 +729,7 @@ type BuildLambdaFnBaseParams = {
       runtime: aws.lambda.Runtime;
       layers?: Input<string>[];
       sourceCodeHash?: pulumi.Input<string>;
+      architectures?: Input<string>[];
       imageUri?: never;
       dockerCmd?: never;
     }
@@ -1017,6 +1018,7 @@ function buildLambdaFn(args: BuildLambdaFnBaseParams): aws.lambda.Function {
           runtime: args.runtime,
           layers: args.layers,
           sourceCodeHash: args.sourceCodeHash,
+          architectures: args.architectures,
         },
     {
       dependsOn: roleAttachments,

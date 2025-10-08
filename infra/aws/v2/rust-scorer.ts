@@ -96,6 +96,7 @@ export function createRustScorerLambda({
       code: rustScorerZipArchive,
       handler: "bootstrap", // Rust custom runtime handler
       runtime: aws.lambda.Runtime.CustomAL2023,
+      architectures: ["arm64"], // Required for ARM64 binaries and OTEL layer compatibility
 
       // AWS OTEL Lambda Layer for X-Ray integration (ARM64)
       // Official AWS ADOT account: 901920570463 (verified at aws-otel.github.io)
