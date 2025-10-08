@@ -89,12 +89,20 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
 }
 
 pub async fn create_connection_pool() -> Result<PgPool, Box<dyn std::error::Error>> {
-    let database_url = env::var("DATABASE_URL")
+    let mut database_url = env::var("DATABASE_URL")
         .or_else(|_| env::var("RDS_PROXY_URL"))
         .expect("DATABASE_URL or RDS_PROXY_URL must be set (either directly or via SCORER_SERVER_SSM_ARN)");
-    
+
+    // Ensure SSL mode is set for RDS Proxy/RDS connections
+    // If the URL doesn't already have sslmode parameter, add it
+    if !database_url.contains("sslmode=") {
+        let separator = if database_url.contains('?') { "&" } else { "?" };
+        database_url = format!("{}{}sslmode=require", database_url, separator);
+        info!("Added sslmode=require to database URL");
+    }
+
     info!("Creating database connection pool");
-    
+
     // Keep connection count low - RDS Proxy handles actual pooling
     let pool = PgPoolOptions::new()
         .max_connections(5)
@@ -102,9 +110,9 @@ pub async fn create_connection_pool() -> Result<PgPool, Box<dyn std::error::Erro
         .acquire_timeout(Duration::from_secs(3))
         .connect(&database_url)
         .await?;
-    
+
     info!("Database connection pool created successfully");
-    
+
     Ok(pool)
 }
 
