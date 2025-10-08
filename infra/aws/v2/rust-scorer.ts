@@ -75,6 +75,14 @@ export function createRustScorerLambda({
       value: "http://localhost:4318", // AWS ADOT collector endpoint (HTTP)
     },
     {
+      name: "OPENTELEMETRY_COLLECTOR_CONFIG_URI",
+      value: "/var/task/collector.yaml", // Path to ADOT collector configuration
+    },
+    {
+      name: "OTEL_SERVICE_NAME",
+      value: "rust-scorer", // Service name for traces
+    },
+    {
       name: "AWS_LAMBDA_EXEC_WRAPPER",
       value: "/opt/otel-instrument", // Enable X-Ray auto-instrumentation
     },

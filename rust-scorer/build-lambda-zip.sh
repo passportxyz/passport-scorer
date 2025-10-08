@@ -17,5 +17,17 @@ fi
 export SQLX_OFFLINE=true
 cargo lambda build --release --arm64 --output-format zip
 
+# Add collector.yaml to the zip if it exists
+if [ -f "collector.yaml" ]; then
+    echo "Adding collector.yaml to Lambda package..."
+    cd target/lambda/rust-scorer
+    # Extract existing zip, add collector.yaml, and rezip
+    unzip -q bootstrap.zip
+    cp ../../../collector.yaml .
+    zip -q bootstrap.zip collector.yaml
+    cd ../../..
+    echo "collector.yaml added to package"
+fi
+
 echo "Build complete!"
 echo "Zip artifact location: target/lambda/rust-scorer/bootstrap.zip"

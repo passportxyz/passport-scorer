@@ -19,14 +19,25 @@ use tracing_opentelemetry::OpenTelemetryLayer;
 use crate::api::handler::score_address_handler;
 
 pub fn init_tracing() {
+    // Check if we're in Lambda environment
+    let is_lambda = env::var("AWS_LAMBDA_FUNCTION_NAME").is_ok();
+
     // Get OpenTelemetry configuration from environment
-    let otel_endpoint = env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
-        .unwrap_or_else(|_| "http://localhost:4317".to_string());
-    
     let enable_otel = env::var("OTEL_ENABLED")
-        .unwrap_or_else(|_| "true".to_string()) == "true";
-    
-    
+        .unwrap_or_else(|_| if is_lambda { "true" } else { "false" }.to_string()) == "true";
+
+    // In Lambda with ADOT layer, the collector is at localhost:4317 (gRPC) or localhost:4318 (HTTP)
+    // For local development, we can use the same endpoints if running a local collector
+    let otel_endpoint = env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
+        .unwrap_or_else(|_| {
+            if is_lambda {
+                // In Lambda, use localhost since ADOT layer runs the collector
+                "http://localhost:4318".to_string() // HTTP endpoint for ADOT
+            } else {
+                "http://localhost:4317".to_string() // gRPC for local development
+            }
+        });
+
     // Base subscriber with JSON logging for CloudWatch
     let subscriber = tracing_subscriber::registry()
         .with(
@@ -39,10 +50,10 @@ pub fn init_tracing() {
             EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| EnvFilter::new("info,sqlx=info,hyper=warn,tower=warn,h2=error"))
         );
-    
+
     // Add OpenTelemetry layer if enabled
     if enable_otel {
-        match init_opentelemetry(&otel_endpoint) {
+        match init_opentelemetry(&otel_endpoint, is_lambda) {
             Ok(provider) => {
                 info!("OpenTelemetry initialized with endpoint: {}", otel_endpoint);
                 let tracer = provider.tracer("rust-scorer");
@@ -61,12 +72,16 @@ pub fn init_tracing() {
     }
 }
 
-fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::error::Error>> {
+fn init_opentelemetry(endpoint: &str, is_lambda: bool) -> Result<SdkTracerProvider, Box<dyn std::error::Error>> {
     let environment = env::var("ENVIRONMENT")
         .unwrap_or_else(|_| "development".to_string());
 
+    // Service name can be overridden by environment variable
+    let service_name = env::var("OTEL_SERVICE_NAME")
+        .unwrap_or_else(|_| "rust-scorer".to_string());
+
     let resource = Resource::builder()
-        .with_attribute(KeyValue::new("service.name", "rust-scorer"))
+        .with_attribute(KeyValue::new("service.name", service_name))
         .with_attribute(KeyValue::new("service.version", env!("CARGO_PKG_VERSION")))
         .with_attribute(KeyValue::new("deployment.environment", environment))
         .build();
@@ -85,10 +100,20 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
             .build()?
     };
 
-    let provider = SdkTracerProvider::builder()
-        .with_resource(resource)
-        .with_batch_exporter(exporter)
-        .build();
+    // Use SimpleSpanProcessor for Lambda (exports immediately)
+    // Use BatchSpanProcessor for non-Lambda (better performance for long-running servers)
+    let provider = if is_lambda {
+        use opentelemetry_sdk::trace::SimpleSpanProcessor;
+        SdkTracerProvider::builder()
+            .with_resource(resource)
+            .with_span_processor(SimpleSpanProcessor::new(exporter))
+            .build()
+    } else {
+        SdkTracerProvider::builder()
+            .with_resource(resource)
+            .with_batch_exporter(exporter)
+            .build()
+    };
 
     Ok(provider)
 }
