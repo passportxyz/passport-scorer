@@ -53,13 +53,10 @@ pub fn init_tracing() {
 
     // Add OpenTelemetry layer if enabled
     if enable_otel {
-        match init_opentelemetry(&otel_endpoint, is_lambda) {
+        match init_opentelemetry(&otel_endpoint) {
             Ok(provider) => {
-                eprintln!("✅ OpenTelemetry provider initialized with endpoint: {}", otel_endpoint);
-
                 // Set as global provider for other uses
                 opentelemetry::global::set_tracer_provider(provider.clone());
-                eprintln!("✅ Global tracer provider set");
 
                 // Get tracer directly from provider for OpenTelemetryLayer
                 // (global::tracer returns BoxedTracer which doesn't implement PreSampledTracer)
@@ -68,31 +65,24 @@ pub fn init_tracing() {
                 subscriber
                     .with(OpenTelemetryLayer::new(tracer))
                     .init();
-
-                eprintln!("✅ Tracing subscriber initialized with OpenTelemetry layer");
             }
             Err(e) => {
-                eprintln!("❌ Failed to initialize OpenTelemetry: {}. Continuing with logs only.", e);
+                tracing::error!("Failed to initialize OpenTelemetry: {}. Continuing with logs only.", e);
                 subscriber.init();
             }
         }
     } else {
-        info!("OpenTelemetry disabled, using JSON logging only");
         subscriber.init();
     }
 }
 
-fn init_opentelemetry(endpoint: &str, is_lambda: bool) -> Result<SdkTracerProvider, Box<dyn std::error::Error>> {
-    eprintln!("🔧 init_opentelemetry called with endpoint: {}, is_lambda: {}", endpoint, is_lambda);
-
+fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::error::Error>> {
     let environment = env::var("ENVIRONMENT")
         .unwrap_or_else(|_| "development".to_string());
 
     // Service name can be overridden by environment variable
     let service_name = env::var("OTEL_SERVICE_NAME")
         .unwrap_or_else(|_| "rust-scorer".to_string());
-
-    eprintln!("📊 Creating resource with service.name={}, environment={}", service_name, environment);
 
     let resource = Resource::builder()
         .with_attribute(KeyValue::new("service.name", service_name))
@@ -101,46 +91,28 @@ fn init_opentelemetry(endpoint: &str, is_lambda: bool) -> Result<SdkTracerProvid
         .build();
 
     // Check if endpoint is HTTP or gRPC based
-    eprintln!("🔌 Building exporter for endpoint: {}", endpoint);
     let exporter = if endpoint.starts_with("http://") || endpoint.starts_with("https://") {
-        eprintln!("  Using HTTP protocol");
         // HTTP endpoint (AWS ADOT collector uses HTTP on port 4318)
         SpanExporter::builder()
             .with_http()
             .with_endpoint(endpoint)
             .build()?
     } else {
-        eprintln!("  Using gRPC protocol");
-        // gRPC endpoint (default for local development)
+        // gRPC endpoint
         SpanExporter::builder()
             .with_tonic()
             .with_endpoint(endpoint)
             .build()?
     };
-    eprintln!("✅ Exporter built successfully");
 
     // Use BatchSpanProcessor - it works in async contexts!
     // SimpleSpanProcessor causes panics in async runtime
-    let provider = {
-        eprintln!("📦 Using BatchSpanProcessor for async-safe export");
-        SdkTracerProvider::builder()
-            .with_resource(resource)
-            .with_batch_exporter(exporter)
-            .build()
-    };
-
-    eprintln!("✅ TracerProvider built");
+    let provider = SdkTracerProvider::builder()
+        .with_resource(resource)
+        .with_batch_exporter(exporter)
+        .build();
 
     Ok(provider)
-}
-
-/// Shutdown OpenTelemetry and flush all pending spans
-pub fn shutdown_telemetry() {
-    eprintln!("📊 Flushing OpenTelemetry spans...");
-    // In OpenTelemetry 0.30, we need to use a different approach
-    // Force flush by sleeping briefly to allow batch processor to export
-    std::thread::sleep(std::time::Duration::from_millis(100));
-    eprintln!("✅ OpenTelemetry flush complete");
 }
 
 pub async fn create_connection_pool() -> Result<PgPool, Box<dyn std::error::Error>> {
