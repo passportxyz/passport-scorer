@@ -73,6 +73,14 @@ export const verifierDockerImage = pulumi
 // Rust scorer Lambda zip archive
 import * as fs from "fs";
 const rustScorerZipPath = "../../rust-scorer-artifact/bootstrap.zip";
+// TODO: Remove debug logging once artifact path is confirmed working
+console.log(`[DEBUG] Current working directory: ${process.cwd()}`);
+console.log(`[DEBUG] Looking for Rust scorer zip at: ${rustScorerZipPath}`);
+console.log(`[DEBUG] Absolute path: ${require('path').resolve(rustScorerZipPath)}`);
+console.log(`[DEBUG] File exists: ${fs.existsSync(rustScorerZipPath)}`);
+if (fs.existsSync("../../rust-scorer-artifact/")) {
+  console.log(`[DEBUG] Contents of rust-scorer-artifact/: ${fs.readdirSync("../../rust-scorer-artifact/").join(", ")}`);
+}
 const rustScorerZipArchive = fs.existsSync(rustScorerZipPath)
   ? new pulumi.asset.FileArchive(rustScorerZipPath)
   : undefined;
