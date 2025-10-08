@@ -15,7 +15,7 @@ import { createRustScorerLambda } from "./rust-scorer";
 export function createV2Api({
   httpsListener,
   dockerLambdaImage,
-  dockerRustScorerImage,
+  rustScorerZipArchive,
   privateSubnetSecurityGroup,
   vpcPrivateSubnetIds,
   scorerSecret,
@@ -28,7 +28,7 @@ export function createV2Api({
 }: {
   httpsListener: pulumi.Output<aws.alb.Listener>;
   dockerLambdaImage: pulumi.Output<string>;
-  dockerRustScorerImage?: pulumi.Output<string>;
+  rustScorerZipArchive?: pulumi.asset.FileArchive;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   vpcPrivateSubnetIds: pulumi.Output<any>;
   scorerSecret: aws.secretsmanager.Secret;
@@ -57,6 +57,7 @@ export function createV2Api({
   ].sort(secretsManager.sortByName);
   const lambdaSettings = {
     httpsListener,
+    packageType: "Image" as const,
     imageUri: dockerLambdaImage,
     privateSubnetSecurityGroup,
     vpcPrivateSubnetIds,
@@ -221,11 +222,11 @@ export function createV2Api({
     ],
   });
 
-  // Deploy Rust scorer Lambda if image is provided
-  if (dockerRustScorerImage) {
+  // Deploy Rust scorer Lambda if zip archive is provided
+  if (rustScorerZipArchive) {
     createRustScorerLambda({
       httpsListener,
-      dockerRustScorerImage,
+      rustScorerZipArchive,
       privateSubnetSecurityGroup,
       vpcPrivateSubnetIds,
       scorerSecret,

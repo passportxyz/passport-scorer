@@ -174,48 +174,37 @@ jobs:
           dockerfile_name: ./verifier/Dockerfile
           build_dir: ./verifier/
 
-  docker-rust-scorer:
-    name: Build and push docker image for Rust scorer Lambda
+  build-rust-scorer:
+    name: Build Rust scorer Lambda zip
     # Use native ARM64 runner for faster builds (free in public repos)
     runs-on: ubuntu-24.04-arm
+    outputs:
+      artifact_name: ${{ steps.build.outputs.artifact_name }}
     steps:
-      - name: Load secret
-        id: op-load-secret
-        uses: 1password/load-secrets-action@v1
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
-          export-env: true
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
-      - name: Install 1Password CLI
-        uses: 1password/install-cli-action@v1
-      - name: Configure 1Password Service Account
-        uses: 1password/load-secrets-action/configure@v1
+          ref: ${{ inputs.refspec }}
+          fetch-depth: 0
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-      - name: Set AWS_SESSION_TOKEN if needed
-        if: inputs.environment == 'production'
-        uses: 1password/load-secrets-action@v1
+          toolchain: stable
+      - name: Install cargo-lambda
+        run: cargo install cargo-lambda
+      - name: Build Lambda zip
+        id: build
+        working-directory: ./rust-scorer
+        run: |
+          export SQLX_OFFLINE=true
+          cargo lambda build --release --arm64 --output-format zip
+          echo "artifact_name=rust-scorer-${{ inputs.docker_tag }}.zip" >> $GITHUB_OUTPUT
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
         with:
-          export-env: true
-        env:
-          AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
-      - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@v3
-        with:
-          refspec: ${{ inputs.refspec }}
-          # TODO: Consider creating separate ECR repository (passport-scorer-rust) and using
-          # ${{ inputs.docker_tag }} for version tracking like other images, instead of
-          # sharing passport-scorer repo with fixed "rust-latest" tag
-          docker_tag: rust-latest
-          ecr_repository_name: passport-scorer
-          aws_region: us-west-2
-          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws_session_token: ${{ env.AWS_SESSION_TOKEN }}
-          dockerfile_name: ./rust-scorer/Dockerfile.lambda
-          build_dir: ./rust-scorer/
+          name: rust-scorer-${{ inputs.docker_tag }}.zip
+          path: ./rust-scorer/target/lambda/rust-scorer/bootstrap.zip
+          retention-days: 1
 
   build-app:
     name: Build App
@@ -387,6 +376,7 @@ jobs:
         docker-indexer,
         docker-lambda,
         docker-verifier,
+        build-rust-scorer,
         deploy_preview,
         deploy_confirm,
       ]
@@ -437,6 +427,11 @@ jobs:
           AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v3
+      - name: Download Rust scorer artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: rust-scorer-${{ inputs.docker_tag }}.zip
+          path: ./rust-scorer-artifact/
       - name: Deploy Review
         uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v3
         with:

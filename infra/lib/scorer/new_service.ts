@@ -704,18 +704,35 @@ export const createSharedLambdaResources = ({ rescoreQueue }: { rescoreQueue: aw
 
 type BuildLambdaFnBaseParams = {
   name: string;
-  imageUri: Input<string>;
   privateSubnetSecurityGroup: SecurityGroup;
   vpcPrivateSubnetIds: Output<any>;
   environment: { name: string; value: Input<string> }[];
   role: Role;
   roleAttachments: RolePolicyAttachment[];
   memorySize: number;
-  dockerCmd: string[];
   alertTopic?: Topic;
   timeout?: number;
   alb: aws.lb.LoadBalancer;
-};
+} & (
+  | {
+      // Container-based deployment
+      packageType: "Image";
+      imageUri: Input<string>;
+      dockerCmd: string[];
+      layers?: never;
+    }
+  | {
+      // Zip-based deployment
+      packageType: "Zip";
+      code: pulumi.Input<pulumi.asset.Archive>;
+      handler: string;
+      runtime: aws.lambda.Runtime;
+      layers?: Input<string>[];
+      sourceCodeHash?: pulumi.Input<string>;
+      imageUri?: never;
+      dockerCmd?: never;
+    }
+);
 
 export function buildHttpLambdaFn(
   args: BuildLambdaFnBaseParams & {
@@ -948,46 +965,59 @@ export function buildQueueLambdaFn(
   });
 }
 
-function buildLambdaFn({
-  name,
-  imageUri,
-  privateSubnetSecurityGroup,
-  vpcPrivateSubnetIds,
-  environment,
-  role,
-  roleAttachments,
-  memorySize,
-  dockerCmd,
-  timeout,
-}: BuildLambdaFnBaseParams): aws.lambda.Function {
+function buildLambdaFn(args: BuildLambdaFnBaseParams): aws.lambda.Function {
+  const {
+    name,
+    privateSubnetSecurityGroup,
+    vpcPrivateSubnetIds,
+    environment,
+    role,
+    roleAttachments,
+    memorySize,
+    timeout,
+  } = args;
+
+  const baseConfig = {
+    name: name,
+    vpcConfig: {
+      securityGroupIds: [privateSubnetSecurityGroup.id],
+      subnetIds: vpcPrivateSubnetIds,
+    },
+    role: role.arn,
+    timeout: timeout || 60,
+    memorySize,
+    environment: {
+      variables: environment.reduce(
+        (acc: { [key: string]: Input<string> }, e: { name: string; value: Input<string> }) => {
+          acc[e.name] = e.value;
+          return acc;
+        },
+        {}
+      ),
+    },
+    tags: { ...defaultTags, Name: name },
+  };
+
   const lambdaFunction = new aws.lambda.Function(
     name,
-    {
-      name: name,
-      imageConfig: {
-        commands: dockerCmd,
-      },
-      vpcConfig: {
-        // vpcId: vpc.vpcId,
-        securityGroupIds: [privateSubnetSecurityGroup.id], // TODO: shall we create it's own security group ???
-        subnetIds: vpcPrivateSubnetIds,
-      },
-      packageType: "Image",
-      role: role.arn,
-      imageUri,
-      timeout: timeout || 60,
-      memorySize,
-      environment: {
-        variables: environment.reduce(
-          (acc: { [key: string]: Input<string> }, e: { name: string; value: Input<string> }) => {
-            acc[e.name] = e.value;
-            return acc;
+    args.packageType === "Image"
+      ? {
+          ...baseConfig,
+          packageType: "Image",
+          imageUri: args.imageUri,
+          imageConfig: {
+            commands: args.dockerCmd,
           },
-          {}
-        ),
-      },
-      tags: { ...defaultTags, Name: name },
-    },
+        }
+      : {
+          ...baseConfig,
+          packageType: "Zip",
+          code: args.code,
+          handler: args.handler,
+          runtime: args.runtime,
+          layers: args.layers,
+          sourceCodeHash: args.sourceCodeHash,
+        },
     {
       dependsOn: roleAttachments,
     }

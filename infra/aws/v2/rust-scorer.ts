@@ -9,7 +9,7 @@ const regionData = aws.getRegion({});
 
 export function createRustScorerLambda({
   httpsListener,
-  dockerRustScorerImage,
+  rustScorerZipArchive,
   privateSubnetSecurityGroup,
   vpcPrivateSubnetIds,
   scorerSecret,
@@ -20,7 +20,7 @@ export function createRustScorerLambda({
   alarmConfigurations,
 }: {
   httpsListener: pulumi.Output<aws.alb.Listener>;
-  dockerRustScorerImage: pulumi.Output<string>;
+  rustScorerZipArchive: pulumi.asset.FileArchive;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   vpcPrivateSubnetIds: pulumi.Output<any>;
   scorerSecret: aws.secretsmanager.Secret;
@@ -76,32 +76,34 @@ export function createRustScorerLambda({
     },
   ].sort(secretsManager.sortByName);
 
-  const lambdaSettings = {
-    httpsListener,
-    imageUri: dockerRustScorerImage,
-    privateSubnetSecurityGroup,
-    vpcPrivateSubnetIds,
-    environment: apiEnvironment,
-    roleAttachments: httpRoleAttachments,
-    role: httpLambdaRole,
-    alertTopic: pagerdutyTopic,
-    alb: alb,
-  };
-
-  // Deploy Rust scorer with header-based routing
+  // Deploy Rust scorer with zip-based deployment and OTEL layer
   buildHttpLambdaFn(
     {
-      ...lambdaSettings,
+      httpsListener,
+      privateSubnetSecurityGroup,
+      vpcPrivateSubnetIds,
+      environment: apiEnvironment,
+      roleAttachments: httpRoleAttachments,
+      role: httpLambdaRole,
+      alertTopic: pagerdutyTopic,
+      alb: alb,
       name: "passport-v2-rust-scorer",
       memorySize: 256,
       timeout: 30,
-      dockerCmd: ["bootstrap"], // Rust Lambda runtime executable
+
+      // Zip-based deployment
+      packageType: "Zip",
+      code: rustScorerZipArchive,
+      handler: "bootstrap", // Rust custom runtime handler
+      runtime: aws.lambda.Runtime.CustomAL2023,
 
       // AWS OTEL Lambda Layer for X-Ray integration (ARM64)
       // See: https://aws-otel.github.io/docs/getting-started/lambda/lambda-arm
-      layers: regionData.then((region) => [
-        `arn:aws:lambda:${region.name}:901920570463:layer:aws-otel-collector-arm64-ver-0-102-1:2`,
-      ]),
+      layers: [
+        pulumi.output(regionData).apply((region) =>
+          `arn:aws:lambda:${region.name}:901920570463:layer:aws-otel-collector-arm64-ver-0-102-1:2`
+        ),
+      ],
 
       // Header-based routing - only route to Rust when X-Use-Rust-Scorer header is present
       httpListenerRulePaths: [
