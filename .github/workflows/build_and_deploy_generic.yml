@@ -204,9 +204,7 @@ jobs:
         id: build
         working-directory: ./rust-scorer
         run: |
-          export SQLX_OFFLINE=true
-          # Use Zig cross-compilation to target AL2023's glibc 2.34
-          cargo lambda build --release --arm64 --output-format zip
+          make build-lambda
           echo "artifact_name=rust-scorer-${{ inputs.docker_tag }}.zip" >> $GITHUB_OUTPUT
       - name: Upload artifact
         uses: actions/upload-artifact@v4
