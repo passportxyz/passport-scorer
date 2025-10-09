@@ -22,10 +22,10 @@ if [ -f "collector.yaml" ]; then
     echo "Adding collector.yaml to Lambda package..."
     cd target/lambda/passport-scorer
     # Extract existing zip, add collector.yaml, and rezip
-    unzip -q bootstrap.zip
-    cp ../../../collector.yaml .
+    unzip -q -o bootstrap.zip
+    cp -f ../../../collector.yaml .
     # Remove old zip and create new one with all files
-    rm bootstrap.zip
+    rm -f bootstrap.zip
     zip -q -r bootstrap.zip bootstrap collector.yaml
     cd ../../..
     echo "collector.yaml added to package"
