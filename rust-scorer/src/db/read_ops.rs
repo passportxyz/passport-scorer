@@ -75,6 +75,7 @@ pub async fn get_latest_stamps_per_provider(
 }
 
 /// Load binary weighted scorer configuration
+#[tracing::instrument(skip(pool), fields(scorer_id = scorer_id))]
 pub async fn load_scorer_config(
     pool: &PgPool,
     scorer_id: i64,
