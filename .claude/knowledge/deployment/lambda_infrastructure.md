@@ -24,6 +24,7 @@ Completed Lambda deployment infrastructure for Rust scorer:
 3. **Pulumi infrastructure** with header-based routing (X-Use-Rust-Scorer: true)
 4. **Build pipeline scripts** and deployment documentation
 5. **Integration** with existing ALB, VPC, RDS Proxy, and secrets
+6. **ADOT Lambda layer** for OpenTelemetry sidecar telemetry processing
 
 ### Key Architectural Decisions
 

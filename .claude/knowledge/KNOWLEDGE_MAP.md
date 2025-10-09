@@ -39,6 +39,7 @@
 ## ⚙️ Configuration
 
 - [Database](config/database.md) - Django connections and pooling settings
+- [OpenTelemetry](config/opentelemetry.md) - ADOT Lambda layer sidecar, endpoint configuration, JSON logging
 
 ## 🔄 Workflows
 
