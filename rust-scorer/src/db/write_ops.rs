@@ -9,6 +9,7 @@ use crate::models::django::DjangoScoreFields;
 use crate::models::internal::{ValidStamp, StampInfo};
 
 /// Upsert a passport record
+#[tracing::instrument(skip(tx), fields(address = %address, community_id = community_id))]
 pub async fn upsert_passport(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
@@ -38,6 +39,7 @@ pub async fn upsert_passport(
 }
 
 /// Delete all existing stamps for a passport
+#[tracing::instrument(skip(tx), fields(passport_id = passport_id))]
 pub async fn delete_stamps(
     tx: &mut Transaction<'_, Postgres>,
     passport_id: i64,
@@ -58,6 +60,7 @@ pub async fn delete_stamps(
 }
 
 /// Bulk insert stamps
+#[tracing::instrument(skip(tx), fields(passport_id = passport_id))]
 pub async fn bulk_insert_stamps(
     tx: &mut Transaction<'_, Postgres>,
     passport_id: i64,
@@ -94,6 +97,7 @@ pub async fn bulk_insert_stamps(
 }
 
 /// Upsert a score record
+#[tracing::instrument(skip(tx), fields(passport_id = passport_id))]
 pub async fn upsert_score(
     tx: &mut Transaction<'_, Postgres>,
     passport_id: i64,
@@ -148,6 +152,10 @@ pub async fn upsert_score(
 }
 
 /// Bulk upsert hash scorer links with retry logic for LIFO deduplication
+#[tracing::instrument(skip(tx, links_to_create, links_to_update), fields(
+    new_links = links_to_create.len(),
+    update_links = links_to_update.len()
+))]
 pub async fn bulk_upsert_hash_links(
     tx: &mut Transaction<'_, Postgres>,
     links_to_create: Vec<(String, String, i64, DateTime<Utc>)>, // (hash, address, community_id, expires_at)
@@ -217,6 +225,11 @@ pub async fn bulk_upsert_hash_links(
 }
 
 /// Verify expected number of hash links were created
+#[tracing::instrument(skip(tx, expected_nullifiers), fields(
+    address = %address,
+    community_id = community_id,
+    expected_count = expected_nullifiers.len()
+))]
 pub async fn verify_hash_links(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
@@ -254,6 +267,11 @@ pub async fn verify_hash_links(
 }
 
 /// Insert LIFO deduplication events
+#[tracing::instrument(skip(tx, clashing_stamps), fields(
+    address = %address,
+    community_id = community_id,
+    event_count = clashing_stamps.len()
+))]
 pub async fn insert_dedup_events(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
@@ -304,6 +322,12 @@ pub async fn insert_dedup_events(
 }
 
 /// Insert score update event
+#[tracing::instrument(skip(tx, score_fields), fields(
+    address = %address,
+    community_id = community_id,
+    score_id = score_id,
+    passport_id = passport_id
+))]
 pub async fn insert_score_update_event(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
@@ -349,6 +373,7 @@ pub async fn insert_score_update_event(
 }
 
 /// Record passing score for Human Points
+#[tracing::instrument(skip(tx), fields(address = %address, community_id = community_id))]
 pub async fn record_passing_score(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
@@ -374,6 +399,7 @@ pub async fn record_passing_score(
 }
 
 /// Record stamp actions for Human Points
+#[tracing::instrument(skip(tx, stamps), fields(address = %address, stamp_count = stamps.len()))]
 pub async fn record_stamp_actions(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
@@ -431,6 +457,7 @@ pub async fn record_stamp_actions(
 }
 
 /// Award scoring bonus for Human Points (4+ passing communities)
+#[tracing::instrument(skip(tx), fields(address = %address))]
 pub async fn award_scoring_bonus(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
@@ -467,6 +494,7 @@ pub async fn award_scoring_bonus(
 }
 
 /// Award MetaMask OG bonus if eligible (limit 5000)
+#[tracing::instrument(skip(tx), fields(address = %address, has_metamask_stamp = has_metamask_stamp))]
 pub async fn award_metamask_og_bonus(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,

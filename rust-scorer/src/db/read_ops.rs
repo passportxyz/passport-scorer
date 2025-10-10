@@ -42,6 +42,7 @@ pub async fn load_ceramic_cache(
 }
 
 /// Get the latest stamp per provider from ceramic cache
+#[tracing::instrument(skip(pool), fields(address = %address))]
 pub async fn get_latest_stamps_per_provider(
     pool: &PgPool,
     address: &str,
@@ -128,6 +129,7 @@ pub async fn load_scorer_config(
 }
 
 /// Load community settings
+#[tracing::instrument(skip(pool), fields(community_id = community_id))]
 pub async fn load_community(
     pool: &PgPool,
     community_id: i64,
@@ -162,6 +164,7 @@ pub async fn load_community(
 }
 
 /// Validate API key and return key data
+#[tracing::instrument(skip(pool, api_key_header))]
 pub async fn validate_api_key(
     pool: &PgPool,
     api_key_header: &str,
@@ -219,6 +222,7 @@ pub async fn validate_api_key(
 }
 
 /// Load existing hash scorer links for deduplication check
+#[tracing::instrument(skip(tx), fields(community_id = community_id))]
 pub async fn load_hash_scorer_links(
     tx: &mut Transaction<'_, Postgres>,
     community_id: i64,
@@ -250,6 +254,7 @@ pub async fn load_hash_scorer_links(
 }
 
 /// Check if customization exists for a community
+#[tracing::instrument(skip(pool), fields(community_id = community_id))]
 pub async fn load_customization(
     pool: &PgPool,
     community_id: i64,
@@ -280,6 +285,7 @@ pub async fn load_customization(
 }
 
 /// Load passport ID for an address and community
+#[tracing::instrument(skip(tx), fields(address = %address, community_id = community_id))]
 pub async fn get_passport_id(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
@@ -313,6 +319,7 @@ pub async fn get_passport_id(
 }
 
 /// Count passing scores across communities for Human Points
+#[tracing::instrument(skip(tx), fields(address = %address))]
 pub async fn count_passing_scores(
     tx: &mut Transaction<'_, Postgres>,
     address: &str,
@@ -338,6 +345,7 @@ pub async fn count_passing_scores(
 }
 
 /// Check if MetaMask OG bonus has been awarded (limit 5000)
+#[tracing::instrument(skip(tx))]
 pub async fn count_metamask_og_awards(
     tx: &mut Transaction<'_, Postgres>,
 ) -> Result<i64> {
