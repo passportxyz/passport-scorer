@@ -242,7 +242,7 @@ pub async fn verify_hash_links(
         r#"
         SELECT COUNT(*) as count
         FROM registry_hashscorerlink
-        WHERE LOWER(address) = LOWER($1)
+        WHERE address = LOWER($1)
             AND community_id = $2
             AND hash = ANY($3)
         "#
@@ -469,7 +469,7 @@ pub async fn award_scoring_bonus(
         WITH qualified AS (
             SELECT COUNT(DISTINCT community_id) as count
             FROM registry_humanpointscommunityqualifiedusers
-            WHERE LOWER(address) = LOWER($1)
+            WHERE address = LOWER($1)
         )
         INSERT INTO registry_humanpoints (address, action, created_at)
         SELECT $1, 'SCORING_BONUS', NOW()

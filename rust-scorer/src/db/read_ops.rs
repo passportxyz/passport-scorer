@@ -27,7 +27,7 @@ pub async fn load_ceramic_cache(
             created_at,
             updated_at
         FROM ceramic_cache_ceramiccache
-        WHERE LOWER(address) = LOWER($1)
+        WHERE address = LOWER($1)
             AND deleted_at IS NULL
         ORDER BY provider, updated_at DESC
         "#
@@ -61,7 +61,7 @@ pub async fn get_latest_stamps_per_provider(
             created_at,
             updated_at
         FROM ceramic_cache_ceramiccache
-        WHERE LOWER(address) = LOWER($1)
+        WHERE address = LOWER($1)
             AND deleted_at IS NULL
         ORDER BY provider, updated_at DESC
         "#
@@ -297,7 +297,7 @@ pub async fn get_passport_id(
         r#"
         SELECT id
         FROM registry_passport
-        WHERE LOWER(address) = LOWER($1)
+        WHERE address = LOWER($1)
             AND community_id = $2
         "#
     )
@@ -330,7 +330,7 @@ pub async fn count_passing_scores(
         r#"
         SELECT COUNT(DISTINCT community_id) as count
         FROM registry_humanpointscommunityqualifiedusers
-        WHERE LOWER(address) = LOWER($1)
+        WHERE address = LOWER($1)
         "#
     )
     .bind(address)
