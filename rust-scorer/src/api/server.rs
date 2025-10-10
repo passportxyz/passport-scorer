@@ -56,39 +56,27 @@ pub fn init_tracing() {
 
     // Add OpenTelemetry layer if enabled
     if enable_otel {
-        println!("🔵 OTEL: Attempting to initialize with endpoint: {}", otel_endpoint);
         match init_opentelemetry(&otel_endpoint) {
             Ok(provider) => {
-                println!("✅ OTEL: Provider created successfully");
-
                 // Set as global provider for other uses
                 opentelemetry::global::set_tracer_provider(provider.clone());
 
                 // Get tracer directly from provider for OpenTelemetryLayer
                 // (global::tracer returns BoxedTracer which doesn't implement PreSampledTracer)
                 let tracer = provider.tracer("rust-scorer");
-                println!("✅ OTEL: Tracer created, attaching to subscriber");
-
-                // Test if we can create a span directly
-                use opentelemetry::trace::Tracer;
-                let test_span = tracer.start("INIT-TEST-SPAN");
-                drop(test_span);
-                println!("🔵 OTEL: Created test span during init");
 
                 subscriber
                     .with(OpenTelemetryLayer::new(tracer))
                     .init();
 
-                println!("✅ OTEL: OpenTelemetry layer initialized and attached");
+                println!("OpenTelemetry enabled: {}", otel_endpoint);
             }
             Err(e) => {
-                println!("❌ OTEL ERROR: Failed to initialize OpenTelemetry: {}", e);
                 tracing::error!("Failed to initialize OpenTelemetry: {}. Continuing with logs only.", e);
                 subscriber.init();
             }
         }
     } else {
-        println!("⚠️ OTEL: Disabled (OTEL_ENABLED != true)");
         subscriber.init();
     }
 }
@@ -109,23 +97,17 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
 
     // Check if endpoint is HTTP or gRPC based
     let exporter = if endpoint.starts_with("http://") || endpoint.starts_with("https://") {
-        println!("🔵 OTEL: Creating HTTP exporter for endpoint: {}", endpoint);
         // HTTP endpoint (AWS ADOT collector uses HTTP on port 4318)
-        let exporter = SpanExporter::builder()
+        SpanExporter::builder()
             .with_http()
             .with_endpoint(endpoint)
-            .build()?;
-        println!("✅ OTEL: HTTP exporter created successfully");
-        exporter
+            .build()?
     } else {
-        println!("🔵 OTEL: Creating gRPC exporter for endpoint: {}", endpoint);
         // gRPC endpoint
-        let exporter = SpanExporter::builder()
+        SpanExporter::builder()
             .with_tonic()
             .with_endpoint(endpoint)
-            .build()?;
-        println!("✅ OTEL: gRPC exporter created successfully");
-        exporter
+            .build()?
     };
 
     let provider = SdkTracerProvider::builder()
@@ -133,7 +115,6 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
         .with_batch_exporter(exporter)
         .build();
 
-    println!("✅ OTEL: TracerProvider built successfully");
     Ok(provider)
 }
 
