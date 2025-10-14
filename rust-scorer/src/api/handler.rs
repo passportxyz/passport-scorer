@@ -93,7 +93,7 @@ pub async fn score_address_handler(
 async fn process_score_request(
     address: &str,
     scorer_id: i64,
-    _include_human_points: bool,  // Prefixed with _ since we're temporarily always including for testing
+    _include_human_points: bool,  // Not used - we always include human points data
     headers: &HeaderMap,
     pool: &PgPool,
     tx: &mut Transaction<'_, Postgres>,
@@ -294,21 +294,17 @@ async fn process_score_request(
     if community.human_points_program && scoring_result.binary_score == Decimal::from(1) {
         // Process human points within transaction
         process_human_points(&scoring_result, true, tx).await?;
-        
+
         info!("Processed human points");
 
-        // ⚠️ TEMPORARY: Always include human points data in response for testing
-        // TODO: Remove this and use include_human_points parameter once testing is complete
-        // if include_human_points {
-        if true {  // ALWAYS INCLUDE FOR TESTING - REMOVE THIS!
-            points_data = Some(get_user_points_data(address, pool).await?);
-            
-            if let Some(ref pd) = points_data {
-                possible_points_data = Some(get_possible_points_data(pd.multiplier, pool).await?);
-            }
-            
-            info!("Loaded human points data for response");
+        // Always include human points data in response
+        points_data = Some(get_user_points_data(address, pool).await?);
+
+        if let Some(ref pd) = points_data {
+            possible_points_data = Some(get_possible_points_data(pd.multiplier, pool).await?);
         }
+
+        info!("Loaded human points data for response");
     }
 
     // 14. Build V2 response

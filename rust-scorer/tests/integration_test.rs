@@ -27,8 +27,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_health_check() {
-        let pool = setup_test_pool().await;
-        let app = create_app(pool);
+        let app = create_app().await.unwrap();
 
         let response = app
             .oneshot(
@@ -49,8 +48,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_score_endpoint_missing_api_key() {
-        let pool = setup_test_pool().await;
-        let app = create_app(pool);
+        let app = create_app().await.unwrap();
 
         let response = app
             .oneshot(
@@ -67,8 +65,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_score_endpoint_invalid_address() {
-        let pool = setup_test_pool().await;
-        let app = create_app(pool);
+        let app = create_app().await.unwrap();
 
         let response = app
             .oneshot(
@@ -94,8 +91,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_score_endpoint_with_human_points_param() {
-        let pool = setup_test_pool().await;
-        let app = create_app(pool);
+        let app = create_app().await.unwrap();
 
         // This test would need a valid API key in the database
         // For now, we're just testing that the query parameter is parsed correctly

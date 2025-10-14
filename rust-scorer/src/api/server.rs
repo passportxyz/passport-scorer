@@ -69,7 +69,7 @@ pub fn init_tracing() {
                     .with(OpenTelemetryLayer::new(tracer))
                     .init();
 
-                println!("OpenTelemetry enabled: {}", otel_endpoint);
+                info!("OpenTelemetry enabled: {}", otel_endpoint);
             }
             Err(e) => {
                 tracing::error!("Failed to initialize OpenTelemetry: {}. Continuing with logs only.", e);
@@ -184,7 +184,7 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
         tokio::signal::ctrl_c()
             .await
             .expect("failed to install CTRL+C signal handler");
-        eprintln!("Shutting down gracefully...");
+        info!("Shutting down gracefully...");
     };
     
     // Create the app
