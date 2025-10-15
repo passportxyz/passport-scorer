@@ -73,7 +73,13 @@ pub async fn process_human_points(
     if config.mta_enabled {
         check_and_award_metamask_og(&address, tx).await?;
     }
-    
+
+    // 5. Check and award Seasoned Passport OG bonus (no limit)
+    check_and_award_seasoned_passport_og(&address, tx).await?;
+
+    // 6. Check and award The Chosen One bonus (no limit)
+    check_and_award_the_chosen_one(&address, tx).await?;
+
     Ok(())
 }
 
@@ -238,11 +244,11 @@ async fn check_and_award_metamask_og(
     let is_on_list: Option<bool> = sqlx::query_scalar(
         r#"
         SELECT EXISTS(
-            SELECT 1 
+            SELECT 1
             FROM account_addresslistmember alm
             JOIN account_addresslist al ON alm.list_id = al.id
             WHERE al.name = 'MetaMaskOG'
-            AND LOWER(alm.address) = $1
+            AND alm.address = $1
         )
         "#
     )
@@ -250,13 +256,13 @@ async fn check_and_award_metamask_og(
     .fetch_one(&mut **tx)
     .await
     .map_err(DatabaseError::QueryError)?;
-    
+
     let is_on_list = is_on_list.unwrap_or(false);
-    
+
     if !is_on_list {
         return Ok(());
     }
-    
+
     // Check if we've already awarded 5000 MetaMask OG points
     let mta_count: Option<i32> = sqlx::query_scalar(
         r#"
@@ -268,14 +274,14 @@ async fn check_and_award_metamask_og(
     .fetch_one(&mut **tx)
     .await
     .map_err(DatabaseError::QueryError)?;
-    
+
     let mta_count = mta_count.unwrap_or(0);
-    
+
     if mta_count < 5000 {
         // Award MetaMask OG points
         sqlx::query(
             r#"
-            INSERT INTO registry_humanpoints 
+            INSERT INTO registry_humanpoints
                 (address, action, tx_hash, provider, chain_id, timestamp)
             VALUES ($1, 'MTA', '', '', 0, NOW())
             ON CONFLICT (address, action, chain_id, provider, tx_hash) DO NOTHING
@@ -286,7 +292,89 @@ async fn check_and_award_metamask_og(
         .await
         .map_err(DatabaseError::QueryError)?;
     }
-    
+
+    Ok(())
+}
+
+/// Check and award Seasoned Passport OG bonus if eligible (no limit)
+async fn check_and_award_seasoned_passport_og(
+    address: &str,
+    tx: &mut Transaction<'_, Postgres>,
+) -> Result<(), DatabaseError> {
+    // Check if address is in Seasoned Passport OG list
+    let is_on_list: Option<bool> = sqlx::query_scalar(
+        r#"
+        SELECT EXISTS(
+            SELECT 1
+            FROM account_addresslistmember alm
+            JOIN account_addresslist al ON alm.list_id = al.id
+            WHERE al.name = 'SeasonedPassportOGs'
+            AND alm.address = $1
+        )
+        "#
+    )
+    .bind(address)
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(DatabaseError::QueryError)?;
+
+    if is_on_list.unwrap_or(false) {
+        // Award Seasoned Passport OG points (no limit check)
+        sqlx::query(
+            r#"
+            INSERT INTO registry_humanpoints
+                (address, action, tx_hash, provider, chain_id, timestamp)
+            VALUES ($1, 'SOG', '', '', 0, NOW())
+            ON CONFLICT (address, action, chain_id, provider, tx_hash) DO NOTHING
+            "#
+        )
+        .bind(address)
+        .execute(&mut **tx)
+        .await
+        .map_err(DatabaseError::QueryError)?;
+    }
+
+    Ok(())
+}
+
+/// Check and award The Chosen One bonus if eligible (no limit)
+async fn check_and_award_the_chosen_one(
+    address: &str,
+    tx: &mut Transaction<'_, Postgres>,
+) -> Result<(), DatabaseError> {
+    // Check if address is in The Chosen Ones list
+    let is_on_list: Option<bool> = sqlx::query_scalar(
+        r#"
+        SELECT EXISTS(
+            SELECT 1
+            FROM account_addresslistmember alm
+            JOIN account_addresslist al ON alm.list_id = al.id
+            WHERE al.name = 'TheChosenOnes'
+            AND alm.address = $1
+        )
+        "#
+    )
+    .bind(address)
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(DatabaseError::QueryError)?;
+
+    if is_on_list.unwrap_or(false) {
+        // Award The Chosen One points (no limit check)
+        sqlx::query(
+            r#"
+            INSERT INTO registry_humanpoints
+                (address, action, tx_hash, provider, chain_id, timestamp)
+            VALUES ($1, 'TCO', '', '', 0, NOW())
+            ON CONFLICT (address, action, chain_id, provider, tx_hash) DO NOTHING
+            "#
+        )
+        .bind(address)
+        .execute(&mut **tx)
+        .await
+        .map_err(DatabaseError::QueryError)?;
+    }
+
     Ok(())
 }
 

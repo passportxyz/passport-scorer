@@ -19,6 +19,9 @@ pub enum HumanPointsAction {
     HumanTechCleanHands,// HCH
     HumanTechBiometric, // HBI
     MetamaskOg,         // MTA
+    MetamaskOg2,        // MM2
+    SeasonedPassportOg, // SOG
+    TheChosenOne,       // TCO
 }
 
 impl HumanPointsAction {
@@ -40,6 +43,9 @@ impl HumanPointsAction {
             Self::HumanTechCleanHands => "HCH",
             Self::HumanTechBiometric => "HBI",
             Self::MetamaskOg => "MTA",
+            Self::MetamaskOg2 => "MM2",
+            Self::SeasonedPassportOg => "SOG",
+            Self::TheChosenOne => "TCO",
         }
     }
 }

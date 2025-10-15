@@ -70,11 +70,14 @@ mod test_human_points {
     #[test]
     fn test_action_codes() {
         use passport_scorer::human_points::HumanPointsAction;
-        
+
         assert_eq!(HumanPointsAction::ScoringBonus.as_str(), "SCB");
         assert_eq!(HumanPointsAction::HumanKeys.as_str(), "HKY");
         assert_eq!(HumanPointsAction::IdentityStakingBronze.as_str(), "ISB");
         assert_eq!(HumanPointsAction::MetamaskOg.as_str(), "MTA");
+        assert_eq!(HumanPointsAction::MetamaskOg2.as_str(), "MM2");
+        assert_eq!(HumanPointsAction::SeasonedPassportOg.as_str(), "SOG");
+        assert_eq!(HumanPointsAction::TheChosenOne.as_str(), "TCO");
     }
     
     #[test]
