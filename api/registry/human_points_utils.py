@@ -220,3 +220,29 @@ async def acheck_and_award_misc_points(address: str):
         except AddressList.DoesNotExist:
             # MetaMask OG list doesn't exist yet, skip MetaMask OG points
             pass
+
+    # Award Seasoned Passport OG points if on list (no limit)
+    try:
+        sog_list = await AddressList.objects.aget(name="SeasonedPassportOGs")
+        # Check if address is on the list (case-insensitive)
+        if await sog_list.addresses.filter(address=address.lower()).aexists():
+            # Award Seasoned Passport OG points (will create or get existing)
+            await HumanPoints.objects.aget_or_create(
+                address=address.lower(), action=HumanPoints.Action.SEASONED_PASSPORT_OG
+            )
+    except AddressList.DoesNotExist:
+        # Seasoned Passport OG list doesn't exist yet, skip
+        pass
+
+    # Award The Chosen One points if on list (no limit)
+    try:
+        tco_list = await AddressList.objects.aget(name="TheChosenOnes")
+        # Check if address is on the list (case-insensitive)
+        if await tco_list.addresses.filter(address=address.lower()).aexists():
+            # Award The Chosen One points (will create or get existing)
+            await HumanPoints.objects.aget_or_create(
+                address=address.lower(), action=HumanPoints.Action.THE_CHOSEN_ONE
+            )
+    except AddressList.DoesNotExist:
+        # The Chosen One list doesn't exist yet, skip
+        pass
