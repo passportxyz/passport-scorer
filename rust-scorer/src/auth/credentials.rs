@@ -2,17 +2,43 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
+use std::sync::OnceLock;
 use tracing::{debug, info, warn};
 
 use crate::db::errors::{DatabaseError, Result};
 
-/// List of trusted IAM issuers - matches Python's TRUSTED_IAM_ISSUERS
-const TRUSTED_IAM_ISSUERS: &[&str] = &[
-    "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC",
-    "did:key:z6MkgfaeGaQe4R3yV9hmZnJhfWqgGJnCPfuQCbDBpDwYREQV",
-    "did:key:z6Mkwg65BN2xg6qicufGYR9Sxn3NWwfBxRFrKVEPrZXVAx3z",
-    "did:ethr:0xd6fc34345bc8c8e5659a35bed9629d5558d48c4e",
+/// Default trusted IAM issuers - used as fallback if env var is not set
+const DEFAULT_TRUSTED_IAM_ISSUERS: &[&str] = &[
+    "did:key:GlMY_1zkc0i11O-wMBWbSiUfIkZiXzFLlAQ89pdfyBA",
+    "did:ethr:0xabczyx",
 ];
+
+/// Cached trusted IAM issuers loaded from environment variable
+static TRUSTED_IAM_ISSUERS: OnceLock<Vec<String>> = OnceLock::new();
+
+/// Get the list of trusted IAM issuers from environment variable or defaults
+fn get_trusted_issuers() -> &'static Vec<String> {
+    TRUSTED_IAM_ISSUERS.get_or_init(|| {
+        match std::env::var("TRUSTED_IAM_ISSUERS") {
+            Ok(json_str) => {
+                match serde_json::from_str::<Vec<String>>(&json_str) {
+                    Ok(issuers) => {
+                        info!("Loaded {} trusted IAM issuers from TRUSTED_IAM_ISSUERS env var", issuers.len());
+                        issuers
+                    }
+                    Err(e) => {
+                        warn!("Failed to parse TRUSTED_IAM_ISSUERS env var: {}. Using defaults.", e);
+                        DEFAULT_TRUSTED_IAM_ISSUERS.iter().map(|s| s.to_string()).collect()
+                    }
+                }
+            }
+            Err(_) => {
+                info!("TRUSTED_IAM_ISSUERS env var not set, using defaults");
+                DEFAULT_TRUSTED_IAM_ISSUERS.iter().map(|s| s.to_string()).collect()
+            }
+        }
+    })
+}
 
 /// Represents a validated credential
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,8 +127,9 @@ pub async fn validate_credential(
     let issuer = credential
         .get("issuer")
         .and_then(|i| i.as_str());
-    
-    if !issuer.map(|i| TRUSTED_IAM_ISSUERS.contains(&i)).unwrap_or(false) {
+
+    let trusted_issuers = get_trusted_issuers();
+    if !issuer.map(|i| trusted_issuers.iter().any(|t| t == i)).unwrap_or(false) {
         warn!("Untrusted issuer: {:?}", issuer);
         return Ok(None);
     }
@@ -202,9 +229,9 @@ mod tests {
                 "nullifiers": ["null1", "null2"]
             },
             "expirationDate": "2020-01-01T00:00:00Z",
-            "issuer": "did:key:z6MkghvGHLobLEdj1bgRLhS4LPGJAvbMA1tn2zcRyqmYU5LC"
+            "issuer": "did:key:GlMY_1zkc0i11O-wMBWbSiUfIkZiXzFLlAQ89pdfyBA"
         });
-        
+
         let result = validate_credential(&credential, "0x123").await.unwrap();
         assert!(result.is_none(), "Expired credential should return None");
     }
