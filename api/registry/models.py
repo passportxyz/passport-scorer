@@ -435,7 +435,7 @@ class HumanPointsConfig(models.Model):
     """Configuration for point values per action type"""
 
     action = models.CharField(
-        choices=HumanPoints.Action.choices, max_length=50, unique=True, db_index=True
+        choices=HumanPoints.Action.choices, max_length=3, unique=True, db_index=True
     )
     points = models.IntegerField()
     active = models.BooleanField(default=True, db_index=True)

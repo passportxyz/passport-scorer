@@ -63,7 +63,7 @@ class Migration(migrations.Migration):
                     ("TCO", "The Chosen One"),
                 ],
                 db_index=True,
-                max_length=50,
+                max_length=3,
                 unique=True,
             ),
         ),
