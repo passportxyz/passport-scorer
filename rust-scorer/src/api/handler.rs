@@ -103,24 +103,21 @@ async fn process_score_request(
         .and_then(|h| h.to_str().ok());
     let auth_header = headers.get("Authorization")
         .and_then(|h| h.to_str().ok());
-    
+
+    let request_path = format!("/v2/stamps/{}/score/{}", scorer_id, address);
+
     let api_key_data = ApiKeyValidator::validate(
         pool,
         x_api_key,
         auth_header,
+        &request_path,
     ).await?;
-    
-    if !api_key_data.read_scores {
-        return Err(ApiError::Unauthorized(
-            "API key lacks read_scores permission".to_string()
-        ));
-    }
 
-    // Track API usage for analytics
+    // Track API usage for analytics (successful auth)
     ApiKeyValidator::track_usage(
         tx,
         &api_key_data.id,
-        &format!("/v2/stamps/{}/score/{}", scorer_id, address),
+        &request_path,
         "GET",
         200,  // Status code
         None, // query_params

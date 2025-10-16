@@ -109,6 +109,7 @@ pub struct DjangoApiKey {
     pub id: String,
     pub prefix: String,
     pub hashed_key: String,
+    pub hashed_key_sha256: Option<String>,  // SHA-256 hash for fast verification
     pub account_id: i64,
     pub name: String,
     pub revoked: bool,
