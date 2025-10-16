@@ -28,7 +28,7 @@
 - [Axum Routing](api/axum_routing.md) - Axum 0.8 route parameter syntax changes
 - [Database Signatures](api/database_signatures.md) - Database operation signature alignment
 - [Error Handling](api/error_handling.md) - HTTP status code mapping
-- [API Key Performance Optimization](api/api_key_performance_optimization.md) - SHA-256 fast path implementation *(Added: 2025-10-16)*
+- [API Key Performance Optimization](api/api_key_performance_optimization.md) - SHA-256 fast path implementation in Python and Rust *(Updated: 2025-10-16)*
 
 ## 💾 Database
 
