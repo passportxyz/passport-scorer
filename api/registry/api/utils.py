@@ -17,6 +17,7 @@ from ninja.security.base import SecuritySchema
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
+from account.api_key_validator import FastAPIKeyValidator
 from account.models import Account, AccountAPIKey, AccountAPIKeyAnalytics
 from registry.api.schema import SubmitPassportPayload
 from registry.atasks import asave_api_key_analytics
@@ -197,7 +198,35 @@ class ApiKey(APIKeyHeader):
         try:
             if key in settings.DEMO_API_KEY_ALIASES:
                 key = settings.DEMO_API_KEY
-            api_key = AccountAPIKey.objects.get_from_key(key)
+
+            # Extract prefix for database lookup
+            prefix = key.partition(".")[0]
+
+            # Get API key by prefix (avoids slow get_from_key)
+            try:
+                api_key = AccountAPIKey.objects.get(prefix=prefix)
+            except AccountAPIKey.DoesNotExist:
+                track_usage(request, "", 401)
+                raise Unauthorized()
+
+            # Fast verification with SHA-256 or PBKDF2 fallback
+            validator = FastAPIKeyValidator()
+            is_valid, needs_migration = validator.verify_key(
+                key,
+                api_key.hashed_key,
+                api_key.hashed_key_sha256
+            )
+
+            if not is_valid:
+                track_usage(request, "", 401)
+                raise Unauthorized()
+
+            # Auto-migrate on successful PBKDF2 verification
+            if needs_migration:
+                api_key.hashed_key_sha256 = validator.hash_key(key)
+                api_key.save(update_fields=['hashed_key_sha256'])
+                log.info(f"API key auto-migrated to SHA-256 for prefix: {prefix}")
+
             request.api_key = api_key
             user_account = api_key.account
 
@@ -238,9 +267,8 @@ async def atrack_usage(request, key: str, status_code: int) -> None:
 
 async def aapi_key(request):
     """
-    The content of this function was copied form AccountAPIKey.objects.get_from_key and
-    adjusted to our needs.
-    We might want to fix the `AccountAPIKey.objects.aget_from_key` (the async version)
+    Async API key authentication with fast SHA-256 verification and PBKDF2 fallback.
+    This replaces the slow get_from_key method with optimized verification.
     """
     param_name = "X-API-Key"
     headers = request.headers
@@ -274,9 +302,24 @@ async def aapi_key(request):
         await atrack_usage(request, "", 401)
         raise Unauthorized()
 
-    if not api_key.is_valid(key):
+    # Fast verification with SHA-256 or PBKDF2 fallback
+    from account.api_key_validator import averify_key
+    is_valid, needs_migration = await averify_key(
+        key,
+        api_key.hashed_key,
+        api_key.hashed_key_sha256
+    )
+
+    if not is_valid:
         await atrack_usage(request, "", 401)
         raise Unauthorized()
+
+    # Auto-migrate on successful PBKDF2 verification
+    if needs_migration:
+        validator = FastAPIKeyValidator()
+        api_key.hashed_key_sha256 = validator.hash_key(key)
+        await api_key.asave(update_fields=['hashed_key_sha256'])
+        log.info(f"API key auto-migrated to SHA-256 for prefix: {prefix} (async)")
 
     user_account = await Account.objects.aget(pk=api_key.account_id)
     if user_account:
