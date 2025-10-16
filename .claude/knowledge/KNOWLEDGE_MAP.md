@@ -19,6 +19,7 @@
 - [Human Points Provider Handling](gotchas/human_points_provider_handling.md) - Django CharField NULL vs empty string conversion
 - [Performance Analysis](gotchas/performance_analysis.md) - Flamegraphs vs distributed tracing for I/O-bound services
 - [TRUSTED_IAM_ISSUERS Configuration](gotchas/trusted_iam_issuers.md) - Environment variable loading with OnceLock caching
+- [API Key Hashing Performance](gotchas/api_key_hashing_performance.md) - PBKDF2 performance problem and solution *(Updated: 2025-10-16)*
 
 ## 🔌 API
 
@@ -27,6 +28,7 @@
 - [Axum Routing](api/axum_routing.md) - Axum 0.8 route parameter syntax changes
 - [Database Signatures](api/database_signatures.md) - Database operation signature alignment
 - [Error Handling](api/error_handling.md) - HTTP status code mapping
+- [API Key Performance Optimization](api/api_key_performance_optimization.md) - SHA-256 fast path implementation *(Added: 2025-10-16)*
 
 ## 💾 Database
 

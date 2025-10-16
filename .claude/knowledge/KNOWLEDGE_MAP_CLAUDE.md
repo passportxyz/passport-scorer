@@ -10,7 +10,7 @@
 
 ## ⚠️ Gotchas
 
-- @gotchas/nullifier_handling.md - Python feature flags vs Rust simplifications for nullifiers  
+- @gotchas/nullifier_handling.md - Python feature flags vs Rust simplifications for nullifiers
 - @gotchas/event_data_structure.md - Score update event serialization format
 - @gotchas/django_model_discrepancies.md - Confirmed Django table schema without timestamps
 - @gotchas/score_calculation.md - Score calculation details, provider dedup, decimal precision
@@ -19,6 +19,7 @@
 - @gotchas/human_points_provider_handling.md - Django CharField NULL vs empty string conversion
 - @gotchas/performance_analysis.md - Flamegraphs vs distributed tracing for I/O-bound services
 - @gotchas/trusted_iam_issuers.md - Environment variable loading with OnceLock caching
+- @gotchas/api_key_hashing_performance.md - PBKDF2 performance problem and solution
 
 ## 🔌 API
 
@@ -27,6 +28,7 @@
 - @api/axum_routing.md - Axum 0.8 route parameter syntax changes
 - @api/database_signatures.md - Database operation signature alignment
 - @api/error_handling.md - HTTP status code mapping
+- @api/api_key_performance_optimization.md - SHA-256 fast path implementation
 
 ## 💾 Database
 
