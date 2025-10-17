@@ -111,9 +111,9 @@ export function createRustScorerLambda({
       // Latest version: aws-otel-collector-arm64-ver-0-117-0
       // See: https://aws-otel.github.io/docs/getting-started/lambda/lambda-go/
       layers: [
-        pulumi.output(regionData).apply((region) =>
-          `arn:aws:lambda:${region.name}:901920570463:layer:aws-otel-collector-arm64-ver-0-117-0:1`
-        ),
+        pulumi
+          .output(regionData)
+          .apply((region) => `arn:aws:lambda:${region.name}:901920570463:layer:aws-otel-collector-arm64-ver-0-117-0:1`),
       ],
 
       // Header-based routing - only route to Rust when X-Use-Rust-Scorer header is present
