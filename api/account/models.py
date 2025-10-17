@@ -290,6 +290,14 @@ class AccountAPIKey(AbstractAPIKey):
     create_scorers = models.BooleanField(default=False)
     historical_endpoint = models.BooleanField(default=False)
 
+    # SHA-256 hash for fast API key verification (migration from PBKDF2)
+    hashed_key_sha256 = models.CharField(
+        max_length=71,  # "sha256$" + 64 hex chars
+        null=True,
+        blank=True,
+        help_text="SHA-256 hash for fast API key verification"
+    )
+
     def clean(self):
         super().clean()
         # Embed keys are always used in frontend, so we should prohibit other rates limits from

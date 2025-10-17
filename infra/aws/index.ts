@@ -70,6 +70,13 @@ export const verifierDockerImage = pulumi
     ([acc, region]) => `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-verifier:${DOCKER_IMAGE_TAG}`
   );
 
+// Rust scorer Lambda zip archive
+import * as fs from "fs";
+const rustScorerZipPath = "../../rust-scorer-artifact/bootstrap.zip";
+const rustScorerZipArchive = fs.existsSync(rustScorerZipPath)
+  ? new pulumi.asset.FileArchive(rustScorerZipPath)
+  : undefined;
+
 const pagerDutyIntegrationEndpoint = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`
 );
@@ -1246,6 +1253,7 @@ const { httpLambdaRole, queueLambdaRole, httpRoleAttachments, queueRoleAttachmen
 
 const lambdaSettings = {
   httpsListener,
+  packageType: "Image" as const,
   imageUri: dockerGtcSubmitPassportLambdaImage,
   privateSubnetSecurityGroup,
   vpcPrivateSubnetIds,
@@ -1591,6 +1599,7 @@ if (stack === "production") {
 createV2Api({
   httpsListener,
   dockerLambdaImage: dockerGtcSubmitPassportLambdaImage,
+  rustScorerZipArchive: rustScorerZipArchive,
   alarmConfigurations: alarmConfigurations,
   httpLambdaRole: httpLambdaRole,
   alb: alb,

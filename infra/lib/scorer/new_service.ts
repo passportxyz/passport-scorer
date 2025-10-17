@@ -557,6 +557,16 @@ export const createSharedLambdaResources = ({ rescoreQueue }: { rescoreQueue: aw
     ],
   });
 
+  const lambdaXRayPolicyDocument = aws.iam.getPolicyDocument({
+    statements: [
+      {
+        effect: "Allow",
+        actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
+        resources: ["*"],
+      },
+    ],
+  });
+
   const lambdaLoggingPolicy = new aws.iam.Policy("lambdaLoggingPolicy", {
     path: "/",
     description: "IAM policy for logging from a lambda",
@@ -578,6 +588,13 @@ export const createSharedLambdaResources = ({ rescoreQueue }: { rescoreQueue: aw
       (lambdaSecretsManagerPolicyDocument) => lambdaSecretsManagerPolicyDocument.json
     ),
     tags: { ...defaultTags, Name: "lambdaSecretManagerPolicy" },
+  });
+
+  const lambdaXRayPolicy = new aws.iam.Policy("lambdaXRayPolicy", {
+    path: "/",
+    description: "IAM policy for AWS X-Ray distributed tracing",
+    policy: lambdaXRayPolicyDocument.then((lambdaXRayPolicyDocument) => lambdaXRayPolicyDocument.json),
+    tags: { ...defaultTags, Name: "lambdaXRayPolicy" },
   });
 
   const assumeRole = aws.iam.getPolicyDocument({
@@ -613,6 +630,11 @@ export const createSharedLambdaResources = ({ rescoreQueue }: { rescoreQueue: aw
   const lambdaSecretsManagerRoleAttachment = new aws.iam.RolePolicyAttachment("lambdaSecretManagerRoleAttachment", {
     role: httpLambdaRole.name,
     policyArn: lambdaSecretsManagerPolicy.arn,
+  });
+
+  const lambdaXRayRoleAttachment = new aws.iam.RolePolicyAttachment("lambdaXRayRoleAttachment", {
+    role: httpLambdaRole.name,
+    policyArn: lambdaXRayPolicy.arn,
   });
 
   const queueLambdaRole = new aws.iam.Role("queueLambdaRole", {
@@ -664,7 +686,12 @@ export const createSharedLambdaResources = ({ rescoreQueue }: { rescoreQueue: aw
 
   return {
     httpLambdaRole,
-    httpRoleAttachments: [lambdaLogRoleAttachment, lambdaEc2RoleAttachment, lambdaSecretsManagerRoleAttachment],
+    httpRoleAttachments: [
+      lambdaLogRoleAttachment,
+      lambdaEc2RoleAttachment,
+      lambdaSecretsManagerRoleAttachment,
+      lambdaXRayRoleAttachment,
+    ],
     queueLambdaRole,
     queueRoleAttachments: [
       queueLambdaLogRoleAttachment,
@@ -677,18 +704,36 @@ export const createSharedLambdaResources = ({ rescoreQueue }: { rescoreQueue: aw
 
 type BuildLambdaFnBaseParams = {
   name: string;
-  imageUri: Input<string>;
   privateSubnetSecurityGroup: SecurityGroup;
   vpcPrivateSubnetIds: Output<any>;
   environment: { name: string; value: Input<string> }[];
   role: Role;
   roleAttachments: RolePolicyAttachment[];
   memorySize: number;
-  dockerCmd: string[];
   alertTopic?: Topic;
   timeout?: number;
   alb: aws.lb.LoadBalancer;
-};
+} & (
+  | {
+      // Container-based deployment
+      packageType: "Image";
+      imageUri: Input<string>;
+      dockerCmd: string[];
+      layers?: never;
+    }
+  | {
+      // Zip-based deployment
+      packageType: "Zip";
+      code: pulumi.Input<pulumi.asset.Archive>;
+      handler: string;
+      runtime: aws.lambda.Runtime;
+      layers?: Input<string>[];
+      sourceCodeHash?: pulumi.Input<string>;
+      architectures?: Input<string>[];
+      imageUri?: never;
+      dockerCmd?: never;
+    }
+);
 
 export function buildHttpLambdaFn(
   args: BuildLambdaFnBaseParams & {
@@ -921,46 +966,60 @@ export function buildQueueLambdaFn(
   });
 }
 
-function buildLambdaFn({
-  name,
-  imageUri,
-  privateSubnetSecurityGroup,
-  vpcPrivateSubnetIds,
-  environment,
-  role,
-  roleAttachments,
-  memorySize,
-  dockerCmd,
-  timeout,
-}: BuildLambdaFnBaseParams): aws.lambda.Function {
+function buildLambdaFn(args: BuildLambdaFnBaseParams): aws.lambda.Function {
+  const {
+    name,
+    privateSubnetSecurityGroup,
+    vpcPrivateSubnetIds,
+    environment,
+    role,
+    roleAttachments,
+    memorySize,
+    timeout,
+  } = args;
+
+  const baseConfig = {
+    name: name,
+    vpcConfig: {
+      securityGroupIds: [privateSubnetSecurityGroup.id],
+      subnetIds: vpcPrivateSubnetIds,
+    },
+    role: role.arn,
+    timeout: timeout || 60,
+    memorySize,
+    environment: {
+      variables: environment.reduce(
+        (acc: { [key: string]: Input<string> }, e: { name: string; value: Input<string> }) => {
+          acc[e.name] = e.value;
+          return acc;
+        },
+        {}
+      ),
+    },
+    tags: { ...defaultTags, Name: name },
+  };
+
   const lambdaFunction = new aws.lambda.Function(
     name,
-    {
-      name: name,
-      imageConfig: {
-        commands: dockerCmd,
-      },
-      vpcConfig: {
-        // vpcId: vpc.vpcId,
-        securityGroupIds: [privateSubnetSecurityGroup.id], // TODO: shall we create it's own security group ???
-        subnetIds: vpcPrivateSubnetIds,
-      },
-      packageType: "Image",
-      role: role.arn,
-      imageUri,
-      timeout: timeout || 60,
-      memorySize,
-      environment: {
-        variables: environment.reduce(
-          (acc: { [key: string]: Input<string> }, e: { name: string; value: Input<string> }) => {
-            acc[e.name] = e.value;
-            return acc;
+    args.packageType === "Image"
+      ? {
+          ...baseConfig,
+          packageType: "Image",
+          imageUri: args.imageUri,
+          imageConfig: {
+            commands: args.dockerCmd,
           },
-          {}
-        ),
-      },
-      tags: { ...defaultTags, Name: name },
-    },
+        }
+      : {
+          ...baseConfig,
+          packageType: "Zip",
+          code: args.code,
+          handler: args.handler,
+          runtime: args.runtime,
+          layers: args.layers,
+          sourceCodeHash: args.sourceCodeHash,
+          architectures: args.architectures,
+        },
     {
       dependsOn: roleAttachments,
     }

@@ -1,0 +1,331 @@
+#!/bin/bash
+set -o pipefail
+
+# Mím - Persistent Memory for Claude Code
+# Main entry point for all mim commands
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Shared tools configuration for all mim commands
+ALLOWED_TOOLS="Read,Write,Edit,MultiEdit,Glob,Grep,LS,Bash,Git"
+
+show_help() {
+  echo "⚡ Mím - Persistent Memory for Claude Code"
+  echo ""
+  echo "USAGE:"
+  echo "  mim <command> [options]"
+  echo ""
+  echo "COMMANDS:"
+  echo "  coalesce     Process remembered knowledge into documentation"
+  echo "  distill      Automatically clean up duplicates and conflicts in documentation"
+  echo "  distill refine  Apply user-guided refinements from distill report"
+  echo ""
+  echo "EXAMPLES:"
+  echo "  mim coalesce              # Process session.md into organized docs"
+  echo "  mim distill               # Auto-clean docs and generate review report"
+  echo "  mim distill refine        # Apply user comments from distill report"
+  echo ""
+}
+
+# Stream claude output, extracting text and tool usage
+stream_claude_output() {
+  while IFS= read -r line; do
+    # Extract and print text messages
+    text=$(echo "$line" | jq -r 'select(.message.content[0].type == "text") | .message.content[0].text' 2>/dev/null)
+    if [ -n "$text" ]; then
+      echo "$text"
+    fi
+    
+    # Extract and print tool usage
+    tool=$(echo "$line" | jq -r 'select(.message.content[0].type == "tool_use") | .message.content[0].name' 2>/dev/null)
+    if [ -n "$tool" ]; then
+      echo "[Using tool: $tool]"
+    fi
+  done
+}
+
+
+run_coalesce() {
+  if [ ! -f .claude/knowledge/session.md ] || [ ! -s .claude/knowledge/session.md ]; then
+    echo "📜 No knowledge to process (session.md is empty or missing)"
+    exit 0
+  fi
+
+  echo "⚔️  ODIN CALLS! Mímir's severed head awakens to serve!"
+  echo "🔨 Fragment by fragment, we forge the eternal codex..."
+  echo "🔥 By the flames of Muspelheim, knowledge shall be forged anew!"
+  echo ""
+  echo "   [The ritual takes time, perhaps several minutes]"
+  echo ""
+
+  claude \
+  --verbose \
+  --allowedTools "$ALLOWED_TOOLS" \
+  --append-system-prompt "You are Mim, keeper of project knowledge. You coalesce raw remembered knowledge into permanent documentation. CRITICAL PATH STRUCTURE: The instructions file is at .claude/knowledge/INSTRUCTIONS.md (NOT .claude/KNOWLEDGE_INSTRUCTIONS.md). CLAUDE.md contains @ references to .claude/knowledge/INSTRUCTIONS.md and .claude/knowledge/KNOWLEDGE_MAP_CLAUDE.md. You maintain TWO knowledge maps: KNOWLEDGE_MAP.md (user-facing with markdown links) and KNOWLEDGE_MAP_CLAUDE.md (Claude-facing with @ references - these are RELATIVE to the knowledge directory). The project structure: .claude/knowledge/session.md (raw captures), .claude/knowledge/{category}/ (organized knowledge), .claude/knowledge/KNOWLEDGE_MAP.md (human-facing index), .claude/knowledge/KNOWLEDGE_MAP_CLAUDE.md (claude-facing index with RELATIVE @ refs like @patterns/file.md NOT @.claude/knowledge/patterns/file.md)" \
+  --print --output-format stream-json "You are processing remembered knowledge. Execute this MANDATORY checklist:
+
+1. **MUST READ** .claude/knowledge/session.md - Even if empty
+2. **MUST PROCESS** each entry from session.md:
+   - Determine category (architecture/patterns/dependencies/workflows/gotchas/etc)
+   - **MUST CREATE OR UPDATE** appropriate file in .claude/knowledge/{category}/
+   - Keep dated entries only for gotchas
+3. **MUST UPDATE OR CREATE** BOTH knowledge maps:
+   - **KNOWLEDGE_MAP.md** (user-facing): Use markdown links like [Topic Name](path/file.md)
+   - **KNOWLEDGE_MAP_CLAUDE.md** (Claude-facing): Use RELATIVE @ references like @patterns/file.md or @gotchas/file.md (NOT full paths)
+   - Both maps should have identical structure, just different link formats
+   - Include last updated timestamps in user-facing map only
+4. **MUST CLEAR** session.md after processing - use Write tool with empty content
+
+**VERIFICATION CHECKLIST - ALL MUST BE TRUE:**
+- [ ] Read session.md (even if empty)
+- [ ] Created/updated .claude/knowledge/ category files for any new knowledge
+- [ ] Created/updated BOTH KNOWLEDGE_MAP.md (markdown links) and KNOWLEDGE_MAP_CLAUDE.md (@ references)
+- [ ] Verified no knowledge was lost in the transfer
+- [ ] Cleared session.md by writing empty content to it
+
+**IF YOU SKIP ANY STEP, YOU HAVE FAILED THE TASK**
+
+IMPORTANT: CLAUDE.md uses @ references to .claude/knowledge/INSTRUCTIONS.md and .claude/knowledge/KNOWLEDGE_MAP_CLAUDE.md
+IMPORTANT: KNOWLEDGE_MAP_CLAUDE.md uses RELATIVE @ references (e.g., @patterns/file.md NOT @.claude/knowledge/patterns/file.md)
+
+Documentation structure to create and maintain:
+.claude/knowledge/
+├── session.md           # Current session's raw captures (you must clear this)
+├── INSTRUCTIONS.md     # Knowledge remembering instructions (referenced by CLAUDE.md)
+├── architecture/        # System design, component relationships
+├── patterns/           # Coding patterns, conventions
+├── dependencies/       # External services, libraries
+├── workflows/          # How to do things in this project
+├── gotchas/           # Surprises, non-obvious behaviors
+├── KNOWLEDGE_MAP.md        # User-facing index with markdown links
+└── KNOWLEDGE_MAP_CLAUDE.md # Claude-facing index with RELATIVE @ references
+
+After completing all updates, inform the user that documentation has been updated." | stream_claude_output
+
+  if [ $? -eq 0 ]; then
+    echo ""
+    echo "⚡ THE RITUAL IS COMPLETE! The codex has been forged!"
+    echo ""
+    echo "📜 Sealing the runes in git's eternal halls..."
+    git add CLAUDE.md .claude/knowledge/
+    git commit -m "📜 Update project documentation via Mim"
+    echo ""
+    echo "🔥 IT IS DONE. Mímir returns to slumber."
+  else
+    echo ""
+    echo "💀 THE RITUAL FALTERS! Mímir's magic was disrupted!"
+    echo "⚠️  The fragments remain unbound... try again, wanderer."
+  fi
+}
+
+run_distill() {
+  echo "🧹 Running mim distill..."
+  echo "🔍 Scanning documentation for duplicates, conflicts, junk, and outdated information..."
+  echo ""
+  echo "   [This may take several minutes to analyze all documentation]"
+  echo ""
+
+  # No backup needed - git provides version control
+
+  claude \
+    --verbose \
+    --allowedTools "$ALLOWED_TOOLS" \
+    --append-system-prompt "You are Mim's distillation aspect, tasked with cleaning and organizing documentation. You process ALL *.md files in .claude/knowledge/ EXCEPT session.md (which is the raw capture file). Special files: KNOWLEDGE_MAP.md (human-readable index), KNOWLEDGE_MAP_CLAUDE.md (Claude-specific index with @ references). You scan for duplicates, outdated information, conflicts, junk/useless content, and inconsistencies across all knowledge files. Perform cross-file analysis to detect redundancies between different knowledge files. Your goal is to auto-fix clear issues and report items that need human review." \
+    --print --output-format stream-json "Execute this MANDATORY distillation process:
+
+1. **SCAN AND ANALYZE ALL KNOWLEDGE FILES**:
+   - Read ALL *.md files in .claude/knowledge/ EXCEPT session.md (raw capture file)
+   - Understand special files: KNOWLEDGE_MAP.md (user index), KNOWLEDGE_MAP_CLAUDE.md (Claude index)
+   - DO NOT DELETE either KNOWLEDGE_MAP, we want both the markdown-link and claude-reference versions
+   - Perform CROSS-FILE analysis to detect duplicates between different knowledge files
+   - Identify: exact duplicates, near-duplicates, conflicting information, outdated content, junk/useless info, broken references
+   - Categorize issues into: AUTO_FIX (clear duplicates/junk/broken refs) and REQUIRES_REVIEW (conflicts/ambiguous)
+
+2. **AUTO-FIX CLEAR ISSUES**:
+   - Remove exact duplicate sections within and across files
+   - Delete junk/useless information (e.g., 'TODO: document this', empty sections, redundant explanations)
+   - Fix broken @ references and file paths
+   - Remove obviously outdated timestamps/versions
+   - Consolidate redundant information across different files
+   - Track all changes made for the report
+
+3. **GENERATE DISTILL REPORT AT ./distill-report.md**:
+   Create distill-report.md IN THE REPOSITORY ROOT with these sections:
+
+   ## Automated Changes
+   [List all auto-fixes made with file names and brief descriptions]
+   
+   ## Requires Review
+   [List conflicts and ambiguous issues that need human guidance]
+   
+   For each review item, provide:
+   - **Issue**: Clear description of the conflict/problem
+   - **Location**: File path(s) affected
+   - **Current State**: What exists now
+   - **Options**: Suggested resolutions
+   
+   <!-- USER INPUT START -->
+   [Your decisions here]
+   <!-- USER INPUT END -->
+
+4. **COMPLETION**:
+   - Save report to ./distill-report.md (repository root, NOT in .claude/knowledge/)
+   - If review items exist, instruct user to run: mim distill refine
+   - If no review items, report successful cleanup completion
+   - DO NOT commit any changes - commits are handled by 'mim distill refine'
+
+IMPORTANT: Process ALL knowledge files except session.md. Perform cross-file deduplication. Clean up junk/useless content aggressively. Use multi-line USER INPUT blocks for easier editing. DO NOT COMMIT CHANGES - the user will commit during the refine step." | stream_claude_output
+
+  if [ $? -eq 0 ]; then
+    echo ""
+    echo "✨ Distillation complete!"
+    if [ -f "./distill-report.md" ]; then
+      echo ""
+      echo "📋 Distill report generated at ./distill-report.md"
+      
+      # Check if there are review items
+      if grep -q "## Requires Review" "./distill-report.md" && [ "$(grep -A 10 "## Requires Review" "./distill-report.md" | wc -l)" -gt 2 ]; then
+        echo -e "${YELLOW}⚠️  Some issues require human review${NC}"
+        echo "📝 Edit ./distill-report.md to add your decisions, then run:"
+        echo -e "${BLUE}   mim distill refine${NC}"
+      else
+        echo -e "${GREEN}✅ No manual review required - all issues were auto-fixed${NC}"
+        echo ""
+        echo "📝 Changes have been made but NOT committed."
+        echo "Run 'mim distill refine' to commit the changes."
+      fi
+    fi
+  else
+    echo ""
+    echo -e "${RED}💀 Distillation failed! Check the output above for errors.${NC}"
+    exit 1
+  fi
+}
+
+run_distill_refine() {
+  echo "🎯 Running mim distill refine..."
+  
+  if [ ! -f "./distill-report.md" ]; then
+    echo -e "${RED}❌ Error: No distill report found at ./distill-report.md${NC}"
+    echo "Run 'mim distill' first to generate a report."
+    exit 1
+  fi
+
+  # Check if report has review items that need user input
+  has_review_items=false
+  if grep -q "## Requires Review" "./distill-report.md" && [ "$(grep -A 10 "## Requires Review" "./distill-report.md" | wc -l)" -gt 2 ]; then
+    has_review_items=true
+  fi
+
+  # If there are review items, check for user input
+  if [ "$has_review_items" = true ]; then
+    # Check if report has user input
+    if ! grep -q "<!-- USER INPUT START -->" "./distill-report.md"; then
+      echo -e "${YELLOW}⚠️  No user input found in distill-report.md${NC}"
+      echo "Please edit distill-report.md and add your decisions between the USER INPUT tags."
+      exit 1
+    fi
+    
+    # Check if user actually added content between the tags
+    user_content=$(awk '/<!-- USER INPUT START -->/{flag=1;next}/<!-- USER INPUT END -->/{flag=0}flag' "./distill-report.md" | grep -v '^[[:space:]]*$' | grep -v '<!-- Add your decision/instructions here -->')
+    if [ -z "$user_content" ]; then
+      echo -e "${YELLOW}⚠️  No user decisions found between USER INPUT tags${NC}"
+      echo "Please edit distill-report.md and add your decisions between:"
+      echo "  <!-- USER INPUT START -->"
+      echo "  [Your decisions here]"
+      echo "  <!-- USER INPUT END -->"
+      exit 1
+    fi
+  else
+    echo "ℹ️  No review items found - only auto-fixes to commit"
+  fi
+
+  echo "🔍 Processing user-guided refinements from distill report..."
+  echo ""
+  echo "   [Applying your decisions to documentation]"
+  echo ""
+
+  claude \
+    --verbose \
+    --allowedTools "$ALLOWED_TOOLS" \
+    --append-system-prompt "You are Mim's refinement aspect, completing the distillation process. The report is at ./distill-report.md (repository root). If there are items with user guidance between <!-- USER INPUT START --> and <!-- USER INPUT END --> tags, apply those decisions. If there are only auto-fixes and no review items, simply delete the report to mark completion. Remember that knowledge files are in .claude/knowledge/ and include various topic files plus the special KNOWLEDGE_MAP.md and KNOWLEDGE_MAP_CLAUDE.md files." \
+    --print --output-format stream-json "Execute this MANDATORY refinement process:
+
+1. **READ DISTILL REPORT FROM ./distill-report.md**:
+   - Read ./distill-report.md (repository root) completely
+   - Check if there are any <!-- USER INPUT START --> ... <!-- USER INPUT END --> blocks
+   - If present, parse the user's decisions/instructions from between these tags
+
+2. **APPLY USER DECISIONS TO KNOWLEDGE FILES (if any)**:
+   - If user input blocks exist, apply the requested changes to the appropriate files
+   - Knowledge files are in .claude/knowledge/ (various topic .md files)
+   - Special files: KNOWLEDGE_MAP.md (user index) and KNOWLEDGE_MAP_CLAUDE.md (Claude index)
+   - DO NOT DELETE either KNOWLEDGE_MAP, we want both the markdown-link and claude-reference versions
+   - Make precise edits based on user instructions
+   - If changes affect the knowledge maps, update both consistently
+
+3. **DELETE THE REPORT**:
+   - After successfully applying any refinements (or if only auto-fixes), delete ./distill-report.md
+   - This indicates the refinement session is complete
+
+4. **VERIFICATION**:
+   - If user decisions were applied, ensure all changes were applied correctly
+   - Verify consistency between KNOWLEDGE_MAP.md and KNOWLEDGE_MAP_CLAUDE.md if modified
+   - Report completion status and list of files modified (if any)
+
+IMPORTANT: The report is at ./distill-report.md (repository root). If there are no user input blocks, just delete the report to mark completion (changes were already made during distill)." | stream_claude_output
+
+  if [ $? -eq 0 ]; then
+    echo ""
+    echo "✨ Refinement complete!"
+    
+    # Check if distill-report.md was deleted (indicates successful completion)
+    if [ ! -f "./distill-report.md" ]; then
+      echo -e "${GREEN}✅ Distill report cleaned up after successful refinement${NC}"
+    fi
+    
+    echo ""
+    echo "📜 Committing refined documentation..."
+    git add .
+    git commit -m "🎯 Apply user-guided documentation refinements"
+    echo ""
+    echo -e "${GREEN}🔥 All refinements applied successfully!${NC}"
+  else
+    echo ""
+    echo -e "${RED}💀 Refinement failed! Check the output above for errors.${NC}"
+    exit 1
+  fi
+}
+
+# Main command dispatcher
+case "$1" in
+  "coalesce")
+    shift
+    run_coalesce "$@"
+    ;;
+  "distill")
+    if [ "$2" = "refine" ]; then
+      shift 2
+      run_distill_refine "$@"
+    else
+      shift
+      run_distill "$@"
+    fi
+    ;;
+  "help"|"--help"|"-h"|"")
+    show_help
+    ;;
+  *)
+    echo -e "${RED}❌ Unknown command: $1${NC}"
+    echo ""
+    show_help
+    exit 1
+    ;;
+esac

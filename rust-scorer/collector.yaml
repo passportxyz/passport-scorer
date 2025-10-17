@@ -1,0 +1,30 @@
+# AWS Distro for OpenTelemetry Collector Configuration for Lambda
+# This configuration file tells the ADOT layer how to process and export telemetry data
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+
+exporters:
+  debug:
+    verbosity: detailed
+  awsxray:
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [awsxray, debug]
+    metrics:
+      receivers: [otlp]
+      exporters: [debug]
+  telemetry:
+    logs:
+      level: debug
+    metrics:
+      level: none
+      address: localhost:8888

@@ -174,6 +174,45 @@ jobs:
           dockerfile_name: ./verifier/Dockerfile
           build_dir: ./verifier/
 
+  build-rust-scorer:
+    name: Build Rust scorer Lambda zip
+    # Use native ARM64 runner for faster builds (free in public repos)
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      artifact_name: ${{ steps.build.outputs.artifact_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.refspec }}
+          fetch-depth: 0
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.11.0
+      - name: Setup cargo-lambda
+        uses: jaxxstorm/action-install-gh-release@v1.12.0
+        with:
+          repo: cargo-lambda/cargo-lambda
+          platform: linux
+          arch: aarch64
+      - name: Build Lambda zip
+        id: build
+        working-directory: ./rust-scorer
+        run: |
+          make build-lambda
+          echo "artifact_name=rust-scorer-${{ inputs.docker_tag }}.zip" >> $GITHUB_OUTPUT
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-scorer-${{ inputs.docker_tag }}.zip
+          path: ./rust-scorer/target/lambda/passport-scorer/bootstrap.zip
+          retention-days: 1
+
   build-app:
     name: Build App
     uses: ./.github/workflows/sync_to_s3_generic_build_app.yml
@@ -344,6 +383,7 @@ jobs:
         docker-indexer,
         docker-lambda,
         docker-verifier,
+        build-rust-scorer,
         deploy_preview,
         deploy_confirm,
       ]
@@ -394,6 +434,11 @@ jobs:
           AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v3
+      - name: Download Rust scorer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-scorer-${{ inputs.docker_tag }}.zip
+          path: ./rust-scorer-artifact/
       - name: Deploy Review
         uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v3
         with:
