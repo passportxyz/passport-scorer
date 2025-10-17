@@ -4,7 +4,6 @@ use pbkdf2::hmac::Hmac;
 use base64::{Engine as _, engine::general_purpose};
 use constant_time_eq::constant_time_eq;
 use sqlx::{PgPool, Postgres, Transaction};
-use std::env;
 use tracing::{debug, info, warn};
 
 use crate::db::errors::{DatabaseError, Result};
@@ -112,18 +111,6 @@ pub fn extract_prefix(key: &str) -> &str {
     }
 }
 
-/// Check if the provided key matches one of the demo aliases
-fn is_demo_alias(key: &str) -> bool {
-    // In production, these would come from environment
-    let demo_aliases = vec!["demo", "test", "sandbox"];
-    demo_aliases.contains(&key)
-}
-
-/// Get demo API key from environment
-fn get_demo_key() -> Option<String> {
-    env::var("DEMO_API_KEY").ok()
-}
-
 pub struct ApiKeyValidator;
 
 impl ApiKeyValidator {
@@ -168,18 +155,9 @@ impl ApiKeyValidator {
                 "No API key provided".to_string()
             ));
         };
-        
-        // Check for demo aliases and replace with actual demo key
-        let final_key = if is_demo_alias(&api_key) {
-            get_demo_key().ok_or_else(|| DatabaseError::InvalidData(
-                "Demo key not configured".to_string()
-            ))?
-        } else {
-            api_key
-        };
-        
+
         // Extract prefix for database lookup
-        let prefix = extract_prefix(&final_key);
+        let prefix = extract_prefix(&api_key);
         tracing::Span::current().record("api_key_prefix", prefix);
         
         // Look up API key by prefix
@@ -228,7 +206,7 @@ impl ApiKeyValidator {
         // Verify the full key hash with SHA-256 fast path and PBKDF2 fallback
         debug!("Verifying API key hash");
         let verification_result = verify_api_key(
-            &final_key,
+            &api_key,
             &stored_key.hashed_key,
             stored_key.hashed_key_sha256.as_deref(),
         );
@@ -239,7 +217,7 @@ impl ApiKeyValidator {
             }
             VerificationResult::ValidPbkdf2NeedsMigration => {
                 // Slow path succeeded - migrate to SHA-256 asynchronously
-                let sha256_hash = hash_key_sha256(&final_key);
+                let sha256_hash = hash_key_sha256(&api_key);
                 let api_key_id = stored_key.id.clone();
 
                 // Spawn migration task (fire and forget - don't block the request)
@@ -515,12 +493,5 @@ mod tests {
         assert_eq!(extract_prefix("abcd1234.secret"), "abcd1234");
         assert_eq!(extract_prefix("test"), "test");
         assert_eq!(extract_prefix("12345678901"), "12345678");
-    }
-
-    #[test]
-    fn test_demo_aliases() {
-        assert!(is_demo_alias("demo"));
-        assert!(is_demo_alias("test"));
-        assert!(!is_demo_alias("production"));
     }
 }
