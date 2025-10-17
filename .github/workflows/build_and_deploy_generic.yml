@@ -294,6 +294,7 @@ jobs:
 
   deploy_preview:
     name: Preview - Deploying AWS Infra
+    needs: [build-rust-scorer]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -341,6 +342,11 @@ jobs:
           AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v3
+      - name: Download Rust scorer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-scorer-${{ inputs.docker_tag }}.zip
+          path: ./rust-scorer-artifact/
       - name: Deploy Preview
         uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v3
         with:
