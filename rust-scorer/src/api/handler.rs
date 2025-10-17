@@ -1,10 +1,9 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::HeaderMap,
     Json,
 };
 use rust_decimal::Decimal;
-use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::collections::HashMap;
 use tracing::{error, info};
@@ -25,23 +24,16 @@ use crate::human_points::processing::{
 use crate::models::v2_api::V2ScoreResponse;
 use crate::scoring::calculate_score;
 
-#[derive(Debug, Deserialize)]
-pub struct ScoreQueryParams {
-    #[serde(default)]
-    pub include_human_points: bool,
-}
 
 #[tracing::instrument(
     skip(pool, headers),
     fields(
         scorer_id = scorer_id,
-        address = %address,
-        include_human_points = params.include_human_points
+        address = %address
     )
 )]
 pub async fn score_address_handler(
     Path((scorer_id, address)): Path<(i64, String)>,
-    Query(params): Query<ScoreQueryParams>,
     State(pool): State<PgPool>,
     headers: HeaderMap,
 ) -> ApiResult<Json<V2ScoreResponse>> {
@@ -61,7 +53,6 @@ pub async fn score_address_handler(
     let result = process_score_request(
         &address,
         scorer_id,
-        params.include_human_points,
         &headers,
         &pool,
         &mut tx,
@@ -86,14 +77,12 @@ pub async fn score_address_handler(
     skip(headers, pool, tx),
     fields(
         address = %address,
-        scorer_id = scorer_id,
-        include_human_points = _include_human_points
+        scorer_id = scorer_id
     )
 )]
 async fn process_score_request(
     address: &str,
     scorer_id: i64,
-    _include_human_points: bool,  // Not used - we always include human points data
     headers: &HeaderMap,
     pool: &PgPool,
     tx: &mut Transaction<'_, Postgres>,

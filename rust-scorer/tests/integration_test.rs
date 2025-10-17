@@ -89,29 +89,6 @@ mod tests {
         assert!(error["message"].as_str().unwrap().contains("Invalid Ethereum address"));
     }
 
-    #[tokio::test]
-    async fn test_score_endpoint_with_human_points_param() {
-        let app = create_app().await.unwrap();
-
-        // This test would need a valid API key in the database
-        // For now, we're just testing that the query parameter is parsed correctly
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/v2/stamps/1/score/0x1234567890123456789012345678901234567890?include_human_points=true")
-                    .header("X-API-Key", "test_key")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        // Will fail with invalid API key, but that's ok - we're testing the param parsing
-        // The API key "test_key" doesn't exist in the database, so we expect NOT_FOUND
-        assert!(response.status() == StatusCode::NOT_FOUND || 
-                response.status() == StatusCode::UNAUTHORIZED || 
-                response.status() == StatusCode::INTERNAL_SERVER_ERROR);
-    }
 
     #[tokio::test]
     async fn test_full_scoring_flow() {
