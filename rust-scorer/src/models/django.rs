@@ -72,8 +72,8 @@ pub struct DjangoCeramicCache {
     pub stamp: Value,
     pub proof_value: String,  // CRITICAL: Used for revocation and uniqueness
     pub deleted_at: Option<DateTime<Utc>>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,  // nullable in Django
+    pub updated_at: Option<DateTime<Utc>>,  // nullable in Django
 }
 
 /// Django account_community table
