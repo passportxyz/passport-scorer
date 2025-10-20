@@ -295,7 +295,7 @@ class AccountAPIKey(AbstractAPIKey):
         max_length=71,  # "sha256$" + 64 hex chars
         null=True,
         blank=True,
-        help_text="SHA-256 hash for fast API key verification"
+        help_text="SHA-256 hash for fast API key verification",
     )
 
     def clean(self):
