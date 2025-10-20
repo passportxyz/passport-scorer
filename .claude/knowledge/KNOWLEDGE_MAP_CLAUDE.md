@@ -12,7 +12,7 @@
 
 - @gotchas/nullifier_handling.md - Python feature flags vs Rust simplifications for nullifiers
 - @gotchas/event_data_structure.md - Score update event serialization format
-- @gotchas/django_model_discrepancies.md - Confirmed Django table schema without timestamps
+- @gotchas/django_model_discrepancies.md - Confirmed Django table schema without timestamps, ceramic_cache nullable timestamps
 - @gotchas/score_calculation.md - Score calculation details, provider dedup, decimal precision
 - @gotchas/type_conversions.md - Module boundary type conversions required
 - @gotchas/scorer_id_confusion.md - API scorer_id vs database community_id naming
