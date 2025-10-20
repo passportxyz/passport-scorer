@@ -237,9 +237,9 @@ class AnalysisRateLimits(str, Enum):
 
 
 class EmbedRateLimits(str, Enum):
-    TIER_1 = "0/15m"  # No requests allowed
-    TIER_2 = "1000/15m"
-    TIER_3 = "3000/15m"
+    TIER_1 = "125/15m"
+    TIER_2 = "350/15m"
+    TIER_3 = "2000/15m"
     UNLIMITED = ""
 
     def __str__(self):
@@ -295,7 +295,7 @@ class AccountAPIKey(AbstractAPIKey):
         max_length=71,  # "sha256$" + 64 hex chars
         null=True,
         blank=True,
-        help_text="SHA-256 hash for fast API key verification"
+        help_text="SHA-256 hash for fast API key verification",
     )
 
     def clean(self):
