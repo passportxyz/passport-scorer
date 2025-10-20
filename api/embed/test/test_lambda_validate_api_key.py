@@ -70,7 +70,7 @@ class ValidateLambdaValidateApiKeyTestCase(TestCase):
         result = lambda_handler_get_rate_limit(event, MockContext())
 
         assert result == {
-            "body": '{"embed_rate_limit":"0/15m"}',
+            "body": '{"embed_rate_limit":"125/15m"}',
             "headers": {"Content-Type": "application/json"},
             "statusCode": 200,
         }
