@@ -11,17 +11,15 @@ from typing import Dict, List
 
 # Configuration
 API_KEY = os.environ.get("API_KEY", "")  # Your API key
-SCORER_ID = 335  # Change this to your scorer ID
-ENDPOINT = "https://api.scorer.gitcoin.co"
+SCORER_ID = 5976  # Change this to your scorer ID
+ENDPOINT = "https://api.passport.xyz"
 
 # Test addresses - replace with your own
 TEST_ADDRESSES = [
-    "0x5B79f9768Df200DF2e2c6F2d66Db37B8bF40ff23",
-    "0x433DCa92Fa20c16bCD4d19C4f395210513E6b61f",
-    "0xE4553b743E74dA3424Ac51f8C1E586fd43aE226F",
-    "0x3829c53Fc227aFF5dB0Bf99c50FBBb372eFb5d2e",
-    "0xC7aCFe1C11d43f23073E5bD0eb37D3D5bda86331",
-    # Add more addresses here
+    "0xfdccfbf37340e65982f77b2a0ac5472e61bb259b",
+    "0x73fdb219090ca5cafc9a4c94d158b626e4ea249e",
+    "0x446dc6a6f19ea9e135777c9e1bcc5e2eae9cc988",
+    "0x96DB2c6D93A8a12089f7a6EdA5464e967308AdEd",
 ]
 
 
@@ -29,10 +27,7 @@ def call_scorer(address: str, use_rust: bool = False) -> Dict:
     """Call either Python or Rust scorer endpoint"""
     url = f"{ENDPOINT}/v2/stamps/{SCORER_ID}/score/{address}"
 
-    headers = {
-        "X-API-Key": API_KEY,
-        "Content-Type": "application/json"
-    }
+    headers = {"X-API-Key": API_KEY, "Content-Type": "application/json"}
 
     if use_rust:
         headers["X-Use-Rust-Scorer"] = "true"
@@ -46,20 +41,38 @@ def call_scorer(address: str, use_rust: bool = False) -> Dict:
         return {"error": str(e)}
 
 
+def normalize_for_comparison(obj: Dict) -> Dict:
+    """Remove timestamps and normalize for comparison"""
+    normalized = obj.copy()
+    # Remove timestamp fields that will naturally differ
+    normalized.pop("last_score_timestamp", None)
+    return normalized
+
+
 def compare_scores(py: Dict, rust: Dict) -> str:
-    """Simple comparison of scores"""
-    if "error" in py:
+    """Compare entire response objects"""
+    if "error" in py and py["error"] is not None:
         return f"❌ Python error: {py['error']}"
-    if "error" in rust:
+    if "error" in rust and rust["error"] is not None:
         return f"❌ Rust error: {rust['error']}"
 
-    py_score = py.get("score", "?")
-    rust_score = rust.get("score", "?")
+    # Normalize both responses
+    py_normalized = normalize_for_comparison(py)
+    rust_normalized = normalize_for_comparison(rust)
 
-    if py_score == rust_score:
-        return f"✅ Match: {py_score}"
+    if py_normalized == rust_normalized:
+        return f"✅ Match: score={py.get('score', '?')}"
     else:
-        return f"⚠️  Mismatch: Python={py_score}, Rust={rust_score}"
+        # Find what's different
+        all_keys = set(py_normalized.keys()) | set(rust_normalized.keys())
+        diffs = []
+        for key in sorted(all_keys):
+            py_val = py_normalized.get(key)
+            rust_val = rust_normalized.get(key)
+            if py_val != rust_val:
+                diffs.append(f"{key}")
+
+        return f"⚠️  Mismatch in: {', '.join(diffs)}"
 
 
 def main():
@@ -119,12 +132,14 @@ def main():
                     print(f"\n  Stamps only in Rust: {list(only_rust)[:5]}")
 
         # Store for later analysis
-        results.append({
-            "address": address,
-            "python": py_resp,
-            "rust": rust_resp,
-            "comparison": result
-        })
+        results.append(
+            {
+                "address": address,
+                "python": py_resp,
+                "rust": rust_resp,
+                "comparison": result,
+            }
+        )
 
     # Summary
     print("\n" + "=" * 60)
