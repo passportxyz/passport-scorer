@@ -39,4 +39,4 @@ Each customization can have different dashboards displayed, allowing flexible co
 
 SVG logos are stored as text in the database with sanitization handled by the frontend.
 
-See: `api/account/models.py`, `api/account/api.py`, `app/components/TopNav/components/TopNav.tsx`
+See: `api/account/models.py`, `api/account/api.py`, `api/account/admin.py`, `app/components/TopNav/components/TopNav.tsx`, `api/account/migrations/0046_add_topnav_dashboard_fields.py`, `api/account/migrations/0047_populate_topnav_dashboards.py`
