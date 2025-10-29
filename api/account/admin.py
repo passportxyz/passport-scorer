@@ -730,6 +730,7 @@ class CustomizationAdmin(ScorerModelAdmin):
                 "fields": [
                     "show_in_top_nav",
                     "nav_order",
+                    "nav_logo",
                 ],
                 "description": "Configure whether and how this dashboard appears in the TopNav component",
             },

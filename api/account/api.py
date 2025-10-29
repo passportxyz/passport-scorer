@@ -674,7 +674,7 @@ def get_account_customization(request, dashboard_path: str):
             partner_dashboards.append({
                 "id": dashboard.path,
                 "name": dashboard.partner_name,
-                "logo": dashboard.logo_image,
+                "logo": dashboard.nav_logo,  # Use the TopNav-specific logo
                 "showInTopNav": True,  # Always true since we filtered for it
             })
 
