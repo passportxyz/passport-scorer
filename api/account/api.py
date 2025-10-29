@@ -668,6 +668,16 @@ def get_account_customization(request, dashboard_path: str):
             customization.included_chain_ids.values_list("chain_id", flat=True)
         )
 
+        # Get all dashboards that should show in TopNav, ordered by nav_order
+        partner_dashboards = []
+        for dashboard in Customization.objects.filter(show_in_top_nav=True).order_by('nav_order', 'partner_name'):
+            partner_dashboards.append({
+                "id": dashboard.path,
+                "name": dashboard.partner_name,
+                "logo": dashboard.logo_image,
+                "showInTopNav": True,  # Always true since we filtered for it
+            })
+
         return dict(
             key=customization.path,
             partnerName=customization.partner_name,
@@ -714,6 +724,7 @@ def get_account_customization(request, dashboard_path: str):
             includedChainIds=included_chain_ids,
             showExplanationPanel=customization.show_explanation_panel,
             customStamps=customization.get_custom_stamps(),
+            partnerDashboards=partner_dashboards,
         )
 
     except Customization.DoesNotExist:
