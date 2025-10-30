@@ -647,6 +647,21 @@ def handle_get_credential_definition(provider_id: str):
     }
 
 
+@api.get("/customization", auth=None)
+def get_dashboard_discovery(request):
+    """Get all dashboards available for TopNav display"""
+    partner_dashboards = []
+    for dashboard in Customization.objects.filter(show_in_top_nav=True).order_by('nav_order', 'partner_name'):
+        partner_dashboards.append({
+            "id": dashboard.path,
+            "name": dashboard.partner_name,
+            "logo": dashboard.nav_logo,
+            "showInTopNav": dashboard.show_in_top_nav,
+        })
+
+    return {"partnerDashboards": partner_dashboards}
+
+
 @api.get("/customization/{dashboard_path}/", auth=None)
 def get_account_customization(request, dashboard_path: str):
     try:
@@ -674,7 +689,7 @@ def get_account_customization(request, dashboard_path: str):
             partner_dashboards.append({
                 "id": dashboard.path,
                 "name": dashboard.partner_name,
-                "logo": dashboard.nav_logo,  # Use the TopNav-specific logo
+                "logo": dashboard.nav_logo,
                 "showInTopNav": True,  # Always true since we filtered for it
             })
 
