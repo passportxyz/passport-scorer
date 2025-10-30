@@ -3,6 +3,7 @@
 ## 🏗️ Architecture
 
 - @architecture/scoring_flow.md - V2 API scoring endpoint flow, event recording, Rust migration complete
+- @architecture/partner_dashboards.md - Dashboard discovery system and TopNav integration
 
 ## 🎨 Patterns
 
@@ -29,6 +30,7 @@
 - @api/database_signatures.md - Database operation signature alignment
 - @api/error_handling.md - HTTP status code mapping
 - @api/api_key_performance_optimization.md - SHA-256 fast path implementation in Python and Rust
+- @api/topnav_dashboard_discovery.md - Dashboard discovery API for TopNav component
 
 ## 💾 Database
 
