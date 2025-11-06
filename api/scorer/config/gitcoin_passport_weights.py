@@ -2,12 +2,14 @@
 
 # Weight values for each stamp based on its perceived significance in assessing the unique humanity of the Passport holder
 GITCOIN_PASSPORT_WEIGHTS = {
+    "Biometrics": "6.001",
     "BinanceBABT": "16.021",
     "BinanceBABT2": "10.021",
     "Brightid": "0.202",
     "CivicCaptchaPass": "0.823",
     "CivicLivenessPass": "3.038",
     "CivicUniquenessPass": "5.005",
+    "CleanHands": "3",
     "CoinbaseDualVerification": "16.042",
     "CoinbaseDualVerification2": "10.042",
     "Discord": "0.516",
