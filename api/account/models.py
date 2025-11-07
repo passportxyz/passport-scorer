@@ -612,6 +612,21 @@ class Customization(models.Model):
         default=True, help_text="Toggle to show or hide the middle component"
     )
 
+    # TopNav Dashboard Discovery fields
+    show_in_top_nav = models.BooleanField(
+        default=False,
+        help_text="Whether this dashboard should appear in the TopNav component"
+    )
+    nav_order = models.IntegerField(
+        default=0,
+        help_text="Order in which this dashboard appears in TopNav (lower numbers appear first)"
+    )
+    nav_logo = models.TextField(
+        null=True,
+        blank=True,
+        help_text="SVG logo specifically for TopNav display"
+    )
+
     def get_customization_dynamic_weights(self) -> dict:
         weights = {}
         for allow_list in self.allow_lists.all():

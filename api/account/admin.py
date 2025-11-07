@@ -724,6 +724,18 @@ class CustomizationAdmin(ScorerModelAdmin):
             },
         ),
         (
+            "TopNav Configuration",
+            {
+                "classes": ["collapse"],
+                "fields": [
+                    "show_in_top_nav",
+                    "nav_order",
+                    "nav_logo",
+                ],
+                "description": "Configure whether and how this dashboard appears in the TopNav component",
+            },
+        ),
+        (
             "Colors",
             {
                 "classes": ["collapse"],
@@ -764,6 +776,8 @@ class CustomizationAdmin(ScorerModelAdmin):
         "display",
         "id",
         "path",
+        "show_in_top_nav",
+        "nav_order",
         "use_custom_dashboard_panel",
         "scorer",
         "show_explanation_panel",
