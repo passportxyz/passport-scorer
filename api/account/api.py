@@ -659,7 +659,16 @@ def get_dashboard_discovery(request):
             "showInTopNav": dashboard.show_in_top_nav,
         })
 
-    return {"partnerDashboards": partner_dashboards}
+    # Import StampMetadata here to avoid circular imports
+    from registry.weight_models import StampMetadata
+
+    # Get stamp metadata for all stamps
+    stamp_metadata = StampMetadata.get_all_metadata_dict()
+
+    return {
+        "partnerDashboards": partner_dashboards,
+        "stampMetadata": stamp_metadata,
+    }
 
 
 @api.get("/customization/{dashboard_path}/", auth=None)
