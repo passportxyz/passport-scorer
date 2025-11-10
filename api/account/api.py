@@ -693,6 +693,12 @@ def get_account_customization(request, dashboard_path: str):
                 "showInTopNav": True,  # Always true since we filtered for it
             })
 
+        # Import StampMetadata here to avoid circular imports
+        from registry.weight_models import StampMetadata
+
+        # Get stamp metadata for all stamps
+        stamp_metadata = StampMetadata.get_all_metadata_dict()
+
         return dict(
             key=customization.path,
             partnerName=customization.partner_name,
@@ -740,6 +746,7 @@ def get_account_customization(request, dashboard_path: str):
             showExplanationPanel=customization.show_explanation_panel,
             customStamps=customization.get_custom_stamps(),
             partnerDashboards=partner_dashboards,
+            stampMetadata=stamp_metadata,
         )
 
     except Customization.DoesNotExist:
