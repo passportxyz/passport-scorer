@@ -31,7 +31,11 @@ from registry.models import (
     Score,
     Stamp,
 )
-from registry.weight_models import WeightConfiguration, WeightConfigurationItem
+from registry.weight_models import (
+    StampMetadata,
+    WeightConfiguration,
+    WeightConfigurationItem,
+)
 from scorer.scorer_admin import ScorerModelAdmin
 
 ONE_HOUR = 60 * 60
@@ -473,6 +477,15 @@ class WeightConfigurationAdmin(admin.ModelAdmin):
 
 
 admin.site.register(WeightConfigurationItem)
+
+
+@admin.register(StampMetadata)
+class StampMetadataAdmin(ScorerModelAdmin):
+    list_display = ["provider", "is_beta"]
+    list_filter = ["is_beta"]
+    search_fields = ["provider"]
+    ordering = ["provider"]
+    list_editable = ["is_beta"]  # Allow inline editing of beta flag
 
 
 @admin.register(HumanPointsCommunityQualifiedUsers)

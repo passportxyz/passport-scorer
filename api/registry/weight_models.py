@@ -4,6 +4,49 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
+class StampMetadata(models.Model):
+    """
+    Global metadata for stamp providers.
+
+    Phase 2 TODO: This will become the source of truth for stamp providers,
+    with WeightConfigurationItem referencing this via ForeignKey.
+    """
+
+    provider = models.CharField(
+        max_length=100,
+        unique=True,
+        db_index=True,
+        help_text="The provider name that matches the stamp provider field",
+    )
+
+    is_beta = models.BooleanField(
+        default=False,
+        help_text="Whether this stamp should display a beta badge in the UI",
+    )
+
+    class Meta:
+        ordering = ["provider"]
+        verbose_name = "Stamp Metadata"
+        verbose_name_plural = "Stamp Metadata"
+
+    def __str__(self):
+        beta_indicator = " (BETA)" if self.is_beta else ""
+        return f"{self.provider}{beta_indicator}"
+
+    @classmethod
+    def get_all_metadata_dict(cls):
+        """
+        Returns a dictionary of all stamp metadata keyed by provider.
+        Useful for bulk fetching in API responses.
+        """
+        metadata = {}
+        for item in cls.objects.all():
+            metadata[item.provider] = {
+                "isBeta": item.is_beta,
+            }
+        return metadata
+
+
 class WeightConfiguration(models.Model):
     version = models.CharField(
         max_length=50,
@@ -56,6 +99,17 @@ class WeightConfigurationItem(models.Model):
     provider = models.CharField(max_length=100)
     weight = models.FloatField(
         validators=[MinValueValidator(0.0), MaxValueValidator(100)]
+    )
+
+    # Phase 1: Add nullable ForeignKey to StampMetadata
+    # Phase 2 TODO: Make this non-nullable after data migration
+    stamp_metadata = models.ForeignKey(
+        StampMetadata,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="weight_configs",
+        help_text="Link to stamp metadata (Phase 2: will become required)",
     )
 
     class Meta:
