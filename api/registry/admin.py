@@ -31,7 +31,11 @@ from registry.models import (
     Score,
     Stamp,
 )
-from registry.weight_models import StampMetadata, WeightConfiguration, WeightConfigurationItem
+from registry.weight_models import (
+    StampMetadata,
+    WeightConfiguration,
+    WeightConfigurationItem,
+)
 from scorer.scorer_admin import ScorerModelAdmin
 
 ONE_HOUR = 60 * 60

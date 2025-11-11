@@ -16,16 +16,16 @@ class StampMetadata(models.Model):
         max_length=100,
         unique=True,
         db_index=True,
-        help_text="The provider name that matches the stamp provider field"
+        help_text="The provider name that matches the stamp provider field",
     )
 
     is_beta = models.BooleanField(
         default=False,
-        help_text="Whether this stamp should display a beta badge in the UI"
+        help_text="Whether this stamp should display a beta badge in the UI",
     )
 
     class Meta:
-        ordering = ['provider']
+        ordering = ["provider"]
         verbose_name = "Stamp Metadata"
         verbose_name_plural = "Stamp Metadata"
 
@@ -109,7 +109,7 @@ class WeightConfigurationItem(models.Model):
         null=True,
         blank=True,
         related_name="weight_configs",
-        help_text="Link to stamp metadata (Phase 2: will become required)"
+        help_text="Link to stamp metadata (Phase 2: will become required)",
     )
 
     class Meta:
