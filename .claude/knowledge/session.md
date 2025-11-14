@@ -101,3 +101,19 @@ If the priorities were reversed, the less specific Python rules would match firs
 **Files**: infra/aws/v2/rust-scorer.ts, infra/aws/embed/index.ts
 ---
 
+### [18:55] [gotcha] AWS target groups cannot span multiple load balancers
+**Details**: AWS does not allow a single Lambda target group to be associated with more than one Application Load Balancer. When the same Lambda needs to serve requests from multiple ALBs (e.g., public and internal/private ALBs), you must create separate target groups for each ALB.
+
+Solution:
+- Create one target group per ALB
+- Attach the same Lambda function to both target groups (with separate permissions)
+- Use the appropriate target group ARN in listener rules for each ALB
+
+For the Rust scorer:
+- rustScorerTargetGroup (l-passport-v2-rust-scorer) - for public ALB endpoints (v2/stamps, ceramic-cache)
+- rustScorerInternalTargetGroup (l-passport-v2-rust-scorer-int) - for internal ALB endpoints (embed)
+
+Error message: "TargetGroupAssociationLimit: The following target groups cannot be associated with more than one load balancer"
+**Files**: infra/aws/v2/rust-scorer.ts
+---
+

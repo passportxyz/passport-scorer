@@ -131,7 +131,7 @@ export function createRustScorerLambda({
     }
   );
 
-  // Create Lambda target group (reused for all routes)
+  // Create Lambda target group for public ALB (v2 and ceramic-cache endpoints)
   const rustScorerTargetGroup = new aws.lb.TargetGroup("l-passport-v2-rust-scorer", {
     name: "l-passport-v2-rust-scorer",
     targetType: "lambda",
@@ -271,6 +271,36 @@ export function createRustScorerLambda({
   // Note: Using priorities 2090-2093 (LOWER than Python's 2100-2103) so these more specific
   // rules (with X-Use-Rust-Scorer header) are evaluated first
   if (internalHttpsListener) {
+    // Create separate target group for internal ALB (AWS doesn't allow same target group on multiple ALBs)
+    const rustScorerInternalTargetGroup = new aws.lb.TargetGroup("l-passport-v2-rust-scorer-internal", {
+      name: "l-passport-v2-rust-scorer-int",
+      targetType: "lambda",
+      tags: { ...defaultTags, Name: "l-passport-v2-rust-scorer-internal" },
+    });
+
+    // Grant internal ALB permission to invoke the Lambda
+    const rustScorerInternalLambdaPermission = new aws.lambda.Permission(
+      "withLb-passport-v2-rust-scorer-internal",
+      {
+        action: "lambda:InvokeFunction",
+        function: rustScorerLambda.name,
+        principal: "elasticloadbalancing.amazonaws.com",
+        sourceArn: rustScorerInternalTargetGroup.arn,
+      }
+    );
+
+    // Attach Lambda to internal target group
+    const rustScorerInternalTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
+      "lambdaTargetGroupAttachment-passport-v2-rust-scorer-internal",
+      {
+        targetGroupArn: rustScorerInternalTargetGroup.arn,
+        targetId: rustScorerLambda.arn,
+      },
+      {
+        dependsOn: [rustScorerInternalLambdaPermission],
+      }
+    );
+
     new aws.lb.ListenerRule("lrule-rust-embed-stamps", {
       tags: { ...defaultTags, Name: "lrule-rust-embed-stamps" },
       listenerArn: internalHttpsListener.arn,
@@ -278,7 +308,7 @@ export function createRustScorerLambda({
       actions: [
         {
           type: "forward",
-          targetGroupArn: rustScorerTargetGroup.arn,
+          targetGroupArn: rustScorerInternalTargetGroup.arn,
         },
       ],
       conditions: [
@@ -308,7 +338,7 @@ export function createRustScorerLambda({
       actions: [
         {
           type: "forward",
-          targetGroupArn: rustScorerTargetGroup.arn,
+          targetGroupArn: rustScorerInternalTargetGroup.arn,
         },
       ],
       conditions: [
@@ -338,7 +368,7 @@ export function createRustScorerLambda({
       actions: [
         {
           type: "forward",
-          targetGroupArn: rustScorerTargetGroup.arn,
+          targetGroupArn: rustScorerInternalTargetGroup.arn,
         },
       ],
       conditions: [
