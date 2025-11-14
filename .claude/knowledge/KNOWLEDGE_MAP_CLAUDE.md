@@ -24,6 +24,7 @@
 - @gotchas/trusted_iam_issuers.md - Environment variable loading with OnceLock caching
 - @gotchas/api_key_hashing_performance.md - PBKDF2 performance problem and solution
 - @gotchas/django_conn_max_age_lambda.md - Connection management issues with Lambda and RDS Proxy
+- @gotchas/ceramic_cache_v2_never_implemented.md - V1 stamps only, V2 was abandoned
 
 ## 🔌 API
 
