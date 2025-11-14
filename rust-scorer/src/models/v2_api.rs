@@ -27,6 +27,10 @@ pub struct V2ScoreResponse {
     pub possible_points_data: Option<PointsData>,
 }
 
+/// Internal score response type alias - includes human points data when available
+/// This matches Python's InternalV2ScoreResponse which extends V2ScoreResponse
+pub type InternalV2ScoreResponse = V2ScoreResponse;
+
 /// Human Points data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PointsData {
@@ -80,6 +84,12 @@ pub struct GetStampsWithV2ScoreResponse {
     pub score: V2ScoreResponse,
 }
 
+/// Internal response for ceramic-cache endpoints that includes stamps + score with human points
+/// This matches Python's GetStampsWithInternalV2ScoreResponse
+/// Since InternalV2ScoreResponse is a type alias of V2ScoreResponse, this is effectively the same
+/// as GetStampsWithV2ScoreResponse, but we keep the naming for clarity
+pub type GetStampsWithInternalV2ScoreResponse = GetStampsWithV2ScoreResponse;
+
 /// Cached stamp response (subset of ceramic cache fields)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachedStampResponse {
@@ -100,4 +110,15 @@ pub struct AccountAPIKeySchema {
 pub struct AddStampsPayload {
     pub scorer_id: i64,
     pub stamps: Vec<Value>,
+}
+
+/// Payload for ceramic-cache stamp operations (POST/PATCH/DELETE)
+/// Matches Python's CacheStampPayload schema
+#[derive(Debug, Clone, Deserialize)]
+pub struct CacheStampPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+    pub provider: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stamp: Option<Value>,
 }
