@@ -72,8 +72,15 @@ pub struct DjangoCeramicCache {
     pub stamp: Value,
     pub proof_value: String,  // CRITICAL: Used for revocation and uniqueness
     pub deleted_at: Option<DateTime<Utc>>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,  // Nullable with auto_now_add
     pub updated_at: DateTime<Utc>,
+    pub r#type: i32,  // 1=V1, 2=V2 (only V1 used)
+    pub compose_db_save_status: String,
+    pub compose_db_stream_id: String,
+    pub issuance_date: Option<DateTime<Utc>>,
+    pub expiration_date: Option<DateTime<Utc>>,
+    pub source_app: Option<i32>,  // 1=PASSPORT, 2=EMBED
+    pub source_scorer_id: Option<i64>,
 }
 
 /// Django account_community table
@@ -118,6 +125,7 @@ pub struct DjangoApiKey {
     pub create_scorers: bool,
     pub created: DateTime<Utc>,
     pub expiry_date: Option<DateTime<Utc>>,
+    pub embed_rate_limit: Option<String>,  // Rate limit tier for embed endpoints
 }
 
 /// Django registry_humanpoints table (Human Points)

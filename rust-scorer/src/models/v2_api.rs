@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 
 /// Individual stamp score in V2 API response
@@ -69,4 +70,34 @@ impl V2ScoreResponse {
             possible_points_data: None,
         }
     }
+}
+
+/// Response for embed endpoints that return stamps + score
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetStampsWithV2ScoreResponse {
+    pub success: bool,
+    pub stamps: Vec<CachedStampResponse>,
+    pub score: V2ScoreResponse,
+}
+
+/// Cached stamp response (subset of ceramic cache fields)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CachedStampResponse {
+    pub id: i64,
+    pub address: String,
+    pub provider: String,
+    pub stamp: Value,
+}
+
+/// API Key schema for embed validate endpoint
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountAPIKeySchema {
+    pub embed_rate_limit: Option<String>,
+}
+
+/// Payload for add stamps endpoint
+#[derive(Debug, Clone, Deserialize)]
+pub struct AddStampsPayload {
+    pub scorer_id: i64,
+    pub stamps: Vec<Value>,
 }
