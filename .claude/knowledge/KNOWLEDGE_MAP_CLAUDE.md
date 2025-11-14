@@ -4,6 +4,8 @@
 
 - @architecture/scoring_flow.md - V2 API scoring endpoint flow, event recording, Rust migration complete
 - @architecture/partner_dashboards.md - Dashboard discovery system and TopNav integration
+- @architecture/api_endpoint_map.md - Complete map of all scoring-related endpoints and Lambda functions
+- @architecture/ceramic_cache_scoring.md - Integration points and migration strategy
 
 ## 🎨 Patterns
 
@@ -21,6 +23,7 @@
 - @gotchas/performance_analysis.md - Flamegraphs vs distributed tracing for I/O-bound services
 - @gotchas/trusted_iam_issuers.md - Environment variable loading with OnceLock caching
 - @gotchas/api_key_hashing_performance.md - PBKDF2 performance problem and solution
+- @gotchas/django_conn_max_age_lambda.md - Connection management issues with Lambda and RDS Proxy
 
 ## 🔌 API
 
@@ -53,3 +56,7 @@
 ## 🚀 Deployment
 
 - @deployment/lambda_infrastructure.md - Pulumi-based Lambda deployment with ALB integration
+
+## 🎯 Performance
+
+- @performance/embed_lambda_issues.md - Cold start and RDS Proxy connection acquisition problems

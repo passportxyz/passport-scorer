@@ -4,6 +4,8 @@
 
 - [Scoring Flow Architecture](architecture/scoring_flow.md) - V2 API scoring endpoint flow, event recording, Rust migration complete
 - [Partner Dashboards](architecture/partner_dashboards.md) - Dashboard discovery system and TopNav integration *(Updated: 2025-10-29)*
+- [API Endpoint Map](architecture/api_endpoint_map.md) - Complete map of all scoring-related endpoints and Lambda functions *(Added: 2025-11-14)*
+- [Ceramic Cache Scoring](architecture/ceramic_cache_scoring.md) - Integration points and migration strategy *(Added: 2025-11-14)*
 
 ## 🎨 Patterns
 
@@ -21,6 +23,7 @@
 - [Performance Analysis](gotchas/performance_analysis.md) - Flamegraphs vs distributed tracing for I/O-bound services
 - [TRUSTED_IAM_ISSUERS Configuration](gotchas/trusted_iam_issuers.md) - Environment variable loading with OnceLock caching
 - [API Key Hashing Performance](gotchas/api_key_hashing_performance.md) - PBKDF2 performance problem and solution *(Updated: 2025-10-16)*
+- [Django CONN_MAX_AGE Lambda](gotchas/django_conn_max_age_lambda.md) - Connection management issues with Lambda and RDS Proxy *(Added: 2025-11-14)*
 
 ## 🔌 API
 
@@ -53,3 +56,7 @@
 ## 🚀 Deployment
 
 - [Lambda Infrastructure](deployment/lambda_infrastructure.md) - Pulumi-based Lambda deployment with ALB integration
+
+## 🎯 Performance
+
+- [Embed Lambda Issues](performance/embed_lambda_issues.md) - Cold start and RDS Proxy connection acquisition problems *(Added: 2025-11-14)*
