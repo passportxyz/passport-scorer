@@ -25,6 +25,7 @@ export function createV2Api({
   alb,
   alarmConfigurations,
   targetGroupRegistry,
+  privateAlbHttpListenerArn,
 }: {
   httpsListener: pulumi.Output<aws.alb.Listener>;
   dockerLambdaImage: pulumi.Output<string>;
@@ -38,6 +39,7 @@ export function createV2Api({
   alb: aws.alb.LoadBalancer;
   alarmConfigurations: AlarmConfigurations;
   targetGroupRegistry: TargetGroup;
+  privateAlbHttpListenerArn?: pulumi.Output<string>;
 }) {
   const apiEnvironment = [
     ...secretsManager.getEnvironmentVars({
@@ -224,6 +226,13 @@ export function createV2Api({
 
   // Deploy Rust scorer Lambda if zip archive is provided
   if (rustScorerZipArchive) {
+    // Convert privateAlbHttpListenerArn to Listener if provided
+    const internalHttpsListener = privateAlbHttpListenerArn
+      ? privateAlbHttpListenerArn.apply(
+          (arn) => aws.lb.Listener.get("internal-alb-listener", arn)
+        )
+      : undefined;
+
     createRustScorerLambda({
       httpsListener,
       rustScorerZipArchive,
@@ -235,6 +244,7 @@ export function createV2Api({
       httpLambdaRole,
       alb,
       alarmConfigurations,
+      internalHttpsListener,
     });
   }
 }
