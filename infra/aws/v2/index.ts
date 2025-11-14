@@ -39,7 +39,7 @@ export function createV2Api({
   alb: aws.alb.LoadBalancer;
   alarmConfigurations: AlarmConfigurations;
   targetGroupRegistry: TargetGroup;
-  privateAlbHttpListenerArn?: pulumi.Output<string>;
+  privateAlbHttpListenerArn?: pulumi.Input<string>;
 }) {
   const apiEnvironment = [
     ...secretsManager.getEnvironmentVars({
@@ -228,7 +228,7 @@ export function createV2Api({
   if (rustScorerZipArchive) {
     // Convert privateAlbHttpListenerArn to Listener if provided
     const internalHttpsListener = privateAlbHttpListenerArn
-      ? privateAlbHttpListenerArn.apply(
+      ? pulumi.output(privateAlbHttpListenerArn).apply(
           (arn) => aws.lb.Listener.get("internal-alb-listener", arn)
         )
       : undefined;

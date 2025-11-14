@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import { buildHttpLambdaFn, buildLambdaFn } from "../../lib/scorer/new_service";
+import { buildHttpLambdaFn } from "../../lib/scorer/new_service";
 import { secretsManager } from "infra-libs";
 import { stack, defaultTags } from "../../lib/tags";
 
@@ -87,33 +87,49 @@ export function createRustScorerLambda({
   ].sort(secretsManager.sortByName);
 
   // Create Rust scorer Lambda function
-  const rustScorerLambda = buildLambdaFn({
-    privateSubnetSecurityGroup,
-    vpcPrivateSubnetIds,
-    environment: apiEnvironment,
-    roleAttachments: httpRoleAttachments,
-    role: httpLambdaRole,
-    name: "passport-v2-rust-scorer",
-    memorySize: 256,
-    timeout: 30,
+  const rustScorerLambda = new aws.lambda.Function(
+    "passport-v2-rust-scorer",
+    {
+      name: "passport-v2-rust-scorer",
+      vpcConfig: {
+        securityGroupIds: [privateSubnetSecurityGroup.id],
+        subnetIds: vpcPrivateSubnetIds,
+      },
+      role: httpLambdaRole.arn,
+      timeout: 30,
+      memorySize: 256,
+      environment: {
+        variables: apiEnvironment.reduce(
+          (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+            acc[e.name] = e.value;
+            return acc;
+          },
+          {}
+        ),
+      },
+      tags: { ...defaultTags, Name: "passport-v2-rust-scorer" },
 
-    // Zip-based deployment
-    packageType: "Zip",
-    code: rustScorerZipArchive,
-    handler: "bootstrap", // Rust custom runtime handler
-    runtime: aws.lambda.Runtime.CustomAL2023,
-    architectures: ["arm64"], // Required for ARM64 binaries and OTEL layer compatibility
+      // Zip-based deployment
+      packageType: "Zip",
+      code: rustScorerZipArchive,
+      handler: "bootstrap", // Rust custom runtime handler
+      runtime: aws.lambda.Runtime.CustomAL2023,
+      architectures: ["arm64"], // Required for ARM64 binaries and OTEL layer compatibility
 
-    // AWS OTEL Lambda Layer for X-Ray integration (ARM64)
-    // Official AWS ADOT account: 901920570463 (verified at aws-otel.github.io)
-    // Latest version: aws-otel-collector-arm64-ver-0-117-0
-    // See: https://aws-otel.github.io/docs/getting-started/lambda/lambda-go/
-    layers: [
-      pulumi
-        .output(regionData)
-        .apply((region) => `arn:aws:lambda:${region.name}:901920570463:layer:aws-otel-collector-arm64-ver-0-117-0:1`),
-    ],
-  });
+      // AWS OTEL Lambda Layer for X-Ray integration (ARM64)
+      // Official AWS ADOT account: 901920570463 (verified at aws-otel.github.io)
+      // Latest version: aws-otel-collector-arm64-ver-0-117-0
+      // See: https://aws-otel.github.io/docs/getting-started/lambda/lambda-go/
+      layers: [
+        pulumi
+          .output(regionData)
+          .apply((region) => `arn:aws:lambda:${region.name}:901920570463:layer:aws-otel-collector-arm64-ver-0-117-0:1`),
+      ],
+    },
+    {
+      dependsOn: httpRoleAttachments,
+    }
+  );
 
   // Create Lambda target group (reused for all routes)
   const rustScorerTargetGroup = new aws.lb.TargetGroup("l-passport-v2-rust-scorer", {
