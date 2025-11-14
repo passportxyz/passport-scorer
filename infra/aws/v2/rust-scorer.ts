@@ -268,41 +268,13 @@ export function createRustScorerLambda({
   });
 
   // 3. Embed endpoints (header-based routing on internal ALB if available)
+  // Note: Using priorities 2090-2093 (LOWER than Python's 2100-2103) so these more specific
+  // rules (with X-Use-Rust-Scorer header) are evaluated first
   if (internalHttpsListener) {
-    new aws.lb.ListenerRule("lrule-rust-embed-validate-api-key", {
-      tags: { ...defaultTags, Name: "lrule-rust-embed-validate-api-key" },
-      listenerArn: internalHttpsListener.arn,
-      priority: 2101,
-      actions: [
-        {
-          type: "forward",
-          targetGroupArn: rustScorerTargetGroup.arn,
-        },
-      ],
-      conditions: [
-        {
-          pathPattern: {
-            values: ["/internal/embed/validate-api-key"],
-          },
-        },
-        {
-          httpRequestMethod: {
-            values: ["GET"],
-          },
-        },
-        {
-          httpHeader: {
-            httpHeaderName: "X-Use-Rust-Scorer",
-            values: ["true"],
-          },
-        },
-      ],
-    });
-
     new aws.lb.ListenerRule("lrule-rust-embed-stamps", {
       tags: { ...defaultTags, Name: "lrule-rust-embed-stamps" },
       listenerArn: internalHttpsListener.arn,
-      priority: 2100,
+      priority: 2090,
       actions: [
         {
           type: "forward",
@@ -329,10 +301,40 @@ export function createRustScorerLambda({
       ],
     });
 
+    new aws.lb.ListenerRule("lrule-rust-embed-validate-api-key", {
+      tags: { ...defaultTags, Name: "lrule-rust-embed-validate-api-key" },
+      listenerArn: internalHttpsListener.arn,
+      priority: 2091,
+      actions: [
+        {
+          type: "forward",
+          targetGroupArn: rustScorerTargetGroup.arn,
+        },
+      ],
+      conditions: [
+        {
+          pathPattern: {
+            values: ["/internal/embed/validate-api-key"],
+          },
+        },
+        {
+          httpRequestMethod: {
+            values: ["GET"],
+          },
+        },
+        {
+          httpHeader: {
+            httpHeaderName: "X-Use-Rust-Scorer",
+            values: ["true"],
+          },
+        },
+      ],
+    });
+
     new aws.lb.ListenerRule("lrule-rust-embed-score", {
       tags: { ...defaultTags, Name: "lrule-rust-embed-score" },
       listenerArn: internalHttpsListener.arn,
-      priority: 2103,
+      priority: 2093,
       actions: [
         {
           type: "forward",
