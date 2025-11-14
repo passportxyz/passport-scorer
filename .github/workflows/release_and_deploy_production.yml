@@ -23,19 +23,20 @@ jobs:
       docker_tag: ${{ steps.ref.outputs.docker_tag }}
       refspec: ${{ steps.ref.outputs.refspec }}
 
-  test:
-    name: Test
-    needs: [ref]
-    uses: ./.github/workflows/test_generic.yml
-    with:
-      refspec: ${{ needs.ref.outputs.refspec }}
-      environment: review
-    secrets: inherit
+  # TODO: Uncomment test step when needed
+  # test:
+  #   name: Test
+  #   needs: [ref]
+  #   uses: ./.github/workflows/test_generic.yml
+  #   with:
+  #     refspec: ${{ needs.ref.outputs.refspec }}
+  #     environment: review
+  #   secrets: inherit
 
   create-draft-release:
     name: Create Draft Release
     runs-on: ubuntu-latest
-    needs: [test, ref]
+    needs: [ref]
     permissions: write-all
     steps:
       - name: Release
@@ -79,55 +80,57 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           branch: staging-interface
 
-  deploy-production:
-    name: Deploy to Production
-    needs: [ref, deploy-staging, deploy-interface-to-staging]
-    uses: ./.github/workflows/build_and_deploy_generic.yml
-    with:
-      refspec: ${{ needs.ref.outputs.refspec }}
-      docker_tag: ${{ needs.ref.outputs.docker_tag }}
-      environment: production
-    secrets: inherit
+  # TODO: Uncomment production deployment when needed
+  # deploy-production:
+  #   name: Deploy to Production
+  #   needs: [ref, deploy-staging, deploy-interface-to-staging]
+  #   uses: ./.github/workflows/build_and_deploy_generic.yml
+  #   with:
+  #     refspec: ${{ needs.ref.outputs.refspec }}
+  #     docker_tag: ${{ needs.ref.outputs.docker_tag }}
+  #     environment: production
+  #   secrets: inherit
 
-  deploy-interface-to-production:
-    # TODO (#106): remove this after deploy to S3 is final
-    name: Push code to branch
-    needs: [ref, deploy-production]
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ needs.ref.outputs.refspec }}
-          fetch-depth: 0
-      - id: push-to-branch
-        uses: passportxyz/gh-workflows/.github/actions/push_to_branch@v3
-        with:
-          commit: ${{ needs.ref.outputs.refspec }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          branch: production-interface
+  # deploy-interface-to-production:
+  #   # TODO (#106): remove this after deploy to S3 is final
+  #   name: Push code to branch
+  #   needs: [ref, deploy-production]
+  #   permissions:
+  #     contents: write
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+  #       with:
+  #         ref: ${{ needs.ref.outputs.refspec }}
+  #         fetch-depth: 0
+  #     - id: push-to-branch
+  #       uses: passportxyz/gh-workflows/.github/actions/push_to_branch@v3
+  #       with:
+  #         commit: ${{ needs.ref.outputs.refspec }}
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #         branch: production-interface
 
-  release:
-    name: Release
-    needs:
-      [
-        ref,
-        create-draft-release,
-        deploy-production,
-        deploy-interface-to-production,
-      ]
-    permissions: write-all
-    runs-on: ubuntu-latest
-    steps:
-      - name: Release
-        # https://github.com/ncipollo/release-action
-        uses: ncipollo/release-action@v1
-        with:
-          allowUpdates: true
-          omitBodyDuringUpdate: true
-          token: ${{ secrets.github_token }}
-          tag: ${{ needs.ref.outputs.version_tag }}
-          commit: ${{ needs.ref.outputs.refspec }}
-          draft: false
+  # TODO: Uncomment final release step when needed
+  # release:
+  #   name: Release
+  #   needs:
+  #     [
+  #       ref,
+  #       create-draft-release,
+  #       deploy-production,
+  #       deploy-interface-to-production,
+  #     ]
+  #   permissions: write-all
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Release
+  #       # https://github.com/ncipollo/release-action
+  #       uses: ncipollo/release-action@v1
+  #       with:
+  #         allowUpdates: true
+  #         omitBodyDuringUpdate: true
+  #         token: ${{ secrets.github_token }}
+  #         tag: ${{ needs.ref.outputs.version_tag }}
+  #         commit: ${{ needs.ref.outputs.refspec }}
+  #         draft: false
