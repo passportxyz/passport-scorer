@@ -18,6 +18,7 @@ export function createRustScorerLambda({
   httpLambdaRole,
   alb,
   alarmConfigurations,
+  internalHttpsListener,
 }: {
   httpsListener: pulumi.Output<aws.alb.Listener>;
   rustScorerZipArchive: pulumi.asset.FileArchive;
@@ -29,6 +30,7 @@ export function createRustScorerLambda({
   httpLambdaRole: aws.iam.Role;
   alb: aws.alb.LoadBalancer;
   alarmConfigurations: any;
+  internalHttpsListener?: pulumi.Output<aws.alb.Listener>;
 }) {
   const apiEnvironment = [
     ...secretsManager.getEnvironmentVars({
@@ -84,20 +86,28 @@ export function createRustScorerLambda({
     },
   ].sort(secretsManager.sortByName);
 
-  // Deploy Rust scorer with zip-based deployment and OTEL layer
-  buildHttpLambdaFn(
+  // Create Rust scorer Lambda function
+  const rustScorerLambda = new aws.lambda.Function(
+    "passport-v2-rust-scorer",
     {
-      httpsListener,
-      privateSubnetSecurityGroup,
-      vpcPrivateSubnetIds,
-      environment: apiEnvironment,
-      roleAttachments: httpRoleAttachments,
-      role: httpLambdaRole,
-      alertTopic: pagerdutyTopic,
-      alb: alb,
       name: "passport-v2-rust-scorer",
-      memorySize: 256,
+      vpcConfig: {
+        securityGroupIds: [privateSubnetSecurityGroup.id],
+        subnetIds: vpcPrivateSubnetIds,
+      },
+      role: httpLambdaRole.arn,
       timeout: 30,
+      memorySize: 256,
+      environment: {
+        variables: apiEnvironment.reduce(
+          (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+            acc[e.name] = e.value;
+            return acc;
+          },
+          {}
+        ),
+      },
+      tags: { ...defaultTags, Name: "passport-v2-rust-scorer" },
 
       // Zip-based deployment
       packageType: "Zip",
@@ -115,17 +125,226 @@ export function createRustScorerLambda({
           .output(regionData)
           .apply((region) => `arn:aws:lambda:${region.name}:901920570463:layer:aws-otel-collector-arm64-ver-0-117-0:1`),
       ],
+    },
+    {
+      dependsOn: httpRoleAttachments,
+    }
+  );
 
-      // Header-based routing - only route to Rust when X-Use-Rust-Scorer header is present
-      httpListenerRulePaths: [
+  // Create Lambda target group for public ALB (v2 and ceramic-cache endpoints)
+  const rustScorerTargetGroup = new aws.lb.TargetGroup("l-passport-v2-rust-scorer", {
+    name: "l-passport-v2-rust-scorer",
+    targetType: "lambda",
+    tags: { ...defaultTags, Name: "l-passport-v2-rust-scorer" },
+  });
+
+  // Grant ALB permission to invoke the Lambda
+  const rustScorerLambdaPermission = new aws.lambda.Permission("withLb-passport-v2-rust-scorer", {
+    action: "lambda:InvokeFunction",
+    function: rustScorerLambda.name,
+    principal: "elasticloadbalancing.amazonaws.com",
+    sourceArn: rustScorerTargetGroup.arn,
+  });
+
+  // Attach Lambda to target group
+  const rustScorerTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
+    "lambdaTargetGroupAttachment-passport-v2-rust-scorer",
+    {
+      targetGroupArn: rustScorerTargetGroup.arn,
+      targetId: rustScorerLambda.arn,
+    },
+    {
+      dependsOn: [rustScorerLambdaPermission],
+    }
+  );
+
+  // Create listener rules for all Rust scorer endpoints
+
+  // 1. Main v2 scoring endpoint (header-based routing)
+  new aws.lb.ListenerRule("lrule-rust-v2-stamps-score", {
+    tags: { ...defaultTags, Name: "lrule-rust-v2-stamps-score" },
+    listenerArn: httpsListener.arn,
+    priority: 99,
+    actions: [
+      {
+        type: "forward",
+        targetGroupArn: rustScorerTargetGroup.arn,
+      },
+    ],
+    conditions: [
+      {
+        hostHeader: {
+          values: ["*.passport.xyz"],
+        },
+      },
+      {
+        pathPattern: {
+          values: ["/v2/stamps/*/score/*"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["GET"],
+        },
+      },
+      {
+        httpHeader: {
+          httpHeaderName: "X-Use-Rust-Scorer",
+          values: ["true"],
+        },
+      },
+    ],
+  });
+
+  // 2. Ceramic-cache endpoints (header-based routing on public ALB)
+  new aws.lb.ListenerRule("lrule-rust-ceramic-cache-stamps-bulk", {
+    tags: { ...defaultTags, Name: "lrule-rust-ceramic-cache-stamps-bulk" },
+    listenerArn: httpsListener.arn,
+    priority: 5030,
+    actions: [
+      {
+        type: "forward",
+        targetGroupArn: rustScorerTargetGroup.arn,
+      },
+    ],
+    conditions: [
+      {
+        hostHeader: {
+          values: ["*.passport.xyz"],
+        },
+      },
+      {
+        pathPattern: {
+          values: ["/ceramic-cache/stamps/bulk"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["POST"],
+        },
+      },
+      {
+        httpHeader: {
+          httpHeaderName: "X-Use-Rust-Scorer",
+          values: ["true"],
+        },
+      },
+    ],
+  });
+
+  new aws.lb.ListenerRule("lrule-rust-ceramic-cache-score", {
+    tags: { ...defaultTags, Name: "lrule-rust-ceramic-cache-score" },
+    listenerArn: httpsListener.arn,
+    priority: 5040,
+    actions: [
+      {
+        type: "forward",
+        targetGroupArn: rustScorerTargetGroup.arn,
+      },
+    ],
+    conditions: [
+      {
+        hostHeader: {
+          values: ["*.passport.xyz"],
+        },
+      },
+      {
+        pathPattern: {
+          values: ["/ceramic-cache/score/*"],
+        },
+      },
+      {
+        httpRequestMethod: {
+          values: ["GET"],
+        },
+      },
+      {
+        httpHeader: {
+          httpHeaderName: "X-Use-Rust-Scorer",
+          values: ["true"],
+        },
+      },
+    ],
+  });
+
+  // 3. Embed endpoints (header-based routing on internal ALB if available)
+  // Note: Using priorities 2090-2093 (LOWER than Python's 2100-2103) so these more specific
+  // rules (with X-Use-Rust-Scorer header) are evaluated first
+  if (internalHttpsListener) {
+    // Create separate target group for internal ALB (AWS doesn't allow same target group on multiple ALBs)
+    const rustScorerInternalTargetGroup = new aws.lb.TargetGroup("l-passport-v2-rust-scorer-internal", {
+      name: "l-passport-v2-rust-scorer-int",
+      targetType: "lambda",
+      tags: { ...defaultTags, Name: "l-passport-v2-rust-scorer-internal" },
+    });
+
+    // Grant internal ALB permission to invoke the Lambda
+    const rustScorerInternalLambdaPermission = new aws.lambda.Permission(
+      "withLb-passport-v2-rust-scorer-internal",
+      {
+        action: "lambda:InvokeFunction",
+        function: rustScorerLambda.name,
+        principal: "elasticloadbalancing.amazonaws.com",
+        sourceArn: rustScorerInternalTargetGroup.arn,
+      }
+    );
+
+    // Attach Lambda to internal target group
+    const rustScorerInternalTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
+      "lambdaTargetGroupAttachment-passport-v2-rust-scorer-internal",
+      {
+        targetGroupArn: rustScorerInternalTargetGroup.arn,
+        targetId: rustScorerLambda.arn,
+      },
+      {
+        dependsOn: [rustScorerInternalLambdaPermission],
+      }
+    );
+
+    new aws.lb.ListenerRule("lrule-rust-embed-stamps", {
+      tags: { ...defaultTags, Name: "lrule-rust-embed-stamps" },
+      listenerArn: internalHttpsListener.arn,
+      priority: 2090,
+      actions: [
         {
-          hostHeader: {
-            values: ["*.passport.xyz"],
+          type: "forward",
+          targetGroupArn: rustScorerInternalTargetGroup.arn,
+        },
+      ],
+      conditions: [
+        {
+          pathPattern: {
+            values: ["/internal/embed/stamps/*"],
           },
         },
         {
+          httpRequestMethod: {
+            values: ["POST"],
+          },
+        },
+        {
+          httpHeader: {
+            httpHeaderName: "X-Use-Rust-Scorer",
+            values: ["true"],
+          },
+        },
+      ],
+    });
+
+    new aws.lb.ListenerRule("lrule-rust-embed-validate-api-key", {
+      tags: { ...defaultTags, Name: "lrule-rust-embed-validate-api-key" },
+      listenerArn: internalHttpsListener.arn,
+      priority: 2091,
+      actions: [
+        {
+          type: "forward",
+          targetGroupArn: rustScorerInternalTargetGroup.arn,
+        },
+      ],
+      conditions: [
+        {
           pathPattern: {
-            values: ["/v2/stamps/*/score/*"],
+            values: ["/internal/embed/validate-api-key"],
           },
         },
         {
@@ -140,11 +359,38 @@ export function createRustScorerLambda({
           },
         },
       ],
-      // Higher priority (lower number) to catch before Python Lambda
-      listenerPriority: 99,
-    },
-    alarmConfigurations
-  );
+    });
+
+    new aws.lb.ListenerRule("lrule-rust-embed-score", {
+      tags: { ...defaultTags, Name: "lrule-rust-embed-score" },
+      listenerArn: internalHttpsListener.arn,
+      priority: 2093,
+      actions: [
+        {
+          type: "forward",
+          targetGroupArn: rustScorerInternalTargetGroup.arn,
+        },
+      ],
+      conditions: [
+        {
+          pathPattern: {
+            values: ["/internal/embed/score/*/*"],
+          },
+        },
+        {
+          httpRequestMethod: {
+            values: ["GET"],
+          },
+        },
+        {
+          httpHeader: {
+            httpHeaderName: "X-Use-Rust-Scorer",
+            values: ["true"],
+          },
+        },
+      ],
+    });
+  }
 
   /*
    * Future: Weighted Target Group Routing

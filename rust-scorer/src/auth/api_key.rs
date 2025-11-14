@@ -176,7 +176,8 @@ impl ApiKeyValidator {
                 read_scores,
                 create_scorers,
                 created,
-                expiry_date
+                expiry_date,
+                embed_rate_limit
             FROM account_accountapikey
             WHERE prefix = $1
                 AND revoked = false

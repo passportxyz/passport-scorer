@@ -17,7 +17,7 @@ pub async fn load_ceramic_cache(
     
     let records = sqlx::query_as::<_, DjangoCeramicCache>(
         r#"
-        SELECT 
+        SELECT
             id,
             address,
             provider,
@@ -25,7 +25,14 @@ pub async fn load_ceramic_cache(
             proof_value,
             deleted_at,
             created_at,
-            updated_at
+            updated_at,
+            type,
+            compose_db_save_status,
+            compose_db_stream_id,
+            issuance_date,
+            expiration_date,
+            source_app,
+            source_scorer_id
         FROM ceramic_cache_ceramiccache
         WHERE address = LOWER($1)
             AND deleted_at IS NULL
@@ -59,7 +66,14 @@ pub async fn get_latest_stamps_per_provider(
             proof_value,
             deleted_at,
             created_at,
-            updated_at
+            updated_at,
+            type,
+            compose_db_save_status,
+            compose_db_stream_id,
+            issuance_date,
+            expiration_date,
+            source_app,
+            source_scorer_id
         FROM ceramic_cache_ceramiccache
         WHERE address = LOWER($1)
             AND deleted_at IS NULL

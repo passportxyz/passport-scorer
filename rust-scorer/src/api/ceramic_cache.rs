@@ -1,0 +1,276 @@
+use axum::{
+    extract::{Path, State},
+    http::HeaderMap,
+    Json,
+};
+use sqlx::PgPool;
+use tracing::info;
+
+use crate::api::error::{ApiError, ApiResult};
+use crate::api::handler::{is_valid_eth_address, process_score_request};
+use crate::auth::jwt::{extract_jwt_from_header, validate_jwt_and_extract_address};
+use crate::db::ceramic_cache::{
+    bulk_insert_ceramic_cache_stamps, get_stamps_from_cache,
+    soft_delete_stamps_by_provider,
+};
+use crate::models::v2_api::{CacheStampPayload, GetStampsWithInternalV2ScoreResponse};
+
+/// Check if the request should use Rust scorer based on header
+/// Returns true if X-Use-Rust-Scorer header is present and equals "true"
+fn should_use_rust(headers: &HeaderMap) -> bool {
+    headers
+        .get("X-Use-Rust-Scorer")
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v == "true")
+        .unwrap_or(false)
+}
+
+/// Get CERAMIC_CACHE_SCORER_ID from environment with fallback to 335
+fn get_ceramic_cache_scorer_id() -> Result<i64, ApiError> {
+    std::env::var("CERAMIC_CACHE_SCORER_ID")
+        .unwrap_or_else(|_| "335".to_string())
+        .parse::<i64>()
+        .map_err(|e| ApiError::Internal(format!("Invalid CERAMIC_CACHE_SCORER_ID: {}", e)))
+}
+
+/// POST /ceramic-cache/stamps/bulk
+/// Adds stamps to ceramic cache and returns updated score with human points
+/// Authentication: JWT token with DID claim
+/// Routing: Requires X-Use-Rust-Scorer: true header
+#[tracing::instrument(
+    skip(pool, headers, payload),
+    fields(
+        endpoint = "ceramic_cache_stamps_bulk",
+        stamp_count = payload.len(),
+        has_rust_header = should_use_rust(&headers)
+    )
+)]
+pub async fn ceramic_cache_add_stamps(
+    State(pool): State<PgPool>,
+    headers: HeaderMap,
+    Json(payload): Json<Vec<CacheStampPayload>>,
+) -> ApiResult<Json<GetStampsWithInternalV2ScoreResponse>> {
+    info!("Processing ceramic-cache add stamps request");
+
+    // Check for Rust routing header
+    if !should_use_rust(&headers) {
+        tracing::debug!("X-Use-Rust-Scorer header not set, returning 404 to fall back to Python");
+        return Err(ApiError::NotFound(
+            "Rust scorer not enabled for this request".to_string(),
+        ));
+    }
+
+    // Extract and validate JWT token
+    let auth_header = headers.get("Authorization").and_then(|h| h.to_str().ok());
+    let token = extract_jwt_from_header(auth_header)?;
+    let address = validate_jwt_and_extract_address(token)?;
+
+    info!(address = %address, "JWT validated, extracted address");
+
+    // Input validation
+    if !is_valid_eth_address(&address) {
+        return Err(ApiError::BadRequest(
+            "Invalid Ethereum address format in JWT".to_string(),
+        ));
+    }
+
+    // Get scorer ID from environment
+    let scorer_id = get_ceramic_cache_scorer_id()?;
+
+    // Start transaction for ceramic cache operations
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
+
+    // 1. Extract providers for soft delete
+    let providers: Vec<String> = payload
+        .iter()
+        .map(|p| p.provider.clone())
+        .collect();
+
+    // 2. Soft delete existing stamps by provider
+    soft_delete_stamps_by_provider(&address, &providers, &mut tx).await?;
+
+    // 3. Extract stamps (only those with stamp field present)
+    let stamps: Vec<serde_json::Value> = payload
+        .iter()
+        .filter_map(|p| p.stamp.clone())
+        .collect();
+
+    // 4. Bulk insert new stamps with source_app=PASSPORT (1)
+    if !stamps.is_empty() {
+        bulk_insert_ceramic_cache_stamps(
+            &address,
+            &stamps,
+            1, // PASSPORT source_app
+            Some(scorer_id),
+            &mut tx,
+        )
+        .await?;
+    }
+
+    // Commit ceramic cache transaction
+    tx.commit()
+        .await
+        .map_err(|e| ApiError::Database(format!("Failed to commit transaction: {}", e)))?;
+
+    info!("Ceramic cache operations completed");
+
+    // 5. Score the address using existing scoring logic
+    // Create a new transaction for scoring operations
+    let mut score_tx = pool
+        .begin()
+        .await
+        .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
+
+    // Process score request (includes human points if enabled)
+    let score_response = process_score_request(
+        &address,
+        scorer_id,
+        &headers,
+        &pool,
+        &mut score_tx,
+    )
+    .await?;
+
+    // Commit scoring transaction
+    score_tx
+        .commit()
+        .await
+        .map_err(|e| ApiError::Database(format!("Failed to commit transaction: {}", e)))?;
+
+    // 6. Get updated stamps from cache
+    let cached_stamps = get_stamps_from_cache(&pool, &address).await?;
+
+    info!(stamp_count = cached_stamps.len(), "Retrieved updated stamps");
+
+    Ok(Json(GetStampsWithInternalV2ScoreResponse {
+        success: true,
+        stamps: cached_stamps,
+        score: score_response.0, // Extract V2ScoreResponse from Json wrapper
+    }))
+}
+
+/// GET /ceramic-cache/score/{address}
+/// Gets current score with stamps and human points for an address
+/// Authentication: JWT token with DID claim
+/// Routing: Requires X-Use-Rust-Scorer: true header
+#[tracing::instrument(
+    skip(pool, headers),
+    fields(
+        endpoint = "ceramic_cache_get_score",
+        address = %address,
+        has_rust_header = should_use_rust(&headers)
+    )
+)]
+pub async fn ceramic_cache_get_score(
+    Path(address): Path<String>,
+    State(pool): State<PgPool>,
+    headers: HeaderMap,
+) -> ApiResult<Json<GetStampsWithInternalV2ScoreResponse>> {
+    info!("Processing ceramic-cache get score request");
+
+    // Check for Rust routing header
+    if !should_use_rust(&headers) {
+        tracing::debug!("X-Use-Rust-Scorer header not set, returning 404 to fall back to Python");
+        return Err(ApiError::NotFound(
+            "Rust scorer not enabled for this request".to_string(),
+        ));
+    }
+
+    // Extract and validate JWT token
+    let auth_header = headers.get("Authorization").and_then(|h| h.to_str().ok());
+    let token = extract_jwt_from_header(auth_header)?;
+    let jwt_address = validate_jwt_and_extract_address(token)?;
+
+    // Validate that the address in the path matches the address in the JWT
+    let path_address = address.to_lowercase();
+    if path_address != jwt_address {
+        return Err(ApiError::Unauthorized(
+            "Address in path does not match address in JWT".to_string(),
+        ));
+    }
+
+    info!(address = %jwt_address, "JWT validated, address matches");
+
+    // Input validation
+    if !is_valid_eth_address(&jwt_address) {
+        return Err(ApiError::BadRequest(
+            "Invalid Ethereum address format".to_string(),
+        ));
+    }
+
+    // Get scorer ID from environment
+    let scorer_id = get_ceramic_cache_scorer_id()?;
+
+    // 1. Get stamps from ceramic cache
+    let cached_stamps = get_stamps_from_cache(&pool, &jwt_address).await?;
+
+    info!(stamp_count = cached_stamps.len(), "Retrieved stamps from cache");
+
+    // 2. Score the address using existing scoring logic
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
+
+    // Process score request (includes human points if enabled)
+    let score_response = process_score_request(
+        &jwt_address,
+        scorer_id,
+        &headers,
+        &pool,
+        &mut tx,
+    )
+    .await?;
+
+    // Commit transaction
+    tx.commit()
+        .await
+        .map_err(|e| ApiError::Database(format!("Failed to commit transaction: {}", e)))?;
+
+    Ok(Json(GetStampsWithInternalV2ScoreResponse {
+        success: true,
+        stamps: cached_stamps,
+        score: score_response.0, // Extract V2ScoreResponse from Json wrapper
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::HeaderValue;
+
+    #[test]
+    fn test_should_use_rust_true() {
+        let mut headers = HeaderMap::new();
+        headers.insert("X-Use-Rust-Scorer", HeaderValue::from_static("true"));
+        assert!(should_use_rust(&headers));
+    }
+
+    #[test]
+    fn test_should_use_rust_false() {
+        let mut headers = HeaderMap::new();
+        headers.insert("X-Use-Rust-Scorer", HeaderValue::from_static("false"));
+        assert!(!should_use_rust(&headers));
+    }
+
+    #[test]
+    fn test_should_use_rust_missing() {
+        let headers = HeaderMap::new();
+        assert!(!should_use_rust(&headers));
+    }
+
+    #[test]
+    fn test_should_use_rust_invalid_value() {
+        let mut headers = HeaderMap::new();
+        headers.insert("X-Use-Rust-Scorer", HeaderValue::from_static("invalid"));
+        assert!(!should_use_rust(&headers));
+    }
+
+    // Note: Environment variable tests are not included here because set_var/remove_var
+    // affect the global process environment and can't be safely tested in parallel.
+    // The get_ceramic_cache_scorer_id function is simple enough that manual testing
+    // or integration tests are sufficient.
+}

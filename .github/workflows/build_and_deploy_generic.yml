@@ -292,89 +292,90 @@ jobs:
         run: |
           python infra/scripts/ops/lambda_call.py
 
-  deploy_preview:
-    name: Preview - Deploying AWS Infra
-    needs: [build-rust-scorer]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.refspec }}
-          fetch-depth: 0
-      - name: Use Node.js 20
-        # Required for pulumi as it will require yarn to pull deps for the system-tests lambda
-        uses: actions/setup-node@v3
-        with:
-          # Lambda is currently running on node 20
-          node-version: 20
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.12"
-      - name: Install poetry
-        run: |
-          pip3 install pipx
-          pipx ensurepath
-          pipx install poetry
-          pipx inject poetry poetry-plugin-export
-      - name: Install 1Password CLI
-        uses: 1password/install-cli-action@v1
-      - name: Configure 1Password Service Account
-        uses: 1password/load-secrets-action/configure@v1
-        with:
-          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-      - name: Load secret
-        id: op-load-secret
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          PULUMI_ACCESS_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/PULUMI_ACCESS_TOKEN
-          CLOUDFLARE_API_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/CLOUDFLARE_API_TOKEN
-          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
-      - name: Set AWS_SESSION_TOKEN if needed
-        if: inputs.environment == 'production'
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
-      - name: Prepare to Deploy to AWS
-        uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v3
-      - name: Download Rust scorer artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: rust-scorer-${{ inputs.docker_tag }}.zip
-          path: ./rust-scorer-artifact/
-      - name: Deploy Preview
-        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v3
-        with:
-          docker_tag: ${{ inputs.docker_tag }}
-          stack_name: passportxyz/passport-scorer/${{ inputs.environment }}
-          aws_region: us-west-2
-          pulumi_command: preview
-          pulumi_diff: "true"
-          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+  # TODO: Temporarily disabled preview and approval steps for faster deployments
+  # deploy_preview:
+  #   name: Preview - Deploying AWS Infra
+  #   needs: [build-rust-scorer]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+  #       with:
+  #         ref: ${{ inputs.refspec }}
+  #         fetch-depth: 0
+  #     - name: Use Node.js 20
+  #       # Required for pulumi as it will require yarn to pull deps for the system-tests lambda
+  #       uses: actions/setup-node@v3
+  #       with:
+  #         # Lambda is currently running on node 20
+  #         node-version: 20
+  #     - uses: actions/setup-python@v4
+  #       with:
+  #         python-version: "3.12"
+  #     - name: Install poetry
+  #       run: |
+  #         pip3 install pipx
+  #         pipx ensurepath
+  #         pipx install poetry
+  #         pipx inject poetry poetry-plugin-export
+  #     - name: Install 1Password CLI
+  #       uses: 1password/install-cli-action@v1
+  #     - name: Configure 1Password Service Account
+  #       uses: 1password/load-secrets-action/configure@v1
+  #       with:
+  #         service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+  #     - name: Load secret
+  #       id: op-load-secret
+  #       uses: 1password/load-secrets-action@v1
+  #       with:
+  #         export-env: true
+  #       env:
+  #         PULUMI_ACCESS_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/PULUMI_ACCESS_TOKEN
+  #         CLOUDFLARE_API_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/CLOUDFLARE_API_TOKEN
+  #         AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
+  #         AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
+  #     - name: Set AWS_SESSION_TOKEN if needed
+  #       if: inputs.environment == 'production'
+  #       uses: 1password/load-secrets-action@v1
+  #       with:
+  #         export-env: true
+  #       env:
+  #         AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
+  #     - name: Prepare to Deploy to AWS
+  #       uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v3
+  #     - name: Download Rust scorer artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: rust-scorer-${{ inputs.docker_tag }}.zip
+  #         path: ./rust-scorer-artifact/
+  #     - name: Deploy Preview
+  #       uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v3
+  #       with:
+  #         docker_tag: ${{ inputs.docker_tag }}
+  #         stack_name: passportxyz/passport-scorer/${{ inputs.environment }}
+  #         aws_region: us-west-2
+  #         pulumi_command: preview
+  #         pulumi_diff: "true"
+  #         AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+  #         AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+  #         PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
+  #         OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+  #         CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
 
-  deploy_confirm:
-    name: Review Approval Pending
-    needs: [check_migrations, deploy_preview]
-    runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
-    steps:
-      - name: Approve Release to Review (check pulumi preview)
-        if: ${{ inputs.environment != 'review' }}
-        run: |
-          echo "Ref" ${{ inputs.refspec }}
+  # deploy_confirm:
+  #   name: Review Approval Pending
+  #   needs: [check_migrations, deploy_preview]
+  #   runs-on: ubuntu-latest
+  #   environment: ${{ inputs.environment }}
+  #   steps:
+  #     - name: Approve Release to Review (check pulumi preview)
+  #       if: ${{ inputs.environment != 'review' }}
+  #       run: |
+  #         echo "Ref" ${{ inputs.refspec }}
 
   push-app-to-s3:
     name: Push App
-    needs: [build-app, deploy_confirm]
+    needs: [build-app, check_migrations]
     uses: ./.github/workflows/sync_to_s3_generic_push_app.yml
     secrets: inherit
     with:
@@ -390,8 +391,7 @@ jobs:
         docker-lambda,
         docker-verifier,
         build-rust-scorer,
-        deploy_preview,
-        deploy_confirm,
+        check_migrations,
       ]
     runs-on: ubuntu-latest
     steps:

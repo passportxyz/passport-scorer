@@ -1609,6 +1609,7 @@ createV2Api({
   scorerSecret: scorerSecret,
   vpcPrivateSubnetIds: vpcPrivateSubnetIds,
   targetGroupRegistry: targetGroupRegistry,
+  privateAlbHttpListenerArn: privateAlbHttpListenerArn,
 });
 
 const pythonLambdaLayer = createPythonLambdaLayer({

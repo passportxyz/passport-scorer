@@ -80,7 +80,7 @@ pub async fn score_address_handler(
         scorer_id = scorer_id
     )
 )]
-async fn process_score_request(
+pub async fn process_score_request(
     address: &str,
     scorer_id: i64,
     headers: &HeaderMap,
@@ -358,7 +358,7 @@ async fn create_zero_score_response(
     Ok(zero_response)
 }
 
-fn is_valid_eth_address(address: &str) -> bool {
+pub fn is_valid_eth_address(address: &str) -> bool {
     // Check if it's a valid Ethereum address
     // Must be 42 characters (0x + 40 hex chars)
     if address.len() != 42 {

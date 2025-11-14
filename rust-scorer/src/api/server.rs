@@ -1,5 +1,5 @@
 use axum::{
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use sqlx::postgres::PgPoolOptions;
@@ -16,6 +16,8 @@ use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
 use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use tracing_opentelemetry::OpenTelemetryLayer;
 
+use crate::api::ceramic_cache::{ceramic_cache_add_stamps, ceramic_cache_get_score};
+use crate::api::embed::{add_stamps_handler, get_embed_score_handler, validate_api_key_handler};
 use crate::api::handler::score_address_handler;
 
 pub fn init_tracing() {
@@ -160,6 +162,28 @@ pub async fn create_app() -> Result<Router, Box<dyn std::error::Error>> {
         .route(
             "/v2/stamps/{scorer_id}/score/{address}",
             get(score_address_handler),
+        )
+        // Embed endpoints (private ALB, no authentication)
+        .route(
+            "/internal/embed/validate-api-key",
+            get(validate_api_key_handler),
+        )
+        .route(
+            "/internal/embed/stamps/{address}",
+            post(add_stamps_handler),
+        )
+        .route(
+            "/internal/embed/score/{scorer_id}/{address}",
+            get(get_embed_score_handler),
+        )
+        // Ceramic cache endpoints (JWT auth + header routing)
+        .route(
+            "/ceramic-cache/stamps/bulk",
+            post(ceramic_cache_add_stamps),
+        )
+        .route(
+            "/ceramic-cache/score/{address}",
+            get(ceramic_cache_get_score),
         )
         // Health check endpoint
         .route("/health", get(health_check))
