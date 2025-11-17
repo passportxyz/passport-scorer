@@ -164,7 +164,7 @@ export function createRustScorerLambda({
   new aws.lb.ListenerRule("lrule-rust-v2-stamps-score", {
     tags: { ...defaultTags, Name: "lrule-rust-v2-stamps-score" },
     listenerArn: httpsListener.arn,
-    priority: 99,
+    priority: 992,
     actions: [
       {
         type: "forward",
@@ -200,7 +200,7 @@ export function createRustScorerLambda({
   new aws.lb.ListenerRule("lrule-rust-ceramic-cache-stamps-bulk", {
     tags: { ...defaultTags, Name: "lrule-rust-ceramic-cache-stamps-bulk" },
     listenerArn: httpsListener.arn,
-    priority: 5030,
+    priority: 990,
     actions: [
       {
         type: "forward",
@@ -235,7 +235,7 @@ export function createRustScorerLambda({
   new aws.lb.ListenerRule("lrule-rust-ceramic-cache-score", {
     tags: { ...defaultTags, Name: "lrule-rust-ceramic-cache-score" },
     listenerArn: httpsListener.arn,
-    priority: 5040,
+    priority: 991,
     actions: [
       {
         type: "forward",
