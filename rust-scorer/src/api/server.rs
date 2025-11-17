@@ -12,7 +12,7 @@ use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter, prelude::*};
 use opentelemetry::KeyValue;
 use opentelemetry::trace::TracerProvider as _;  // Import as _ since we only need the trait methods
-use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
+use opentelemetry_sdk::{trace::{SdkTracerProvider, Sampler}, Resource};
 use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use tracing_opentelemetry::OpenTelemetryLayer;
 
@@ -91,6 +91,13 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
     let service_name = env::var("OTEL_SERVICE_NAME")
         .unwrap_or_else(|_| "rust-scorer".to_string());
 
+    // Read sampling rate from environment (default 0.01 = 1%)
+    let sampling_rate = env::var("OTEL_TRACE_SAMPLING_RATE")
+        .ok()
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap_or(0.01)
+        .clamp(0.0, 1.0);  // Ensure between 0.0 and 1.0
+
     let resource = Resource::builder()
         .with_attribute(KeyValue::new("service.name", service_name))
         .with_attribute(KeyValue::new("service.version", env!("CARGO_PKG_VERSION")))
@@ -114,8 +121,11 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
 
     let provider = SdkTracerProvider::builder()
         .with_resource(resource)
+        .with_sampler(Sampler::TraceIdRatioBased(sampling_rate))
         .with_batch_exporter(exporter)
         .build();
+
+    info!("OpenTelemetry sampling rate: {}%", sampling_rate * 100.0);
 
     Ok(provider)
 }
