@@ -4,8 +4,8 @@ use sqlx::{Postgres, Transaction, PgPool};
 use std::collections::HashMap;
 
 use crate::models::{ScoringResult, StampData, PointsData};
+use crate::models::human_points::STAMP_PROVIDER_TO_ACTION;
 use crate::db::DatabaseError;
-use super::models::STAMP_PROVIDER_TO_ACTION;
 
 /// Configuration for Human Points processing
 /// Simple struct to hold env vars

@@ -16,9 +16,17 @@ use opentelemetry_sdk::{trace::{SdkTracerProvider, Sampler}, Resource};
 use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use tracing_opentelemetry::OpenTelemetryLayer;
 
+use crate::api::handlers::{
+    external_score_handler,
+    internal_score_handler, internal_weights_handler,
+    internal_check_bans_handler, internal_check_revocations_handler,
+    internal_allow_list_handler, internal_credential_definition_handler,
+    internal_stake_gtc_handler, internal_legacy_stake_handler,
+    internal_cgrants_statistics_handler,
+};
+// TODO: Migrate these old handlers to the new architecture
 use crate::api::ceramic_cache::{ceramic_cache_add_stamps, ceramic_cache_get_score};
 use crate::api::embed::{add_stamps_handler, get_embed_score_handler, validate_api_key_handler};
-use crate::api::handler::score_address_handler;
 
 pub fn init_tracing() {
     // Check if we're in Lambda environment
@@ -168,12 +176,49 @@ pub async fn create_app() -> Result<Router, Box<dyn std::error::Error>> {
     let pool = create_connection_pool().await?;
     
     Ok(Router::new()
-        // Main v2 scoring endpoint
+        // Main v2 scoring endpoint (external, requires API key)
         .route(
             "/v2/stamps/{scorer_id}/score/{address}",
-            get(score_address_handler),
+            get(external_score_handler),
         )
-        // Embed endpoints (private ALB, no authentication)
+        // Internal endpoints (no authentication, ALB only)
+        .route(
+            "/internal/score/v2/{scorer_id}/{address}",
+            get(internal_score_handler),
+        )
+        .route(
+            "/internal/embed/weights",
+            get(internal_weights_handler),
+        )
+        .route(
+            "/internal/check-bans",
+            post(internal_check_bans_handler),
+        )
+        .route(
+            "/internal/check-revocations",
+            post(internal_check_revocations_handler),
+        )
+        .route(
+            "/internal/allow-list/{list}/{address}",
+            get(internal_allow_list_handler),
+        )
+        .route(
+            "/internal/customization/credential/{provider_id}",
+            get(internal_credential_definition_handler),
+        )
+        .route(
+            "/internal/stake/gtc/{address}",
+            get(internal_stake_gtc_handler),
+        )
+        .route(
+            "/internal/stake/legacy-gtc/{address}/{round_id}",
+            get(internal_legacy_stake_handler),
+        )
+        .route(
+            "/internal/cgrants/contributor_statistics",
+            get(internal_cgrants_statistics_handler),
+        )
+        // OLD Embed endpoints (TODO: migrate to new architecture)
         .route(
             "/internal/embed/validate-api-key",
             get(validate_api_key_handler),
@@ -186,7 +231,7 @@ pub async fn create_app() -> Result<Router, Box<dyn std::error::Error>> {
             "/internal/embed/score/{scorer_id}/{address}",
             get(get_embed_score_handler),
         )
-        // Ceramic cache endpoints (JWT auth + header routing)
+        // OLD Ceramic cache endpoints (TODO: migrate to new architecture)
         .route(
             "/ceramic-cache/stamps/bulk",
             post(ceramic_cache_add_stamps),

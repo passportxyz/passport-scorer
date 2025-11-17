@@ -4,10 +4,11 @@ use std::collections::{HashMap, HashSet};
 use sqlx::PgPool;
 
 use crate::models::{
-    ScoringResult, StampData,
+    ScoringResult, StampData, V2ScoreResponse,
 };
 use crate::db::{DatabaseError, read_ops};
-use crate::dedup::LifoResult;
+use crate::domain::dedup::LifoResult;
+use super::DomainError;
 
 #[derive(Debug, Clone)]
 pub struct ScorerConfig {
@@ -424,4 +425,128 @@ mod tests {
         assert_eq!(result.raw_score, dec!(15.0));
         assert_eq!(result.binary_score, dec!(1)); // >= threshold passes
     }
+}
+
+/// Full scoring orchestration - this is what handlers should call
+///
+/// This implements the complete scoring flow:
+/// 1. Load community configuration
+/// 2. Upsert passport record
+/// 3. Load and validate credentials from ceramic cache
+/// 4. Apply LIFO deduplication
+/// 5. Calculate score
+/// 6. Persist to database
+/// 7. Process human points (if enabled)
+/// 8. Record events
+pub async fn calculate_score_for_address(
+    address: &str,
+    scorer_id: i64,
+    pool: &PgPool,
+    include_human_points: bool,
+) -> Result<V2ScoreResponse, DomainError> {
+    use sqlx::{Postgres, Transaction};
+    use crate::db::write_ops::{upsert_passport, delete_stamps, bulk_insert_stamps, upsert_score};
+    use crate::db::read_ops::{load_community, load_ceramic_cache, get_latest_stamps_per_provider};
+    use crate::auth::credentials::validate_credentials_batch;
+    use crate::models::internal::ValidStamp;
+    use super::dedup::lifo_dedup;
+    use super::human_points::process_human_points;
+
+    // Start transaction for atomicity
+    let mut tx: Transaction<'_, Postgres> = pool.begin().await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    // 1. Load community configuration
+    let community = load_community(pool, scorer_id).await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    // 2. Upsert passport record
+    let passport_id = upsert_passport(&mut tx, address, scorer_id).await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    // 3. Load credentials from CeramicCache
+    let ceramic_cache_entries = load_ceramic_cache(pool, address).await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    if ceramic_cache_entries.is_empty() {
+        // TODO: Return zero score response
+        return Err(DomainError::Internal("Zero score case not yet implemented".to_string()));
+    }
+
+    // 4. Get latest stamps per provider
+    let latest_stamps = get_latest_stamps_per_provider(pool, address).await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    // 5. Validate credentials
+    let stamp_values: Vec<serde_json::Value> = latest_stamps
+        .iter()
+        .map(|c| c.stamp.clone())
+        .collect();
+
+    let validated_credentials = validate_credentials_batch(&stamp_values, address).await
+        .map_err(|e| DomainError::Validation(e.to_string()))?;
+
+    let valid_stamps: Vec<ValidStamp> = validated_credentials
+        .into_iter()
+        .map(|vc| ValidStamp {
+            provider: vc.provider,
+            credential: vc.credential,
+            nullifiers: vc.nullifiers,
+            expires_at: vc.expires_at,
+        })
+        .collect();
+
+    // 6. Load scorer weights
+    let scorer_config = read_ops::load_scorer_config(pool, scorer_id).await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+    let weights: HashMap<String, Decimal> = serde_json::from_value(scorer_config.weights)
+        .map_err(|e| DomainError::Internal(format!("Failed to parse weights: {}", e)))?;
+
+    // 7. Apply LIFO deduplication
+    let lifo_result = lifo_dedup(&valid_stamps, address, scorer_id, &weights, &mut tx).await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    // 8. Delete existing stamps and insert new ones
+    delete_stamps(&mut tx, passport_id).await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    if !lifo_result.valid_stamps.is_empty() {
+        let stamps_for_insert: Vec<ValidStamp> = lifo_result.valid_stamps.iter()
+            .map(|s| ValidStamp {
+                provider: s.provider.clone(),
+                credential: s.credential.clone(),
+                nullifiers: s.nullifiers.clone(),
+                expires_at: s.expires_at,
+            })
+            .collect();
+        bulk_insert_stamps(&mut tx, passport_id, &stamps_for_insert).await
+            .map_err(|e| DomainError::Database(e.to_string()))?;
+    }
+
+    // 9. Calculate score
+    let scoring_result = calculate_score(address, scorer_id, lifo_result, pool).await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    // 10. Persist score
+    let django_fields = scoring_result.to_django_score_fields();
+    let _score_id = upsert_score(&mut tx, passport_id, &django_fields).await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    // 11. Process human points if enabled
+    if include_human_points && community.human_points_program {
+        process_human_points(
+            &scoring_result,
+            community.human_points_program,
+            &mut tx,
+        ).await.map_err(|e| DomainError::Database(e.to_string()))?;
+    }
+
+    // 12. Commit transaction
+    tx.commit().await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    // 13. Build and return response
+    let mut response = scoring_result.to_v2_response();
+    response.address = address.to_string();
+    Ok(response)
 }

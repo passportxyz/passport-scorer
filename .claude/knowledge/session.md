@@ -117,3 +117,206 @@ Error message: "TargetGroupAssociationLimit: The following target groups cannot 
 **Files**: infra/aws/v2/rust-scorer.ts
 ---
 
+### [15:01] [api] AddStampsPayload scorer_id type flexibility
+**Details**: The AddStampsPayload struct now accepts scorer_id as either a string or integer to handle clients that send it in either format. This is handled via a custom deserializer deserialize_scorer_id that accepts both i64 integers and strings that can be parsed to i64. This improves API compatibility with clients that serialize scorer_id differently.
+**Files**: rust-scorer/src/models/v2_api.rs, rust-scorer/src/models/tests.rs
+---
+
+### [15:24] [api] Explicit scorer_id type handling in AddStampsPayload
+**Details**: AddStampsPayload now explicitly handles scorer_id accepting both string and integer from JSON (matching Python's Pydantic behavior) but stores it as String type. The handler code explicitly calls parse_scorer_id() to convert to i64, making the type conversion visible and intentional rather than magic. This is more explicit than Python's implicit coercion while maintaining API compatibility.
+**Files**: rust-scorer/src/models/v2_api.rs, rust-scorer/src/api/embed.rs, rust-scorer/src/models/tests.rs
+---
+
+### [18:22] [architecture] Internal API endpoint inventory and migration status
+**Details**: Complete inventory of Python internal API endpoints and their migration status to Rust:
+
+**Already Implemented in Rust (3 endpoints):**
+1. GET /internal/embed/validate-api-key - validates partner API key
+2. POST /internal/embed/stamps/{address} - adds stamps and rescores
+3. GET /internal/embed/score/{scorer_id}/{address} - gets score with stamps
+
+**NOT Yet Implemented in Rust (9 endpoints):**
+1. GET /internal/score/v2/{scorer_id}/{address} - internal scoring without human points
+2. GET /internal/embed/weights - retrieves scorer weights (NO AUTH REQUIRED!)
+3. POST /internal/check-bans - checks credential bans
+4. POST /internal/check-revocations - checks stamp revocations
+5. GET /internal/stake/gtc/{address} - gets GTC stake amounts
+6. GET /internal/stake/legacy-gtc/{address}/{round_id} - legacy GTC stake
+7. GET /internal/cgrants/contributor_statistics - contributor stats
+8. GET /internal/allow-list/{list}/{address} - checks allow list membership
+9. GET /internal/customization/credential/{provider_id} - gets credential definition
+
+**Authentication Notes:**
+- Internal ALB endpoints don't require authentication (already inside VPC)
+- Except /internal/embed/validate-api-key which validates the partner's API key
+- Python uses CGRANTS_API_TOKEN from settings for internal_api_key auth
+- Rust wouldn't need this since traffic is already authenticated at ALB level
+**Files**: api/internal/api.py, rust-scorer/src/api/server.rs, rust-scorer/src/api/embed.rs
+---
+
+### [18:39] [database] Internal API SQL queries for Rust migration
+**Details**: Extracted actual SQL queries from Django ORM for internal API endpoints:
+
+**1. /internal/check-bans**
+```sql
+SELECT * FROM ceramic_cache_ban
+WHERE (address = %(address)s OR hash = ANY(%(hashes)s))
+AND (end_time IS NULL OR end_time > NOW())
+```
+
+**2. /internal/check-revocations**
+```sql
+SELECT proof_value FROM ceramic_cache_revocation
+WHERE proof_value = ANY(%(proof_values)s)
+```
+
+**3. /internal/stake/gtc/{address}**
+```sql
+SELECT id, chain, lock_time, unlock_time, last_updated_in_block,
+       staker, stakee, current_amount
+FROM stake_stake
+WHERE staker = %(address)s OR stakee = %(address)s
+```
+
+**4. /internal/stake/legacy-gtc/{address}/{round_id}**
+```sql
+SELECT * FROM registry_gtcstakeevent
+WHERE round_id = %(round_id)s
+AND (staker = %(address)s OR address = %(address)s)
+```
+
+**5. /internal/cgrants/contributor_statistics** (multiple queries):
+- Check squelch: `SELECT * FROM cgrants_squelchedaccounts WHERE address = %(address)s`
+- Count grants: `SELECT COUNT(DISTINCT grant_id) FROM cgrants_grantcontributionindex WHERE contributor_address = %(address)s AND contribution_id IN (SELECT id FROM cgrants_contribution WHERE success = true)`
+- Sum amounts: `SELECT SUM(amount) FROM cgrants_grantcontributionindex WHERE contributor_address = %(address)s AND contribution_id IN (SELECT id FROM cgrants_contribution WHERE success = true)`
+- Protocol rounds: `SELECT COUNT(DISTINCT round) FROM cgrants_protocolcontributions WHERE from_address = %(address)s OR to_address = %(address)s`
+- Protocol sums: Separate SUMs for from_address and to_address
+
+**6. /internal/allow-list/{list}/{address}**
+```sql
+SELECT EXISTS(
+    SELECT 1 FROM account_addresslistmember alm
+    JOIN account_addresslist al ON alm.list_id = al.id
+    WHERE al.name = %(list_name)s AND alm.address = %(address)s
+)
+```
+
+**7. /internal/customization/credential/{provider_id}**
+```sql
+SELECT definition FROM account_customcredentialruleset
+WHERE provider_id = %(provider_id)s
+```
+
+**8. /internal/embed/weights**
+No authentication, returns scorer weights from scorer_weighted_binaryweightedscorer or scorer_weighted_weightedscorer tables
+
+**9. /internal/score/v2/{scorer_id}/{address}**
+Reuses existing scoring logic without API key requirement
+**Files**: api/internal/api.py, api/extract_sql_queries_v2.py
+---
+
+### [19:02] [architecture] Internal API Rust migration architecture decisions
+**Details**: Key architectural decisions for internal API migration to Rust:
+
+**Module Organization Pattern:**
+- Separate `api/internal/` and `api/external/` directories for clear endpoint separation
+- Domain-specific query modules in `db/queries/` (bans.rs, stakes.rs, cgrants.rs)
+- Domain models separate from Django models in `db/models/`
+- Internal API types in `models/internal/`
+
+**Implementation Principles:**
+1. LIVE MIGRATION - exact behavior match, no logic changes
+2. Clean separation of concerns (handlers → queries → models)
+3. Reuse existing connection pool and infrastructure
+4. Group related endpoints in same module (e.g., all stake endpoints in stakes.rs)
+
+**Key Design Decisions:**
+- All internal endpoints in same Lambda as existing rust-scorer (simpler deployment)
+- No authentication needed (internal ALB handles this)
+- Match Python's empty data behavior exactly (return empty arrays, not 404s)
+- Use prepared statements and recommend indexes for performance
+
+**Testing Strategy:**
+- Unit tests for each query function
+- Integration tests against test database
+- Shadow traffic before cutover
+- Validation checklist for response compatibility
+
+This architecture makes the codebase "pleasing to look at and work on" per user requirements, avoiding the "fucking trash" organization of the Python API.
+**Files**: INTERNAL_API_RUST_MIGRATION_GUIDE.md
+---
+
+### [19:02] [database] Internal API database schema and performance notes
+**Details**: Database schema details discovered for internal API migration:
+
+**Table Names (actual Django tables):**
+- `ceramic_cache_ban` - ban records with type, provider, hash, address, end_time
+- `ceramic_cache_revocation` - revoked proof values
+- `stake_stake` - GTC staking records with staker/stakee
+- `registry_gtcstakeevent` - legacy staking events with staker/address fields (NOT stakee)
+- `cgrants_grantcontributionindex` - grant contributions, joins to cgrants_contribution
+- `cgrants_protocolcontributions` - protocol-level contributions
+- `cgrants_squelchedaccounts` - addresses that should return zero stats
+- `account_addresslist` / `account_addresslistmember` - allow list membership
+- `account_customcredentialruleset` - custom credential definitions
+
+**Performance Bottlenecks Identified:**
+- Ban checks need compound index on (address, hash) with end_time filter
+- Revocation checks are frequent and need index on proof_value
+- CGrants queries are complex with multiple JOINs and aggregations
+- Protocol contributions need compound index on (from_address, to_address)
+
+**Field Type Gotchas:**
+- GTCStakeEvent has 'staker' and 'address' fields, NOT 'stakee'
+- GTCStakeEvent.staked is a boolean field
+- All amounts should use Decimal type for precision
+- Timestamps are timezone-aware (UTC)
+- Empty provider names stored as empty string "", not NULL
+
+**Query Optimization Notes:**
+- CGrants endpoint makes 6 separate queries - consider CTE or parallel execution
+- Use COALESCE for SUMs to handle NULL results as 0
+- Protocol contributions need separate SUMs for from_address vs to_address
+- Check squelched status first to potentially skip other queries
+**Files**: api/extract_sql_queries_v2.py, INTERNAL_API_RUST_MIGRATION_GUIDE.md
+---
+
+### [19:11] [architecture] Clean architecture pattern for Rust API
+**Details**: Key architectural pattern for clean Rust API design:
+
+**Core Principle**: Handlers should be THIN - just pick auth, call shared logic, format response
+
+**Three-Layer Architecture**:
+1. **API Layer (api/)**: HTTP concerns only
+   - Thin handlers that just orchestrate
+   - Authentication decisions
+   - Request parsing and response formatting
+   - NO business logic
+
+2. **Domain Layer (domain/)**: Shared business logic
+   - Pure business logic, no HTTP types
+   - Takes primitives or domain types as input
+   - Returns domain types (Result<T, DomainError>)
+   - Used by BOTH internal and external handlers
+   - Examples: scoring.rs, bans.rs, stakes.rs, weights.rs
+
+3. **Data Layer (db/)**: Database operations
+   - Raw SQL queries in db/queries/
+   - Database result types in db/models/
+   - Transaction management
+
+**Benefits**:
+- Shared logic = no duplication (ban checking used by 3+ endpoints)
+- Thin handlers = easy to test (can mock domain layer)
+- Clean boundaries = maintainable (changes don't cascade)
+- Future flexibility = easy to add GraphQL/gRPC (new handlers, same logic)
+
+**Example Flow**:
+```
+External API → Handler (auth required) → domain::scoring::calculate() → db::queries
+Internal API → Handler (no auth) → domain::scoring::calculate() → db::queries
+```
+Both use exact same business logic, just different auth at handler level.
+**Files**: INTERNAL_API_RUST_MIGRATION_GUIDE.md
+---
+

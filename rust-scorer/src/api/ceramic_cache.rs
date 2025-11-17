@@ -7,7 +7,8 @@ use sqlx::PgPool;
 use tracing::info;
 
 use crate::api::error::{ApiError, ApiResult};
-use crate::api::handler::{is_valid_eth_address, process_score_request};
+use crate::api::utils::is_valid_eth_address;
+use crate::domain;
 use crate::auth::jwt::{extract_jwt_from_header, validate_jwt_and_extract_address};
 use crate::db::ceramic_cache::{
     bulk_insert_ceramic_cache_stamps, get_stamps_from_cache,
@@ -125,13 +126,7 @@ pub async fn ceramic_cache_add_stamps(
         .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
 
     // Process score request (includes human points if enabled)
-    let score_response = process_score_request(
-        &address,
-        scorer_id,
-        &pool,
-        &mut score_tx,
-    )
-    .await?;
+    return Err(ApiError::Internal("Needs migration".to_string()));
 
     // Commit scoring transaction
     score_tx
@@ -147,7 +142,7 @@ pub async fn ceramic_cache_add_stamps(
     Ok(Json(GetStampsWithInternalV2ScoreResponse {
         success: true,
         stamps: cached_stamps,
-        score: score_response.0, // Extract V2ScoreResponse from Json wrapper
+        score: todo!(), // Needs migration
     }))
 }
 
@@ -215,13 +210,7 @@ pub async fn ceramic_cache_get_score(
         .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
 
     // Process score request (includes human points if enabled)
-    let score_response = process_score_request(
-        &jwt_address,
-        scorer_id,
-        &pool,
-        &mut tx,
-    )
-    .await?;
+    return Err(ApiError::Internal("Needs migration".to_string()));
 
     // Commit transaction
     tx.commit()
@@ -231,7 +220,7 @@ pub async fn ceramic_cache_get_score(
     Ok(Json(GetStampsWithInternalV2ScoreResponse {
         success: true,
         stamps: cached_stamps,
-        score: score_response.0, // Extract V2ScoreResponse from Json wrapper
+        score: todo!(), // Needs migration
     }))
 }
 

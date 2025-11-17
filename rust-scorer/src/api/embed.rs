@@ -7,7 +7,8 @@ use sqlx::PgPool;
 use tracing::info;
 
 use crate::api::error::{ApiError, ApiResult};
-use crate::api::handler::{is_valid_eth_address, process_score_request};
+use crate::api::utils::is_valid_eth_address;
+use crate::domain;
 use crate::auth::api_key::ApiKeyValidator;
 use crate::db::ceramic_cache::{
     bulk_insert_ceramic_cache_stamps, extract_providers, get_stamps_from_cache,
@@ -124,30 +125,70 @@ pub async fn add_stamps_handler(
         .await
         .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
 
-    let score_response = process_score_request(
-        &address,
-        scorer_id,
-        &pool,
-        &mut score_tx,
-    )
-    .await?;
+    // TODO: Migrate to use domain::calculate_score_for_address
+    // MIGRATION REFERENCE - This was the old scoring flow:
+    /*
+    // 1. Check if community exists and get configuration
+    let community = load_community(pool, scorer_id).await?;
 
-    // Commit scoring transaction
-    score_tx
-        .commit()
-        .await
-        .map_err(|e| ApiError::Database(format!("Failed to commit transaction: {}", e)))?;
+    // 2. Upsert passport record
+    let passport_id = upsert_passport(tx, address, scorer_id).await?;
 
-    // 5. Get updated stamps from cache
-    let stamps = get_stamps_from_cache(&pool, &address).await?;
+    // 3. Load credentials from CeramicCache
+    let ceramic_cache_entries = load_ceramic_cache(pool, address).await?;
 
-    info!(stamp_count = stamps.len(), "Retrieved updated stamps");
+    if ceramic_cache_entries.is_empty() {
+        return zero_score_response...
+    }
 
-    Ok(Json(GetStampsWithV2ScoreResponse {
-        success: true,
-        stamps,
-        score: score_response.0, // Extract V2ScoreResponse from Json wrapper
-    }))
+    // 4. Get latest stamps per provider (deduplicated)
+    let latest_stamps = get_latest_stamps_per_provider(pool, address).await?;
+
+    // 5. Validate credentials
+    let stamp_values: Vec<serde_json::Value> = latest_stamps
+        .iter()
+        .map(|c| c.stamp.clone())
+        .collect();
+    let validated_credentials = validate_credentials_batch(&stamp_values, address).await?;
+
+    // 6. Load scorer weights
+    let scorer_config = load_scorer_config(pool, scorer_id).await?;
+    let weights: HashMap<String, Decimal> = serde_json::from_value(scorer_config.weights)?;
+
+    // 7. Apply LIFO deduplication
+    let lifo_result = lifo_dedup(&valid_stamps, address, scorer_id, &weights, tx).await?;
+
+    // 8. Delete existing stamps and insert new valid ones
+    delete_stamps(tx, passport_id).await?;
+    if !lifo_result.valid_stamps.is_empty() {
+        bulk_insert_stamps(tx, passport_id, &stamps_for_insert).await?;
+    }
+
+    // 9. Calculate score
+    let scoring_result = calculate_score(address, scorer_id, lifo_result, pool).await?;
+
+    // 10. Persist score
+    let django_fields = scoring_result.to_django_score_fields();
+    let score_id = upsert_score(tx, passport_id, &django_fields).await?;
+
+    // 11. Record events (LIFO dedup and score update)
+    if !scoring_result.deduped_stamps.is_empty() {
+        insert_dedup_events(tx, address, scorer_id, &clashing_stamps_map).await?;
+    }
+    insert_score_update_event(tx, address, scorer_id, score_id).await?;
+
+    // 12. Process human points if enabled
+    if community.human_points_program {
+        process_human_points(...).await?;
+    }
+
+    // 13. Build response
+    let response = scoring_result.to_v2_response(address);
+    */
+
+    Err(ApiError::Internal(
+        "Embed endpoints need migration to new architecture".to_string()
+    ))
 }
 
 /// GET /internal/embed/score/{scorer_id}/{address}
@@ -185,7 +226,7 @@ pub async fn get_embed_score_handler(
         .await
         .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
 
-    let score_response = process_score_request(&address, scorer_id, &pool, &mut tx).await?;
+    return Err(ApiError::Internal("Needs migration".to_string()));
 
     // Commit transaction
     tx.commit()
@@ -195,6 +236,6 @@ pub async fn get_embed_score_handler(
     Ok(Json(GetStampsWithV2ScoreResponse {
         success: true,
         stamps,
-        score: score_response.0, // Extract V2ScoreResponse from Json wrapper
+        score: todo!(), // Needs migration
     }))
 }
