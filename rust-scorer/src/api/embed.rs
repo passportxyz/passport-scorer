@@ -124,13 +124,9 @@ pub async fn add_stamps_handler(
         .await
         .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
 
-    // Create empty headers since embed endpoints don't require authentication
-    let headers = HeaderMap::new();
-
     let score_response = process_score_request(
         &address,
         scorer_id,
-        &headers,
         &pool,
         &mut score_tx,
     )
@@ -189,10 +185,7 @@ pub async fn get_embed_score_handler(
         .await
         .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
 
-    // Create empty headers since embed endpoints don't require authentication
-    let headers = HeaderMap::new();
-
-    let score_response = process_score_request(&address, scorer_id, &headers, &pool, &mut tx).await?;
+    let score_response = process_score_request(&address, scorer_id, &pool, &mut tx).await?;
 
     // Commit transaction
     tx.commit()

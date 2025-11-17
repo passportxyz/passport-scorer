@@ -45,15 +45,45 @@ pub async fn score_address_handler(
         return Err(ApiError::BadRequest("Invalid Ethereum address format".to_string()));
     }
 
+    // Validate API key and check permissions
+    let x_api_key = headers.get("X-API-Key")
+        .and_then(|h| h.to_str().ok());
+    let auth_header = headers.get("Authorization")
+        .and_then(|h| h.to_str().ok());
+
+    let request_path = format!("/v2/stamps/{}/score/{}", scorer_id, address);
+
+    let api_key_data = ApiKeyValidator::validate(
+        &pool,
+        x_api_key,
+        auth_header,
+        &request_path,
+    ).await?;
+
+    info!(api_key_id = %api_key_data.id, "API key validated");
+
     // Start a database transaction for atomicity
     let mut tx = pool.begin().await
         .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
+
+    // Track API usage for analytics (successful auth)
+    ApiKeyValidator::track_usage(
+        &mut tx,
+        &api_key_data.id,
+        &request_path,
+        "GET",
+        200,  // Status code
+        None, // query_params
+        None, // headers
+        None, // No payload for GET request
+        None, // No response yet
+        None, // No error
+    ).await?;
 
     // Process the scoring request within the transaction
     let result = process_score_request(
         &address,
         scorer_id,
-        &headers,
         &pool,
         &mut tx,
     ).await;
@@ -74,7 +104,7 @@ pub async fn score_address_handler(
 }
 
 #[tracing::instrument(
-    skip(headers, pool, tx),
+    skip(pool, tx),
     fields(
         address = %address,
         scorer_id = scorer_id
@@ -83,40 +113,10 @@ pub async fn score_address_handler(
 pub async fn process_score_request(
     address: &str,
     scorer_id: i64,
-    headers: &HeaderMap,
     pool: &PgPool,
     tx: &mut Transaction<'_, Postgres>,
 ) -> ApiResult<Json<V2ScoreResponse>> {
-    // 1. Validate API key and check permissions
-    let x_api_key = headers.get("X-API-Key")
-        .and_then(|h| h.to_str().ok());
-    let auth_header = headers.get("Authorization")
-        .and_then(|h| h.to_str().ok());
-
-    let request_path = format!("/v2/stamps/{}/score/{}", scorer_id, address);
-
-    let api_key_data = ApiKeyValidator::validate(
-        pool,
-        x_api_key,
-        auth_header,
-        &request_path,
-    ).await?;
-
-    // Track API usage for analytics (successful auth)
-    ApiKeyValidator::track_usage(
-        tx,
-        &api_key_data.id,
-        &request_path,
-        "GET",
-        200,  // Status code
-        None, // query_params
-        None, // headers
-        None, // No payload for GET request
-        None, // No response yet
-        None, // No error
-    ).await?;
-
-    // 2. Check if community exists and get configuration
+    // 1. Check if community exists and get configuration
     let community = load_community(pool, scorer_id).await?;
     // Note: DjangoCommunity doesn't have deleted_at field
 

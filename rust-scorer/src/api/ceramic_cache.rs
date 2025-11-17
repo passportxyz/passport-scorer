@@ -128,7 +128,6 @@ pub async fn ceramic_cache_add_stamps(
     let score_response = process_score_request(
         &address,
         scorer_id,
-        &headers,
         &pool,
         &mut score_tx,
     )
@@ -219,7 +218,6 @@ pub async fn ceramic_cache_get_score(
     let score_response = process_score_request(
         &jwt_address,
         scorer_id,
-        &headers,
         &pool,
         &mut tx,
     )
