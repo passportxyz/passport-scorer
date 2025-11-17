@@ -83,6 +83,11 @@ pub async fn add_stamps_handler(
         ));
     }
 
+    // Parse scorer_id explicitly (accepts string or integer from JSON)
+    let scorer_id = payload
+        .parse_scorer_id()
+        .map_err(|e| ApiError::BadRequest(e))?;
+
     // Start transaction for ceramic cache operations
     let mut tx = pool
         .begin()
@@ -100,7 +105,7 @@ pub async fn add_stamps_handler(
         &address,
         &payload.stamps,
         2, // EMBED source_app
-        Some(payload.scorer_id),
+        Some(scorer_id),
         &mut tx,
     )
     .await?;
@@ -124,7 +129,7 @@ pub async fn add_stamps_handler(
 
     let score_response = process_score_request(
         &address,
-        payload.scorer_id,
+        scorer_id,
         &headers,
         &pool,
         &mut score_tx,
