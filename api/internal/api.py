@@ -16,7 +16,9 @@ from cgrants.api import (
 from embed.api import (
     AccountAPIKeySchema,
     AddStampsPayload,
+    EmbedStampSectionSchema,
     handle_embed_add_stamps,
+    handle_get_embed_stamp_sections,
     handle_get_score,
     handle_validate_embed_api_key,
 )
@@ -147,6 +149,21 @@ def add_stamps(
 )
 def get_embed_weights(request, community_id: Optional[str] = None) -> Dict[str, float]:
     return handle_get_scorer_weights(community_id)
+
+
+@api_router.get(
+    "/embed/stamp-sections",
+    response={
+        200: List[EmbedStampSectionSchema],
+    },
+    summary="Retrieve customized stamp sections for embed",
+)
+def get_embed_stamp_sections(request, community_id: str) -> List[EmbedStampSectionSchema]:
+    """
+    Get customized stamp sections and their ordering for a specific community.
+    Returns empty list if no customization exists.
+    """
+    return handle_get_embed_stamp_sections(community_id)
 
 
 @api_router.get(

@@ -33,6 +33,8 @@ from .models import (
     Customization,
     CustomPlatform,
     FeaturedCampaign,
+    EmbedStampSection,
+    EmbedStampSectionItem,
     IncludedChainId,
     RateLimits,
 )
@@ -699,6 +701,46 @@ class CustomCredentialInline(admin.TabularInline):
     extra = 0
 
 
+class EmbedStampSectionItemInline(admin.TabularInline):
+    """Inline admin for stamp items within a section"""
+    model = EmbedStampSectionItem
+    extra = 1
+    fields = ["platform_id", "order"]
+    ordering = ["order", "id"]
+
+
+class EmbedStampSectionInline(admin.StackedInline):
+    """Inline admin for stamp sections within customization"""
+    model = EmbedStampSection
+    extra = 0
+    fields = ["title", "order"]
+    ordering = ["order", "id"]
+    show_change_link = True
+
+
+@admin.register(EmbedStampSection)
+class EmbedStampSectionAdmin(ScorerModelAdmin):
+    """Standalone admin for managing stamp sections and their items"""
+    list_display = ["id", "customization", "title", "order", "item_count", "created_at"]
+    list_filter = ["customization"]
+    search_fields = ["title", "customization__path"]
+    ordering = ["customization", "order", "id"]
+    inlines = [EmbedStampSectionItemInline]
+    
+    fieldsets = [
+        (
+            None,
+            {
+                "fields": ["customization", "title", "order"],
+            },
+        ),
+    ]
+    
+    def item_count(self, obj):
+        return obj.items.count()
+    item_count.short_description = "# Items"
+
+
 @admin.register(Customization)
 class CustomizationAdmin(ScorerModelAdmin):
     form = CustomizationForm
@@ -707,6 +749,7 @@ class CustomizationAdmin(ScorerModelAdmin):
         AllowListInline,
         CustomCredentialInline,
         IncludedChainIdInline,
+        EmbedStampSectionInline,
     ]
     fieldsets = [
         (
@@ -734,6 +777,14 @@ class CustomizationAdmin(ScorerModelAdmin):
                     "nav_logo",
                 ],
                 "description": "Configure whether and how this dashboard appears in the TopNav component",
+            },
+        ),
+        (
+            "Embed Stamp Sections",
+            {
+                "classes": ["collapse"],
+                "fields": [],
+                "description": "Configure stamp sections and their display order for the Embed product. Use the 'Embed Stamp Sections' inline below to add and manage sections.",
             },
         ),
         (

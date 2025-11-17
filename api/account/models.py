@@ -686,6 +686,9 @@ class Customization(models.Model):
 
         return stamps
 
+    def __str__(self):
+        return f"{self.partner_name} ({self.path})"
+
 
 def hex_number_validator(value):
     if not value.startswith("0x"):
@@ -849,3 +852,86 @@ class FeaturedCampaign(models.Model):
 
     def __str__(self):
         return f"{self.partner_name}: {self.header_text[:30]}"
+
+class EmbedStampSection(models.Model):
+    """
+    Defines a customizable section of stamps for the Embed product.
+    Each section has a title and order, and contains multiple stamp items.
+    """
+    customization = models.ForeignKey(
+        Customization, 
+        on_delete=models.CASCADE, 
+        related_name="embed_stamp_sections",
+        help_text="The customization configuration this section belongs to"
+    )
+    
+    title = models.CharField(
+        max_length=255,
+        help_text="Title of the stamp section (e.g., 'Physical Verification', 'Web2 Platforms')"
+    )
+    
+    order = models.IntegerField(
+        default=0,
+        help_text="Display order of this section (lower numbers appear first)"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['order', 'id']
+        unique_together = ['customization', 'order']
+    
+    def __str__(self):
+        return f"{self.customization.path} - {self.title} (Order: {self.order})"
+
+
+class EmbedStampSectionItem(models.Model):
+    """
+    Defines individual stamps within a section.
+    Each item references a platform_id and has a display order.
+    """
+    
+    # Platform ID choices based on passport/embed/src/stamps.ts
+    PLATFORM_CHOICES = [
+        # Physical Verification
+        ('Binance', 'Binance - Binance Account Bound Token (BABT)'),
+        ('Biometrics', 'Biometrics - 3D facial liveness detection'),
+        ('Coinbase', 'Coinbase - Coinbase verification'),
+        ('HumanIdKyc', 'Government ID - Government-issued ID verification'),
+        ('CleanHands', 'Proof of Clean Hands - ID + liveness + sanctions check'),
+        ('HumanIdPhone', 'Phone Verification - Phone number verification'),
+        # Web2 Platforms
+        ('Discord', 'Discord - Discord account ownership'),
+        ('Github', 'GitHub - GitHub commit activity'),
+        ('Google', 'Google - Google account ownership'),
+        ('Linkedin', 'LinkedIn - LinkedIn account ownership'),
+    ]
+    
+    section = models.ForeignKey(
+        EmbedStampSection,
+        on_delete=models.CASCADE,
+        related_name="items",
+        help_text="The section this stamp belongs to"
+    )
+    
+    platform_id = models.CharField(
+        max_length=100,
+        choices=PLATFORM_CHOICES,
+        help_text="Select the platform/stamp to include in this section"
+    )
+    
+    order = models.IntegerField(
+        default=0,
+        help_text="Display order within the section (lower numbers appear first)"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['order', 'id']
+        unique_together = ['section', 'platform_id']
+    
+    def __str__(self):
+        return f"{self.section.title} - {self.platform_id} (Order: {self.order})"

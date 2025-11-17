@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
 from asgiref.sync import async_to_sync
 from django.conf import settings
@@ -6,7 +6,7 @@ from ninja import Router, Schema
 from ninja_extra import NinjaExtraAPI
 
 import api_logging as logging
-from account.models import Community
+from account.models import Community, EmbedStampSection
 from ceramic_cache.api.schema import (
     CacheStampPayload,
     GetStampsWithV2ScoreResponse,
@@ -115,3 +115,62 @@ def handle_get_score(scorer_id: str, address: str) -> GetStampsWithV2ScoreRespon
             revocation__isnull=True,
         ),
     )
+
+
+class EmbedStampSectionItemSchema(Schema):
+    """Schema for individual stamp items within a section"""
+    platform_id: str
+    order: int
+
+
+class EmbedStampSectionSchema(Schema):
+    """Schema for stamp sections with their items"""
+    title: str
+    order: int
+    items: List[EmbedStampSectionItemSchema]
+
+
+def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSectionSchema]:
+    """
+    Get customized stamp sections for a given community/scorer.
+    Returns an empty list if no customization exists.
+    """
+    try:
+        community = Community.objects.get(id=community_id)
+        
+        # Check if this community has a customization
+        if not hasattr(community, 'customization'):
+            return []
+        
+        customization = community.customization
+        
+        # Get all sections with their items, ordered by section order
+        sections = EmbedStampSection.objects.filter(
+            customization=customization
+        ).prefetch_related('items').order_by('order', 'id')
+        
+        # Build the response
+        result = []
+        for section in sections:
+            items = [
+                EmbedStampSectionItemSchema(
+                    platform_id=item.platform_id,
+                    order=item.order
+                )
+                for item in section.items.all().order_by('order', 'id')
+            ]
+            
+            result.append(
+                EmbedStampSectionSchema(
+                    title=section.title,
+                    order=section.order,
+                    items=items
+                )
+            )
+        
+        return result
+    except Community.DoesNotExist:
+        return []
+    except Exception as e:
+        log.error(f"Error fetching embed stamp sections for community {community_id}: {e}")
+        return []
