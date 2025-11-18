@@ -26,10 +26,13 @@ pub async fn get_scorer_weights(
     .await?;
 
     if let Some(row) = result {
-        return Ok(Some(ScorerWeights {
-            weights: row.weights,
-            threshold: row.threshold,
-        }));
+        // Skip if weights is null
+        if let Some(weights) = row.weights {
+            return Ok(Some(ScorerWeights {
+                weights,
+                threshold: row.threshold,
+            }));
+        }
     }
 
     // Fallback to WeightedScorer
@@ -44,9 +47,11 @@ pub async fn get_scorer_weights(
     .fetch_optional(pool)
     .await?;
 
-    Ok(result.map(|row| ScorerWeights {
-        weights: row.weights,
-        threshold: row.threshold,
+    Ok(result.and_then(|row| {
+        row.weights.map(|weights| ScorerWeights {
+            weights,
+            threshold: row.threshold,
+        })
     }))
 }
 
