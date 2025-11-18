@@ -4,53 +4,50 @@ mod integration_tests {
     use sqlx::PgPool;
     
     
-    // These tests require a test database to be set up
-    // Run with: DATABASE_URL=postgresql://... cargo test -- --ignored
-    
+    // Integration tests - require DATABASE_URL
+
     #[tokio::test]
-    #[ignore] // Run with: cargo test test_upsert_passport -- --ignored
     async fn test_upsert_passport() -> Result<()> {
         let database_url = std::env::var("DATABASE_URL")
-            .expect("DATABASE_URL must be set for integration tests");
+            .expect("DATABASE_URL must be set");
         let pool = PgPool::connect(&database_url).await?;
         let mut tx = pool.begin().await?;
-        
+
         let _passport_id = upsert_passport(
             &mut tx,
             "0x1234567890abcdef",
             1
         ).await.unwrap();
-        
+
         assert!(_passport_id > 0);
-        
+
         // Test idempotency - should return same ID
         let passport_id2 = upsert_passport(
             &mut tx,
             "0x1234567890abcdef",
             1
         ).await.unwrap();
-        
+
         assert_eq!(_passport_id, passport_id2);
-        
+
         tx.rollback().await?;
         Ok(())
     }
-    
+
     #[tokio::test]
-    #[ignore] // Run with: cargo test test_load_ceramic_cache -- --ignored
     async fn test_load_ceramic_cache() -> Result<()> {
         let database_url = std::env::var("DATABASE_URL")
-            .expect("DATABASE_URL must be set for integration tests");
+            .expect("DATABASE_URL must be set");
         let pool = PgPool::connect(&database_url).await?;
         // This test would need test data in the ceramic_cache table
         let stamps = load_ceramic_cache(
             &pool,
             "0xtest_address"
         ).await.unwrap();
-        
+
         // Would assert based on test data
         assert!(stamps.is_empty() || !stamps.is_empty());
-        
+
         Ok(())
     }
     
@@ -76,32 +73,31 @@ mod integration_tests {
     }
     
     #[tokio::test]
-    #[ignore] // Run with: cargo test test_hash_link_operations -- --ignored
     async fn test_hash_link_operations() -> Result<()> {
         let database_url = std::env::var("DATABASE_URL")
-            .expect("DATABASE_URL must be set for integration tests");
+            .expect("DATABASE_URL must be set");
         let pool = PgPool::connect(&database_url).await?;
         let mut tx = pool.begin().await?;
-        
+
         // Create test passport
         let _passport_id = upsert_passport(
             &mut tx,
             "0xtest_address",
             1
         ).await.unwrap();
-        
+
         // Test hash link creation
         let links_to_create = vec![
             ("hash1".to_string(), "0xtest_address".to_string(), 1, chrono::Utc::now()),
             ("hash2".to_string(), "0xtest_address".to_string(), 1, chrono::Utc::now()),
         ];
-        
+
         bulk_upsert_hash_links(
             &mut tx,
             links_to_create,
             vec![]
         ).await.unwrap();
-        
+
         // Verify links were created
         let verified = verify_hash_links(
             &mut tx,
@@ -109,9 +105,9 @@ mod integration_tests {
             1,
             &vec!["hash1".to_string(), "hash2".to_string()]
         ).await.unwrap();
-        
+
         assert!(verified);
-        
+
         tx.rollback().await?;
         Ok(())
     }

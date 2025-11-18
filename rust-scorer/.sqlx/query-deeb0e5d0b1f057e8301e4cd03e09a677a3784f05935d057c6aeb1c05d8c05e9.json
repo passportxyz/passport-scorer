@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT weights, threshold\n        FROM scorer_weighted_binaryweightedscorer\n        WHERE scorer_ptr_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "weights",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 1,
+        "name": "threshold",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "deeb0e5d0b1f057e8301e4cd03e09a677a3784f05935d057c6aeb1c05d8c05e9"
+}

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT DISTINCT rm.round_eth_address as \"round_eth_address!\"\n        FROM cgrants_squelchedaccounts sa\n        INNER JOIN cgrants_roundmapping rm ON sa.round_number = rm.round_number\n        WHERE sa.address = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "round_eth_address!",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "bb4a0a60555567b191631808884452a810fe707ea32dadfc95cd0784f3507806"
+}

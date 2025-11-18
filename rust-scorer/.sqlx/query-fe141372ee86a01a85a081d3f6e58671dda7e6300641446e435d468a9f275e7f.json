@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            id,\n            address,\n            provider,\n            stamp,\n            type AS stamp_type,\n            deleted_at,\n            created_at,\n            updated_at\n        FROM ceramic_cache_ceramiccache\n        WHERE address = $1\n        AND deleted_at IS NULL\n        AND type = 1\n        ORDER BY provider, updated_at DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "provider",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "stamp",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 4,
+        "name": "stamp_type",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "fe141372ee86a01a85a081d3f6e58671dda7e6300641446e435d468a9f275e7f"
+}

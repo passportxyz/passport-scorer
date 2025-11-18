@@ -17,6 +17,7 @@ use crate::db::ceramic_cache::{
 use crate::models::v2_api::{
     AccountAPIKeySchema, AddStampsPayload, GetStampsWithV2ScoreResponse,
 };
+use crate::domain::DomainError;
 
 /// GET /internal/embed/validate-api-key
 /// Validates partner API key and returns rate limit configuration
@@ -118,77 +119,33 @@ pub async fn add_stamps_handler(
 
     info!("Ceramic cache operations completed");
 
-    // 4. Score the address using existing scoring logic
-    // Create a new transaction for scoring operations
-    let mut score_tx = pool
-        .begin()
-        .await
-        .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
+    // 4. Score the address using domain logic
+    // Embed endpoints do NOT include human points (matching Python behavior)
+    let score_result = domain::calculate_score_for_address(
+        &address,
+        scorer_id,
+        &pool,
+        false, // include_human_points
+    ).await;
 
-    // TODO: Migrate to use domain::calculate_score_for_address
-    // MIGRATION REFERENCE - This was the old scoring flow:
-    /*
-    // 1. Check if community exists and get configuration
-    let community = load_community(pool, scorer_id).await?;
+    let score = match score_result {
+        Ok(response) => response,
+        Err(DomainError::NotFound(msg)) => return Err(ApiError::NotFound(msg)),
+        Err(DomainError::Validation(msg)) => return Err(ApiError::BadRequest(msg)),
+        Err(DomainError::Database(msg)) => return Err(ApiError::Database(msg)),
+        Err(DomainError::Internal(msg)) => return Err(ApiError::Internal(msg)),
+    };
 
-    // 2. Upsert passport record
-    let passport_id = upsert_passport(tx, address, scorer_id).await?;
+    // 5. Get stamps from ceramic cache
+    let stamps = get_stamps_from_cache(&pool, &address).await?;
 
-    // 3. Load credentials from CeramicCache
-    let ceramic_cache_entries = load_ceramic_cache(pool, address).await?;
+    info!(stamp_count = stamps.len(), "Retrieved stamps from cache");
 
-    if ceramic_cache_entries.is_empty() {
-        return zero_score_response...
-    }
-
-    // 4. Get latest stamps per provider (deduplicated)
-    let latest_stamps = get_latest_stamps_per_provider(pool, address).await?;
-
-    // 5. Validate credentials
-    let stamp_values: Vec<serde_json::Value> = latest_stamps
-        .iter()
-        .map(|c| c.stamp.clone())
-        .collect();
-    let validated_credentials = validate_credentials_batch(&stamp_values, address).await?;
-
-    // 6. Load scorer weights
-    let scorer_config = load_scorer_config(pool, scorer_id).await?;
-    let weights: HashMap<String, Decimal> = serde_json::from_value(scorer_config.weights)?;
-
-    // 7. Apply LIFO deduplication
-    let lifo_result = lifo_dedup(&valid_stamps, address, scorer_id, &weights, tx).await?;
-
-    // 8. Delete existing stamps and insert new valid ones
-    delete_stamps(tx, passport_id).await?;
-    if !lifo_result.valid_stamps.is_empty() {
-        bulk_insert_stamps(tx, passport_id, &stamps_for_insert).await?;
-    }
-
-    // 9. Calculate score
-    let scoring_result = calculate_score(address, scorer_id, lifo_result, pool).await?;
-
-    // 10. Persist score
-    let django_fields = scoring_result.to_django_score_fields();
-    let score_id = upsert_score(tx, passport_id, &django_fields).await?;
-
-    // 11. Record events (LIFO dedup and score update)
-    if !scoring_result.deduped_stamps.is_empty() {
-        insert_dedup_events(tx, address, scorer_id, &clashing_stamps_map).await?;
-    }
-    insert_score_update_event(tx, address, scorer_id, score_id).await?;
-
-    // 12. Process human points if enabled
-    if community.human_points_program {
-        process_human_points(...).await?;
-    }
-
-    // 13. Build response
-    let response = scoring_result.to_v2_response(address);
-    */
-
-    Err(ApiError::Internal(
-        "Embed endpoints need migration to new architecture".to_string()
-    ))
+    Ok(Json(GetStampsWithV2ScoreResponse {
+        success: true,
+        stamps,
+        score,
+    }))
 }
 
 /// GET /internal/embed/score/{scorer_id}/{address}
@@ -220,22 +177,26 @@ pub async fn get_embed_score_handler(
 
     info!(stamp_count = stamps.len(), "Retrieved stamps from cache");
 
-    // 2. Score the address using existing scoring logic
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
+    // 2. Score the address using domain logic
+    // Embed endpoints do NOT include human points (matching Python behavior)
+    let score_result = domain::calculate_score_for_address(
+        &address,
+        scorer_id,
+        &pool,
+        false, // include_human_points
+    ).await;
 
-    return Err(ApiError::Internal("Needs migration".to_string()));
-
-    // Commit transaction
-    tx.commit()
-        .await
-        .map_err(|e| ApiError::Database(format!("Failed to commit transaction: {}", e)))?;
+    let score = match score_result {
+        Ok(response) => response,
+        Err(DomainError::NotFound(msg)) => return Err(ApiError::NotFound(msg)),
+        Err(DomainError::Validation(msg)) => return Err(ApiError::BadRequest(msg)),
+        Err(DomainError::Database(msg)) => return Err(ApiError::Database(msg)),
+        Err(DomainError::Internal(msg)) => return Err(ApiError::Internal(msg)),
+    };
 
     Ok(Json(GetStampsWithV2ScoreResponse {
         success: true,
         stamps,
-        score: todo!(), // Needs migration
+        score,
     }))
 }

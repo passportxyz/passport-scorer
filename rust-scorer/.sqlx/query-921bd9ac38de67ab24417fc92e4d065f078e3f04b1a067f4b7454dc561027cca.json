@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT proof_value\n        FROM ceramic_cache_revocation\n        WHERE proof_value = ANY($1)\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "proof_value",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "921bd9ac38de67ab24417fc92e4d065f078e3f04b1a067f4b7454dc561027cca"
+}

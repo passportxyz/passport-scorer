@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            id,\n            type as ban_type,\n            provider,\n            hash,\n            address,\n            end_time,\n            reason\n        FROM ceramic_cache_ban\n        WHERE (LOWER(address) = LOWER($1) OR hash = ANY($2))\n        AND (end_time IS NULL OR end_time > NOW())\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "ban_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "provider",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "hash",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "end_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "reason",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "20767d60a98ad5207b05bc2b98fd30e7d4149d26e81944da6bcf76c7418d91f3"
+}

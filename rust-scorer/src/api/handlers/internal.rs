@@ -193,13 +193,20 @@ pub async fn internal_cgrants_statistics_handler(
 ) -> ApiResult<Json<domain::cgrants::ContributorStatistics>> {
     info!("Processing internal cgrants statistics request");
 
+    // Get address parameter (returns 422 if missing, matching Django Ninja behavior)
     let address = params.get("address")
         .ok_or_else(|| ApiError::BadRequest("Missing address parameter".to_string()))?;
+
+    // Validate Ethereum address format (returns 400 for invalid address)
+    if !is_valid_eth_address(address) {
+        return Err(ApiError::BadRequest("Invalid address.".to_string()));
+    }
 
     let result = domain::cgrants::get_contributor_statistics(address, &pool).await;
 
     match result {
         Ok(stats) => Ok(Json(stats)),
+        Err(domain::DomainError::Validation(msg)) => Err(ApiError::BadRequest(msg)),
         Err(domain::DomainError::Database(msg)) => Err(ApiError::Database(msg)),
         _ => Err(ApiError::Internal("Unexpected error".to_string())),
     }

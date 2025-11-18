@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            id,\n            chain,\n            staker,\n            stakee,\n            current_amount,\n            lock_time,\n            unlock_time,\n            last_updated_in_block\n        FROM stake_stake\n        WHERE LOWER(staker) = LOWER($1) OR LOWER(stakee) = LOWER($1)\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "chain",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "staker",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "stakee",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "current_amount",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 5,
+        "name": "lock_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "unlock_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "last_updated_in_block",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "649604204a15ac9e8a12b2b16f1dfd43626fd2aca04813faa56f56a0c82c98c9"
+}

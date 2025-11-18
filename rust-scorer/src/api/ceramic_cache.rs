@@ -9,6 +9,7 @@ use tracing::info;
 use crate::api::error::{ApiError, ApiResult};
 use crate::api::utils::is_valid_eth_address;
 use crate::domain;
+use crate::domain::DomainError;
 use crate::auth::jwt::{extract_jwt_from_header, validate_jwt_and_extract_address};
 use crate::db::ceramic_cache::{
     bulk_insert_ceramic_cache_stamps, get_stamps_from_cache,
@@ -118,21 +119,22 @@ pub async fn ceramic_cache_add_stamps(
 
     info!("Ceramic cache operations completed");
 
-    // 5. Score the address using existing scoring logic
-    // Create a new transaction for scoring operations
-    let mut score_tx = pool
-        .begin()
-        .await
-        .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
+    // 5. Score the address using domain logic
+    // Ceramic cache endpoints include human points (matching Python behavior)
+    let score_result = domain::calculate_score_for_address(
+        &address,
+        scorer_id,
+        &pool,
+        true, // include_human_points
+    ).await;
 
-    // Process score request (includes human points if enabled)
-    return Err(ApiError::Internal("Needs migration".to_string()));
-
-    // Commit scoring transaction
-    score_tx
-        .commit()
-        .await
-        .map_err(|e| ApiError::Database(format!("Failed to commit transaction: {}", e)))?;
+    let score = match score_result {
+        Ok(response) => response,
+        Err(DomainError::NotFound(msg)) => return Err(ApiError::NotFound(msg)),
+        Err(DomainError::Validation(msg)) => return Err(ApiError::BadRequest(msg)),
+        Err(DomainError::Database(msg)) => return Err(ApiError::Database(msg)),
+        Err(DomainError::Internal(msg)) => return Err(ApiError::Internal(msg)),
+    };
 
     // 6. Get updated stamps from cache
     let cached_stamps = get_stamps_from_cache(&pool, &address).await?;
@@ -142,7 +144,7 @@ pub async fn ceramic_cache_add_stamps(
     Ok(Json(GetStampsWithInternalV2ScoreResponse {
         success: true,
         stamps: cached_stamps,
-        score: todo!(), // Needs migration
+        score,
     }))
 }
 
@@ -203,24 +205,27 @@ pub async fn ceramic_cache_get_score(
 
     info!(stamp_count = cached_stamps.len(), "Retrieved stamps from cache");
 
-    // 2. Score the address using existing scoring logic
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|e| ApiError::Database(format!("Failed to start transaction: {}", e)))?;
+    // 2. Score the address using domain logic
+    // Ceramic cache endpoints include human points (matching Python behavior)
+    let score_result = domain::calculate_score_for_address(
+        &jwt_address,
+        scorer_id,
+        &pool,
+        true, // include_human_points
+    ).await;
 
-    // Process score request (includes human points if enabled)
-    return Err(ApiError::Internal("Needs migration".to_string()));
-
-    // Commit transaction
-    tx.commit()
-        .await
-        .map_err(|e| ApiError::Database(format!("Failed to commit transaction: {}", e)))?;
+    let score = match score_result {
+        Ok(response) => response,
+        Err(DomainError::NotFound(msg)) => return Err(ApiError::NotFound(msg)),
+        Err(DomainError::Validation(msg)) => return Err(ApiError::BadRequest(msg)),
+        Err(DomainError::Database(msg)) => return Err(ApiError::Database(msg)),
+        Err(DomainError::Internal(msg)) => return Err(ApiError::Internal(msg)),
+    };
 
     Ok(Json(GetStampsWithInternalV2ScoreResponse {
         success: true,
         stamps: cached_stamps,
-        score: todo!(), // Needs migration
+        score,
     }))
 }
 

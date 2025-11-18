@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO registry_passport (address, community_id)\n        VALUES ($1, $2)\n        ON CONFLICT (address, community_id)\n        DO UPDATE SET address = EXCLUDED.address\n        RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "aa4240b776bc2ad23a6ff85705d85df143a5702ec167ce02657d4aa9f51b14f1"
+}
