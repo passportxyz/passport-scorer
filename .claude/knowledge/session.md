@@ -320,3 +320,48 @@ Both use exact same business logic, just different auth at handler level.
 **Files**: INTERNAL_API_RUST_MIGRATION_GUIDE.md
 ---
 
+### [16:20] [workflow] Development environment setup structure
+**Details**: Consolidated development setup into dev-setup/ folder with modular scripts:
+- setup.sh: Main orchestrator script that detects environment (container vs systemd) and runs full setup
+- install.sh: Basic dependency installer (Python, PostgreSQL, Rust, build tools)
+- create_test_data.py: Django ORM-based test data creation
+- start-postgres.sh: PostgreSQL restart helper for containers
+
+The setup.sh automatically detects if running in container (no systemd) or regular system and adjusts PostgreSQL startup accordingly. Scripts are modular - setup.sh calls install.sh and create_test_data.py to avoid code duplication.
+
+Database: passport_scorer_dev, User: passport_scorer, Password: devpassword123
+Creates test communities (IDs 1-3), scorers, and API keys for testing.
+**Files**: dev-setup/setup.sh, dev-setup/install.sh, dev-setup/create_test_data.py
+---
+
+### [16:20] [database] SQLX development database setup
+**Details**: SQLX requires a PostgreSQL database at compile time for query validation. The setup process:
+1. Creates PostgreSQL database passport_scorer_dev 
+2. Runs Django migrations to create schema
+3. Manually creates any missing tables that Django migrations didn't create (registry_*, ceramic_cache_ceramiccache, etc)
+4. Installs sqlx-cli via: cargo install sqlx-cli --no-default-features --features postgres,rustls
+5. Sets DATABASE_URL environment variable for SQLX compilation
+6. Can generate offline data with 'cargo sqlx prepare' for CI/CD without database
+
+Common issues:
+- Missing tables: Django migrations may show as applied but tables don't exist - use migrate --run-syncdb
+- Type mismatches: Some tables use BIGINT (i64) not INT (i32) for IDs
+- Missing columns: May need to manually ALTER TABLE to add columns Django expects
+**Files**: dev-setup/setup.sh, rust-scorer/Cargo.toml
+---
+
+### [16:21] [gotcha] Container vs system environment detection
+**Details**: Development containers (Docker, dev containers) don't have systemd as PID 1, so PostgreSQL must be started differently:
+
+Container detection logic:
+- Checks for /.dockerenv or /run/.containerenv files
+- Checks if systemd is running with pidof systemd
+- If any indicate container, uses direct postgres command instead of systemctl
+
+Container mode: sudo -u postgres /usr/bin/postgres -D /var/lib/postgresql/data &
+System mode: sudo systemctl start postgresql
+
+Also must create /var/run/postgresql directory for Unix socket in containers as it's not created automatically without systemd.
+**Files**: dev-setup/setup.sh
+---
+
