@@ -67,13 +67,13 @@ pub struct DjangoEvent {
 #[derive(Debug, Clone, FromRow)]
 pub struct DjangoCeramicCache {
     pub id: i64,
-    pub address: String,
+    pub address: Option<String>,  // Nullable
     pub provider: String,
     pub stamp: Value,
     pub deleted_at: Option<DateTime<Utc>>,
     pub created_at: Option<DateTime<Utc>>,  // Nullable with auto_now_add
-    pub updated_at: Option<DateTime<Utc>>,  // Nullable with auto_now
-    pub stamp_type: String,  // 'V1' or 'V2' (only V1 used)
+    pub updated_at: DateTime<Utc>,
+    pub stamp_type: i32,  // 1=V1, 2=V2 (only V1 used)
 }
 
 /// Django account_community table

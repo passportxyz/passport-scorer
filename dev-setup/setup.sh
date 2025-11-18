@@ -175,7 +175,7 @@ DATA_MODEL_DATABASE_URL=${DATABASE_URL}
 # Django Configuration
 SECRET_KEY=dev-secret-key-$(openssl rand -hex 32)
 DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
+ALLOWED_HOSTS='["localhost","127.0.0.1"]'
 
 # API Configuration
 SCORER_SERVER_URL=http://localhost:8000

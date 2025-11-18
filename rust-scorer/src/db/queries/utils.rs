@@ -53,12 +53,12 @@ pub async fn get_credential_ruleset(
         r#"
         SELECT definition
         FROM account_customcredentialruleset
-        WHERE provider = $1
+        WHERE provider_id = $1
         "#,
         provider_id
     )
     .fetch_optional(pool)
     .await?;
 
-    Ok(result.and_then(|r| r.definition))
+    Ok(result.map(|r| r.definition))
 }

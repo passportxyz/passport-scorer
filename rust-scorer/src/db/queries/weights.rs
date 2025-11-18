@@ -1,6 +1,5 @@
 use sqlx::PgPool;
 use rust_decimal::Decimal;
-use std::str::FromStr;
 use crate::db::errors::DatabaseError;
 
 #[derive(Debug, Clone)]
@@ -51,7 +50,7 @@ pub async fn get_scorer_weights(
     Ok(result.and_then(|row| {
         row.weights.map(|weights| ScorerWeights {
             weights,
-            threshold: row.threshold.unwrap_or_else(|| Decimal::from_str_exact("2.5").unwrap()),
+            threshold: row.threshold,
         })
     }))
 }

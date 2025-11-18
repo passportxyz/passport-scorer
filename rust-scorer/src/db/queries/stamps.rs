@@ -22,7 +22,7 @@ pub async fn get_ceramic_cache_entries(
         FROM ceramic_cache_ceramiccache
         WHERE address = $1
         AND deleted_at IS NULL
-        AND type = 'V1'
+        AND type = 1
         ORDER BY provider, updated_at DESC
         "#,
         address
@@ -46,14 +46,14 @@ pub async fn get_latest_stamps_by_provider(
             address,
             provider,
             stamp,
-            type AS "stamp_type: _",
+            type AS stamp_type,
             deleted_at,
             created_at,
             updated_at
         FROM ceramic_cache_ceramiccache
         WHERE address = $1
         AND deleted_at IS NULL
-        AND type = 'V1'
+        AND type = 1
         ORDER BY provider, updated_at DESC
         "#,
         address
