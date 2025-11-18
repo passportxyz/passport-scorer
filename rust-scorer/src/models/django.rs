@@ -70,17 +70,10 @@ pub struct DjangoCeramicCache {
     pub address: String,
     pub provider: String,
     pub stamp: Value,
-    pub proof_value: String,  // CRITICAL: Used for revocation and uniqueness
     pub deleted_at: Option<DateTime<Utc>>,
     pub created_at: Option<DateTime<Utc>>,  // Nullable with auto_now_add
-    pub updated_at: DateTime<Utc>,
-    pub r#type: i32,  // 1=V1, 2=V2 (only V1 used)
-    pub compose_db_save_status: String,
-    pub compose_db_stream_id: String,
-    pub issuance_date: Option<DateTime<Utc>>,
-    pub expiration_date: Option<DateTime<Utc>>,
-    pub source_app: Option<i32>,  // 1=PASSPORT, 2=EMBED
-    pub source_scorer_id: Option<i64>,
+    pub updated_at: Option<DateTime<Utc>>,  // Nullable with auto_now
+    pub stamp_type: String,  // 'V1' or 'V2' (only V1 used)
 }
 
 /// Django account_community table
