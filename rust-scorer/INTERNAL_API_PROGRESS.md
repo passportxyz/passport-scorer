@@ -1,83 +1,53 @@
-# Internal API Rust Implementation Progress
+# Rust Scorer - Remaining Tasks
 
-## Status: 7/7 Endpoints Implemented ✅
+## Status: Nearly Complete
 
-Last updated: 2025-11-18
+The Rust scorer migration is largely complete. Two internal API handlers need their input processing implemented.
 
-## Completed Endpoints
+## Remaining Work
 
-### 1. Allow-list Check
-- **Endpoint**: `GET /internal/allow-list/{list}/{address}`
-- **Files**: `src/db/queries/utils.rs`, `src/domain/allow_list.rs`
-- **Status**: ✅ Complete with SQLX compile-time verification
+### 1. Check Bans Handler
 
-### 2. Credential Customization
-- **Endpoint**: `GET /internal/customization/credential/{provider_id}`
-- **Files**: `src/db/queries/utils.rs`, `src/domain/allow_list.rs`
-- **Status**: ✅ Complete with URL decoding support
+**File**: `src/api/handlers/internal.rs:89-102`
+**Endpoint**: `POST /internal/check-bans`
 
-### 3. Check Bans
-- **Endpoint**: `POST /internal/check-bans`
-- **Files**: `src/db/queries/bans.rs`, `src/domain/bans.rs`
-- **Status**: ✅ Complete
-- **Features**:
-  - Supports account, hash, and single_stamp ban types
-  - Case-insensitive address matching
-  - Returns end_time and reason
+**Current state**: Returns empty array, needs credential processing
 
-### 4. Check Revocations
-- **Endpoint**: `POST /internal/check-revocations`
-- **Files**: `src/db/queries/bans.rs`
-- **Status**: ✅ Complete
-- **Features**: Batch proof_value checking
+**What needs to be done**:
+1. Parse the incoming `Vec<serde_json::Value>` credentials
+2. Extract address from DID in each credential
+3. Extract hashes and providers from credentials
+4. Call `domain::bans::check_credentials_for_bans()`
+5. Return `Vec<BanCheckResult>`
 
-### 5. GTC Stakes
-- **Endpoint**: `GET /internal/stake/gtc/{address}`
-- **Files**: `src/db/queries/stakes.rs`, `src/domain/stakes.rs`
-- **Status**: ✅ Complete
-- **Features**: Queries stake_stake table for staker/stakee
+**Python reference**: `api/internal/api.py` - `check_bans()` function
 
-### 6. Legacy GTC Stakes
-- **Endpoint**: `GET /internal/stake/legacy-gtc/{address}/{round_id}`
-- **Files**: `src/db/queries/stakes.rs`, `src/domain/stakes.rs`
-- **Status**: ✅ Complete
-- **Features**: Queries registry_gtcstakeevent table
+### 2. Check Revocations Handler
 
-### 7. CGrants Contributor Statistics
-- **Endpoint**: `GET /internal/cgrants/contributor_statistics`
-- **Files**: `src/db/queries/cgrants.rs`, `src/domain/cgrants.rs`
-- **Status**: ✅ Complete
-- **Features**:
-  - Combines cgrants and protocol contributions
-  - Squelch filtering via cgrants_squelchedaccounts + cgrants_roundmapping
-  - Minimum $0.95 threshold for protocol contributions
-  - Returns count of distinct grants/projects and total amount (rounded to 2 decimals)
+**File**: `src/api/handlers/internal.rs:104-114`
+**Endpoint**: `POST /internal/check-revocations`
 
-## Recent Fixes
+**Current state**: Returns empty array, needs proof_value extraction
 
-1. **SQLX Query Alignment** - Updated all queries to match fresh Django migration schema
-2. **Model Updates** - `DjangoCeramicCache.stamp_type` now uses integer (1=V1, 2=V2)
-3. **Dev Setup** - Fixed `ALLOWED_HOSTS` format in `dev-setup/setup.sh` (must be JSON array)
-4. **Nullable Fields** - Properly handle nullable columns like `ceramic_cache.address`
+**What needs to be done**:
+1. Parse incoming payload with proof_values
+2. Query `ceramic_cache_revocation` table
+3. Return list of revoked proof_values
 
-## Build Status
+**Python reference**: `api/internal/api.py` - `check_revocations()` function
 
+## Database Queries Already Implemented
+
+The underlying database queries exist in `src/db/queries/bans.rs`:
+- Ban checking queries are ready
+- Just need the handler to extract data from credentials and call them
+
+## Testing
+
+Run all tests with:
 ```bash
-cargo build  # Passes with warnings only
+export DATABASE_URL=postgresql://passport_scorer:devpassword123@localhost:5432/passport_scorer_dev
+cargo test --lib
 ```
 
-All implemented queries are SQLX compile-time verified against the database schema.
-
-## Database Requirements
-
-The dev database must have all Django migrations applied. Run:
-```bash
-cd api && poetry run python manage.py migrate --database default
-```
-
-## Next Steps
-
-1. ~~Implement cgrants contributor statistics (complex query)~~ ✅ Complete
-2. Wire up remaining handlers to domain layer where needed
-3. Add integration tests for new endpoints
-4. Update SQLX prepared queries (`cargo sqlx prepare`)
+Currently: 61 tests passing
