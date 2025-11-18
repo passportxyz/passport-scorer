@@ -10,48 +10,44 @@ pub struct ScorerWeights {
 
 /// Get scorer weights from BinaryWeightedScorer or WeightedScorer tables
 pub async fn get_scorer_weights(
-    _pool: &PgPool,
-    _scorer_id: i64,
+    pool: &PgPool,
+    scorer_id: i64,
 ) -> Result<Option<ScorerWeights>, DatabaseError> {
-    // TODO: Implement after SQLX prepare
     // Try BinaryWeightedScorer first
-    // let result = sqlx::query!(
-    //     r#"
-    //     SELECT weights, threshold
-    //     FROM scorer_weighted_binaryweightedscorer
-    //     WHERE scorer_ptr_id = $1
-    //     "#,
-    //     scorer_id
-    // )
-    // .fetch_optional(pool)
-    // .await?;
-    //
-    // if let Some(row) = result {
-    //     return Ok(Some(ScorerWeights {
-    //         weights: row.weights,
-    //         threshold: row.threshold,
-    //     }));
-    // }
-    //
-    // // Fallback to WeightedScorer
-    // let result = sqlx::query!(
-    //     r#"
-    //     SELECT weights, threshold
-    //     FROM scorer_weighted_weightedscorer
-    //     WHERE scorer_ptr_id = $1
-    //     "#,
-    //     scorer_id
-    // )
-    // .fetch_optional(pool)
-    // .await?;
-    //
-    // Ok(result.map(|row| ScorerWeights {
-    //     weights: row.weights,
-    //     threshold: row.threshold,
-    // }))
+    let result = sqlx::query!(
+        r#"
+        SELECT weights, threshold
+        FROM scorer_weighted_binaryweightedscorer
+        WHERE scorer_ptr_id = $1
+        "#,
+        scorer_id
+    )
+    .fetch_optional(pool)
+    .await?;
 
-    // Return default weights for now
-    Ok(Some(get_default_scorer_weights()))
+    if let Some(row) = result {
+        return Ok(Some(ScorerWeights {
+            weights: row.weights,
+            threshold: row.threshold,
+        }));
+    }
+
+    // Fallback to WeightedScorer
+    let result = sqlx::query!(
+        r#"
+        SELECT weights, threshold
+        FROM scorer_weighted_weightedscorer
+        WHERE scorer_ptr_id = $1
+        "#,
+        scorer_id
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(result.map(|row| ScorerWeights {
+        weights: row.weights,
+        threshold: row.threshold,
+    }))
 }
 
 /// Get default scorer weights
