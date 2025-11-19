@@ -1332,6 +1332,7 @@ dependencies = [
  "anyhow",
  "colored",
  "dotenvy",
+ "libc",
  "reqwest 0.12.23",
  "serde",
  "serde_json",

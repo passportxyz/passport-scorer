@@ -22,8 +22,32 @@ struct TestConfig {
     expected_score_above: f64,
 }
 
+const PYTHON_PORT: u16 = 8002;
+const RUST_PORT: u16 = 3000;
 const PYTHON_BASE: &str = "http://localhost:8002";
 const RUST_BASE: &str = "http://localhost:3000";
+
+/// Check if a port is in use
+fn check_port_available(port: u16) -> Result<()> {
+    use std::net::TcpListener;
+    match TcpListener::bind(("127.0.0.1", port)) {
+        Ok(_) => Ok(()),
+        Err(_) => anyhow::bail!(
+            "Port {} is already in use!\n\
+             Kill existing processes with: fuser -k {}/tcp\n\
+             Or run: fuser -k 3000/tcp 8002/tcp",
+            port, port
+        ),
+    }
+}
+
+/// Ensure required ports are available before starting
+fn ensure_ports_available() -> Result<()> {
+    check_port_available(PYTHON_PORT).context("Python server port check failed")?;
+    check_port_available(RUST_PORT).context("Rust server port check failed")?;
+    println!("{}", "Ports 3000 and 8002 are available".green());
+    Ok(())
+}
 
 /// Load environment variables from .env.development file
 fn load_env_file(project_root: &PathBuf) -> Result<()> {
@@ -48,6 +72,29 @@ struct ServerManager {
     python_process: Option<Child>,
     rust_process: Option<Child>,
     project_root: PathBuf,
+}
+
+// Ensure cleanup happens even on error/panic (like a finally block)
+impl Drop for ServerManager {
+    fn drop(&mut self) {
+        println!("{}", "\nShutting down servers...".cyan());
+
+        // Kill Python process group (Django spawns child processes)
+        if let Some(child) = self.python_process.take() {
+            let pid = child.id();
+            if let Some(pid) = pid {
+                // Kill the entire process group
+                unsafe {
+                    libc::kill(-(pid as i32), libc::SIGKILL);
+                }
+            }
+        }
+
+        // Kill Rust process
+        if let Some(mut child) = self.rust_process.take() {
+            let _ = child.start_kill();
+        }
+    }
 }
 
 impl ServerManager {
@@ -86,6 +133,8 @@ impl ServerManager {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true)
+            // Make this its own process group so we can kill all children
+            .process_group(0)
             .spawn()
             .context("Failed to start Python server")?;
 
@@ -143,9 +192,23 @@ impl ServerManager {
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
                     if line.contains("error") || line.contains("Error") {
+                        eprintln!("{} {}", "[Rust ERROR]".red(), line.red());
                     } else {
                         eprintln!("{} {}", "[Rust]".blue(), line.green());
                     }
+                }
+            });
+        }
+
+        // Spawn task to drain stdout (server logs go here) - prevents pipe buffer from blocking
+        if let Some(stdout) = child.stdout.take() {
+            tokio::spawn(async move {
+                let reader = BufReader::new(stdout);
+                let mut lines = reader.lines();
+                // Just drain the output to prevent blocking - uncomment below to see logs
+                while let Ok(Some(_line)) = lines.next_line().await {
+                    // Uncomment to see server JSON logs:
+                    // eprintln!("{} {}", "[Rust LOG]".dimmed(), _line);
                 }
             });
         }
@@ -188,17 +251,6 @@ impl ServerManager {
         }
 
         Ok(())
-    }
-
-    async fn shutdown(&mut self) {
-        println!("{}", "\nShutting down servers...".cyan());
-
-        if let Some(mut child) = self.python_process.take() {
-            let _ = child.kill().await;
-        }
-        if let Some(mut child) = self.rust_process.take() {
-            let _ = child.kill().await;
-        }
     }
 }
 
@@ -359,10 +411,35 @@ impl TestRunner {
     }
 }
 
+/// Fields that will naturally differ between sequential Python and Rust calls
+const IGNORED_FIELDS: &[&str] = &["last_score_timestamp"];
+
+/// Remove fields that will naturally differ between calls
+fn strip_ignored_fields(value: &mut Value) {
+    if let Value::Object(map) = value {
+        for field in IGNORED_FIELDS {
+            map.remove(*field);
+        }
+        for (_, v) in map.iter_mut() {
+            strip_ignored_fields(v);
+        }
+    } else if let Value::Array(arr) = value {
+        for item in arr.iter_mut() {
+            strip_ignored_fields(item);
+        }
+    }
+}
+
 /// Compare two JSON values, returning an error with diff if they don't match
 fn compare_json(python: &Value, rust: &Value) -> Result<(), String> {
-    let python_sorted = sort_json(python);
-    let rust_sorted = sort_json(rust);
+    let mut python_cleaned = python.clone();
+    let mut rust_cleaned = rust.clone();
+
+    strip_ignored_fields(&mut python_cleaned);
+    strip_ignored_fields(&mut rust_cleaned);
+
+    let python_sorted = sort_json(&python_cleaned);
+    let rust_sorted = sort_json(&rust_cleaned);
 
     if python_sorted == rust_sorted {
         return Ok(());
@@ -408,6 +485,9 @@ async fn main() -> Result<()> {
     println!("{}", "\n========================================".bold());
     println!("{}", "  Python <-> Rust Comparison Tests".bold());
     println!("{}", "========================================\n".bold());
+
+    // Check ports are available first
+    ensure_ports_available()?;
 
     // Find project root and load environment
     let current = std::env::current_dir()?;
@@ -467,11 +547,13 @@ async fn main() -> Result<()> {
     // Summary
     test_runner.summary();
 
-    // Shutdown
-    server_manager.shutdown().await;
+    // Drop will handle shutdown automatically (even on error)
+    // Need to drop before exit to ensure cleanup
+    let failed = test_runner.failed;
+    drop(server_manager);
 
     // Exit with appropriate code
-    if test_runner.failed > 0 {
+    if failed > 0 {
         std::process::exit(1);
     }
 
