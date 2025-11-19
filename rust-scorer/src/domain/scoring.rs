@@ -446,7 +446,8 @@ pub async fn calculate_score_for_address(
 ) -> Result<V2ScoreResponse, DomainError> {
     use sqlx::{Postgres, Transaction};
     use crate::db::write_ops::{upsert_passport, delete_stamps, bulk_insert_stamps, upsert_score};
-    use crate::db::read_ops::{load_community, load_ceramic_cache, get_latest_stamps_per_provider};
+    use crate::db::read_ops::load_community;
+    use crate::db::queries::stamps::{get_ceramic_cache_entries, get_latest_stamps_by_provider};
     use crate::auth::credentials::validate_credentials_batch;
     use crate::models::internal::ValidStamp;
     use super::dedup::lifo_dedup;
@@ -465,7 +466,7 @@ pub async fn calculate_score_for_address(
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
     // 3. Load credentials from CeramicCache
-    let ceramic_cache_entries = load_ceramic_cache(pool, address).await
+    let ceramic_cache_entries = get_ceramic_cache_entries(pool, address).await
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
     if ceramic_cache_entries.is_empty() {
@@ -474,7 +475,7 @@ pub async fn calculate_score_for_address(
     }
 
     // 4. Get latest stamps per provider
-    let latest_stamps = get_latest_stamps_per_provider(pool, address).await
+    let latest_stamps = get_latest_stamps_by_provider(pool, address).await
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
     // 5. Validate credentials

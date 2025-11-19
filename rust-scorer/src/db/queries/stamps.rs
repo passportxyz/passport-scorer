@@ -15,7 +15,7 @@ pub async fn get_ceramic_cache_entries(
             address,
             provider,
             stamp,
-            type AS stamp_type,
+            type AS "stamp_type: _",
             deleted_at,
             created_at,
             updated_at
@@ -46,7 +46,7 @@ pub async fn get_latest_stamps_by_provider(
             address,
             provider,
             stamp,
-            type AS stamp_type,
+            type AS "stamp_type: _",
             deleted_at,
             created_at,
             updated_at

@@ -214,15 +214,13 @@ async def main():
         )
 
         # Store in ceramic cache
-        stamp = {
-            "provider": provider,
-            "credential": credential
-        }
-
+        # Note: The CeramicCache.stamp field should contain just the credential,
+        # not a wrapper with provider/credential keys. The aget_passport function
+        # builds the stamp structure as {"provider": s.provider, "credential": s.stamp}
         await create_ceramic_cache(
             address=test_address.lower(),
             provider=provider,
-            stamp=stamp,
+            stamp=credential,  # Just the credential, not a wrapper
             type=CeramicCache.StampType.V1
         )
         print(f"Created signed credential for {provider}")
@@ -231,7 +229,8 @@ async def main():
     print("\nVerifying credentials...")
     entries = await get_ceramic_cache_entries(test_address)
     for entry in entries:
-        cred = entry.stamp.get("credential", {})
+        # entry.stamp is now the credential directly
+        cred = entry.stamp
         try:
             result = await didkit.verify_credential(
                 json.dumps(cred),

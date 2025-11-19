@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "comparison-tests"]
+
 [package]
 name = "passport-scorer"
 version = "0.1.0"

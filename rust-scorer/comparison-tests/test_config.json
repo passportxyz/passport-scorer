@@ -1,8 +1,8 @@
 {
   "test_address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "scorer_id": 1,
-  "api_key": "470zwY32.zzabIq8pfWJ6ETSRJruDeFSDbotjKzxt",
-  "issuer_did": "did:key:z6Mkq7HeEEHHMja6X1QAqP5PosH8x3G9ZRNfBkGjTN2f38Q5",
+  "api_key": "NOjyF0rR.GBa3hI6IeZmZJ7fuFLCKBGgIgYKdggK3",
+  "issuer_did": "did:key:z6MkhMg7m4tWyMmDiD3RcmAdXAbshLNNgdRq2mxUjvHacXUz",
   "providers": [
     "Google",
     "Twitter",

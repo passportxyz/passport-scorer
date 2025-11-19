@@ -115,11 +115,21 @@ impl ServerManager {
         std::env::var("DATABASE_URL").context("DATABASE_URL not set - source .env.development first")?;
         std::env::var("CERAMIC_CACHE_SCORER_ID").context("CERAMIC_CACHE_SCORER_ID not set - source .env.development first")?;
 
+        // Filter out cargo-specific env vars that cause fingerprint mismatches
+        let filtered_env: Vec<(String, String)> = std::env::vars()
+            .filter(|(k, _)| {
+                !k.starts_with("CARGO_")
+                && k != "RUSTFLAGS"
+                && k != "RUSTC"
+                && k != "RUSTDOC"
+            })
+            .collect();
+
         let mut child = Command::new("cargo")
             .args(["run", "--release"])
             .current_dir(&rust_dir)
-            // Inherit all env vars from parent process
-            .envs(std::env::vars())
+            .env_clear()
+            .envs(filtered_env)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true)
@@ -133,7 +143,8 @@ impl ServerManager {
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
                     if line.contains("error") || line.contains("Error") {
-                        eprintln!("{} {}", "[Rust]".blue(), line.red());
+                    } else {
+                        eprintln!("{} {}", "[Rust]".blue(), line.green());
                     }
                 }
             });
@@ -161,16 +172,16 @@ impl ServerManager {
             }
         }
 
-        // Wait for Rust
+        // Wait for Rust (120s timeout for didkit compilation)
         let rust_health = format!("{}/health", RUST_BASE);
-        for i in 0..60 {
+        for i in 0..120 {
             match client.get(&rust_health).send().await {
                 Ok(resp) if resp.status().is_success() => {
                     println!("{}", format!("  Rust server ready ({}s)", i).green());
                     return Ok(());
                 }
-                _ if i == 59 => {
-                    anyhow::bail!("Rust server failed to start after 60s");
+                _ if i == 119 => {
+                    anyhow::bail!("Rust server failed to start after 120s");
                 }
                 _ => sleep(Duration::from_secs(1)).await,
             }

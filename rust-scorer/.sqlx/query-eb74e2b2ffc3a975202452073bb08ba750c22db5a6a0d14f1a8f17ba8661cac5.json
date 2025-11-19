@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT DISTINCT ON (provider)\n            id,\n            address,\n            provider,\n            stamp,\n            type AS stamp_type,\n            deleted_at,\n            created_at,\n            updated_at\n        FROM ceramic_cache_ceramiccache\n        WHERE address = $1\n        AND deleted_at IS NULL\n        AND type = 1\n        ORDER BY provider, updated_at DESC\n        ",
+  "query": "\n        SELECT\n            id,\n            address,\n            provider,\n            stamp,\n            type AS \"stamp_type: _\",\n            deleted_at,\n            created_at,\n            updated_at\n        FROM ceramic_cache_ceramiccache\n        WHERE address = $1\n        AND deleted_at IS NULL\n        AND type = 1\n        ORDER BY provider, updated_at DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -25,7 +25,7 @@
       },
       {
         "ordinal": 4,
-        "name": "stamp_type",
+        "name": "stamp_type: _",
         "type_info": "Int4"
       },
       {
@@ -60,5 +60,5 @@
       false
     ]
   },
-  "hash": "bbaa05237d0478e77b0a8203d0e8953538c2ea9b66a08cdd782e6a7fc7472a2a"
+  "hash": "eb74e2b2ffc3a975202452073bb08ba750c22db5a6a0d14f1a8f17ba8661cac5"
 }

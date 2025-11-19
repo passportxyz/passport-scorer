@@ -2,7 +2,7 @@ use sqlx::{PgPool, Postgres, Transaction};
 use tracing::info;
 
 use crate::auth::credentials::validate_credentials_batch;
-use crate::db::read_ops::{get_latest_stamps_per_provider, load_ceramic_cache};
+use crate::db::queries::stamps::{get_ceramic_cache_entries, get_latest_stamps_by_provider};
 use crate::db::write_ops::{bulk_insert_stamps, delete_stamps};
 use crate::models::internal::ValidStamp;
 use super::DomainError;
@@ -75,7 +75,7 @@ pub async fn get_stamps(
     address: &str,
     pool: &PgPool,
 ) -> Result<Vec<serde_json::Value>, DomainError> {
-    let ceramic_cache_entries = load_ceramic_cache(pool, address).await
+    let ceramic_cache_entries = get_ceramic_cache_entries(pool, address).await
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
     info!("Found {} stamps for address {}", ceramic_cache_entries.len(), address);
@@ -89,7 +89,7 @@ pub async fn get_latest_stamps(
     address: &str,
     pool: &PgPool,
 ) -> Result<Vec<serde_json::Value>, DomainError> {
-    let latest_stamps = get_latest_stamps_per_provider(pool, address).await
+    let latest_stamps = get_latest_stamps_by_provider(pool, address).await
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
     info!("Found {} latest stamps for address {}", latest_stamps.len(), address);

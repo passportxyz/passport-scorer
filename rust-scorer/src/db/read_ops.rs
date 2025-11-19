@@ -22,20 +22,14 @@ pub async fn load_ceramic_cache(
             address,
             provider,
             stamp,
-            proof_value,
             deleted_at,
             created_at,
             updated_at,
-            type,
-            compose_db_save_status,
-            compose_db_stream_id,
-            issuance_date,
-            expiration_date,
-            source_app,
-            source_scorer_id
+            type AS stamp_type
         FROM ceramic_cache_ceramiccache
         WHERE address = LOWER($1)
             AND deleted_at IS NULL
+            AND type = 1
         ORDER BY provider, updated_at DESC
         "#
     )
@@ -43,7 +37,7 @@ pub async fn load_ceramic_cache(
     .fetch_all(pool)
     .await
     .map_err(|e| DatabaseError::QueryError(e))?;
-    
+
     info!("Loaded {} ceramic cache records for address {}", records.len(), address);
     Ok(records)
 }
@@ -55,7 +49,7 @@ pub async fn get_latest_stamps_per_provider(
     address: &str,
 ) -> Result<Vec<DjangoCeramicCache>> {
     debug!("Getting latest stamps per provider for address: {}", address);
-    
+
     let records = sqlx::query_as::<_, DjangoCeramicCache>(
         r#"
         SELECT DISTINCT ON (provider)
@@ -63,20 +57,14 @@ pub async fn get_latest_stamps_per_provider(
             address,
             provider,
             stamp,
-            proof_value,
             deleted_at,
             created_at,
             updated_at,
-            type,
-            compose_db_save_status,
-            compose_db_stream_id,
-            issuance_date,
-            expiration_date,
-            source_app,
-            source_scorer_id
+            type AS stamp_type
         FROM ceramic_cache_ceramiccache
         WHERE address = LOWER($1)
             AND deleted_at IS NULL
+            AND type = 1
         ORDER BY provider, updated_at DESC
         "#
     )

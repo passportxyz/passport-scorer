@@ -48,27 +48,49 @@ This comparison test infrastructure automatically starts both servers and verifi
 
 ### In Progress / Remaining Issues
 
-#### Immediate Issues to Debug
+#### Completed (This Session)
 
-1. **Python scoring returns 500**: `"Failed to calculate score."`
-   - Credentials are properly signed and verified
-   - TRUSTED_IAM_ISSUERS is set in `.env.development`
-   - Need to verify Django is actually loading the env var
+1. **Python scoring fixed** - DONE
+   - Root cause: `create_test_credentials.py` was storing credentials in wrong format
+   - Fix: Store just the credential in `CeramicCache.stamp`, not a wrapper dict
+   - Python now returns score 4.0 correctly
 
-2. **Rust scoring returns 500**: `"no column found for name: stamp_type"`
-   - SQLX query cache was regenerated
-   - Query uses `type AS stamp_type` alias
-   - May need to check SQLX offline mode or query mapping
+2. **Rust stamp_type column mapping fixed** - DONE
+   - Root cause: `DjangoCeramicCache` struct had 8 fields but query selected 15 columns
+   - Fix: Updated queries in `db/queries/stamps.rs` to use `type AS "stamp_type: _"` and select only 8 columns
+   - Updated `domain/stamps.rs` and `domain/scoring.rs` to use new query functions
+
+3. **TRUSTED_IAM_ISSUERS loading fixed** - DONE
+   - Root cause: Was working correctly via dotenvy all along
+   - The issue was zombie server processes (from previous test runs) responding with old binaries
+   - Lesson: Always kill old servers before testing (`pkill -f passport-scorer`)
+
+4. **Timestamp formatting fixed** - DONE
+   - Root cause: Rust was including `.000000` microseconds when Python omits them for zero values
+   - Fix: Updated `format_datetime_python()` in `models/v2_api.rs` to only include microseconds when non-zero
+   - Both Python and Rust now return `"2026-02-17T15:37:57+00:00"` format
+
+#### Both comparison tests now pass
+- Weights endpoint: PASS
+- Internal Score endpoint: PASS (score 4.0, all timestamps match)
 
 ### Remaining Work
 
-#### Phase 2: Data Population & Scoring Test (Partially Complete)
+#### Critical - Must Complete
+
+1. **Delete read_ops.rs and write_ops.rs** - These old files must be removed
+   - Queries have been migrated to `db/queries/stamps.rs`
+   - Still using some functions from these files:
+     - `load_community`, `load_scorer_config`, `load_hash_scorer_links` from read_ops
+     - `bulk_upsert_hash_links`, `insert_dedup_events`, `verify_hash_links`,
+       `bulk_insert_stamps`, `delete_stamps`, `upsert_passport`, `upsert_score` from write_ops
+   - Need to migrate all these to organized query modules before deleting
+
+#### Phase 2: Additional Endpoints
 
 1. ~~**Extend test data**~~ - DONE via `create_test_credentials.py`
 
-2. **Debug scoring endpoint** - Both servers return 500 errors
-   - Python: Verify TRUSTED_IAM_ISSUERS loading
-   - Rust: Fix stamp_type column mapping issue
+2. ~~**Debug scoring endpoint**~~ - DONE, both tests pass
 
 3. **Add more internal endpoints**:
    - `POST /internal/check-bans`
@@ -111,8 +133,9 @@ rust-scorer/comparison-tests/
 - **60 second timeouts** - Allows time for Rust server to compile and start
 - **dotenvy for env loading** - Standard .env format, no shell variable expansion
 - **Override existing env vars** - Uses `from_path_override()` to ensure file values win
-- **envs inheritance** - Child processes get all parent env vars via `.envs(std::env::vars())`
+- **Filtered env inheritance** - Child cargo processes get env vars with `CARGO_*`, `RUSTFLAGS`, etc. filtered out to prevent fingerprint mismatches and unnecessary rebuilds
 - **Error response display** - Shows response bodies when both servers return errors
+- **Workspace setup** - comparison-tests is a workspace member of rust-scorer to share target directory and avoid duplicate builds
 
 ## Running the Tests
 
@@ -206,6 +229,8 @@ test_runner
 4. **Redis required** - Python Django uses Redis for caching; Valkey is a drop-in replacement on Fedora
 
 5. **scorer_id vs community_id** - API uses `scorer_id` but database uses `community_id` (1:1 mapping)
+
+6. **Cargo env var inheritance** - When spawning cargo as a child process, you must filter out `CARGO_*` env vars. Cargo sets these during builds and they get inherited by the running binary. If passed to a child cargo process, they cause fingerprint mismatches and unnecessary rebuilds. This is a known Rust ecosystem gotcha.
 
 ## Files Modified in This Session
 

@@ -50,12 +50,17 @@ pub fn format_percentage(value: Decimal) -> String {
     format!("{:.2}%", value * Decimal::from(100))
 }
 
-/// Format a datetime to ISO 8601 with 6 decimal places for microseconds (Python compatibility)
+/// Format a datetime to ISO 8601 matching Python's behavior
+/// - Includes microseconds only if non-zero
+/// - Omits microseconds when they're zero
 pub fn format_datetime_python(dt: DateTime<Utc>) -> String {
-    // Format with 6 decimal places for microseconds like Python does
     let base = dt.format("%Y-%m-%dT%H:%M:%S");
     let micros = dt.timestamp_subsec_micros();
-    format!("{}.{:06}+00:00", base, micros)
+    if micros == 0 {
+        format!("{}+00:00", base)
+    } else {
+        format!("{}.{:06}+00:00", base, micros)
+    }
 }
 
 impl V2ScoreResponse {
