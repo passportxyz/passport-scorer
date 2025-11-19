@@ -6,7 +6,8 @@ use sqlx::PgPool;
 use crate::models::{
     ScoringResult, StampData, V2ScoreResponse,
 };
-use crate::db::{DatabaseError, read_ops};
+use crate::db::DatabaseError;
+use crate::db::queries;
 use crate::domain::dedup::LifoResult;
 use super::DomainError;
 
@@ -53,7 +54,7 @@ async fn load_scorer_config(
     pool: &PgPool,
 ) -> Result<ScorerConfig, DatabaseError> {
     // Load scorer configuration (weights are always from scorer tables)
-    let scorer = read_ops::load_scorer_config(pool, community_id).await?;
+    let scorer = queries::load_scorer_config(pool, community_id).await?;
     
     let weights: HashMap<String, Decimal> = serde_json::from_value(scorer.weights)
         .map_err(|e| DatabaseError::QueryError(
@@ -445,9 +446,9 @@ pub async fn calculate_score_for_address(
     include_human_points: bool,
 ) -> Result<V2ScoreResponse, DomainError> {
     use sqlx::{Postgres, Transaction};
-    use crate::db::write_ops::{upsert_passport, delete_stamps, bulk_insert_stamps, upsert_score};
-    use crate::db::read_ops::load_community;
+    use crate::db::queries::{load_community, delete_stamps, bulk_insert_stamps, upsert_score};
     use crate::db::queries::stamps::{get_ceramic_cache_entries, get_latest_stamps_by_provider};
+    use crate::db::queries::scoring::upsert_passport_record as upsert_passport;
     use crate::auth::credentials::validate_credentials_batch;
     use crate::models::internal::ValidStamp;
     use super::dedup::lifo_dedup;
@@ -498,7 +499,7 @@ pub async fn calculate_score_for_address(
         .collect();
 
     // 6. Load scorer weights
-    let scorer_config = read_ops::load_scorer_config(pool, scorer_id).await
+    let scorer_config = queries::load_scorer_config(pool, scorer_id).await
         .map_err(|e| DomainError::Database(e.to_string()))?;
     let weights: HashMap<String, Decimal> = serde_json::from_value(scorer_config.weights)
         .map_err(|e| DomainError::Internal(format!("Failed to parse weights: {}", e)))?;

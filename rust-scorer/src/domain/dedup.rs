@@ -5,8 +5,7 @@ use std::collections::{HashMap, HashSet};
 use tracing::{info, warn};
 
 use crate::db::errors::DatabaseError;
-use crate::db::read_ops::load_hash_scorer_links;
-use crate::db::write_ops::{bulk_upsert_hash_links, insert_dedup_events, verify_hash_links};
+use crate::db::queries::{load_hash_scorer_links, bulk_upsert_hash_links, insert_dedup_events, verify_hash_links};
 use crate::models::django::DjangoHashScorerLink;
 use crate::models::internal::{StampData, StampInfo, ValidStamp};
 

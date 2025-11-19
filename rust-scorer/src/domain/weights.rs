@@ -3,7 +3,7 @@ use sqlx::PgPool;
 use std::collections::HashMap;
 use tracing::info;
 
-use crate::db::read_ops::load_scorer_config;
+use crate::db::queries::load_scorer_config;
 use super::DomainError;
 
 /// Get scorer weights for a given scorer_id

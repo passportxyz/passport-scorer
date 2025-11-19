@@ -1,5 +1,8 @@
 use sqlx::{PgPool, Postgres, Transaction};
+use tracing::{info, debug};
+
 use crate::db::errors::DatabaseError;
+use crate::models::django::{DjangoCommunity, DjangoScoreFields};
 
 /// Get passport by address and scorer_id
 pub async fn get_passport(
@@ -102,5 +105,92 @@ pub async fn upsert_score_record(
     .fetch_one(&mut **tx)
     .await?;
 
+    Ok(result.id)
+}
+
+/// Load community settings
+#[tracing::instrument(skip(pool), fields(community_id = community_id))]
+pub async fn load_community(
+    pool: &PgPool,
+    community_id: i64,
+) -> Result<DjangoCommunity, DatabaseError> {
+    debug!("Loading community settings for community_id: {}", community_id);
+
+    let community = sqlx::query_as::<_, DjangoCommunity>(
+        r#"
+        SELECT
+            id,
+            name,
+            description,
+            human_points_program,
+            created_at
+        FROM account_community
+        WHERE id = $1
+        "#
+    )
+    .bind(community_id)
+    .fetch_one(pool)
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => DatabaseError::NotFound(
+            format!("Community not found for id: {}", community_id)
+        ),
+        _ => DatabaseError::QueryError(e),
+    })?;
+
+    info!("Loaded community '{}' with human_points_program: {}",
+        community.name, community.human_points_program);
+    Ok(community)
+}
+
+/// Upsert a score record using DjangoScoreFields
+#[tracing::instrument(skip(tx, score_fields), fields(passport_id = passport_id))]
+pub async fn upsert_score(
+    tx: &mut Transaction<'_, Postgres>,
+    passport_id: i64,
+    score_fields: &DjangoScoreFields,
+) -> Result<i64, DatabaseError> {
+    debug!("Upserting score for passport_id: {}", passport_id);
+
+    let result = sqlx::query!(
+        r#"
+        INSERT INTO registry_score (
+            passport_id,
+            score,
+            status,
+            last_score_timestamp,
+            evidence,
+            stamps,
+            stamp_scores,
+            expiration_date,
+            error
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (passport_id)
+        DO UPDATE SET
+            score = EXCLUDED.score,
+            status = EXCLUDED.status,
+            last_score_timestamp = EXCLUDED.last_score_timestamp,
+            evidence = EXCLUDED.evidence,
+            stamps = EXCLUDED.stamps,
+            stamp_scores = EXCLUDED.stamp_scores,
+            expiration_date = EXCLUDED.expiration_date,
+            error = EXCLUDED.error
+        RETURNING id
+        "#,
+        passport_id,
+        score_fields.score,
+        score_fields.status,
+        score_fields.last_score_timestamp,
+        score_fields.evidence,
+        serde_json::to_value(&score_fields.stamps).unwrap(),
+        score_fields.stamp_scores,
+        score_fields.expiration_date,
+        score_fields.error
+    )
+    .fetch_one(&mut **tx)
+    .await?;
+
+    info!("Upserted score with ID: {} (score: {})", result.id, score_fields.score);
     Ok(result.id)
 }

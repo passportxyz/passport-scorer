@@ -2,8 +2,7 @@ use sqlx::{PgPool, Postgres, Transaction};
 use tracing::info;
 
 use crate::auth::credentials::validate_credentials_batch;
-use crate::db::queries::stamps::{get_ceramic_cache_entries, get_latest_stamps_by_provider};
-use crate::db::write_ops::{bulk_insert_stamps, delete_stamps};
+use crate::db::queries::stamps::{get_ceramic_cache_entries, get_latest_stamps_by_provider, delete_stamps, bulk_insert_stamps};
 use crate::models::internal::ValidStamp;
 use super::DomainError;
 

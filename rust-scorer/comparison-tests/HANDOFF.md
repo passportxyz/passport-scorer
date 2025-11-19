@@ -74,17 +74,26 @@ This comparison test infrastructure automatically starts both servers and verifi
 - Weights endpoint: PASS
 - Internal Score endpoint: PASS (score 4.0, all timestamps match)
 
+5. **Test runner reliability improvements** - DONE
+   - **Port availability check** - Fails fast with clear error if ports 3000/8002 are in use
+   - **Stdout pipe draining** - Fixed pipe buffer blocking that caused timeouts on verbose endpoints
+   - **Timestamp field ignoring** - `last_score_timestamp` naturally differs between sequential calls
+   - **Rust error display** - Show errors in red instead of silently dropping them
+   - **Process group cleanup** - Uses `libc::kill(-pid)` to kill Django's child process tree
+   - **Drop trait cleanup** - Automatic server cleanup even on error/panic (like finally block)
+
 ### Remaining Work
 
-#### Critical - Must Complete
+#### Completed (This Session)
 
-1. **Delete read_ops.rs and write_ops.rs** - These old files must be removed
-   - Queries have been migrated to `db/queries/stamps.rs`
-   - Still using some functions from these files:
-     - `load_community`, `load_scorer_config`, `load_hash_scorer_links` from read_ops
-     - `bulk_upsert_hash_links`, `insert_dedup_events`, `verify_hash_links`,
-       `bulk_insert_stamps`, `delete_stamps`, `upsert_passport`, `upsert_score` from write_ops
-   - Need to migrate all these to organized query modules before deleting
+6. **Migrated read_ops.rs and write_ops.rs to organized query modules** - DONE
+   - Created `db/queries/dedup.rs` for LIFO deduplication queries
+   - Added stamp write operations to `db/queries/stamps.rs`
+   - Added `load_scorer_config` to `db/queries/weights.rs`
+   - Added `load_community` and `upsert_score` to `db/queries/scoring.rs`
+   - Updated all domain imports to use new query paths
+   - Deleted `read_ops.rs`, `write_ops.rs`, and backup files
+   - Build passes, both comparison tests pass
 
 #### Phase 2: Additional Endpoints
 
@@ -121,19 +130,25 @@ rust-scorer/comparison-tests/
 
 ### How It Works
 
-1. `load_env_file()` - Loads `.env.development` from project root using dotenvy
-2. `ServerManager` - Spawns Python and Rust servers as child processes
-3. `wait_for_healthy()` - Polls health endpoints until both respond (60s timeout)
-4. `TestRunner::compare_get()` - Makes same request to both, compares JSON responses
-5. `TestRunner::compare_get_internal()` - Same but with Authorization header for internal API
-6. `compare_json()` - Deep comparison with sorted keys for deterministic matching
+1. `ensure_ports_available()` - Checks ports 3000/8002 are free, fails fast with instructions if not
+2. `load_env_file()` - Loads `.env.development` from project root using dotenvy
+3. `ServerManager` - Spawns Python (with process group) and Rust servers as child processes
+4. `wait_for_healthy()` - Polls health endpoints until both respond (60s Python, 120s Rust)
+5. `TestRunner::compare_get()` - Makes same request to both, compares JSON responses
+6. `TestRunner::compare_get_internal()` - Same but with Authorization header for internal API
+7. `compare_json()` - Deep comparison with sorted keys, ignoring timestamp fields that naturally differ
+8. `Drop` on `ServerManager` - Automatic cleanup kills process groups even on error/panic
 
 ### Key Design Decisions
 
-- **60 second timeouts** - Allows time for Rust server to compile and start
+- **Port pre-check** - Checks ports are free before starting, fails fast with clear error and fix instructions
+- **60/120 second timeouts** - Allows time for servers to compile and start (120s for Rust with DIDKit)
 - **dotenvy for env loading** - Standard .env format, no shell variable expansion
 - **Override existing env vars** - Uses `from_path_override()` to ensure file values win
 - **Filtered env inheritance** - Child cargo processes get env vars with `CARGO_*`, `RUSTFLAGS`, etc. filtered out to prevent fingerprint mismatches and unnecessary rebuilds
+- **Stdout draining** - Must read stdout from Rust server to prevent pipe buffer (64KB) from filling and blocking the server
+- **Process groups** - Python spawns with `process_group(0)` so we can kill all Django children with `kill(-pid)`
+- **Drop cleanup** - ServerManager implements Drop to auto-kill servers even on error/panic
 - **Error response display** - Shows response bodies when both servers return errors
 - **Workspace setup** - comparison-tests is a workspace member of rust-scorer to share target directory and avoid duplicate builds
 
@@ -173,19 +188,22 @@ Expected output:
   Python <-> Rust Comparison Tests
 ========================================
 
+Ports 3000 and 8002 are available
 Loaded environment from .env.development
+Loaded test config: address=0xaaaaaaaa, scorer_id=1
 Starting Python server...
 Starting Rust server...
 Waiting for servers to be healthy...
   Python server ready (2s)
-  Rust server ready (1s)
+  Rust server ready (0s)
 
 Running comparison tests...
 --------------------------------------------------
 Testing Weights endpoint ... PASS
+Testing Internal Score endpoint ... PASS
 
 ==================================================
-Results: 1 passed, 0 failed
+Results: 2 passed, 0 failed
 ==================================================
 
 Shutting down servers...
@@ -231,6 +249,12 @@ test_runner
 5. **scorer_id vs community_id** - API uses `scorer_id` but database uses `community_id` (1:1 mapping)
 
 6. **Cargo env var inheritance** - When spawning cargo as a child process, you must filter out `CARGO_*` env vars. Cargo sets these during builds and they get inherited by the running binary. If passed to a child cargo process, they cause fingerprint mismatches and unnecessary rebuilds. This is a known Rust ecosystem gotcha.
+
+7. **Pipe buffer blocking** - When spawning a process with piped stdout, you MUST continuously read from the pipe. The pipe buffer is ~64KB on Linux. If it fills up, the child process blocks on write() and hangs. This caused sporadic timeouts on verbose endpoints (like internal score) that produce lots of JSON logs.
+
+8. **Django child processes** - `manage.py runserver` spawns multiple processes (reloader + worker). Simply killing the parent doesn't kill children. Must use process groups: spawn with `process_group(0)` and kill with `kill(-pid, SIGKILL)`.
+
+9. **Timestamp comparison** - `last_score_timestamp` will always differ between Python and Rust since they're called sequentially. The test runner strips these fields before comparison.
 
 ## Files Modified in This Session
 
