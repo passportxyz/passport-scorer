@@ -1,0 +1,12 @@
+{
+  "test_address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "scorer_id": 1,
+  "api_key": "470zwY32.zzabIq8pfWJ6ETSRJruDeFSDbotjKzxt",
+  "issuer_did": "did:key:z6Mkq7HeEEHHMja6X1QAqP5PosH8x3G9ZRNfBkGjTN2f38Q5",
+  "providers": [
+    "Google",
+    "Twitter",
+    "Github"
+  ],
+  "expected_score_above": 2.5
+}

@@ -11,10 +11,13 @@ project_root = os.path.dirname(script_dir)
 api_path = os.path.join(project_root, 'api')
 sys.path.insert(0, api_path)
 
+# Load .env.development file
+env_file = os.path.join(project_root, '.env.development')
+if os.path.exists(env_file):
+    from dotenv import load_dotenv
+    load_dotenv(env_file, override=True)
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'scorer.settings')
-# Use environment variable if set, otherwise use default
-if 'DATABASE_URL' not in os.environ:
-    os.environ['DATABASE_URL'] = 'postgresql://passport_scorer:devpassword123@localhost:5432/passport_scorer_dev'
 django.setup()
 
 from account.models import Community, Account, AccountAPIKey
@@ -55,7 +58,7 @@ for i in range(1, 4):
     # First create the base Scorer
     scorer, scorer_created = Scorer.objects.get_or_create(
         id=i,
-        defaults={'type': 'BinaryWeightedScorer'}
+        defaults={'type': 'WEIGHTED_BINARY'}
     )
     if scorer_created:
         print(f"Created base scorer {i}")

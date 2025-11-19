@@ -15,6 +15,7 @@ The Passport Scorer consists of:
 - `sudo` access for package installation
 - At least 4GB of RAM
 - 10GB of free disk space
+- Redis or Valkey (Redis-compatible cache server)
 
 ## Quick Start
 
@@ -87,7 +88,28 @@ host    passport_scorer_dev    passport_scorer    127.0.0.1/32    md5
 host    passport_scorer_dev    passport_scorer    ::1/128         md5
 ```
 
-### 4. Setup Django Application
+### 4. Setup Redis/Valkey
+
+The Django application requires Redis for caching. Fedora 42+ uses Valkey (a Redis fork) which is 100% compatible.
+
+```bash
+# Fedora 42+ (uses Valkey)
+sudo dnf install -y redis  # Installs valkey-compat-redis
+valkey-server --daemonize yes --port 6379
+
+# Debian/Ubuntu
+sudo apt install -y redis-server
+sudo systemctl start redis-server
+
+# Verify it's running
+redis-cli ping  # Should return PONG
+# or
+valkey-cli ping  # On Fedora
+```
+
+**Note**: Valkey is a Linux Foundation project forked from Redis after Redis changed its license. It's a drop-in replacement with the same protocol and commands.
+
+### 5. Setup Django Application
 
 ```bash
 cd api
@@ -105,7 +127,7 @@ poetry run python manage.py migrate
 poetry run python ../create_test_data.py
 ```
 
-### 5. Setup Rust Scorer with SQLX
+### 6. Setup Rust Scorer with SQLX
 
 ```bash
 cd rust-scorer
@@ -125,32 +147,42 @@ cargo sqlx prepare
 
 ## Environment Variables
 
-Create a `.env.development` file in the project root:
+The `.env.development` file in the project root contains all environment variables for local development. It's checked into the repository with safe default values.
 
 ```bash
 # Database Configuration
-DATABASE_URL=postgresql://passport_scorer:devpassword123@localhost:5432/passport_scorer_dev
-READ_REPLICA_0_URL=postgresql://passport_scorer:devpassword123@localhost:5432/passport_scorer_dev
-READ_REPLICA_ANALYTICS_URL=postgresql://passport_scorer:devpassword123@localhost:5432/passport_scorer_dev
-DATA_MODEL_DATABASE_URL=postgresql://passport_scorer:devpassword123@localhost:5432/passport_scorer_dev
+# Note: sslmode=disable is required for local PostgreSQL (Rust scorer defaults to sslmode=require)
+DATABASE_URL="postgresql://passport_scorer:devpassword123@localhost:5432/passport_scorer_dev?sslmode=disable"
+READ_REPLICA_0_URL="postgresql://passport_scorer:devpassword123@localhost:5432/passport_scorer_dev?sslmode=disable"
+READ_REPLICA_ANALYTICS_URL="postgresql://passport_scorer:devpassword123@localhost:5432/passport_scorer_dev?sslmode=disable"
+DATA_MODEL_DATABASE_URL="postgresql://passport_scorer:devpassword123@localhost:5432/passport_scorer_dev?sslmode=disable"
 
 # Django Configuration
-SECRET_KEY=dev-secret-key-not-for-production
+SECRET_KEY="dev-secret-key-not-for-production"
 DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
+ALLOWED_HOSTS="localhost,127.0.0.1"
+
+# Scorer Configuration
+CERAMIC_CACHE_SCORER_ID=1
 
 # API Configuration
-SCORER_SERVER_URL=http://localhost:8000
-INTERNAL_API_KEY=dev-internal-api-key
+SCORER_SERVER_URL="http://localhost:8000"
+INTERNAL_API_KEY="dev-internal-api-key"
 
 # Feature Flags
 FF_MULTI_NULLIFIER=off
 FF_DEDUP_EXPIRATION=on
 
+# Human Points (disabled for local dev)
+HUMAN_POINTS_ENABLED=false
+
 # Rust Configuration
 RUST_LOG=debug
 RUST_BACKTRACE=1
 ```
+
+For manual shell usage, you can source it: `source .env.development`
+The comparison tests automatically load this file using dotenvy.
 
 ## Test Data
 
@@ -186,13 +218,29 @@ ALTER TABLE <table_name> ADD COLUMN <column_name> <type>;
 ### SQLX Compilation Errors
 ```bash
 # Ensure DATABASE_URL is set
-export DATABASE_URL="postgresql://passport_scorer:devpassword123@localhost:5432/passport_scorer_dev"
+export DATABASE_URL="postgresql://passport_scorer:devpassword123@localhost:5432/passport_scorer_dev?sslmode=disable"
 
 # Verify database connection
 psql $DATABASE_URL -c "SELECT 1"
 
 # Check that all required tables exist
 psql $DATABASE_URL -c "\dt"
+```
+
+### Redis/Valkey Connection Errors
+If you see `Connection refused` errors on port 6379:
+```bash
+# Check if Redis/Valkey is running
+pgrep -a redis || pgrep -a valkey
+
+# Start Valkey (Fedora)
+valkey-server --daemonize yes --port 6379
+
+# Start Redis (Debian/Ubuntu)
+sudo systemctl start redis-server
+
+# Verify connection
+redis-cli ping  # or valkey-cli ping
 ```
 
 ## Development Workflow
