@@ -53,15 +53,22 @@ fn stamp_credential_eip712_types() -> Value {
     })
 }
 
-/// Generate a secp256k1 Ethereum key
-fn generate_ethereum_key() -> Result<JWK> {
-    use rand::RngCore;
+/// Get the hardcoded test secp256k1 Ethereum key
+/// This ensures the issuer DID stays constant across test runs, so TRUSTED_IAM_ISSUERS
+/// doesn't need to be updated in .env.development each time credentials are regenerated.
+fn get_test_ethereum_key() -> Result<JWK> {
     use k256::ecdsa::SigningKey;
     use k256::elliptic_curve::sec1::ToEncodedPoint;
 
-    // Generate random 32 bytes for private key
-    let mut d = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut d);
+    // Hardcoded test private key (32 bytes)
+    // This is a randomly generated key that is ONLY for local testing - not used in production
+    // Corresponding DID: did:ethr:0x018d103c154748e8d5a1d7658185125175457f84
+    let d: [u8; 32] = [
+        0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
+        0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+        0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11,
+        0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
+    ];
 
     // Use k256 to derive the public key
     let signing_key = SigningKey::from_bytes((&d).into())
@@ -199,8 +206,8 @@ async fn main() -> Result<()> {
 
     println!("Connected to database");
 
-    // Generate Ethereum key for signing
-    let key = generate_ethereum_key()?;
+    // Get hardcoded test Ethereum key for signing
+    let key = get_test_ethereum_key()?;
 
     // Get issuer DID and verification method using didkit's DID methods
     let did_method = DID_METHODS.get("ethr")

@@ -46,9 +46,28 @@ This comparison test infrastructure automatically starts both servers and verifi
    - Uses internal API with Authorization header
    - Shows error response bodies on failure
 
-### In Progress / Remaining Issues
+### Phase 3 Complete - All Core Endpoints Verified ✅
 
-#### Completed (This Session)
+All comparison tests now pass, including the Embed Stamps POST endpoint using production-format EthereumEip712Signature2021 credentials.
+
+### Previously Completed Issues
+
+#### Completed (Current Session - 2025-11-20)
+
+8. **Embed Stamps POST endpoint enabled** - DONE
+   - Uncommented and enabled the POST /internal/embed/stamps/{address} test
+   - Test now passes using production-format EthereumEip712Signature2021 credentials
+   - All 8 comparison tests passing
+   - Updated documentation (DEV_SETUP.md, HANDOFF.md)
+   - Added default-run to Cargo.toml for easier test execution
+
+9. **Hardcoded test issuer key** - DONE
+   - Fixed gen_credentials.rs to use hardcoded Ethereum key instead of random generation
+   - Issuer DID now constant: did:ethr:0x018d103c154748e8d5a1d7658185125175457f84
+   - Updated .env.development with the hardcoded DID in TRUSTED_IAM_ISSUERS
+   - No longer need to update environment variables after regenerating credentials
+
+#### Completed (Previous Session - Embed Stamps POST)
 
 1. **Python scoring fixed** - DONE
    - Root cause: `create_test_credentials.py` was storing credentials in wrong format
@@ -118,20 +137,21 @@ This comparison test infrastructure automatically starts both servers and verifi
    - `GET /internal/stake/gtc/{address}` - PASS
    - `GET /internal/allow-list/{list}/{address}` - PASS
 
-#### All 7 Comparison Tests Now Pass:
+#### All 8 Comparison Tests Now Pass:
 - Weights endpoint
 - Internal Score endpoint
 - Check Bans endpoint
 - Check Revocations endpoint
 - GTC Stake endpoint
 - Allow List endpoint
-- Embed Score endpoint
+- Embed Score endpoint (GET)
+- Embed Stamps POST endpoint
 
-#### Production Credential Format:
-- **EthereumEip712Signature2021 credentials** are now generated using Rust (`cargo run --bin gen-credentials`)
+#### Production Credential Format - COMPLETE:
+- **EthereumEip712Signature2021 credentials** generated using Rust (`cargo run --bin gen-credentials`)
 - Uses `did:ethr:0x...` DIDs with secp256k1 keys (production format)
 - All credentials verified as VALID by DIDKit
-- Ready for testing POST /internal/embed/stamps/{address} endpoint
+- POST /internal/embed/stamps/{address} endpoint now PASSING
 
 ### Next Steps for Incoming Team
 
@@ -221,12 +241,9 @@ poetry run python ../dev-setup/create_test_data.py
 cd ../rust-scorer/comparison-tests
 ulimit -n 4096  # DIDKit requires many file descriptors
 cargo run --bin gen-credentials
-
-# 5. Update .env.development with the issuer DID shown in the output
-# Add the DID to TRUSTED_IAM_ISSUERS in .env.development
 ```
 
-**Note**: The credential generator creates a new Ethereum key each run, so the issuer DID changes. Copy the DID from the output and update `TRUSTED_IAM_ISSUERS` in `.env.development`.
+**Note**: The credential generator uses a hardcoded test Ethereum key (did:ethr:0x018d103c154748e8d5a1d7658185125175457f84), so the issuer DID remains constant across runs. This DID is already configured in `.env.development` under `TRUSTED_IAM_ISSUERS`.
 
 ### Run Comparison Tests
 
@@ -259,10 +276,10 @@ Testing Check Revocations endpoint ... PASS
 Testing GTC Stake endpoint ... PASS
 Testing Allow List endpoint ... PASS
 Testing Embed Score endpoint ... PASS
-  Skipping Embed Stamps POST test (Ed25519 credentials incompatible with Python)
+Testing Embed Stamps POST endpoint ... PASS
 
 ==================================================
-Results: 7 passed, 0 failed
+Results: 8 passed, 0 failed
 ==================================================
 
 Shutting down servers...

@@ -637,21 +637,16 @@ async fn main() -> Result<()> {
         .await?;
 
     // POST embed stamps endpoint - adds stamps and returns new score
-    // NOTE: This test is skipped because Ed25519 credentials (jws proof) aren't compatible
-    // with Python's credential handling which expects proofValue. The endpoint is implemented
-    // in Rust but requires production-format credentials (EcdsaSecp256k1RecoverySignature2020)
-    // to test properly.
+    // Now using production-format EthereumEip712Signature2021 credentials
     if !config.credentials.is_empty() {
-        println!("{}", "  Skipping Embed Stamps POST test (Ed25519 credentials incompatible with Python)".yellow());
-        // Uncomment to test when using production-compatible credentials:
-        // let embed_stamps_body = json!({
-        //     "scorer_id": config.scorer_id,
-        //     "stamps": config.credentials
-        // });
-        // let embed_stamps_path = format!("/internal/embed/stamps/{}", config.test_address);
-        // test_runner
-        //     .compare_post_internal("Embed Stamps endpoint", &embed_stamps_path, &embed_stamps_body, &internal_key)
-        //     .await?;
+        let embed_stamps_body = json!({
+            "scorer_id": config.scorer_id,
+            "stamps": config.credentials
+        });
+        let embed_stamps_path = format!("/internal/embed/stamps/{}", config.test_address);
+        test_runner
+            .compare_post_internal("Embed Stamps POST endpoint", &embed_stamps_path, &embed_stamps_body, &internal_key)
+            .await?;
     } else {
         println!("{}", "  Skipping Embed Stamps test (no credentials in config)".yellow());
     }

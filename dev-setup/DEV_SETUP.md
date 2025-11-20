@@ -123,11 +123,22 @@ export DATABASE_URL="postgresql://passport_scorer:devpassword123@localhost:5432/
 # Run Django migrations
 poetry run python manage.py migrate
 
-# Create test data (optional)
-poetry run python ../create_test_data.py
+# Create test data
+poetry run python ../dev-setup/create_test_data.py
 ```
 
-### 6. Setup Rust Scorer with SQLX
+### 6. Generate Test Credentials (for comparison tests)
+
+```bash
+# Generate production-format EthereumEip712Signature2021 credentials
+cd ../rust-scorer/comparison-tests
+ulimit -n 4096  # DIDKit requires many file descriptors
+cargo run --bin gen-credentials
+```
+
+**Note**: The credential generator creates test credentials in the database for comparison testing. It uses a hardcoded test Ethereum key (did:ethr:0x018d103c154748e8d5a1d7658185125175457f84), so the issuer DID remains constant. This DID is already configured in `.env.development`.
+
+### 7. Setup Rust Scorer with SQLX
 
 ```bash
 cd rust-scorer
