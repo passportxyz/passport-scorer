@@ -19,6 +19,7 @@ Automated test harness that verifies Rust scorer endpoints return the same resul
    ```bash
    cd api
    poetry run python ../dev-setup/create_test_data.py
+   poetry run python ../dev-setup/create_comparison_test_data.py
    ```
 
 4. **Ports 8002 and 3000 free** (the test runner starts both servers)

@@ -107,7 +107,7 @@ The comparison tests with realistic data caught **2 real bugs** - both now fixed
 # 1. Ensure test data exists
 cd api
 poetry run python ../dev-setup/create_test_data.py
-poetry run python ../dev-setup/create_simple_test_data.py
+poetry run python ../dev-setup/create_comparison_test_data.py
 
 # 2. Generate credentials
 cd ../rust-scorer/comparison-tests
@@ -127,19 +127,12 @@ cargo run --release -- --verbose
 - 3 test scorers/communities with weights
 - API keys for testing
 
-**Utility endpoint data** (`create_simple_test_data.py`):
-- Allow list: `0xaaaa...` in 'testlist'
-- Bans: Active ban for `0xbbbb...`, expired ban + single stamp ban for `0xaaaa...`
-- GTC Stakes: 1500.75 GTC total for `0xaaaa...`
-
-**CGrants data** (`create_cgrants_test_data.py`):
-- Profile, grants, and contribution index entries
-- Protocol contributions with squelched accounts
-- 5 total grants/projects: $221.75 combined
-
-**Revocations data** (`create_revocation_test_data.py`):
-- Ceramic cache entries with revoked proof values
-- 2 revoked stamps for testing
+**Comparison test data** (`create_comparison_test_data.py`):
+- **Allow lists**: `0xaaaa...` in 'testlist'
+- **Bans**: Active ban for `0xbbbb...`, expired ban + single stamp ban for `0xaaaa...`
+- **GTC Stakes**: 1500.75 GTC total for `0xaaaa...` (self + community)
+- **CGrants**: Profile, grants, contribution index, protocol contributions with squelched accounts (5 grants/projects, $221.75 total)
+- **Revocations**: Ceramic cache entries with 2 revoked proof values
 
 **Credentials** (`gen-credentials` binary):
 - Production-format EthereumEip712Signature2021 credentials
