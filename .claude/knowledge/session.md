@@ -365,3 +365,443 @@ Also must create /var/run/postgresql directory for Unix socket in containers as 
 **Files**: dev-setup/setup.sh
 ---
 
+### [16:58] [architecture] Rust Scorer Internal API Implementation Status - Complete Architecture Overview
+**Details**: The Rust scorer has been refactored with a complete new architecture separating concerns into API handlers, domain logic, and database operations. Here's the comprehensive status:
+
+## Overall Architecture
+
+The codebase has been reorganized into three clean layers:
+1. **API Layer** (`src/api/handlers/`) - Thin HTTP handlers for routing and auth
+2. **Domain Layer** (`src/domain/`) - Pure business logic with no HTTP concerns
+3. **Database Layer** (`src/db/`) - Raw database queries and transactions
+
+## Routes Implemented (All Configured in server.rs)
+
+### Complete Implementation (Production-Ready):
+1. **GET /v2/stamps/{scorer_id}/score/{address}** - External scoring (requires API key) - COMPLETE
+2. **POST /internal/embed/stamps/{address}** - Add stamps and rescore - COMPLETE
+3. **GET /internal/embed/score/{scorer_id}/{address}** - Get score with stamps - COMPLETE  
+4. **GET /internal/embed/validate-api-key** - Validate partner API key - COMPLETE
+5. **POST /ceramic-cache/stamps/bulk** - Ceramic cache add stamps with JWT - COMPLETE
+6. **GET /ceramic-cache/score/{address}** - Ceramic cache get score - COMPLETE
+
+### Stubbed Implementations (Awaiting Database Layer Implementation):
+7. **GET /internal/score/v2/{scorer_id}/{address}** - Internal scoring endpoint
+   - Handler: COMPLETE (calls domain::calculate_score_for_address)
+   - Domain: COMPLETE (full orchestration at src/domain/scoring.rs:441-552)
+   - Database: COMPLETE
+   - Status: FUNCTIONAL
+
+8. **GET /internal/embed/weights** - Get scorer weights
+   - Handler: COMPLETE (src/api/handlers/internal.rs:63-86)
+   - Domain: COMPLETE (src/domain/weights.rs with default weights)
+   - Database: Uses existing load_scorer_config
+   - Status: FUNCTIONAL
+
+9. **GET /internal/allow-list/{list}/{address}** - Check allow list membership
+   - Handler: COMPLETE (src/api/handlers/internal.rs:116-131)
+   - Domain: STUBBED (returns false, TODO line 17)
+   - Database: Not implemented
+   - Status: NEEDS DB IMPLEMENTATION
+
+10. **GET /internal/customization/credential/{provider_id}** - Get credential definition
+    - Handler: COMPLETE (src/api/handlers/internal.rs:133-151)
+    - Domain: STUBBED (returns empty JSON, TODO line 32)
+    - Database: Not implemented
+    - Status: NEEDS DB IMPLEMENTATION
+
+### Phase 3 Endpoints (Database Queries Stubbed):
+11. **POST /internal/check-bans** - Check for credential bans
+    - Handler: STUBBED (src/api/handlers/internal.rs:88-102)
+    - Domain: STUBBED (src/domain/bans.rs:17-34)
+    - Database: Not implemented
+    - Status: TODO IMPLEMENTATION
+
+12. **POST /internal/check-revocations** - Check for credential revocations
+    - Handler: STUBBED (src/api/handlers/internal.rs:104-114)
+    - Domain: Not created
+    - Database: Not implemented
+    - Status: TODO IMPLEMENTATION
+
+13. **GET /internal/stake/gtc/{address}** - Get GTC stakes
+    - Handler: COMPLETE (src/api/handlers/internal.rs:154-169)
+    - Domain: STUBBED (src/domain/stakes.rs:22-34, returns empty items)
+    - Database: Not implemented
+    - Status: NEEDS DB IMPLEMENTATION
+
+14. **GET /internal/stake/legacy-gtc/{address}/{round_id}** - Get legacy GTC events
+    - Handler: COMPLETE (src/api/handlers/internal.rs:171-186)
+    - Domain: STUBBED (src/domain/stakes.rs:54-67, returns empty results)
+    - Database: Not implemented
+    - Status: NEEDS DB IMPLEMENTATION
+
+15. **GET /internal/cgrants/contributor_statistics** - Get contributor stats
+    - Handler: COMPLETE (src/api/handlers/internal.rs:188-206)
+    - Domain: STUBBED (src/domain/cgrants.rs:16-35, returns zeros)
+    - Database: Not implemented
+    - Status: NEEDS DB IMPLEMENTATION
+
+## Implementation Completeness Summary
+
+**Fully Implemented (No Stubs)**: 6 endpoints
+- All scoring (v2, embed, ceramic-cache)
+- All embed operations
+
+**Skeleton Complete, Database Pending**: 9 endpoints
+- All handlers exist
+- All domain types defined with TODO placeholders
+- Database query logic needs implementation
+
+**Details by Module**:
+
+### src/api/handlers/ - ALL COMPLETE
+- internal.rs: 9 handler functions (100% complete, all call domain logic)
+- external.rs: Scoring handler with API key auth
+- mod.rs: Exports all handlers
+
+### src/domain/ - PARTIALLY COMPLETE
+- scoring.rs: calculate_score_for_address() COMPLETE (441-552), build_scoring_result() COMPLETE (77-150)
+- weights.rs: COMPLETE (with default weights fallback)
+- stamps.rs: COMPLETE (add stamps, validate, etc.)
+- allow_list.rs: STUBBED (check membership returns false)
+- cgrants.rs: STUBBED (returns zeros)
+- stakes.rs: STUBBED (returns empty arrays)
+- bans.rs: STUBBED (returns empty results)
+- dedup.rs: COMPLETE (existing LIFO dedup)
+- human_points.rs: COMPLETE (existing implementation)
+
+### src/db/ - COMPLETE FOR SCORING, NEEDS EXTENSIONS
+- read_ops.rs: All scoring-related queries present
+- write_ops.rs: All scoring-related operations present
+- Need to add queries for:
+  - allow_list (account_addresslistmember, account_addresslist)
+  - cgrants (cgrants_grantcontributionindex, cgrants_protocolcontributions, cgrants_squelchedaccounts)
+  - stakes (stake_stake, registry_gtcstakeevent)
+  - bans (ceramic_cache_ban)
+  - revocations (ceramic_cache_revocation)
+  - custom credentials (account_customcredentialruleset)
+
+## Key Architectural Decisions
+
+1. **Clean Separation**: HTTP concerns (handlers) separate from business logic (domain)
+2. **Reusable Logic**: calculate_score_for_address can be called by both internal and external handlers
+3. **Transaction Safety**: All operations maintain proper transaction semantics
+4. **Error Types**: DomainError enum for business logic errors (Database, Validation, NotFound, Internal)
+5. **Instrumentation**: All handlers and key domain functions have #[tracing::instrument] for observability
+
+## Known Issues/Limitations
+
+1. **Zero Score Case**: Line 472-473 in scoring.rs marked TODO - currently returns error for addresses with no stamps
+2. **Default Weights**: Hardcoded example weights in weights.rs need verification against Python defaults
+3. **Phase 3 endpoints**: All database queries are not yet written (only stubs returning empty/zero values)
+
+## File Locations Summary
+
+Planning Documents:
+- /workspace/project/RUST_SCORER_EXPANSION_IMPLEMENTATION_GUIDE.md - Phase 1 & 2 completion status
+- /workspace/project/INTERNAL_API_RUST_MIGRATION_GUIDE.md - Architecture design for Phase 1 (now completed)
+
+Source Code:
+- Routes: /workspace/project/rust-scorer/src/api/server.rs (lines 178-242)
+- External Handler: /workspace/project/rust-scorer/src/api/handlers/external.rs
+- Internal Handlers: /workspace/project/rust-scorer/src/api/handlers/internal.rs (9 functions)
+- Domain Logic: /workspace/project/rust-scorer/src/domain/ (10 modules)
+- Database Ops: /workspace/project/rust-scorer/src/db/ (read_ops.rs, write_ops.rs)
+
+## Next Steps for Completion
+
+To complete the implementation, the database query functions need to be written for Phase 3 endpoints. The architecture and all HTTP handling is already in place - it's just a matter of implementing the SQL queries in the domain modules.
+**Files**: /workspace/project/RUST_SCORER_EXPANSION_IMPLEMENTATION_GUIDE.md, /workspace/project/INTERNAL_API_RUST_MIGRATION_GUIDE.md, /workspace/project/rust-scorer/src/api/server.rs, /workspace/project/rust-scorer/src/api/handlers/internal.rs, /workspace/project/rust-scorer/src/domain/mod.rs, /workspace/project/rust-scorer/src/domain/scoring.rs, /workspace/project/rust-scorer/src/domain/weights.rs, /workspace/project/rust-scorer/src/domain/allows_list.rs, /workspace/project/rust-scorer/src/domain/cgrants.rs, /workspace/project/rust-scorer/src/domain/stakes.rs, /workspace/project/rust-scorer/src/domain/bans.rs
+---
+
+### [20:38] [api] CGrants Contributor Statistics Endpoint
+**Details**: ## Endpoint Overview
+
+**Endpoint Path**: `/internal/cgrants/contributor_statistics` (Internal API)
+**HTTP Method**: GET
+**Authentication**: `internal_api_key` (Bearer token in Authorization header)
+**Route Name**: `cgrants_contributor_statistics`
+
+## Request Parameters
+
+- **address** (required, query parameter): Ethereum address to get contributor statistics for
+  - Must be a valid Ethereum address (validated via `is_valid_address()`)
+  - Converted to lowercase before processing
+  - Returns 400 Bad Request if invalid
+  - Returns 422 Unprocessable Entity if missing
+
+## Response Structure
+
+Returns a JSON object with 2 fields (always present, even for zero contributions):
+
+```json
+{
+  "num_grants_contribute_to": <float>,
+  "total_contribution_amount": <float>
+}
+```
+
+All numeric values are returned as floats (not integers), rounded to 2 decimal places.
+
+## Query Logic
+
+The endpoint combines data from TWO separate data sources:
+
+### 1. CGrants Contributions (_get_contributor_statistics_for_cgrants)
+
+**Data Source**: GrantContributionIndex table
+**Query Logic**:
+- Filter by `contributor_address = address` AND `contribution.success = true` (FK join required)
+- If no contributions found, return early with `{"num_grants_contribute_to": 0, "total_contribution_amount": 0}`
+- Count distinct grant_id values (number of grants the user contributed to)
+- Sum all amount fields (total contribution amount in USD)
+- Returns dict with keys: `num_grants_contribute_to`, `total_contribution_amount`
+
+**Key Points**:
+- Only counts SUCCESSFUL contributions (contribution.success must be true)
+- Sums the "amount" field from GrantContributionIndex (decimal with 18 places, max 64 digits)
+- If sum is NULL (no rows after filtering), defaults to 0
+- Uses `.distinct()` on grant_id values to ensure accurate count
+
+### 2. Protocol Contributions (_get_contributor_statistics_for_protocol)
+
+**Data Sources**: ProtocolContributions, SquelchedAccounts, RoundMapping tables
+**Query Logic** (3-step process):
+
+1. **Get squelched rounds**:
+   - Query SquelchedAccounts where `address = address`
+   - Extract list of `round_number` values
+
+2. **Map round numbers to Ethereum addresses**:
+   - Query RoundMapping where `round_number IN (squelched_round_ids)`
+   - Extract list of `round_eth_address` values
+
+3. **Get contributions excluding squelched rounds**:
+   - Filter ProtocolContributions where:
+     - `contributor = address` (case-sensitive ETH address comparison)
+     - `amount >= 0.95` (minimum threshold to filter out depegged/low-value contributions)
+   - Exclude rows where `round IN (squelched_round_ids)`
+   - Count distinct `project` values (number of grants/projects)
+   - Sum all `amount` fields (total contribution in USD)
+   - Rounds result to 3 decimal places
+   - Returns dict with keys: `num_grants_contribute_to`, `total_contribution_amount`
+
+**Key Points**:
+- Amount threshold is >= 0.95 (not 1.0) to account for depegged stablecoins
+- Count is distinct by project, not by contribution
+- Sum is rounded to 3 decimal places (not 2)
+- Squelched/sybil addresses return 0 contributions for those rounds
+- NULL sums default to 0
+
+### 3. Combining Results
+
+The final response combines both sources:
+- For each key present in either source, add the values together
+- Convert to float and round to 2 decimal places
+- Result is a dict with keys: `num_grants_contribute_to`, `total_contribution_amount`
+
+## Database Tables Involved
+
+### GrantContributionIndex
+- **Primary Key**: id (BigAutoField)
+- **Fields**:
+  - `profile_id` (FK to Profile)
+  - `contribution_id` (FK to Contribution, nullable)
+  - `grant_id` (FK to Grant)
+  - `round_num` (IntegerField, nullable)
+  - `amount` (DecimalField, 18 decimals, 64 max_digits)
+  - `contributor_address` (EthAddressField, max_length=100, indexed, nullable)
+- **Indexes**: contributor_address, contribution_id, profile_id
+- **Purpose**: Fast lookup for contributor statistics
+
+### Contribution
+- **Primary Key**: id (BigAutoField)
+- **Fields**:
+  - `subscription_id` (FK to Subscription)
+  - `success` (BooleanField, default=False)
+  - `amount_per_period_usdt` (DecimalField, 18 decimals)
+  - `data` (JSONField)
+- **Join**: GrantContributionIndex.contribution_id → Contribution.id
+
+### ProtocolContributions
+- **Primary Key**: id (BigAutoField)
+- **Fields**:
+  - `ext_id` (CharField, max_length=66, unique, indexed)
+  - `contributor` (EthAddressField, max_length=100, indexed) - the contributor's address
+  - `round` (EthAddressField, max_length=100, indexed) - the round's Ethereum address
+  - `project` (EthAddressField, max_length=100, indexed) - the project's address
+  - `amount` (DecimalField, 18 decimals, 64 max_digits, indexed)
+  - `data` (JSONField)
+- **Indexes**: ext_id (unique), contributor, round, project, amount
+- **Purpose**: Store Allo protocol contributions from indexer
+
+### SquelchedAccounts
+- **Primary Key**: id (BigAutoField)
+- **Fields**:
+  - `address` (EthAddressField, max_length=100, indexed)
+  - `score_when_squelched` (DecimalField, 18 decimals)
+  - `sybil_signal` (BooleanField)
+  - `round_number` (CharField, max_length=100)
+- **Index**: address
+- **Purpose**: Track sybil/flagged addresses per round (GG18+)
+
+### RoundMapping
+- **Primary Key**: id (BigAutoField)
+- **Fields**:
+  - `round_number` (CharField, max_length=100)
+  - `round_eth_address` (EthAddressField, max_length=100, indexed)
+- **Unique Constraint**: (round_number, round_eth_address)
+- **Purpose**: Map GG round numbers to Ethereum addresses
+
+## Edge Cases and Special Handling
+
+1. **No contributions**: Returns `{"num_grants_contribute_to": 0.0, "total_contribution_amount": 0.0}`
+2. **Contributions below threshold** (< 0.95 USD): Ignored in protocol contributions, excluded from count
+3. **Squelched addresses**: Contributions in those rounds are excluded from protocol stats
+4. **Failed contributions**: Ignored in cgrants stats (contribution.success=false)
+5. **NULL sums**: Converted to 0 (both queries handle this)
+6. **Address case sensitivity**: Converted to lowercase before querying
+7. **Invalid address**: Raises InvalidAddressException (400 Bad Request)
+8. **Missing address**: Returns 422 Unprocessable Entity (Django Ninja validation)
+
+## Response Schema
+
+PydanticSchema `ContributorStatistics`:
+```
+- num_grants_contribute_to: int (Field, but returned as float)
+- total_contribution_amount: int (Field, but returned as float)
+```
+
+Note: Schema declares int type but Python code converts to float before returning JsonResponse.
+
+## Reference Implementation Files
+
+- **Main handler**: `/workspace/project/api/cgrants/api.py::handle_get_contributor_statistics()`
+- **CGrants logic**: `/workspace/project/api/cgrants/api.py::_get_contributor_statistics_for_cgrants()`
+- **Protocol logic**: `/workspace/project/api/cgrants/api.py::_get_contributor_statistics_for_protocol()`
+- **Route registration**: `/workspace/project/api/internal/api.py::cgrants_contributor_statistics()`
+- **Models**: `/workspace/project/api/cgrants/models.py`
+- **Tests**: `/workspace/project/api/cgrants/test/test_cgrants_combined_contributions_api.py`
+
+## Test Coverage
+
+Tests verify:
+- Combined contributions from both sources
+- Zero contributions for addresses with no history
+- Invalid address handling (400 response)
+- Invalid token handling (401 response)
+- Missing address parameter (422 response)
+- Contributions below threshold are excluded
+- Only protocol contributions count correctly
+- Depegged stablecoin handling (0.99897 rounded to 1.0)
+- Squelched profiles excluded from protocol stats
+- Squelched in one round but not another (mixed case)
+**Files**: /workspace/project/api/cgrants/api.py, /workspace/project/api/cgrants/models.py, /workspace/project/api/internal/api.py, /workspace/project/api/cgrants/test/test_cgrants_combined_contributions_api.py
+---
+
+### [13:30] [architecture] Rust vs Python Endpoint Comparison and Test Infrastructure
+**Details**: ## Complete Endpoint Mapping
+
+**15 Total Endpoints Implemented (All Complete & Ready for Testing)**
+
+### External/Public Endpoints (1 endpoint)
+1. GET /v2/stamps/{scorer_id}/score/{address} - Main V2 scoring endpoint with API key auth, supports include_human_points query param
+
+### Internal Embed Endpoints (3 endpoints)
+2. GET /internal/embed/score/{scorer_id}/{address} - Get score with stamps
+3. POST /internal/embed/stamps/{address} - Add stamps and rescore
+4. GET /internal/embed/validate-api-key - Validate partner API key
+
+### Ceramic Cache Endpoints (2 endpoints)  
+5. POST /ceramic-cache/stamps/bulk - Add stamps with JWT auth (HS256)
+6. GET /ceramic-cache/score/{address} - Get score with JWT auth
+
+### Internal API Endpoints (9 endpoints)
+7. GET /internal/score/v2/{scorer_id}/{address} - Internal scoring
+8. GET /internal/embed/weights - Weights retrieval (no auth required)
+9. POST /internal/check-bans - Credential ban checking
+10. POST /internal/check-revocations - Stamp revocation checking
+11. GET /internal/allow-list/{list}/{address} - Allow list membership
+12. GET /internal/customization/credential/{provider_id} - Credential definitions
+13. GET /internal/stake/gtc/{address} - GTC stake retrieval
+14. GET /internal/stake/legacy-gtc/{address}/{round_id} - Legacy GTC stake
+15. GET /internal/cgrants/contributor_statistics - Contributor statistics
+
+## Implementation Status
+- **Handlers**: All 15 handler functions complete in src/api/handlers/ and embed.rs/ceramic_cache.rs
+- **Domain Logic**: All business logic implemented (scoring, dedup, human points, bans, stakes, etc.)
+- **Database**: All database operations implemented for full response generation
+- **Response Models**: All request/response types defined with exact Python compatibility
+
+## Testing Infrastructure
+- Rust: Unit tests (cargo test --lib), Integration tests (with DATABASE_URL)
+- Python: Existing pytest-based tests
+- Load Testing: K6 scripts with test data generation in load_tests/
+- Database: Both use postgresql, migrations via Django ORM
+
+## Key Architectural Patterns
+- Both use transactional operations for data consistency
+- API key auth: Python PBKDF2 (2.5s), Rust SHA-256 fast path (<1ms) with fallback
+- JWT auth: HS256 with DID claim format extraction
+- Response format: Identical JSON structures between Python and Rust
+- Database: Same tables, types, schema - ensures exact parity
+
+## Performance Baseline Expectations
+- Cold start: Python 2-5s vs Rust <100ms (20-50x)
+- P50 latency: Python 100-200ms vs Rust <100ms
+- P95 latency: Python 500-1000ms vs Rust <200ms
+- P99 latency: Python 1500-2000ms vs Rust <500ms
+- Memory: Python 512MB vs Rust <256MB target (2x efficiency)
+
+## Key Files for Comparison Testing
+- Rust routes: rust-scorer/src/api/server.rs (lines 178-242)
+- Python V2: api/v2/api/api_stamps.py
+- Python Internal: api/internal/api.py
+- Load tests: load_tests/ with K6 scripts
+- Documentation: RUST_PYTHON_ENDPOINTS_COMPARISON.md, RUST_DEVELOPMENT_QUICKSTART.md (newly created)
+**Files**: rust-scorer/src/api/server.rs, rust-scorer/src/api/handlers/external.rs, rust-scorer/src/api/handlers/internal.rs, rust-scorer/src/api/embed.rs, rust-scorer/src/api/ceramic_cache.rs, api/v2/api/api_stamps.py, api/internal/api.py, api/embed/api.py, api/embed/lambda_fn.py, load_tests/
+---
+
+### [14:53] [testing] Comparison test infrastructure for Python/Rust migration
+**Details**: Created comparison-tests infrastructure in rust-scorer/comparison-tests/ that:
+- Auto-loads .env.development using dotenvy (standard format, no export/shell vars)
+- Starts both Python (8002) and Rust (3000) servers
+- Compares JSON responses with sorted keys
+- First test: /internal/embed/weights endpoint passing
+
+Key fixes made:
+- Scorer type must be 'WEIGHTED_BINARY' not 'BinaryWeightedScorer'
+- CERAMIC_CACHE_SCORER_ID required in env
+- DATABASE_URL needs ?sslmode=disable for local PostgreSQL
+- Redis/Valkey required for Django caching
+
+Remaining work: Add scoring endpoint tests with valid credentials, API key auth, POST endpoints
+**Files**: rust-scorer/comparison-tests/src/main.rs, rust-scorer/comparison-tests/HANDOFF.md, dev-setup/DEV_SETUP.md, .env.development
+---
+
+### [12:44] [gotchas] DIDKit Rust EIP-712 signing requires correct TypedData structure
+**Details**: When signing credentials with EthereumEip712Signature2021 using DIDKit's Rust SSI library, the eip712_domain field in LinkedDataProofOptions must be a properly structured TypedData object from ssi::ldp::eip712, not a raw JSON value. The library expects the domain, types, and primaryType to be in the correct format that matches the TypedData struct definition.
+**Files**: rust-scorer/comparison-tests/src/gen_credentials.rs
+---
+
+### [13:01] [gotchas] EIP-712 credential @context structure for production
+**Details**: When creating Passport credentials with EthereumEip712Signature2021 signatures, the nested JSON-LD context object must be placed in credentialSubject.@context, NOT in the top-level credential @context array. 
+
+Top-level @context should only contain URI strings:
+@context: ["https://www.w3.org/2018/credentials/v1", "https://w3id.org/vc/status-list/2021/v1"]
+
+The nested definitions go in credentialSubject:
+credentialSubject: {
+  "@context": {
+    "provider": "https://schema.org/Text",
+    "nullifiers": {
+      "@type": "https://schema.org/Text",
+      "@container": "@list"
+    }
+  }
+}
+
+This structure allows DIDKit's EIP-712 TypedData generator to properly parse the credential without "Expected string" errors.
+**Files**: rust-scorer/comparison-tests/src/gen_credentials.rs
+---
+

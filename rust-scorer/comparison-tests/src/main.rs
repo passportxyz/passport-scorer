@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use colored::*;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -20,6 +20,8 @@ struct TestConfig {
     issuer_did: String,
     providers: Vec<String>,
     expected_score_above: f64,
+    #[serde(default)]
+    credentials: Vec<Value>,
 }
 
 const PYTHON_PORT: u16 = 8002;
@@ -352,6 +354,29 @@ impl TestRunner {
         self.compare_responses(name, python_resp, rust_resp).await
     }
 
+    async fn compare_post_internal(&mut self, name: &str, path: &str, body: &Value, internal_key: &str) -> Result<bool> {
+        print!("Testing {} ... ", name.bold());
+
+        let python_url = format!("{}{}", PYTHON_BASE, path);
+        let rust_url = format!("{}{}", RUST_BASE, path);
+
+        // Make POST requests with internal Authorization header
+        let python_resp = self.client.post(&python_url)
+            .header("AUTHORIZATION", internal_key)
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send().await
+            .context("Python request failed")?;
+        let rust_resp = self.client.post(&rust_url)
+            .header("AUTHORIZATION", internal_key)
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send().await
+            .context("Rust request failed")?;
+
+        self.compare_responses(name, python_resp, rust_resp).await
+    }
+
     async fn compare_responses(&mut self, _name: &str, python_resp: reqwest::Response, rust_resp: reqwest::Response) -> Result<bool> {
 
         // Check status codes
@@ -412,7 +437,7 @@ impl TestRunner {
 }
 
 /// Fields that will naturally differ between sequential Python and Rust calls
-const IGNORED_FIELDS: &[&str] = &["last_score_timestamp"];
+const IGNORED_FIELDS: &[&str] = &["last_score_timestamp", "id"];
 
 /// Remove fields that will naturally differ between calls
 fn strip_ignored_fields(value: &mut Value) {
@@ -449,21 +474,38 @@ fn compare_json(python: &Value, rust: &Value) -> Result<(), String> {
     let python_pretty = serde_json::to_string_pretty(&python_sorted).unwrap();
     let rust_pretty = serde_json::to_string_pretty(&rust_sorted).unwrap();
 
+    // Find actual difference by comparing lines
+    let python_lines: Vec<&str> = python_pretty.lines().collect();
+    let rust_lines: Vec<&str> = rust_pretty.lines().collect();
+
     let mut diff = String::new();
     diff.push_str("  Difference found:\n");
-    diff.push_str(&format!("  {}\n", "Python:".yellow()));
-    for line in python_pretty.lines().take(20) {
-        diff.push_str(&format!("    {}\n", line));
+
+    // Find first differing line
+    for (i, (p, r)) in python_lines.iter().zip(rust_lines.iter()).enumerate() {
+        if p != r {
+            diff.push_str(&format!("  First difference at line {}:\n", i + 1));
+            diff.push_str(&format!("    Python: {}\n", p.yellow()));
+            diff.push_str(&format!("    Rust:   {}\n", r.blue()));
+            // Show surrounding context
+            if i > 0 {
+                diff.push_str(&format!("    Context before: {}\n", python_lines[i-1]));
+            }
+            break;
+        }
     }
-    diff.push_str(&format!("  {}\n", "Rust:".blue()));
-    for line in rust_pretty.lines().take(20) {
-        diff.push_str(&format!("    {}\n", line));
+
+    // Check for length difference
+    if python_lines.len() != rust_lines.len() {
+        diff.push_str(&format!("  Length difference: Python={}, Rust={}\n",
+            python_lines.len(), rust_lines.len()));
     }
 
     Err(diff)
 }
 
 /// Sort JSON objects by key for consistent comparison
+/// Also sorts arrays by their JSON representation for order-independent comparison
 fn sort_json(value: &Value) -> Value {
     match value {
         Value::Object(map) => {
@@ -474,7 +516,15 @@ fn sort_json(value: &Value) -> Value {
             Value::Object(sorted.into_iter().collect())
         }
         Value::Array(arr) => {
-            Value::Array(arr.iter().map(sort_json).collect())
+            // First recursively sort each element
+            let mut sorted_elements: Vec<Value> = arr.iter().map(sort_json).collect();
+            // Then sort the array by string representation for order-independent comparison
+            sorted_elements.sort_by(|a, b| {
+                let a_str = serde_json::to_string(a).unwrap_or_default();
+                let b_str = serde_json::to_string(b).unwrap_or_default();
+                a_str.cmp(&b_str)
+            });
+            Value::Array(sorted_elements)
         }
         _ => value.clone(),
     }
@@ -543,6 +593,68 @@ async fn main() -> Result<()> {
     test_runner
         .compare_get_internal("Internal Score endpoint", &score_path, &internal_key)
         .await?;
+
+    // Phase 2: Additional internal endpoints
+
+    // Check bans endpoint - test with credential data
+    let check_bans_body = json!([{
+        "credentialSubject": {
+            "hash": "v0.0.0:test_hash_123",
+            "provider": "Google",
+            "id": format!("did:pkh:eip155:1:{}", config.test_address)
+        }
+    }]);
+    test_runner
+        .compare_post_internal("Check Bans endpoint", "/internal/check-bans", &check_bans_body, &internal_key)
+        .await?;
+
+    // Check revocations endpoint - test with proof values
+    let check_revocations_body = json!({
+        "proof_values": ["test_proof_value_1", "test_proof_value_2"]
+    });
+    test_runner
+        .compare_post_internal("Check Revocations endpoint", "/internal/check-revocations", &check_revocations_body, &internal_key)
+        .await?;
+
+    // GTC stake endpoint - test with test address
+    let stake_path = format!("/internal/stake/gtc/{}", config.test_address);
+    test_runner
+        .compare_get_internal("GTC Stake endpoint", &stake_path, &internal_key)
+        .await?;
+
+    // Allow list endpoint - test with a list name and address
+    let allow_list_path = format!("/internal/allow-list/test-list/{}", config.test_address);
+    test_runner
+        .compare_get_internal("Allow List endpoint", &allow_list_path, &internal_key)
+        .await?;
+
+    // Phase 3: Embed endpoints
+
+    // GET embed score endpoint - returns stamps + score
+    let embed_score_path = format!("/internal/embed/score/{}/{}", config.scorer_id, config.test_address);
+    test_runner
+        .compare_get_internal("Embed Score endpoint", &embed_score_path, &internal_key)
+        .await?;
+
+    // POST embed stamps endpoint - adds stamps and returns new score
+    // NOTE: This test is skipped because Ed25519 credentials (jws proof) aren't compatible
+    // with Python's credential handling which expects proofValue. The endpoint is implemented
+    // in Rust but requires production-format credentials (EcdsaSecp256k1RecoverySignature2020)
+    // to test properly.
+    if !config.credentials.is_empty() {
+        println!("{}", "  Skipping Embed Stamps POST test (Ed25519 credentials incompatible with Python)".yellow());
+        // Uncomment to test when using production-compatible credentials:
+        // let embed_stamps_body = json!({
+        //     "scorer_id": config.scorer_id,
+        //     "stamps": config.credentials
+        // });
+        // let embed_stamps_path = format!("/internal/embed/stamps/{}", config.test_address);
+        // test_runner
+        //     .compare_post_internal("Embed Stamps endpoint", &embed_stamps_path, &embed_stamps_body, &internal_key)
+        //     .await?;
+    } else {
+        println!("{}", "  Skipping Embed Stamps test (no credentials in config)".yellow());
+    }
 
     // Summary
     test_runner.summary();

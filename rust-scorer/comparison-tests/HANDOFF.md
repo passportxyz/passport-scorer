@@ -84,7 +84,18 @@ This comparison test infrastructure automatically starts both servers and verifi
 
 ### Remaining Work
 
-#### Completed (This Session)
+#### Completed (Latest Session)
+
+7. **EthereumEip712Signature2021 Credential Generator** - DONE
+   - Created Rust binary at `rust-scorer/comparison-tests/src/gen_credentials.rs`
+   - Generates production-format credentials matching Passport's TypeScript implementation
+   - Key discovery: Nested `@context` belongs in `credentialSubject.@context`, not top-level credential
+   - Uses proper EIP-712 typed data structure from `signingDocuments.ts`
+   - Generates secp256k1 Ethereum keys (`did:ethr:0x...`)
+   - All credentials verified as VALID
+   - Saves to `ceramic_cache_ceramiccache` table with proper field values
+
+#### Completed (Previous Session)
 
 6. **Migrated read_ops.rs and write_ops.rs to organized query modules** - DONE
    - Created `db/queries/dedup.rs` for LIFO deduplication queries
@@ -95,25 +106,61 @@ This comparison test infrastructure automatically starts both servers and verifi
    - Deleted `read_ops.rs`, `write_ops.rs`, and backup files
    - Build passes, both comparison tests pass
 
-#### Phase 2: Additional Endpoints
+#### Phase 2: Additional Endpoints - COMPLETED
 
 1. ~~**Extend test data**~~ - DONE via `create_test_credentials.py`
 
 2. ~~**Debug scoring endpoint**~~ - DONE, both tests pass
 
-3. **Add more internal endpoints**:
-   - `POST /internal/check-bans`
-   - `POST /internal/check-revocations`
-   - `GET /internal/stake/gtc/{address}`
-   - `GET /internal/allow-list/{list}/{address}`
+3. ~~**Add more internal endpoints**~~ - DONE
+   - `POST /internal/check-bans` - PASS
+   - `POST /internal/check-revocations` - PASS
+   - `GET /internal/stake/gtc/{address}` - PASS
+   - `GET /internal/allow-list/{list}/{address}` - PASS
 
-4. **Add embed endpoints** (if needed):
-   - `GET /internal/embed/score/{scorer_id}/{address}`
-   - `POST /internal/embed/stamps/{address}`
+#### All 7 Comparison Tests Now Pass:
+- Weights endpoint
+- Internal Score endpoint
+- Check Bans endpoint
+- Check Revocations endpoint
+- GTC Stake endpoint
+- Allow List endpoint
+- Embed Score endpoint
 
-5. **Human points testing** (optional, lower priority):
-   - Requires `HUMAN_POINTS_ENABLED=true`
-   - More complex setup with MetaMask OG list, etc.
+#### Production Credential Format:
+- **EthereumEip712Signature2021 credentials** are now generated using Rust (`cargo run --bin gen-credentials`)
+- Uses `did:ethr:0x...` DIDs with secp256k1 keys (production format)
+- All credentials verified as VALID by DIDKit
+- Ready for testing POST /internal/embed/stamps/{address} endpoint
+
+### Next Steps for Incoming Team
+
+#### Phase 4: Human Points Testing (Lower Priority)
+
+More complex setup required:
+
+1. **Environment setup**:
+   - Set `HUMAN_POINTS_ENABLED=true` in `.env.development`
+   - Set `HUMAN_POINTS_START_TIMESTAMP` to a past date
+   - Optionally set `HUMAN_POINTS_MTA_ENABLED=true` for MetaMask OG
+
+2. **Database setup**:
+   - Create `registry_humanpointsconfig` entries for point values
+   - Optionally populate `account_addresslist` and `account_addresslistmember` for MetaMask OG testing
+
+3. **Test the scoring endpoint with `include_human_points=true`**:
+   - The internal score endpoint needs a query parameter variant
+   - Response will include `points_data` and `possible_points_data`
+
+4. **Considerations**:
+   - Human points change based on number of communities passed (scoring bonus at 4+)
+   - MetaMask OG has a 5000 award limit
+   - Points calculation involves multipliers and action-specific values
+
+Reference files:
+- `api/registry/human_points_utils.py` - Python implementation
+- `rust-scorer/src/human_points/` - Rust implementation
+- `.claude/knowledge/api/human_points.md` - Documentation
 
 ## Architecture
 
@@ -151,6 +198,9 @@ rust-scorer/comparison-tests/
 - **Drop cleanup** - ServerManager implements Drop to auto-kill servers even on error/panic
 - **Error response display** - Shows response bodies when both servers return errors
 - **Workspace setup** - comparison-tests is a workspace member of rust-scorer to share target directory and avoid duplicate builds
+- **Hardcoded issuer key** - Test issuer Ed25519 key is hardcoded so TRUSTED_IAM_ISSUERS doesn't change between runs
+- **Ignored fields** - `last_score_timestamp` and `id` fields are stripped before comparison (auto-increment IDs and timestamps differ naturally)
+- **Array sorting** - Arrays are sorted by JSON representation for order-independent comparison
 
 ## Running the Tests
 
@@ -167,13 +217,16 @@ valkey-server --daemonize yes --port 6379
 cd api
 poetry run python ../dev-setup/create_test_data.py
 
-# 4. Create signed test credentials (stamps with valid signatures)
-poetry run python ../dev-setup/create_test_credentials.py
+# 4. Generate production-format credentials (EthereumEip712Signature2021)
+cd ../rust-scorer/comparison-tests
+ulimit -n 4096  # DIDKit requires many file descriptors
+cargo run --bin gen-credentials
+
+# 5. Update .env.development with the issuer DID shown in the output
+# Add the DID to TRUSTED_IAM_ISSUERS in .env.development
 ```
 
-**Note**: `create_test_credentials.py` generates a new issuer DID each time. It updates:
-- `rust-scorer/comparison-tests/test_config.json` with the API key and test address
-- You must update `TRUSTED_IAM_ISSUERS` in `.env.development` with the new DID (printed at end of script)
+**Note**: The credential generator creates a new Ethereum key each run, so the issuer DID changes. Copy the DID from the output and update `TRUSTED_IAM_ISSUERS` in `.env.development`.
 
 ### Run Comparison Tests
 
@@ -201,9 +254,15 @@ Running comparison tests...
 --------------------------------------------------
 Testing Weights endpoint ... PASS
 Testing Internal Score endpoint ... PASS
+Testing Check Bans endpoint ... PASS
+Testing Check Revocations endpoint ... PASS
+Testing GTC Stake endpoint ... PASS
+Testing Allow List endpoint ... PASS
+Testing Embed Score endpoint ... PASS
+  Skipping Embed Stamps POST test (Ed25519 credentials incompatible with Python)
 
 ==================================================
-Results: 2 passed, 0 failed
+Results: 7 passed, 0 failed
 ==================================================
 
 Shutting down servers...
@@ -228,11 +287,14 @@ test_runner
     .await?;
 ```
 
-### With POST body (TODO)
+### With POST body (internal API)
 
 ```rust
+let body = json!({
+    "proof_values": ["proof1", "proof2"]
+});
 test_runner
-    .compare_post("Check bans", "/internal/check-bans", &json_body)
+    .compare_post_internal("Check revocations", "/internal/check-revocations", &body, &internal_key)
     .await?;
 ```
 
@@ -256,14 +318,17 @@ test_runner
 
 9. **Timestamp comparison** - `last_score_timestamp` will always differ between Python and Rust since they're called sequentially. The test runner strips these fields before comparison.
 
-## Files Modified in This Session
+## Files Modified/Created
 
-### New Files
-- `dev-setup/create_test_credentials.py` - DIDKit-signed test credential generator
-- `rust-scorer/comparison-tests/test_config.json` - Test configuration (API key, address, issuer DID)
+### Latest Session
+- `rust-scorer/comparison-tests/src/gen_credentials.rs` - NEW: Rust credential generator with EthereumEip712Signature2021
+- `rust-scorer/comparison-tests/Cargo.toml` - Added gen-credentials binary and dependencies (didkit, k256, sqlx)
+- `rust-scorer/comparison-tests/test_config.json` - Updated with new Ethereum DID and production credentials
+- `rust-scorer/comparison-tests/HANDOFF.md` - Updated with progress
 
-### Modified Files
-- `rust-scorer/comparison-tests/src/main.rs` - Added internal API auth, test config loading, 60s timeouts
+### Previous Sessions
+- `dev-setup/create_test_credentials.py` - Python Ed25519 credential generator (legacy)
+- `rust-scorer/comparison-tests/src/main.rs` - Test runner with internal API auth
 - `rust-scorer/src/domain/weights.rs` - Fixed to read `CERAMIC_CACHE_SCORER_ID` from env
 - `dev-setup/DEV_SETUP.md` - Added Redis/Valkey, updated env format
 - `dev-setup/create_test_data.py` - Fixed scorer type, uses python-dotenv

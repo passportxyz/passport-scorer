@@ -7,6 +7,10 @@ edition = "2021"
 name = "compare"
 path = "src/main.rs"
 
+[[bin]]
+name = "gen-credentials"
+path = "src/gen_credentials.rs"
+
 [dependencies]
 tokio = { version = "1", features = ["full", "process"] }
 reqwest = { version = "0.12", features = ["json"] }
@@ -16,3 +20,12 @@ anyhow = "1"
 colored = "2"
 dotenvy = "0.15"
 libc = "0.2"
+
+# For credential generation
+didkit = "*"
+chrono = { version = "0.4", features = ["serde"] }
+rand = "0.8"
+hex = "0.4"
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "json", "chrono"] }
+k256 = "0.13"
+base64 = "0.22"

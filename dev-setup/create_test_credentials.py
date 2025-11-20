@@ -136,8 +136,10 @@ async def create_signed_credential(address: str, provider: str, issuer_key: str,
 async def main():
     print("\n=== Creating Test Credentials ===\n")
 
-    # Generate a test issuer key (Ed25519)
-    issuer_key = didkit.generate_ed25519_key()
+    # Use a hardcoded test issuer key (Ed25519 in JWK format) so TRUSTED_IAM_ISSUERS doesn't change
+    # This key was generated once with didkit.generate_ed25519_key() and saved here
+    # Corresponding DID: did:key:z6MkjUhQJSaMUg8356Jk8dyCpCdEPq9VpUrAYrTrn5ZntgMM
+    issuer_key = '{"kty":"OKP","crv":"Ed25519","x":"Sqiv0IDVlmmu99MtT9NMbncFEbajG41VyBgQHmcEbWA","d":"5hPR9layEeB5TAdFfna5yQPR4RMIigarCT73r9vcORc"}'
     issuer_did = didkit.key_to_did("key", issuer_key)
     # For did:key, the verification method is the DID with the key multibase as fragment
     verification_method = await didkit.key_to_verification_method("key", issuer_key)
@@ -205,6 +207,7 @@ async def main():
     print(f"Cleared existing stamps for {test_address}")
 
     # Create signed credentials
+    credentials = []
     for provider in providers:
         credential = await create_signed_credential(
             test_address,
@@ -212,6 +215,7 @@ async def main():
             issuer_key,
             verification_method
         )
+        credentials.append(credential)
 
         # Store in ceramic cache
         # Note: The CeramicCache.stamp field should contain just the credential,
@@ -261,7 +265,8 @@ async def main():
         "api_key": api_key_string,
         "issuer_did": issuer_did,
         "providers": providers,
-        "expected_score_above": 2.5
+        "expected_score_above": 2.5,
+        "credentials": credentials
     }
 
     config_path = os.path.join(project_root, "rust-scorer", "comparison-tests", "test_config.json")

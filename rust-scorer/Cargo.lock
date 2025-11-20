@@ -1330,12 +1330,19 @@ name = "comparison-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
+ "chrono",
  "colored",
+ "didkit",
  "dotenvy",
+ "hex",
+ "k256 0.13.4",
  "libc",
+ "rand 0.8.5",
  "reqwest 0.12.23",
  "serde",
  "serde_json",
+ "sqlx",
  "tokio",
 ]
 
