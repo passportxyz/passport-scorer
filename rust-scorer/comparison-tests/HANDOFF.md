@@ -103,6 +103,27 @@ The comparison tests with realistic data caught **2 real bugs** - both now fixed
 
 ### Running Comparison Tests
 
+**First time setup** (automated):
+```bash
+# Run the main setup script - creates all test data and credentials automatically
+cd dev-setup
+./setup.sh
+```
+
+**Running tests**:
+```bash
+# Set file descriptor limit (required for didkit)
+ulimit -n 4096
+
+# Run comparison tests
+cd rust-scorer/comparison-tests
+cargo run --release
+
+# Or with verbose output:
+cargo run --release -- --verbose
+```
+
+**Manual test data regeneration** (if needed):
 ```bash
 # 1. Ensure test data exists
 cd api
@@ -116,9 +137,6 @@ cargo run --bin gen-credentials
 
 # 3. Run comparison tests
 cargo run --release
-
-# Or with verbose output:
-cargo run --release -- --verbose
 ```
 
 ### Test Data Setup
@@ -238,3 +256,9 @@ rust-scorer/comparison-tests/
 **Last Updated**: 2025-11-20
 **Status**: 9/9 tests passing ✅ (all priority tasks complete!)
 **Next**: Optional improvements - error boundary testing, load testing, performance profiling
+
+**Recent Changes**:
+- Integrated comparison test setup into main `dev-setup/setup.sh` script
+- Automated test data creation (base + comparison data)
+- Automated credential generation with `gen-credentials` binary
+- Added ulimit configuration to setup and documentation

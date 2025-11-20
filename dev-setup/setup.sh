@@ -188,9 +188,16 @@ RUST_BACKTRACE=1
 # Feature Flags
 FF_MULTI_NULLIFIER=off
 HUMAN_POINTS_ENABLED=false
+
+# Required for didkit (Rust credential validation library)
+# Run: ulimit -n 4096
 EOL
     print_success ".env.development created"
 fi
+
+# Set file descriptor limit for didkit (needs many open files)
+print_status "Setting file descriptor limit..."
+ulimit -n 4096 2>/dev/null && print_success "File descriptor limit set to 4096" || print_error "Could not set ulimit (run manually: ulimit -n 4096)"
 
 # Source environment
 set -a
@@ -214,11 +221,24 @@ print_success "Django migrations completed"
 # 8. Create test data
 print_status "Creating test data..."
 cd "$PROJECT_ROOT/api"
+
+# Base test data (scorers, API keys, etc.)
 if [ -f "$SCRIPT_DIR/create_test_data.py" ]; then
     poetry run python "$SCRIPT_DIR/create_test_data.py"
+    print_success "Base test data created"
 else
     print_error "Test data script not found"
 fi
+
+# Comparison test data (bans, stakes, CGrants, etc.)
+if [ -f "$SCRIPT_DIR/create_comparison_test_data.py" ]; then
+    print_status "Creating comparison test data..."
+    poetry run python "$SCRIPT_DIR/create_comparison_test_data.py"
+    print_success "Comparison test data created"
+else
+    print_error "Comparison test data script not found"
+fi
+
 cd "$PROJECT_ROOT"
 
 # 9. Setup SQLX for Rust
@@ -242,7 +262,27 @@ if [ -d "$PROJECT_ROOT/rust-scorer" ]; then
     print_success "SQLX environment ready"
 fi
 
-# 10. Final verification
+# 10. Generate test credentials for comparison tests
+if [ -d "$PROJECT_ROOT/rust-scorer/comparison-tests" ]; then
+    print_status "Generating test credentials for comparison tests..."
+
+    # Increase file descriptor limit (didkit needs many open files)
+    ulimit -n 4096 2>/dev/null || true
+
+    cd "$PROJECT_ROOT/rust-scorer/comparison-tests"
+    cargo run --bin gen-credentials --release 2>/dev/null || {
+        print_error "Failed to generate credentials (this is optional)"
+        cd "$PROJECT_ROOT"
+    }
+
+    if [ -f "$PROJECT_ROOT/rust-scorer/comparison-tests/test_config.json" ]; then
+        print_success "Test credentials generated"
+    fi
+
+    cd "$PROJECT_ROOT"
+fi
+
+# 11. Final verification
 print_status "Verifying installation..."
 if PGPASSWORD="${DB_PASSWORD}" psql -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} -c "SELECT 1" >/dev/null 2>&1; then
     print_success "Database connection successful"
@@ -263,8 +303,13 @@ if [ "$ENVIRONMENT" = "container" ]; then
 fi
 echo ""
 echo "To start developing:"
-echo "  1. Source environment: source .env.development"
-echo "  2. Django server: cd api && poetry run python manage.py runserver"
-echo "  3. Rust scorer: cd rust-scorer && cargo run"
+echo "  1. Set file descriptor limit: ulimit -n 4096"
+echo "  2. Source environment: source .env.development"
+echo "  3. Django server: cd api && poetry run python manage.py runserver"
+echo "  4. Rust scorer: cd rust-scorer && cargo run"
+echo ""
+echo "To run comparison tests:"
+echo "  ulimit -n 4096"
+echo "  cd rust-scorer/comparison-tests && cargo run --release"
 echo ""
 echo -e "${GREEN}Happy coding!${NC}"
