@@ -10,6 +10,17 @@ use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::time::sleep;
+use clap::Parser;
+
+/// Command line arguments
+#[derive(Parser, Debug)]
+#[command(name = "comparison-tests")]
+#[command(about = "Compare Python and Rust scorer implementations", long_about = None)]
+struct Args {
+    /// Print Rust responses in verbose mode
+    #[arg(short, long)]
+    verbose: bool,
+}
 
 /// Test configuration loaded from test_config.json
 #[derive(Debug, Deserialize, Serialize)]
@@ -260,10 +271,11 @@ struct TestRunner {
     client: Client,
     passed: usize,
     failed: usize,
+    verbose: bool,
 }
 
 impl TestRunner {
-    fn new() -> Self {
+    fn new(verbose: bool) -> Self {
         Self {
             client: Client::builder()
                 .timeout(Duration::from_secs(30))
@@ -271,6 +283,7 @@ impl TestRunner {
                 .unwrap(),
             passed: 0,
             failed: 0,
+            verbose,
         }
     }
 
@@ -408,10 +421,52 @@ impl TestRunner {
         let rust_json: Value = rust_resp.json().await
             .context("Failed to parse Rust response as JSON")?;
 
+        // Print Rust response if verbose mode is enabled
+        if self.verbose {
+            println!("\n{}", "  Rust Response:".blue().bold());
+            println!("{}", serde_json::to_string_pretty(&rust_json).unwrap_or_default());
+        }
+
         // Compare
         if let Err(diff) = compare_json(&python_json, &rust_json) {
             println!("{}", "FAIL".red());
             println!("{}", diff);
+            self.failed += 1;
+            Ok(false)
+        } else {
+            println!("{}", "PASS".green());
+            self.passed += 1;
+            Ok(true)
+        }
+    }
+
+    /// Compare error responses (just status codes, not body content)
+    async fn compare_error(&mut self, name: &str, path: &str, expected_status: u16) -> Result<bool> {
+        print!("Testing {} ... ", name.bold());
+
+        let python_url = format!("{}{}", PYTHON_BASE, path);
+        let rust_url = format!("{}{}", RUST_BASE, path);
+
+        // Make requests without auth
+        let python_resp = self.client.get(&python_url)
+            .send().await
+            .context("Python request failed")?;
+        let rust_resp = self.client.get(&rust_url)
+            .send().await
+            .context("Rust request failed")?;
+
+        let python_status = python_resp.status().as_u16();
+        let rust_status = rust_resp.status().as_u16();
+
+        // Check that both match expected status
+        if python_status != expected_status || rust_status != expected_status {
+            println!("{}", "FAIL".red());
+            println!("  Expected: {}, Python: {}, Rust: {}", expected_status, python_status, rust_status);
+            self.failed += 1;
+            Ok(false)
+        } else if python_status != rust_status {
+            println!("{}", "FAIL".red());
+            println!("  Status mismatch: Python={}, Rust={}", python_status, rust_status);
             self.failed += 1;
             Ok(false)
         } else {
@@ -532,9 +587,16 @@ fn sort_json(value: &Value) -> Value {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Parse command line arguments
+    let args = Args::parse();
+
     println!("{}", "\n========================================".bold());
     println!("{}", "  Python <-> Rust Comparison Tests".bold());
     println!("{}", "========================================\n".bold());
+
+    if args.verbose {
+        println!("{}", "Verbose mode: Will print Rust responses".cyan());
+    }
 
     // Check ports are available first
     ensure_ports_available()?;
@@ -569,7 +631,7 @@ async fn main() -> Result<()> {
         &config.test_address[..10], config.scorer_id).green());
 
     let mut server_manager = ServerManager::new()?;
-    let mut test_runner = TestRunner::new();
+    let mut test_runner = TestRunner::new(args.verbose);
 
     // Start servers
     server_manager.start_python().await?;
@@ -608,9 +670,13 @@ async fn main() -> Result<()> {
         .compare_post_internal("Check Bans endpoint", "/internal/check-bans", &check_bans_body, &internal_key)
         .await?;
 
-    // Check revocations endpoint - test with proof values
+    // Check revocations endpoint - test with proof values (mix of revoked and non-revoked)
     let check_revocations_body = json!({
-        "proof_values": ["test_proof_value_1", "test_proof_value_2"]
+        "proof_values": [
+            "revoked_proof_1",      // Should be found (revoked)
+            "revoked_proof_2",      // Should be found (revoked)
+            "non_revoked_proof"     // Should NOT be found (not revoked)
+        ]
     });
     test_runner
         .compare_post_internal("Check Revocations endpoint", "/internal/check-revocations", &check_revocations_body, &internal_key)
@@ -623,10 +689,30 @@ async fn main() -> Result<()> {
         .await?;
 
     // Allow list endpoint - test with a list name and address
-    let allow_list_path = format!("/internal/allow-list/test-list/{}", config.test_address);
+    let allow_list_path = format!("/internal/allow-list/testlist/{}", config.test_address);
     test_runner
         .compare_get_internal("Allow List endpoint", &allow_list_path, &internal_key)
         .await?;
+
+    // CGrants contributor statistics endpoint
+    let cgrants_path = format!("/internal/cgrants/contributor_statistics?address={}", config.test_address);
+    test_runner
+        .compare_get_internal("CGrants Contributor Statistics endpoint", &cgrants_path, &internal_key)
+        .await?;
+
+    // Phase 2.5: Error test cases
+
+    // NOTE: Skipping auth error tests for internal endpoints in dev mode
+    // - Python dev server checks internal_api_key auth
+    // - Rust assumes ALB handles auth (production behavior)
+    // - In production, internal ALB will enforce auth at infrastructure level
+    // - These tests would pass in production but fail in local dev
+
+    // TODO: Consider adding optional auth middleware for dev mode parity
+
+    // Other error cases to test (with proper auth):
+    // - Invalid address format (needs Rust validation improvement)
+    // - Non-existent scorer (needs better 404 handling)
 
     // Phase 3: Embed endpoints
 

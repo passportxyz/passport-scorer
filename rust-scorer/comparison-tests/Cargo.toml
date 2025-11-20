@@ -21,6 +21,7 @@ anyhow = "1"
 colored = "2"
 dotenvy = "0.15"
 libc = "0.2"
+clap = { version = "4", features = ["derive"] }
 
 # For credential generation
 didkit = "*"
