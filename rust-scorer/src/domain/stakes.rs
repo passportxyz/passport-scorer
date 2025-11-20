@@ -1,4 +1,3 @@
-use rust_decimal::Decimal;
 use sqlx::PgPool;
 use serde::{Deserialize, Serialize};
 use super::DomainError;
@@ -12,7 +11,7 @@ pub struct StakeSchema {
     pub amount: String,  // Serialize Decimal as string
     pub lock_time: String,
     pub unlock_time: String,
-    pub last_updated_in_block: String,
+    pub last_updated_in_block: i64,  // Serialize as integer, not string
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,7 +38,10 @@ pub async fn get_gtc_stakes(
             amount: s.current_amount.to_string(),
             lock_time: s.lock_time.to_rfc3339(),
             unlock_time: s.unlock_time.to_rfc3339(),
-            last_updated_in_block: s.last_updated_in_block.to_string(),
+            // Convert Decimal to i64 (numeric(78,0) is an integer)
+            last_updated_in_block: s.last_updated_in_block.to_string()
+                .parse::<i64>()
+                .unwrap_or(0),
         })
         .collect();
 

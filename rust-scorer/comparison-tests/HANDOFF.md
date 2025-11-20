@@ -6,360 +6,238 @@ We're migrating the Passport Scorer from Python (Django) to Rust for performance
 
 This comparison test infrastructure automatically starts both servers and verifies their responses match.
 
-## Current Status
+---
 
-### Completed
+## ✅ BUGS FIXED!
 
-1. **Test infrastructure** (`rust-scorer/comparison-tests/`)
-   - Cargo binary that orchestrates comparison tests
-   - Automatic loading of `.env.development` using dotenvy
-   - Server management (starts Python on :8002, Rust on :3000)
-   - JSON response comparison with sorted keys
-   - Pretty diff output on mismatches
-   - Loads test config from `test_config.json`
-   - Methods for internal API auth (`compare_get_internal`)
+The comparison tests with realistic data caught **2 real bugs** - both now fixed:
 
-2. **First test passing**: `GET /internal/embed/weights`
-   - Stateless endpoint, no authentication
-   - Both servers return identical weights from database
+### Bug 1: Check Bans Endpoint - Timestamp Formatting Mismatch ✅ FIXED
 
-3. **Dev setup fixes** (`dev-setup/`)
-   - Added Redis/Valkey to prerequisites and setup instructions
-   - Fixed `.env.development` format (standard .env, no bash syntax)
-   - Fixed `create_test_data.py` scorer type (`WEIGHTED_BINARY`)
-   - Added `CERAMIC_CACHE_SCORER_ID=1` and `sslmode=disable`
-   - Added `python-dotenv` to project dependencies
+**Issue**: Rust was including full microseconds, Python only includes milliseconds
 
-4. **Test credential generation** (`dev-setup/create_test_credentials.py`)
-   - Uses DIDKit to sign credentials with Ed25519 keys
-   - Creates 3 stamps: Google (1.0), Twitter (1.0), Github (2.0) = 4.0 total weight
-   - Test address: `0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`
-   - Saves config to `rust-scorer/comparison-tests/test_config.json`
-   - Credentials verified as VALID by DIDKit
+```diff
+- Python: "end_time": "2025-12-20T13:28:39.584Z"
+- Rust:   "end_time": "2025-12-20T13:28:39.584855Z"  (OLD)
++ Rust:   "end_time": "2025-12-20T13:28:39.584Z"     (FIXED)
+```
 
-5. **Environment configuration**
-   - Added `TRUSTED_IAM_ISSUERS` with test issuer DID
-   - Added `CGRANTS_API_TOKEN=abc` for internal API auth
-   - Regenerated SQLX query cache
+**Location**: `rust-scorer/src/domain/bans.rs:BanCheckResult`
 
-6. **Scoring endpoint test added** - `GET /internal/score/v2/{scorer_id}/{address}`
-   - Uses internal API with Authorization header
-   - Shows error response bodies on failure
+**Fix Applied**: Added custom serializer `serialize_datetime_millis` to format timestamps with milliseconds precision only (%.3f)
 
-### Phase 3 Complete - All Core Endpoints Verified ✅
+### Bug 2: GTC Stake Endpoint - Integer Field Returned as String ✅ FIXED
 
-All comparison tests now pass, including the Embed Stamps POST endpoint using production-format EthereumEip712Signature2021 credentials.
+**Issue**: `last_updated_in_block` should be an integer, not a string
 
-### Previously Completed Issues
+```diff
+- Python: "last_updated_in_block": 12345678
+- Rust:   "last_updated_in_block": "12345678"  (OLD)
++ Rust:   "last_updated_in_block": 12345678    (FIXED)
+```
 
-#### Completed (Current Session - 2025-11-20)
+**Location**: `rust-scorer/src/domain/stakes.rs:StakeSchema`
 
-8. **Embed Stamps POST endpoint enabled** - DONE
-   - Uncommented and enabled the POST /internal/embed/stamps/{address} test
-   - Test now passes using production-format EthereumEip712Signature2021 credentials
-   - All 8 comparison tests passing
-   - Updated documentation (DEV_SETUP.md, HANDOFF.md)
-   - Added default-run to Cargo.toml for easier test execution
+**Fix Applied**: Changed field type from `String` to `i64` and added conversion from Decimal to i64
 
-9. **Hardcoded test issuer key** - DONE
-   - Fixed gen_credentials.rs to use hardcoded Ethereum key instead of random generation
-   - Issuer DID now constant: did:ethr:0x018d103c154748e8d5a1d7658185125175457f84
-   - Updated .env.development with the hardcoded DID in TRUSTED_IAM_ISSUERS
-   - No longer need to update environment variables after regenerating credentials
+---
 
-#### Completed (Previous Session - Embed Stamps POST)
+## 📊 Current Test Status: 8/8 Passing ✅
 
-1. **Python scoring fixed** - DONE
-   - Root cause: `create_test_credentials.py` was storing credentials in wrong format
-   - Fix: Store just the credential in `CeramicCache.stamp`, not a wrapper dict
-   - Python now returns score 4.0 correctly
+```
+✅ PASS: Weights endpoint
+✅ PASS: Internal Score endpoint
+✅ PASS: Check Bans endpoint
+✅ PASS: Check Revocations endpoint
+✅ PASS: GTC Stake endpoint
+✅ PASS: Allow List endpoint
+✅ PASS: Embed Score endpoint
+✅ PASS: Embed Stamps POST endpoint
+```
 
-2. **Rust stamp_type column mapping fixed** - DONE
-   - Root cause: `DjangoCeramicCache` struct had 8 fields but query selected 15 columns
-   - Fix: Updated queries in `db/queries/stamps.rs` to use `type AS "stamp_type: _"` and select only 8 columns
-   - Updated `domain/stamps.rs` and `domain/scoring.rs` to use new query functions
+**All 8 endpoints implemented and passing!**
 
-3. **TRUSTED_IAM_ISSUERS loading fixed** - DONE
-   - Root cause: Was working correctly via dotenvy all along
-   - The issue was zombie server processes (from previous test runs) responding with old binaries
-   - Lesson: Always kill old servers before testing (`pkill -f passport-scorer`)
+---
 
-4. **Timestamp formatting fixed** - DONE
-   - Root cause: Rust was including `.000000` microseconds when Python omits them for zero values
-   - Fix: Updated `format_datetime_python()` in `models/v2_api.rs` to only include microseconds when non-zero
-   - Both Python and Rust now return `"2026-02-17T15:37:57+00:00"` format
+## 📋 Priority Tasks
 
-#### Both comparison tests now pass
-- Weights endpoint: PASS
-- Internal Score endpoint: PASS (score 4.0, all timestamps match)
+### Task 1: Fix the Two Bugs Above ✅ COMPLETE
 
-5. **Test runner reliability improvements** - DONE
-   - **Port availability check** - Fails fast with clear error if ports 3000/8002 are in use
-   - **Stdout pipe draining** - Fixed pipe buffer blocking that caused timeouts on verbose endpoints
-   - **Timestamp field ignoring** - `last_score_timestamp` naturally differs between sequential calls
-   - **Rust error display** - Show errors in red instead of silently dropping them
-   - **Process group cleanup** - Uses `libc::kill(-pid)` to kill Django's child process tree
-   - **Drop trait cleanup** - Automatic server cleanup even on error/panic (like finally block)
+- [x] Fix timestamp formatting in Check Bans endpoint
+- [x] Fix integer serialization in GTC Stake endpoint
+- [x] Run comparison tests to verify: `cd rust-scorer/comparison-tests && cargo run --release`
 
-### Remaining Work
+### Task 2: Add CGrants Test Data
 
-#### Completed (Latest Session)
+The CGrants endpoint currently returns empty results (no test data).
 
-7. **EthereumEip712Signature2021 Credential Generator** - DONE
-   - Created Rust binary at `rust-scorer/comparison-tests/src/gen_credentials.rs`
-   - Generates production-format credentials matching Passport's TypeScript implementation
-   - Key discovery: Nested `@context` belongs in `credentialSubject.@context`, not top-level credential
-   - Uses proper EIP-712 typed data structure from `signingDocuments.ts`
-   - Generates secp256k1 Ethereum keys (`did:ethr:0x...`)
-   - All credentials verified as VALID
-   - Saves to `ceramic_cache_ceramiccache` table with proper field values
+**What to create**:
+- Grant contributions in `cgrants_grantcontributionindex` table
+- Protocol contributions in `cgrants_protocolcontributions` table
+- Squelched accounts in `cgrants_squelchedaccounts` table
+- Round mappings in `cgrants_roundmapping` table
 
-#### Completed (Previous Session)
+**Note**: Complex FK relationships make this tricky. See incomplete script at `dev-setup/create_comprehensive_test_data.py`.
 
-6. **Migrated read_ops.rs and write_ops.rs to organized query modules** - DONE
-   - Created `db/queries/dedup.rs` for LIFO deduplication queries
-   - Added stamp write operations to `db/queries/stamps.rs`
-   - Added `load_scorer_config` to `db/queries/weights.rs`
-   - Added `load_community` and `upsert_score` to `db/queries/scoring.rs`
-   - Updated all domain imports to use new query paths
-   - Deleted `read_ops.rs`, `write_ops.rs`, and backup files
-   - Build passes, both comparison tests pass
+**Simpler alternative**: Create minimal SQL script that directly inserts rows, bypassing Django ORM constraints.
 
-#### Phase 2: Additional Endpoints - COMPLETED
+### Task 3: Add Error Test Cases
 
-1. ~~**Extend test data**~~ - DONE via `create_test_credentials.py`
+Currently only testing happy paths. Need error handling verification:
 
-2. ~~**Debug scoring endpoint**~~ - DONE, both tests pass
+**Test scenarios**:
+- [ ] Invalid Ethereum address (should return 400)
+- [ ] Missing API key / Authorization header (should return 401)
+- [ ] Non-existent resources (should return 404)
+- [ ] Malformed request bodies (should return 400)
 
-3. ~~**Add more internal endpoints**~~ - DONE
-   - `POST /internal/check-bans` - PASS
-   - `POST /internal/check-revocations` - PASS
-   - `GET /internal/stake/gtc/{address}` - PASS
-   - `GET /internal/allow-list/{list}/{address}` - PASS
+**Files to modify**: `rust-scorer/comparison-tests/src/main.rs` - Add error test methods
 
-#### All 8 Comparison Tests Now Pass:
-- Weights endpoint
-- Internal Score endpoint
-- Check Bans endpoint
-- Check Revocations endpoint
-- GTC Stake endpoint
-- Allow List endpoint
-- Embed Score endpoint (GET)
-- Embed Stamps POST endpoint
+**Example**:
+```rust
+test_runner
+    .compare_error("Invalid address", "/internal/score/v2/1/not-an-address", 400, &internal_key)
+    .await?;
+```
 
-#### Production Credential Format - COMPLETE:
-- **EthereumEip712Signature2021 credentials** generated using Rust (`cargo run --bin gen-credentials`)
-- Uses `did:ethr:0x...` DIDs with secp256k1 keys (production format)
-- All credentials verified as VALID by DIDKit
-- POST /internal/embed/stamps/{address} endpoint now PASSING
+### Task 4: Improve Endpoint-Specific Coverage
 
-### Next Steps for Incoming Team
+- [ ] **Check Bans**: Already has realistic data (active/expired bans, single stamp bans)
+- [ ] **Check Revocations**: Need ceramic cache entries with revoked proof values
+- [ ] **GTC Stake**: ✅ Already has realistic data (1500.75 GTC total)
+- [ ] **Allow List**: ✅ Already has realistic data (testlist membership)
 
-#### Phase 4: Human Points Testing (Lower Priority)
+---
 
-More complex setup required:
+## 🛠️ Development Workflow
 
-1. **Environment setup**:
-   - Set `HUMAN_POINTS_ENABLED=true` in `.env.development`
-   - Set `HUMAN_POINTS_START_TIMESTAMP` to a past date
-   - Optionally set `HUMAN_POINTS_MTA_ENABLED=true` for MetaMask OG
+### Running Comparison Tests
 
-2. **Database setup**:
-   - Create `registry_humanpointsconfig` entries for point values
-   - Optionally populate `account_addresslist` and `account_addresslistmember` for MetaMask OG testing
+```bash
+# 1. Ensure test data exists
+cd api
+poetry run python ../dev-setup/create_test_data.py
+poetry run python ../dev-setup/create_simple_test_data.py
 
-3. **Test the scoring endpoint with `include_human_points=true`**:
-   - The internal score endpoint needs a query parameter variant
-   - Response will include `points_data` and `possible_points_data`
+# 2. Generate credentials
+cd ../rust-scorer/comparison-tests
+ulimit -n 4096
+cargo run --bin gen-credentials
 
-4. **Considerations**:
-   - Human points change based on number of communities passed (scoring bonus at 4+)
-   - MetaMask OG has a 5000 award limit
-   - Points calculation involves multipliers and action-specific values
+# 3. Run comparison tests
+cargo run --release
 
-Reference files:
-- `api/registry/human_points_utils.py` - Python implementation
-- `rust-scorer/src/human_points/` - Rust implementation
-- `.claude/knowledge/api/human_points.md` - Documentation
+# Or with verbose output:
+cargo run --release -- --verbose
+```
 
-## Architecture
+### Test Data Setup
+
+**Base data** (`create_test_data.py`):
+- 3 test scorers/communities with weights
+- API keys for testing
+
+**Utility endpoint data** (`create_simple_test_data.py`):
+- Allow list: `0xaaaa...` in 'testlist'
+- Bans: Active ban for `0xbbbb...`, expired ban + single stamp ban for `0xaaaa...`
+- GTC Stakes: 1500.75 GTC total for `0xaaaa...`
+
+**Credentials** (`gen-credentials` binary):
+- Production-format EthereumEip712Signature2021 credentials
+- Hardcoded issuer DID: `did:ethr:0x018d103c154748e8d5a1d7658185125175457f84`
+- 3 stamps: Google (1.0), Twitter (1.0), Github (2.0) = 4.0 total weight
+
+---
+
+## ✅ Definition of Done
+
+Comparison tests are complete when:
+
+1. All 8 current tests pass with realistic data
+2. CGrants endpoint returns meaningful results (not empty)
+3. Error test cases added for common failure scenarios
+4. Both bugs identified above are fixed
+5. Tests consistently pass on multiple runs
+
+---
+
+## 📚 What's NOT Covered Yet
+
+### Ceramic Cache Endpoints (Not Implemented in Rust)
+
+The following ceramic cache endpoints exist in Python but are **NOT yet implemented** in Rust:
+- ❌ `PATCH /ceramic-cache/stamps/bulk` - Update existing stamps
+- ❌ `DELETE /ceramic-cache/stamps/bulk` - Delete stamps by provider
+- ❌ `GET /ceramic-cache/stamp` - Get stamps for authenticated user
+
+Already implemented in Rust:
+- ✅ `POST /ceramic-cache/stamps/bulk` - Add stamps and rescore
+- ✅ `GET /ceramic-cache/score/{address}` - Get score with stamps
+
+**Decision needed**: Are these endpoints needed for production migration?
+
+### Human Points Testing (Lower Priority)
+
+More complex setup required - see `.claude/knowledge/api/human_points.md` for details.
+
+---
+
+## 🏗️ Architecture
+
+### How It Works
+
+1. **Port check** - Ensures ports 3000/8002 are free
+2. **Environment loading** - Loads `.env.development` using dotenvy
+3. **Server management** - Spawns Python (port 8002) and Rust (port 3000) servers
+4. **Health polling** - Waits for both servers to be ready (60s Python, 120s Rust)
+5. **Request comparison** - Makes identical requests to both servers
+6. **Response validation** - Deep JSON comparison with sorted keys
+7. **Automatic cleanup** - Kills server processes on exit (even on panic)
+
+### Key Design Decisions
+
+- **Process groups** - Python spawns with `process_group(0)` so we can kill all Django children
+- **Stdout draining** - Prevents pipe buffer (64KB) from blocking the server
+- **Hardcoded issuer key** - Test issuer DID is constant across runs
+- **Ignored fields** - `last_score_timestamp` and `id` stripped before comparison (naturally differ)
+- **Array sorting** - Arrays sorted by JSON representation for order-independent comparison
 
 ### File Structure
 
 ```
 rust-scorer/comparison-tests/
-├── Cargo.toml          # Dependencies: tokio, reqwest, serde_json, dotenvy, etc.
-├── README.md           # Usage instructions
-├── HANDOFF.md          # This document
+├── Cargo.toml               # Dependencies and build config
+├── README.md                # Quick start guide
+├── HANDOFF.md               # This document
+├── test_config.json         # Test configuration (address, credentials)
 └── src/
-    └── main.rs         # Test runner (~300 lines)
+    ├── main.rs              # Test runner (~700 lines)
+    └── gen_credentials.rs   # Credential generator binary
 ```
 
-### How It Works
+---
 
-1. `ensure_ports_available()` - Checks ports 3000/8002 are free, fails fast with instructions if not
-2. `load_env_file()` - Loads `.env.development` from project root using dotenvy
-3. `ServerManager` - Spawns Python (with process group) and Rust servers as child processes
-4. `wait_for_healthy()` - Polls health endpoints until both respond (60s Python, 120s Rust)
-5. `TestRunner::compare_get()` - Makes same request to both, compares JSON responses
-6. `TestRunner::compare_get_internal()` - Same but with Authorization header for internal API
-7. `compare_json()` - Deep comparison with sorted keys, ignoring timestamp fields that naturally differ
-8. `Drop` on `ServerManager` - Automatic cleanup kills process groups even on error/panic
-
-### Key Design Decisions
-
-- **Port pre-check** - Checks ports are free before starting, fails fast with clear error and fix instructions
-- **60/120 second timeouts** - Allows time for servers to compile and start (120s for Rust with DIDKit)
-- **dotenvy for env loading** - Standard .env format, no shell variable expansion
-- **Override existing env vars** - Uses `from_path_override()` to ensure file values win
-- **Filtered env inheritance** - Child cargo processes get env vars with `CARGO_*`, `RUSTFLAGS`, etc. filtered out to prevent fingerprint mismatches and unnecessary rebuilds
-- **Stdout draining** - Must read stdout from Rust server to prevent pipe buffer (64KB) from filling and blocking the server
-- **Process groups** - Python spawns with `process_group(0)` so we can kill all Django children with `kill(-pid)`
-- **Drop cleanup** - ServerManager implements Drop to auto-kill servers even on error/panic
-- **Error response display** - Shows response bodies when both servers return errors
-- **Workspace setup** - comparison-tests is a workspace member of rust-scorer to share target directory and avoid duplicate builds
-- **Hardcoded issuer key** - Test issuer Ed25519 key is hardcoded so TRUSTED_IAM_ISSUERS doesn't change between runs
-- **Ignored fields** - `last_score_timestamp` and `id` fields are stripped before comparison (auto-increment IDs and timestamps differ naturally)
-- **Array sorting** - Arrays are sorted by JSON representation for order-independent comparison
-
-## Running the Tests
-
-### Prerequisites
-
-```bash
-# 1. Start PostgreSQL
-./dev-setup/start-postgres.sh
-
-# 2. Start Redis/Valkey
-valkey-server --daemonize yes --port 6379
-
-# 3. Create base test data (scorers, communities, API keys)
-cd api
-poetry run python ../dev-setup/create_test_data.py
-
-# 4. Generate production-format credentials (EthereumEip712Signature2021)
-cd ../rust-scorer/comparison-tests
-ulimit -n 4096  # DIDKit requires many file descriptors
-cargo run --bin gen-credentials
-```
-
-**Note**: The credential generator uses a hardcoded test Ethereum key (did:ethr:0x018d103c154748e8d5a1d7658185125175457f84), so the issuer DID remains constant across runs. This DID is already configured in `.env.development` under `TRUSTED_IAM_ISSUERS`.
-
-### Run Comparison Tests
-
-```bash
-cd rust-scorer/comparison-tests
-cargo run --release
-```
-
-Expected output:
-```
-========================================
-  Python <-> Rust Comparison Tests
-========================================
-
-Ports 3000 and 8002 are available
-Loaded environment from .env.development
-Loaded test config: address=0xaaaaaaaa, scorer_id=1
-Starting Python server...
-Starting Rust server...
-Waiting for servers to be healthy...
-  Python server ready (2s)
-  Rust server ready (0s)
-
-Running comparison tests...
---------------------------------------------------
-Testing Weights endpoint ... PASS
-Testing Internal Score endpoint ... PASS
-Testing Check Bans endpoint ... PASS
-Testing Check Revocations endpoint ... PASS
-Testing GTC Stake endpoint ... PASS
-Testing Allow List endpoint ... PASS
-Testing Embed Score endpoint ... PASS
-Testing Embed Stamps POST endpoint ... PASS
-
-==================================================
-Results: 8 passed, 0 failed
-==================================================
-
-Shutting down servers...
-```
-
-## Adding New Tests
-
-### Simple GET endpoint
-
-```rust
-test_runner
-    .compare_get("Endpoint name", "/path/to/endpoint")
-    .await?;
-```
-
-### With authentication (TODO)
-
-Need to add methods like:
-```rust
-test_runner
-    .compare_get_with_api_key("Score endpoint", "/v2/stamps/1/score/0x...", &api_key)
-    .await?;
-```
-
-### With POST body (internal API)
-
-```rust
-let body = json!({
-    "proof_values": ["proof1", "proof2"]
-});
-test_runner
-    .compare_post_internal("Check revocations", "/internal/check-revocations", &body, &internal_key)
-    .await?;
-```
-
-## Known Issues & Gotchas
+## 🔧 Known Issues & Gotchas
 
 1. **Scorer type** - Django expects `WEIGHTED_BINARY`, not `BinaryWeightedScorer`
+2. **CERAMIC_CACHE_SCORER_ID** - Required by Python's weights endpoint
+3. **scorer_id vs community_id** - API uses `scorer_id` but database uses `community_id` (1:1 mapping)
+4. **Cargo env var inheritance** - Must filter out `CARGO_*` env vars when spawning cargo processes
+5. **Pipe buffer blocking** - Must drain stdout to prevent 64KB buffer from filling
+6. **Django child processes** - Use process groups to kill all children
+7. **Timestamp comparison** - `last_score_timestamp` differs naturally (sequential calls)
 
-2. **CERAMIC_CACHE_SCORER_ID** - Required by Python's weights endpoint, defaults to reading from env
+---
 
-3. **sslmode=disable** - Required for local PostgreSQL; Rust scorer auto-adds `sslmode=require` for production
+## 📖 References
 
-4. **Redis required** - Python Django uses Redis for caching; Valkey is a drop-in replacement on Fedora
-
-5. **scorer_id vs community_id** - API uses `scorer_id` but database uses `community_id` (1:1 mapping)
-
-6. **Cargo env var inheritance** - When spawning cargo as a child process, you must filter out `CARGO_*` env vars. Cargo sets these during builds and they get inherited by the running binary. If passed to a child cargo process, they cause fingerprint mismatches and unnecessary rebuilds. This is a known Rust ecosystem gotcha.
-
-7. **Pipe buffer blocking** - When spawning a process with piped stdout, you MUST continuously read from the pipe. The pipe buffer is ~64KB on Linux. If it fills up, the child process blocks on write() and hangs. This caused sporadic timeouts on verbose endpoints (like internal score) that produce lots of JSON logs.
-
-8. **Django child processes** - `manage.py runserver` spawns multiple processes (reloader + worker). Simply killing the parent doesn't kill children. Must use process groups: spawn with `process_group(0)` and kill with `kill(-pid, SIGKILL)`.
-
-9. **Timestamp comparison** - `last_score_timestamp` will always differ between Python and Rust since they're called sequentially. The test runner strips these fields before comparison.
-
-## Files Modified/Created
-
-### Latest Session
-- `rust-scorer/comparison-tests/src/gen_credentials.rs` - NEW: Rust credential generator with EthereumEip712Signature2021
-- `rust-scorer/comparison-tests/Cargo.toml` - Added gen-credentials binary and dependencies (didkit, k256, sqlx)
-- `rust-scorer/comparison-tests/test_config.json` - Updated with new Ethereum DID and production credentials
-- `rust-scorer/comparison-tests/HANDOFF.md` - Updated with progress
-
-### Previous Sessions
-- `dev-setup/create_test_credentials.py` - Python Ed25519 credential generator (legacy)
-- `rust-scorer/comparison-tests/src/main.rs` - Test runner with internal API auth
-- `rust-scorer/src/domain/weights.rs` - Fixed to read `CERAMIC_CACHE_SCORER_ID` from env
-- `dev-setup/DEV_SETUP.md` - Added Redis/Valkey, updated env format
-- `dev-setup/create_test_data.py` - Fixed scorer type, uses python-dotenv
-- `.env.development` - Added TRUSTED_IAM_ISSUERS, CGRANTS_API_TOKEN
-- `api/pyproject.toml` - Added python-dotenv dependency
-- `rust-scorer/.sqlx/` - Regenerated query cache
-
-## References
-
-- **Endpoint mapping**: `.claude/knowledge/architecture/api_endpoint_map.md`
+- **API endpoint inventory**: `.claude/knowledge/api/internal_api_endpoints.md`
 - **Scoring flow**: `.claude/knowledge/architecture/scoring_flow.md`
 - **Dev setup guide**: `dev-setup/DEV_SETUP.md`
-- **Rust scorer**: `rust-scorer/src/`
+- **Comparison testing workflow**: `.claude/knowledge/workflows/comparison_testing.md`
 
-## Contact
+---
 
-This work was done as part of the Rust migration effort. The comparison tests ensure we can safely route traffic to the Rust implementation with confidence that results match Python exactly.
+**Last Updated**: 2025-11-20
+**Status**: 8/8 tests passing ✅ (all bugs fixed!)
+**Next**: Add CGrants data, add error tests, improve endpoint-specific coverage

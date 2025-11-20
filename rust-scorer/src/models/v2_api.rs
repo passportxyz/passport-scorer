@@ -51,15 +51,14 @@ pub fn format_percentage(value: Decimal) -> String {
 }
 
 /// Format a datetime to ISO 8601 matching Python's behavior
-/// - Includes microseconds only if non-zero
-/// - Omits microseconds when they're zero
+/// - Omits fractional seconds when they're zero (.000)
+/// - Includes milliseconds when non-zero
 pub fn format_datetime_python(dt: DateTime<Utc>) -> String {
-    let base = dt.format("%Y-%m-%dT%H:%M:%S");
-    let micros = dt.timestamp_subsec_micros();
-    if micros == 0 {
-        format!("{}+00:00", base)
+    let millis = dt.timestamp_subsec_millis();
+    if millis == 0 {
+        dt.format("%Y-%m-%dT%H:%M:%S+00:00").to_string()
     } else {
-        format!("{}.{:06}+00:00", base, micros)
+        dt.format("%Y-%m-%dT%H:%M:%S%.3f+00:00").to_string()
     }
 }
 

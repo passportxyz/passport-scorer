@@ -1,13 +1,32 @@
 use sqlx::PgPool;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use super::DomainError;
 use crate::db::queries::bans::{get_active_bans, Ban};
+
+/// Serialize DateTime to ISO 8601 with milliseconds precision (matching Python)
+fn serialize_datetime_millis<S>(
+    dt: &Option<chrono::DateTime<chrono::Utc>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match dt {
+        Some(dt) => {
+            // Format with milliseconds precision only (not microseconds)
+            let formatted = dt.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+            serializer.serialize_str(&formatted)
+        }
+        None => serializer.serialize_none(),
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BanCheckResult {
     pub hash: Option<String>,
     pub is_banned: bool,
     pub ban_type: Option<String>,  // "account", "hash", or "single_stamp"
+    #[serde(serialize_with = "serialize_datetime_millis")]
     pub end_time: Option<chrono::DateTime<chrono::Utc>>,
     pub reason: Option<String>,
 }
