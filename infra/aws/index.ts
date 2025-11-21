@@ -1333,7 +1333,7 @@ const ccStampsBulkPostLambda = createLambdaFunction({
 });
 
 const ccStampsBulkPostTargetGroup = createLambdaTargetGroup({
-  name: "l-cc-v1-st-bulk-POST-0",
+  name: "l-cc-st-bulk-POST-0",
   lambda: ccStampsBulkPostLambda,
   vpcId: vpcId,
 });
@@ -1358,7 +1358,7 @@ const ccStampsBulkPatchLambda = createLambdaFunction({
 });
 
 const ccStampsBulkPatchTargetGroup = createLambdaTargetGroup({
-  name: "l-cc-v1-st-bulk-PATCH-0",
+  name: "l-cc-st-bulk-PATCH-0",
   lambda: ccStampsBulkPatchLambda,
   vpcId: vpcId,
 });
@@ -1383,7 +1383,7 @@ const ccStampsBulkDeleteLambda = createLambdaFunction({
 });
 
 const ccStampsBulkDeleteTargetGroup = createLambdaTargetGroup({
-  name: "l-cc-v1-st-bulk-DELETE-0",
+  name: "l-cc-st-bulk-DEL-0",
   lambda: ccStampsBulkDeleteLambda,
   vpcId: vpcId,
 });
