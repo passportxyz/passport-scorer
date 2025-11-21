@@ -31,6 +31,8 @@
 - @gotchas/target_group_alb_limitation.md - Cannot span multiple load balancers
 - @gotchas/container_environment_detection.md - PostgreSQL startup in containers vs systems
 - @gotchas/didkit_eip712_signing.md - TypedData structure and @context requirements
+- @gotchas/timestamp_serialization.md - Python vs Rust timestamp precision differences
+- @gotchas/postgresql_numeric_serialization.md - Decimal to integer conversion for numeric(78,0)
 
 ## 🔌 API
 
@@ -69,6 +71,7 @@
 ## 🚀 Deployment
 
 - @deployment/lambda_infrastructure.md - Pulumi-based Lambda deployment with ALB integration
+- @deployment/weighted_routing.md - Percentage-based load balancing for gradual Rust rollout
 
 ## 🎯 Performance
 
