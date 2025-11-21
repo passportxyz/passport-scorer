@@ -50,25 +50,12 @@ export function createLambdaTargetGroup(args: {
   name: string;
   lambda: aws.lambda.Function;
   vpcId: pulumi.Input<string>;
-  healthCheck?: {
-    enabled: boolean;
-    path?: string;
-    matcher?: string;
-    interval?: number;
-    timeout?: number;
-  };
 }): aws.lb.TargetGroup {
   // Create the target group
+  // Note: Lambda target groups don't support health checks
   const targetGroup = new aws.lb.TargetGroup(`${args.name}-tg`, {
     targetType: "lambda",
     vpcId: args.vpcId,
-    healthCheck: args.healthCheck || {
-      enabled: true,
-      path: "/health",
-      matcher: "200",
-      interval: 30,
-      timeout: 5,
-    },
   });
 
   // Grant permission for ALB to invoke the Lambda

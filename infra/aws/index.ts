@@ -1301,7 +1301,7 @@ const submitPassportLambda = createLambdaFunction({
     {}
   ),
   memorySize: 1024,
-  timeout: 30,
+  timeout: 60,
   roleArn: httpLambdaRole.arn,
   securityGroupIds: [privateSubnetSecurityGroup.id],
   subnetIds: vpcPrivateSubnetIds,
@@ -1326,7 +1326,7 @@ const ccStampsBulkPostLambda = createLambdaFunction({
     {}
   ),
   memorySize: 512,
-  timeout: 30,
+  timeout: 60,
   roleArn: httpLambdaRole.arn,
   securityGroupIds: [privateSubnetSecurityGroup.id],
   subnetIds: vpcPrivateSubnetIds,
@@ -1351,7 +1351,7 @@ const ccStampsBulkPatchLambda = createLambdaFunction({
     {}
   ),
   memorySize: 512,
-  timeout: 30,
+  timeout: 60,
   roleArn: httpLambdaRole.arn,
   securityGroupIds: [privateSubnetSecurityGroup.id],
   subnetIds: vpcPrivateSubnetIds,
@@ -1376,7 +1376,7 @@ const ccStampsBulkDeleteLambda = createLambdaFunction({
     {}
   ),
   memorySize: 512,
-  timeout: 30,
+  timeout: 60,
   roleArn: httpLambdaRole.arn,
   securityGroupIds: [privateSubnetSecurityGroup.id],
   subnetIds: vpcPrivateSubnetIds,
@@ -1401,7 +1401,7 @@ const ccScorePostLambda = createLambdaFunction({
     {}
   ),
   memorySize: 512,
-  timeout: 30,
+  timeout: 60,
   roleArn: httpLambdaRole.arn,
   securityGroupIds: [privateSubnetSecurityGroup.id],
   subnetIds: vpcPrivateSubnetIds,
@@ -1426,7 +1426,7 @@ const ccScoreGetLambda = createLambdaFunction({
     {}
   ),
   memorySize: 512,
-  timeout: 30,
+  timeout: 60,
   roleArn: httpLambdaRole.arn,
   securityGroupIds: [privateSubnetSecurityGroup.id],
   subnetIds: vpcPrivateSubnetIds,
@@ -1451,7 +1451,7 @@ const ccWeightsGetLambda = createLambdaFunction({
     {}
   ),
   memorySize: 512,
-  timeout: 30,
+  timeout: 60,
   roleArn: httpLambdaRole.arn,
   securityGroupIds: [privateSubnetSecurityGroup.id],
   subnetIds: vpcPrivateSubnetIds,
@@ -1476,7 +1476,7 @@ const ccStampGetLambda = createLambdaFunction({
     {}
   ),
   memorySize: 512,
-  timeout: 30,
+  timeout: 60,
   roleArn: httpLambdaRole.arn,
   securityGroupIds: [privateSubnetSecurityGroup.id],
   subnetIds: vpcPrivateSubnetIds,
@@ -1501,7 +1501,7 @@ const passportAnalysisLambda = createLambdaFunction({
     {}
   ),
   memorySize: 256,
-  timeout: 30,
+  timeout: 60,
   roleArn: httpLambdaRole.arn,
   securityGroupIds: [privateSubnetSecurityGroup.id],
   subnetIds: vpcPrivateSubnetIds,
