@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use colored::*;
+use jsonwebtoken::{encode, EncodingKey, Header};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -39,6 +40,53 @@ const PYTHON_PORT: u16 = 8002;
 const RUST_PORT: u16 = 3000;
 const PYTHON_BASE: &str = "http://localhost:8002";
 const RUST_BASE: &str = "http://localhost:3000";
+
+/// JWT Claims for ceramic cache authentication
+/// Matches Python's ninja_jwt RefreshToken format
+#[derive(Debug, Serialize, Deserialize)]
+struct JwtClaims {
+    did: String,
+    token_type: String,
+    exp: usize,
+    iat: usize,  // Issued at timestamp
+    jti: String, // JWT ID (unique identifier)
+}
+
+/// Generate a test JWT token for ceramic cache endpoints
+/// Mimics Python's DbCacheToken behavior
+fn generate_test_jwt(address: &str) -> Result<String> {
+    let did = format!("did:pkh:eip155:1:{}", address.to_lowercase());
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_secs() as usize;
+
+    // Token expires in 7 days (matching Python's DbCacheToken lifetime)
+    let exp = now + (7 * 24 * 60 * 60);
+
+    let claims = JwtClaims {
+        did,
+        token_type: "access".to_string(),
+        exp,
+        iat: now,  // Issued at current timestamp
+        jti: format!("test-jti-{}", now), // Simple unique ID for testing
+    };
+
+    // Use SECRET_KEY from environment (must match Django's SECRET_KEY for JWT validation)
+    // Django stores it with quotes in .env but they are stripped when loaded
+    let secret = std::env::var("SECRET_KEY")
+        .unwrap_or_else(|_| "dev-secret-key-not-for-production".to_string())
+        .trim_matches('"')
+        .to_string();
+
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )?;
+
+    Ok(token)
+}
 
 /// Check if a port is in use
 fn check_port_available(port: u16) -> Result<()> {
@@ -476,6 +524,52 @@ impl TestRunner {
         }
     }
 
+    /// Compare GET requests with JWT authentication
+    async fn compare_get_with_jwt(&mut self, name: &str, path: &str, jwt_token: &str) -> Result<bool> {
+        print!("Testing {} ... ", name.bold());
+
+        let python_url = format!("{}{}", PYTHON_BASE, path);
+        let rust_url = format!("{}{}", RUST_BASE, path);
+
+        // Make requests with JWT Bearer token
+        let python_resp = self.client.get(&python_url)
+            .header("Authorization", format!("Bearer {}", jwt_token))
+            .send().await
+            .context("Python request failed")?;
+        let rust_resp = self.client.get(&rust_url)
+            .header("Authorization", format!("Bearer {}", jwt_token))
+            .header("X-Use-Rust-Scorer", "true") // Required for Rust routing
+            .send().await
+            .context("Rust request failed")?;
+
+        self.compare_responses(name, python_resp, rust_resp).await
+    }
+
+    /// Compare POST requests with JWT authentication
+    async fn compare_post_with_jwt(&mut self, name: &str, path: &str, body: &Value, jwt_token: &str) -> Result<bool> {
+        print!("Testing {} ... ", name.bold());
+
+        let python_url = format!("{}{}", PYTHON_BASE, path);
+        let rust_url = format!("{}{}", RUST_BASE, path);
+
+        // Make requests with JWT Bearer token
+        let python_resp = self.client.post(&python_url)
+            .header("Authorization", format!("Bearer {}", jwt_token))
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send().await
+            .context("Python request failed")?;
+        let rust_resp = self.client.post(&rust_url)
+            .header("Authorization", format!("Bearer {}", jwt_token))
+            .header("X-Use-Rust-Scorer", "true") // Required for Rust routing
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send().await
+            .context("Rust request failed")?;
+
+        self.compare_responses(name, python_resp, rust_resp).await
+    }
+
     fn summary(&self) {
         println!("\n{}", "=".repeat(50));
         println!(
@@ -735,6 +829,41 @@ async fn main() -> Result<()> {
             .await?;
     } else {
         println!("{}", "  Skipping Embed Stamps test (no credentials in config)".yellow());
+    }
+
+    // Phase 4: Ceramic Cache endpoints (with JWT authentication)
+    println!("\n{}", "Ceramic Cache Endpoints (JWT auth):".bold());
+
+    // Generate JWT token for ceramic cache endpoints
+    let jwt_token = generate_test_jwt(&config.test_address)
+        .context("Failed to generate JWT token")?;
+
+    // GET /ceramic-cache/score/{address} - Get score with stamps and human points
+    let ceramic_score_path = format!("/ceramic-cache/score/{}", config.test_address);
+    test_runner
+        .compare_get_with_jwt("Ceramic Cache GET score endpoint", &ceramic_score_path, &jwt_token)
+        .await?;
+
+    // POST /ceramic-cache/stamps/bulk - Add stamps and return score with human points
+    if !config.credentials.is_empty() {
+        // Build CacheStampPayload array from credentials
+        let cache_stamps_body: Vec<Value> = config.credentials.iter().map(|cred| {
+            let provider = cred.get("credentialSubject")
+                .and_then(|cs| cs.get("provider"))
+                .and_then(|p| p.as_str())
+                .unwrap_or("Unknown");
+
+            json!({
+                "provider": provider,
+                "stamp": cred
+            })
+        }).collect();
+
+        test_runner
+            .compare_post_with_jwt("Ceramic Cache POST stamps endpoint", "/ceramic-cache/stamps/bulk", &json!(cache_stamps_body), &jwt_token)
+            .await?;
+    } else {
+        println!("{}", "  Skipping Ceramic Cache POST test (no credentials in config)".yellow());
     }
 
     // Summary

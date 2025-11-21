@@ -19,9 +19,12 @@ struct Claims {
 /// 2. Extract DID from claims (format: did:pkh:eip155:1:0xADDRESS)
 /// 3. Return lowercased Ethereum address
 pub fn validate_jwt_and_extract_address(token: &str) -> Result<String, ApiError> {
-    // Get JWT_SECRET from environment
+    // Get JWT_SECRET from environment, fallback to SECRET_KEY (matching Python's ninja_jwt SIGNING_KEY)
     let jwt_secret = env::var("JWT_SECRET")
-        .map_err(|_| ApiError::Internal("JWT_SECRET environment variable not set".to_string()))?;
+        .or_else(|_| env::var("SECRET_KEY"))
+        .map_err(|_| ApiError::Internal("JWT_SECRET or SECRET_KEY environment variable not set".to_string()))?
+        .trim_matches('"')
+        .to_string();
 
     // Create validation configuration
     // Match Python's ninja_jwt default: HS256 algorithm

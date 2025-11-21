@@ -547,8 +547,36 @@ pub async fn calculate_score_for_address(
     tx.commit().await
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
-    // 13. Build and return response
+    // 13. Build response
     let mut response = scoring_result.to_v2_response();
     response.address = address.to_string();
+
+    // 14. Add human points data if enabled and community has program
+    if include_human_points && community.human_points_program {
+        use super::human_points::{get_user_points_data, get_possible_points_data};
+
+        // Get user's points data
+        match get_user_points_data(address, pool).await {
+            Ok(points_data) => {
+                response.points_data = Some(points_data.clone());
+
+                // Get possible points data using user's multiplier
+                match get_possible_points_data(points_data.multiplier, pool).await {
+                    Ok(possible_data) => {
+                        response.possible_points_data = Some(possible_data);
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to get possible points data: {}", e);
+                        // Don't fail the request, just skip possible points
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to get user points data: {}", e);
+                // Don't fail the request, just skip points data
+            }
+        }
+    }
+
     Ok(response)
 }

@@ -1377,6 +1377,7 @@ dependencies = [
  "didkit",
  "dotenvy",
  "hex",
+ "jsonwebtoken",
  "k256 0.13.4",
  "libc",
  "rand 0.8.5",

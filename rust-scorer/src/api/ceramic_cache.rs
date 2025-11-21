@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, State},
-    http::HeaderMap,
+    http::{HeaderMap, StatusCode},
     Json,
 };
 use sqlx::PgPool;
@@ -15,7 +15,7 @@ use crate::db::ceramic_cache::{
     bulk_insert_ceramic_cache_stamps, get_stamps_from_cache,
     soft_delete_stamps_by_provider,
 };
-use crate::models::v2_api::{CacheStampPayload, GetStampsWithInternalV2ScoreResponse};
+use crate::models::v2_api::{CacheStampPayload, GetStampsWithInternalV2ScoreResponse, InternalV2ScoreResponse};
 
 /// Check if the request should use Rust scorer based on header
 /// Returns true if X-Use-Rust-Scorer header is present and equals "true"
@@ -51,7 +51,7 @@ pub async fn ceramic_cache_add_stamps(
     State(pool): State<PgPool>,
     headers: HeaderMap,
     Json(payload): Json<Vec<CacheStampPayload>>,
-) -> ApiResult<Json<GetStampsWithInternalV2ScoreResponse>> {
+) -> ApiResult<(StatusCode, Json<GetStampsWithInternalV2ScoreResponse>)> {
     info!("Processing ceramic-cache add stamps request");
 
     // Check for Rust routing header
@@ -141,17 +141,22 @@ pub async fn ceramic_cache_add_stamps(
 
     info!(stamp_count = cached_stamps.len(), "Retrieved updated stamps");
 
-    Ok(Json(GetStampsWithInternalV2ScoreResponse {
-        success: true,
-        stamps: cached_stamps,
-        score,
-    }))
+    // Return 201 Created to match Python behavior
+    Ok((
+        StatusCode::CREATED,
+        Json(GetStampsWithInternalV2ScoreResponse {
+            success: true,
+            stamps: cached_stamps,
+            score,
+        }),
+    ))
 }
 
 /// GET /ceramic-cache/score/{address}
-/// Gets current score with stamps and human points for an address
+/// Gets current score with human points for an address
 /// Authentication: JWT token with DID claim
 /// Routing: Requires X-Use-Rust-Scorer: true header
+/// Returns: Just the score (InternalV2ScoreResponse), not stamps array
 #[tracing::instrument(
     skip(pool, headers),
     fields(
@@ -164,7 +169,7 @@ pub async fn ceramic_cache_get_score(
     Path(address): Path<String>,
     State(pool): State<PgPool>,
     headers: HeaderMap,
-) -> ApiResult<Json<GetStampsWithInternalV2ScoreResponse>> {
+) -> ApiResult<Json<InternalV2ScoreResponse>> {
     info!("Processing ceramic-cache get score request");
 
     // Check for Rust routing header
@@ -200,12 +205,7 @@ pub async fn ceramic_cache_get_score(
     // Get scorer ID from environment
     let scorer_id = get_ceramic_cache_scorer_id()?;
 
-    // 1. Get stamps from ceramic cache
-    let cached_stamps = get_stamps_from_cache(&pool, &jwt_address).await?;
-
-    info!(stamp_count = cached_stamps.len(), "Retrieved stamps from cache");
-
-    // 2. Score the address using domain logic
+    // Score the address using domain logic
     // Ceramic cache endpoints include human points (matching Python behavior)
     let score_result = domain::calculate_score_for_address(
         &jwt_address,
@@ -222,11 +222,8 @@ pub async fn ceramic_cache_get_score(
         Err(DomainError::Internal(msg)) => return Err(ApiError::Internal(msg)),
     };
 
-    Ok(Json(GetStampsWithInternalV2ScoreResponse {
-        success: true,
-        stamps: cached_stamps,
-        score,
-    }))
+    // Return just the score (Python returns InternalV2ScoreResponse, not GetStampsWithInternalV2ScoreResponse)
+    Ok(Json(score))
 }
 
 #[cfg(test)]
