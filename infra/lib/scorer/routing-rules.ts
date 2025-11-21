@@ -281,17 +281,18 @@ export function configureAllRouting(args: {
   }
 
   // =============================================================
-  // INTERNAL ALB - EMBED ENDPOINTS (Priority 2100-2103)
+  // INTERNAL ALB - EMBED ENDPOINTS (Priority 2104-2106)
+  // NOTE: Changed from 2100-2103 to avoid conflict with old listener rules
   // =============================================================
 
   if (internalListenerArn) {
-    // Priority 2100: /internal/embed/stamps/* POST - DUAL IMPLEMENTATION
+    // Priority 2104: /internal/embed/stamps/* POST - DUAL IMPLEMENTATION
     if (targetGroups.pythonEmbedAddStamps && targetGroups.rustScorerInternal) {
       if (rustEnabled) {
         createWeightedListenerRule({
           name: `embed-add-stamps-${envName}`,
           listenerArn: internalListenerArn,
-          priority: 2100,
+          priority: 2104,
           targetGroups: [
             { arn: targetGroups.pythonEmbedAddStamps.arn, weight: routingPercentages.python },
             { arn: targetGroups.rustScorerInternal.arn, weight: routingPercentages.rust },
@@ -305,7 +306,7 @@ export function configureAllRouting(args: {
         createListenerRule({
           name: `embed-add-stamps-${envName}`,
           listenerArn: internalListenerArn,
-          priority: 2100,
+          priority: 2104,
           targetGroupArn: targetGroups.pythonEmbedAddStamps.arn,
           conditions: [
             pathCondition("/internal/embed/stamps/*"),
@@ -315,13 +316,13 @@ export function configureAllRouting(args: {
       }
     }
 
-    // Priority 2101: /internal/embed/validate-api-key GET - DUAL IMPLEMENTATION
+    // Priority 2105: /internal/embed/validate-api-key GET - DUAL IMPLEMENTATION
     if (targetGroups.pythonEmbedValidateKey && targetGroups.rustScorerInternal) {
       if (rustEnabled) {
         createWeightedListenerRule({
           name: `embed-validate-key-${envName}`,
           listenerArn: internalListenerArn,
-          priority: 2101,
+          priority: 2105,
           targetGroups: [
             { arn: targetGroups.pythonEmbedValidateKey.arn, weight: routingPercentages.python },
             { arn: targetGroups.rustScorerInternal.arn, weight: routingPercentages.rust },
@@ -335,7 +336,7 @@ export function configureAllRouting(args: {
         createListenerRule({
           name: `embed-validate-key-${envName}`,
           listenerArn: internalListenerArn,
-          priority: 2101,
+          priority: 2105,
           targetGroupArn: targetGroups.pythonEmbedValidateKey.arn,
           conditions: [
             pathCondition("/internal/embed/validate-api-key"),
@@ -345,13 +346,13 @@ export function configureAllRouting(args: {
       }
     }
 
-    // Priority 2103: /internal/embed/score/*/* GET - DUAL IMPLEMENTATION
+    // Priority 2106: /internal/embed/score/*/* GET - DUAL IMPLEMENTATION
     if (targetGroups.pythonEmbedGetScore && targetGroups.rustScorerInternal) {
       if (rustEnabled) {
         createWeightedListenerRule({
           name: `embed-get-score-${envName}`,
           listenerArn: internalListenerArn,
-          priority: 2103,
+          priority: 2106,
           targetGroups: [
             { arn: targetGroups.pythonEmbedGetScore.arn, weight: routingPercentages.python },
             { arn: targetGroups.rustScorerInternal.arn, weight: routingPercentages.rust },
@@ -365,7 +366,7 @@ export function configureAllRouting(args: {
         createListenerRule({
           name: `embed-get-score-${envName}`,
           listenerArn: internalListenerArn,
-          priority: 2103,
+          priority: 2106,
           targetGroupArn: targetGroups.pythonEmbedGetScore.arn,
           conditions: [
             pathCondition("/internal/embed/score/*/*"),
