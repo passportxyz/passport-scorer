@@ -1622,6 +1622,14 @@ if (stack === "production") {
   );
 }
 
+// Get reference to internal ALB listener once (if it exists)
+// This is reused by both createV2Api and configureAllRouting
+const internalHttpsListener = privateAlbHttpListenerArn
+  ? pulumi.output(privateAlbHttpListenerArn).apply(
+      (arn) => aws.lb.Listener.get("internal-alb-listener", arn)
+    )
+  : undefined;
+
 const v2ApiResult = createV2Api({
   httpsListener,
   dockerLambdaImage: dockerGtcSubmitPassportLambdaImage,
@@ -1636,6 +1644,7 @@ const v2ApiResult = createV2Api({
   vpcPrivateSubnetIds: vpcPrivateSubnetIds,
   targetGroupRegistry: targetGroupRegistry,
   privateAlbHttpListenerArn: privateAlbHttpListenerArn,
+  internalHttpsListener: internalHttpsListener,
 });
 
 const pythonLambdaLayer = createPythonLambdaLayer({
@@ -1680,10 +1689,7 @@ createMonitoringLambdaFunction({
 // This must be done after all Lambda target groups are created
 configureAllRouting({
   publicListener: httpsListener,
-  internalListener: privateAlbHttpListenerArn ?
-    pulumi.output(privateAlbHttpListenerArn).apply(
-      (arn) => aws.lb.Listener.get("internal-alb-listener", arn)
-    ) : undefined,
+  internalListener: internalHttpsListener,
   targetGroups: {
     // V2 API target groups (includes Rust scorer if created)
     ...v2ApiResult?.targetGroups,
