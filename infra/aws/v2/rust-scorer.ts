@@ -7,6 +7,23 @@ import { stack, defaultTags } from "../../lib/tags";
 // Get current AWS region for OTEL Lambda layer ARN
 const regionData = aws.getRegion({});
 
+// Environment-based routing percentages
+const getRoutingPercentages = (environment: string): { rust: number; python: number } => {
+  // Define Rust percentage per environment (Python = 100 - rust)
+  const rustPercentages: { [key: string]: number } = {
+    staging: 100,     // 100% to Rust in staging
+    review: 100,      // 100% to Rust in review
+    production: 0,    // 0% to Rust in production (safe default)
+  };
+
+  const rustPercentage = rustPercentages[environment] || 0;  // Default to 0% Rust for safety
+
+  return {
+    rust: rustPercentage,
+    python: 100 - rustPercentage
+  };
+};
+
 export function createRustScorerLambda({
   httpsListener,
   rustScorerZipArchive,
@@ -32,6 +49,8 @@ export function createRustScorerLambda({
   alarmConfigurations: any;
   internalHttpsListener?: pulumi.Output<aws.alb.Listener>;
 }) {
+  // Get routing percentages based on environment
+  const routingPercentages = getRoutingPercentages(stack);
   const apiEnvironment = [
     ...secretsManager.getEnvironmentVars({
       vault: "DevOps",
@@ -158,281 +177,12 @@ export function createRustScorerLambda({
     }
   );
 
-  // Create listener rules for all Rust scorer endpoints
+  // IMPORTANT: Listener rules are now created centrally in routing-rules.ts
+  // This file only creates the Lambda and target groups, then exports them
 
-  // 1. Main v2 scoring endpoint (header-based routing)
-  new aws.lb.ListenerRule("lrule-rust-v2-stamps-score", {
-    tags: { ...defaultTags, Name: "lrule-rust-v2-stamps-score" },
-    listenerArn: httpsListener.arn,
-    priority: 992,
-    actions: [
-      {
-        type: "forward",
-        targetGroupArn: rustScorerTargetGroup.arn,
-      },
-    ],
-    conditions: [
-      {
-        hostHeader: {
-          values: ["*.passport.xyz"],
-        },
-      },
-      {
-        pathPattern: {
-          values: ["/v2/stamps/*/score/*"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["GET"],
-        },
-      },
-      {
-        httpHeader: {
-          httpHeaderName: "X-Use-Rust-Scorer",
-          values: ["true"],
-        },
-      },
-    ],
-  });
-
-  // 2. Ceramic-cache endpoints (header-based routing on public ALB)
-  new aws.lb.ListenerRule("lrule-rust-ceramic-cache-stamps-bulk", {
-    tags: { ...defaultTags, Name: "lrule-rust-ceramic-cache-stamps-bulk" },
-    listenerArn: httpsListener.arn,
-    priority: 990,
-    actions: [
-      {
-        type: "forward",
-        targetGroupArn: rustScorerTargetGroup.arn,
-      },
-    ],
-    conditions: [
-      {
-        hostHeader: {
-          values: ["*.passport.xyz"],
-        },
-      },
-      {
-        pathPattern: {
-          values: ["/ceramic-cache/stamps/bulk"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["POST"],
-        },
-      },
-      {
-        httpHeader: {
-          httpHeaderName: "X-Use-Rust-Scorer",
-          values: ["true"],
-        },
-      },
-    ],
-  });
-
-  new aws.lb.ListenerRule("lrule-rust-ceramic-cache-score", {
-    tags: { ...defaultTags, Name: "lrule-rust-ceramic-cache-score" },
-    listenerArn: httpsListener.arn,
-    priority: 991,
-    actions: [
-      {
-        type: "forward",
-        targetGroupArn: rustScorerTargetGroup.arn,
-      },
-    ],
-    conditions: [
-      {
-        hostHeader: {
-          values: ["*.passport.xyz"],
-        },
-      },
-      {
-        pathPattern: {
-          values: ["/ceramic-cache/score/*"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["GET"],
-        },
-      },
-      {
-        httpHeader: {
-          httpHeaderName: "X-Use-Rust-Scorer",
-          values: ["true"],
-        },
-      },
-    ],
-  });
-
-  // 3. Embed endpoints (header-based routing on internal ALB if available)
-  // Note: Using priorities 2090-2093 (LOWER than Python's 2100-2103) so these more specific
-  // rules (with X-Use-Rust-Scorer header) are evaluated first
-  if (internalHttpsListener) {
-    // Create separate target group for internal ALB (AWS doesn't allow same target group on multiple ALBs)
-    const rustScorerInternalTargetGroup = new aws.lb.TargetGroup("l-passport-v2-rust-scorer-internal", {
-      name: "l-passport-v2-rust-scorer-int",
-      targetType: "lambda",
-      tags: { ...defaultTags, Name: "l-passport-v2-rust-scorer-internal" },
-    });
-
-    // Grant internal ALB permission to invoke the Lambda
-    const rustScorerInternalLambdaPermission = new aws.lambda.Permission(
-      "withLb-passport-v2-rust-scorer-internal",
-      {
-        action: "lambda:InvokeFunction",
-        function: rustScorerLambda.name,
-        principal: "elasticloadbalancing.amazonaws.com",
-        sourceArn: rustScorerInternalTargetGroup.arn,
-      }
-    );
-
-    // Attach Lambda to internal target group
-    const rustScorerInternalTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
-      "lambdaTargetGroupAttachment-passport-v2-rust-scorer-internal",
-      {
-        targetGroupArn: rustScorerInternalTargetGroup.arn,
-        targetId: rustScorerLambda.arn,
-      },
-      {
-        dependsOn: [rustScorerInternalLambdaPermission],
-      }
-    );
-
-    new aws.lb.ListenerRule("lrule-rust-embed-stamps", {
-      tags: { ...defaultTags, Name: "lrule-rust-embed-stamps" },
-      listenerArn: internalHttpsListener.arn,
-      priority: 2090,
-      actions: [
-        {
-          type: "forward",
-          targetGroupArn: rustScorerInternalTargetGroup.arn,
-        },
-      ],
-      conditions: [
-        {
-          pathPattern: {
-            values: ["/internal/embed/stamps/*"],
-          },
-        },
-        {
-          httpRequestMethod: {
-            values: ["POST"],
-          },
-        },
-        {
-          httpHeader: {
-            httpHeaderName: "X-Use-Rust-Scorer",
-            values: ["true"],
-          },
-        },
-      ],
-    });
-
-    new aws.lb.ListenerRule("lrule-rust-embed-validate-api-key", {
-      tags: { ...defaultTags, Name: "lrule-rust-embed-validate-api-key" },
-      listenerArn: internalHttpsListener.arn,
-      priority: 2091,
-      actions: [
-        {
-          type: "forward",
-          targetGroupArn: rustScorerInternalTargetGroup.arn,
-        },
-      ],
-      conditions: [
-        {
-          pathPattern: {
-            values: ["/internal/embed/validate-api-key"],
-          },
-        },
-        {
-          httpRequestMethod: {
-            values: ["GET"],
-          },
-        },
-        {
-          httpHeader: {
-            httpHeaderName: "X-Use-Rust-Scorer",
-            values: ["true"],
-          },
-        },
-      ],
-    });
-
-    new aws.lb.ListenerRule("lrule-rust-embed-score", {
-      tags: { ...defaultTags, Name: "lrule-rust-embed-score" },
-      listenerArn: internalHttpsListener.arn,
-      priority: 2093,
-      actions: [
-        {
-          type: "forward",
-          targetGroupArn: rustScorerInternalTargetGroup.arn,
-        },
-      ],
-      conditions: [
-        {
-          pathPattern: {
-            values: ["/internal/embed/score/*/*"],
-          },
-        },
-        {
-          httpRequestMethod: {
-            values: ["GET"],
-          },
-        },
-        {
-          httpHeader: {
-            httpHeaderName: "X-Use-Rust-Scorer",
-            values: ["true"],
-          },
-        },
-      ],
-    });
-  }
-
-  /*
-   * Future: Weighted Target Group Routing
-   * ----------------------------------------
-   * Instead of header-based routing, you can use ALB weighted routing
-   * to gradually roll out the Rust implementation:
-   *
-   * const rustTargetGroup = new aws.lb.TargetGroup("rust-scorer-tg", {
-   *   name: "rust-scorer-tg",
-   *   targetType: "lambda",
-   *   tags: { ...defaultTags, Name: "rust-scorer-tg" },
-   * });
-   *
-   * const pythonTargetGroup = // existing Python Lambda target group
-   *
-   * new aws.lb.ListenerRule("scorer-weighted-rule", {
-   *   listenerArn: httpsListener.arn,
-   *   priority: 100,
-   *   actions: [{
-   *     type: "forward",
-   *     forward: {
-   *       targetGroups: [
-   *         { arn: pythonTargetGroup.arn, weight: 95 },  // 95% to Python
-   *         { arn: rustTargetGroup.arn, weight: 5 }       // 5% to Rust
-   *       ],
-   *       stickiness: {
-   *         enabled: true,
-   *         duration: 3600,  // 1 hour session affinity
-   *       }
-   *     }
-   *   }],
-   *   conditions: [
-   *     { pathPattern: { values: ["/v2/stamps/*\/score/*"] }},
-   *     { httpRequestMethod: { values: ["GET"] }}
-   *   ],
-   *   tags: { ...defaultTags, Name: "scorer-weighted-rule" },
-   * });
-   *
-   * This allows gradual rollout:
-   * - Start with 5% traffic to Rust
-   * - Monitor metrics and error rates
-   * - Gradually increase: 5% → 10% → 25% → 50% → 100%
-   * - Session affinity ensures users get consistent experience
-   */
+  // Return the target groups for use in centralized routing
+  return {
+    rustScorer: rustScorerTargetGroup,
+    rustScorerInternal: internalTargetGroup,
+  };
 }

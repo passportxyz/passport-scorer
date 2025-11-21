@@ -1,12 +1,12 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import { buildHttpLambdaFn } from "../../lib/scorer/new_service";
 import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
 
 import { stack, defaultTags } from "../../lib/tags";
 import { secretsManager } from "infra-libs";
 import { AlarmConfigurations } from "../../lib/scorer/loadBalancer";
 import { createRustScorerLambda } from "./rust-scorer";
+import { createLambdaFunction, createLambdaTargetGroup } from "../../lib/scorer/routing-utils";
 
 /// This function will create the infra for the V2 API
 /// For now this will:
@@ -84,64 +84,45 @@ export function createV2Api({
     alb: alb,
   };
 
-  buildHttpLambdaFn(
-    {
-      ...lambdaSettings,
-      name: "passport-v2-model-score",
-      memorySize: 256,
-      dockerCmd: ["v2.aws_lambdas.models_score_GET.handler"],
-      httpListenerRulePaths: [
-        {
-          hostHeader: {
-            values: ["*.passport.xyz"],
-          },
-        },
-        {
-          pathPattern: {
-            values: ["/v2/models/score/*"],
-          },
-        },
-        {
-          httpRequestMethod: {
-            values: ["GET"],
-          },
-        },
-      ],
-      listenerPriority: 2021,
-      timeout: 90,
-    },
-    alarmConfigurations
-  );
+  // Create V2 Model Score Lambda and target group (Python only)
+  const v2ModelScoreLambda = createLambdaFunction({
+    name: "passport-v2-model-score",
+    dockerImage: dockerLambdaImage,
+    dockerCommand: ["v2.aws_lambdas.models_score_GET.handler"],
+    environment: lambdaSettings.environment,
+    memorySize: 256,
+    timeout: 90,
+    roleArn: httpLambdaRole.arn,
+    securityGroupIds: [privateSubnetSecurityGroup.id],
+    subnetIds: vpcPrivateSubnetIds,
+  });
 
-  buildHttpLambdaFn(
-    {
-      ...lambdaSettings,
-      name: "passport-v2-stamp-score",
-      memorySize: 256,
-      dockerCmd: ["v2.aws_lambdas.stamp_score_GET.handler"],
-      httpListenerRulePaths: [
-        {
-          hostHeader: {
-            values: ["*.passport.xyz"],
-          },
-        },
-        {
-          pathPattern: {
-            values: ["/v2/stamps/*/score/*"],
-          },
-        },
-        {
-          httpRequestMethod: {
-            values: ["GET"],
-          },
-        },
-      ],
-      listenerPriority: 2023,
-      timeout: 60,
-    },
-    alarmConfigurations
-  );
+  const v2ModelScoreTargetGroup = createLambdaTargetGroup({
+    name: "l-passport-v2-model-score",
+    lambda: v2ModelScoreLambda,
+    vpcId: pulumi.output(aws.ec2.getVpc({ default: true })).apply((vpc) => vpc.id),
+  });
 
+  // Create V2 Stamp Score Lambda and target group (DUAL - Python/Rust)
+  const v2StampScoreLambda = createLambdaFunction({
+    name: "passport-v2-stamp-score",
+    dockerImage: dockerLambdaImage,
+    dockerCommand: ["v2.aws_lambdas.stamp_score_GET.handler"],
+    environment: lambdaSettings.environment,
+    memorySize: 256,
+    timeout: 60,
+    roleArn: httpLambdaRole.arn,
+    securityGroupIds: [privateSubnetSecurityGroup.id],
+    subnetIds: vpcPrivateSubnetIds,
+  });
+
+  const v2StampScoreTargetGroup = createLambdaTargetGroup({
+    name: "l-passport-v2-stamp-score",
+    lambda: v2StampScoreLambda,
+    vpcId: pulumi.output(aws.ec2.getVpc({ default: true })).apply((vpc) => vpc.id),
+  });
+
+  // Keep the history rule here (it uses the registry target group, not a Lambda)
   const targetPassportRuleHistory = new ListenerRule(`passport-v2-lrule-history`, {
     tags: { ...defaultTags, Name: "passport-v2-lrule-history" },
     listenerArn: httpsListener.arn,
@@ -247,4 +228,10 @@ export function createV2Api({
       internalHttpsListener,
     });
   }
+
+  // Return target groups for centralized routing
+  return {
+    pythonV2StampScore: v2StampScoreTargetGroup,
+    pythonV2ModelScore: v2ModelScoreTargetGroup,
+  };
 }
