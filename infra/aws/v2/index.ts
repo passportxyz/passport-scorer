@@ -89,7 +89,13 @@ export function createV2Api({
     name: "passport-v2-model-score",
     dockerImage: dockerLambdaImage,
     dockerCommand: ["v2.aws_lambdas.models_score_GET.handler"],
-    environment: lambdaSettings.environment,
+    environment: lambdaSettings.environment.reduce(
+      (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+        acc[e.name] = e.value;
+        return acc;
+      },
+      {}
+    ),
     memorySize: 256,
     timeout: 90,
     roleArn: httpLambdaRole.arn,
@@ -108,7 +114,13 @@ export function createV2Api({
     name: "passport-v2-stamp-score",
     dockerImage: dockerLambdaImage,
     dockerCommand: ["v2.aws_lambdas.stamp_score_GET.handler"],
-    environment: lambdaSettings.environment,
+    environment: lambdaSettings.environment.reduce(
+      (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+        acc[e.name] = e.value;
+        return acc;
+      },
+      {}
+    ),
     memorySize: 256,
     timeout: 60,
     roleArn: httpLambdaRole.arn,
@@ -206,6 +218,7 @@ export function createV2Api({
   });
 
   // Deploy Rust scorer Lambda if zip archive is provided
+  let rustScorerTargetGroups = {};
   if (rustScorerZipArchive) {
     // Convert privateAlbHttpListenerArn to Listener if provided
     const internalHttpsListener = privateAlbHttpListenerArn
@@ -227,6 +240,9 @@ export function createV2Api({
       alarmConfigurations,
       internalHttpsListener,
     });
+
+    // Include Rust scorer target groups if created
+    rustScorerTargetGroups = rustScorerResult.targetGroups;
   }
 
   // Return target groups for centralized routing
@@ -234,6 +250,7 @@ export function createV2Api({
     targetGroups: {
       pythonV2StampScore: v2StampScoreTargetGroup,
       pythonV2ModelScore: v2ModelScoreTargetGroup,
+      ...rustScorerTargetGroups,  // Include Rust scorer target groups
     },
   };
 }

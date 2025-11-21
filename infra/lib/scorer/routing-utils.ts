@@ -14,7 +14,7 @@ export function createLambdaFunction(args: {
   timeout?: number;
   roleArn: pulumi.Input<string>;
   securityGroupIds: pulumi.Input<string>[];
-  subnetIds: pulumi.Input<string>[];
+  subnetIds: pulumi.Input<string[]> | pulumi.Output<any>;  // Accept both formats
   architectures?: string[];
   ephemeralStorageSize?: number;
   tracingConfig?: aws.types.input.lambda.FunctionTracingConfig;
@@ -182,10 +182,10 @@ export function pathCondition(pattern: string): aws.types.input.lb.ListenerRuleC
 /**
  * Helper to create HTTP method conditions
  */
-export function methodCondition(method: string): aws.types.input.lb.ListenerRuleCondition {
+export function methodCondition(...methods: string[]): aws.types.input.lb.ListenerRuleCondition {
   return {
     httpRequestMethod: {
-      values: [method],
+      values: methods,
     },
   };
 }

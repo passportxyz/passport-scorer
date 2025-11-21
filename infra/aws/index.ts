@@ -1293,7 +1293,13 @@ const submitPassportLambda = createLambdaFunction({
   name: "submit-passport-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.submit_passport.submit_passport.handler"],
-  environment: lambdaSettings.environment,
+  environment: lambdaSettings.environment.reduce(
+    (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+      acc[e.name] = e.value;
+      return acc;
+    },
+    {}
+  ),
   memorySize: 1024,
   timeout: 30,
   roleArn: httpLambdaRole.arn,
@@ -1312,7 +1318,13 @@ const ccStampsBulkPostLambda = createLambdaFunction({
   name: "cc-v1-st-bulk-POST-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
-  environment: lambdaSettings.environment,
+  environment: lambdaSettings.environment.reduce(
+    (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+      acc[e.name] = e.value;
+      return acc;
+    },
+    {}
+  ),
   memorySize: 512,
   timeout: 30,
   roleArn: httpLambdaRole.arn,
@@ -1331,7 +1343,13 @@ const ccStampsBulkPatchLambda = createLambdaFunction({
   name: "cc-v1-st-bulk-PATCH-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_PATCH.handler"],
-  environment: lambdaSettings.environment,
+  environment: lambdaSettings.environment.reduce(
+    (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+      acc[e.name] = e.value;
+      return acc;
+    },
+    {}
+  ),
   memorySize: 512,
   timeout: 30,
   roleArn: httpLambdaRole.arn,
@@ -1350,7 +1368,13 @@ const ccStampsBulkDeleteLambda = createLambdaFunction({
   name: "cc-v1-st-bulk-DELETE-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_DELETE.handler"],
-  environment: lambdaSettings.environment,
+  environment: lambdaSettings.environment.reduce(
+    (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+      acc[e.name] = e.value;
+      return acc;
+    },
+    {}
+  ),
   memorySize: 512,
   timeout: 30,
   roleArn: httpLambdaRole.arn,
@@ -1369,7 +1393,13 @@ const ccScorePostLambda = createLambdaFunction({
   name: "cc-v1-score-POST-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
-  environment: lambdaSettings.environment,
+  environment: lambdaSettings.environment.reduce(
+    (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+      acc[e.name] = e.value;
+      return acc;
+    },
+    {}
+  ),
   memorySize: 512,
   timeout: 30,
   roleArn: httpLambdaRole.arn,
@@ -1388,7 +1418,13 @@ const ccScoreGetLambda = createLambdaFunction({
   name: "cc-v1-score-GET-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
-  environment: lambdaSettings.environment,
+  environment: lambdaSettings.environment.reduce(
+    (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+      acc[e.name] = e.value;
+      return acc;
+    },
+    {}
+  ),
   memorySize: 512,
   timeout: 30,
   roleArn: httpLambdaRole.arn,
@@ -1407,7 +1443,13 @@ const ccWeightsGetLambda = createLambdaFunction({
   name: "cc-weights-GET-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
-  environment: lambdaSettings.environment,
+  environment: lambdaSettings.environment.reduce(
+    (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+      acc[e.name] = e.value;
+      return acc;
+    },
+    {}
+  ),
   memorySize: 512,
   timeout: 30,
   roleArn: httpLambdaRole.arn,
@@ -1426,7 +1468,13 @@ const ccStampGetLambda = createLambdaFunction({
   name: "cc-v1-st-GET-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.stamp_GET.handler"],
-  environment: lambdaSettings.environment,
+  environment: lambdaSettings.environment.reduce(
+    (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+      acc[e.name] = e.value;
+      return acc;
+    },
+    {}
+  ),
   memorySize: 512,
   timeout: 30,
   roleArn: httpLambdaRole.arn,
@@ -1445,7 +1493,13 @@ const passportAnalysisLambda = createLambdaFunction({
   name: "passport-analysis-GET-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.passport.analysis_GET.handler"],
-  environment: lambdaSettings.environment,
+  environment: lambdaSettings.environment.reduce(
+    (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+      acc[e.name] = e.value;
+      return acc;
+    },
+    {}
+  ),
   memorySize: 256,
   timeout: 30,
   roleArn: httpLambdaRole.arn,
@@ -1631,25 +1685,31 @@ configureAllRouting({
       (arn) => aws.lb.Listener.get("internal-alb-listener", arn)
     ) : undefined,
   targetGroups: {
-    // V2 API target groups
+    // V2 API target groups (includes Rust scorer if created)
     ...v2ApiResult?.targetGroups,
 
     // Ceramic cache target groups (refactored above)
-    submitPassport: submitPassportTargetGroup,
-    ccStampsBulkPost: ccStampsBulkPostTargetGroup,
-    ccStampsBulkPatch: ccStampsBulkPatchTargetGroup,
-    ccStampsBulkDelete: ccStampsBulkDeleteTargetGroup,
-    ccScorePost: ccScorePostTargetGroup,
-    ccScoreGet: ccScoreGetTargetGroup,
-    ccWeightsGet: ccWeightsGetTargetGroup,
-    ccStampGet: ccStampGetTargetGroup,
-    passportAnalysis: passportAnalysisTargetGroup,
+    pythonSubmitPassport: submitPassportTargetGroup,
+    pythonCeramicCacheBulkPost: ccStampsBulkPostTargetGroup,
+    pythonCeramicCacheBulkPatch: ccStampsBulkPatchTargetGroup,
+    pythonCeramicCacheBulkDelete: ccStampsBulkDeleteTargetGroup,
+    pythonCeramicCacheScorePost: ccScorePostTargetGroup,
+    pythonCeramicCacheScoreGet: ccScoreGetTargetGroup,
+    pythonCeramicCacheWeights: ccWeightsGetTargetGroup,
+    pythonCeramicCacheStamp: ccStampGetTargetGroup,
+    pythonPassportAnalysis: passportAnalysisTargetGroup,
 
-    // Embed target groups
-    ...embedResult?.targetGroups,
+    // Registry fallback for all other routes
+    pythonRegistry: targetGroupRegistry,
+
+    // Embed target groups - mapping to expected names
+    pythonEmbedAddStamps: embedResult?.targetGroups?.embedStTargetGroup,
+    pythonEmbedValidateKey: embedResult?.targetGroups?.embedRlTargetGroup,
+    pythonEmbedGetScore: embedResult?.targetGroups?.embedGsTargetGroup,
 
     // App API target groups
-    ...appApiResult?.targetGroups,
+    pythonAppApiNonce: appApiResult?.targetGroups?.ccNonceTargetGroup,
+    pythonAppApiAuthenticate: appApiResult?.targetGroups?.ccAuthTargetGroup,
   },
   stack,
   envName: stack,

@@ -26,7 +26,10 @@ export interface TargetGroups {
   pythonCeramicCacheBulkPost?: aws.lb.TargetGroup;
   pythonCeramicCacheBulkPatch?: aws.lb.TargetGroup;
   pythonCeramicCacheBulkDelete?: aws.lb.TargetGroup;
-  pythonCeramicCacheScore?: aws.lb.TargetGroup;
+  pythonCeramicCacheScorePost?: aws.lb.TargetGroup;
+  pythonCeramicCacheScoreGet?: aws.lb.TargetGroup;
+  pythonCeramicCacheWeights?: aws.lb.TargetGroup;
+  pythonCeramicCacheStamp?: aws.lb.TargetGroup;
   pythonSubmitPassport?: aws.lb.TargetGroup;
   pythonPassportAnalysis?: aws.lb.TargetGroup;
 
@@ -39,8 +42,8 @@ export interface TargetGroups {
   pythonEmbedGetScore?: aws.lb.TargetGroup;
 
   // App API
-  pythonAppApiEnsPrimary?: aws.lb.TargetGroup;
-  pythonAppApiGithubPrimary?: aws.lb.TargetGroup;
+  pythonAppApiNonce?: aws.lb.TargetGroup;
+  pythonAppApiAuthenticate?: aws.lb.TargetGroup;
 }
 
 /**
@@ -48,8 +51,8 @@ export interface TargetGroups {
  * This is the single source of truth for all routing decisions
  */
 export function configureAllRouting(args: {
-  publicListener: aws.lb.Listener;
-  internalListener?: aws.lb.Listener;
+  publicListener: aws.lb.Listener | pulumi.Output<aws.lb.Listener>;
+  internalListener?: aws.lb.Listener | pulumi.Output<aws.lb.Listener>;
   targetGroups: TargetGroups;
   stack: string;
   envName: string;
@@ -57,6 +60,12 @@ export function configureAllRouting(args: {
   const { publicListener, internalListener, targetGroups, stack, envName } = args;
   const routingPercentages = getRoutingPercentages(stack);
   const rustEnabled = isRustEnabled(stack);
+
+  // Extract listener ARNs (handle both direct Listener and Output<Listener>)
+  const publicListenerArn = pulumi.output(publicListener).apply(l => l.arn);
+  const internalListenerArn = internalListener
+    ? pulumi.output(internalListener).apply(l => l.arn)
+    : undefined;
 
   // =============================================================
   // V2 API ENDPOINTS (Priority 2021-2023)
@@ -66,7 +75,7 @@ export function configureAllRouting(args: {
   if (targetGroups.pythonV2ModelScore) {
     createListenerRule({
       name: `v2-models-score-${envName}`,
-      listenerArn: publicListener.arn,
+      listenerArn: publicListenerArn,
       priority: 2021,
       targetGroupArn: targetGroups.pythonV2ModelScore.arn,
       conditions: [
@@ -81,7 +90,7 @@ export function configureAllRouting(args: {
     if (rustEnabled) {
       createWeightedListenerRule({
         name: `v2-stamps-score-${envName}`,
-        listenerArn: publicListener.arn,
+        listenerArn: publicListenerArn,
         priority: 2023,
         targetGroups: [
           { arn: targetGroups.pythonV2StampScore.arn, weight: routingPercentages.python },
@@ -95,7 +104,7 @@ export function configureAllRouting(args: {
     } else {
       createListenerRule({
         name: `v2-stamps-score-${envName}`,
-        listenerArn: publicListener.arn,
+        listenerArn: publicListenerArn,
         priority: 2023,
         targetGroupArn: targetGroups.pythonV2StampScore.arn,
         conditions: [
@@ -114,7 +123,7 @@ export function configureAllRouting(args: {
   if (targetGroups.pythonSubmitPassport) {
     createListenerRule({
       name: `submit-passport-${envName}`,
-      listenerArn: publicListener.arn,
+      listenerArn: publicListenerArn,
       priority: 1000,
       targetGroupArn: targetGroups.pythonSubmitPassport.arn,
       conditions: [
@@ -125,12 +134,12 @@ export function configureAllRouting(args: {
   }
 
   // Priority 1001: /ceramic-cache/score/* POST - Python only (not implemented in Rust yet)
-  if (targetGroups.pythonCeramicCacheScore) {
+  if (targetGroups.pythonCeramicCacheScorePost) {
     createListenerRule({
       name: `ceramic-cache-score-post-${envName}`,
-      listenerArn: publicListener.arn,
+      listenerArn: publicListenerArn,
       priority: 1001,
-      targetGroupArn: targetGroups.pythonCeramicCacheScore.arn,
+      targetGroupArn: targetGroups.pythonCeramicCacheScorePost.arn,
       conditions: [
         pathCondition("/ceramic-cache/score/*"),
         methodCondition("POST"),
@@ -143,7 +152,7 @@ export function configureAllRouting(args: {
     if (rustEnabled && targetGroups.rustScorer) {
       createWeightedListenerRule({
         name: `ceramic-cache-bulk-post-${envName}`,
-        listenerArn: publicListener.arn,
+        listenerArn: publicListenerArn,
         priority: 1002,
         targetGroups: [
           { arn: targetGroups.pythonCeramicCacheBulkPost.arn, weight: routingPercentages.python },
@@ -157,7 +166,7 @@ export function configureAllRouting(args: {
     } else {
       createListenerRule({
         name: `ceramic-cache-bulk-post-${envName}`,
-        listenerArn: publicListener.arn,
+        listenerArn: publicListenerArn,
         priority: 1002,
         targetGroupArn: targetGroups.pythonCeramicCacheBulkPost.arn,
         conditions: [
@@ -172,7 +181,7 @@ export function configureAllRouting(args: {
   if (targetGroups.pythonCeramicCacheBulkPatch) {
     createListenerRule({
       name: `ceramic-cache-bulk-patch-${envName}`,
-      listenerArn: publicListener.arn,
+      listenerArn: publicListenerArn,
       priority: 1003,
       targetGroupArn: targetGroups.pythonCeramicCacheBulkPatch.arn,
       conditions: [
@@ -186,7 +195,7 @@ export function configureAllRouting(args: {
   if (targetGroups.pythonCeramicCacheBulkDelete) {
     createListenerRule({
       name: `ceramic-cache-bulk-delete-${envName}`,
-      listenerArn: publicListener.arn,
+      listenerArn: publicListenerArn,
       priority: 1004,
       targetGroupArn: targetGroups.pythonCeramicCacheBulkDelete.arn,
       conditions: [
@@ -200,7 +209,7 @@ export function configureAllRouting(args: {
   if (targetGroups.pythonPassportAnalysis) {
     createListenerRule({
       name: `passport-analysis-${envName}`,
-      listenerArn: publicListener.arn,
+      listenerArn: publicListenerArn,
       priority: 1005,
       targetGroupArn: targetGroups.pythonPassportAnalysis.arn,
       conditions: [
@@ -211,15 +220,43 @@ export function configureAllRouting(args: {
   }
 
   // Priority 1006: /ceramic-cache/score/* GET - DUAL IMPLEMENTATION (when Rust implements it)
-  if (targetGroups.pythonCeramicCacheScore) {
+  if (targetGroups.pythonCeramicCacheScoreGet) {
     // For now, Python only - update when Rust implements ceramic cache endpoints
     createListenerRule({
       name: `ceramic-cache-score-get-${envName}`,
-      listenerArn: publicListener.arn,
+      listenerArn: publicListenerArn,
       priority: 1006,
-      targetGroupArn: targetGroups.pythonCeramicCacheScore.arn,
+      targetGroupArn: targetGroups.pythonCeramicCacheScoreGet.arn,
       conditions: [
         pathCondition("/ceramic-cache/score/*"),
+        methodCondition("GET"),
+      ],
+    });
+  }
+
+  // Priority 1007: /ceramic-cache/weights GET - Python only (v1 API)
+  if (targetGroups.pythonCeramicCacheWeights) {
+    createListenerRule({
+      name: `ceramic-cache-weights-${envName}`,
+      listenerArn: publicListenerArn,
+      priority: 1007,
+      targetGroupArn: targetGroups.pythonCeramicCacheWeights.arn,
+      conditions: [
+        pathCondition("/ceramic-cache/weights"),
+        methodCondition("GET"),
+      ],
+    });
+  }
+
+  // Priority 1008: /ceramic-cache/stamp GET - Python only (v1 API)
+  if (targetGroups.pythonCeramicCacheStamp) {
+    createListenerRule({
+      name: `ceramic-cache-stamp-${envName}`,
+      listenerArn: publicListenerArn,
+      priority: 1008,
+      targetGroupArn: targetGroups.pythonCeramicCacheStamp.arn,
+      conditions: [
+        pathCondition("/ceramic-cache/stamp"),
         methodCondition("GET"),
       ],
     });
@@ -229,7 +266,7 @@ export function configureAllRouting(args: {
   if (targetGroups.pythonRegistry) {
     createListenerRule({
       name: `registry-fallback-${envName}`,
-      listenerArn: publicListener.arn,
+      listenerArn: publicListenerArn,
       priority: 1010,
       targetGroupArn: targetGroups.pythonRegistry.arn,
       conditions: [
@@ -242,13 +279,13 @@ export function configureAllRouting(args: {
   // INTERNAL ALB - EMBED ENDPOINTS (Priority 2100-2103)
   // =============================================================
 
-  if (internalListener) {
+  if (internalListenerArn) {
     // Priority 2100: /internal/embed/stamps/* POST - DUAL IMPLEMENTATION
     if (targetGroups.pythonEmbedAddStamps && targetGroups.rustScorerInternal) {
       if (rustEnabled) {
         createWeightedListenerRule({
           name: `embed-add-stamps-${envName}`,
-          listenerArn: internalListener.arn,
+          listenerArn: internalListenerArn,
           priority: 2100,
           targetGroups: [
             { arn: targetGroups.pythonEmbedAddStamps.arn, weight: routingPercentages.python },
@@ -262,7 +299,7 @@ export function configureAllRouting(args: {
       } else {
         createListenerRule({
           name: `embed-add-stamps-${envName}`,
-          listenerArn: internalListener.arn,
+          listenerArn: internalListenerArn,
           priority: 2100,
           targetGroupArn: targetGroups.pythonEmbedAddStamps.arn,
           conditions: [
@@ -278,7 +315,7 @@ export function configureAllRouting(args: {
       if (rustEnabled) {
         createWeightedListenerRule({
           name: `embed-validate-key-${envName}`,
-          listenerArn: internalListener.arn,
+          listenerArn: internalListenerArn,
           priority: 2101,
           targetGroups: [
             { arn: targetGroups.pythonEmbedValidateKey.arn, weight: routingPercentages.python },
@@ -292,7 +329,7 @@ export function configureAllRouting(args: {
       } else {
         createListenerRule({
           name: `embed-validate-key-${envName}`,
-          listenerArn: internalListener.arn,
+          listenerArn: internalListenerArn,
           priority: 2101,
           targetGroupArn: targetGroups.pythonEmbedValidateKey.arn,
           conditions: [
@@ -308,7 +345,7 @@ export function configureAllRouting(args: {
       if (rustEnabled) {
         createWeightedListenerRule({
           name: `embed-get-score-${envName}`,
-          listenerArn: internalListener.arn,
+          listenerArn: internalListenerArn,
           priority: 2103,
           targetGroups: [
             { arn: targetGroups.pythonEmbedGetScore.arn, weight: routingPercentages.python },
@@ -322,7 +359,7 @@ export function configureAllRouting(args: {
       } else {
         createListenerRule({
           name: `embed-get-score-${envName}`,
-          listenerArn: internalListener.arn,
+          listenerArn: internalListenerArn,
           priority: 2103,
           targetGroupArn: targetGroups.pythonEmbedGetScore.arn,
           conditions: [
@@ -338,30 +375,30 @@ export function configureAllRouting(args: {
   // APP API ENDPOINTS (Priority 3000-3001)
   // =============================================================
 
-  // Priority 3000: /ens/primary_name - Python only
-  if (targetGroups.pythonAppApiEnsPrimary) {
+  // Priority 3000: /account/nonce - Python only
+  if (targetGroups.pythonAppApiNonce) {
     createListenerRule({
-      name: `app-api-ens-primary-${envName}`,
-      listenerArn: publicListener.arn,
+      name: `app-api-nonce-${envName}`,
+      listenerArn: publicListenerArn,
       priority: 3000,
-      targetGroupArn: targetGroups.pythonAppApiEnsPrimary.arn,
+      targetGroupArn: targetGroups.pythonAppApiNonce.arn,
       conditions: [
-        pathCondition("/ens/primary_name"),
-        methodCondition("GET"),
+        pathCondition("/account/nonce"),
+        methodCondition("GET", "OPTIONS"),
       ],
     });
   }
 
-  // Priority 3001: /github/primary_name - Python only
-  if (targetGroups.pythonAppApiGithubPrimary) {
+  // Priority 3001: /ceramic-cache/authenticate - Python only
+  if (targetGroups.pythonAppApiAuthenticate) {
     createListenerRule({
-      name: `app-api-github-primary-${envName}`,
-      listenerArn: publicListener.arn,
+      name: `app-api-authenticate-${envName}`,
+      listenerArn: publicListenerArn,
       priority: 3001,
-      targetGroupArn: targetGroups.pythonAppApiGithubPrimary.arn,
+      targetGroupArn: targetGroups.pythonAppApiAuthenticate.arn,
       conditions: [
-        pathCondition("/github/primary_name"),
-        methodCondition("GET"),
+        pathCondition("/ceramic-cache/authenticate"),
+        methodCondition("POST", "OPTIONS"),
       ],
     });
   }
