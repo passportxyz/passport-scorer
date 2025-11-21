@@ -8,7 +8,9 @@ import {
   pathCondition,
   methodCondition,
   hostCondition,
+  createTargetGroupAlarms,
 } from "./routing-utils";
+import { AlarmConfigurations } from "./loadBalancer";
 
 /**
  * Target groups that need to be provided for routing configuration
@@ -56,8 +58,11 @@ export function configureAllRouting(args: {
   targetGroups: TargetGroups;
   stack: string;
   envName: string;
+  alb?: aws.lb.LoadBalancer;
+  alertTopic?: aws.sns.Topic;
+  alarmConfigurations?: AlarmConfigurations;
 }): void {
-  const { publicListener, internalListener, targetGroups, stack, envName } = args;
+  const { publicListener, internalListener, targetGroups, stack, envName, alb, alertTopic, alarmConfigurations } = args;
   const routingPercentages = getRoutingPercentages(stack);
   const rustEnabled = isRustEnabled(stack);
 
@@ -401,5 +406,163 @@ export function configureAllRouting(args: {
         methodCondition("POST", "OPTIONS"),
       ],
     });
+  }
+
+  // =============================================================
+  // CREATE CLOUDWATCH ALARMS FOR ALL TARGET GROUPS
+  // =============================================================
+
+  if (alb && alertTopic && alarmConfigurations) {
+    // V2 API alarms
+    if (targetGroups.pythonV2StampScore) {
+      createTargetGroupAlarms({
+        name: "passport-v2-stamp-score",
+        targetGroup: targetGroups.pythonV2StampScore,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+    if (targetGroups.pythonV2ModelScore) {
+      createTargetGroupAlarms({
+        name: "passport-v2-model-score",
+        targetGroup: targetGroups.pythonV2ModelScore,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+
+    // Ceramic Cache alarms
+    if (targetGroups.pythonSubmitPassport) {
+      createTargetGroupAlarms({
+        name: "submit-passport-0",
+        targetGroup: targetGroups.pythonSubmitPassport,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+    if (targetGroups.pythonCeramicCacheBulkPost) {
+      createTargetGroupAlarms({
+        name: "cc-v1-st-bulk-POST-0",
+        targetGroup: targetGroups.pythonCeramicCacheBulkPost,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+    if (targetGroups.pythonCeramicCacheBulkPatch) {
+      createTargetGroupAlarms({
+        name: "cc-v1-st-bulk-PATCH-0",
+        targetGroup: targetGroups.pythonCeramicCacheBulkPatch,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+    if (targetGroups.pythonCeramicCacheBulkDelete) {
+      createTargetGroupAlarms({
+        name: "cc-v1-st-bulk-DELETE-0",
+        targetGroup: targetGroups.pythonCeramicCacheBulkDelete,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+    if (targetGroups.pythonCeramicCacheScorePost) {
+      createTargetGroupAlarms({
+        name: "cc-v1-score-POST-0",
+        targetGroup: targetGroups.pythonCeramicCacheScorePost,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+    if (targetGroups.pythonCeramicCacheScoreGet) {
+      createTargetGroupAlarms({
+        name: "cc-v1-score-GET-0",
+        targetGroup: targetGroups.pythonCeramicCacheScoreGet,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+    if (targetGroups.pythonCeramicCacheWeights) {
+      createTargetGroupAlarms({
+        name: "cc-weights-GET-0",
+        targetGroup: targetGroups.pythonCeramicCacheWeights,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+    if (targetGroups.pythonCeramicCacheStamp) {
+      createTargetGroupAlarms({
+        name: "cc-v1-st-GET-0",
+        targetGroup: targetGroups.pythonCeramicCacheStamp,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+    if (targetGroups.pythonPassportAnalysis) {
+      createTargetGroupAlarms({
+        name: "passport-analysis-GET-0",
+        targetGroup: targetGroups.pythonPassportAnalysis,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+
+    // Embed alarms (note: embed lambdas don't have alarm configs in the old code, but we'll create them with defaults)
+    if (targetGroups.pythonEmbedAddStamps) {
+      createTargetGroupAlarms({
+        name: "embed-st-lambda",
+        targetGroup: targetGroups.pythonEmbedAddStamps,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+    if (targetGroups.pythonEmbedValidateKey) {
+      createTargetGroupAlarms({
+        name: "embed-rl-lambda",
+        targetGroup: targetGroups.pythonEmbedValidateKey,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+    if (targetGroups.pythonEmbedGetScore) {
+      createTargetGroupAlarms({
+        name: "embed-gs-lambda",
+        targetGroup: targetGroups.pythonEmbedGetScore,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+
+    // App API alarms
+    if (targetGroups.pythonAppApiNonce) {
+      createTargetGroupAlarms({
+        name: "cc-nonce-lambda",
+        targetGroup: targetGroups.pythonAppApiNonce,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
+    if (targetGroups.pythonAppApiAuthenticate) {
+      createTargetGroupAlarms({
+        name: "cc-auth-lambda",
+        targetGroup: targetGroups.pythonAppApiAuthenticate,
+        alb,
+        alertTopic,
+        alarmConfigurations,
+      });
+    }
   }
 }

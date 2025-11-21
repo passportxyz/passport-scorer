@@ -1,5 +1,7 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
+import { AlarmConfigurations, TargetGroupAlarmsConfiguration } from "./loadBalancer";
+import { defaultTags } from "../config";
 
 /**
  * Helper function to create a Lambda function without any ALB integration
@@ -199,4 +201,176 @@ export function hostCondition(host: string): aws.types.input.lb.ListenerRuleCond
       values: [host],
     },
   };
+}
+
+/**
+ * Create CloudWatch alarms for a target group
+ * Matches the alarm creation logic from buildHttpLambdaFn in new_service.ts
+ */
+export function createTargetGroupAlarms(args: {
+  name: string;
+  targetGroup: aws.lb.TargetGroup;
+  alb: aws.lb.LoadBalancer;
+  alertTopic: aws.sns.Topic;
+  alarmConfigurations: AlarmConfigurations;
+}): void {
+  const metricNamespace = "AWS/ApplicationELB";
+
+  // Get alarm configuration for this specific target group or use default
+  const alarmConfig =
+    (args.alarmConfigurations as any as Record<string, TargetGroupAlarmsConfiguration>)[args.name] ||
+    args.alarmConfigurations.default;
+
+  // 5XX error alarms
+  [
+    {
+      name: `HTTP-Target-5XX-${args.name}-burst`,
+      ...alarmConfig.percentHTTPCodeTarget5XX.burst,
+    },
+    {
+      name: `HTTP-Target-5XX-${args.name}-sustain`,
+      ...alarmConfig.percentHTTPCodeTarget5XX.sustain,
+    },
+  ].forEach(({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
+    new aws.cloudwatch.MetricAlarm(name, {
+      tags: { ...defaultTags, Name: name },
+      name,
+      alarmActions: [args.alertTopic.arn],
+      okActions: [args.alertTopic.arn],
+      comparisonOperator: "GreaterThanThreshold",
+      datapointsToAlarm,
+      evaluationPeriods,
+      metricQueries: [
+        {
+          id: "m1",
+          metric: {
+            metricName: "RequestCount",
+            dimensions: {
+              LoadBalancer: args.alb.arnSuffix,
+              TargetGroup: args.targetGroup.arnSuffix,
+            },
+            namespace: metricNamespace,
+            period,
+            stat: "Sum",
+          },
+          returnData: false,
+        },
+        {
+          id: "m2",
+          metric: {
+            metricName: "HTTPCode_Target_5XX_Count",
+            dimensions: {
+              LoadBalancer: args.alb.arnSuffix,
+              TargetGroup: args.targetGroup.arnSuffix,
+            },
+            namespace: metricNamespace,
+            period,
+            stat: "Sum",
+          },
+          returnData: false,
+        },
+        {
+          expression: "m2 / m1",
+          id: "e1",
+          label: "Percent of target 5XX errors",
+          returnData: true,
+        },
+      ],
+      threshold,
+      treatMissingData: "missing",
+    });
+  });
+
+  // 4XX error alarms
+  [
+    {
+      name: `HTTP-Target-4XX-${args.name}-burst`,
+      ...alarmConfig.percentHTTPCodeTarget4XX.burst,
+    },
+    {
+      name: `HTTP-Target-4XX-${args.name}-sustain`,
+      ...alarmConfig.percentHTTPCodeTarget4XX.sustain,
+    },
+  ].forEach(({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
+    new aws.cloudwatch.MetricAlarm(name, {
+      tags: { ...defaultTags, Name: name },
+      name,
+      alarmActions: [args.alertTopic.arn],
+      okActions: [args.alertTopic.arn],
+      comparisonOperator: "GreaterThanThreshold",
+      datapointsToAlarm,
+      evaluationPeriods,
+      metricQueries: [
+        {
+          id: "m1",
+          metric: {
+            metricName: "RequestCount",
+            dimensions: {
+              LoadBalancer: args.alb.arnSuffix,
+              TargetGroup: args.targetGroup.arnSuffix,
+            },
+            namespace: metricNamespace,
+            period,
+            stat: "Sum",
+          },
+          returnData: false,
+        },
+        {
+          id: "m2",
+          metric: {
+            metricName: "HTTPCode_Target_4XX_Count",
+            dimensions: {
+              LoadBalancer: args.alb.arnSuffix,
+              TargetGroup: args.targetGroup.arnSuffix,
+            },
+            namespace: metricNamespace,
+            period,
+            stat: "Sum",
+          },
+          returnData: false,
+        },
+        {
+          expression: "m2 / m1",
+          id: "e1",
+          label: "Percent of target 4XX errors",
+          returnData: true,
+        },
+      ],
+      threshold,
+      treatMissingData: "missing",
+    });
+  });
+
+  // Response time alarms
+  [
+    {
+      name: `TargetResponseTime-${args.name}-burst`,
+      ...alarmConfig.targetResponseTime.burst,
+    },
+    {
+      name: `TargetResponseTime-${args.name}-sustain`,
+      ...alarmConfig.targetResponseTime.sustain,
+    },
+  ].forEach(({ name, threshold, datapointsToAlarm, evaluationPeriods, period }) => {
+    new aws.cloudwatch.MetricAlarm(name, {
+      tags: { ...defaultTags, Name: name },
+      name,
+      alarmActions: [args.alertTopic.arn],
+      okActions: [args.alertTopic.arn],
+      comparisonOperator: "GreaterThanThreshold",
+      datapointsToAlarm,
+      evaluationPeriods,
+      dimensions: {
+        LoadBalancer: args.alb.arnSuffix,
+        TargetGroup: args.targetGroup.arnSuffix,
+      },
+      metricName: "TargetResponseTime",
+      namespace: metricNamespace,
+      period,
+      statistic: "Average",
+      treatMissingData: "notBreaching",
+      threshold,
+      unit: "Seconds",
+    });
+  });
 }

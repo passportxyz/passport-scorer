@@ -1719,4 +1719,7 @@ configureAllRouting({
   },
   stack,
   envName: stack,
+  alb: alb,
+  alertTopic: pagerdutyTopic,
+  alarmConfigurations: alarmConfigurations,
 });
