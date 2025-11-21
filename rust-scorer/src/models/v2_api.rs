@@ -94,6 +94,14 @@ pub struct GetStampsWithV2ScoreResponse {
 /// as GetStampsWithV2ScoreResponse, but we keep the naming for clarity
 pub type GetStampsWithInternalV2ScoreResponse = GetStampsWithV2ScoreResponse;
 
+/// Response for ceramic-cache DELETE endpoint (stamps only, no score)
+/// Matches Python's GetStampResponse schema
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetStampResponse {
+    pub success: bool,
+    pub stamps: Vec<CachedStampResponse>,
+}
+
 /// Cached stamp response (subset of ceramic cache fields)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachedStampResponse {

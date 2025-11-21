@@ -1,8 +1,8 @@
 # Python ↔ Rust Comparison Testing - Handoff Document
 
-**Status**: 🎉 11/11 tests passing ✅ ALL IMPLEMENTED ENDPOINTS WORKING!
+**Status**: 🎉 13/13 tests passing ✅ ALL CERAMIC CACHE ENDPOINTS COMPLETE!
 **Last Updated**: 2025-11-21
-**Next Priority**: Implement remaining 2 ceramic cache endpoints (PATCH + DELETE)
+**Phase**: Complete - All 4 ceramic cache endpoints implemented and tested
 
 ## Overview
 
@@ -48,9 +48,9 @@ The comparison tests with realistic data caught **2 real bugs** - both now fixed
 
 ---
 
-## 📊 Current Test Status: 11/11 Tests Passing! 🎉
+## 📊 Current Test Status: 13/13 Tests Passing! 🎉
 
-### ✅ ALL Tests Passing (11/11)
+### ✅ ALL Tests Passing (13/13)
 ```
 ✅ PASS: Weights endpoint
 ✅ PASS: Internal Score endpoint
@@ -63,13 +63,17 @@ The comparison tests with realistic data caught **2 real bugs** - both now fixed
 ✅ PASS: Embed Stamps POST endpoint
 ✅ PASS: Ceramic Cache GET score endpoint
 ✅ PASS: Ceramic Cache POST stamps endpoint
+✅ PASS: Ceramic Cache PATCH stamps endpoint
+✅ PASS: Ceramic Cache DELETE stamps endpoint
 ```
 
-**Achievement**: ALL implemented endpoints now passing with full feature parity:
+**Achievement**: ALL ceramic cache endpoints complete with full feature parity:
 - JWT authentication working perfectly
-- Human points data included in responses
+- Human points data included in responses (where applicable)
 - Response formats match exactly
-- Status codes correct (201 for POST)
+- Status codes correct (201 for POST, 200 for GET/PATCH/DELETE)
+- PATCH correctly handles soft delete + recreate logic
+- DELETE correctly returns GetStampResponse (stamps only, no score)
 
 ---
 
@@ -200,126 +204,63 @@ cargo run --release
 
 ---
 
-## ✅ Definition of Done for Current Phase - ACHIEVED!
+## ✅ Definition of Done - FULLY ACHIEVED!
 
-All completion criteria met for **implemented endpoints**:
+All completion criteria met for **all endpoints including ceramic cache**:
 
-1. ✅ All 9 implemented endpoints pass with realistic data
+1. ✅ All 13 endpoints pass with realistic data
 2. ✅ CGrants endpoint returns meaningful results (not empty)
 3. ✅ Error test infrastructure added and documented
-4. ✅ Both bugs identified above are fixed
+4. ✅ All bugs fixed (timestamp formatting, integer serialization)
 5. ✅ Tests consistently pass on multiple runs
-6. ✅ Human Points investigation complete (environment setup ready for ceramic cache)
+6. ✅ Human Points fully working in ceramic cache endpoints
+7. ✅ All 4 ceramic cache endpoints implemented (POST, GET, PATCH, DELETE)
 
-**Additional achievements**:
+**Final achievements**:
 - Created comprehensive test data scripts for all endpoints
 - Documented auth behavior differences (dev vs production)
 - Identified Rust production correctness (no auth on internal ALB)
 - Set up Human Points test data and environment configuration
-- Documented ceramic cache endpoint requirements with human points details
+- Implemented all ceramic cache endpoints with full parity
+- Discovered and documented DELETE endpoint schema quirk
 
-**Ready to handoff**: The next team has everything needed to implement and test the final 3 ceramic cache endpoints.
+**Status**: Ready for production deployment! All implemented endpoints have been validated.
 
 ---
 
 ## 🎉 Ceramic Cache Endpoints Complete!
 
-**All implemented endpoints now passing** with full feature parity:
+**All 4 ceramic cache endpoints now passing** with full feature parity:
 - ✅ JWT authentication working (using SECRET_KEY from env)
-- ✅ Human points data in responses (fetched after scoring)
-- ✅ Correct status codes (201 for POST, 200 for GET)
+- ✅ Human points data in responses (where applicable)
+- ✅ Correct status codes (201 for POST, 200 for GET/PATCH/DELETE)
 - ✅ Response formats match Python exactly
+- ✅ PATCH correctly soft deletes + recreates stamps
+- ✅ DELETE correctly returns stamps without score field
 
-**Key fixes applied** (Session 3 - 2025-11-21):
-1. GET endpoint: Return just score (not score + stamps) - `rust-scorer/src/api/ceramic_cache.rs:172`
-2. POST endpoint: Return 201 Created status - `rust-scorer/src/api/ceramic_cache.rs:54`
-3. Human points: Fetch and include in response - `rust-scorer/src/domain/scoring.rs:554-579`
+**Key implementation details** (Session 4 - 2025-11-21):
+1. PATCH endpoint: Soft deletes all providers in payload, recreates only those with stamp field - `rust-scorer/src/api/ceramic_cache.rs:244-344`
+2. DELETE endpoint: Returns GetStampResponse (stamps only, no score) to match Python's declared schema - `rust-scorer/src/api/ceramic_cache.rs:361-425`
+3. Added GetStampResponse type for DELETE endpoint - `rust-scorer/src/models/v2_api.rs:100-103`
+4. Both endpoints reuse existing soft_delete and bulk_insert infrastructure
 
----
+### All Ceramic Cache Endpoints Status (4/4 Complete!)
 
-## 🎯 Next Steps: Remaining Ceramic Cache Endpoints
-
-The **final 2 endpoints** to implement and test. These are the only remaining Python endpoints that need Rust equivalents.
-
-### Current Endpoint Status
-
-**✅ Already in Rust - Comparison Tests Passing** (2/4):
-- ✅ `POST /ceramic-cache/stamps/bulk` - Fully working! JWT auth ✅, status code ✅, human points ✅
-- ✅ `GET /ceramic-cache/score/{address}` - Fully working! JWT auth ✅, response format ✅, human points ✅
-
-**❌ Need to implement in Rust** (2/4):
-1. ❌ `PATCH /ceramic-cache/stamps/bulk` - Update existing stamps (soft delete + recreate)
-2. ❌ `DELETE /ceramic-cache/stamps/bulk` - Delete stamps by provider (soft delete)
+**✅ All endpoints in Rust - Comparison Tests Passing** (4/4):
+- ✅ `POST /ceramic-cache/stamps/bulk` - Add stamps, return 201 Created with score + human points
+- ✅ `GET /ceramic-cache/score/{address}` - Get score with human points
+- ✅ `PATCH /ceramic-cache/stamps/bulk` - Update stamps (soft delete + recreate), return 200 OK with score + human points
+- ✅ `DELETE /ceramic-cache/stamps/bulk` - Delete stamps (soft delete only), return 200 OK with stamps (no score)
 
 **Note**: All ceramic cache endpoints use JWT DID authentication (`JWTDidAuth()`), not API keys
 
-### Implementation Strategy
+### Key Learnings from Implementation
 
-Both remaining endpoints reuse existing infrastructure:
-- **JWT authentication**: Already working in POST/GET endpoints
-- **Soft delete logic**: Already implemented in `soft_delete_stamps_by_provider()`
-- **Bulk insert logic**: Already implemented in `bulk_insert_ceramic_cache_stamps()`
-- **Scoring**: Reuse `calculate_score_for_address()` with `include_human_points=true`
+**DELETE endpoint quirk**: Python's route decorator declares `response=GetStampResponse` (stamps only), but the handler tries to return `GetStampsWithInternalV2ScoreResponse` (stamps + score). However, Django Ninja's serializer respects the declared schema, so Python actually returns just stamps without the score. Rust implementation had to match this behavior by creating a separate `GetStampResponse` type.
 
-**PATCH is basically**: soft delete + bulk insert + score (like POST but different payload)
-**DELETE is basically**: soft delete + score (no insert)
-
-### Quick Implementation Guide for PATCH/DELETE
-
-Both endpoints should follow this pattern (see POST endpoint at `rust-scorer/src/api/ceramic_cache.rs:50-153` as reference):
-
-```rust
-// 1. Check X-Use-Rust-Scorer header (return 404 if not set for Python fallback)
-if !should_use_rust(&headers) { return Err(404); }
-
-// 2. Extract and validate JWT token
-let token = extract_jwt_from_header(auth_header)?;
-let address = validate_jwt_and_extract_address(token)?;
-
-// 3. Get scorer ID
-let scorer_id = get_ceramic_cache_scorer_id()?;
-
-// 4. Start transaction
-let mut tx = pool.begin().await?;
-
-// 5. Soft delete existing stamps
-soft_delete_stamps_by_provider(&address, &providers, &mut tx).await?;
-
-// 6. For PATCH: bulk insert new stamps (skip for DELETE)
-if !stamps.is_empty() {
-    bulk_insert_ceramic_cache_stamps(&address, &stamps, 1, Some(scorer_id), &mut tx).await?;
-}
-
-// 7. Commit transaction
-tx.commit().await?;
-
-// 8. Score with human points
-let score = calculate_score_for_address(&address, scorer_id, &pool, true).await?;
-
-// 9. Get updated stamps from cache
-let cached_stamps = get_stamps_from_cache(&pool, &address).await?;
-
-// 10. Return response with appropriate status code
-// PATCH: 200 OK, DELETE: 200 OK
-Ok(Json(GetStampsWithInternalV2ScoreResponse { success: true, stamps, score }))
-```
-
-All the functions are already implemented - just need to wire them up with the right handlers!
-
-### Testing the New Endpoints
-
-After implementing PATCH and DELETE:
-1. Add test cases to `rust-scorer/comparison-tests/src/main.rs` (follow POST pattern)
-2. Run: `cd rust-scorer/comparison-tests && cargo run --release`
-3. Target: **13/13 tests passing** (11 current + 2 new)
-
-**Important**: Ceramic cache endpoints MUST return human points data in responses (already working in POST/GET, just reuse the same scoring call)
-
-### Python Reference
-
-Check `api/ceramic_cache/api/v1.py`:
-- PATCH handler: line ~230 (soft delete + bulk insert + score)
-- DELETE handler: line ~260 (soft delete + score, no insert)
+**Test coverage**: Added PATCH and DELETE test cases to the comparison test suite with realistic test scenarios:
+- PATCH: Updates one stamp (Google) and removes another (Twitter)
+- DELETE: Removes a stamp (Github) from the cache
 
 ---
 
@@ -382,8 +323,16 @@ rust-scorer/comparison-tests/
 ---
 
 **Last Updated**: 2025-11-21
-**Status**: 🎉 11/11 tests passing ✅ ALL IMPLEMENTED ENDPOINTS FULLY WORKING!
-**Next Priority**: Implement remaining 2 ceramic cache endpoints (PATCH + DELETE) - should be straightforward using existing code
+**Status**: 🎉 13/13 tests passing ✅ ALL CERAMIC CACHE ENDPOINTS COMPLETE!
+**Phase**: Complete - All comparison testing infrastructure and ceramic cache endpoints implemented
+
+**Recent Changes - Session 4** (2025-11-21 evening):
+- **✅ COMPLETED CERAMIC CACHE!** All 13 comparison tests now passing (11 previous + 2 new)
+- **Implemented** PATCH /ceramic-cache/stamps/bulk endpoint with soft delete + recreate logic
+- **Implemented** DELETE /ceramic-cache/stamps/bulk endpoint with GetStampResponse (stamps only, no score)
+- **Added** comparison tests for PATCH and DELETE endpoints
+- **Fixed** DELETE endpoint to match Python's declared schema (returns stamps without score field)
+- **Added** GetStampResponse type to models for DELETE endpoint
 
 **Recent Changes - Session 3** (2025-11-21 late afternoon):
 - **✅ FIXED ALL ISSUES!** All 11 comparison tests now passing

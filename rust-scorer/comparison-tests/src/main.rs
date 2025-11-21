@@ -570,6 +570,56 @@ impl TestRunner {
         self.compare_responses(name, python_resp, rust_resp).await
     }
 
+    /// Compare PATCH requests with JWT authentication
+    async fn compare_patch_with_jwt(&mut self, name: &str, path: &str, body: &Value, jwt_token: &str) -> Result<bool> {
+        print!("Testing {} ... ", name.bold());
+
+        let python_url = format!("{}{}", PYTHON_BASE, path);
+        let rust_url = format!("{}{}", RUST_BASE, path);
+
+        // Make requests with JWT Bearer token
+        let python_resp = self.client.patch(&python_url)
+            .header("Authorization", format!("Bearer {}", jwt_token))
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send().await
+            .context("Python request failed")?;
+        let rust_resp = self.client.patch(&rust_url)
+            .header("Authorization", format!("Bearer {}", jwt_token))
+            .header("X-Use-Rust-Scorer", "true") // Required for Rust routing
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send().await
+            .context("Rust request failed")?;
+
+        self.compare_responses(name, python_resp, rust_resp).await
+    }
+
+    /// Compare DELETE requests with JWT authentication
+    async fn compare_delete_with_jwt(&mut self, name: &str, path: &str, body: &Value, jwt_token: &str) -> Result<bool> {
+        print!("Testing {} ... ", name.bold());
+
+        let python_url = format!("{}{}", PYTHON_BASE, path);
+        let rust_url = format!("{}{}", RUST_BASE, path);
+
+        // Make requests with JWT Bearer token
+        let python_resp = self.client.delete(&python_url)
+            .header("Authorization", format!("Bearer {}", jwt_token))
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send().await
+            .context("Python request failed")?;
+        let rust_resp = self.client.delete(&rust_url)
+            .header("Authorization", format!("Bearer {}", jwt_token))
+            .header("X-Use-Rust-Scorer", "true") // Required for Rust routing
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send().await
+            .context("Rust request failed")?;
+
+        self.compare_responses(name, python_resp, rust_resp).await
+    }
+
     fn summary(&self) {
         println!("\n{}", "=".repeat(50));
         println!(
@@ -862,8 +912,38 @@ async fn main() -> Result<()> {
         test_runner
             .compare_post_with_jwt("Ceramic Cache POST stamps endpoint", "/ceramic-cache/stamps/bulk", &json!(cache_stamps_body), &jwt_token)
             .await?;
+
+        // PATCH /ceramic-cache/stamps/bulk - Update stamps (soft delete + recreate for stamps with stamp field)
+        // For PATCH test, we'll modify one stamp and remove another
+        let patch_stamps_body: Vec<Value> = vec![
+            // Update Google stamp (include stamp field - will be recreated)
+            json!({
+                "provider": "Google",
+                "stamp": config.credentials.get(0).unwrap()
+            }),
+            // Remove Twitter stamp (no stamp field - will be soft deleted only)
+            json!({
+                "provider": "Twitter"
+            })
+        ];
+
+        test_runner
+            .compare_patch_with_jwt("Ceramic Cache PATCH stamps endpoint", "/ceramic-cache/stamps/bulk", &json!(patch_stamps_body), &jwt_token)
+            .await?;
+
+        // DELETE /ceramic-cache/stamps/bulk - Delete stamps (soft delete only, no recreation)
+        // For DELETE test, we'll delete the Github stamp
+        let delete_stamps_body: Vec<Value> = vec![
+            json!({
+                "provider": "Github"
+            })
+        ];
+
+        test_runner
+            .compare_delete_with_jwt("Ceramic Cache DELETE stamps endpoint", "/ceramic-cache/stamps/bulk", &json!(delete_stamps_body), &jwt_token)
+            .await?;
     } else {
-        println!("{}", "  Skipping Ceramic Cache POST test (no credentials in config)".yellow());
+        println!("{}", "  Skipping Ceramic Cache POST/PATCH/DELETE tests (no credentials in config)".yellow());
     }
 
     // Summary

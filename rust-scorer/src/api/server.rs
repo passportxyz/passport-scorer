@@ -1,5 +1,5 @@
 use axum::{
-    routing::{get, post},
+    routing::{get, post, patch, delete},
     Router,
 };
 use sqlx::postgres::PgPoolOptions;
@@ -25,7 +25,10 @@ use crate::api::handlers::{
     internal_cgrants_statistics_handler,
 };
 // TODO: Migrate these old handlers to the new architecture
-use crate::api::ceramic_cache::{ceramic_cache_add_stamps, ceramic_cache_get_score};
+use crate::api::ceramic_cache::{
+    ceramic_cache_add_stamps, ceramic_cache_get_score,
+    ceramic_cache_patch_stamps, ceramic_cache_delete_stamps,
+};
 use crate::api::embed::{add_stamps_handler, get_embed_score_handler, validate_api_key_handler};
 
 pub fn init_tracing() {
@@ -234,7 +237,9 @@ pub async fn create_app() -> Result<Router, Box<dyn std::error::Error>> {
         // OLD Ceramic cache endpoints (TODO: migrate to new architecture)
         .route(
             "/ceramic-cache/stamps/bulk",
-            post(ceramic_cache_add_stamps),
+            post(ceramic_cache_add_stamps)
+                .patch(ceramic_cache_patch_stamps)
+                .delete(ceramic_cache_delete_stamps),
         )
         .route(
             "/ceramic-cache/score/{address}",
