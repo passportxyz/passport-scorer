@@ -177,12 +177,44 @@ export function createRustScorerLambda({
     }
   );
 
+  // Create internal target group if internal listener is provided
+  let internalTargetGroup: aws.lb.TargetGroup | undefined;
+  if (internalHttpsListener) {
+    internalTargetGroup = new aws.lb.TargetGroup("l-passport-v2-rust-scorer-int", {
+      name: "l-passport-v2-rust-scorer-int",
+      targetType: "lambda",
+      tags: { ...defaultTags, Name: "l-passport-v2-rust-scorer-int" },
+    });
+
+    // Grant internal ALB permission to invoke the Lambda
+    const rustScorerInternalLambdaPermission = new aws.lambda.Permission("withLb-passport-v2-rust-scorer-int", {
+      action: "lambda:InvokeFunction",
+      function: rustScorerLambda.name,
+      principal: "elasticloadbalancing.amazonaws.com",
+      sourceArn: internalTargetGroup.arn,
+    });
+
+    // Attach Lambda to internal target group
+    const rustScorerInternalTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
+      "lambdaTargetGroupAttachment-passport-v2-rust-scorer-int",
+      {
+        targetGroupArn: internalTargetGroup.arn,
+        targetId: rustScorerLambda.arn,
+      },
+      {
+        dependsOn: [rustScorerInternalLambdaPermission],
+      }
+    );
+  }
+
   // IMPORTANT: Listener rules are now created centrally in routing-rules.ts
   // This file only creates the Lambda and target groups, then exports them
 
   // Return the target groups for use in centralized routing
   return {
-    rustScorer: rustScorerTargetGroup,
-    rustScorerInternal: internalTargetGroup,
+    targetGroups: {
+      rustScorer: rustScorerTargetGroup,
+      rustScorerInternal: internalTargetGroup,
+    },
   };
 }

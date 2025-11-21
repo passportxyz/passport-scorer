@@ -3,7 +3,7 @@
 ## 🚧 IMPLEMENTATION IN PROGRESS - STATUS UPDATE
 
 **Last Updated**: 2024-11-21
-**Progress**: ~30% Complete - Core infrastructure done, V2 API refactored
+**Progress**: ~70% Complete - All endpoints refactored, central routing wired up
 
 ### ✅ What's Been Completed
 
@@ -13,23 +13,106 @@
 
 2. **Refactored V2 API endpoints** (DONE)
    - `infra/aws/v2/index.ts` - Separated Lambda/target group from routing
-   - Returns target groups for central routing
+   - Returns target groups in structured object with `targetGroups` property
 
 3. **Refactored Rust Scorer** (DONE)
    - `infra/aws/v2/rust-scorer.ts` - Removed all listener rules (deleted lines 189-512)
-   - Now only creates Lambda and target groups
+   - Fixed missing internal target group creation bug
+   - Now creates both public and internal target groups
 
-### ⚠️ What Still Needs to Be Done
+4. **Refactored Ceramic Cache endpoints** (DONE - 9 lambdas)
+   - `infra/aws/index.ts` - All 9 ceramic cache lambdas converted to new pattern
+   - Creates Lambda functions and target groups separately
+   - No listener rules in individual Lambda creation
 
-1. **Ceramic Cache endpoints** (7 lambdas) - `infra/aws/index.ts`
-2. **Embed endpoints** (3 lambdas) - `infra/aws/embed/index.ts`
-3. **App API endpoints** (2 lambdas) - `infra/aws/app_api/index.ts`
-4. **Wire up central routing** - Call `configureAllRouting` from main index.ts
-5. **Delete old functions** - Remove `buildHttpLambdaFn` and `createEmbedLambdaGeneric`
+5. **Refactored Embed endpoints** (DONE - 3 lambdas)
+   - `infra/aws/embed/index.ts` - Completely rewritten
+   - Uses old `createLambdaFunction` for zip files (temporary workaround)
+   - Returns structured object with `targetGroups` property
+
+6. **Refactored App API endpoints** (DONE - 2 lambdas)
+   - `infra/aws/app_api/index.ts` - Completely rewritten
+   - Same pattern as embed endpoints
+   - Returns structured object with `targetGroups` property
+
+7. **Wired up central routing** (DONE)
+   - Added `configureAllRouting` call in `infra/aws/index.ts`
+   - Collects all target groups from all modules
+   - Passes to central routing configuration
+
+### ⚠️ What Still Needs to Be Done - PICKUP POINT FOR NEXT TEAM
+
+1. **Test the infrastructure changes**
+   ```bash
+   cd infra/aws
+   pulumi preview
+   ```
+   - Verify no unexpected infrastructure changes
+   - Check that all target groups are created
+   - Ensure listener rules are properly configured
+
+2. **Update routing-rules.ts with actual routing logic**
+   - Currently the file exists but needs the actual routing rules implementation
+   - Map all priorities and path patterns from the old individual Lambda rules
+   - Implement weighted routing for dual-implementation endpoints
+
+3. **Delete old functions** (OPTIONAL - recommend after successful deployment)
+   - `buildHttpLambdaFn` from `infra/lib/scorer/new_service.ts`
+   - `createEmbedLambdaGeneric` from `infra/aws/embed/lambda_generic.ts`
+   - `createAppLambdaGeneric` from `infra/aws/app_api/lambda_generic.ts`
+   - Remove their imports from all files
+
+### 🔴 CRITICAL NOTES FOR NEXT TEAM
+
+1. **All return structures have been standardized**: Every module now returns:
+   ```typescript
+   {
+     targetGroups: {
+       someTargetGroup: aws.lb.TargetGroup,
+       anotherTargetGroup: aws.lb.TargetGroup,
+     }
+   }
+   ```
+
+2. **Embed and App API use zip files**: These still use the old `createLambdaFunction` from `lib/lambda.ts` because the new routing utils don't support zip files yet. This is a temporary workaround - they should eventually be migrated to Docker containers.
+
+3. **Central routing call is at the end of index.ts**: Lines 1625-1656 in `infra/aws/index.ts`
+
+4. **Target group names have been preserved**: Used the same names as before to minimize changes
+
+### 📋 Complete List of Refactored Endpoints
+
+#### Ceramic Cache (9 endpoints - all in `infra/aws/index.ts`):
+- `submit-passport-0` → `submitPassportTargetGroup`
+- `cc-v1-st-bulk-POST-0` → `ccStampsBulkPostTargetGroup`
+- `cc-v1-st-bulk-PATCH-0` → `ccStampsBulkPatchTargetGroup`
+- `cc-v1-st-bulk-DELETE-0` → `ccStampsBulkDeleteTargetGroup`
+- `cc-v1-score-POST-0` → `ccScorePostTargetGroup`
+- `cc-v1-score-GET-0` → `ccScoreGetTargetGroup`
+- `cc-weights-GET-0` → `ccWeightsGetTargetGroup`
+- `cc-v1-st-GET-0` → `ccStampGetTargetGroup`
+- `passport-analysis-GET-0` → `passportAnalysisTargetGroup`
+
+#### Embed (3 endpoints - all in `infra/aws/embed/index.ts`):
+- `embed-st-lambda` → `embedStTargetGroup`
+- `embed-rl-lambda` → `embedRlTargetGroup`
+- `embed-gs-lambda` → `embedGsTargetGroup`
+
+#### App API (2 endpoints - all in `infra/aws/app_api/index.ts`):
+- `cc-nonce-lambda` → `ccNonceTargetGroup`
+- `cc-auth-lambda` → `ccAuthTargetGroup`
+
+#### V2 API (2 endpoints - in `infra/aws/v2/index.ts`):
+- `passport-v2-stamp-score` → `pythonV2StampScore`
+- `passport-v2-model-score` → `pythonV2ModelScore`
+
+#### Rust Scorer (2 target groups - in `infra/aws/v2/rust-scorer.ts`):
+- `l-passport-v2-rust-scorer` → `rustScorer`
+- `l-passport-v2-rust-scorer-int` → `rustScorerInternal`
 
 ### 🔄 How to Continue
 
-See "Implementation Steps - Detailed" section below for exact patterns to follow.
+The next team should start by running `pulumi preview` to validate all changes, then implement the actual routing rules in `routing-rules.ts`.
 The V2 API refactoring in `infra/aws/v2/index.ts` provides the template.
 
 ---

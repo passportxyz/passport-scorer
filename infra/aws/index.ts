@@ -13,6 +13,8 @@ import {
   createRescoreQueue,
   buildQueueLambdaFn,
 } from "../lib/scorer/new_service";
+import { createLambdaFunction, createLambdaTargetGroup } from "../lib/scorer/routing-utils";
+import { configureAllRouting } from "../lib/scorer/routing-rules";
 import {
   AlarmConfigurations,
   createLoadBalancerAlarms,
@@ -1281,213 +1283,183 @@ const lambdaSettings = {
 // Create alarms for the load balancer
 createLoadBalancerAlarms("scorer-service", alb.arnSuffix, alarmConfigurations, pagerdutyTopic);
 
-// Manage Lamba services
-buildHttpLambdaFn(
-  {
-    ...lambdaSettings,
-    name: "submit-passport-0",
-    memorySize: 1024,
-    dockerCmd: ["aws_lambdas.submit_passport.submit_passport.handler"],
-    httpListenerRulePaths: [
-      {
-        pathPattern: {
-          values: ["/registry/submit-passport"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["POST"],
-        },
-      },
-    ],
-    listenerPriority: 1001,
-  },
-  alarmConfigurations
-);
+// Get default VPC ID for target groups
+const vpcId = pulumi.output(aws.ec2.getVpc({ default: true })).apply((vpc) => vpc.id);
 
-buildHttpLambdaFn(
-  {
-    ...lambdaSettings,
-    name: "cc-v1-st-bulk-POST-0",
-    memorySize: 512,
-    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
-    httpListenerRulePaths: [
-      {
-        pathPattern: {
-          values: ["/ceramic-cache/stamps/bulk"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["POST"],
-        },
-      },
-    ],
-    listenerPriority: 1002,
-  },
-  alarmConfigurations
-);
+// Manage Lambda services - Refactored to new pattern
 
-buildHttpLambdaFn(
-  {
-    ...lambdaSettings,
-    name: "cc-v1-st-bulk-PATCH-0",
-    memorySize: 512,
-    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_PATCH.handler"],
-    httpListenerRulePaths: [
-      {
-        pathPattern: {
-          values: ["/ceramic-cache/stamps/bulk"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["PATCH"],
-        },
-      },
-    ],
-    listenerPriority: 1003,
-  },
-  alarmConfigurations
-);
+// Submit Passport Lambda
+const submitPassportLambda = createLambdaFunction({
+  name: "submit-passport-0",
+  dockerImage: dockerGtcSubmitPassportLambdaImage,
+  dockerCommand: ["aws_lambdas.submit_passport.submit_passport.handler"],
+  environment: lambdaSettings.environment,
+  memorySize: 1024,
+  timeout: 30,
+  roleArn: httpLambdaRole.arn,
+  securityGroupIds: [privateSubnetSecurityGroup.id],
+  subnetIds: vpcPrivateSubnetIds,
+});
 
-buildHttpLambdaFn(
-  {
-    ...lambdaSettings,
-    name: "cc-v1-st-bulk-DELETE-0",
-    memorySize: 512,
-    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_DELETE.handler"],
-    httpListenerRulePaths: [
-      {
-        pathPattern: {
-          values: ["/ceramic-cache/stamps/bulk"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["DELETE"],
-        },
-      },
-    ],
-    listenerPriority: 1004,
-  },
-  alarmConfigurations
-);
+const submitPassportTargetGroup = createLambdaTargetGroup({
+  name: "l-submit-passport",
+  lambda: submitPassportLambda,
+  vpcId: vpcId,
+});
 
-buildHttpLambdaFn(
-  {
-    ...lambdaSettings,
-    name: "cc-v1-score-POST-0",
-    memorySize: 512,
-    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
-    httpListenerRulePaths: [
-      {
-        pathPattern: {
-          values: ["/ceramic-cache/score/*"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["POST"],
-        },
-      },
-    ],
-    listenerPriority: 1006,
-  },
-  alarmConfigurations
-);
+// Ceramic Cache Stamps Bulk POST Lambda
+const ccStampsBulkPostLambda = createLambdaFunction({
+  name: "cc-v1-st-bulk-POST-0",
+  dockerImage: dockerGtcSubmitPassportLambdaImage,
+  dockerCommand: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
+  environment: lambdaSettings.environment,
+  memorySize: 512,
+  timeout: 30,
+  roleArn: httpLambdaRole.arn,
+  securityGroupIds: [privateSubnetSecurityGroup.id],
+  subnetIds: vpcPrivateSubnetIds,
+});
 
-buildHttpLambdaFn(
-  {
-    ...lambdaSettings,
-    name: "cc-v1-score-GET-0",
-    memorySize: 512,
-    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
-    httpListenerRulePaths: [
-      {
-        pathPattern: {
-          values: ["/ceramic-cache/score/0x*"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["GET"],
-        },
-      },
-    ],
-    listenerPriority: 1007,
-  },
-  alarmConfigurations
-);
+const ccStampsBulkPostTargetGroup = createLambdaTargetGroup({
+  name: "l-cc-v1-st-bulk-POST-0",
+  lambda: ccStampsBulkPostLambda,
+  vpcId: vpcId,
+});
 
-buildHttpLambdaFn(
-  {
-    ...lambdaSettings,
-    name: "cc-weights-GET-0",
-    memorySize: 512,
-    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
-    httpListenerRulePaths: [
-      {
-        pathPattern: {
-          values: ["/ceramic-cache/weights"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["GET"],
-        },
-      },
-    ],
-    listenerPriority: 1015,
-  },
-  alarmConfigurations
-);
+// Ceramic Cache Stamps Bulk PATCH Lambda
+const ccStampsBulkPatchLambda = createLambdaFunction({
+  name: "cc-v1-st-bulk-PATCH-0",
+  dockerImage: dockerGtcSubmitPassportLambdaImage,
+  dockerCommand: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_PATCH.handler"],
+  environment: lambdaSettings.environment,
+  memorySize: 512,
+  timeout: 30,
+  roleArn: httpLambdaRole.arn,
+  securityGroupIds: [privateSubnetSecurityGroup.id],
+  subnetIds: vpcPrivateSubnetIds,
+});
 
-buildHttpLambdaFn(
-  {
-    ...lambdaSettings,
-    name: "cc-v1-st-GET-0",
-    memorySize: 512,
-    dockerCmd: ["aws_lambdas.scorer_api_passport.v1.stamp_GET.handler"],
-    httpListenerRulePaths: [
-      {
-        pathPattern: {
-          values: ["/ceramic-cache/stamp"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["GET"],
-        },
-      },
-    ],
-    listenerPriority: 1010,
-  },
-  alarmConfigurations
-);
+const ccStampsBulkPatchTargetGroup = createLambdaTargetGroup({
+  name: "l-cc-v1-st-bulk-PATCH-0",
+  lambda: ccStampsBulkPatchLambda,
+  vpcId: vpcId,
+});
 
-buildHttpLambdaFn(
-  {
-    ...lambdaSettings,
-    name: "passport-analysis-GET-0",
-    memorySize: 256,
-    dockerCmd: ["aws_lambdas.passport.analysis_GET.handler"],
-    httpListenerRulePaths: [
-      {
-        pathPattern: {
-          values: ["/passport/analysis/*"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["GET"],
-        },
-      },
-    ],
-    listenerPriority: 1012,
-  },
-  alarmConfigurations
-);
+// Ceramic Cache Stamps Bulk DELETE Lambda
+const ccStampsBulkDeleteLambda = createLambdaFunction({
+  name: "cc-v1-st-bulk-DELETE-0",
+  dockerImage: dockerGtcSubmitPassportLambdaImage,
+  dockerCommand: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_DELETE.handler"],
+  environment: lambdaSettings.environment,
+  memorySize: 512,
+  timeout: 30,
+  roleArn: httpLambdaRole.arn,
+  securityGroupIds: [privateSubnetSecurityGroup.id],
+  subnetIds: vpcPrivateSubnetIds,
+});
+
+const ccStampsBulkDeleteTargetGroup = createLambdaTargetGroup({
+  name: "l-cc-v1-st-bulk-DELETE-0",
+  lambda: ccStampsBulkDeleteLambda,
+  vpcId: vpcId,
+});
+
+// Ceramic Cache Score POST Lambda
+const ccScorePostLambda = createLambdaFunction({
+  name: "cc-v1-score-POST-0",
+  dockerImage: dockerGtcSubmitPassportLambdaImage,
+  dockerCommand: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
+  environment: lambdaSettings.environment,
+  memorySize: 512,
+  timeout: 30,
+  roleArn: httpLambdaRole.arn,
+  securityGroupIds: [privateSubnetSecurityGroup.id],
+  subnetIds: vpcPrivateSubnetIds,
+});
+
+const ccScorePostTargetGroup = createLambdaTargetGroup({
+  name: "l-cc-v1-score-POST-0",
+  lambda: ccScorePostLambda,
+  vpcId: vpcId,
+});
+
+// Ceramic Cache Score GET Lambda
+const ccScoreGetLambda = createLambdaFunction({
+  name: "cc-v1-score-GET-0",
+  dockerImage: dockerGtcSubmitPassportLambdaImage,
+  dockerCommand: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
+  environment: lambdaSettings.environment,
+  memorySize: 512,
+  timeout: 30,
+  roleArn: httpLambdaRole.arn,
+  securityGroupIds: [privateSubnetSecurityGroup.id],
+  subnetIds: vpcPrivateSubnetIds,
+});
+
+const ccScoreGetTargetGroup = createLambdaTargetGroup({
+  name: "l-cc-v1-score-GET-0",
+  lambda: ccScoreGetLambda,
+  vpcId: vpcId,
+});
+
+// Ceramic Cache Weights GET Lambda
+const ccWeightsGetLambda = createLambdaFunction({
+  name: "cc-weights-GET-0",
+  dockerImage: dockerGtcSubmitPassportLambdaImage,
+  dockerCommand: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
+  environment: lambdaSettings.environment,
+  memorySize: 512,
+  timeout: 30,
+  roleArn: httpLambdaRole.arn,
+  securityGroupIds: [privateSubnetSecurityGroup.id],
+  subnetIds: vpcPrivateSubnetIds,
+});
+
+const ccWeightsGetTargetGroup = createLambdaTargetGroup({
+  name: "l-cc-weights-GET-0",
+  lambda: ccWeightsGetLambda,
+  vpcId: vpcId,
+});
+
+// Ceramic Cache Stamp GET Lambda
+const ccStampGetLambda = createLambdaFunction({
+  name: "cc-v1-st-GET-0",
+  dockerImage: dockerGtcSubmitPassportLambdaImage,
+  dockerCommand: ["aws_lambdas.scorer_api_passport.v1.stamp_GET.handler"],
+  environment: lambdaSettings.environment,
+  memorySize: 512,
+  timeout: 30,
+  roleArn: httpLambdaRole.arn,
+  securityGroupIds: [privateSubnetSecurityGroup.id],
+  subnetIds: vpcPrivateSubnetIds,
+});
+
+const ccStampGetTargetGroup = createLambdaTargetGroup({
+  name: "l-cc-v1-st-GET-0",
+  lambda: ccStampGetLambda,
+  vpcId: vpcId,
+});
+
+// Passport Analysis GET Lambda
+const passportAnalysisLambda = createLambdaFunction({
+  name: "passport-analysis-GET-0",
+  dockerImage: dockerGtcSubmitPassportLambdaImage,
+  dockerCommand: ["aws_lambdas.passport.analysis_GET.handler"],
+  environment: lambdaSettings.environment,
+  memorySize: 256,
+  timeout: 30,
+  roleArn: httpLambdaRole.arn,
+  securityGroupIds: [privateSubnetSecurityGroup.id],
+  subnetIds: vpcPrivateSubnetIds,
+});
+
+const passportAnalysisTargetGroup = createLambdaTargetGroup({
+  name: "l-passport-analysis-GET-0",
+  lambda: passportAnalysisLambda,
+  vpcId: vpcId,
+});
+
+// Note: passport-analysis-GET-0 Lambda already created above
 
 buildQueueLambdaFn({
   ...lambdaSettings,
@@ -1596,7 +1568,7 @@ if (stack === "production") {
   );
 }
 
-createV2Api({
+const v2ApiResult = createV2Api({
   httpsListener,
   dockerLambdaImage: dockerGtcSubmitPassportLambdaImage,
   rustScorerZipArchive: rustScorerZipArchive,
@@ -1617,7 +1589,7 @@ const pythonLambdaLayer = createPythonLambdaLayer({
   bucketId: codeBucketId,
 });
 
-createAppApiLambdaFunctions({
+const appApiResult = createAppApiLambdaFunctions({
   vpcId: vpcID,
   snsAlertsTopicArn: pagerdutyTopic.arn,
   httpsListenerArn: httpsListener.arn,
@@ -1628,7 +1600,7 @@ createAppApiLambdaFunctions({
   bucketId: codeBucketId,
 });
 
-createEmbedLambdaFunctions({
+const embedResult = createEmbedLambdaFunctions({
   vpcId: vpcID,
   snsAlertsTopicArn: pagerdutyTopic.arn,
   httpsListenerArn: privateAlbHttpListenerArn,
@@ -1648,4 +1620,37 @@ createMonitoringLambdaFunction({
   lambdaLayerArn: pythonLambdaLayer.arn,
   bucketId: codeBucketId,
   scorerDbProxyEndpointConn: scorerDbProxyEndpointConn,
+});
+
+// Wire up centralized routing for all endpoints
+// This must be done after all Lambda target groups are created
+configureAllRouting({
+  publicListener: httpsListener,
+  internalListener: privateAlbHttpListenerArn ?
+    pulumi.output(privateAlbHttpListenerArn).apply(
+      (arn) => aws.lb.Listener.get("internal-alb-listener", arn)
+    ) : undefined,
+  targetGroups: {
+    // V2 API target groups
+    ...v2ApiResult?.targetGroups,
+
+    // Ceramic cache target groups (refactored above)
+    submitPassport: submitPassportTargetGroup,
+    ccStampsBulkPost: ccStampsBulkPostTargetGroup,
+    ccStampsBulkPatch: ccStampsBulkPatchTargetGroup,
+    ccStampsBulkDelete: ccStampsBulkDeleteTargetGroup,
+    ccScorePost: ccScorePostTargetGroup,
+    ccScoreGet: ccScoreGetTargetGroup,
+    ccWeightsGet: ccWeightsGetTargetGroup,
+    ccStampGet: ccStampGetTargetGroup,
+    passportAnalysis: passportAnalysisTargetGroup,
+
+    // Embed target groups
+    ...embedResult?.targetGroups,
+
+    // App API target groups
+    ...appApiResult?.targetGroups,
+  },
+  stack,
+  envName: stack,
 });

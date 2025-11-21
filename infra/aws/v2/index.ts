@@ -214,7 +214,7 @@ export function createV2Api({
         )
       : undefined;
 
-    createRustScorerLambda({
+    const rustScorerResult = createRustScorerLambda({
       httpsListener,
       rustScorerZipArchive,
       privateSubnetSecurityGroup,
@@ -231,7 +231,9 @@ export function createV2Api({
 
   // Return target groups for centralized routing
   return {
-    pythonV2StampScore: v2StampScoreTargetGroup,
-    pythonV2ModelScore: v2ModelScoreTargetGroup,
+    targetGroups: {
+      pythonV2StampScore: v2StampScoreTargetGroup,
+      pythonV2ModelScore: v2ModelScoreTargetGroup,
+    },
   };
 }
