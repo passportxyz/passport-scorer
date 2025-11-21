@@ -54,118 +54,61 @@ buildHttpLambdaFn() does three things:
 3. Creates listener rule (causes conflicts!)
 ```
 
-### New Clean Architecture
+### Actual Implementation Architecture
 ```typescript
-// Separate, composable functions:
-buildLambdaFunction()      // Just Lambda
-createLambdaTargetGroup()   // Just target group
-createListenerRule()        // Simple routing
-createWeightedListenerRule() // Weighted routing
+// Two focused files with clean separation:
+
+// routing-utils.ts - Infrastructure primitives:
+createLambdaFunction()      // Lambda with Docker support (NOT buildLambdaFunction)
+createLambdaTargetGroup()   // Target group with permissions
+createListenerRule()        // Simple single-target routing
+createWeightedListenerRule() // Multi-target weighted routing with stickiness
+getRoutingPercentages()     // Environment-based config (staging=100% Rust, prod=0%)
+
+// routing-rules.ts - Application routing logic:
+configureAllRouting()       // ALL listener rules in ONE place (no more conflicts!)
 ```
 
 ## Implementation Steps
 
-### Step 1: Create New Infrastructure Functions (3-4 hours)
+### Step 1: Create New Infrastructure Functions ✅ COMPLETED
 
-Create `infra/lib/scorer/routing.ts`:
+Created TWO files (not one generic routing.ts):
 
-```typescript
-import * as aws from "@pulumi/aws";
-import * as pulumi from "@pulumi/pulumi";
+1. **routing-utils.ts** - See actual implementation in `infra/lib/scorer/routing-utils.ts`
+2. **routing-rules.ts** - See actual implementation in `infra/lib/scorer/routing-rules.ts`
 
-// Extract from buildHttpLambdaFn
-export function buildLambdaFunction(args: {
-  name: string,
-  dockerImage: string,
-  environment: any,
-  // ... other Lambda config
-}): aws.lambda.Function {
-  // Just create Lambda, nothing else
-  return new aws.lambda.Function(name, {
-    // ... Lambda configuration
-  });
-}
+Key differences from original plan:
+- Function is named `createLambdaFunction` NOT `buildLambdaFunction`
+- Takes `dockerCommand` parameter NOT `dockerCmd`
+- Uses `imageUri` NOT `code` for Docker images
+- Target group creation includes VPC ID parameter
+- Weighted rules use `pulumi.Output<string>` for ARNs, not plain strings
 
-// New function for target groups
-export function createLambdaTargetGroup(
-  lambda: aws.lambda.Function,
-  name: string
-): aws.lb.TargetGroup {
-  const targetGroup = new aws.lb.TargetGroup(name, {
-    targetType: "lambda",
-    // ... config
-  });
 
-  // Grant permission and attach
-  const permission = new aws.lambda.Permission(/*...*/);
-  const attachment = new aws.lb.TargetGroupAttachment(/*...*/);
+### Step 2: Refactor ALL 15 Call Sites (~30% COMPLETED)
 
-  return targetGroup;
-}
-
-// Simple routing for Python-only endpoints
-export function createListenerRule(args: {
-  targetGroup: aws.lb.TargetGroup,
-  priority: number,
-  conditions: any[],
-  listenerArn: pulumi.Output<string>
-}): aws.lb.ListenerRule {
-  return new aws.lb.ListenerRule(/*...*/);
-}
-
-// Weighted routing for dual implementations
-export function createWeightedListenerRule(args: {
-  targetGroups: Array<{arn: string, weight: number}>,
-  priority: number,
-  conditions: any[],
-  listenerArn: pulumi.Output<string>
-}): aws.lb.ListenerRule {
-  return new aws.lb.ListenerRule(name, {
-    listenerArn: args.listenerArn,
-    priority: args.priority,
-    conditions: args.conditions,
-    actions: [{
-      type: "forward",
-      forward: {
-        targetGroups: args.targetGroups,
-        stickiness: {
-          enabled: true,
-          duration: 3600  // 1 hour
-        }
-      }
-    }]
-  });
-}
-
-// Helper to determine if Rust is enabled
-export function isRustEnabled(stack: string): boolean {
-  const percentages = getRoutingPercentages(stack);
-  return percentages.rust > 0;
-}
-```
-
-### Step 2: Refactor ALL 15 Call Sites (5-6 hours)
-
-#### Example: V2 Stamps Score Endpoint
+#### ✅ COMPLETED: V2 Stamps Score Endpoint
 
 **Before** (in `infra/aws/v2/index.ts`):
 ```typescript
 buildHttpLambdaFn({
   name: "passport-v2-stamp-score",
+  dockerCmd: ["v2.aws_lambdas.stamp_score_GET.handler"],
   listenerPriority: 2023,
   // ... other params
 });
 ```
 
-**After**:
+**After** (ACTUAL implementation):
 ```typescript
-import { buildLambdaFunction, createLambdaTargetGroup,
-         createListenerRule, createWeightedListenerRule,
-         isRustEnabled } from "../../lib/scorer/routing";
+import { createLambdaFunction, createLambdaTargetGroup } from "../../lib/scorer/routing-utils";
 
-// Create Lambda and target group
-const stampScoreLambda = buildLambdaFunction({
+// Create Lambda and target group - NO routing rules here!
+const v2StampScoreLambda = createLambdaFunction({
   name: "passport-v2-stamp-score",
+  dockerImage: dockerLambdaImage,
+  dockerCommand: ["v2.aws_lambdas.stamp_score_GET.handler"], // Note: dockerCommand not dockerCmd
   // ... Lambda params
 });
 
@@ -174,36 +117,22 @@ const stampScoreTargetGroup = createLambdaTargetGroup(
   "l-passport-v2-stamp-score"
 );
 
-// Conditional routing based on Rust enablement
-if (isRustEnabled(stack)) {
-  // Get Rust target group (created in rust-scorer.ts)
-  const rustTargetGroup = // ... get reference
+// NO ROUTING RULES in individual files anymore!
+// Routing is ALL handled centrally in routing-rules.ts
 
-  createWeightedListenerRule({
-    targetGroups: [
-      { arn: stampScoreTargetGroup.arn, weight: routingPercentages.python },
-      { arn: rustTargetGroup.arn, weight: routingPercentages.rust }
-    ],
-    priority: 2023,
-    conditions: [/* path, method, host conditions */],
-    listenerArn: httpsListener.arn
-  });
-} else {
-  createListenerRule({
-    targetGroup: stampScoreTargetGroup,
-    priority: 2023,
-    conditions: [/* same conditions */],
-    listenerArn: httpsListener.arn
-  });
-}
+// Just return target groups:
+return {
+  pythonV2StampScore: v2StampScoreTargetGroup,
+  pythonV2ModelScore: v2ModelScoreTargetGroup,
+};
 ```
 
-### Step 3: Update rust-scorer.ts (1 hour)
+### Step 3: Update rust-scorer.ts ✅ COMPLETED
 
-Remove ALL listener rule creation (lines 191-513). Keep only:
-- Lambda creation
-- Target group creation
-- Export target groups for use in weighted routing
+Deleted ALL listener rule creation (lines 189-512 removed). Now only:
+- Creates Lambda and target groups
+- Returns target groups: `{ rustScorer, rustScorerInternal }`
+- NO listener rules whatsoever
 
 ### Step 4: Delete Old Functions
 
@@ -260,13 +189,18 @@ production: 0,    // 0% Rust (safe default)
 - Can be done incrementally (endpoint by endpoint)
 - Must be deployed as single change to avoid conflicts
 
+## Key Architectural Change: Centralized Routing
+
+**Before**: Each Lambda file created its own listener rules → Priority conflicts
+**After**: ALL routing in `routing-rules.ts` → No conflicts, single source of truth
+
 ## Benefits of This Approach
 
-✅ **Clean Architecture**: Proper separation of concerns
-✅ **No Tech Debt**: Delete old functions entirely
-✅ **Explicit Control**: Clear routing logic at each endpoint
+✅ **Clean Architecture**: Proper separation of concerns (Lambdas vs routing)
+✅ **No More Conflicts**: Each priority has exactly ONE rule
+✅ **Explicit Control**: ALL routing visible in one file
 ✅ **Future Proof**: Easy to add canary, blue-green deployments
-✅ **Smaller Codebase**: Actually removing code, not adding
+✅ **Smaller Codebase**: Deleted 300+ lines from rust-scorer.ts alone
 
 ## Implementation Steps - Detailed
 
