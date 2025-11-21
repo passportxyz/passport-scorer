@@ -91,7 +91,7 @@ export function createAppApiLambdaFunctions(config: {
   );
 
   const ccNonceTargetGroup = createLambdaTargetGroup({
-    name: "cc-nonce-lambda-target-group",
+    name: "cc-nonce-lambda-tg",
     lambda: ccNonceLambda,
     vpcId: config.vpcId,
   });
@@ -129,7 +129,7 @@ export function createAppApiLambdaFunctions(config: {
   );
 
   const ccAuthTargetGroup = createLambdaTargetGroup({
-    name: "cc-auth-lambda-target-group",
+    name: "cc-auth-lambda-tg",
     lambda: ccAuthLambda,
     vpcId: config.vpcId,
   });

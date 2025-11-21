@@ -104,7 +104,7 @@ export function createV2Api({
   });
 
   const v2ModelScoreTargetGroup = createLambdaTargetGroup({
-    name: "l-passport-v2-model-score",
+    name: "l-pp-v2-model-score",
     lambda: v2ModelScoreLambda,
     vpcId: pulumi.output(aws.ec2.getVpc({ default: true })).apply((vpc) => vpc.id),
   });
@@ -129,7 +129,7 @@ export function createV2Api({
   });
 
   const v2StampScoreTargetGroup = createLambdaTargetGroup({
-    name: "l-passport-v2-stamp-score",
+    name: "l-pp-v2-stamp-score",
     lambda: v2StampScoreLambda,
     vpcId: pulumi.output(aws.ec2.getVpc({ default: true })).apply((vpc) => vpc.id),
   });

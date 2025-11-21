@@ -91,7 +91,7 @@ export function createEmbedLambdaFunctions(config: {
   );
 
   const embedStTargetGroup = createLambdaTargetGroup({
-    name: "embed-st-lambda-target-group",
+    name: "embed-st-lambda-tg",
     lambda: embedStLambda,
     vpcId: config.vpcId,
   });
@@ -129,7 +129,7 @@ export function createEmbedLambdaFunctions(config: {
   );
 
   const embedRlTargetGroup = createLambdaTargetGroup({
-    name: "embed-rl-lambda-target-group",
+    name: "embed-rl-lambda-tg",
     lambda: embedRlLambda,
     vpcId: config.vpcId,
   });
@@ -167,7 +167,7 @@ export function createEmbedLambdaFunctions(config: {
   );
 
   const embedGsTargetGroup = createLambdaTargetGroup({
-    name: "embed-gs-lambda-target-group",
+    name: "embed-gs-lambda-tg",
     lambda: embedGsLambda,
     vpcId: config.vpcId,
   });

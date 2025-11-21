@@ -1508,7 +1508,7 @@ const passportAnalysisLambda = createLambdaFunction({
 });
 
 const passportAnalysisTargetGroup = createLambdaTargetGroup({
-  name: "l-passport-analysis-GET-0",
+  name: "l-pp-anlys-GET-0",
   lambda: passportAnalysisLambda,
   vpcId: vpcId,
 });
