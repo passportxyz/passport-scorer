@@ -61,7 +61,7 @@ export function createLambdaTargetGroup(args: {
   // Grant permission for ALB to invoke the Lambda
   const permission = new aws.lambda.Permission(`${args.name}-permission`, {
     action: "lambda:InvokeFunction",
-    function: args.lambda.arn,
+    function: args.lambda.name,
     principal: "elasticloadbalancing.amazonaws.com",
     sourceArn: targetGroup.arn,
   });
