@@ -1,7 +1,7 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import { AlarmConfigurations, TargetGroupAlarmsConfiguration } from "./loadBalancer";
-import { defaultTags } from "../config";
+import { defaultTags } from "../tags";
 
 /**
  * Helper function to create a Lambda function without any ALB integration
