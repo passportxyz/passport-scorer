@@ -1,10 +1,16 @@
 # Python ↔ Rust Comparison Testing - Handoff Document
 
+**Status**: 9/9 tests passing ✅ (All implemented endpoints validated)
+**Last Updated**: 2025-11-21
+**Next Priority**: Ceramic Cache Endpoints (3 endpoints)
+
 ## Overview
 
 We're migrating the Passport Scorer from Python (Django) to Rust for performance improvements. Before fully switching traffic, we need to verify that both implementations return identical results for the same inputs.
 
 This comparison test infrastructure automatically starts both servers and verifies their responses match.
+
+**IMPORTANT**: Human Points are tested indirectly via scoring endpoints (all endpoints record human points in database during scoring). Ceramic cache endpoints will need explicit human points response testing when implemented (see "Next Steps" section).
 
 ---
 
@@ -56,7 +62,7 @@ The comparison tests with realistic data caught **2 real bugs** - both now fixed
 ✅ PASS: Embed Stamps POST endpoint
 ```
 
-**All 9 endpoints implemented and passing!**
+**All 9 implemented endpoints validated and passing!**
 
 ---
 
@@ -96,6 +102,29 @@ The comparison tests with realistic data caught **2 real bugs** - both now fixed
 - [x] **GTC Stake**: Has realistic data (1500.75 GTC total)
 - [x] **Allow List**: Has realistic data (testlist membership)
 - [x] **CGrants**: Has realistic contribution data with squelched accounts
+
+### Task 5: Human Points Investigation ✅ COMPLETE (REMOVED FROM TESTS)
+
+- [x] Created `dev-setup/create_human_points_test_data.py` script
+- [x] Configured all 18 action types with point values
+- [x] Enabled `human_points_program` on test community
+- [x] Verified that both Python and Rust record human points during scoring
+
+**Key Finding**: Human Points behavior differs by endpoint type:
+- **Embed/Internal endpoints**: Default to `include_human_points=false` (no HP data in response)
+- **Ceramic Cache endpoints**: Hardcode `include_human_points=true` (HP data in response)
+
+**Decision**: Removed database-only human points test because:
+1. Current tests cover embed/internal endpoints (correctly don't return HP data)
+2. Ceramic cache endpoints aren't implemented in Rust yet
+3. When ceramic cache is implemented, HP testing should verify the API response includes `points_data` and `possible_points_data`
+
+**Environment Setup Available**:
+- `HUMAN_POINTS_ENABLED=true` in `.env.development`
+- `HUMAN_POINTS_START_TIMESTAMP=0`
+- All 18 HumanPointsConfig entries configured
+- Community 1 has `human_points_program=true`
+- Test data script: `dev-setup/create_human_points_test_data.py`
 
 ---
 
@@ -152,6 +181,11 @@ cargo run --release
 - **CGrants**: Profile, grants, contribution index, protocol contributions with squelched accounts (5 grants/projects, $221.75 total)
 - **Revocations**: Ceramic cache entries with 2 revoked proof values
 
+**Human Points test data** (`create_human_points_test_data.py`):
+- **HumanPointsConfig**: All 18 action types with point values (SCB=100, HKY=10, ISB=50, ISS=100, ISG=200, etc.)
+- **Community setup**: `human_points_program=true` on community 1
+- **Environment**: `HUMAN_POINTS_ENABLED=true`, `HUMAN_POINTS_START_TIMESTAMP=0`
+
 **Credentials** (`gen-credentials` binary):
 - Production-format EthereumEip712Signature2021 credentials
 - Hardcoded issuer DID: `did:ethr:0x018d103c154748e8d5a1d7658185125175457f84`
@@ -159,41 +193,104 @@ cargo run --release
 
 ---
 
-## ✅ Definition of Done - ACHIEVED!
+## ✅ Definition of Done for Current Phase - ACHIEVED!
 
-All completion criteria met:
+All completion criteria met for **implemented endpoints**:
 
-1. ✅ All 9 current tests pass with realistic data
+1. ✅ All 9 implemented endpoints pass with realistic data
 2. ✅ CGrants endpoint returns meaningful results (not empty)
 3. ✅ Error test infrastructure added and documented
 4. ✅ Both bugs identified above are fixed
 5. ✅ Tests consistently pass on multiple runs
+6. ✅ Human Points investigation complete (environment setup ready for ceramic cache)
 
 **Additional achievements**:
 - Created comprehensive test data scripts for all endpoints
 - Documented auth behavior differences (dev vs production)
 - Identified Rust production correctness (no auth on internal ALB)
+- Set up Human Points test data and environment configuration
+- Documented ceramic cache endpoint requirements with human points details
+
+**Ready to handoff**: The next team has everything needed to implement and test the final 3 ceramic cache endpoints.
 
 ---
 
-## 📚 What's NOT Covered Yet
+## 🎯 Next Steps: Ceramic Cache Endpoints
 
-### Ceramic Cache Endpoints (Not Implemented in Rust)
+The **final** set of endpoints to implement and test are the ceramic cache endpoints. These are the only remaining Python endpoints that need Rust equivalents.
 
-The following ceramic cache endpoints exist in Python but are **NOT yet implemented** in Rust:
-- ❌ `PATCH /ceramic-cache/stamps/bulk` - Update existing stamps
-- ❌ `DELETE /ceramic-cache/stamps/bulk` - Delete stamps by provider
-- ❌ `GET /ceramic-cache/stamp` - Get stamps for authenticated user
+### Endpoints to Implement (3 total)
 
-Already implemented in Rust:
+**Already in Rust**:
 - ✅ `POST /ceramic-cache/stamps/bulk` - Add stamps and rescore
 - ✅ `GET /ceramic-cache/score/{address}` - Get score with stamps
 
-**Decision needed**: Are these endpoints needed for production migration?
+**Need to implement in Rust**:
+1. ❌ `PATCH /ceramic-cache/stamps/bulk` - Update existing stamps (soft delete + recreate)
+2. ❌ `DELETE /ceramic-cache/stamps/bulk` - Delete stamps by provider (soft delete)
+3. ❌ `GET /ceramic-cache/stamp` - Get stamps for authenticated user (JWT auth)
 
-### Human Points Testing (Lower Priority)
+**Note**: All use JWT DID authentication (`JWTDidAuth()`), not API keys
 
-More complex setup required - see `.claude/knowledge/api/human_points.md` for details.
+### Critical: Human Points Testing for Ceramic Cache
+
+**ALL ceramic cache endpoints must return human points data in the response!**
+
+Python implementation (see `ceramic_cache/api/v1.py`):
+```python
+# Ceramic cache endpoints call this helper which hardcodes include_human_points=True
+def get_detailed_score_response_for_address(address, scorer_id):
+    score = async_to_sync(handle_scoring_for_account)(
+        address, str(scorer_id), account, include_human_points=True  # ← Always True!
+    )
+    return score
+```
+
+**Rust implementation requirements**:
+1. **Check environment variables** (don't hardcode `true`):
+   ```rust
+   let include_human_points = std::env::var("HUMAN_POINTS_ENABLED")
+       .unwrap_or_else(|_| "false".to_string())
+       .parse::<bool>()
+       .unwrap_or(false);
+   ```
+2. **When enabled**, call `get_user_points_data()` and `get_possible_points_data()` in Rust
+3. **Return `points_data` and `possible_points_data` in response** (not just record in DB!)
+4. **Test both fields are present and match Python's response**
+
+### Comparison Test Requirements
+
+When implementing ceramic cache endpoints, add tests that:
+
+1. **Verify API response includes human points**:
+   ```rust
+   // Check that response has points_data and possible_points_data fields
+   assert!(response.points_data.is_some());
+   assert!(response.possible_points_data.is_some());
+   ```
+
+2. **Compare human points data between Python and Rust**:
+   - `points_data.total_points` should match
+   - `points_data.breakdown` should match (e.g., `{"HKY": 30}`)
+   - `points_data.is_eligible` should match
+   - `possible_points_data.total_points` should match
+
+3. **Verify database records are also created**:
+   - Query `registry_humanpoints` table
+   - Confirm Human Keys (HKY) actions recorded for each provider
+   - This validates scoring side effects, not just API responses
+
+### JWT Authentication Notes
+
+Ceramic cache endpoints use `JWTDidAuth()` which:
+- Validates JWT tokens from Ceramic network
+- Extracts DID from token
+- Derives Ethereum address from DID
+- Uses address for stamp operations
+
+**Testing**: You'll need to generate valid JWT tokens for testing (see existing Python tests for examples).
+
+---
 
 ---
 
@@ -253,12 +350,22 @@ rust-scorer/comparison-tests/
 
 ---
 
-**Last Updated**: 2025-11-20
-**Status**: 9/9 tests passing ✅ (all priority tasks complete!)
-**Next**: Optional improvements - error boundary testing, load testing, performance profiling
+**Last Updated**: 2025-11-21
+**Status**: 9/9 tests passing ✅ (all implemented endpoints validated)
+**Next Priority**: Ceramic Cache Endpoints (3 endpoints with human points support)
 
-**Recent Changes**:
+**Recent Changes** (2025-11-21):
+- **Removed** database-only human points test (not the right approach)
+- **Documented** human points behavior: ceramic cache uses `include_human_points=true`, others default to `false`
+- **Added** comprehensive ceramic cache implementation guide with human points requirements
+- **Clarified** that environment variables should be checked (not hardcoded `true`)
+- **Specified** test requirements for human points in API responses (not just database)
+
+**Previous Changes** (2025-11-20):
+- Created `create_human_points_test_data.py` script for HP configuration
+- Enabled `HUMAN_POINTS_ENABLED=true` in `.env.development`
+- Set up all 18 HumanPointsConfig entries with point values
 - Integrated comparison test setup into main `dev-setup/setup.sh` script
-- Automated test data creation (base + comparison data)
+- Automated test data creation (base + comparison data + human points)
 - Automated credential generation with `gen-credentials` binary
 - Added ulimit configuration to setup and documentation
