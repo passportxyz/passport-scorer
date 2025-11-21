@@ -387,9 +387,6 @@ pub async fn ceramic_cache_delete_stamps(
         ));
     }
 
-    // Get scorer ID from environment
-    let scorer_id = get_ceramic_cache_scorer_id()?;
-
     // Start transaction for ceramic cache operations
     let mut tx = pool
         .begin()

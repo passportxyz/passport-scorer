@@ -1,5 +1,5 @@
 use axum::{
-    routing::{get, post, patch, delete},
+    routing::{get, post},
     Router,
 };
 use sqlx::postgres::PgPoolOptions;
