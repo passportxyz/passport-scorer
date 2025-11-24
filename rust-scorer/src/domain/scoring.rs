@@ -447,7 +447,7 @@ pub async fn calculate_score_for_address(
 ) -> Result<V2ScoreResponse, DomainError> {
     use sqlx::{Postgres, Transaction};
     use crate::db::queries::{load_community, delete_stamps, bulk_insert_stamps, upsert_score};
-    use crate::db::queries::stamps::{get_ceramic_cache_entries, get_latest_stamps_by_provider};
+    use crate::db::queries::stamps::get_latest_stamps_by_provider;
     use crate::db::queries::scoring::upsert_passport_record as upsert_passport;
     use crate::auth::credentials::validate_credentials_batch;
     use crate::models::internal::ValidStamp;
@@ -466,16 +466,7 @@ pub async fn calculate_score_for_address(
     let passport_id = upsert_passport(&mut tx, address, scorer_id).await
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
-    // 3. Load credentials from CeramicCache
-    let ceramic_cache_entries = get_ceramic_cache_entries(pool, address).await
-        .map_err(|e| DomainError::Database(e.to_string()))?;
-
-    if ceramic_cache_entries.is_empty() {
-        // TODO: Return zero score response
-        return Err(DomainError::Internal("Zero score case not yet implemented".to_string()));
-    }
-
-    // 4. Get latest stamps per provider
+    // 3. Get latest stamps per provider (handles empty case naturally)
     let latest_stamps = get_latest_stamps_by_provider(pool, address).await
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
