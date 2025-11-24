@@ -20,11 +20,24 @@ When refactoring infrastructure, old listener rules can persist in AWS even afte
 
 Solution: Shift all conflicting priorities to new values rather than manually cleaning up AWS resources.
 
-Priority changes made:
-- V2 API: 2021→2110, 2023→2112
-- Ceramic Cache: 1000-1010 → 1011-1020
-- Embed (internal ALB): 2100-2103 → 2104-2106
+### Priority Shift History
 
-This allows clean deployment in both staging and production without downtime or manual AWS cleanup.
+1. **First shift**: V2 API (2021→2110, 2023→2112), Ceramic Cache (1000-1010 → 1011-1020), Embed (2100-2103 → 2104-2106)
+2. **Second shift (2025-11-24)**: Ceramic Cache range shifted again (1011-1020 → 1030-1039) to skip ALL old rules
+
+### Current Priority Assignments
+
+- **V2 API**: 2110 (models-score), 2112 (stamps-score)
+- **Ceramic Cache**: 1030-1039 (submit, score, stamps bulk, weights, etc.)
+- **Embed (internal ALB)**: 2104-2106
+- **App API**: 3000-3001
+
+### Old Priorities to Avoid
+
+1001-1020, 2021, 2023, 2100-2103
+
+### Long-term Fix
+
+Delete old AWS listener rules manually or via AWS CLI when safe to do so. This allows clean deployment in both staging and production without downtime or manual AWS cleanup.
 
 See: `infra/lib/scorer/new_service.ts`, `infra/lib/scorer/routing-rules.ts`, `infra/aws/v2/rust-scorer.ts`, `infra/aws/index.ts`

@@ -35,7 +35,11 @@
 - [DIDKit EIP-712 Signing](gotchas/didkit_eip712_signing.md) - TypedData structure and @context requirements *(Added: 2025-11-20)*
 - [Timestamp Serialization](gotchas/timestamp_serialization.md) - Python vs Rust timestamp precision differences *(Added: 2025-11-21)*
 - [PostgreSQL Numeric Serialization](gotchas/postgresql_numeric_serialization.md) - Decimal to integer conversion for numeric(78,0) *(Added: 2025-11-21)*
-- [ALB Listener Rules Conflicts](gotchas/alb_listener_rules_conflicts.md) - Priority conflicts and infrastructure refactoring *(Added: 2025-11-24)*
+- [ALB Listener Rules Conflicts](gotchas/alb_listener_rules_conflicts.md) - Priority conflicts and infrastructure refactoring *(Updated: 2025-11-24)*
+- [Django Migrations](gotchas/django_migrations.md) - Out of sync migrations and --run-syncdb fix *(Added: 2025-11-24)*
+- [PostgreSQL gexec](gotchas/postgresql_gexec.md) - Database creation with gexec gotchas *(Added: 2025-11-24)*
+- [WeightConfiguration CSV](gotchas/weight_configuration_csv.md) - Optional CSV field handling in Django admin *(Added: 2025-11-24)*
+- [Database Query Performance](gotchas/database_query_performance.md) - LOWER() breaks indexes in WHERE clauses *(Added: 2025-11-24)*
 
 ## 🔌 API
 
@@ -49,6 +53,7 @@
 - [Internal API Endpoints](api/internal_api_endpoints.md) - Complete inventory of 12 internal endpoints with SQL queries *(Added: 2025-11-20)*
 - [CGrants Endpoint](api/cgrants_endpoint.md) - Detailed contributor statistics endpoint documentation *(Added: 2025-11-20)*
 - [AddStampsPayload Flexibility](api/addstamps_payload_flexibility.md) - scorer_id type handling *(Added: 2025-11-20)*
+- [CORS Support](api/cors_support.md) - CORS configuration for ceramic cache endpoints *(Added: 2025-11-24)*
 
 ## 💾 Database
 

@@ -36,6 +36,10 @@
 - @gotchas/target_group_alb_limitation.md - Cannot span multiple load balancers
 - @gotchas/didkit_eip712_signing.md - TypedData structure and @context requirements
 - @gotchas/alb_listener_rules_conflicts.md - Priority conflicts and infrastructure refactoring
+- @gotchas/django_migrations.md - Out of sync migrations and --run-syncdb fix
+- @gotchas/postgresql_gexec.md - Database creation with gexec gotchas
+- @gotchas/weight_configuration_csv.md - Optional CSV field handling in Django admin
+- @gotchas/database_query_performance.md - LOWER() breaks indexes in WHERE clauses
 
 ### Local Knowledge
 - dev-setup/.knowledge/environment-detection.md - PostgreSQL startup detection (relocated from global)
@@ -51,6 +55,7 @@
 - @api/topnav_dashboard_discovery.md - Dashboard discovery API for TopNav component
 - @api/internal_api_endpoints.md - Complete inventory of 12 internal endpoints with SQL queries
 - @api/cgrants_endpoint.md - Detailed contributor statistics endpoint documentation
+- @api/cors_support.md - CORS configuration for ceramic cache endpoints
 
 ## 💾 Database
 
