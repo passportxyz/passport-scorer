@@ -162,6 +162,8 @@ pub async fn bulk_insert_ceramic_cache_stamps(
             $7::timestamptz[],
             $8::timestamptz[]
         ) AS p(provider, stamp, proof_value, issuance_date, expiration_date)
+        ON CONFLICT (type, address, provider) WHERE deleted_at IS NULL
+        DO NOTHING
         "#,
     )
     .bind(address)
