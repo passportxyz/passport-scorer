@@ -222,7 +222,7 @@ pub async fn insert_score_update_event(
     let result = sqlx::query(
         r#"
         INSERT INTO registry_event (action, address, data, community_id, created_at)
-        VALUES ('SCORE_UPDATE', $1, $2, $3, NOW())
+        VALUES ('SCU', $1, $2, $3, NOW())
         "#
     )
     .bind(address)

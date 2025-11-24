@@ -539,12 +539,12 @@ pub async fn calculate_score_for_address(
     let event_data = create_score_update_event_data(
         score_id,
         passport_id,
-        scoring_result.score.clone(),
-        scoring_result.last_score_timestamp,
+        scoring_result.binary_score.clone(),
+        scoring_result.timestamp,
         django_fields.evidence,
         django_fields.stamp_scores,
         &django_fields.stamps,
-        scoring_result.expiration_date,
+        scoring_result.expires_at,
     );
     queries::insert_score_update_event(&mut tx, address, scorer_id, event_data).await
         .map_err(|e| DomainError::Database(e.to_string()))?;

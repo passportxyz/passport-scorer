@@ -354,6 +354,11 @@ impl TestRunner {
         if python_status != rust_status {
             println!("{}", "FAIL".red());
             println!("  Status mismatch: Python={}, Rust={}", python_status, rust_status);
+            // Print Rust error body if it's an error
+            if !rust_status.is_success() {
+                let rust_body = rust_resp.text().await.unwrap_or_default();
+                println!("  Rust error response: {}", rust_body);
+            }
             self.failed += 1;
             return Ok(false);
         }
@@ -447,6 +452,11 @@ impl TestRunner {
         if python_status != rust_status {
             println!("{}", "FAIL".red());
             println!("  Status mismatch: Python={}, Rust={}", python_status, rust_status);
+            // Print Rust error body if it's an error
+            if !rust_status.is_success() {
+                let rust_body = rust_resp.text().await.unwrap_or_default();
+                println!("  Rust error response: {}", rust_body);
+            }
             self.failed += 1;
             return Ok(false);
         }

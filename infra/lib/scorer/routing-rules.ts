@@ -380,15 +380,16 @@ export function configureAllRouting(args: {
   }
 
   // =============================================================
-  // APP API ENDPOINTS (Priority 3000-3001)
+  // APP API ENDPOINTS (Priority 5000-5001)
+  // NOTE: Changed from 3000-3001 to avoid conflict with old registry rule at 3000
   // =============================================================
 
-  // Priority 3000: /account/nonce - Python only
+  // Priority 5000: /account/nonce - Python only
   if (targetGroups.pythonAppApiNonce) {
     createListenerRule({
       name: `app-api-nonce-${envName}`,
       listenerArn: publicListenerArn,
-      priority: 3000,
+      priority: 5000,
       targetGroupArn: targetGroups.pythonAppApiNonce.arn,
       conditions: [
         pathCondition("/account/nonce"),
@@ -397,12 +398,12 @@ export function configureAllRouting(args: {
     });
   }
 
-  // Priority 3001: /ceramic-cache/authenticate - Python only
+  // Priority 5001: /ceramic-cache/authenticate - Python only
   if (targetGroups.pythonAppApiAuthenticate) {
     createListenerRule({
       name: `app-api-authenticate-${envName}`,
       listenerArn: publicListenerArn,
-      priority: 3001,
+      priority: 5001,
       targetGroupArn: targetGroups.pythonAppApiAuthenticate.arn,
       conditions: [
         pathCondition("/ceramic-cache/authenticate"),
