@@ -27,6 +27,7 @@ use crate::api::handlers::{
     internal_cgrants_statistics_handler,
     // Ceramic Cache
     ceramic_cache_add_stamps, ceramic_cache_get_score,
+    ceramic_cache_get_stamp, ceramic_cache_get_weights,
     ceramic_cache_patch_stamps, ceramic_cache_delete_stamps,
     // Embed
     add_stamps_handler, get_embed_score_handler, validate_api_key_handler,
@@ -245,6 +246,14 @@ pub async fn create_app() -> Result<Router, Box<dyn std::error::Error>> {
         .route(
             "/ceramic-cache/score/{address}",
             get(ceramic_cache_get_score),
+        )
+        .route(
+            "/ceramic-cache/stamp",
+            get(ceramic_cache_get_stamp),
+        )
+        .route(
+            "/ceramic-cache/weights",
+            get(ceramic_cache_get_weights),
         )
         // Health check endpoint
         .route("/health", get(health_check))

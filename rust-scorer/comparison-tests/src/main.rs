@@ -891,7 +891,20 @@ async fn main() -> Result<()> {
         println!("{}", "  Skipping Embed Stamps test (no credentials in config)".yellow());
     }
 
-    // Phase 4: Ceramic Cache endpoints (with JWT authentication)
+    // Phase 4: Ceramic Cache endpoints
+    println!("\n{}", "Ceramic Cache Endpoints:".bold());
+
+    // GET /ceramic-cache/stamp - Get stamps from cache (no auth required)
+    let ceramic_stamp_path = format!("/ceramic-cache/stamp?address={}", config.test_address);
+    test_runner
+        .compare_get("Ceramic Cache GET stamp endpoint", &ceramic_stamp_path)
+        .await?;
+
+    // GET /ceramic-cache/weights - Get scorer weights (no auth required)
+    test_runner
+        .compare_get("Ceramic Cache GET weights endpoint", "/ceramic-cache/weights")
+        .await?;
+
     println!("\n{}", "Ceramic Cache Endpoints (JWT auth):".bold());
 
     // Generate JWT token for ceramic cache endpoints

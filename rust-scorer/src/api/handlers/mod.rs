@@ -13,7 +13,8 @@ pub mod internal;
 // Re-export commonly used handlers
 pub use ceramic_cache::{
     ceramic_cache_add_stamps, ceramic_cache_delete_stamps,
-    ceramic_cache_get_score, ceramic_cache_patch_stamps,
+    ceramic_cache_get_score, ceramic_cache_get_stamp,
+    ceramic_cache_get_weights, ceramic_cache_patch_stamps,
 };
 pub use embed::{add_stamps_handler, get_embed_score_handler, validate_api_key_handler};
 pub use external::score_address_handler as external_score_handler;

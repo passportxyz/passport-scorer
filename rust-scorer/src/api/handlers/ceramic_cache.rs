@@ -1,9 +1,11 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     Json,
 };
+use serde::Deserialize;
 use sqlx::PgPool;
+use std::collections::HashMap;
 use tracing::info;
 
 use crate::api::error::{ApiError, ApiResult};
@@ -15,6 +17,12 @@ use crate::db::ceramic_cache::{
     soft_delete_stamps_by_provider,
 };
 use crate::models::v2_api::{CacheStampPayload, GetStampsWithInternalV2ScoreResponse, GetStampResponse, InternalV2ScoreResponse};
+
+/// Query parameters for /ceramic-cache/stamp endpoint
+#[derive(Debug, Deserialize)]
+pub struct GetStampParams {
+    pub address: String,
+}
 
 /// Get CERAMIC_CACHE_SCORER_ID from environment with fallback to 335
 fn get_ceramic_cache_scorer_id() -> Result<i64, ApiError> {
@@ -350,6 +358,60 @@ pub async fn ceramic_cache_delete_stamps(
         success: true,
         stamps: cached_stamps,
     }))
+}
+
+/// GET /ceramic-cache/stamp
+/// Gets stamps from cache for an address (no authentication required)
+/// Query params: address
+/// Returns: GetStampResponse with success=true and stamps array
+///
+/// Note: Python has a side effect where it triggers scoring if no score exists.
+/// We skip that side effect for now - it's not critical for the endpoint's main purpose.
+#[tracing::instrument(
+    skip(pool),
+    fields(
+        endpoint = "ceramic_cache_get_stamp",
+        address = %params.address
+    )
+)]
+pub async fn ceramic_cache_get_stamp(
+    Query(params): Query<GetStampParams>,
+    State(pool): State<PgPool>,
+) -> ApiResult<Json<GetStampResponse>> {
+    info!("Processing ceramic-cache get stamp request");
+
+    // Lowercase the address for consistent lookups
+    let address = params.address.to_lowercase();
+
+    // Input validation
+    if !is_valid_eth_address(&address) {
+        return Err(ApiError::BadRequest(
+            "Invalid Ethereum address format".to_string(),
+        ));
+    }
+
+    // Get stamps from cache
+    let cached_stamps = get_stamps_from_cache(&pool, &address).await?;
+
+    info!(stamp_count = cached_stamps.len(), "Retrieved stamps from cache");
+
+    Ok(Json(GetStampResponse {
+        success: true,
+        stamps: cached_stamps,
+    }))
+}
+
+/// GET /ceramic-cache/weights
+/// Gets scorer weights for the ceramic cache scorer (no authentication required)
+/// Returns: HashMap<String, f64> with provider weights
+#[tracing::instrument(skip(pool))]
+pub async fn ceramic_cache_get_weights(
+    State(pool): State<PgPool>,
+) -> ApiResult<Json<HashMap<String, f64>>> {
+    info!("Processing ceramic-cache get weights request");
+
+    // Use the shared domain logic with no scorer_id (uses CERAMIC_CACHE_SCORER_ID)
+    Ok(Json(domain::weights::get_scorer_weights(None, &pool).await?))
 }
 
 #[cfg(test)]
