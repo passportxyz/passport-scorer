@@ -62,7 +62,7 @@ pub async fn bulk_upsert_hash_links(
         sqlx::query(
             r#"
             INSERT INTO registry_hashscorerlink (hash, address, community_id, expires_at)
-            SELECT * FROM UNNEST($1::text[], $2::text[], $3::int[], $4::timestamptz[])
+            SELECT * FROM UNNEST($1::text[], $2::text[], $3::bigint[], $4::timestamptz[])
             AS t(hash, address, community_id, expires_at)
             "#
         )
@@ -191,7 +191,7 @@ pub async fn insert_dedup_events(
     let result = sqlx::query(
         r#"
         INSERT INTO registry_event (action, address, data, community_id, created_at)
-        SELECT * FROM UNNEST($1::text[], $2::text[], $3::jsonb[], $4::int[])
+        SELECT * FROM UNNEST($1::text[], $2::text[], $3::jsonb[], $4::bigint[])
         AS t(action, address, data, community_id),
         (SELECT NOW() as created_at) AS times
         "#
@@ -206,5 +206,33 @@ pub async fn insert_dedup_events(
 
     let inserted = result.rows_affected();
     info!("Inserted {} deduplication events", inserted);
+    Ok(inserted)
+}
+
+/// Insert SCORE_UPDATE event after score persistence
+#[tracing::instrument(skip(tx, event_data), fields(address = address, community_id = community_id))]
+pub async fn insert_score_update_event(
+    tx: &mut Transaction<'_, Postgres>,
+    address: &str,
+    community_id: i64,
+    event_data: serde_json::Value,
+) -> Result<u64> {
+    debug!("Inserting SCORE_UPDATE event");
+
+    let result = sqlx::query(
+        r#"
+        INSERT INTO registry_event (action, address, data, community_id, created_at)
+        VALUES ('SCORE_UPDATE', $1, $2, $3, NOW())
+        "#
+    )
+    .bind(address)
+    .bind(event_data)
+    .bind(community_id)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| DatabaseError::QueryError(e))?;
+
+    let inserted = result.rows_affected();
+    info!("Inserted SCORE_UPDATE event");
     Ok(inserted)
 }

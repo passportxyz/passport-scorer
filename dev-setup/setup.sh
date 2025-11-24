@@ -253,7 +253,12 @@ if [ -d "$PROJECT_ROOT/rust-scorer" ]; then
     fi
 
     # Create .env for rust-scorer
-    echo "DATABASE_URL=${DATABASE_URL}" > "$PROJECT_ROOT/rust-scorer/.env"
+    # Append ?sslmode=disable if not already present
+    if [[ "${DATABASE_URL}" == *"?sslmode="* ]]; then
+        echo "DATABASE_URL=${DATABASE_URL}" > "$PROJECT_ROOT/rust-scorer/.env"
+    else
+        echo "DATABASE_URL=${DATABASE_URL}?sslmode=disable" > "$PROJECT_ROOT/rust-scorer/.env"
+    fi
 
     # Generate offline data
     cd "$PROJECT_ROOT/rust-scorer"

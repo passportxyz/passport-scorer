@@ -110,7 +110,7 @@ pub async fn bulk_insert_stamps(
     let result = sqlx::query(
         r#"
         INSERT INTO registry_stamp (passport_id, provider, credential)
-        SELECT * FROM UNNEST($1::int[], $2::text[], $3::jsonb[])
+        SELECT * FROM UNNEST($1::bigint[], $2::text[], $3::jsonb[])
         AS t(passport_id, provider, credential)
         "#
     )

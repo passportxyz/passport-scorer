@@ -1,5 +1,12 @@
 # AWS Lambda Infrastructure Analysis
 
+**STATUS UPDATE (Nov 24, 2025)**: Priority conflict resolved. All priorities shifted to new ranges:
+- V2 API: 2110-2112 (was 2021-2023)
+- Ceramic-cache: 1030-1039 (was 1001-1010)
+- Embed: 2104-2106 (was 2100-2103)
+
+This document provides historical context for the refactoring that enabled weighted routing.
+
 ## Current Architecture Problems
 
 ### The Core Issue

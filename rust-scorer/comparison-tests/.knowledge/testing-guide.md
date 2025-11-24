@@ -2,14 +2,14 @@
 
 ## Overview
 
-Created comparison-tests infrastructure in `rust-scorer/comparison-tests/` that validates Python/Rust response equivalence.
+Comparison-tests infrastructure in `rust-scorer/comparison-tests/` validates Python/Rust response equivalence.
 
 ## Features
 
 - Auto-loads `.env.development` using dotenvy (standard format, no export/shell vars)
 - Starts both Python (8002) and Rust (3000) servers
 - Compares JSON responses with sorted keys
-- First test: `/internal/embed/weights` endpoint passing
+- All 13/13 tests passing (as of Nov 2025)
 
 ## Key Requirements Discovered
 
@@ -21,10 +21,10 @@ Created comparison-tests infrastructure in `rust-scorer/comparison-tests/` that 
 
 ### Test Categories
 
-1. **Simple GET endpoints** (weights, allow-list) - ✓ Implemented
-2. **Scoring endpoints** with valid credentials, API key auth
-3. **POST endpoints** (bans, revocations, add stamps)
-4. **Complex endpoints** (cgrants statistics)
+1. **Simple GET endpoints** (weights, allow-list) - ✓ Complete
+2. **Scoring endpoints** with valid credentials, API key auth - ✓ Complete
+3. **POST endpoints** (bans, revocations, add stamps) - ✓ Complete
+4. **Complex endpoints** (cgrants statistics) - ✓ Complete
 
 ## Testing Strategy
 

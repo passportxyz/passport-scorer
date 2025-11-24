@@ -28,15 +28,19 @@ Implemented percentage-based load balancing for Rust scorer to replace header-ba
 - All weighted rules have session stickiness (1 hour)
 - Separate target group for internal ALB (l-passport-v2-rust-scorer-int) since AWS doesn't allow same target group on multiple ALBs
 
-### Listener Rule Priorities
+### Listener Rule Priorities (Updated Nov 24, 2025)
 
-Listener rules using existing Python priorities to replace them:
-1. V2 stamps score (GET /v2/stamps/*/score/*): priority 2023, target: l-passport-v2-stamp-score
-2. Ceramic-cache stamps bulk (POST): priority 1002, target: l-cc-v1-st-bulk-POST-0
-3. Ceramic-cache score (POST): priority 1001, target: l-cc-v1-score-POST-0
-4. Embed stamps (POST /internal/embed/stamps/*): priority 2100, target: embed-st-lambda-target-group
-5. Embed validate-api-key (GET): priority 2101, target: embed-rl-lambda-target-group
-6. Embed score (GET): priority 2103, target: embed-gs-lambda-target-group
+**Priority Shift**: All priorities shifted to avoid AWS PriorityInUse conflicts
+
+Current listener rule priorities:
+1. V2 stamps score (GET /v2/stamps/*/score/*): priority **2112**, target: l-passport-v2-stamp-score
+2. Ceramic-cache stamps bulk (POST): priority **1032**, target: l-cc-v1-st-bulk-POST-0
+3. Ceramic-cache score (POST): priority **1031**, target: l-cc-v1-score-POST-0
+4. Embed stamps (POST /internal/embed/stamps/*): priority **2104**, target: embed-st-lambda-target-group
+5. Embed validate-api-key (GET): priority **2105**, target: embed-rl-lambda-target-group
+6. Embed score (GET): priority **2106**, target: embed-gs-lambda-target-group
+
+**Note**: Priority numbers shifted from old ranges (2023→2112, 1001-1010→1030-1039, 2100-2103→2104-2106) to enable clean deployment without manual AWS cleanup.
 
 ### Implementation Challenges
 

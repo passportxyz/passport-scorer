@@ -45,7 +45,7 @@ Both use exact same business logic, just different auth at handler level.
 
 ## Module Organization Pattern
 
-- Separate `api/handlers/internal/` and `api/handlers/external/` directories for clear endpoint separation
+- Flat file structure in each layer (handlers/, domain/, db/queries/)
 - Domain-specific query modules in `db/queries/` (bans.rs, stakes.rs, cgrants.rs)
 - Domain models separate from Django models in `db/models/`
 - Internal API types in `models/internal/`

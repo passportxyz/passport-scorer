@@ -4,13 +4,14 @@
 
 ALB listener rules are evaluated in order from LOWEST to HIGHEST priority number. More specific rules (e.g., with additional header conditions) must have LOWER priority numbers to be evaluated first.
 
-## Header-Based Routing Pattern
+## Current Priority Ranges (Updated Nov 24, 2025)
 
-For header-based routing to work correctly:
-- **Rust endpoints with X-Use-Rust-Scorer header**: priorities 2090-2093 (evaluated first)
-- **Python endpoints without header requirement**: priorities 2100-2103 (evaluated second)
+The project uses weighted routing (not header-based routing) with these priority ranges:
+- **V2 API endpoints**: 2110-2112
+- **Ceramic-cache endpoints**: 1030-1039
+- **Internal embed endpoints**: 2104-2106
 
-If the priorities were reversed, the less specific Python rules would match first and the Rust rules would never be evaluated.
+**Note**: Priorities were shifted Nov 24, 2025 to avoid AWS PriorityInUse conflicts with old listener rules.
 
 ## Example Configuration
 

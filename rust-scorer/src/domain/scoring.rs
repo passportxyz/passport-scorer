@@ -531,7 +531,22 @@ pub async fn calculate_score_for_address(
 
     // 10. Persist score
     let django_fields = scoring_result.to_django_score_fields();
-    let _score_id = upsert_score(&mut tx, passport_id, &django_fields).await
+    let score_id = upsert_score(&mut tx, passport_id, &django_fields).await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    // 10a. Insert SCORE_UPDATE event
+    use crate::models::translation::create_score_update_event_data;
+    let event_data = create_score_update_event_data(
+        score_id,
+        passport_id,
+        scoring_result.score.clone(),
+        scoring_result.last_score_timestamp,
+        django_fields.evidence,
+        django_fields.stamp_scores,
+        &django_fields.stamps,
+        scoring_result.expiration_date,
+    );
+    queries::insert_score_update_event(&mut tx, address, scorer_id, event_data).await
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
     // 11. Process human points if enabled

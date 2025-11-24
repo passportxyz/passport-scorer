@@ -7,13 +7,17 @@
 - @architecture/api_endpoint_map.md - Complete map of all scoring-related endpoints and Lambda functions
 - @architecture/ceramic_cache_scoring.md - Integration points and migration strategy
 - @architecture/rust_scorer_implementation_status.md - Complete status of all 15 endpoints, architecture patterns, performance targets
-- @architecture/rust_scorer_clean_architecture.md - Three-layer architecture pattern with domain-driven design
 - @architecture/lambda_infrastructure_analysis.md - Comprehensive AWS Lambda creation patterns and routing architecture
+
+### Local Knowledge
+- rust-scorer/.knowledge/architecture.md - Three-layer architecture pattern (relocated from global)
 
 ## 🎨 Patterns
 
 - @patterns/deduplication.md - LIFO retry logic and provider-based stamp deduplication
-- @patterns/rust_code_organization.md - Code structure, duplication issues, and cleanup status
+
+### Local Knowledge
+- rust-scorer/.knowledge/code-organization.md - Code structure, duplication issues (relocated from global)
 
 ## ⚠️ Gotchas
 
@@ -26,16 +30,15 @@
 - @gotchas/human_points_provider_handling.md - Django CharField NULL vs empty string conversion
 - @gotchas/performance_analysis.md - Flamegraphs vs distributed tracing for I/O-bound services
 - @gotchas/trusted_iam_issuers.md - Environment variable loading with OnceLock caching
-- @gotchas/api_key_hashing_performance.md - PBKDF2 performance problem and solution
 - @gotchas/django_conn_max_age_lambda.md - Connection management issues with Lambda and RDS Proxy
 - @gotchas/ceramic_cache_v2_never_implemented.md - V1 stamps only, V2 was abandoned
 - @gotchas/alb_listener_priority.md - Priority ordering for header-based routing
 - @gotchas/target_group_alb_limitation.md - Cannot span multiple load balancers
-- @gotchas/container_environment_detection.md - PostgreSQL startup in containers vs systems
 - @gotchas/didkit_eip712_signing.md - TypedData structure and @context requirements
-- @gotchas/timestamp_serialization.md - Python vs Rust timestamp precision differences
-- @gotchas/postgresql_numeric_serialization.md - Decimal to integer conversion for numeric(78,0)
 - @gotchas/alb_listener_rules_conflicts.md - Priority conflicts and infrastructure refactoring
+
+### Local Knowledge
+- dev-setup/.knowledge/environment-detection.md - PostgreSQL startup detection (relocated from global)
 
 ## 🔌 API
 
@@ -48,7 +51,6 @@
 - @api/topnav_dashboard_discovery.md - Dashboard discovery API for TopNav component
 - @api/internal_api_endpoints.md - Complete inventory of 12 internal endpoints with SQL queries
 - @api/cgrants_endpoint.md - Detailed contributor statistics endpoint documentation
-- @api/addstamps_payload_flexibility.md - scorer_id type handling
 
 ## 💾 Database
 
@@ -67,9 +69,10 @@
 
 ## 🔄 Workflows
 
-- @workflows/rust_testing.md - Test organization and database setup
-- @workflows/development_setup.md - Modular setup scripts and SQLX requirements
-- @workflows/comparison_testing.md - Python/Rust response validation infrastructure
+### Local Knowledge
+- rust-scorer/.knowledge/testing.md - Test organization (relocated from global)
+- dev-setup/.knowledge/setup-guide.md - Modular setup scripts (relocated from global)
+- rust-scorer/comparison-tests/.knowledge/testing-guide.md - Python/Rust validation (relocated from global)
 
 ## 🚀 Deployment
 
