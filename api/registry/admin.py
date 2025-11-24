@@ -403,9 +403,14 @@ class WeightConfigurationForm(forms.ModelForm):
 
     def clean_csv_source(self):
         """
-        Validate the content of the CSV file
+        Validate the content of the CSV file if provided
         """
         csv_source = self.cleaned_data["csv_source"]
+
+        # If no file was uploaded, return None (it's optional)
+        if not csv_source:
+            return csv_source
+
         # using 'utf-8-sig' will also handle the case where the file is saved with a BOM (byte order mark - \ufeff)
         csv_data = csv_source.read().decode("utf-8-sig")
 
@@ -457,19 +462,21 @@ class WeightConfigurationAdmin(admin.ModelAdmin):
         # If saving any of the objects below fails, we expect to roll back
         # using 'utf-8-sig' will also handle the case where the file is saved with a BOM (byte order mark - \ufeff)
 
-        csv_data = obj.csv_source.open("rb").read().decode("utf-8-sig")
-        csv_reader = csv.reader(StringIO(csv_data))
-        for row in csv_reader:
-            if len(row) != 2:
-                raise ValueError(f"Invalid row format: {row}")
+        # Only process CSV if a file was uploaded
+        if obj.csv_source and hasattr(obj.csv_source, 'file'):
+            csv_data = obj.csv_source.open("rb").read().decode("utf-8-sig")
+            csv_reader = csv.reader(StringIO(csv_data))
+            for row in csv_reader:
+                if len(row) != 2:
+                    raise ValueError(f"Invalid row format: {row}")
 
-            provider, weight = row
-            log.info(f"Adding weight configuration for {provider} with weight {weight}")
-            WeightConfigurationItem.objects.create(
-                weight_configuration=obj,
-                provider=provider,
-                weight=float(weight),
-            )
+                provider, weight = row
+                log.info(f"Adding weight configuration for {provider} with weight {weight}")
+                WeightConfigurationItem.objects.create(
+                    weight_configuration=obj,
+                    provider=provider,
+                    weight=float(weight),
+                )
 
         WeightConfiguration.objects.filter(active=True).update(active=False)
         obj.active = True
