@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id,\n            event_type,\n            round_id,\n            staker,\n            address,\n            amount,\n            staked,\n            block_number,\n            tx_hash\n        FROM registry_gtcstakeevent\n        WHERE round_id = $1 AND (LOWER(staker) = LOWER($2) OR LOWER(address) = LOWER($2))\n        ",
+  "query": "\n        SELECT\n            id,\n            event_type,\n            round_id,\n            staker,\n            address,\n            amount,\n            staked,\n            block_number,\n            tx_hash\n        FROM registry_gtcstakeevent\n        WHERE round_id = $1 AND (staker = $2 OR address = $2)\n        ",
   "describe": {
     "columns": [
       {
@@ -67,5 +67,5 @@
       false
     ]
   },
-  "hash": "6cf300ed02bcde519be605ccaef21c6f1e8ef6487255089aab27ed7ee62e1aad"
+  "hash": "63688879f72c89375de8dc17fe71f1deffa7a4f2334ceae2ea15c9cb0d39c9b5"
 }
