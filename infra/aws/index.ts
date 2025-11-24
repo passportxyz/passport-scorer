@@ -966,15 +966,6 @@ const scorerServiceInternal = createScorerECSService({
   name: "scorer-api-internal-1",
   config: {
     ...baseScorerServiceConfig,
-    listenerRulePriority: 2202,
-    httpListenerArn: privateAlbHttpListenerArn,
-    httpListenerRulePaths: [
-      {
-        pathPattern: {
-          values: ["/internal/*"],
-        },
-      },
-    ],
     targetGroup: targetGroupInternal,
     memory: ecsTaskConfigurations["scorer-api-internal-1"][stack].memory,
     cpu: ecsTaskConfigurations["scorer-api-internal-1"][stack].cpu,
@@ -1709,6 +1700,9 @@ configureAllRouting({
 
     // Registry fallback for all other routes
     pythonRegistry: targetGroupRegistry,
+
+    // Internal API endpoints (ECS service on internal ALB)
+    pythonInternal: targetGroupInternal,
 
     // Embed target groups - mapping to expected names
     pythonEmbedAddStamps: embedResult?.targetGroups?.embedStTargetGroup,

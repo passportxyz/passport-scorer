@@ -37,6 +37,9 @@ export interface TargetGroups {
   // Registry (generic handler for multiple endpoints)
   pythonRegistry: aws.lb.TargetGroup;
 
+  // Internal endpoints (ECS service on internal ALB)
+  pythonInternal?: aws.lb.TargetGroup;
+
   // Embed endpoints (internal ALB)
   pythonEmbedAddStamps: aws.lb.TargetGroup;
   pythonEmbedValidateKey: aws.lb.TargetGroup;
@@ -286,6 +289,26 @@ export function configureAllRouting(args: {
       conditions: [
         pathCondition("/internal/embed/score/*/*"),
         methodCondition("GET"),
+      ],
+    });
+
+    // Priority 2120: /internal/* CATCH-ALL - DUAL IMPLEMENTATION
+    // This catches all other internal endpoints not explicitly routed above
+    // Includes: /internal/score/v2/*, /internal/check-bans, /internal/check-revocations,
+    // /internal/allow-list/*, /internal/customization/*, /internal/stake/*,
+    // /internal/cgrants/*, /internal/embed/weights, etc.
+    // NOTE: This takes precedence over the ECS service rule at priority 2202
+    const pythonInternalTargetGroup = targetGroups.pythonInternal || targetGroups.pythonRegistry;
+    createWeightedListenerRule({
+      name: `internal-catch-all-${envName}`,
+      listenerArn: internalListenerArn,
+      priority: 2120,
+      targetGroups: [
+        { arn: pythonInternalTargetGroup.arn, weight: routingPercentages.python },
+        { arn: targetGroups.rustScorerInternal.arn, weight: routingPercentages.rust },
+      ],
+      conditions: [
+        pathCondition("/internal/*"),
       ],
     });
   }
