@@ -130,7 +130,7 @@ pub async fn verify_hash_links(
         r#"
         SELECT COUNT(*) as count
         FROM registry_hashscorerlink
-        WHERE address = LOWER($1)
+        WHERE address = $1
             AND community_id = $2
             AND hash = ANY($3)
         "#

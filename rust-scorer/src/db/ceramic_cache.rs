@@ -42,7 +42,7 @@ pub async fn soft_delete_stamps_by_provider(
         r#"
         UPDATE ceramic_cache_ceramiccache
         SET deleted_at = NOW(), updated_at = NOW()
-        WHERE address = LOWER($1)
+        WHERE address = $1
           AND provider = ANY($2)
           AND type = 1
           AND deleted_at IS NULL
@@ -200,7 +200,7 @@ pub async fn get_stamps_from_cache(
         FROM ceramic_cache_ceramiccache c
         LEFT JOIN ceramic_cache_revocation r
             ON c.id = r.ceramic_cache_id
-        WHERE c.address = LOWER($1)
+        WHERE c.address = $1
           AND c.type = 1
           AND c.deleted_at IS NULL
           AND r.id IS NULL

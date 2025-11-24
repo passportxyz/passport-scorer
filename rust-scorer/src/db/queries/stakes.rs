@@ -33,7 +33,7 @@ pub async fn get_stakes_for_address(
             unlock_time,
             last_updated_in_block
         FROM stake_stake
-        WHERE LOWER(staker) = LOWER($1) OR LOWER(stakee) = LOWER($1)
+        WHERE staker = $1 OR stakee = $1
         "#,
         address
     )
@@ -76,7 +76,7 @@ pub async fn get_gtc_stake_events(
             block_number,
             tx_hash
         FROM registry_gtcstakeevent
-        WHERE round_id = $1 AND (LOWER(staker) = LOWER($2) OR LOWER(address) = LOWER($2))
+        WHERE round_id = $1 AND (staker = $2 OR address = $2)
         "#,
         round_id,
         address

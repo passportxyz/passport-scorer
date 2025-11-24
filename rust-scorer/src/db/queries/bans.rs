@@ -32,7 +32,7 @@ pub async fn get_active_bans(
             end_time,
             reason
         FROM ceramic_cache_ban
-        WHERE (LOWER(address) = LOWER($1) OR hash = ANY($2))
+        WHERE (address = $1 OR hash = ANY($2))
         AND (end_time IS NULL OR end_time > NOW())
         "#,
         address,
