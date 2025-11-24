@@ -21,7 +21,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'scorer.settings')
 django.setup()
 
 from account.models import Community, Account, AccountAPIKey
-from scorer_weighted.models import BinaryWeightedScorer, Scorer
+from scorer_weighted.models import BinaryWeightedScorer
 from ceramic_cache.models import CeramicCache
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -55,15 +55,8 @@ else:
 
 # Create test scorers and communities
 for i in range(1, 4):
-    # First create the base Scorer
-    scorer, scorer_created = Scorer.objects.get_or_create(
-        id=i,
-        defaults={'type': 'WEIGHTED_BINARY'}
-    )
-    if scorer_created:
-        print(f"Created base scorer {i}")
-
-    # Then create the BinaryWeightedScorer
+    # Create the BinaryWeightedScorer directly - it inherits from Scorer
+    # Django will handle creating the parent Scorer automatically
     weights = {
         "Google": "1.0",
         "Twitter": "1.0",
@@ -73,17 +66,18 @@ for i in range(1, 4):
         "Ens": "2.0"
     }
 
-    binary_scorer, bs_created = BinaryWeightedScorer.objects.get_or_create(
-        scorer_ptr_id=i,
-        defaults={
-            'weights': weights,
-            'threshold': Decimal('2.5')
-        }
-    )
-    if bs_created:
-        print(f"Created binary weighted scorer for scorer {i}")
-    else:
+    try:
+        binary_scorer = BinaryWeightedScorer.objects.get(pk=i)
         print(f"Binary weighted scorer {i} already exists")
+    except BinaryWeightedScorer.DoesNotExist:
+        # Create with explicit ID to ensure ID=1,2,3
+        binary_scorer = BinaryWeightedScorer.objects.create(
+            id=i,
+            type='WEIGHTED_BINARY',
+            weights=weights,
+            threshold=Decimal('2.5')
+        )
+        print(f"Created binary weighted scorer {i}")
 
     # Now create the community
     # First check if a community already exists for this scorer

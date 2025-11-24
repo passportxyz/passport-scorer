@@ -11,6 +11,11 @@ fi
 # Install system packages
 sudo dnf install -y python3.12 python3.12-devel postgresql postgresql-server postgresql-contrib gcc openssl-devel pkg-config git curl || true
 
+# Install Valkey (Redis fork) - try valkey first, fall back to redis
+if ! command -v redis-server >/dev/null 2>&1 && ! command -v valkey-server >/dev/null 2>&1; then
+    sudo dnf install -y valkey || sudo dnf install -y redis || true
+fi
+
 # Install Poetry
 if ! command -v poetry >/dev/null 2>&1; then
     curl -sSL https://install.python-poetry.org | python3.12 -

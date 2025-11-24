@@ -14,6 +14,8 @@ DB_USER="passport_scorer"
 DB_PASSWORD="devpassword123"
 DB_HOST="localhost"
 DB_PORT="5432"
+REDIS_HOST="localhost"
+REDIS_PORT="6379"
 PYTHON_VERSION="3.12"
 PGDATA="/var/lib/postgresql/data"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -59,6 +61,11 @@ else
     # Inline basic deps if install.sh doesn't exist
     sudo dnf install -y python3.12 python3.12-devel postgresql postgresql-server postgresql-contrib gcc openssl-devel pkg-config git curl || true
 
+    # Install Valkey (Redis fork) - try valkey first, fall back to redis
+    if ! command_exists redis-server && ! command_exists valkey-server; then
+        sudo dnf install -y valkey || sudo dnf install -y redis || true
+    fi
+
     # Install Poetry if not present
     if ! command_exists poetry; then
         curl -sSL https://install.python-poetry.org | python3.12 -
@@ -92,8 +99,8 @@ if [ ! -d "/var/run/postgresql" ]; then
     sudo chown postgres:postgres /var/run/postgresql
 fi
 
-# Initialize database if needed
-if [ ! -f "$PGDATA/PG_VERSION" ]; then
+# Initialize database if needed (use sudo to check since PGDATA is owned by postgres)
+if ! sudo test -f "$PGDATA/PG_VERSION"; then
     print_status "Initializing PostgreSQL database..."
     sudo -u postgres /usr/bin/initdb -D "$PGDATA"
     print_success "Database initialized"
@@ -164,39 +171,50 @@ EOF
     sudo -u postgres psql -c "SELECT pg_reload_conf();" >/dev/null 2>&1
 fi
 
+# 4a. Setup and start Valkey/Redis
+print_status "Setting up Valkey/Redis..."
+
+# Determine which server binary to use
+REDIS_BIN=""
+if command_exists valkey-server; then
+    REDIS_BIN="valkey-server"
+elif command_exists redis-server; then
+    REDIS_BIN="redis-server"
+else
+    print_error "Neither valkey-server nor redis-server found"
+    exit 1
+fi
+
+# Determine which CLI to use for verification
+REDIS_CLI=""
+if command_exists valkey-cli; then
+    REDIS_CLI="valkey-cli"
+elif command_exists redis-cli; then
+    REDIS_CLI="redis-cli"
+else
+    print_error "Neither valkey-cli nor redis-cli found"
+    exit 1
+fi
+
+# Start Redis/Valkey if not already running
+if ! pgrep -x redis-server >/dev/null && ! pgrep -x valkey-server >/dev/null; then
+    print_status "Starting $REDIS_BIN..."
+    $REDIS_BIN --daemonize yes --bind 127.0.0.1 --port ${REDIS_PORT}
+    sleep 3
+fi
+
+# Verify Redis/Valkey is running
+if $REDIS_CLI -h ${REDIS_HOST} -p ${REDIS_PORT} ping >/dev/null 2>&1; then
+    print_success "$REDIS_BIN is ready"
+else
+    print_error "$REDIS_BIN failed to start"
+    exit 1
+fi
+
 # 5. Setup environment file
-export DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
-
 if [ ! -f "$PROJECT_ROOT/.env.development" ]; then
-    print_status "Creating .env.development..."
-    cat > "$PROJECT_ROOT/.env.development" <<EOL
-# Database Configuration
-DATABASE_URL=${DATABASE_URL}
-READ_REPLICA_0_URL=${DATABASE_URL}
-READ_REPLICA_ANALYTICS_URL=${DATABASE_URL}
-DATA_MODEL_DATABASE_URL=${DATABASE_URL}
-
-# Django Configuration
-SECRET_KEY=dev-secret-key-$(openssl rand -hex 32)
-DEBUG=True
-ALLOWED_HOSTS='["localhost","127.0.0.1"]'
-
-# API Configuration
-SCORER_SERVER_URL=http://localhost:8000
-INTERNAL_API_KEY=dev-internal-api-$(openssl rand -hex 16)
-
-# Rust Configuration
-RUST_LOG=debug
-RUST_BACKTRACE=1
-
-# Feature Flags
-FF_MULTI_NULLIFIER=off
-HUMAN_POINTS_ENABLED=false
-
-# Required for didkit (Rust credential validation library)
-# Run: ulimit -n 4096
-EOL
-    print_success ".env.development created"
+    print_error ".env.development not found - it should be checked into the repo"
+    exit 1
 fi
 
 # Set file descriptor limit for didkit (needs many open files)
@@ -207,6 +225,9 @@ ulimit -n 4096 2>/dev/null && print_success "File descriptor limit set to 4096" 
 set -a
 source "$PROJECT_ROOT/.env.development"
 set +a
+
+# Create symlink for Django (it reads .env from api directory)
+ln -sf "$PROJECT_ROOT/.env.development" "$PROJECT_ROOT/api/.env"
 
 # 6. Install Python dependencies
 print_status "Installing Python dependencies..."
@@ -228,19 +249,29 @@ cd "$PROJECT_ROOT/api"
 
 # Base test data (scorers, API keys, etc.)
 if [ -f "$SCRIPT_DIR/create_test_data.py" ]; then
-    poetry run python "$SCRIPT_DIR/create_test_data.py"
-    print_success "Base test data created"
+    if poetry run python "$SCRIPT_DIR/create_test_data.py"; then
+        print_success "Base test data created"
+    else
+        print_error "Failed to create base test data"
+        exit 1
+    fi
 else
     print_error "Test data script not found"
+    exit 1
 fi
 
 # Comparison test data (bans, stakes, CGrants, etc.)
 if [ -f "$SCRIPT_DIR/create_comparison_test_data.py" ]; then
     print_status "Creating comparison test data..."
-    poetry run python "$SCRIPT_DIR/create_comparison_test_data.py"
-    print_success "Comparison test data created"
+    if poetry run python "$SCRIPT_DIR/create_comparison_test_data.py"; then
+        print_success "Comparison test data created"
+    else
+        print_error "Failed to create comparison test data"
+        exit 1
+    fi
 else
     print_error "Comparison test data script not found"
+    exit 1
 fi
 
 cd "$PROJECT_ROOT"
@@ -305,11 +336,11 @@ echo -e "${GREEN}=== Setup Complete ===${NC}"
 echo ""
 echo "Environment: $ENVIRONMENT"
 echo "Database: ${DB_NAME} @ ${DB_HOST}:${DB_PORT}"
+echo "Redis/Valkey: ${REDIS_HOST}:${REDIS_PORT}"
 echo ""
-if [ "$ENVIRONMENT" = "container" ]; then
-    echo "To restart PostgreSQL if needed:"
-    echo "  $SCRIPT_DIR/start-postgres.sh"
-fi
+echo "To restart services if needed:"
+echo "  PostgreSQL: $SCRIPT_DIR/start-postgres.sh"
+echo "  Redis/Valkey: $SCRIPT_DIR/start-redis.sh"
 echo ""
 echo "To start developing:"
 echo "  1. Set file descriptor limit: ulimit -n 4096"
