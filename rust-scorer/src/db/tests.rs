@@ -13,7 +13,7 @@ mod integration_tests {
         let pool = PgPool::connect(&database_url).await?;
         let mut tx = pool.begin().await?;
 
-        let _passport_id = upsert_passport(
+        let _passport_id = upsert_passport_record(
             &mut tx,
             "0x1234567890abcdef",
             1
@@ -22,7 +22,7 @@ mod integration_tests {
         assert!(_passport_id > 0);
 
         // Test idempotency - should return same ID
-        let passport_id2 = upsert_passport(
+        let passport_id2 = upsert_passport_record(
             &mut tx,
             "0x1234567890abcdef",
             1
@@ -35,12 +35,12 @@ mod integration_tests {
     }
 
     #[tokio::test]
-    async fn test_load_ceramic_cache() -> Result<()> {
+    async fn test_get_ceramic_cache_entries() -> Result<()> {
         let database_url = std::env::var("DATABASE_URL")
             .expect("DATABASE_URL must be set");
         let pool = PgPool::connect(&database_url).await?;
         // This test would need test data in the ceramic_cache table
-        let stamps = load_ceramic_cache(
+        let stamps = get_ceramic_cache_entries(
             &pool,
             "0xtest_address"
         ).await.unwrap();
@@ -80,7 +80,7 @@ mod integration_tests {
         let mut tx = pool.begin().await?;
 
         // Create test passport
-        let _passport_id = upsert_passport(
+        let _passport_id = upsert_passport_record(
             &mut tx,
             "0xtest_address",
             1

@@ -17,19 +17,20 @@ use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use tracing_opentelemetry::OpenTelemetryLayer;
 
 use crate::api::handlers::{
+    // External
     external_score_handler,
+    // Internal
     internal_score_handler, internal_weights_handler,
     internal_check_bans_handler, internal_check_revocations_handler,
     internal_allow_list_handler, internal_credential_definition_handler,
     internal_stake_gtc_handler, internal_legacy_stake_handler,
     internal_cgrants_statistics_handler,
-};
-// TODO: Migrate these old handlers to the new architecture
-use crate::api::ceramic_cache::{
+    // Ceramic Cache
     ceramic_cache_add_stamps, ceramic_cache_get_score,
     ceramic_cache_patch_stamps, ceramic_cache_delete_stamps,
+    // Embed
+    add_stamps_handler, get_embed_score_handler, validate_api_key_handler,
 };
-use crate::api::embed::{add_stamps_handler, get_embed_score_handler, validate_api_key_handler};
 
 pub fn init_tracing() {
     // Check if we're in Lambda environment
