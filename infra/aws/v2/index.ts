@@ -30,7 +30,7 @@ export function createV2Api({
 }: {
   httpsListener: pulumi.Output<aws.alb.Listener>;
   dockerLambdaImage: pulumi.Output<string>;
-  rustScorerZipArchive?: pulumi.asset.FileArchive;
+  rustScorerZipArchive: pulumi.asset.FileArchive;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   vpcPrivateSubnetIds: pulumi.Output<any>;
   scorerSecret: aws.secretsmanager.Secret;
@@ -41,7 +41,7 @@ export function createV2Api({
   alarmConfigurations: AlarmConfigurations;
   targetGroupRegistry: TargetGroup;
   privateAlbHttpListenerArn?: pulumi.Input<string>;
-  internalHttpsListener?: pulumi.Output<aws.lb.Listener>;
+  internalHttpsListener: pulumi.Output<aws.lb.Listener>;
 }) {
   const apiEnvironment = [
     ...secretsManager.getEnvironmentVars({

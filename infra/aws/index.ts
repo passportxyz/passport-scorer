@@ -1623,13 +1623,14 @@ if (stack === "production") {
   );
 }
 
-// Get reference to internal ALB listener once (if it exists)
+// Get reference to internal ALB listener (required for embed endpoints)
 // This is reused by both createV2Api and configureAllRouting
-const internalHttpsListener = privateAlbHttpListenerArn
-  ? pulumi.output(privateAlbHttpListenerArn).apply(
-      (arn) => aws.lb.Listener.get("internal-alb-listener", arn)
-    )
-  : undefined;
+if (!privateAlbHttpListenerArn) {
+  throw new Error("Internal ALB listener is required (privateAlbHttpListenerArn must be set)");
+}
+const internalHttpsListener = pulumi.output(privateAlbHttpListenerArn).apply(
+  (arn) => aws.lb.Listener.get("internal-alb-listener", arn)
+);
 
 const v2ApiResult = createV2Api({
   httpsListener,
