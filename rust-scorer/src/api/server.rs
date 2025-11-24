@@ -7,7 +7,7 @@ use sqlx::PgPool;
 use std::env;
 use std::net::SocketAddr;
 use std::time::Duration;
-use tower_http::trace::TraceLayer;
+use tower_http::{trace::TraceLayer, cors::CorsLayer};
 use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter, prelude::*};
 use opentelemetry::KeyValue;
@@ -250,6 +250,13 @@ pub async fn create_app() -> Result<Router, Box<dyn std::error::Error>> {
         .route("/health", get(health_check))
         // Add connection pool as state
         .with_state(pool)
+        // Add CORS layer - matching Python's CORS_ALLOW_ALL_ORIGINS = True
+        .layer(
+            CorsLayer::new()
+                .allow_origin(tower_http::cors::Any)
+                .allow_methods(tower_http::cors::Any)
+                .allow_headers(tower_http::cors::Any)
+        )
         // Add tracing layer for observability
         .layer(TraceLayer::new_for_http()))
 }
