@@ -10,6 +10,7 @@ from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.db import transaction
 from django.shortcuts import redirect, render
 from django.template.response import TemplateResponse
 from django.urls import path
@@ -443,11 +444,83 @@ class WeightConfigurationAdmin(admin.ModelAdmin):
         "updated_at",
     )
     search_fields = ("version", "description")
-    readonly_fields = ("created_at", "updated_at", "csv_source")
+    readonly_fields = ("created_at", "updated_at", "csv_source", "active")
     inlines = [WeightConfigurationItemInline]
+    actions = ["clone_configuration", "activate_configuration"]
 
     def csv_source_url(self, obj: WeightConfiguration):
         return obj.csv_file.url
+
+    @admin.action(description="Clone selected configuration")
+    def clone_configuration(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(
+                request,
+                "Please select exactly one configuration to clone.",
+                messages.ERROR,
+            )
+            return
+
+        source = queryset.first()
+
+        # Generate new version number
+        latest = WeightConfiguration.objects.order_by("-created_at").first()
+        new_version = int(latest.version) + 1 if latest else 1
+
+        # Clone the parent configuration
+        clone = WeightConfiguration.objects.create(
+            version=str(new_version),
+            threshold=source.threshold,
+            active=False,
+            description=None,
+        )
+
+        # Clone all weight items
+        for item in source.weights.all():
+            WeightConfigurationItem.objects.create(
+                weight_configuration=clone,
+                provider=item.provider,
+                weight=item.weight,
+                stamp_metadata=item.stamp_metadata,
+            )
+
+        self.message_user(
+            request,
+            f"Created clone v{new_version} with {source.weights.count()} items (inactive).",
+            messages.SUCCESS,
+        )
+
+    @admin.action(description="Activate selected configuration")
+    def activate_configuration(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(
+                request,
+                "Please select exactly one configuration to activate.",
+                messages.ERROR,
+            )
+            return
+
+        config = queryset.first()
+        if config.active:
+            self.message_user(
+                request,
+                f"Configuration v{config.version} is already active.",
+                messages.WARNING,
+            )
+            return
+
+        with transaction.atomic():
+            # Deactivate current active configuration (if any)
+            WeightConfiguration.objects.filter(active=True).update(active=False)
+            # Activate selected configuration
+            config.active = True
+            config.save(update_fields=["active"])
+
+        self.message_user(
+            request,
+            f"Configuration v{config.version} is now active.",
+            messages.SUCCESS,
+        )
 
     def save_model(self, request, obj: WeightConfiguration, form, change):
         if not obj.version:
@@ -463,7 +536,7 @@ class WeightConfigurationAdmin(admin.ModelAdmin):
         # using 'utf-8-sig' will also handle the case where the file is saved with a BOM (byte order mark - \ufeff)
 
         # Only process CSV if a file was uploaded
-        if obj.csv_source and hasattr(obj.csv_source, 'file'):
+        if obj.csv_source and hasattr(obj.csv_source, "file"):
             csv_data = obj.csv_source.open("rb").read().decode("utf-8-sig")
             csv_reader = csv.reader(StringIO(csv_data))
             for row in csv_reader:
@@ -471,16 +544,14 @@ class WeightConfigurationAdmin(admin.ModelAdmin):
                     raise ValueError(f"Invalid row format: {row}")
 
                 provider, weight = row
-                log.info(f"Adding weight configuration for {provider} with weight {weight}")
+                log.info(
+                    f"Adding weight configuration for {provider} with weight {weight}"
+                )
                 WeightConfigurationItem.objects.create(
                     weight_configuration=obj,
                     provider=provider,
                     weight=float(weight),
                 )
-
-        WeightConfiguration.objects.filter(active=True).update(active=False)
-        obj.active = True
-        obj.save()
 
 
 admin.site.register(WeightConfigurationItem)
