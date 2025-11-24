@@ -122,16 +122,16 @@ export function configureAllRouting(args: {
   }
 
   // =============================================================
-  // CERAMIC CACHE & SUBMIT ENDPOINTS (Priority 1011-1020)
-  // NOTE: Changed from 1000-1010 to avoid conflict with old listener rules
+  // CERAMIC CACHE & SUBMIT ENDPOINTS (Priority 1030-1039)
+  // NOTE: Changed from 1011-1020 to avoid conflict with old listener rules at 1001-1015
   // =============================================================
 
-  // Priority 1011: /submit-passport - Python only
+  // Priority 1030: /submit-passport - Python only
   if (targetGroups.pythonSubmitPassport) {
     createListenerRule({
       name: `submit-passport-${envName}`,
       listenerArn: publicListenerArn,
-      priority: 1011,
+      priority: 1030,
       targetGroupArn: targetGroups.pythonSubmitPassport.arn,
       conditions: [
         pathCondition("/submit-passport"),
@@ -140,12 +140,12 @@ export function configureAllRouting(args: {
     });
   }
 
-  // Priority 1012: /ceramic-cache/score/* POST - Python only (not implemented in Rust yet)
+  // Priority 1031: /ceramic-cache/score/* POST - Python only (not implemented in Rust yet)
   if (targetGroups.pythonCeramicCacheScorePost) {
     createListenerRule({
       name: `ceramic-cache-score-post-${envName}`,
       listenerArn: publicListenerArn,
-      priority: 1012,
+      priority: 1031,
       targetGroupArn: targetGroups.pythonCeramicCacheScorePost.arn,
       conditions: [
         pathCondition("/ceramic-cache/score/*"),
@@ -154,13 +154,13 @@ export function configureAllRouting(args: {
     });
   }
 
-  // Priority 1013: /ceramic-cache/stamps/bulk POST - DUAL IMPLEMENTATION
+  // Priority 1032: /ceramic-cache/stamps/bulk POST - DUAL IMPLEMENTATION
   if (targetGroups.pythonCeramicCacheBulkPost) {
     if (rustEnabled && targetGroups.rustScorer) {
       createWeightedListenerRule({
         name: `ceramic-cache-bulk-post-${envName}`,
         listenerArn: publicListenerArn,
-        priority: 1013,
+        priority: 1032,
         targetGroups: [
           { arn: targetGroups.pythonCeramicCacheBulkPost.arn, weight: routingPercentages.python },
           { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
@@ -174,7 +174,7 @@ export function configureAllRouting(args: {
       createListenerRule({
         name: `ceramic-cache-bulk-post-${envName}`,
         listenerArn: publicListenerArn,
-        priority: 1013,
+        priority: 1032,
         targetGroupArn: targetGroups.pythonCeramicCacheBulkPost.arn,
         conditions: [
           pathCondition("/ceramic-cache/stamps/bulk"),
@@ -184,12 +184,12 @@ export function configureAllRouting(args: {
     }
   }
 
-  // Priority 1014: /ceramic-cache/stamps/bulk PATCH - Python only
+  // Priority 1033: /ceramic-cache/stamps/bulk PATCH - Python only
   if (targetGroups.pythonCeramicCacheBulkPatch) {
     createListenerRule({
       name: `ceramic-cache-bulk-patch-${envName}`,
       listenerArn: publicListenerArn,
-      priority: 1014,
+      priority: 1033,
       targetGroupArn: targetGroups.pythonCeramicCacheBulkPatch.arn,
       conditions: [
         pathCondition("/ceramic-cache/stamps/bulk"),
@@ -198,12 +198,12 @@ export function configureAllRouting(args: {
     });
   }
 
-  // Priority 1015: /ceramic-cache/stamps/bulk DELETE - Python only
+  // Priority 1034: /ceramic-cache/stamps/bulk DELETE - Python only
   if (targetGroups.pythonCeramicCacheBulkDelete) {
     createListenerRule({
       name: `ceramic-cache-bulk-delete-${envName}`,
       listenerArn: publicListenerArn,
-      priority: 1015,
+      priority: 1034,
       targetGroupArn: targetGroups.pythonCeramicCacheBulkDelete.arn,
       conditions: [
         pathCondition("/ceramic-cache/stamps/bulk"),
@@ -212,12 +212,12 @@ export function configureAllRouting(args: {
     });
   }
 
-  // Priority 1016: /passport/analysis/{address} - Python only
+  // Priority 1035: /passport/analysis/{address} - Python only
   if (targetGroups.pythonPassportAnalysis) {
     createListenerRule({
       name: `passport-analysis-${envName}`,
       listenerArn: publicListenerArn,
-      priority: 1016,
+      priority: 1035,
       targetGroupArn: targetGroups.pythonPassportAnalysis.arn,
       conditions: [
         pathCondition("/passport/analysis/*"),
@@ -226,13 +226,13 @@ export function configureAllRouting(args: {
     });
   }
 
-  // Priority 1017: /ceramic-cache/score/* GET - DUAL IMPLEMENTATION (when Rust implements it)
+  // Priority 1036: /ceramic-cache/score/* GET - DUAL IMPLEMENTATION (when Rust implements it)
   if (targetGroups.pythonCeramicCacheScoreGet) {
     // For now, Python only - update when Rust implements ceramic cache endpoints
     createListenerRule({
       name: `ceramic-cache-score-get-${envName}`,
       listenerArn: publicListenerArn,
-      priority: 1017,
+      priority: 1036,
       targetGroupArn: targetGroups.pythonCeramicCacheScoreGet.arn,
       conditions: [
         pathCondition("/ceramic-cache/score/*"),
@@ -241,12 +241,12 @@ export function configureAllRouting(args: {
     });
   }
 
-  // Priority 1018: /ceramic-cache/weights GET - Python only (v1 API)
+  // Priority 1037: /ceramic-cache/weights GET - Python only (v1 API)
   if (targetGroups.pythonCeramicCacheWeights) {
     createListenerRule({
       name: `ceramic-cache-weights-${envName}`,
       listenerArn: publicListenerArn,
-      priority: 1018,
+      priority: 1037,
       targetGroupArn: targetGroups.pythonCeramicCacheWeights.arn,
       conditions: [
         pathCondition("/ceramic-cache/weights"),
@@ -255,12 +255,12 @@ export function configureAllRouting(args: {
     });
   }
 
-  // Priority 1019: /ceramic-cache/stamp GET - Python only (v1 API)
+  // Priority 1038: /ceramic-cache/stamp GET - Python only (v1 API)
   if (targetGroups.pythonCeramicCacheStamp) {
     createListenerRule({
       name: `ceramic-cache-stamp-${envName}`,
       listenerArn: publicListenerArn,
-      priority: 1019,
+      priority: 1038,
       targetGroupArn: targetGroups.pythonCeramicCacheStamp.arn,
       conditions: [
         pathCondition("/ceramic-cache/stamp"),
@@ -269,12 +269,12 @@ export function configureAllRouting(args: {
     });
   }
 
-  // Priority 1020: Generic registry fallback - Python only
+  // Priority 1039: Generic registry fallback - Python only
   if (targetGroups.pythonRegistry) {
     createListenerRule({
       name: `registry-fallback-${envName}`,
       listenerArn: publicListenerArn,
-      priority: 1020,
+      priority: 1039,
       targetGroupArn: targetGroups.pythonRegistry.arn,
       conditions: [
         pathCondition("/*"),
