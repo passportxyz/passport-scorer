@@ -13,15 +13,44 @@ Implemented percentage-based load balancing for Rust scorer to replace header-ba
 
 ### Implementation Details
 
-- Added `getRoutingPercentages()` function in rust-scorer.ts for environment-based percentages
+- Object-based lookup instead of switch: `rustPercentages[environment] || 0`
 - Updated all listener rules to use weighted target groups with forward.targetGroups array
 - Python target groups looked up by well-known names:
   - l-passport-v2-stamp-score
+  - l-cc-v1-st-bulk-POST-0 (ceramic cache stamps bulk POST)
+  - l-cc-v1-score-POST-0 (ceramic cache score POST)
   - embed-st-lambda-target-group
   - embed-rl-lambda-target-group
   - embed-gs-lambda-target-group
-- Ceramic cache endpoints (Rust-only) conditionally created when routingPercentages.rust > 0
+- Ceramic cache endpoints DO exist in Python (api/ceramic_cache/api/v1.py)
+- Using existing Python priorities to replace Python rules (not creating new rules)
+- ceramic-cache/score uses POST method, not GET
+- All weighted rules have session stickiness (1 hour)
 - Separate target group for internal ALB (l-passport-v2-rust-scorer-int) since AWS doesn't allow same target group on multiple ALBs
+
+### Listener Rule Priorities
+
+Listener rules using existing Python priorities to replace them:
+1. V2 stamps score (GET /v2/stamps/*/score/*): priority 2023, target: l-passport-v2-stamp-score
+2. Ceramic-cache stamps bulk (POST): priority 1002, target: l-cc-v1-st-bulk-POST-0
+3. Ceramic-cache score (POST): priority 1001, target: l-cc-v1-score-POST-0
+4. Embed stamps (POST /internal/embed/stamps/*): priority 2100, target: embed-st-lambda-target-group
+5. Embed validate-api-key (GET): priority 2101, target: embed-rl-lambda-target-group
+6. Embed score (GET): priority 2103, target: embed-gs-lambda-target-group
+
+### Implementation Challenges
+
+**Critical Blocker Resolved**: AWS ALB doesn't allow two listener rules with the same priority. The initial implementation tried to create rules at the same priorities as existing Python rules, which would cause AWS errors.
+
+**Solution Applied**: Refactored Lambda creation functions (buildHttpLambdaFn and createEmbedLambdaGeneric) to optionally skip listener rule creation, allowing manual creation of ONE set of weighted rules for dual-implementation endpoints instead of having conflicting rules.
+
+8 endpoints need weighted routing for gradual migration:
+- /v2/stamps/*/score/* (GET)
+- /ceramic-cache/stamps/bulk (POST, PATCH, DELETE)
+- /ceramic-cache/score/* (POST)
+- /internal/embed/stamps/* (POST)
+- /internal/embed/validate-api-key (GET)
+- /internal/embed/score/*/* (GET)
 
 ## Gradual Rollout Process
 
