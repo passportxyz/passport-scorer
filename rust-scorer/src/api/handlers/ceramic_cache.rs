@@ -16,16 +16,6 @@ use crate::db::ceramic_cache::{
 };
 use crate::models::v2_api::{CacheStampPayload, GetStampsWithInternalV2ScoreResponse, GetStampResponse, InternalV2ScoreResponse};
 
-/// Check if the request should use Rust scorer based on header
-/// Returns true if X-Use-Rust-Scorer header is present and equals "true"
-fn should_use_rust(headers: &HeaderMap) -> bool {
-    headers
-        .get("X-Use-Rust-Scorer")
-        .and_then(|v| v.to_str().ok())
-        .map(|v| v == "true")
-        .unwrap_or(false)
-}
-
 /// Get CERAMIC_CACHE_SCORER_ID from environment with fallback to 335
 fn get_ceramic_cache_scorer_id() -> Result<i64, ApiError> {
     std::env::var("CERAMIC_CACHE_SCORER_ID")
@@ -37,13 +27,11 @@ fn get_ceramic_cache_scorer_id() -> Result<i64, ApiError> {
 /// POST /ceramic-cache/stamps/bulk
 /// Adds stamps to ceramic cache and returns updated score with human points
 /// Authentication: JWT token with DID claim
-/// Routing: Requires X-Use-Rust-Scorer: true header
 #[tracing::instrument(
     skip(pool, headers, payload),
     fields(
         endpoint = "ceramic_cache_stamps_bulk",
-        stamp_count = payload.len(),
-        has_rust_header = should_use_rust(&headers)
+        stamp_count = payload.len()
     )
 )]
 pub async fn ceramic_cache_add_stamps(
@@ -52,14 +40,6 @@ pub async fn ceramic_cache_add_stamps(
     Json(payload): Json<Vec<CacheStampPayload>>,
 ) -> ApiResult<(StatusCode, Json<GetStampsWithInternalV2ScoreResponse>)> {
     info!("Processing ceramic-cache add stamps request");
-
-    // Check for Rust routing header
-    if !should_use_rust(&headers) {
-        tracing::debug!("X-Use-Rust-Scorer header not set, returning 404 to fall back to Python");
-        return Err(ApiError::NotFound(
-            "Rust scorer not enabled for this request".to_string(),
-        ));
-    }
 
     // Extract and validate JWT token
     let auth_header = headers.get("Authorization").and_then(|h| h.to_str().ok());
@@ -148,14 +128,12 @@ pub async fn ceramic_cache_add_stamps(
 /// GET /ceramic-cache/score/{address}
 /// Gets current score with human points for an address
 /// Authentication: JWT token with DID claim
-/// Routing: Requires X-Use-Rust-Scorer: true header
 /// Returns: Just the score (InternalV2ScoreResponse), not stamps array
 #[tracing::instrument(
     skip(pool, headers),
     fields(
         endpoint = "ceramic_cache_get_score",
-        address = %address,
-        has_rust_header = should_use_rust(&headers)
+        address = %address
     )
 )]
 pub async fn ceramic_cache_get_score(
@@ -164,14 +142,6 @@ pub async fn ceramic_cache_get_score(
     headers: HeaderMap,
 ) -> ApiResult<Json<InternalV2ScoreResponse>> {
     info!("Processing ceramic-cache get score request");
-
-    // Check for Rust routing header
-    if !should_use_rust(&headers) {
-        tracing::debug!("X-Use-Rust-Scorer header not set, returning 404 to fall back to Python");
-        return Err(ApiError::NotFound(
-            "Rust scorer not enabled for this request".to_string(),
-        ));
-    }
 
     // Extract and validate JWT token
     let auth_header = headers.get("Authorization").and_then(|h| h.to_str().ok());
@@ -216,7 +186,6 @@ pub async fn ceramic_cache_get_score(
 /// PATCH /ceramic-cache/stamps/bulk
 /// Updates stamps in ceramic cache (soft delete + recreate) and returns updated score with human points
 /// Authentication: JWT token with DID claim
-/// Routing: Requires X-Use-Rust-Scorer: true header
 ///
 /// Logic: Soft deletes all providers in payload, then recreates only those with stamp field present
 /// Returns: 200 OK with stamps and score
@@ -224,8 +193,7 @@ pub async fn ceramic_cache_get_score(
     skip(pool, headers, payload),
     fields(
         endpoint = "ceramic_cache_patch_stamps",
-        stamp_count = payload.len(),
-        has_rust_header = should_use_rust(&headers)
+        stamp_count = payload.len()
     )
 )]
 pub async fn ceramic_cache_patch_stamps(
@@ -234,14 +202,6 @@ pub async fn ceramic_cache_patch_stamps(
     Json(payload): Json<Vec<CacheStampPayload>>,
 ) -> ApiResult<Json<GetStampsWithInternalV2ScoreResponse>> {
     info!("Processing ceramic-cache patch stamps request");
-
-    // Check for Rust routing header
-    if !should_use_rust(&headers) {
-        tracing::debug!("X-Use-Rust-Scorer header not set, returning 404 to fall back to Python");
-        return Err(ApiError::NotFound(
-            "Rust scorer not enabled for this request".to_string(),
-        ));
-    }
 
     // Extract and validate JWT token
     let auth_header = headers.get("Authorization").and_then(|h| h.to_str().ok());
@@ -327,7 +287,6 @@ pub async fn ceramic_cache_patch_stamps(
 /// DELETE /ceramic-cache/stamps/bulk
 /// Deletes stamps from ceramic cache (soft delete only) and returns remaining stamps (no score)
 /// Authentication: JWT token with DID claim
-/// Routing: Requires X-Use-Rust-Scorer: true header
 ///
 /// Logic: Soft deletes all providers in payload, does not recreate any stamps
 /// Returns: 200 OK with remaining stamps (NOTE: Python schema says GetStampResponse which doesn't include score!)
@@ -335,8 +294,7 @@ pub async fn ceramic_cache_patch_stamps(
     skip(pool, headers, payload),
     fields(
         endpoint = "ceramic_cache_delete_stamps",
-        stamp_count = payload.len(),
-        has_rust_header = should_use_rust(&headers)
+        stamp_count = payload.len()
     )
 )]
 pub async fn ceramic_cache_delete_stamps(
@@ -345,14 +303,6 @@ pub async fn ceramic_cache_delete_stamps(
     Json(payload): Json<Vec<CacheStampPayload>>,
 ) -> ApiResult<Json<GetStampResponse>> {
     info!("Processing ceramic-cache delete stamps request");
-
-    // Check for Rust routing header
-    if !should_use_rust(&headers) {
-        tracing::debug!("X-Use-Rust-Scorer header not set, returning 404 to fall back to Python");
-        return Err(ApiError::NotFound(
-            "Rust scorer not enabled for this request".to_string(),
-        ));
-    }
 
     // Extract and validate JWT token
     let auth_header = headers.get("Authorization").and_then(|h| h.to_str().ok());
@@ -406,33 +356,6 @@ pub async fn ceramic_cache_delete_stamps(
 mod tests {
     use super::*;
     use axum::http::HeaderValue;
-
-    #[test]
-    fn test_should_use_rust_true() {
-        let mut headers = HeaderMap::new();
-        headers.insert("X-Use-Rust-Scorer", HeaderValue::from_static("true"));
-        assert!(should_use_rust(&headers));
-    }
-
-    #[test]
-    fn test_should_use_rust_false() {
-        let mut headers = HeaderMap::new();
-        headers.insert("X-Use-Rust-Scorer", HeaderValue::from_static("false"));
-        assert!(!should_use_rust(&headers));
-    }
-
-    #[test]
-    fn test_should_use_rust_missing() {
-        let headers = HeaderMap::new();
-        assert!(!should_use_rust(&headers));
-    }
-
-    #[test]
-    fn test_should_use_rust_invalid_value() {
-        let mut headers = HeaderMap::new();
-        headers.insert("X-Use-Rust-Scorer", HeaderValue::from_static("invalid"));
-        assert!(!should_use_rust(&headers));
-    }
 
     // Note: Environment variable tests are not included here because set_var/remove_var
     // affect the global process environment and can't be safely tested in parallel.
