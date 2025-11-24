@@ -3,27 +3,10 @@ import * as aws from "@pulumi/aws";
 import { buildHttpLambdaFn } from "../../lib/scorer/new_service";
 import { secretsManager } from "infra-libs";
 import { stack, defaultTags } from "../../lib/tags";
+import { getRoutingPercentages } from "../../lib/scorer/routing-utils";
 
 // Get current AWS region for OTEL Lambda layer ARN
 const regionData = aws.getRegion({});
-
-// Environment-based routing percentages
-const getRoutingPercentages = (environment: string): { rust: number; python: number } => {
-  // Define Rust percentage per environment (Python = 100 - rust)
-  const rustPercentages: { [key: string]: number } = {
-    // TODO: Restore staging to 100% after validating Python works correctly with the new routing config
-    staging: 0,       // Temporarily 0% to Rust in staging for Python validation
-    review: 100,      // 100% to Rust in review
-    production: 0,    // 0% to Rust in production (safe default)
-  };
-
-  const rustPercentage = rustPercentages[environment] || 0;  // Default to 0% Rust for safety
-
-  return {
-    rust: rustPercentage,
-    python: 100 - rustPercentage
-  };
-};
 
 export function createRustScorerLambda({
   httpsListener,
