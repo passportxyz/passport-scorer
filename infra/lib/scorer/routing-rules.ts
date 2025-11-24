@@ -206,24 +206,30 @@ export function configureAllRouting(args: {
     ],
   });
 
-  // Priority 1037: /ceramic-cache/weights GET - Python only (v1 API)
-  createListenerRule({
+  // Priority 1037: /ceramic-cache/weights GET - DUAL IMPLEMENTATION
+  createWeightedListenerRule({
     name: `ceramic-cache-weights-${envName}`,
     listenerArn: publicListenerArn,
     priority: 1037,
-    targetGroupArn: targetGroups.pythonCeramicCacheWeights.arn,
+    targetGroups: [
+      { arn: targetGroups.pythonCeramicCacheWeights.arn, weight: routingPercentages.python },
+      { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
+    ],
     conditions: [
       pathCondition("/ceramic-cache/weights"),
       methodCondition("GET"),
     ],
   });
 
-  // Priority 1038: /ceramic-cache/stamp GET - Python only (v1 API)
-  createListenerRule({
+  // Priority 1038: /ceramic-cache/stamp GET - DUAL IMPLEMENTATION
+  createWeightedListenerRule({
     name: `ceramic-cache-stamp-${envName}`,
     listenerArn: publicListenerArn,
     priority: 1038,
-    targetGroupArn: targetGroups.pythonCeramicCacheStamp.arn,
+    targetGroups: [
+      { arn: targetGroups.pythonCeramicCacheStamp.arn, weight: routingPercentages.python },
+      { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
+    ],
     conditions: [
       pathCondition("/ceramic-cache/stamp"),
       methodCondition("GET"),
