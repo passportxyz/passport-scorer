@@ -149,13 +149,6 @@ export function getRoutingPercentages(stack: string): { rust: number; python: nu
   return { rust: 0, python: 100 };
 }
 
-/**
- * Check if Rust is enabled for the current stack
- */
-export function isRustEnabled(stack: string): boolean {
-  const percentages = getRoutingPercentages(stack);
-  return percentages.rust > 0;
-}
 
 /**
  * Helper to create path pattern conditions

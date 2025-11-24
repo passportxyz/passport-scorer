@@ -75,9 +75,10 @@ export const verifierDockerImage = pulumi
 // Rust scorer Lambda zip archive
 import * as fs from "fs";
 const rustScorerZipPath = "../../rust-scorer-artifact/bootstrap.zip";
-const rustScorerZipArchive = fs.existsSync(rustScorerZipPath)
-  ? new pulumi.asset.FileArchive(rustScorerZipPath)
-  : undefined;
+if (!fs.existsSync(rustScorerZipPath)) {
+  throw new Error(`Rust scorer zip not found at ${rustScorerZipPath}. Run 'cd rust-scorer && ./build-lambda.sh' first.`);
+}
+const rustScorerZipArchive = new pulumi.asset.FileArchive(rustScorerZipPath);
 
 const pagerDutyIntegrationEndpoint = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`

@@ -219,26 +219,22 @@ export function createV2Api({
     ],
   });
 
-  // Deploy Rust scorer Lambda if zip archive is provided
-  let rustScorerTargetGroups = {};
-  if (rustScorerZipArchive) {
-    const rustScorerResult = createRustScorerLambda({
-      httpsListener,
-      rustScorerZipArchive,
-      privateSubnetSecurityGroup,
-      vpcPrivateSubnetIds,
-      scorerSecret,
-      pagerdutyTopic,
-      httpRoleAttachments,
-      httpLambdaRole,
-      alb,
-      alarmConfigurations,
-      internalHttpsListener,
-    });
+  // Deploy Rust scorer Lambda (always required now)
+  const rustScorerResult = createRustScorerLambda({
+    httpsListener,
+    rustScorerZipArchive,
+    privateSubnetSecurityGroup,
+    vpcPrivateSubnetIds,
+    scorerSecret,
+    pagerdutyTopic,
+    httpRoleAttachments,
+    httpLambdaRole,
+    alb,
+    alarmConfigurations,
+    internalHttpsListener,
+  });
 
-    // Include Rust scorer target groups if created
-    rustScorerTargetGroups = rustScorerResult.targetGroups;
-  }
+  const rustScorerTargetGroups = rustScorerResult.targetGroups;
 
   // Return target groups for centralized routing
   return {
