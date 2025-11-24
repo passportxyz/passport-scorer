@@ -11,7 +11,8 @@ const regionData = aws.getRegion({});
 const getRoutingPercentages = (environment: string): { rust: number; python: number } => {
   // Define Rust percentage per environment (Python = 100 - rust)
   const rustPercentages: { [key: string]: number } = {
-    staging: 100,     // 100% to Rust in staging
+    // TODO: Restore staging to 100% after validating Python works correctly with the new routing config
+    staging: 0,       // Temporarily 0% to Rust in staging for Python validation
     review: 100,      // 100% to Rust in review
     production: 0,    // 0% to Rust in production (safe default)
   };
