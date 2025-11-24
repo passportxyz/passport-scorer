@@ -9,7 +9,6 @@ use tracing::info;
 use crate::api::error::{ApiError, ApiResult};
 use crate::api::utils::is_valid_eth_address;
 use crate::domain;
-use crate::domain::DomainError;
 use crate::auth::jwt::{extract_jwt_from_header, validate_jwt_and_extract_address};
 use crate::db::ceramic_cache::{
     bulk_insert_ceramic_cache_stamps, get_stamps_from_cache,
@@ -128,13 +127,7 @@ pub async fn ceramic_cache_add_stamps(
         true, // include_human_points
     ).await;
 
-    let score = match score_result {
-        Ok(response) => response,
-        Err(DomainError::NotFound(msg)) => return Err(ApiError::NotFound(msg)),
-        Err(DomainError::Validation(msg)) => return Err(ApiError::BadRequest(msg)),
-        Err(DomainError::Database(msg)) => return Err(ApiError::Database(msg)),
-        Err(DomainError::Internal(msg)) => return Err(ApiError::Internal(msg)),
-    };
+    let score = score_result?;
 
     // 6. Get updated stamps from cache
     let cached_stamps = get_stamps_from_cache(&pool, &address).await?;
@@ -214,13 +207,7 @@ pub async fn ceramic_cache_get_score(
         true, // include_human_points
     ).await;
 
-    let score = match score_result {
-        Ok(response) => response,
-        Err(DomainError::NotFound(msg)) => return Err(ApiError::NotFound(msg)),
-        Err(DomainError::Validation(msg)) => return Err(ApiError::BadRequest(msg)),
-        Err(DomainError::Database(msg)) => return Err(ApiError::Database(msg)),
-        Err(DomainError::Internal(msg)) => return Err(ApiError::Internal(msg)),
-    };
+    let score = score_result?;
 
     // Return just the score (Python returns InternalV2ScoreResponse, not GetStampsWithInternalV2ScoreResponse)
     Ok(Json(score))
@@ -322,13 +309,7 @@ pub async fn ceramic_cache_patch_stamps(
         true, // include_human_points
     ).await;
 
-    let score = match score_result {
-        Ok(response) => response,
-        Err(DomainError::NotFound(msg)) => return Err(ApiError::NotFound(msg)),
-        Err(DomainError::Validation(msg)) => return Err(ApiError::BadRequest(msg)),
-        Err(DomainError::Database(msg)) => return Err(ApiError::Database(msg)),
-        Err(DomainError::Internal(msg)) => return Err(ApiError::Internal(msg)),
-    };
+    let score = score_result?;
 
     // 6. Get updated stamps from cache
     let cached_stamps = get_stamps_from_cache(&pool, &address).await?;

@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use tracing::info;
 
 use crate::api::error::{ApiError, ApiResult};
+use crate::api::utils::is_valid_eth_address;
 use crate::db::queries::bans::check_revocations;
 use crate::domain;
 use crate::models::v2_api::V2ScoreResponse;
@@ -47,12 +48,6 @@ pub struct RevocationCheckResponse {
     pub is_revoked: bool,
 }
 
-/// Helper function to validate Ethereum address format
-fn is_valid_eth_address(address: &str) -> bool {
-    address.len() == 42 && address.starts_with("0x") &&
-    address[2..].chars().all(|c| c.is_ascii_hexdigit())
-}
-
 /// Internal score handler - no authentication needed
 #[tracing::instrument(
     skip(pool),
@@ -76,21 +71,12 @@ pub async fn internal_score_handler(
     // 2. No authentication needed (internal ALB)
 
     // 3. Call shared domain logic (no human points for internal endpoint)
-    let result = domain::calculate_score_for_address(
+    Ok(Json(domain::calculate_score_for_address(
         &address,
         scorer_id,
         &pool,
         false, // include_human_points
-    ).await;
-
-    // 4. Transform domain result to HTTP response
-    match result {
-        Ok(response) => Ok(Json(response)),
-        Err(domain::DomainError::NotFound(msg)) => Err(ApiError::NotFound(msg)),
-        Err(domain::DomainError::Validation(msg)) => Err(ApiError::BadRequest(msg)),
-        Err(domain::DomainError::Database(msg)) => Err(ApiError::Database(msg)),
-        Err(domain::DomainError::Internal(msg)) => Err(ApiError::Internal(msg)),
-    }
+    ).await?))
 }
 
 /// Internal weights handler
@@ -107,16 +93,7 @@ pub async fn internal_weights_handler(
         .and_then(|s| s.parse::<i64>().ok());
 
     // 2. Call shared domain logic
-    let result = domain::weights::get_scorer_weights(scorer_id, &pool).await;
-
-    // 3. Transform result
-    match result {
-        Ok(weights) => Ok(Json(weights)),
-        Err(domain::DomainError::NotFound(msg)) => Err(ApiError::NotFound(msg)),
-        Err(domain::DomainError::Database(msg)) => Err(ApiError::Database(msg)),
-        Err(domain::DomainError::Internal(msg)) => Err(ApiError::Internal(msg)),
-        _ => Err(ApiError::Internal("Unexpected error".to_string())),
-    }
+    Ok(Json(domain::weights::get_scorer_weights(scorer_id, &pool).await?))
 }
 
 /// Internal ban check handler
@@ -164,19 +141,13 @@ pub async fn internal_check_bans_handler(
         .collect();
 
     // 5. Call domain logic
-    let result = domain::bans::check_credentials_for_bans(
+    Ok(Json(domain::bans::check_credentials_for_bans(
         &address,
         &credential_hashes,
         &providers,
         &pool,
     )
-    .await;
-
-    match result {
-        Ok(results) => Ok(Json(results)),
-        Err(domain::DomainError::Database(msg)) => Err(ApiError::Database(msg)),
-        _ => Err(ApiError::Internal("Failed to check bans".to_string())),
-    }
+    .await?))
 }
 
 /// Internal revocation check handler
@@ -223,13 +194,7 @@ pub async fn internal_allow_list_handler(
 ) -> ApiResult<Json<domain::allow_list::AllowListResponse>> {
     info!("Processing internal allow list check");
 
-    let result = domain::allow_list::check_allow_list_membership(&list, &address, &pool).await;
-
-    match result {
-        Ok(response) => Ok(Json(response)),
-        Err(domain::DomainError::Database(msg)) => Err(ApiError::Database(msg)),
-        _ => Err(ApiError::Internal("Unexpected error".to_string())),
-    }
+    Ok(Json(domain::allow_list::check_allow_list_membership(&list, &address, &pool).await?))
 }
 
 /// Internal credential definition handler
@@ -243,14 +208,7 @@ pub async fn internal_credential_definition_handler(
     // URL decode the provider_id
     let provider_id = provider_id.replace("%23", "#");
 
-    let result = domain::allow_list::get_credential_definition(&provider_id, &pool).await;
-
-    match result {
-        Ok(response) => Ok(Json(response)),
-        Err(domain::DomainError::NotFound(msg)) => Err(ApiError::NotFound(msg)),
-        Err(domain::DomainError::Database(msg)) => Err(ApiError::Database(msg)),
-        _ => Err(ApiError::Internal("Unexpected error".to_string())),
-    }
+    Ok(Json(domain::allow_list::get_credential_definition(&provider_id, &pool).await?))
 }
 
 /// Internal GTC stake handler
@@ -261,13 +219,7 @@ pub async fn internal_stake_gtc_handler(
 ) -> ApiResult<Json<domain::stakes::StakeResponse>> {
     info!("Processing internal GTC stake request");
 
-    let result = domain::stakes::get_gtc_stakes(&address, &pool).await;
-
-    match result {
-        Ok(response) => Ok(Json(response)),
-        Err(domain::DomainError::Database(msg)) => Err(ApiError::Database(msg)),
-        _ => Err(ApiError::Internal("Unexpected error".to_string())),
-    }
+    Ok(Json(domain::stakes::get_gtc_stakes(&address, &pool).await?))
 }
 
 /// Internal legacy GTC stake handler
@@ -278,13 +230,7 @@ pub async fn internal_legacy_stake_handler(
 ) -> ApiResult<Json<domain::stakes::GtcEventsResponse>> {
     info!("Processing internal legacy GTC stake request");
 
-    let result = domain::stakes::get_legacy_gtc_events(&address, round_id, &pool).await;
-
-    match result {
-        Ok(response) => Ok(Json(response)),
-        Err(domain::DomainError::Database(msg)) => Err(ApiError::Database(msg)),
-        _ => Err(ApiError::Internal("Unexpected error".to_string())),
-    }
+    Ok(Json(domain::stakes::get_legacy_gtc_events(&address, round_id, &pool).await?))
 }
 
 /// Internal cgrants contributor statistics handler
@@ -304,14 +250,7 @@ pub async fn internal_cgrants_statistics_handler(
         return Err(ApiError::BadRequest("Invalid address.".to_string()));
     }
 
-    let result = domain::cgrants::get_contributor_statistics(address, &pool).await;
-
-    match result {
-        Ok(stats) => Ok(Json(stats)),
-        Err(domain::DomainError::Validation(msg)) => Err(ApiError::BadRequest(msg)),
-        Err(domain::DomainError::Database(msg)) => Err(ApiError::Database(msg)),
-        _ => Err(ApiError::Internal("Unexpected error".to_string())),
-    }
+    Ok(Json(domain::cgrants::get_contributor_statistics(address, &pool).await?))
 }
 
 #[cfg(test)]

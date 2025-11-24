@@ -17,7 +17,6 @@ use crate::db::ceramic_cache::{
 use crate::models::v2_api::{
     AccountAPIKeySchema, AddStampsPayload, GetStampsWithV2ScoreResponse,
 };
-use crate::domain::DomainError;
 
 /// GET /internal/embed/validate-api-key
 /// Validates partner API key and returns rate limit configuration
@@ -128,13 +127,7 @@ pub async fn add_stamps_handler(
         false, // include_human_points
     ).await;
 
-    let score = match score_result {
-        Ok(response) => response,
-        Err(DomainError::NotFound(msg)) => return Err(ApiError::NotFound(msg)),
-        Err(DomainError::Validation(msg)) => return Err(ApiError::BadRequest(msg)),
-        Err(DomainError::Database(msg)) => return Err(ApiError::Database(msg)),
-        Err(DomainError::Internal(msg)) => return Err(ApiError::Internal(msg)),
-    };
+    let score = score_result?;
 
     // 5. Get stamps from ceramic cache
     let stamps = get_stamps_from_cache(&pool, &address).await?;
@@ -186,13 +179,7 @@ pub async fn get_embed_score_handler(
         false, // include_human_points
     ).await;
 
-    let score = match score_result {
-        Ok(response) => response,
-        Err(DomainError::NotFound(msg)) => return Err(ApiError::NotFound(msg)),
-        Err(DomainError::Validation(msg)) => return Err(ApiError::BadRequest(msg)),
-        Err(DomainError::Database(msg)) => return Err(ApiError::Database(msg)),
-        Err(DomainError::Internal(msg)) => return Err(ApiError::Internal(msg)),
-    };
+    let score = score_result?;
 
     Ok(Json(GetStampsWithV2ScoreResponse {
         success: true,

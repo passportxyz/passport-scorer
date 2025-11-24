@@ -11,15 +11,10 @@ use std::collections::HashMap;
 use tracing::info;
 
 use crate::api::error::{ApiError, ApiResult};
+use crate::api::utils::is_valid_eth_address;
 use crate::auth::api_key::ApiKeyValidator;
 use crate::domain;
 use crate::models::v2_api::V2ScoreResponse;
-
-/// Helper function to validate Ethereum address format
-fn is_valid_eth_address(address: &str) -> bool {
-    address.len() == 42 && address.starts_with("0x") &&
-    address[2..].chars().all(|c| c.is_ascii_hexdigit())
-}
 
 /// External score handler - requires API key authentication
 #[tracing::instrument(
@@ -86,20 +81,11 @@ pub async fn score_address_handler(
         .map(|v| v == "true")
         .unwrap_or(false);
 
-    // 4. Call shared domain logic
-    let result = domain::calculate_score_for_address(
+    // 4. Call shared domain logic and return
+    Ok(Json(domain::calculate_score_for_address(
         &address,
         scorer_id,
         &pool,
         include_human_points,
-    ).await;
-
-    // 5. Transform domain result to HTTP response
-    match result {
-        Ok(response) => Ok(Json(response)),
-        Err(domain::DomainError::NotFound(msg)) => Err(ApiError::NotFound(msg)),
-        Err(domain::DomainError::Validation(msg)) => Err(ApiError::BadRequest(msg)),
-        Err(domain::DomainError::Database(msg)) => Err(ApiError::Database(msg)),
-        Err(domain::DomainError::Internal(msg)) => Err(ApiError::Internal(msg)),
-    }
+    ).await?))
 }
