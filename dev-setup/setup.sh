@@ -137,10 +137,14 @@ BEGIN
     END IF;
 END
 \$\$;
+EOF
 
-SELECT 'CREATE DATABASE ${DB_NAME} OWNER ${DB_USER}'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\\gexec;
+# Create database if it doesn't exist (separately for better compatibility)
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '${DB_NAME}'" | grep -q 1 || \
+    sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};"
 
+# Grant privileges
+sudo -u postgres psql <<EOF 2>/dev/null || true
 GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};
 ALTER USER ${DB_USER} CREATEDB;
 EOF
