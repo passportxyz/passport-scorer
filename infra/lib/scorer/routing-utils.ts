@@ -4,43 +4,6 @@ import { AlarmConfigurations, TargetGroupAlarmsConfiguration } from "./loadBalan
 import { defaultTags } from "../tags";
 
 /**
- * Helper function to create a Lambda function without any ALB integration
- * This is the "pure" Lambda creation, extracted from buildHttpLambdaFn
- */
-export function createLambdaFunction(args: {
-  name: string;
-  dockerImage: pulumi.Input<string>;
-  dockerCommand?: pulumi.Input<string[]>;
-  environment?: pulumi.Input<{ [key: string]: pulumi.Input<string> }>;
-  memorySize?: number;
-  timeout?: number;
-  roleArn: pulumi.Input<string>;
-  securityGroupIds: pulumi.Input<string>[];
-  subnetIds: pulumi.Input<string[]> | pulumi.Output<any>; // Accept both formats
-  architectures?: string[];
-  ephemeralStorageSize?: number;
-  tracingConfig?: aws.types.input.lambda.FunctionTracingConfig;
-}): aws.lambda.Function {
-  return new aws.lambda.Function(args.name, {
-    packageType: "Image",
-    imageUri: args.dockerImage,
-    imageConfig: args.dockerCommand ? { commands: args.dockerCommand } : undefined,
-    role: args.roleArn,
-    timeout: args.timeout || 60,
-    memorySize: args.memorySize || 512,
-    architectures: args.architectures || ["x86_64"],
-    environment: args.environment ? { variables: args.environment } : undefined,
-    vpcConfig: {
-      securityGroupIds: args.securityGroupIds,
-      subnetIds: args.subnetIds,
-    },
-    ephemeralStorage: args.ephemeralStorageSize ? { size: args.ephemeralStorageSize } : undefined,
-    tracingConfig: args.tracingConfig,
-    publish: false,
-  });
-}
-
-/**
  * Create a target group for a Lambda function and attach it
  * This handles the permission grant and attachment
  */

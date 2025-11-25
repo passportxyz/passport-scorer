@@ -2,10 +2,10 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as archive from "@pulumi/archive";
 
-import { createLambdaFunction, createLambdaTargetGroup } from "../../lib/scorer/routing-utils";
+import { createLambdaTargetGroup } from "../../lib/scorer/routing-utils";
 import { secretsManager } from "infra-libs";
 import { defaultTags, stack } from "../../lib/tags";
-import { createLambdaFunction as createLambdaFunctionOld } from "../../lib/lambda";
+import { createLambdaFunction } from "../../lib/lambda";
 
 export function createAppApiLambdaFunctions(config: {
   snsAlertsTopicArn: pulumi.Input<string>;
@@ -55,12 +55,9 @@ export function createAppApiLambdaFunctions(config: {
     excludes: ["**/__pycache__"],
   });
 
-  // We need to use the old createLambdaFunction for now since the new one doesn't support zip files
-  // This is a temporary workaround - these should eventually be migrated to Docker containers
-
   // Account Nonce Lambda
   const ccNonceLambdaName = "cc-nonce-lambda";
-  const { lambdaFunction: ccNonceLambda } = createLambdaFunctionOld(
+  const { lambdaFunction: ccNonceLambda } = createLambdaFunction(
     [config.scorerSecret.arn],
     config.vpcId,
     config.vpcPrivateSubnetIds,
@@ -98,7 +95,7 @@ export function createAppApiLambdaFunctions(config: {
 
   // Authenticate Lambda
   const ccAuthLambdaName = "cc-auth-lambda";
-  const { lambdaFunction: ccAuthLambda } = createLambdaFunctionOld(
+  const { lambdaFunction: ccAuthLambda } = createLambdaFunction(
     [config.scorerSecret.arn],
     config.vpcId,
     config.vpcPrivateSubnetIds,

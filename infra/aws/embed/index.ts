@@ -2,10 +2,10 @@ import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as archive from "@pulumi/archive";
 
-import { createLambdaFunction, createLambdaTargetGroup } from "../../lib/scorer/routing-utils";
+import { createLambdaTargetGroup } from "../../lib/scorer/routing-utils";
 import { secretsManager } from "infra-libs";
 import { defaultTags, stack } from "../../lib/tags";
-import { createLambdaFunction as createLambdaFunctionOld } from "../../lib/lambda";
+import { createLambdaFunction } from "../../lib/lambda";
 
 export function createEmbedLambdaFunctions(config: {
   snsAlertsTopicArn: pulumi.Input<string>;
@@ -55,12 +55,9 @@ export function createEmbedLambdaFunctions(config: {
     excludes: ["**/__pycache__"],
   });
 
-  // We need to use the old createLambdaFunction for now since the new one doesn't support zip files
-  // This is a temporary workaround - these should eventually be migrated to Docker containers
-
   // Embed Save Stamps Lambda
   const embedStLambdaName = "embed-st-lambda";
-  const { lambdaFunction: embedStLambda } = createLambdaFunctionOld(
+  const { lambdaFunction: embedStLambda } = createLambdaFunction(
     [config.scorerSecret.arn],
     config.vpcId,
     config.vpcPrivateSubnetIds,
@@ -98,7 +95,7 @@ export function createEmbedLambdaFunctions(config: {
 
   // Embed Rate Limit Lambda
   const embedRlLambdaName = "embed-rl-lambda";
-  const { lambdaFunction: embedRlLambda } = createLambdaFunctionOld(
+  const { lambdaFunction: embedRlLambda } = createLambdaFunction(
     [config.scorerSecret.arn],
     config.vpcId,
     config.vpcPrivateSubnetIds,
@@ -136,7 +133,7 @@ export function createEmbedLambdaFunctions(config: {
 
   // Embed Get Score Lambda
   const embedGsLambdaName = "embed-gs-lambda";
-  const { lambdaFunction: embedGsLambda } = createLambdaFunctionOld(
+  const { lambdaFunction: embedGsLambda } = createLambdaFunction(
     [config.scorerSecret.arn],
     config.vpcId,
     config.vpcPrivateSubnetIds,

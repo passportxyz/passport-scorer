@@ -6,7 +6,8 @@ import { stack, defaultTags } from "../../lib/tags";
 import { secretsManager } from "infra-libs";
 import { AlarmConfigurations } from "../../lib/scorer/loadBalancer";
 import { createRustScorerLambda } from "./rust-scorer";
-import { createLambdaFunction, createLambdaTargetGroup } from "../../lib/scorer/routing-utils";
+import { createLambdaTargetGroup } from "../../lib/scorer/routing-utils";
+import { createDockerLambdaFunction } from "../../lib/lambda";
 
 /// This function will create the infra for the V2 API
 /// For now this will:
@@ -87,7 +88,7 @@ export function createV2Api({
   };
 
   // Create V2 Model Score Lambda and target group (Python only)
-  const v2ModelScoreLambda = createLambdaFunction({
+  const v2ModelScoreLambda = createDockerLambdaFunction({
     name: "passport-v2-model-score",
     dockerImage: dockerLambdaImage,
     dockerCommand: ["v2.aws_lambdas.models_score_GET.handler"],
@@ -112,7 +113,7 @@ export function createV2Api({
   });
 
   // Create V2 Stamp Score Lambda and target group (DUAL - Python/Rust)
-  const v2StampScoreLambda = createLambdaFunction({
+  const v2StampScoreLambda = createDockerLambdaFunction({
     name: "passport-v2-stamp-score",
     dockerImage: dockerLambdaImage,
     dockerCommand: ["v2.aws_lambdas.stamp_score_GET.handler"],

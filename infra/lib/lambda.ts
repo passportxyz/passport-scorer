@@ -3,9 +3,45 @@ import * as pulumi from "@pulumi/pulumi";
 import { defaultTags } from "./tags";
 import { FunctionArgs } from "@pulumi/aws/lambda";
 
-//////////////////////////////////////////////////////////////
-// Create a Lambda function
-//////////////////////////////////////////////////////////////
+/**
+ * Create a Docker-based Lambda function (minimal - just the Lambda itself)
+ */
+export function createDockerLambdaFunction(args: {
+  name: string;
+  dockerImage: pulumi.Input<string>;
+  dockerCommand?: pulumi.Input<string[]>;
+  environment?: pulumi.Input<{ [key: string]: pulumi.Input<string> }>;
+  memorySize?: number;
+  timeout?: number;
+  roleArn: pulumi.Input<string>;
+  securityGroupIds: pulumi.Input<string>[];
+  subnetIds: pulumi.Input<string[]> | pulumi.Output<any>;
+  architectures?: string[];
+  ephemeralStorageSize?: number;
+  tracingConfig?: aws.types.input.lambda.FunctionTracingConfig;
+}): aws.lambda.Function {
+  return new aws.lambda.Function(args.name, {
+    packageType: "Image",
+    imageUri: args.dockerImage,
+    imageConfig: args.dockerCommand ? { commands: args.dockerCommand } : undefined,
+    role: args.roleArn,
+    timeout: args.timeout || 60,
+    memorySize: args.memorySize || 512,
+    architectures: args.architectures || ["x86_64"],
+    environment: args.environment ? { variables: args.environment } : undefined,
+    vpcConfig: {
+      securityGroupIds: args.securityGroupIds,
+      subnetIds: args.subnetIds,
+    },
+    ephemeralStorage: args.ephemeralStorageSize ? { size: args.ephemeralStorageSize } : undefined,
+    tracingConfig: args.tracingConfig,
+    publish: false,
+  });
+}
+
+/**
+ * Create a Lambda function with IAM role, security group, log group, and function URL
+ */
 export function createLambdaFunction(
   secretManagerArns: pulumi.Output<string>[],
   vpcId: pulumi.Input<string>,

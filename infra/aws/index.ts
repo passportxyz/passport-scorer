@@ -13,7 +13,8 @@ import {
   createRescoreQueue,
   buildQueueLambdaFn,
 } from "../lib/scorer/new_service";
-import { createLambdaFunction, createLambdaTargetGroup } from "../lib/scorer/routing-utils";
+import { createLambdaTargetGroup } from "../lib/scorer/routing-utils";
+import { createDockerLambdaFunction } from "../lib/lambda";
 import { configureAllRouting } from "../lib/scorer/routing-rules";
 import {
   AlarmConfigurations,
@@ -1283,7 +1284,7 @@ const vpcId = pulumi.output(aws.ec2.getVpc({ default: true })).apply((vpc) => vp
 // Manage Lambda services - Refactored to new pattern
 
 // Submit Passport Lambda
-const submitPassportLambda = createLambdaFunction({
+const submitPassportLambda = createDockerLambdaFunction({
   name: "submit-passport-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.submit_passport.submit_passport.handler"],
@@ -1308,7 +1309,7 @@ const submitPassportTargetGroup = createLambdaTargetGroup({
 });
 
 // Ceramic Cache Stamps Bulk POST Lambda
-const ccStampsBulkPostLambda = createLambdaFunction({
+const ccStampsBulkPostLambda = createDockerLambdaFunction({
   name: "cc-v1-st-bulk-POST-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_POST.handler"],
@@ -1333,7 +1334,7 @@ const ccStampsBulkPostTargetGroup = createLambdaTargetGroup({
 });
 
 // Ceramic Cache Stamps Bulk PATCH Lambda
-const ccStampsBulkPatchLambda = createLambdaFunction({
+const ccStampsBulkPatchLambda = createDockerLambdaFunction({
   name: "cc-v1-st-bulk-PATCH-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_PATCH.handler"],
@@ -1358,7 +1359,7 @@ const ccStampsBulkPatchTargetGroup = createLambdaTargetGroup({
 });
 
 // Ceramic Cache Stamps Bulk DELETE Lambda
-const ccStampsBulkDeleteLambda = createLambdaFunction({
+const ccStampsBulkDeleteLambda = createDockerLambdaFunction({
   name: "cc-v1-st-bulk-DELETE-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.stamps.bulk_DELETE.handler"],
@@ -1383,7 +1384,7 @@ const ccStampsBulkDeleteTargetGroup = createLambdaTargetGroup({
 });
 
 // Ceramic Cache Score POST Lambda
-const ccScorePostLambda = createLambdaFunction({
+const ccScorePostLambda = createDockerLambdaFunction({
   name: "cc-v1-score-POST-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.score_POST.handler"],
@@ -1408,7 +1409,7 @@ const ccScorePostTargetGroup = createLambdaTargetGroup({
 });
 
 // Ceramic Cache Score GET Lambda
-const ccScoreGetLambda = createLambdaFunction({
+const ccScoreGetLambda = createDockerLambdaFunction({
   name: "cc-v1-score-GET-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.score_GET.handler"],
@@ -1433,7 +1434,7 @@ const ccScoreGetTargetGroup = createLambdaTargetGroup({
 });
 
 // Ceramic Cache Weights GET Lambda
-const ccWeightsGetLambda = createLambdaFunction({
+const ccWeightsGetLambda = createDockerLambdaFunction({
   name: "cc-weights-GET-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.weights_GET.handler"],
@@ -1458,7 +1459,7 @@ const ccWeightsGetTargetGroup = createLambdaTargetGroup({
 });
 
 // Ceramic Cache Stamp GET Lambda
-const ccStampGetLambda = createLambdaFunction({
+const ccStampGetLambda = createDockerLambdaFunction({
   name: "cc-v1-st-GET-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.scorer_api_passport.v1.stamp_GET.handler"],
@@ -1483,7 +1484,7 @@ const ccStampGetTargetGroup = createLambdaTargetGroup({
 });
 
 // Passport Analysis GET Lambda
-const passportAnalysisLambda = createLambdaFunction({
+const passportAnalysisLambda = createDockerLambdaFunction({
   name: "passport-analysis-GET-0",
   dockerImage: dockerGtcSubmitPassportLambdaImage,
   dockerCommand: ["aws_lambdas.passport.analysis_GET.handler"],
