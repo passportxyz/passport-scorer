@@ -76,7 +76,9 @@ export const verifierDockerImage = pulumi
 import * as fs from "fs";
 const rustScorerZipPath = "../../rust-scorer-artifact/bootstrap.zip";
 if (!fs.existsSync(rustScorerZipPath)) {
-  throw new Error(`Rust scorer zip not found at ${rustScorerZipPath}. Run 'cd rust-scorer && ./build-lambda.sh' first.`);
+  throw new Error(
+    `Rust scorer zip not found at ${rustScorerZipPath}. Run 'cd rust-scorer && ./build-lambda.sh' first.`
+  );
 }
 const rustScorerZipArchive = new pulumi.asset.FileArchive(rustScorerZipPath);
 
@@ -1619,9 +1621,9 @@ if (stack === "production") {
 if (!privateAlbHttpListenerArn) {
   throw new Error("Internal ALB listener is required (privateAlbHttpListenerArn must be set)");
 }
-const internalHttpsListener = pulumi.output(privateAlbHttpListenerArn).apply(
-  (arn) => aws.lb.Listener.get("internal-alb-listener", arn)
-);
+const internalHttpsListener = pulumi
+  .output(privateAlbHttpListenerArn)
+  .apply((arn) => aws.lb.Listener.get("internal-alb-listener", arn));
 
 const v2ApiResult = createV2Api({
   httpsListener,

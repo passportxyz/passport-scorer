@@ -241,7 +241,7 @@ export function createV2Api({
     targetGroups: {
       pythonV2StampScore: v2StampScoreTargetGroup,
       pythonV2ModelScore: v2ModelScoreTargetGroup,
-      ...rustScorerTargetGroups,  // Include Rust scorer target groups
+      ...rustScorerTargetGroups, // Include Rust scorer target groups
     },
   };
 }

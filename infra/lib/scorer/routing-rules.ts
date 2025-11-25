@@ -68,10 +68,8 @@ export function configureAllRouting(args: {
   const routingPercentages = getRoutingPercentages(stack);
 
   // Extract listener ARNs (handle both direct Listener and Output<Listener>)
-  const publicListenerArn = pulumi.output(publicListener).apply(l => l.arn);
-  const internalListenerArn = internalListener
-    ? pulumi.output(internalListener).apply(l => l.arn)
-    : undefined;
+  const publicListenerArn = pulumi.output(publicListener).apply((l) => l.arn);
+  const internalListenerArn = internalListener ? pulumi.output(internalListener).apply((l) => l.arn) : undefined;
 
   // =============================================================
   // V2 API ENDPOINTS (Priority 2110-2112)
@@ -84,10 +82,7 @@ export function configureAllRouting(args: {
     listenerArn: publicListenerArn,
     priority: 2110,
     targetGroupArn: targetGroups.pythonV2ModelScore.arn,
-    conditions: [
-      pathCondition("/v2/models/score/*"),
-      methodCondition("GET"),
-    ],
+    conditions: [pathCondition("/v2/models/score/*"), methodCondition("GET")],
   });
 
   // Priority 2112: /v2/stamps/{scorer_id}/score/{address} - DUAL IMPLEMENTATION
@@ -99,10 +94,7 @@ export function configureAllRouting(args: {
       { arn: targetGroups.pythonV2StampScore.arn, weight: routingPercentages.python },
       { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
     ],
-    conditions: [
-      pathCondition("/v2/stamps/*/score/*"),
-      methodCondition("GET"),
-    ],
+    conditions: [pathCondition("/v2/stamps/*/score/*"), methodCondition("GET")],
   });
 
   // =============================================================
@@ -116,10 +108,7 @@ export function configureAllRouting(args: {
     listenerArn: publicListenerArn,
     priority: 1030,
     targetGroupArn: targetGroups.pythonSubmitPassport.arn,
-    conditions: [
-      pathCondition("/submit-passport"),
-      methodCondition("POST"),
-    ],
+    conditions: [pathCondition("/submit-passport"), methodCondition("POST")],
   });
 
   // Priority 1031: /ceramic-cache/score/* POST - Python only (Rust doesn't implement POST)
@@ -128,10 +117,7 @@ export function configureAllRouting(args: {
     listenerArn: publicListenerArn,
     priority: 1031,
     targetGroupArn: targetGroups.pythonCeramicCacheScorePost.arn,
-    conditions: [
-      pathCondition("/ceramic-cache/score/*"),
-      methodCondition("POST"),
-    ],
+    conditions: [pathCondition("/ceramic-cache/score/*"), methodCondition("POST")],
   });
 
   // Priority 1032: /ceramic-cache/stamps/bulk POST - DUAL IMPLEMENTATION
@@ -143,10 +129,7 @@ export function configureAllRouting(args: {
       { arn: targetGroups.pythonCeramicCacheBulkPost.arn, weight: routingPercentages.python },
       { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
     ],
-    conditions: [
-      pathCondition("/ceramic-cache/stamps/bulk"),
-      methodCondition("POST"),
-    ],
+    conditions: [pathCondition("/ceramic-cache/stamps/bulk"), methodCondition("POST")],
   });
 
   // Priority 1033: /ceramic-cache/stamps/bulk PATCH - DUAL IMPLEMENTATION
@@ -158,10 +141,7 @@ export function configureAllRouting(args: {
       { arn: targetGroups.pythonCeramicCacheBulkPatch.arn, weight: routingPercentages.python },
       { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
     ],
-    conditions: [
-      pathCondition("/ceramic-cache/stamps/bulk"),
-      methodCondition("PATCH"),
-    ],
+    conditions: [pathCondition("/ceramic-cache/stamps/bulk"), methodCondition("PATCH")],
   });
 
   // Priority 1034: /ceramic-cache/stamps/bulk DELETE - DUAL IMPLEMENTATION
@@ -173,10 +153,7 @@ export function configureAllRouting(args: {
       { arn: targetGroups.pythonCeramicCacheBulkDelete.arn, weight: routingPercentages.python },
       { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
     ],
-    conditions: [
-      pathCondition("/ceramic-cache/stamps/bulk"),
-      methodCondition("DELETE"),
-    ],
+    conditions: [pathCondition("/ceramic-cache/stamps/bulk"), methodCondition("DELETE")],
   });
 
   // Priority 1035: /passport/analysis/{address} - Python only
@@ -185,10 +162,7 @@ export function configureAllRouting(args: {
     listenerArn: publicListenerArn,
     priority: 1035,
     targetGroupArn: targetGroups.pythonPassportAnalysis.arn,
-    conditions: [
-      pathCondition("/passport/analysis/*"),
-      methodCondition("GET"),
-    ],
+    conditions: [pathCondition("/passport/analysis/*"), methodCondition("GET")],
   });
 
   // Priority 1036: /ceramic-cache/score/* GET - DUAL IMPLEMENTATION
@@ -200,10 +174,7 @@ export function configureAllRouting(args: {
       { arn: targetGroups.pythonCeramicCacheScoreGet.arn, weight: routingPercentages.python },
       { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
     ],
-    conditions: [
-      pathCondition("/ceramic-cache/score/*"),
-      methodCondition("GET"),
-    ],
+    conditions: [pathCondition("/ceramic-cache/score/*"), methodCondition("GET")],
   });
 
   // Priority 1037: /ceramic-cache/weights GET - DUAL IMPLEMENTATION
@@ -215,10 +186,7 @@ export function configureAllRouting(args: {
       { arn: targetGroups.pythonCeramicCacheWeights.arn, weight: routingPercentages.python },
       { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
     ],
-    conditions: [
-      pathCondition("/ceramic-cache/weights"),
-      methodCondition("GET"),
-    ],
+    conditions: [pathCondition("/ceramic-cache/weights"), methodCondition("GET")],
   });
 
   // Priority 1038: /ceramic-cache/stamp GET - DUAL IMPLEMENTATION
@@ -230,10 +198,7 @@ export function configureAllRouting(args: {
       { arn: targetGroups.pythonCeramicCacheStamp.arn, weight: routingPercentages.python },
       { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
     ],
-    conditions: [
-      pathCondition("/ceramic-cache/stamp"),
-      methodCondition("GET"),
-    ],
+    conditions: [pathCondition("/ceramic-cache/stamp"), methodCondition("GET")],
   });
 
   // Priority 1039: Generic registry fallback - Python only
@@ -242,9 +207,7 @@ export function configureAllRouting(args: {
     listenerArn: publicListenerArn,
     priority: 1039,
     targetGroupArn: targetGroups.pythonRegistry.arn,
-    conditions: [
-      pathCondition("/*"),
-    ],
+    conditions: [pathCondition("/*")],
   });
 
   // =============================================================
@@ -262,10 +225,7 @@ export function configureAllRouting(args: {
         { arn: targetGroups.pythonEmbedAddStamps.arn, weight: routingPercentages.python },
         { arn: targetGroups.rustScorerInternal.arn, weight: routingPercentages.rust },
       ],
-      conditions: [
-        pathCondition("/internal/embed/stamps/*"),
-        methodCondition("POST"),
-      ],
+      conditions: [pathCondition("/internal/embed/stamps/*"), methodCondition("POST")],
     });
 
     // Priority 2105: /internal/embed/validate-api-key GET - DUAL IMPLEMENTATION
@@ -277,10 +237,7 @@ export function configureAllRouting(args: {
         { arn: targetGroups.pythonEmbedValidateKey.arn, weight: routingPercentages.python },
         { arn: targetGroups.rustScorerInternal.arn, weight: routingPercentages.rust },
       ],
-      conditions: [
-        pathCondition("/internal/embed/validate-api-key"),
-        methodCondition("GET"),
-      ],
+      conditions: [pathCondition("/internal/embed/validate-api-key"), methodCondition("GET")],
     });
 
     // Priority 2106: /internal/embed/score/*/* GET - DUAL IMPLEMENTATION
@@ -292,10 +249,7 @@ export function configureAllRouting(args: {
         { arn: targetGroups.pythonEmbedGetScore.arn, weight: routingPercentages.python },
         { arn: targetGroups.rustScorerInternal.arn, weight: routingPercentages.rust },
       ],
-      conditions: [
-        pathCondition("/internal/embed/score/*/*"),
-        methodCondition("GET"),
-      ],
+      conditions: [pathCondition("/internal/embed/score/*/*"), methodCondition("GET")],
     });
 
     // Priority 2120: /internal/* CATCH-ALL - DUAL IMPLEMENTATION
@@ -313,9 +267,7 @@ export function configureAllRouting(args: {
         { arn: pythonInternalTargetGroup.arn, weight: routingPercentages.python },
         { arn: targetGroups.rustScorerInternal.arn, weight: routingPercentages.rust },
       ],
-      conditions: [
-        pathCondition("/internal/*"),
-      ],
+      conditions: [pathCondition("/internal/*")],
     });
   }
 
@@ -330,10 +282,7 @@ export function configureAllRouting(args: {
     listenerArn: publicListenerArn,
     priority: 5000,
     targetGroupArn: targetGroups.pythonAppApiNonce.arn,
-    conditions: [
-      pathCondition("/account/nonce"),
-      methodCondition("GET", "OPTIONS"),
-    ],
+    conditions: [pathCondition("/account/nonce"), methodCondition("GET", "OPTIONS")],
   });
 
   // Priority 5001: /ceramic-cache/authenticate - Python only
@@ -342,10 +291,7 @@ export function configureAllRouting(args: {
     listenerArn: publicListenerArn,
     priority: 5001,
     targetGroupArn: targetGroups.pythonAppApiAuthenticate.arn,
-    conditions: [
-      pathCondition("/ceramic-cache/authenticate"),
-      methodCondition("POST", "OPTIONS"),
-    ],
+    conditions: [pathCondition("/ceramic-cache/authenticate"), methodCondition("POST", "OPTIONS")],
   });
 
   // =============================================================

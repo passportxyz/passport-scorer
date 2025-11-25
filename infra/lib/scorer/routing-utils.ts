@@ -16,7 +16,7 @@ export function createLambdaFunction(args: {
   timeout?: number;
   roleArn: pulumi.Input<string>;
   securityGroupIds: pulumi.Input<string>[];
-  subnetIds: pulumi.Input<string[]> | pulumi.Output<any>;  // Accept both formats
+  subnetIds: pulumi.Input<string[]> | pulumi.Output<any>; // Accept both formats
   architectures?: string[];
   ephemeralStorageSize?: number;
   tracingConfig?: aws.types.input.lambda.FunctionTracingConfig;
@@ -34,9 +34,7 @@ export function createLambdaFunction(args: {
       securityGroupIds: args.securityGroupIds,
       subnetIds: args.subnetIds,
     },
-    ephemeralStorage: args.ephemeralStorageSize
-      ? { size: args.ephemeralStorageSize }
-      : undefined,
+    ephemeralStorage: args.ephemeralStorageSize ? { size: args.ephemeralStorageSize } : undefined,
     tracingConfig: args.tracingConfig,
     publish: false,
   });
@@ -67,10 +65,14 @@ export function createLambdaTargetGroup(args: {
   });
 
   // Attach the Lambda to the target group
-  const attachment = new aws.lb.TargetGroupAttachment(`${args.name}-attachment`, {
-    targetGroupArn: targetGroup.arn,
-    targetId: args.lambda.arn,
-  }, { dependsOn: [permission] });
+  const attachment = new aws.lb.TargetGroupAttachment(
+    `${args.name}-attachment`,
+    {
+      targetGroupArn: targetGroup.arn,
+      targetId: args.lambda.arn,
+    },
+    { dependsOn: [permission] }
+  );
 
   return targetGroup;
 }
@@ -144,19 +146,18 @@ export function getRoutingPercentages(stack: string): { rust: number; python: nu
   // Define Rust percentage per environment (Python = 100 - rust)
   const rustPercentages: { [key: string]: number } = {
     // TODO: Restore staging to 100% after validating Python works correctly with the new routing config
-    staging: 0,       // Temporarily 0% to Rust in staging for Python validation
-    review: 100,      // 100% to Rust in review
-    production: 0,    // 0% to Rust in production (safe default)
+    staging: 0, // Temporarily 0% to Rust in staging for Python validation
+    review: 100, // 100% to Rust in review
+    production: 0, // 0% to Rust in production (safe default)
   };
 
-  const rustPercentage = rustPercentages[stack] || 0;  // Default to 0% Rust for safety
+  const rustPercentage = rustPercentages[stack] || 0; // Default to 0% Rust for safety
 
   return {
     rust: rustPercentage,
-    python: 100 - rustPercentage
+    python: 100 - rustPercentage,
   };
 }
-
 
 /**
  * Helper to create path pattern conditions
