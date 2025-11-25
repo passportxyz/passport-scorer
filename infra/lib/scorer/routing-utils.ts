@@ -124,17 +124,38 @@ export function createWeightedListenerRule(args: {
 
 /**
  * Get routing percentages based on environment
+ *
+ * Can be overridden via environment variables:
+ *   RUST_ROUTING_PERCENT_PRODUCTION=50
+ *   RUST_ROUTING_PERCENT_STAGING=100
+ *   RUST_ROUTING_PERCENT_REVIEW=100
+ *
+ * Values should be integers 0-100 representing the percentage of traffic to route to Rust.
  */
 export function getRoutingPercentages(stack: string): { rust: number; python: number } {
-  // Define Rust percentage per environment (Python = 100 - rust)
-  const rustPercentages: { [key: string]: number } = {
-    // TODO: Restore staging to 100% after validating Python works correctly with the new routing config
-    staging: 0, // Temporarily 0% to Rust in staging for Python validation
+  // Default Rust percentages per environment (Python = 100 - rust)
+  const defaultPercentages: { [key: string]: number } = {
+    staging: 100, // 100% to Rust in staging
     review: 100, // 100% to Rust in review
     production: 0, // 0% to Rust in production (safe default)
   };
 
-  const rustPercentage = rustPercentages[stack] || 0; // Default to 0% Rust for safety
+  // Check for environment variable override
+  const envVarName = `RUST_ROUTING_PERCENT_${stack.toUpperCase()}`;
+  const envValue = process.env[envVarName];
+
+  let rustPercentage: number;
+  if (envValue !== undefined) {
+    const parsed = parseInt(envValue, 10);
+    if (isNaN(parsed) || parsed < 0 || parsed > 100) {
+      console.warn(`Invalid value for ${envVarName}: "${envValue}". Must be integer 0-100. Using default.`);
+      rustPercentage = defaultPercentages[stack] ?? 0;
+    } else {
+      rustPercentage = parsed;
+    }
+  } else {
+    rustPercentage = defaultPercentages[stack] ?? 0; // Default to 0% Rust for unknown envs
+  }
 
   return {
     rust: rustPercentage,
