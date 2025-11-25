@@ -72,20 +72,52 @@ export function configureAllRouting(args: {
   const internalListenerArn = internalListener ? pulumi.output(internalListener).apply((l) => l.arn) : undefined;
 
   // =============================================================
-  // V2 API ENDPOINTS (Priority 2110-2112)
-  // NOTE: Changed from 2021-2023 to avoid conflict with old listener rules
+  // V2 API ENDPOINTS (Priority 2000, 2110-2112, 2200)
+  // NOTE: These must be ordered correctly:
+  //   - 2000: Block *.gitcoin.co (evaluated first)
+  //   - 2110-2112: Specific endpoints (evaluated next)
+  //   - 2200: Catch-all for *.passport.xyz (evaluated last)
   // =============================================================
 
-  // Priority 2110: /v2/models/score/{address} - Python only
+  // Priority 2000: Block V2 API on *.gitcoin.co domain
+  createListenerRule({
+    name: `v2-block-gitcoin-${envName}`,
+    listenerArn: publicListenerArn,
+    priority: 2000,
+    conditions: [pathCondition("/v2/*"), hostCondition("*.gitcoin.co")],
+    fixedResponse: {
+      contentType: "application/json",
+      messageBody: JSON.stringify({
+        msg: "This service is not available for requests to the `*.gitcoin.co` domain",
+      }),
+      statusCode: "400",
+    },
+  });
+
+  // Priority 2110: /v2/models/score/{address} - Python only (*.passport.xyz)
   createListenerRule({
     name: `v2-models-score-${envName}`,
     listenerArn: publicListenerArn,
     priority: 2110,
     targetGroupArn: targetGroups.pythonV2ModelScore.arn,
-    conditions: [pathCondition("/v2/models/score/*"), methodCondition("GET")],
+    conditions: [pathCondition("/v2/models/score/*"), methodCondition("GET"), hostCondition("*.passport.xyz")],
   });
 
-  // Priority 2112: /v2/stamps/{scorer_id}/score/{address} - DUAL IMPLEMENTATION
+  // Priority 2111: /v2/stamps/*/score/*/history - Python only (*.passport.xyz)
+  // NOTE: This must come before 2112 since it's more specific
+  createListenerRule({
+    name: `v2-stamps-score-history-${envName}`,
+    listenerArn: publicListenerArn,
+    priority: 2111,
+    targetGroupArn: targetGroups.pythonRegistry.arn,
+    conditions: [
+      pathCondition("/v2/stamps/*/score/*/history"),
+      methodCondition("GET"),
+      hostCondition("*.passport.xyz"),
+    ],
+  });
+
+  // Priority 2112: /v2/stamps/{scorer_id}/score/{address} - DUAL IMPLEMENTATION (*.passport.xyz)
   createWeightedListenerRule({
     name: `v2-stamps-score-${envName}`,
     listenerArn: publicListenerArn,
@@ -94,7 +126,17 @@ export function configureAllRouting(args: {
       { arn: targetGroups.pythonV2StampScore.arn, weight: routingPercentages.python },
       { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
     ],
-    conditions: [pathCondition("/v2/stamps/*/score/*"), methodCondition("GET")],
+    conditions: [pathCondition("/v2/stamps/*/score/*"), methodCondition("GET"), hostCondition("*.passport.xyz")],
+  });
+
+  // Priority 2200: V2 API catch-all for *.passport.xyz
+  // NOTE: This catches any other /v2/* requests from passport.xyz domain
+  createListenerRule({
+    name: `v2-catchall-${envName}`,
+    listenerArn: publicListenerArn,
+    priority: 2200,
+    targetGroupArn: targetGroups.pythonRegistry.arn,
+    conditions: [pathCondition("/v2/*"), hostCondition("*.passport.xyz")],
   });
 
   // =============================================================
@@ -102,13 +144,13 @@ export function configureAllRouting(args: {
   // NOTE: Changed from 1011-1020 to avoid conflict with old listener rules at 1001-1015
   // =============================================================
 
-  // Priority 1030: /submit-passport - Python only
+  // Priority 1030: /registry/submit-passport - Python only
   createListenerRule({
     name: `submit-passport-${envName}`,
     listenerArn: publicListenerArn,
     priority: 1030,
     targetGroupArn: targetGroups.pythonSubmitPassport.arn,
-    conditions: [pathCondition("/submit-passport"), methodCondition("POST")],
+    conditions: [pathCondition("/registry/submit-passport"), methodCondition("POST")],
   });
 
   // Priority 1031: /ceramic-cache/score/* POST - Python only (Rust doesn't implement POST)
@@ -165,7 +207,8 @@ export function configureAllRouting(args: {
     conditions: [pathCondition("/passport/analysis/*"), methodCondition("GET")],
   });
 
-  // Priority 1036: /ceramic-cache/score/* GET - DUAL IMPLEMENTATION
+  // Priority 1036: /ceramic-cache/score/0x* GET - DUAL IMPLEMENTATION
+  // NOTE: The 0x* pattern ensures we only match Ethereum addresses, not other paths
   createWeightedListenerRule({
     name: `ceramic-cache-score-get-${envName}`,
     listenerArn: publicListenerArn,
@@ -174,7 +217,7 @@ export function configureAllRouting(args: {
       { arn: targetGroups.pythonCeramicCacheScoreGet.arn, weight: routingPercentages.python },
       { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
     ],
-    conditions: [pathCondition("/ceramic-cache/score/*"), methodCondition("GET")],
+    conditions: [pathCondition("/ceramic-cache/score/0x*"), methodCondition("GET")],
   });
 
   // Priority 1037: /ceramic-cache/weights GET - DUAL IMPLEMENTATION
@@ -199,15 +242,6 @@ export function configureAllRouting(args: {
       { arn: targetGroups.rustScorer.arn, weight: routingPercentages.rust },
     ],
     conditions: [pathCondition("/ceramic-cache/stamp"), methodCondition("GET")],
-  });
-
-  // Priority 1039: Generic registry fallback - Python only
-  createListenerRule({
-    name: `registry-fallback-${envName}`,
-    listenerArn: publicListenerArn,
-    priority: 1039,
-    targetGroupArn: targetGroups.pythonRegistry.arn,
-    conditions: [pathCondition("/*")],
   });
 
   // =============================================================

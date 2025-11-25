@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
+import { TargetGroup } from "@pulumi/aws/lb";
 
 import { stack, defaultTags } from "../../lib/tags";
 import { secretsManager } from "infra-libs";
@@ -137,88 +137,11 @@ export function createV2Api({
     vpcId: pulumi.output(aws.ec2.getVpc({ default: true })).apply((vpc) => vpc.id),
   });
 
-  // Keep the history rule here (it uses the registry target group, not a Lambda)
-  const targetPassportRuleHistory = new ListenerRule(`passport-v2-lrule-history`, {
-    tags: { ...defaultTags, Name: "passport-v2-lrule-history" },
-    listenerArn: httpsListener.arn,
-    priority: 2022,
-    actions: [
-      {
-        type: "forward",
-        targetGroupArn: targetGroupRegistry.arn,
-      },
-    ],
-    conditions: [
-      {
-        hostHeader: {
-          values: ["*.passport.xyz"],
-        },
-      },
-      {
-        pathPattern: {
-          values: ["/v2/stamps/*/score/*/history"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["GET"],
-        },
-      },
-    ],
-  });
-
-  const targetPassportRule = new ListenerRule(`passport-v2-lrule`, {
-    tags: { ...defaultTags, Name: "passport-v2-lrule" },
-    listenerArn: httpsListener.arn,
-    priority: 2060,
-    actions: [
-      {
-        type: "forward",
-        targetGroupArn: targetGroupRegistry.arn,
-      },
-    ],
-    conditions: [
-      {
-        hostHeader: {
-          values: ["*.passport.xyz"],
-        },
-      },
-      {
-        pathPattern: {
-          values: ["/v2/*"],
-        },
-      },
-    ],
-  });
-  const targetOnlyPassportDomainRule = new ListenerRule(`lrule-no-gitcoin-v2`, {
-    tags: { ...defaultTags, Name: `lrule-no-gitcoin-v2` },
-    listenerArn: httpsListener.arn,
-    priority: 2000,
-    actions: [
-      {
-        type: "fixed-response",
-        fixedResponse: {
-          contentType: "application/json",
-          messageBody: JSON.stringify({
-            msg: "This service is not available for requests to the `*.gitcoin.co` domain",
-          }),
-          statusCode: "400",
-        },
-      },
-    ],
-    conditions: [
-      {
-        hostHeader: {
-          values: ["*.gitcoin.co"],
-        },
-      },
-      {
-        pathPattern: {
-          values: ["/v2/*"],
-        },
-      },
-    ],
-  });
+  // NOTE: V2 API routing rules (history, catch-all, gitcoin blocking) are now
+  // centralized in routing-rules.ts configureAllRouting() function:
+  // - Priority 2000: Block V2 API on *.gitcoin.co
+  // - Priority 2111: /v2/stamps/*/score/*/history
+  // - Priority 2200: V2 catch-all for *.passport.xyz
 
   // Deploy Rust scorer Lambda (always required now)
   const rustScorerResult = createRustScorerLambda({

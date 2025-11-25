@@ -43,24 +43,44 @@ export function createLambdaTargetGroup(args: {
 /**
  * Create a simple listener rule for single-target routing
  * Used for Python-only endpoints
+ * Supports optional fixedResponse for blocking rules (e.g., blocking gitcoin.co)
  */
 export function createListenerRule(args: {
   name: string;
   listenerArn: pulumi.Output<string>;
   priority: number;
-  targetGroupArn: pulumi.Output<string>;
+  targetGroupArn?: pulumi.Output<string>;
   conditions: aws.types.input.lb.ListenerRuleCondition[];
+  fixedResponse?: {
+    contentType: string;
+    messageBody: string;
+    statusCode: string;
+  };
 }): aws.lb.ListenerRule {
+  // If fixedResponse is provided, use it; otherwise use forward action
+  const actions: aws.types.input.lb.ListenerRuleAction[] = args.fixedResponse
+    ? [
+        {
+          type: "fixed-response",
+          fixedResponse: {
+            contentType: args.fixedResponse.contentType,
+            messageBody: args.fixedResponse.messageBody,
+            statusCode: args.fixedResponse.statusCode,
+          },
+        },
+      ]
+    : [
+        {
+          type: "forward",
+          targetGroupArn: args.targetGroupArn!,
+        },
+      ];
+
   return new aws.lb.ListenerRule(args.name, {
     listenerArn: args.listenerArn,
     priority: args.priority,
     conditions: args.conditions,
-    actions: [
-      {
-        type: "forward",
-        targetGroupArn: args.targetGroupArn,
-      },
-    ],
+    actions,
   });
 }
 
