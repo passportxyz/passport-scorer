@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            COUNT(DISTINCT gci.grant_id)::INT as \"num_grants!\",\n            COALESCE(SUM(gci.amount), 0)::NUMERIC as \"total_amount!\"\n        FROM cgrants_grantcontributionindex gci\n        INNER JOIN cgrants_contribution c ON gci.contribution_id = c.id\n        WHERE gci.contributor_address = $1\n          AND c.success = true\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "num_grants!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_amount!",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "689e1bba9efa7bd0db343340a1f4f641ef4bd8a13df3c0b8aac87a99eb67642f"
+}

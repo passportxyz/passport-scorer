@@ -71,23 +71,24 @@ rl.on('line', (line) => {
             respond(request.id, {
                 tools: [{
                     name: 'remember',
-                    description: `Capture learned information about the project for automatic documentation. Use PROACTIVELY when discovering architecture, patterns, dependencies, workflows, configurations, or surprising behaviors.
+                    description: `Capture project discoveries and learnings for persistent documentation. Automatically preserves knowledge about architecture, patterns, workflows, dependencies, configurations, and unique behaviors.
 
-⚠️ MANDATORY TRIGGERS - Use this tool IMMEDIATELY when:
-• You say/think: "for future reference", "I learned that", "turns out", "actually it's", "I discovered", "good to know", "I see that", "interesting that"
-• You made a mistake and learned the correct approach
-• You discovered how something actually works (vs what you assumed)
-• You found a project-specific convention, pattern, or requirement
-• You figured out why something wasn't working
-• You realize your initial assumption was wrong
+🎯 USE THIS TOOL when you:
+• Discover how something works in this project
+• Learn project-specific patterns or conventions
+• Find configuration details or requirements
+• Understand architecture or system design
+• Encounter non-obvious behaviors or gotchas
+• Figure out dependencies or integrations
+• Realize your assumptions were incorrect
 
-DON'T REMEMBER:
-• Issues you're actively fixing right now
-• Requirements for the current in-flight issue
-• Temporary debugging output
-• Generic programming knowledge (not project-specific)
+💡 KEY TRIGGERS - phrases that signal discovery:
+"I learned that", "turns out", "actually it's", "I discovered", "for future reference", "good to know", "interesting that"
 
-When in doubt, remember it - better to capture too much than miss important discoveries.`,
+⚡ ALWAYS CAPTURE project-specific knowledge immediately - this creates the persistent memory that survives context resets.
+
+✓ Examples: Database schema conventions, API authentication flows, build system quirks
+✗ Skip: Current bug fixes, temporary debug output, generic programming concepts`,
                     inputSchema: {
                         type: 'object',
                         properties: {

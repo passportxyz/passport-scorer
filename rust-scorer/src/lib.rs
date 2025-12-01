@@ -1,11 +1,9 @@
 pub mod models;
 pub mod db;
 pub mod auth;
-pub mod dedup;
-pub mod scoring;
-pub mod human_points;
 pub mod api;
 pub mod secrets;
+pub mod domain;
 
 // Re-export commonly used types
 pub use models::{
@@ -18,13 +16,8 @@ pub use db::{
     DatabaseError,
 };
 
-pub use dedup::{lifo_dedup, LifoResult};
-
-pub use scoring::{calculate_score, build_scoring_result, ScorerConfig};
-
-pub use human_points::{
-    process_human_points, 
-    HumanPointsConfig,
-    get_user_points_data,
-    get_possible_points_data,
+// Domain logic is now accessed through the domain module
+pub use domain::{
+    calculate_score_for_address,
+    get_scorer_weights,
 };

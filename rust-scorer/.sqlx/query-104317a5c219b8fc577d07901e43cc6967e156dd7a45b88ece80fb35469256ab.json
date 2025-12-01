@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO registry_score (\n            passport_id,\n            score,\n            status,\n            last_score_timestamp,\n            evidence,\n            stamps,\n            stamp_scores,\n            expiration_date,\n            error\n        )\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n        ON CONFLICT (passport_id)\n        DO UPDATE SET\n            score = EXCLUDED.score,\n            status = EXCLUDED.status,\n            last_score_timestamp = EXCLUDED.last_score_timestamp,\n            evidence = EXCLUDED.evidence,\n            stamps = EXCLUDED.stamps,\n            stamp_scores = EXCLUDED.stamp_scores,\n            expiration_date = EXCLUDED.expiration_date,\n            error = EXCLUDED.error\n        RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Numeric",
+        "Varchar",
+        "Timestamptz",
+        "Jsonb",
+        "Jsonb",
+        "Jsonb",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "104317a5c219b8fc577d07901e43cc6967e156dd7a45b88ece80fb35469256ab"
+}

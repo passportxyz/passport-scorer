@@ -268,11 +268,65 @@ mod tests {
     #[test]
     fn test_decimal_formatting() {
         use super::super::v2_api::format_decimal_5;
-        
+
         assert_eq!(format_decimal_5(dec!(1)), "1.00000");
         assert_eq!(format_decimal_5(dec!(10.5)), "10.50000");
         assert_eq!(format_decimal_5(dec!(0.12345)), "0.12345");
         assert_eq!(format_decimal_5(dec!(99.999999)), "99.99999");
         assert_eq!(format_decimal_5(dec!(0)), "0.00000");
+    }
+
+    #[test]
+    fn test_add_stamps_payload_deserialize_scorer_id_as_integer() {
+        use super::super::v2_api::AddStampsPayload;
+
+        // JSON integers get converted to strings by serde
+        let json = json!({
+            "scorer_id": 40,
+            "stamps": [
+                {"credentialSubject": {"provider": "Google"}}
+            ]
+        });
+
+        let payload: AddStampsPayload = serde_json::from_value(json).unwrap();
+        // Stored as string, need to parse
+        assert_eq!(payload.scorer_id, "40");
+        assert_eq!(payload.parse_scorer_id().unwrap(), 40);
+        assert_eq!(payload.stamps.len(), 1);
+    }
+
+    #[test]
+    fn test_add_stamps_payload_deserialize_scorer_id_as_string() {
+        use super::super::v2_api::AddStampsPayload;
+
+        let json = json!({
+            "scorer_id": "40",
+            "stamps": [
+                {"credentialSubject": {"provider": "Google"}},
+                {"credentialSubject": {"provider": "Twitter"}}
+            ]
+        });
+
+        let payload: AddStampsPayload = serde_json::from_value(json).unwrap();
+        // Stored as string
+        assert_eq!(payload.scorer_id, "40");
+        assert_eq!(payload.parse_scorer_id().unwrap(), 40);
+        assert_eq!(payload.stamps.len(), 2);
+    }
+
+    #[test]
+    fn test_add_stamps_payload_parse_scorer_id_invalid() {
+        use super::super::v2_api::AddStampsPayload;
+
+        let json = json!({
+            "scorer_id": "not_a_number",
+            "stamps": []
+        });
+
+        let payload: AddStampsPayload = serde_json::from_value(json).unwrap();
+        // Deserialization succeeds (it's a valid string)
+        assert_eq!(payload.scorer_id, "not_a_number");
+        // But parsing fails
+        assert!(payload.parse_scorer_id().is_err());
     }
 }

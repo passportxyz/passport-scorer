@@ -75,6 +75,17 @@ impl From<std::env::VarError> for ApiError {
     }
 }
 
+impl From<crate::domain::DomainError> for ApiError {
+    fn from(err: crate::domain::DomainError) -> Self {
+        match err {
+            crate::domain::DomainError::NotFound(msg) => ApiError::NotFound(msg),
+            crate::domain::DomainError::Validation(msg) => ApiError::BadRequest(msg),
+            crate::domain::DomainError::Database(msg) => ApiError::Database(msg),
+            crate::domain::DomainError::Internal(msg) => ApiError::Internal(msg),
+        }
+    }
+}
+
 impl From<crate::db::DatabaseError> for ApiError {
     fn from(err: crate::db::DatabaseError) -> Self {
         match err {

@@ -3,6 +3,7 @@ import * as aws from "@pulumi/aws";
 import { buildHttpLambdaFn } from "../../lib/scorer/new_service";
 import { secretsManager } from "infra-libs";
 import { stack, defaultTags } from "../../lib/tags";
+import { getRoutingPercentages } from "../../lib/scorer/routing-utils";
 
 // Get current AWS region for OTEL Lambda layer ARN
 const regionData = aws.getRegion({});
@@ -18,6 +19,7 @@ export function createRustScorerLambda({
   httpLambdaRole,
   alb,
   alarmConfigurations,
+  internalHttpsListener,
 }: {
   httpsListener: pulumi.Output<aws.alb.Listener>;
   rustScorerZipArchive: pulumi.asset.FileArchive;
@@ -29,7 +31,10 @@ export function createRustScorerLambda({
   httpLambdaRole: aws.iam.Role;
   alb: aws.alb.LoadBalancer;
   alarmConfigurations: any;
+  internalHttpsListener: pulumi.Output<aws.alb.Listener>;
 }) {
+  // Get routing percentages based on environment
+  const routingPercentages = getRoutingPercentages(stack);
   const apiEnvironment = [
     ...secretsManager.getEnvironmentVars({
       vault: "DevOps",
@@ -84,20 +89,28 @@ export function createRustScorerLambda({
     },
   ].sort(secretsManager.sortByName);
 
-  // Deploy Rust scorer with zip-based deployment and OTEL layer
-  buildHttpLambdaFn(
+  // Create Rust scorer Lambda function
+  const rustScorerLambda = new aws.lambda.Function(
+    "passport-v2-rust-scorer",
     {
-      httpsListener,
-      privateSubnetSecurityGroup,
-      vpcPrivateSubnetIds,
-      environment: apiEnvironment,
-      roleAttachments: httpRoleAttachments,
-      role: httpLambdaRole,
-      alertTopic: pagerdutyTopic,
-      alb: alb,
       name: "passport-v2-rust-scorer",
-      memorySize: 256,
+      vpcConfig: {
+        securityGroupIds: [privateSubnetSecurityGroup.id],
+        subnetIds: vpcPrivateSubnetIds,
+      },
+      role: httpLambdaRole.arn,
       timeout: 30,
+      memorySize: 256,
+      environment: {
+        variables: apiEnvironment.reduce(
+          (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+            acc[e.name] = e.value;
+            return acc;
+          },
+          {}
+        ),
+      },
+      tags: { ...defaultTags, Name: "passport-v2-rust-scorer" },
 
       // Zip-based deployment
       packageType: "Zip",
@@ -115,78 +128,78 @@ export function createRustScorerLambda({
           .output(regionData)
           .apply((region) => `arn:aws:lambda:${region.name}:901920570463:layer:aws-otel-collector-arm64-ver-0-117-0:1`),
       ],
-
-      // Header-based routing - only route to Rust when X-Use-Rust-Scorer header is present
-      httpListenerRulePaths: [
-        {
-          hostHeader: {
-            values: ["*.passport.xyz"],
-          },
-        },
-        {
-          pathPattern: {
-            values: ["/v2/stamps/*/score/*"],
-          },
-        },
-        {
-          httpRequestMethod: {
-            values: ["GET"],
-          },
-        },
-        {
-          httpHeader: {
-            httpHeaderName: "X-Use-Rust-Scorer",
-            values: ["true"],
-          },
-        },
-      ],
-      // Higher priority (lower number) to catch before Python Lambda
-      listenerPriority: 99,
     },
-    alarmConfigurations
+    {
+      dependsOn: httpRoleAttachments,
+    }
   );
 
-  /*
-   * Future: Weighted Target Group Routing
-   * ----------------------------------------
-   * Instead of header-based routing, you can use ALB weighted routing
-   * to gradually roll out the Rust implementation:
-   *
-   * const rustTargetGroup = new aws.lb.TargetGroup("rust-scorer-tg", {
-   *   name: "rust-scorer-tg",
-   *   targetType: "lambda",
-   *   tags: { ...defaultTags, Name: "rust-scorer-tg" },
-   * });
-   *
-   * const pythonTargetGroup = // existing Python Lambda target group
-   *
-   * new aws.lb.ListenerRule("scorer-weighted-rule", {
-   *   listenerArn: httpsListener.arn,
-   *   priority: 100,
-   *   actions: [{
-   *     type: "forward",
-   *     forward: {
-   *       targetGroups: [
-   *         { arn: pythonTargetGroup.arn, weight: 95 },  // 95% to Python
-   *         { arn: rustTargetGroup.arn, weight: 5 }       // 5% to Rust
-   *       ],
-   *       stickiness: {
-   *         enabled: true,
-   *         duration: 3600,  // 1 hour session affinity
-   *       }
-   *     }
-   *   }],
-   *   conditions: [
-   *     { pathPattern: { values: ["/v2/stamps/*\/score/*"] }},
-   *     { httpRequestMethod: { values: ["GET"] }}
-   *   ],
-   *   tags: { ...defaultTags, Name: "scorer-weighted-rule" },
-   * });
-   *
-   * This allows gradual rollout:
-   * - Start with 5% traffic to Rust
-   * - Monitor metrics and error rates
-   * - Gradually increase: 5% → 10% → 25% → 50% → 100%
-   * - Session affinity ensures users get consistent experience
-   */
+  // Create Lambda target group for public ALB (v2 and ceramic-cache endpoints)
+  const rustScorerTargetGroup = new aws.lb.TargetGroup("l-passport-v2-rust-scorer", {
+    name: "l-passport-v2-rust-scorer",
+    targetType: "lambda",
+    tags: { ...defaultTags, Name: "l-passport-v2-rust-scorer" },
+  });
+
+  // Grant ALB permission to invoke the Lambda
+  const rustScorerLambdaPermission = new aws.lambda.Permission("withLb-passport-v2-rust-scorer", {
+    action: "lambda:InvokeFunction",
+    function: rustScorerLambda.name,
+    principal: "elasticloadbalancing.amazonaws.com",
+    sourceArn: rustScorerTargetGroup.arn,
+  });
+
+  // Attach Lambda to target group
+  const rustScorerTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
+    "lambdaTargetGroupAttachment-passport-v2-rust-scorer",
+    {
+      targetGroupArn: rustScorerTargetGroup.arn,
+      targetId: rustScorerLambda.arn,
+    },
+    {
+      dependsOn: [rustScorerLambdaPermission],
+    }
+  );
+
+  // Create internal target group (required for embed endpoints)
+  if (!internalHttpsListener) {
+    throw new Error("Internal HTTPS listener is required for Rust scorer (needed for embed endpoints)");
+  }
+
+  const internalTargetGroup = new aws.lb.TargetGroup("l-passport-v2-rust-scorer-int", {
+    name: "l-passport-v2-rust-scorer-int",
+    targetType: "lambda",
+    tags: { ...defaultTags, Name: "l-passport-v2-rust-scorer-int" },
+  });
+
+  // Grant internal ALB permission to invoke the Lambda
+  const rustScorerInternalLambdaPermission = new aws.lambda.Permission("withLb-passport-v2-rust-scorer-int", {
+    action: "lambda:InvokeFunction",
+    function: rustScorerLambda.name,
+    principal: "elasticloadbalancing.amazonaws.com",
+    sourceArn: internalTargetGroup.arn,
+  });
+
+  // Attach Lambda to internal target group
+  const rustScorerInternalTargetGroupAttachment = new aws.lb.TargetGroupAttachment(
+    "lambdaTargetGroupAttachment-passport-v2-rust-scorer-int",
+    {
+      targetGroupArn: internalTargetGroup.arn,
+      targetId: rustScorerLambda.arn,
+    },
+    {
+      dependsOn: [rustScorerInternalLambdaPermission],
+    }
+  );
+
+  // IMPORTANT: Listener rules are now created centrally in routing-rules.ts
+  // This file only creates the Lambda and target groups, then exports them
+
+  // Return the target groups for use in centralized routing
+  return {
+    targetGroups: {
+      rustScorer: rustScorerTargetGroup,
+      rustScorerInternal: internalTargetGroup,
+    },
+  };
 }

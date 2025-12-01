@@ -1,0 +1,428 @@
+{
+  "api_key": "J6ssE200.NALVTJNuIgchsKcxBM9VDKqb1j2e37iL",
+  "credentials": [
+    {
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://w3id.org/vc/status-list/2021/v1"
+      ],
+      "credentialSubject": {
+        "@context": {
+          "nullifiers": {
+            "@container": "@list",
+            "@type": "https://schema.org/Text"
+          },
+          "provider": "https://schema.org/Text"
+        },
+        "id": "did:pkh:eip155:1:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nullifiers": [
+          "v0:Google:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:test-nullifier"
+        ],
+        "provider": "Google"
+      },
+      "expirationDate": "2026-02-18T13:12:09Z",
+      "issuanceDate": "2025-11-20T13:12:09Z",
+      "issuer": "did:ethr:0x018d103c154748e8d5a1d7658185125175457f84",
+      "proof": {
+        "@context": "https://w3id.org/security/suites/eip712sig-2021/v1",
+        "created": "2025-11-20T13:12:09.615116194Z",
+        "eip712Domain": {
+          "domain": {
+            "name": "VerifiableCredential"
+          },
+          "primaryType": "Document",
+          "types": {
+            "@context": [
+              {
+                "name": "nullifiers",
+                "type": "NullifiersContext"
+              },
+              {
+                "name": "provider",
+                "type": "string"
+              }
+            ],
+            "CredentialSubject": [
+              {
+                "name": "@context",
+                "type": "@context"
+              },
+              {
+                "name": "nullifiers",
+                "type": "string[]"
+              },
+              {
+                "name": "id",
+                "type": "string"
+              },
+              {
+                "name": "provider",
+                "type": "string"
+              }
+            ],
+            "Document": [
+              {
+                "name": "@context",
+                "type": "string[]"
+              },
+              {
+                "name": "credentialSubject",
+                "type": "CredentialSubject"
+              },
+              {
+                "name": "expirationDate",
+                "type": "string"
+              },
+              {
+                "name": "issuanceDate",
+                "type": "string"
+              },
+              {
+                "name": "issuer",
+                "type": "string"
+              },
+              {
+                "name": "proof",
+                "type": "Proof"
+              },
+              {
+                "name": "type",
+                "type": "string[]"
+              }
+            ],
+            "EIP712Domain": [
+              {
+                "name": "name",
+                "type": "string"
+              }
+            ],
+            "NullifiersContext": [
+              {
+                "name": "@container",
+                "type": "string"
+              },
+              {
+                "name": "@type",
+                "type": "string"
+              }
+            ],
+            "Proof": [
+              {
+                "name": "@context",
+                "type": "string"
+              },
+              {
+                "name": "created",
+                "type": "string"
+              },
+              {
+                "name": "proofPurpose",
+                "type": "string"
+              },
+              {
+                "name": "type",
+                "type": "string"
+              },
+              {
+                "name": "verificationMethod",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "proofPurpose": "assertionMethod",
+        "proofValue": "0x9a82317240253fbe982ca9f993f0601e57e5b43edc36e3a8b0f820c111195a0b4755ffa80e82ec512abe3418a24a3286a9c3d5fe6ebb359fd1980083638dae611b",
+        "type": "EthereumEip712Signature2021",
+        "verificationMethod": "did:ethr:0x018d103c154748e8d5a1d7658185125175457f84#controller"
+      },
+      "type": [
+        "VerifiableCredential"
+      ]
+    },
+    {
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://w3id.org/vc/status-list/2021/v1"
+      ],
+      "credentialSubject": {
+        "@context": {
+          "nullifiers": {
+            "@container": "@list",
+            "@type": "https://schema.org/Text"
+          },
+          "provider": "https://schema.org/Text"
+        },
+        "id": "did:pkh:eip155:1:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nullifiers": [
+          "v0:Twitter:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:test-nullifier"
+        ],
+        "provider": "Twitter"
+      },
+      "expirationDate": "2026-02-18T13:12:09Z",
+      "issuanceDate": "2025-11-20T13:12:09Z",
+      "issuer": "did:ethr:0x018d103c154748e8d5a1d7658185125175457f84",
+      "proof": {
+        "@context": "https://w3id.org/security/suites/eip712sig-2021/v1",
+        "created": "2025-11-20T13:12:09.620115308Z",
+        "eip712Domain": {
+          "domain": {
+            "name": "VerifiableCredential"
+          },
+          "primaryType": "Document",
+          "types": {
+            "@context": [
+              {
+                "name": "nullifiers",
+                "type": "NullifiersContext"
+              },
+              {
+                "name": "provider",
+                "type": "string"
+              }
+            ],
+            "CredentialSubject": [
+              {
+                "name": "@context",
+                "type": "@context"
+              },
+              {
+                "name": "nullifiers",
+                "type": "string[]"
+              },
+              {
+                "name": "id",
+                "type": "string"
+              },
+              {
+                "name": "provider",
+                "type": "string"
+              }
+            ],
+            "Document": [
+              {
+                "name": "@context",
+                "type": "string[]"
+              },
+              {
+                "name": "credentialSubject",
+                "type": "CredentialSubject"
+              },
+              {
+                "name": "expirationDate",
+                "type": "string"
+              },
+              {
+                "name": "issuanceDate",
+                "type": "string"
+              },
+              {
+                "name": "issuer",
+                "type": "string"
+              },
+              {
+                "name": "proof",
+                "type": "Proof"
+              },
+              {
+                "name": "type",
+                "type": "string[]"
+              }
+            ],
+            "EIP712Domain": [
+              {
+                "name": "name",
+                "type": "string"
+              }
+            ],
+            "NullifiersContext": [
+              {
+                "name": "@container",
+                "type": "string"
+              },
+              {
+                "name": "@type",
+                "type": "string"
+              }
+            ],
+            "Proof": [
+              {
+                "name": "@context",
+                "type": "string"
+              },
+              {
+                "name": "created",
+                "type": "string"
+              },
+              {
+                "name": "proofPurpose",
+                "type": "string"
+              },
+              {
+                "name": "type",
+                "type": "string"
+              },
+              {
+                "name": "verificationMethod",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "proofPurpose": "assertionMethod",
+        "proofValue": "0x946eb33fcb68cd853d5323a4ff5fbcd6adeb8f4f121d9c45d6f3017c66e9592b4beaa15d2f6e0369ae219bcf5a77dccc0d545f9e8d57801b434d91087ac04ebe1b",
+        "type": "EthereumEip712Signature2021",
+        "verificationMethod": "did:ethr:0x018d103c154748e8d5a1d7658185125175457f84#controller"
+      },
+      "type": [
+        "VerifiableCredential"
+      ]
+    },
+    {
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://w3id.org/vc/status-list/2021/v1"
+      ],
+      "credentialSubject": {
+        "@context": {
+          "nullifiers": {
+            "@container": "@list",
+            "@type": "https://schema.org/Text"
+          },
+          "provider": "https://schema.org/Text"
+        },
+        "id": "did:pkh:eip155:1:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nullifiers": [
+          "v0:Github:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:test-nullifier"
+        ],
+        "provider": "Github"
+      },
+      "expirationDate": "2026-02-18T13:12:09Z",
+      "issuanceDate": "2025-11-20T13:12:09Z",
+      "issuer": "did:ethr:0x018d103c154748e8d5a1d7658185125175457f84",
+      "proof": {
+        "@context": "https://w3id.org/security/suites/eip712sig-2021/v1",
+        "created": "2025-11-20T13:12:09.623088999Z",
+        "eip712Domain": {
+          "domain": {
+            "name": "VerifiableCredential"
+          },
+          "primaryType": "Document",
+          "types": {
+            "@context": [
+              {
+                "name": "nullifiers",
+                "type": "NullifiersContext"
+              },
+              {
+                "name": "provider",
+                "type": "string"
+              }
+            ],
+            "CredentialSubject": [
+              {
+                "name": "@context",
+                "type": "@context"
+              },
+              {
+                "name": "nullifiers",
+                "type": "string[]"
+              },
+              {
+                "name": "id",
+                "type": "string"
+              },
+              {
+                "name": "provider",
+                "type": "string"
+              }
+            ],
+            "Document": [
+              {
+                "name": "@context",
+                "type": "string[]"
+              },
+              {
+                "name": "credentialSubject",
+                "type": "CredentialSubject"
+              },
+              {
+                "name": "expirationDate",
+                "type": "string"
+              },
+              {
+                "name": "issuanceDate",
+                "type": "string"
+              },
+              {
+                "name": "issuer",
+                "type": "string"
+              },
+              {
+                "name": "proof",
+                "type": "Proof"
+              },
+              {
+                "name": "type",
+                "type": "string[]"
+              }
+            ],
+            "EIP712Domain": [
+              {
+                "name": "name",
+                "type": "string"
+              }
+            ],
+            "NullifiersContext": [
+              {
+                "name": "@container",
+                "type": "string"
+              },
+              {
+                "name": "@type",
+                "type": "string"
+              }
+            ],
+            "Proof": [
+              {
+                "name": "@context",
+                "type": "string"
+              },
+              {
+                "name": "created",
+                "type": "string"
+              },
+              {
+                "name": "proofPurpose",
+                "type": "string"
+              },
+              {
+                "name": "type",
+                "type": "string"
+              },
+              {
+                "name": "verificationMethod",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "proofPurpose": "assertionMethod",
+        "proofValue": "0xf2badb354c5ce4eb181704da6cf21ab47a6bd4ea521476eba35c17dd607c30b36e3da30233eeb7bd334dd1c6fdb91e4696ce828d9b9a756869541cac035e521d1c",
+        "type": "EthereumEip712Signature2021",
+        "verificationMethod": "did:ethr:0x018d103c154748e8d5a1d7658185125175457f84#controller"
+      },
+      "type": [
+        "VerifiableCredential"
+      ]
+    }
+  ],
+  "expected_score_above": 2.5,
+  "issuer_did": "did:ethr:0x018d103c154748e8d5a1d7658185125175457f84",
+  "providers": [
+    "Google",
+    "Twitter",
+    "Github"
+  ],
+  "scorer_id": 1,
+  "test_address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

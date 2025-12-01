@@ -1,12 +1,13 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import { buildHttpLambdaFn } from "../../lib/scorer/new_service";
-import { TargetGroup, ListenerRule } from "@pulumi/aws/lb";
+import { TargetGroup } from "@pulumi/aws/lb";
 
 import { stack, defaultTags } from "../../lib/tags";
 import { secretsManager } from "infra-libs";
 import { AlarmConfigurations } from "../../lib/scorer/loadBalancer";
 import { createRustScorerLambda } from "./rust-scorer";
+import { createLambdaTargetGroup } from "../../lib/scorer/routing-utils";
+import { createDockerLambdaFunction } from "../../lib/lambda";
 
 /// This function will create the infra for the V2 API
 /// For now this will:
@@ -25,10 +26,12 @@ export function createV2Api({
   alb,
   alarmConfigurations,
   targetGroupRegistry,
+  privateAlbHttpListenerArn,
+  internalHttpsListener,
 }: {
   httpsListener: pulumi.Output<aws.alb.Listener>;
   dockerLambdaImage: pulumi.Output<string>;
-  rustScorerZipArchive?: pulumi.asset.FileArchive;
+  rustScorerZipArchive: pulumi.asset.FileArchive;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   vpcPrivateSubnetIds: pulumi.Output<any>;
   scorerSecret: aws.secretsmanager.Secret;
@@ -38,6 +41,8 @@ export function createV2Api({
   alb: aws.alb.LoadBalancer;
   alarmConfigurations: AlarmConfigurations;
   targetGroupRegistry: TargetGroup;
+  privateAlbHttpListenerArn?: pulumi.Input<string>;
+  internalHttpsListener: pulumi.Output<aws.lb.Listener>;
 }) {
   const apiEnvironment = [
     ...secretsManager.getEnvironmentVars({
@@ -82,159 +87,85 @@ export function createV2Api({
     alb: alb,
   };
 
-  buildHttpLambdaFn(
-    {
-      ...lambdaSettings,
-      name: "passport-v2-model-score",
-      memorySize: 256,
-      dockerCmd: ["v2.aws_lambdas.models_score_GET.handler"],
-      httpListenerRulePaths: [
-        {
-          hostHeader: {
-            values: ["*.passport.xyz"],
-          },
-        },
-        {
-          pathPattern: {
-            values: ["/v2/models/score/*"],
-          },
-        },
-        {
-          httpRequestMethod: {
-            values: ["GET"],
-          },
-        },
-      ],
-      listenerPriority: 2021,
-      timeout: 90,
+  // Create V2 Model Score Lambda and target group (Python only)
+  const v2ModelScoreLambda = createDockerLambdaFunction({
+    name: "passport-v2-model-score",
+    dockerImage: dockerLambdaImage,
+    dockerCommand: ["v2.aws_lambdas.models_score_GET.handler"],
+    environment: lambdaSettings.environment.reduce(
+      (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+        acc[e.name] = e.value;
+        return acc;
+      },
+      {}
+    ),
+    memorySize: 256,
+    timeout: 90,
+    roleArn: httpLambdaRole.arn,
+    securityGroupIds: [privateSubnetSecurityGroup.id],
+    subnetIds: vpcPrivateSubnetIds,
+  });
+
+  const v2ModelScoreTargetGroup = createLambdaTargetGroup({
+    name: "l-pp-v2-model-score",
+    lambda: v2ModelScoreLambda,
+    vpcId: pulumi.output(aws.ec2.getVpc({ default: true })).apply((vpc) => vpc.id),
+  });
+
+  // Create V2 Stamp Score Lambda and target group (DUAL - Python/Rust)
+  const v2StampScoreLambda = createDockerLambdaFunction({
+    name: "passport-v2-stamp-score",
+    dockerImage: dockerLambdaImage,
+    dockerCommand: ["v2.aws_lambdas.stamp_score_GET.handler"],
+    environment: lambdaSettings.environment.reduce(
+      (acc: { [key: string]: pulumi.Input<string> }, e: { name: string; value: pulumi.Input<string> }) => {
+        acc[e.name] = e.value;
+        return acc;
+      },
+      {}
+    ),
+    memorySize: 256,
+    timeout: 60,
+    roleArn: httpLambdaRole.arn,
+    securityGroupIds: [privateSubnetSecurityGroup.id],
+    subnetIds: vpcPrivateSubnetIds,
+  });
+
+  const v2StampScoreTargetGroup = createLambdaTargetGroup({
+    name: "l-pp-v2-stamp-score",
+    lambda: v2StampScoreLambda,
+    vpcId: pulumi.output(aws.ec2.getVpc({ default: true })).apply((vpc) => vpc.id),
+  });
+
+  // NOTE: V2 API routing rules (history, catch-all, gitcoin blocking) are now
+  // centralized in routing-rules.ts configureAllRouting() function:
+  // - Priority 2000: Block V2 API on *.gitcoin.co
+  // - Priority 2111: /v2/stamps/*/score/*/history
+  // - Priority 2200: V2 catch-all for *.passport.xyz
+
+  // Deploy Rust scorer Lambda (always required now)
+  const rustScorerResult = createRustScorerLambda({
+    httpsListener,
+    rustScorerZipArchive,
+    privateSubnetSecurityGroup,
+    vpcPrivateSubnetIds,
+    scorerSecret,
+    pagerdutyTopic,
+    httpRoleAttachments,
+    httpLambdaRole,
+    alb,
+    alarmConfigurations,
+    internalHttpsListener,
+  });
+
+  const rustScorerTargetGroups = rustScorerResult.targetGroups;
+
+  // Return target groups for centralized routing
+  return {
+    targetGroups: {
+      pythonV2StampScore: v2StampScoreTargetGroup,
+      pythonV2ModelScore: v2ModelScoreTargetGroup,
+      ...rustScorerTargetGroups, // Include Rust scorer target groups
     },
-    alarmConfigurations
-  );
-
-  buildHttpLambdaFn(
-    {
-      ...lambdaSettings,
-      name: "passport-v2-stamp-score",
-      memorySize: 256,
-      dockerCmd: ["v2.aws_lambdas.stamp_score_GET.handler"],
-      httpListenerRulePaths: [
-        {
-          hostHeader: {
-            values: ["*.passport.xyz"],
-          },
-        },
-        {
-          pathPattern: {
-            values: ["/v2/stamps/*/score/*"],
-          },
-        },
-        {
-          httpRequestMethod: {
-            values: ["GET"],
-          },
-        },
-      ],
-      listenerPriority: 2023,
-      timeout: 60,
-    },
-    alarmConfigurations
-  );
-
-  const targetPassportRuleHistory = new ListenerRule(`passport-v2-lrule-history`, {
-    tags: { ...defaultTags, Name: "passport-v2-lrule-history" },
-    listenerArn: httpsListener.arn,
-    priority: 2022,
-    actions: [
-      {
-        type: "forward",
-        targetGroupArn: targetGroupRegistry.arn,
-      },
-    ],
-    conditions: [
-      {
-        hostHeader: {
-          values: ["*.passport.xyz"],
-        },
-      },
-      {
-        pathPattern: {
-          values: ["/v2/stamps/*/score/*/history"],
-        },
-      },
-      {
-        httpRequestMethod: {
-          values: ["GET"],
-        },
-      },
-    ],
-  });
-
-  const targetPassportRule = new ListenerRule(`passport-v2-lrule`, {
-    tags: { ...defaultTags, Name: "passport-v2-lrule" },
-    listenerArn: httpsListener.arn,
-    priority: 2060,
-    actions: [
-      {
-        type: "forward",
-        targetGroupArn: targetGroupRegistry.arn,
-      },
-    ],
-    conditions: [
-      {
-        hostHeader: {
-          values: ["*.passport.xyz"],
-        },
-      },
-      {
-        pathPattern: {
-          values: ["/v2/*"],
-        },
-      },
-    ],
-  });
-  const targetOnlyPassportDomainRule = new ListenerRule(`lrule-no-gitcoin-v2`, {
-    tags: { ...defaultTags, Name: `lrule-no-gitcoin-v2` },
-    listenerArn: httpsListener.arn,
-    priority: 2000,
-    actions: [
-      {
-        type: "fixed-response",
-        fixedResponse: {
-          contentType: "application/json",
-          messageBody: JSON.stringify({
-            msg: "This service is not available for requests to the `*.gitcoin.co` domain",
-          }),
-          statusCode: "400",
-        },
-      },
-    ],
-    conditions: [
-      {
-        hostHeader: {
-          values: ["*.gitcoin.co"],
-        },
-      },
-      {
-        pathPattern: {
-          values: ["/v2/*"],
-        },
-      },
-    ],
-  });
-
-  // Deploy Rust scorer Lambda if zip archive is provided
-  if (rustScorerZipArchive) {
-    createRustScorerLambda({
-      httpsListener,
-      rustScorerZipArchive,
-      privateSubnetSecurityGroup,
-      vpcPrivateSubnetIds,
-      scorerSecret,
-      pagerdutyTopic,
-      httpRoleAttachments,
-      httpLambdaRole,
-      alb,
-      alarmConfigurations,
-    });
-  }
+  };
 }

@@ -14,7 +14,7 @@ Partner dashboards are implemented through the existing Customization model rath
 2. **TopNav Integration Fields**:
    - `show_in_top_nav`: BooleanField to control TopNav visibility
    - `nav_order`: IntegerField for display ordering (lower = first)
-   - `nav_display_name`: CharField for custom display name (falls back to partner_name)
+   - Uses `partner_name` field directly (no separate nav_display_name field)
 
 3. **API Response Structure**:
    - Added partnerDashboards as top-level field in customization API response
@@ -23,13 +23,14 @@ Partner dashboards are implemented through the existing Customization model rath
 
 ### Initial Partner Dashboards
 
-6 initial partner dashboards configured:
+5 partner dashboards configured:
 - Lido
 - Verax
 - Shape
 - Octant
 - Recall
-- Linea
+
+**Note**: Linea was mentioned in migration comment but not actually implemented in the data population.
 
 ### Per-Customization Approach
 

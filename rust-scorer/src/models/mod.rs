@@ -1,5 +1,6 @@
 pub mod internal;
 pub mod django;
+pub mod human_points;
 pub mod v2_api;
 pub mod translation;
 

@@ -190,6 +190,11 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust-scorer
+          shared-key: rust-scorer-lambda
       - name: Setup Zig
         uses: goto-bus-stop/setup-zig@v2
         with:

@@ -1,6 +1,10 @@
 __pycache__
 .env
 
+# Redis dump files
+dump.rdb
+*.rdb
+
 api/static
 api/scorer/bin/
 api/scorer/lib/
@@ -25,3 +29,5 @@ python-layer-code.zip
 log
 tracing.folded
 flamegraph.svg
+
+target

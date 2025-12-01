@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            id,\n            event_type,\n            round_id,\n            staker,\n            address,\n            amount,\n            staked,\n            block_number,\n            tx_hash\n        FROM registry_gtcstakeevent\n        WHERE round_id = $1 AND (staker = $2 OR address = $2)\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "event_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "round_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "staker",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "amount",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "staked",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "block_number",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "tx_hash",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "63688879f72c89375de8dc17fe71f1deffa7a4f2334ceae2ea15c9cb0d39c9b5"
+}

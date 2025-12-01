@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                COUNT(DISTINCT project)::INT as \"num_projects!\",\n                COALESCE(SUM(amount), 0)::NUMERIC as \"total_amount!\"\n            FROM cgrants_protocolcontributions\n            WHERE contributor = $1\n              AND amount >= 0.95\n              AND round NOT IN (SELECT * FROM UNNEST($2::TEXT[]))\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "num_projects!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_amount!",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "f28c4ae990d9047b016004ead1d9b31e4628717f6f52fd309d881e9989ea53da"
+}

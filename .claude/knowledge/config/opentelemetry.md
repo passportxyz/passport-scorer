@@ -21,10 +21,12 @@ This is simpler and more reliable than making it configurable. The ADOT sidecar 
 
 ## JSON Logging vs Span Events
 
-The fmt layer should NOT include span events (with_span_events) in JSON output. OpenTelemetry handles all span instrumentation and sends it to ADOT/Jaeger. The JSON logs are just for regular application logging, not for span/trace data.
+The fmt layer configuration depends on whether OpenTelemetry is enabled:
 
-**Don't use**: `.with_span_events(fmt::format::FmtSpan::CLOSE)`
+**When OTEL is ENABLED**: Do NOT use `.with_span_events()` in JSON output. OpenTelemetry handles all span instrumentation and sends it to ADOT/Jaeger. The JSON logs are just for regular application logging.
 
-This keeps the JSON logs clean and avoids duplicate/conflicting span data between the fmt layer and OpenTelemetry layer.
+**When OTEL is DISABLED**: CAN use `.with_span_events(fmt::format::FmtSpan::CLOSE)` for basic tracing visibility in logs for local development.
+
+**Best Practice**: Conditional pattern based on OTEL_EXPORTER_OTLP_ENDPOINT presence keeps JSON logs clean in production while providing visibility in development.
 
 See `rust-scorer/src/api/server.rs`

@@ -67,13 +67,13 @@ pub struct DjangoEvent {
 #[derive(Debug, Clone, FromRow)]
 pub struct DjangoCeramicCache {
     pub id: i64,
-    pub address: String,
+    pub address: Option<String>,  // Nullable
     pub provider: String,
     pub stamp: Value,
-    pub proof_value: String,  // CRITICAL: Used for revocation and uniqueness
     pub deleted_at: Option<DateTime<Utc>>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,  // Nullable with auto_now_add
     pub updated_at: DateTime<Utc>,
+    pub stamp_type: i32,  // 1=V1, 2=V2 (only V1 used)
 }
 
 /// Django account_community table
@@ -118,6 +118,7 @@ pub struct DjangoApiKey {
     pub create_scorers: bool,
     pub created: DateTime<Utc>,
     pub expiry_date: Option<DateTime<Utc>>,
+    pub embed_rate_limit: Option<String>,  // Rate limit tier for embed endpoints
 }
 
 /// Django registry_humanpoints table (Human Points)

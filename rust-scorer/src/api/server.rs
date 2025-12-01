@@ -1,5 +1,5 @@
 use axum::{
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use sqlx::postgres::PgPoolOptions;
@@ -7,16 +7,31 @@ use sqlx::PgPool;
 use std::env;
 use std::net::SocketAddr;
 use std::time::Duration;
-use tower_http::trace::TraceLayer;
+use tower_http::{trace::TraceLayer, cors::CorsLayer};
 use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter, prelude::*};
 use opentelemetry::KeyValue;
 use opentelemetry::trace::TracerProvider as _;  // Import as _ since we only need the trait methods
-use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
+use opentelemetry_sdk::{trace::{SdkTracerProvider, Sampler}, Resource};
 use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use tracing_opentelemetry::OpenTelemetryLayer;
 
-use crate::api::handler::score_address_handler;
+use crate::api::handlers::{
+    // External
+    external_score_handler,
+    // Internal
+    internal_score_handler, internal_weights_handler,
+    internal_check_bans_handler, internal_check_revocations_handler,
+    internal_allow_list_handler, internal_credential_definition_handler,
+    internal_stake_gtc_handler, internal_legacy_stake_handler,
+    internal_cgrants_statistics_handler,
+    // Ceramic Cache
+    ceramic_cache_add_stamps, ceramic_cache_get_score,
+    ceramic_cache_get_stamp, ceramic_cache_get_weights,
+    ceramic_cache_patch_stamps, ceramic_cache_delete_stamps,
+    // Embed
+    add_stamps_handler, get_embed_score_handler, validate_api_key_handler,
+};
 
 pub fn init_tracing() {
     // Check if we're in Lambda environment
@@ -89,6 +104,13 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
     let service_name = env::var("OTEL_SERVICE_NAME")
         .unwrap_or_else(|_| "rust-scorer".to_string());
 
+    // Read sampling rate from environment (default 0.01 = 1%)
+    let sampling_rate = env::var("OTEL_TRACE_SAMPLING_RATE")
+        .ok()
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap_or(0.01)
+        .clamp(0.0, 1.0);  // Ensure between 0.0 and 1.0
+
     let resource = Resource::builder()
         .with_attribute(KeyValue::new("service.name", service_name))
         .with_attribute(KeyValue::new("service.version", env!("CARGO_PKG_VERSION")))
@@ -112,8 +134,11 @@ fn init_opentelemetry(endpoint: &str) -> Result<SdkTracerProvider, Box<dyn std::
 
     let provider = SdkTracerProvider::builder()
         .with_resource(resource)
+        .with_sampler(Sampler::TraceIdRatioBased(sampling_rate))
         .with_batch_exporter(exporter)
         .build();
+
+    info!("OpenTelemetry sampling rate: {}%", sampling_rate * 100.0);
 
     Ok(provider)
 }
@@ -156,15 +181,91 @@ pub async fn create_app() -> Result<Router, Box<dyn std::error::Error>> {
     let pool = create_connection_pool().await?;
     
     Ok(Router::new()
-        // Main v2 scoring endpoint
+        // Main v2 scoring endpoint (external, requires API key)
         .route(
             "/v2/stamps/{scorer_id}/score/{address}",
-            get(score_address_handler),
+            get(external_score_handler),
+        )
+        // Internal endpoints (no authentication, ALB only)
+        .route(
+            "/internal/score/v2/{scorer_id}/{address}",
+            get(internal_score_handler),
+        )
+        .route(
+            "/internal/embed/weights",
+            get(internal_weights_handler),
+        )
+        .route(
+            "/internal/check-bans",
+            post(internal_check_bans_handler),
+        )
+        .route(
+            "/internal/check-revocations",
+            post(internal_check_revocations_handler),
+        )
+        .route(
+            "/internal/allow-list/{list}/{address}",
+            get(internal_allow_list_handler),
+        )
+        .route(
+            "/internal/customization/credential/{provider_id}",
+            get(internal_credential_definition_handler),
+        )
+        .route(
+            "/internal/stake/gtc/{address}",
+            get(internal_stake_gtc_handler),
+        )
+        .route(
+            "/internal/stake/legacy-gtc/{address}/{round_id}",
+            get(internal_legacy_stake_handler),
+        )
+        .route(
+            "/internal/cgrants/contributor_statistics",
+            get(internal_cgrants_statistics_handler),
+        )
+        // OLD Embed endpoints (TODO: migrate to new architecture)
+        .route(
+            "/internal/embed/validate-api-key",
+            get(validate_api_key_handler),
+        )
+        .route(
+            "/internal/embed/stamps/{address}",
+            post(add_stamps_handler),
+        )
+        .route(
+            "/internal/embed/score/{scorer_id}/{address}",
+            get(get_embed_score_handler),
+        )
+        // OLD Ceramic cache endpoints (TODO: migrate to new architecture)
+        .route(
+            "/ceramic-cache/stamps/bulk",
+            post(ceramic_cache_add_stamps)
+                .patch(ceramic_cache_patch_stamps)
+                .delete(ceramic_cache_delete_stamps),
+        )
+        .route(
+            "/ceramic-cache/score/{address}",
+            get(ceramic_cache_get_score),
+        )
+        .route(
+            "/ceramic-cache/stamp",
+            get(ceramic_cache_get_stamp),
+        )
+        .route(
+            "/ceramic-cache/weights",
+            get(ceramic_cache_get_weights),
         )
         // Health check endpoint
         .route("/health", get(health_check))
         // Add connection pool as state
         .with_state(pool)
+        // Add CORS layer - matching Python's CORS_ALLOW_ALL_ORIGINS = True
+        .layer(
+            CorsLayer::new()
+                .allow_origin(tower_http::cors::Any)
+                .allow_methods(tower_http::cors::Any)
+                .allow_headers(tower_http::cors::Any)
+        )
         // Add tracing layer for observability
         .layer(TraceLayer::new_for_http()))
 }
