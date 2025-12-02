@@ -45,10 +45,6 @@ jobs:
     name: Run Pulumi
     needs: [ref]
     runs-on: ubuntu-latest
-    env:
-      RUST_ROUTING_PERCENT_PRODUCTION: ${{ vars.RUST_ROUTING_PERCENT_PRODUCTION }}
-      RUST_ROUTING_PERCENT_STAGING: ${{ vars.RUST_ROUTING_PERCENT_STAGING }}
-      RUST_ROUTING_PERCENT_REVIEW: ${{ vars.RUST_ROUTING_PERCENT_REVIEW }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
