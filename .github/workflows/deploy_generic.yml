@@ -19,10 +19,6 @@ jobs:
   deploy_preview:
     name: Preview - Deploying AWS Infra
     runs-on: ubuntu-latest
-    env:
-      RUST_ROUTING_PERCENT_PRODUCTION: ${{ vars.RUST_ROUTING_PERCENT_PRODUCTION }}
-      RUST_ROUTING_PERCENT_STAGING: ${{ vars.RUST_ROUTING_PERCENT_STAGING }}
-      RUST_ROUTING_PERCENT_REVIEW: ${{ vars.RUST_ROUTING_PERCENT_REVIEW }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -91,10 +87,6 @@ jobs:
     name: Deploying AWS Infra
     needs: [deploy_preview, deploy_confirm]
     runs-on: ubuntu-latest
-    env:
-      RUST_ROUTING_PERCENT_PRODUCTION: ${{ vars.RUST_ROUTING_PERCENT_PRODUCTION }}
-      RUST_ROUTING_PERCENT_STAGING: ${{ vars.RUST_ROUTING_PERCENT_STAGING }}
-      RUST_ROUTING_PERCENT_REVIEW: ${{ vars.RUST_ROUTING_PERCENT_REVIEW }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3

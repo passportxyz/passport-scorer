@@ -1,5 +1,6 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
+import * as op from "@1password/op-js";
 import { AlarmConfigurations, TargetGroupAlarmsConfiguration } from "./loadBalancer";
 import { defaultTags } from "../tags";
 
@@ -125,10 +126,11 @@ export function createWeightedListenerRule(args: {
 /**
  * Get routing percentages based on environment
  *
- * Can be overridden via environment variables:
- *   RUST_ROUTING_PERCENT_PRODUCTION=50
- *   RUST_ROUTING_PERCENT_STAGING=100
- *   RUST_ROUTING_PERCENT_REVIEW=100
+ * Reads RUST_ROUTING_PERCENT from 1Password for the current environment.
+ * Falls back to defaults if not set:
+ *   - staging: 100% Rust
+ *   - review: 100% Rust
+ *   - production: 0% Rust (safe default)
  *
  * Values should be integers 0-100 representing the percentage of traffic to route to Rust.
  */
@@ -140,21 +142,21 @@ export function getRoutingPercentages(stack: string): { rust: number; python: nu
     production: 0, // 0% to Rust in production (safe default)
   };
 
-  // Check for environment variable override
-  const envVarName = `RUST_ROUTING_PERCENT_${stack.toUpperCase()}`;
-  const envValue = process.env[envVarName];
-
   let rustPercentage: number;
-  if (envValue !== undefined) {
-    const parsed = parseInt(envValue, 10);
+
+  try {
+    const opValue = op.read.parse(`op://DevOps/passport-scorer-${stack}-env/ci/RUST_ROUTING_PERCENT`);
+    const parsed = parseInt(opValue, 10);
     if (isNaN(parsed) || parsed < 0 || parsed > 100) {
-      console.warn(`Invalid value for ${envVarName}: "${envValue}". Must be integer 0-100. Using default.`);
+      console.warn(`Invalid RUST_ROUTING_PERCENT value: "${opValue}". Must be integer 0-100. Using default.`);
       rustPercentage = defaultPercentages[stack] ?? 0;
     } else {
       rustPercentage = parsed;
     }
-  } else {
-    rustPercentage = defaultPercentages[stack] ?? 0; // Default to 0% Rust for unknown envs
+  } catch (e) {
+    // 1Password entry doesn't exist, use default
+    console.log(`RUST_ROUTING_PERCENT not found in 1Password for ${stack}, using default.`);
+    rustPercentage = defaultPercentages[stack] ?? 0;
   }
 
   return {
