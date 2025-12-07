@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.test import TestCase
 
 from account.models import (
@@ -12,10 +13,13 @@ from embed.api import handle_get_embed_stamp_sections
 
 class TestHandleGetEmbedStampSections(TestCase):
     def setUp(self):
+        # Create test user
+        self.user = User.objects.create_user(username="testuser", password="12345")
+        
         # Create test account
         self.account = Account.objects.create(
             address="0x1234567890123456789012345678901234567890",
-            user=None
+            user=self.user
         )
         
         # Create test community
