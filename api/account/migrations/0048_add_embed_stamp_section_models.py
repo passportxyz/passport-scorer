@@ -1,6 +1,6 @@
 # Generated manually
 from django.db import migrations, models
-import django.db.models.deletion
+from django.db.models import deletion
 
 
 class Migration(migrations.Migration):
@@ -48,7 +48,7 @@ class Migration(migrations.Migration):
                     "customization",
                     models.ForeignKey(
                         help_text="The customization configuration this section belongs to",
-                        on_delete=django.db.models.deletion.CASCADE,
+                        on_delete=deletion.CASCADE,
                         related_name="embed_stamp_sections",
                         to="account.customization",
                     ),
@@ -117,7 +117,7 @@ class Migration(migrations.Migration):
                     "section",
                     models.ForeignKey(
                         help_text="The section this stamp belongs to",
-                        on_delete=django.db.models.deletion.CASCADE,
+                        on_delete=deletion.CASCADE,
                         related_name="items",
                         to="account.embedstampsection",
                     ),
