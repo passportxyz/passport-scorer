@@ -9,6 +9,8 @@ from account.models import (
     EmbedStampSectionItem,
 )
 from embed.api import handle_get_embed_stamp_sections
+from registry.weight_models import WeightConfiguration, WeightConfigurationItem
+from scorer.settings.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
 
 
 class TestHandleGetEmbedStampSections(TestCase):
@@ -21,6 +23,21 @@ class TestHandleGetEmbedStampSections(TestCase):
             address="0x1234567890123456789012345678901234567890",
             user=self.user
         )
+        
+        # Create active weight configuration (required for Community creation)
+        config = WeightConfiguration.objects.create(
+            version="v1",
+            threshold=5.0,
+            active=True,
+            description="Test",
+        )
+        
+        for provider, weight in GITCOIN_PASSPORT_WEIGHTS.items():
+            WeightConfigurationItem.objects.create(
+                weight_configuration=config,
+                provider=provider,
+                weight=float(weight),
+            )
         
         # Create test community
         self.community = Community.objects.create(
