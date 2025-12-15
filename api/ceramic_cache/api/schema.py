@@ -65,6 +65,7 @@ class SiweVerifySubmit(Schema):
 
 class AccessTokenResponse(Schema):
     access: str
+    intercom_user_hash: Optional[str] = None
 
 
 class ComposeDBStatusPayload(Schema):

@@ -233,6 +233,19 @@ ln -sf "$PROJECT_ROOT/.env.development" "$PROJECT_ROOT/api/.env"
 print_status "Installing Python dependencies..."
 cd "$PROJECT_ROOT/api"
 poetry install
+
+# Ensure Poetry links to the created virtualenv (fixes "poetry env info" showing NA)
+VENV_PATH=$(poetry env info --path 2>/dev/null || true)
+if [ -z "$VENV_PATH" ] || [ "$VENV_PATH" = "NA" ]; then
+    print_status "Linking Poetry to virtualenv..."
+    # Find the created virtualenv in Poetry's cache
+    VENV_PYTHON=$(find ~/.cache/pypoetry/virtualenvs -name "python" -path "*/passport-api-*/bin/python" 2>/dev/null | head -1)
+    if [ -n "$VENV_PYTHON" ]; then
+        poetry env use "$VENV_PYTHON"
+        print_success "Poetry virtualenv linked"
+    fi
+fi
+
 cd "$PROJECT_ROOT"
 print_success "Python dependencies installed"
 

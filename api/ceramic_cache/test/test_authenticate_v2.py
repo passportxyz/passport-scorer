@@ -5,15 +5,21 @@ Uses ERC-6492 Universal Signature Validator for all signature types (EOA + smart
 import json
 from unittest.mock import Mock
 
+import jwt
 import pytest
+from django.conf import settings
 from django.test import Client
-from ninja_jwt.tokens import AccessToken
 
 from account.models import Nonce
 
 pytestmark = pytest.mark.django_db
 
 client = Client()
+
+
+def decode_siwe_jwt(token: str) -> dict:
+    """Decode an RS256 JWT using the test public key from settings"""
+    return jwt.decode(token, settings.SIWE_JWT_PUBLIC_KEY, algorithms=["RS256"])
 
 
 def create_siwe_message(address: str, nonce: str, chain_id: int = 1) -> dict:
@@ -64,10 +70,11 @@ class TestAuthenticateV2:
 
         # Check response structure
         assert "access" in json_data
-        assert "intercom_user_hash" not in json_data
+        # v2 auth does not include intercom_user_hash (it's None or not present)
+        assert json_data.get("intercom_user_hash") is None
 
         # Verify JWT contains correct DID (always eip155:1)
-        token = AccessToken(json_data["access"])
+        token = decode_siwe_jwt(json_data["access"])
         expected_did = f"did:pkh:eip155:1:{test_address.lower()}"
         assert token["did"] == expected_did
 
@@ -105,7 +112,7 @@ class TestAuthenticateV2:
 
         # DID should still use eip155:1 (identifier format, not verification chain)
         json_data = response.json()
-        token = AccessToken(json_data["access"])
+        token = decode_siwe_jwt(json_data["access"])
         expected_did = f"did:pkh:eip155:1:{test_address.lower()}"
         assert token["did"] == expected_did
 
@@ -226,7 +233,7 @@ class TestAuthenticateV2:
         json_data = response.json()
 
         # Verify JWT contains correct DID
-        token = AccessToken(json_data["access"])
+        token = decode_siwe_jwt(json_data["access"])
         expected_did = f"did:pkh:eip155:1:{test_address.lower()}"
         assert token["did"] == expected_did
 
@@ -320,6 +327,139 @@ class TestAuthenticateV2EdgeCases:
         mock_verify.assert_called_once()
         call_args = mock_verify.call_args
         assert call_args[0][3] == 1
+
+
+class TestJWTTokenStructure:
+    """Test RS256 JWT token structure and claims"""
+    base_url = "/ceramic-cache"
+
+    def test_jwt_contains_required_claims(self, mocker):
+        """Test that JWT contains all required claims: did, iat, exp, jti, iss, token_type"""
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
+        mock_instance = Mock()
+        mock_siwe.return_value = mock_instance
+        mock_instance.prepare_message.return_value = "SIWE message text"
+
+        payload = {
+            "message": create_siwe_message(test_address, nonce_obj.nonce),
+            "signature": "0x1234"
+        }
+
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        token = decode_siwe_jwt(response.json()["access"])
+
+        # Check all required claims exist
+        assert "did" in token
+        assert "iat" in token
+        assert "exp" in token
+        assert "jti" in token
+        assert "iss" in token
+        assert "token_type" in token
+
+        # Check values
+        assert token["iss"] == "passport-scorer"
+        assert token["token_type"] == "access"
+        assert token["exp"] > token["iat"]  # exp must be after iat
+
+    def test_address_is_normalized_to_lowercase(self, mocker):
+        """Test that address is normalized to lowercase in DID"""
+        # Use uppercase address
+        test_address = "0x742D35CC6634C0532925A3B844BC9E7595F0BEB"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
+        mock_instance = Mock()
+        mock_siwe.return_value = mock_instance
+        mock_instance.prepare_message.return_value = "SIWE message text"
+
+        payload = {
+            "message": create_siwe_message(test_address, nonce_obj.nonce),
+            "signature": "0x1234"
+        }
+
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        token = decode_siwe_jwt(response.json()["access"])
+
+        # DID should have lowercase address
+        expected_did = f"did:pkh:eip155:1:{test_address.lower()}"
+        assert token["did"] == expected_did
+
+
+class TestMultiChainSupport:
+    """Test support for multiple L2 chains"""
+    base_url = "/ceramic-cache"
+
+    def test_authentication_on_arbitrum(self, mocker):
+        """Test authentication on Arbitrum (chainId 42161)"""
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        mock_verify = mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
+        mock_instance = Mock()
+        mock_siwe.return_value = mock_instance
+        mock_instance.prepare_message.return_value = "SIWE message text"
+
+        payload = {
+            "message": create_siwe_message(test_address, nonce_obj.nonce, chain_id=42161),
+            "signature": "0x1234"
+        }
+
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+
+        # Verify ERC-6492 was called with Arbitrum chain_id
+        mock_verify.assert_called_once()
+        call_args = mock_verify.call_args
+        assert call_args[0][3] == 42161
+
+    def test_authentication_on_optimism(self, mocker):
+        """Test authentication on Optimism (chainId 10)"""
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        mock_verify = mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
+        mock_instance = Mock()
+        mock_siwe.return_value = mock_instance
+        mock_instance.prepare_message.return_value = "SIWE message text"
+
+        payload = {
+            "message": create_siwe_message(test_address, nonce_obj.nonce, chain_id=10),
+            "signature": "0x1234"
+        }
+
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        mock_verify.assert_called_once()
+        assert mock_verify.call_args[0][3] == 10
 
 
 class TestOldEndpointStillWorks:

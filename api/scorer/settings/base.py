@@ -375,8 +375,9 @@ STATIC_ROOT = BASE_DIR / "static"
 
 # SIWE JWT signing keys (RS256 asymmetric) - separate from ninja_jwt
 # Used for SIWE authentication tokens that IAM needs to verify
-SIWE_JWT_PRIVATE_KEY = env("SIWE_JWT_PRIVATE_KEY")
-SIWE_JWT_PUBLIC_KEY = env("SIWE_JWT_PUBLIC_KEY")
+# Defaults are for testing only - production MUST set these env vars
+SIWE_JWT_PRIVATE_KEY = env("SIWE_JWT_PRIVATE_KEY", default="")
+SIWE_JWT_PUBLIC_KEY = env("SIWE_JWT_PUBLIC_KEY", default="")
 
 # Keep ninja_jwt unchanged for existing functionality (UI auth, etc.)
 NINJA_JWT = {
@@ -520,7 +521,8 @@ DEMO_API_KEY_ALIASES = env.json("DEMO_API_KEY_ALIASES", default=[])
 
 # Multi-chain RPC configuration for ERC-6492 signature verification
 # Supports smart wallets on multiple L2s (Coinbase Smart Wallet, Safe, Argent, etc.)
-ALCHEMY_API_KEY = env("ALCHEMY_API_KEY")
+# Default is for testing only - production MUST set this env var
+ALCHEMY_API_KEY = env("ALCHEMY_API_KEY", default="")
 
 # Chain ID to Alchemy network name mapping
 ALCHEMY_CHAIN_NETWORKS = {

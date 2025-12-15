@@ -621,6 +621,7 @@ def generate_access_token_response(user_did: str) -> AccessTokenResponse:
 
     return AccessTokenResponse(
         access=str(token.access_token),
+        intercom_user_hash=intercom_user_hash,
     )
 
 
