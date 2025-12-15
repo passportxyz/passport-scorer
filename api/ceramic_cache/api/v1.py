@@ -87,6 +87,10 @@ class JWTDidAuthentication:
     """
     This authentication class will validate an access token that contains a claim named `did`
     and will save that value in `request.did`
+
+    Supports two token types:
+    1. RS256 (SIWE) - Verified using SIWE_JWT_PUBLIC_KEY
+    2. HS256 (legacy ninja_jwt) - Verified using SECRET_KEY
     """
 
     def __init__(self) -> None:
@@ -98,8 +102,32 @@ class JWTDidAuthentication:
         """
         Validates an encoded JSON web token and returns a validated token
         wrapper object.
+
+        First tries RS256 (SIWE tokens), then falls back to HS256 (legacy ninja_jwt).
         """
         messages = []
+
+        # First, try RS256 SIWE token validation
+        if settings.SIWE_JWT_PUBLIC_KEY:
+            try:
+                payload = jwt.decode(
+                    raw_token,
+                    settings.SIWE_JWT_PUBLIC_KEY,
+                    algorithms=["RS256"],
+                    issuer="passport-scorer",
+                )
+                # Return a dict-like object with the 'did' claim
+                return payload
+            except jwt.exceptions.PyJWTError as e:
+                messages.append(
+                    {
+                        "token_class": "SIWE_RS256",
+                        "token_type": "access",
+                        "message": str(e),
+                    }
+                )
+
+        # Fall back to HS256 (legacy ninja_jwt tokens)
         for AuthToken in api_settings.AUTH_TOKEN_CLASSES:
             try:
                 ret = AuthToken(raw_token)
