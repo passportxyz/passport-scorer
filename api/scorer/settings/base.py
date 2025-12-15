@@ -511,3 +511,8 @@ SYSTEM_TESTS_MAX_AGE_BEFORE_OUTDATED = env.float(
 DEMO_API_KEY = env("DEMO_API_KEY", default=None)
 DEMO_API_SCORER_ID = env("DEMO_API_SCORER_ID", default=None)
 DEMO_API_KEY_ALIASES = env.json("DEMO_API_KEY_ALIASES", default=[])
+
+# Web3 Provider for EIP-1271 smart wallet signature verification
+WEB3_PROVIDER_URL = env(
+    "WEB3_PROVIDER_URL", default="https://eth-mainnet.g.alchemy.com/v2/demo"
+)

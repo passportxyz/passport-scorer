@@ -14,6 +14,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
+from eth_account.messages import encode_defunct
 from ninja import Router
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
@@ -21,6 +22,8 @@ from ninja_extra.security import HttpBearer
 from ninja_jwt.exceptions import InvalidToken, TokenError
 from ninja_jwt.settings import api_settings
 from ninja_jwt.tokens import RefreshToken, Token
+from siwe import SiweMessage
+from web3 import Web3
 
 import api_logging as logging
 import tos.api
@@ -66,6 +69,7 @@ from .schema import (
     GetStampsWithInternalV2ScoreResponse,
     GetStampsWithV2ScoreResponse,
     InternalV2ScoreResponse,
+    SiweVerifySubmit,
 )
 
 log = logging.getLogger(__name__)
@@ -615,8 +619,72 @@ def generate_access_token_response(user_did: str) -> AccessTokenResponse:
 
     return AccessTokenResponse(
         access=str(token.access_token),
-        intercom_user_hash=intercom_user_hash,
     )
+
+
+def generate_access_token_response_v2(user_did: str) -> AccessTokenResponse:
+    """Generate JWT access token for SIWE v2 authentication (no intercom_user_hash)"""
+    token = DbCacheToken()
+    token["did"] = user_did
+    return AccessTokenResponse(access=str(token.access_token))
+
+
+def get_web3() -> Web3:
+    """Get Web3 instance with configured provider and 5-second timeout"""
+    provider = Web3.HTTPProvider(
+        settings.WEB3_PROVIDER_URL,
+        request_kwargs={"timeout": 5}
+    )
+    return Web3(provider)
+
+
+def is_smart_wallet(address: str) -> bool:
+    """Check if address is a smart contract wallet (has code)"""
+    try:
+        w3 = get_web3()
+        code = w3.eth.get_code(Web3.to_checksum_address(address))
+        return len(code) > 0
+    except Exception as e:
+        log.error(f"Error checking if {address} is smart wallet: {e}", exc_info=True)
+        return False
+
+
+def verify_eip1271_signature(address: str, message: str, signature: str) -> bool:
+    """Verify EIP-1271 signature for smart contract wallets"""
+    EIP1271_MAGIC_VALUE = "0x1626ba7e"
+    EIP1271_ABI = [{
+        "inputs": [
+            {"name": "_hash", "type": "bytes32"},
+            {"name": "_signature", "type": "bytes"}
+        ],
+        "name": "isValidSignature",
+        "outputs": [{"name": "magicValue", "type": "bytes4"}],
+        "stateMutability": "view",
+        "type": "function"
+    }]
+
+    try:
+        w3 = get_web3()
+        checksum_address = Web3.to_checksum_address(address)
+
+        # Create EIP-191 prefixed message hash
+        message_hash = encode_defunct(text=message)
+        message_hash_bytes = message_hash.body
+
+        # Create contract instance
+        contract = w3.eth.contract(address=checksum_address, abi=EIP1271_ABI)
+
+        # Call isValidSignature
+        result = contract.functions.isValidSignature(
+            message_hash_bytes,
+            bytes.fromhex(signature.replace("0x", ""))
+        ).call()
+
+        # Check if result matches magic value
+        return result.hex() == EIP1271_MAGIC_VALUE.replace("0x", "")
+    except Exception as e:
+        log.error(f"Error verifying EIP-1271 signature for {address}: {e}", exc_info=True)
+        return False
 
 
 def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
@@ -742,3 +810,86 @@ def accept_tos(
     request, tos_type: str, address: str, payload: tos.schema.TosSigned
 ) -> None:
     tos.api.accept_tos(payload)
+
+
+@router.post(
+    "authenticate/v2",
+    response=AccessTokenResponse,
+)
+def authenticate_v2(request, payload: SiweVerifySubmit):
+    """
+    SIWE-based authentication endpoint that supports both EOA and smart contract wallets.
+    Accepts SIWE message + signature instead of DagJWS/CACAO.
+    Returns JWT with `did` claim in format `did:pkh:eip155:1:0xADDRESS`
+    """
+    return handle_authenticate_v2(payload)
+
+
+def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
+    """
+    Handle SIWE v2 authentication:
+    1. Validate nonce (use once, 5-minute TTL)
+    2. Parse and verify SIWE message
+    3. Verify signature (EOA via siwe library, smart wallet via EIP-1271)
+    4. Return JWT with did claim
+    """
+    # Extract address and nonce from message
+    try:
+        address = payload.message.get("address", "").lower()
+        nonce = payload.message.get("nonce")
+
+        if not address or not nonce:
+            log.error("Missing address or nonce in SIWE message")
+            raise FailedVerificationException(detail="Missing address or nonce!")
+
+        # Validate and consume nonce (5-minute TTL)
+        if not Nonce.use_nonce(nonce):
+            log.error("Invalid or expired nonce: '%s'", nonce)
+            raise FailedVerificationException(detail="Invalid nonce!")
+
+        # Convert message dict to SIWE message format
+        siwe_message_dict = {
+            "domain": payload.message.get("domain"),
+            "address": address,
+            "statement": payload.message.get("statement"),
+            "uri": payload.message.get("uri"),
+            "version": payload.message.get("version"),
+            "chain_id": payload.message.get("chainId"),
+            "nonce": nonce,
+            "issued_at": payload.message.get("issuedAt"),
+        }
+
+        # Check if this is a smart wallet
+        if is_smart_wallet(address):
+            # Smart wallet - verify via EIP-1271
+            log.info(f"Verifying smart wallet signature for {address}")
+
+            # Reconstruct the full SIWE message text for verification
+            siwe_msg = SiweMessage(**siwe_message_dict)
+            message_text = siwe_msg.prepare_message()
+
+            if not verify_eip1271_signature(address, message_text, payload.signature):
+                log.error(f"EIP-1271 signature verification failed for {address}")
+                raise FailedVerificationException(detail="Invalid signature!")
+        else:
+            # EOA wallet - verify via siwe library
+            log.info(f"Verifying EOA signature for {address}")
+            try:
+                siwe_msg = SiweMessage(**siwe_message_dict)
+                siwe_msg.verify(signature=payload.signature)
+            except Exception as e:
+                log.error(f"SIWE signature verification failed for {address}: {e}", exc_info=True)
+                raise FailedVerificationException(detail="Invalid signature!") from e
+
+        # Generate DID (always use eip155:1 regardless of actual chainId)
+        user_did = f"did:pkh:eip155:1:{address}"
+
+        # Generate and return JWT token
+        return generate_access_token_response_v2(user_did)
+
+    except FailedVerificationException:
+        # Re-raise API exceptions
+        raise
+    except Exception as exc:
+        log.error("Failed authenticate_v2 request: '%s'", payload.dict(), exc_info=True)
+        raise FailedVerificationException(detail="Authentication failed!") from exc
