@@ -1,10 +1,12 @@
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use base64::{engine::general_purpose::STANDARD, Engine};
+use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::sync::OnceLock;
 
 use crate::api::error::ApiError;
 
-/// JWT Claims structure matching Python's ninja_jwt
+/// JWT Claims structure matching Python's ninja_jwt and SIWE JWT
 /// The JWT contains a 'did' claim with format: did:pkh:eip155:1:0xADDRESS
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
@@ -12,36 +14,102 @@ struct Claims {
     exp: i64,
 }
 
+/// Cached SIWE JWT public key (decoded from base64 if needed)
+static SIWE_PUBLIC_KEY: OnceLock<Option<String>> = OnceLock::new();
+
+/// Decode base64-encoded PEM key, or return as-is if already PEM format
+fn decode_pem_key(value: &str) -> String {
+    // If it already looks like a PEM key, use it directly (for local dev)
+    if value.contains("-----BEGIN") {
+        return value.to_string();
+    }
+    // Otherwise, decode from base64
+    match STANDARD.decode(value) {
+        Ok(bytes) => String::from_utf8(bytes).unwrap_or_else(|_| value.to_string()),
+        Err(_) => value.to_string(),
+    }
+}
+
+/// Get SIWE JWT public key (cached, decoded from base64 if needed)
+fn get_siwe_public_key() -> Option<&'static String> {
+    SIWE_PUBLIC_KEY
+        .get_or_init(|| {
+            env::var("SIWE_JWT_PUBLIC_KEY")
+                .ok()
+                .filter(|s| !s.is_empty())
+                .map(|s| decode_pem_key(&s))
+        })
+        .as_ref()
+}
+
 /// Validate JWT token and extract Ethereum address from DID
 ///
-/// This matches Python's JWTDidAuthentication behavior:
-/// 1. Validate JWT signature using JWT_SECRET from environment
-/// 2. Extract DID from claims (format: did:pkh:eip155:1:0xADDRESS)
-/// 3. Return lowercased Ethereum address
+/// Supports two authentication methods:
+/// 1. RS256 (SIWE) - Uses SIWE_JWT_PUBLIC_KEY for new SIWE-based authentication
+/// 2. HS256 (legacy) - Uses SECRET_KEY for existing ninja_jwt authentication
+///
+/// The algorithm is detected from the JWT header.
 pub fn validate_jwt_and_extract_address(token: &str) -> Result<String, ApiError> {
-    // Get JWT_SECRET from environment, fallback to SECRET_KEY (matching Python's ninja_jwt SIGNING_KEY)
-    let jwt_secret = env::var("JWT_SECRET")
-        .or_else(|_| env::var("SECRET_KEY"))
-        .map_err(|_| ApiError::Internal("JWT_SECRET or SECRET_KEY environment variable not set".to_string()))?
-        .trim_matches('"')
-        .to_string();
-
-    // Create validation configuration
-    // Match Python's ninja_jwt default: HS256 algorithm
-    let mut validation = Validation::new(Algorithm::HS256);
-    // Disable audience validation (Python doesn't use it for ceramic-cache)
-    validation.validate_aud = false;
-
-    // Decode and validate token
-    let token_data = decode::<Claims>(
-        token,
-        &DecodingKey::from_secret(jwt_secret.as_ref()),
-        &validation,
-    )
-    .map_err(|e| {
-        tracing::warn!("JWT validation failed: {}", e);
+    // Peek at the JWT header to determine the algorithm
+    let header = decode_header(token).map_err(|e| {
+        tracing::warn!("Failed to decode JWT header: {}", e);
         ApiError::Unauthorized(format!("Invalid JWT token: {}", e))
     })?;
+
+    let token_data = match header.alg {
+        Algorithm::RS256 => {
+            // SIWE authentication - use RS256 with public key
+            let public_key = get_siwe_public_key().ok_or_else(|| {
+                ApiError::Internal("SIWE_JWT_PUBLIC_KEY not configured".to_string())
+            })?;
+
+            let mut validation = Validation::new(Algorithm::RS256);
+            validation.validate_aud = false;
+            validation.set_issuer(&["passport-scorer"]);
+
+            let decoding_key = DecodingKey::from_rsa_pem(public_key.as_bytes()).map_err(|e| {
+                tracing::error!("Failed to parse SIWE_JWT_PUBLIC_KEY: {}", e);
+                ApiError::Internal("Invalid SIWE_JWT_PUBLIC_KEY format".to_string())
+            })?;
+
+            decode::<Claims>(token, &decoding_key, &validation).map_err(|e| {
+                tracing::warn!("RS256 JWT validation failed: {}", e);
+                ApiError::Unauthorized(format!("Invalid JWT token: {}", e))
+            })?
+        }
+        Algorithm::HS256 => {
+            // Legacy authentication - use HS256 with secret key
+            let jwt_secret = env::var("JWT_SECRET")
+                .or_else(|_| env::var("SECRET_KEY"))
+                .map_err(|_| {
+                    ApiError::Internal(
+                        "JWT_SECRET or SECRET_KEY environment variable not set".to_string(),
+                    )
+                })?
+                .trim_matches('"')
+                .to_string();
+
+            let mut validation = Validation::new(Algorithm::HS256);
+            validation.validate_aud = false;
+
+            decode::<Claims>(
+                token,
+                &DecodingKey::from_secret(jwt_secret.as_ref()),
+                &validation,
+            )
+            .map_err(|e| {
+                tracing::warn!("HS256 JWT validation failed: {}", e);
+                ApiError::Unauthorized(format!("Invalid JWT token: {}", e))
+            })?
+        }
+        alg => {
+            tracing::warn!("Unsupported JWT algorithm: {:?}", alg);
+            return Err(ApiError::Unauthorized(format!(
+                "Unsupported JWT algorithm: {:?}",
+                alg
+            )));
+        }
+    };
 
     // Extract address from DID format: did:pkh:eip155:1:0xADDRESS
     // Python's get_address_from_did: did.split(":")[-1]
