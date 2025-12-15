@@ -379,6 +379,7 @@ STATIC_ROOT = BASE_DIR / "static"
 # Defaults are for testing only - production MUST set these env vars
 import base64
 
+
 def _decode_key(env_var: str) -> str:
     """Decode base64-encoded PEM key from environment variable."""
     value = env(env_var, default="")

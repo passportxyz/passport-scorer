@@ -34,7 +34,7 @@ from ninja_extra.exceptions import APIException
 
 from account.models import Nonce
 from aws_lambdas.exceptions import InvalidRequest
-from ceramic_cache.api.v1 import CacaoVerifySubmit, handle_authenticate
+from ceramic_cache.api.v1 import CacaoVerifySubmit, SiweVerifySubmit, handle_authenticate, handle_authenticate_v2
 
 # pylint: enable=wrong-import-position
 
@@ -157,6 +157,32 @@ def _lambda_handler_authenticate(_event, _context, body, sensitive_date):
     }
 
 
-def lambda_handler_authenticate(*args, **kwargs):
+def lambda_handler_authenticate(event, context, *args, **kwargs):
+    """Routes to v1 or v2 auth based on path"""
     close_old_connections()
-    return _lambda_handler_authenticate(*args, **kwargs)
+    path = event.get("path", "")
+    if "/v2" in path:
+        return _lambda_handler_authenticate_v2(event, context, *args, **kwargs)
+    return _lambda_handler_authenticate(event, context, *args, **kwargs)
+
+
+@with_app_api_no_auth_request_exception_handling
+def _lambda_handler_authenticate_v2(_event, _context, body, sensitive_date):
+    """SIWE-based authentication (v2) - supports EOA and smart wallets"""
+    http_method = _event["httpMethod"]
+    response_body = None
+    headers = dict(**RESPONSE_HEADERS)
+    headers["Access-Control-Allow-Methods"] = "POST,OPTIONS"
+
+    if http_method == "POST":
+        siwe_verify_submit = SiweVerifySubmit(**body)
+        access_token_response = handle_authenticate_v2(siwe_verify_submit)
+        response_body = access_token_response.model_dump_json()
+    else:
+        response_body = ""
+
+    return {
+        "statusCode": 200,
+        "headers": headers,
+        "body": response_body,
+    }
