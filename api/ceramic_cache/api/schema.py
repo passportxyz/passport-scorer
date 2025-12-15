@@ -58,9 +58,14 @@ class CacaoVerifySubmit(Schema):
     cacao: List[int]
 
 
+class SiweVerifySubmit(Schema):
+    message: dict
+    signature: str
+
+
 class AccessTokenResponse(Schema):
     access: str
-    intercom_user_hash: str
+    intercom_user_hash: Optional[str] = None
 
 
 class ComposeDBStatusPayload(Schema):

@@ -3,9 +3,11 @@
 import hashlib
 import hmac
 import json
-from datetime import timedelta
+import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Type
 
+import jwt
 import requests
 from asgiref.sync import async_to_sync
 from django.conf import settings
@@ -14,6 +16,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
+from eth_account.messages import encode_defunct
 from ninja import Router
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
@@ -21,6 +24,8 @@ from ninja_extra.security import HttpBearer
 from ninja_jwt.exceptions import InvalidToken, TokenError
 from ninja_jwt.settings import api_settings
 from ninja_jwt.tokens import RefreshToken, Token
+from siwe import SiweMessage
+from web3 import Web3
 
 import api_logging as logging
 import tos.api
@@ -66,6 +71,7 @@ from .schema import (
     GetStampsWithInternalV2ScoreResponse,
     GetStampsWithV2ScoreResponse,
     InternalV2ScoreResponse,
+    SiweVerifySubmit,
 )
 
 log = logging.getLogger(__name__)
@@ -619,6 +625,89 @@ def generate_access_token_response(user_did: str) -> AccessTokenResponse:
     )
 
 
+def generate_siwe_access_token(user_did: str) -> str:
+    """
+    Generate RS256 JWT for SIWE authentication using PyJWT directly.
+    This token can be verified by IAM using the public key.
+    """
+    now = datetime.now(timezone.utc)
+    payload = {
+        "did": user_did,
+        "iat": now,
+        "exp": now + timedelta(days=7),  # 7-day lifetime like DbCacheToken
+        "jti": str(uuid.uuid4()),
+        "iss": "passport-scorer",
+        "token_type": "access",
+    }
+    return jwt.encode(
+        payload,
+        settings.SIWE_JWT_PRIVATE_KEY,
+        algorithm="RS256"
+    )
+
+
+def generate_access_token_response_v2(user_did: str) -> AccessTokenResponse:
+    """Generate JWT access token for SIWE v2 authentication using RS256"""
+    access_token = generate_siwe_access_token(user_did)
+    return AccessTokenResponse(access=access_token)
+
+
+def get_web3_for_chain(chain_id: int) -> Web3:
+    """Get Web3 instance for a specific chain with 5-second timeout"""
+    rpc_url = settings.get_rpc_url_for_chain(chain_id)
+    provider = Web3.HTTPProvider(rpc_url, request_kwargs={"timeout": 5})
+    return Web3(provider)
+
+
+def verify_signature_erc6492(address: str, message_hash: bytes, signature: str, chain_id: int) -> bool:
+    """
+    Verify any signature (EOA or smart wallet) using ERC-6492 Universal Signature Validator.
+
+    ERC-6492 handles:
+    - EOA signatures (standard ecrecover)
+    - EIP-1271 deployed smart contract signatures
+    - EIP-1271 undeployed (counterfactual) smart contract signatures
+
+    The validator contract is deployed at the same address on all EVM chains via CREATE2.
+    """
+    # ERC-6492 UniversalSigValidator ABI - just the isValidSig function
+    UNIVERSAL_VALIDATOR_ABI = [{
+        "inputs": [
+            {"name": "_signer", "type": "address"},
+            {"name": "_hash", "type": "bytes32"},
+            {"name": "_signature", "type": "bytes"}
+        ],
+        "name": "isValidSig",
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }]
+
+    try:
+        w3 = get_web3_for_chain(chain_id)
+        checksum_address = Web3.to_checksum_address(address)
+        validator_address = Web3.to_checksum_address(settings.ERC6492_UNIVERSAL_VALIDATOR)
+
+        # Create contract instance
+        contract = w3.eth.contract(address=validator_address, abi=UNIVERSAL_VALIDATOR_ABI)
+
+        # Prepare signature bytes
+        sig_bytes = bytes.fromhex(signature.replace("0x", ""))
+
+        # Call isValidSig - this handles EOA, deployed smart wallets, and undeployed smart wallets
+        # We use eth_call to simulate the transaction without actually sending it
+        result = contract.functions.isValidSig(
+            checksum_address,
+            message_hash,
+            sig_bytes
+        ).call()
+
+        return result
+    except Exception as e:
+        log.error(f"Error verifying ERC-6492 signature for {address} on chain {chain_id}: {e}", exc_info=True)
+        return False
+
+
 def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
     # First validate the payload
     # This will ensure that the payload signature was made for our unique nonce
@@ -742,3 +831,77 @@ def accept_tos(
     request, tos_type: str, address: str, payload: tos.schema.TosSigned
 ) -> None:
     tos.api.accept_tos(payload)
+
+
+@router.post(
+    "authenticate/v2",
+    response=AccessTokenResponse,
+)
+def authenticate_v2(request, payload: SiweVerifySubmit):
+    """
+    SIWE-based authentication endpoint that supports both EOA and smart contract wallets.
+    Accepts SIWE message + signature instead of DagJWS/CACAO.
+    Returns JWT with `did` claim in format `did:pkh:eip155:1:0xADDRESS`
+    """
+    return handle_authenticate_v2(payload)
+
+
+def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
+    """
+    Handle SIWE v2 authentication:
+    1. Validate nonce (use once, 5-minute TTL)
+    2. Parse and verify SIWE message
+    3. Verify signature using ERC-6492 (handles EOA + smart wallets universally)
+    4. Return JWT with did claim
+    """
+    try:
+        address = payload.message.get("address", "").lower()
+        nonce = payload.message.get("nonce")
+        chain_id = payload.message.get("chainId", 1)
+
+        if not address or not nonce:
+            log.error("Missing address or nonce in SIWE message")
+            raise FailedVerificationException(detail="Missing address or nonce!")
+
+        # Validate and consume nonce (5-minute TTL)
+        if not Nonce.use_nonce(nonce):
+            log.error("Invalid or expired nonce: '%s'", nonce)
+            raise FailedVerificationException(detail="Invalid nonce!")
+
+        # Convert message dict to SIWE message format
+        siwe_message_dict = {
+            "domain": payload.message.get("domain"),
+            "address": address,
+            "statement": payload.message.get("statement"),
+            "uri": payload.message.get("uri"),
+            "version": payload.message.get("version"),
+            "chain_id": chain_id,
+            "nonce": nonce,
+            "issued_at": payload.message.get("issuedAt"),
+        }
+
+        # Reconstruct the full SIWE message text
+        siwe_msg = SiweMessage(**siwe_message_dict)
+        message_text = siwe_msg.prepare_message()
+
+        # Create EIP-191 prefixed message hash for ERC-6492 verification
+        message_hash = encode_defunct(text=message_text).body
+
+        # Verify signature using ERC-6492 Universal Validator
+        # This handles EOA, deployed smart wallets, AND undeployed smart wallets
+        log.info(f"Verifying signature for {address} on chain {chain_id} using ERC-6492")
+        if not verify_signature_erc6492(address, message_hash, payload.signature, chain_id):
+            log.error(f"ERC-6492 signature verification failed for {address}")
+            raise FailedVerificationException(detail="Invalid signature!")
+
+        # Generate DID (always use eip155:1 for consistent identifier format)
+        user_did = f"did:pkh:eip155:1:{address}"
+
+        # Generate and return JWT token
+        return generate_access_token_response_v2(user_did)
+
+    except FailedVerificationException:
+        raise
+    except Exception as exc:
+        log.error("Failed authenticate_v2 request: '%s'", payload.dict(), exc_info=True)
+        raise FailedVerificationException(detail="Authentication failed!") from exc
