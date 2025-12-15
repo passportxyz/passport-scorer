@@ -375,9 +375,23 @@ STATIC_ROOT = BASE_DIR / "static"
 
 # SIWE JWT signing keys (RS256 asymmetric) - separate from ninja_jwt
 # Used for SIWE authentication tokens that IAM needs to verify
+# Keys are base64 encoded in env vars to avoid newline issues in secrets managers
 # Defaults are for testing only - production MUST set these env vars
-SIWE_JWT_PRIVATE_KEY = env("SIWE_JWT_PRIVATE_KEY", default="")
-SIWE_JWT_PUBLIC_KEY = env("SIWE_JWT_PUBLIC_KEY", default="")
+import base64
+
+def _decode_key(env_var: str) -> str:
+    """Decode base64-encoded PEM key from environment variable."""
+    value = env(env_var, default="")
+    if not value:
+        return ""
+    # If it already looks like a PEM key, use it directly (for local dev)
+    if "-----BEGIN" in value:
+        return value
+    # Otherwise, decode from base64
+    return base64.b64decode(value).decode("utf-8")
+
+SIWE_JWT_PRIVATE_KEY = _decode_key("SIWE_JWT_PRIVATE_KEY")
+SIWE_JWT_PUBLIC_KEY = _decode_key("SIWE_JWT_PUBLIC_KEY")
 
 # Keep ninja_jwt unchanged for existing functionality (UI auth, etc.)
 NINJA_JWT = {
