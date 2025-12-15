@@ -497,3 +497,80 @@ class TestOldEndpointStillWorks:
         assert response.status_code == 200
         json_data = response.json()
         assert "access" in json_data
+
+
+class TestRS256TokenOnProtectedEndpoints:
+    """Integration tests: verify RS256 tokens from /authenticate/v2 work on protected endpoints"""
+    base_url = "/ceramic-cache"
+
+    def test_rs256_token_works_on_score_endpoint(self, mocker):
+        """
+        End-to-end test: get RS256 token from /authenticate/v2,
+        then use it on /ceramic-cache/score/{address}
+        """
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        # Mock ERC-6492 verification for auth
+        mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
+        mock_instance = Mock()
+        mock_siwe.return_value = mock_instance
+        mock_instance.prepare_message.return_value = "SIWE message text"
+
+        # Step 1: Get RS256 token from /authenticate/v2
+        auth_payload = {
+            "message": create_siwe_message(test_address, nonce_obj.nonce),
+            "signature": "0x1234"
+        }
+
+        auth_response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(auth_payload),
+            content_type="application/json",
+        )
+
+        assert auth_response.status_code == 200
+        rs256_token = auth_response.json()["access"]
+
+        # Verify it's actually an RS256 token
+        header = jwt.get_unverified_header(rs256_token)
+        assert header["alg"] == "RS256", f"Expected RS256 token, got {header['alg']}"
+
+        # Step 2: Use the RS256 token on a protected endpoint
+        # The score endpoint should accept the token (even if no score exists)
+        score_response = client.get(
+            f"{self.base_url}/score/{test_address.lower()}",
+            HTTP_AUTHORIZATION=f"Bearer {rs256_token}",
+        )
+
+        # Should NOT be 401 Unauthorized - the token should be accepted
+        # (may be 404 if no passport exists, but that's fine - auth worked)
+        assert score_response.status_code != 401, \
+            f"RS256 token was rejected with 401. Response: {score_response.json()}"
+
+    def test_hs256_token_still_works_on_score_endpoint(self, mocker):
+        """
+        Regression test: HS256 tokens from old /authenticate endpoint
+        should still work on protected endpoints
+        """
+        test_address = "0xffffffffffffffffffffffffffffffffffffffff"
+
+        # Create an HS256 token using the old method (ninja_jwt)
+        from ceramic_cache.api.v1 import generate_access_token_response
+        hs256_response = generate_access_token_response(f"did:pkh:eip155:1:{test_address}")
+        hs256_token = hs256_response.access
+
+        # Verify it's actually an HS256 token
+        header = jwt.get_unverified_header(hs256_token)
+        assert header["alg"] == "HS256", f"Expected HS256 token, got {header['alg']}"
+
+        # Use the HS256 token on a protected endpoint
+        score_response = client.get(
+            f"{self.base_url}/score/{test_address}",
+            HTTP_AUTHORIZATION=f"Bearer {hs256_token}",
+        )
+
+        # Should NOT be 401 Unauthorized
+        assert score_response.status_code != 401, \
+            f"HS256 token was rejected with 401. Response: {score_response.json()}"
