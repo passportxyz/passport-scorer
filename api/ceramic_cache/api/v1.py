@@ -930,6 +930,8 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
 
         log.info(f"SIWE message dict: {siwe_message_dict}")
         log.info(f"Reconstructed message text:\n{message_text}")
+        log.info(f"Signature: {payload.signature[:20]}...{payload.signature[-20:]}")
+        log.info(f"Signature length: {len(payload.signature)}")
 
         # Create EIP-191 prefixed message hash for ERC-6492 verification
         # encode_defunct creates the prefixed message, then we hash it to get bytes32
@@ -941,6 +943,15 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         log.info(
             f"Verifying signature for {address} on chain {chain_id} using ERC-6492"
         )
+
+        # Debug: check if address has code (is it a smart wallet?)
+        try:
+            w3_debug = get_web3_for_chain(chain_id)
+            code = w3_debug.eth.get_code(Web3.to_checksum_address(address))
+            log.info(f"Code at {address} on chain {chain_id}: {len(code)} bytes")
+        except Exception as e:
+            log.warning(f"Failed to check code at address: {e}")
+
         if not verify_signature_erc6492(
             address, message_hash, payload.signature, chain_id
         ):
