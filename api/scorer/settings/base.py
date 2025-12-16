@@ -541,11 +541,17 @@ ALCHEMY_API_KEY = env("ALCHEMY_API_KEY", default="")
 
 # Chain ID to Alchemy network name mapping
 ALCHEMY_CHAIN_NETWORKS = {
+    # Mainnets
     1: "eth-mainnet",
     8453: "base-mainnet",
     42161: "arb-mainnet",
     10: "opt-mainnet",
     5000: "mantle-mainnet",
+    # Testnets (for smart wallet testing)
+    11155111: "eth-sepolia",
+    11155420: "opt-sepolia",
+    84532: "base-sepolia",
+    421614: "arb-sepolia",
 }
 
 def get_rpc_url_for_chain(chain_id: int) -> str:
