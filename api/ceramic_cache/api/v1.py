@@ -727,12 +727,19 @@ def verify_signature_erc6492(
         # Prepare signature bytes
         sig_bytes = bytes.fromhex(signature.replace("0x", ""))
 
+        # Check if signature is ERC-6492 wrapped (ends with magic bytes)
+        ERC6492_MAGIC = bytes.fromhex("6492649264926492649264926492649264926492649264926492649264926492")
+        is_6492_wrapped = sig_bytes[-32:] == ERC6492_MAGIC if len(sig_bytes) >= 32 else False
+        log.debug(f"Signature is ERC-6492 wrapped: {is_6492_wrapped}, length: {len(sig_bytes)} bytes")
+
         # Call isValidSig - this handles EOA, deployed smart wallets, and undeployed smart wallets
         # We use eth_call to simulate the transaction without actually sending it
+        log.debug(f"ERC-6492 isValidSig params: address={checksum_address}, hash={message_hash.hex()}, sig_len={len(sig_bytes)}")
         result = contract.functions.isValidSig(
             checksum_address, message_hash, sig_bytes
         ).call()
 
+        log.debug(f"ERC-6492 isValidSig result: {result}")
         return result
     except Exception as e:
         log.error(
@@ -889,6 +896,9 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
     4. Return JWT with did claim
     """
     try:
+        # Debug: Log the full payload for smart wallet signature debugging
+        log.debug(f"Received authenticate_v2 payload: {payload.dict()}")
+
         address_raw = payload.message.get("address", "")
         nonce = payload.message.get("nonce")
         chain_id = payload.message.get("chainId", 1)
@@ -911,6 +921,7 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
             raise FailedVerificationException(detail="Invalid nonce!")
 
         # Convert message dict to SIWE message format
+        # Include ALL optional fields to ensure message text matches what was signed
         siwe_message_dict = {
             "domain": payload.message.get("domain"),
             "address": address,  # EIP-55 checksum format (converted above)
@@ -922,10 +933,23 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
             "issued_at": payload.message.get("issuedAt"),
         }
 
+        # Add optional SIWE fields if present in the original message
+        if payload.message.get("expirationTime"):
+            siwe_message_dict["expiration_time"] = payload.message.get("expirationTime")
+        if payload.message.get("notBefore"):
+            siwe_message_dict["not_before"] = payload.message.get("notBefore")
+        if payload.message.get("requestId"):
+            siwe_message_dict["request_id"] = payload.message.get("requestId")
+        if payload.message.get("resources"):
+            siwe_message_dict["resources"] = payload.message.get("resources")
+
         # Reconstruct the full SIWE message text
         siwe_msg = SiweMessage(**siwe_message_dict)
         message_text = siwe_msg.prepare_message()
 
+        # Debug logging to help diagnose smart wallet signature issues
+        log.debug(f"Original payload message keys: {list(payload.message.keys())}")
+        log.debug(f"Reconstructed SIWE message text:\n{message_text}")
 
         # Create EIP-191 prefixed message hash for ERC-6492 verification
         # encode_defunct creates the prefixed message, then we hash it to get bytes32
@@ -949,6 +973,7 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
             signature_valid = verify_signature_erc6492(
                 address, message_hash, payload.signature, chain_id
             )
+
 
         if not signature_valid:
             log.error(f"Signature verification failed for {address}")
