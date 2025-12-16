@@ -682,8 +682,8 @@ def get_web3_for_chain(chain_id: int) -> Web3:
     rpc_url = get_rpc_url_for_chain(chain_id)
     provider = Web3.HTTPProvider(rpc_url, request_kwargs={"timeout": 5})
     w3 = Web3(provider)
-    # Set chain_id explicitly to skip automatic eth_chainId RPC calls
-    w3.eth.default_chain_id = chain_id
+    # Cache eth_chainId responses to avoid redundant RPC calls
+    w3.provider.cache_allowed_requests = True
     return w3
 
 
@@ -729,23 +729,17 @@ def verify_signature_erc6492(
         # Concatenate bytecode + encoded params for deployless verification
         call_data = UNIVERSAL_VALIDATOR_BYTECODE + encoded_params
 
-        log.info(f"ERC-6492 deployless call: chain={chain_id}, address={checksum_address}, hash={message_hash.hex()}, sig_len={len(sig_bytes)}")
-
         try:
             # eth_call with no 'to' address deploys and executes the bytecode inline
             result = w3.eth.call({'data': call_data})
-            # Result is 0x01 for valid, 0x00 for invalid
             is_valid = result == b'\x01'
-            log.info(f"ERC-6492 deployless result on chain {chain_id}: {result.hex()} (valid={is_valid})")
+            log.debug(f"ERC-6492 verification for {checksum_address}: {is_valid}")
             return is_valid
         except Exception as call_error:
-            log.error(f"ERC-6492 eth_call failed on chain {chain_id}: {call_error}")
+            log.error(f"ERC-6492 eth_call failed: {call_error}")
             return False
     except Exception as e:
-        log.error(
-            f"Error verifying ERC-6492 signature for {address} on chain {chain_id}: {e}",
-            exc_info=True,
-        )
+        log.error(f"ERC-6492 verification error for {address}: {e}")
         return False
 
 
@@ -956,10 +950,7 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         full_prefixed_data = b'\x19Ethereum Signed Message:\n' + str(len(message_bytes)).encode() + message_bytes
         message_hash = Web3.keccak(full_prefixed_data)
 
-        # Debug logging to help diagnose smart wallet signature issues
-        log.info(f"Original payload message: {payload.message}")
-        log.info(f"Reconstructed SIWE message text:\n{message_text}")
-        log.info(f"Message hash (hex): {message_hash.hex()}")
+        log.debug(f"SIWE message hash: {message_hash.hex()}")
 
         # Try standard EOA ecrecover first (faster, no RPC needed)
         from eth_account import Account
@@ -972,23 +963,12 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         except Exception as e:
             log.debug(f"ecrecover failed, trying ERC-6492: {e}")
 
-        # Fallback to ERC-6492 for smart wallets using pure Python bytecode verification
+        # Fallback to ERC-6492 for smart wallets (verify on mainnet)
+        # Smart wallet factories are deployed on 100+ chains including mainnet
         if not signature_valid:
-            # Chains where smart wallets are commonly deployed (Base, mainnet, Optimism, Arbitrum)
-            # Try the specified chain first, then others
-            chains_to_try = [chain_id]
-            for fallback_chain in [8453, 1, 10, 42161]:  # Base, mainnet, OP, Arb
-                if fallback_chain not in chains_to_try:
-                    chains_to_try.append(fallback_chain)
-
-            for try_chain in chains_to_try:
-                log.info(f"Trying ERC-6492 verification for {address} on chain {try_chain}")
-                signature_valid = verify_signature_erc6492(
-                    address, message_hash, payload.signature, try_chain
-                )
-                if signature_valid:
-                    log.info(f"ERC-6492 verification succeeded on chain {try_chain}")
-                    break
+            signature_valid = verify_signature_erc6492(
+                address, message_hash, payload.signature, 1  # mainnet
+            )
 
         if not signature_valid:
             log.error(f"Signature verification failed for {address}")
