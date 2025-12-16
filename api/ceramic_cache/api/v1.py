@@ -684,6 +684,34 @@ def get_web3_for_chain(chain_id: int) -> Web3:
     return Web3(provider)
 
 
+def verify_signature_erc6492_viem(
+    address: str, message: str, signature: str, chain_id: int
+) -> bool:
+    """
+    Verify ERC-6492 signature using viem via Node.js subprocess.
+    This is the most reliable method as viem handles all the complexity.
+    """
+    import subprocess
+    import os
+
+    script_path = os.path.join(os.path.dirname(__file__), '..', '..', 'scripts', 'verify_erc6492.js')
+
+    try:
+        result = subprocess.run(
+            ['node', script_path, address, message, signature, str(chain_id)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=os.path.dirname(script_path)
+        )
+        is_valid = result.stdout.strip().lower() == 'true'
+        log.info(f"Viem ERC-6492 verification result: {is_valid} (stdout: {result.stdout.strip()}, stderr: {result.stderr.strip()})")
+        return is_valid
+    except Exception as e:
+        log.error(f"Viem ERC-6492 verification failed: {e}")
+        return False
+
+
 def verify_signature_erc6492(
     address: str, message_hash: bytes, signature: str, chain_id: int
 ) -> bool:
@@ -967,9 +995,8 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         except Exception as e:
             log.debug(f"ecrecover failed, trying ERC-6492: {e}")
 
-        # Fallback to ERC-6492 for smart wallets
-        # Try verification on multiple chains since smart wallets may only be deployed on specific chains
-        # The factory contract in the ERC-6492 signature might only exist on certain chains
+        # Fallback to ERC-6492 for smart wallets using viem (Node.js)
+        # viem handles all the complexity of ERC-6492 verification correctly
         if not signature_valid:
             # Chains where smart wallets are commonly deployed (Base, mainnet, Optimism, Arbitrum)
             # Try the specified chain first, then others
@@ -979,12 +1006,12 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
                     chains_to_try.append(fallback_chain)
 
             for try_chain in chains_to_try:
-                log.info(f"Trying ERC-6492 verification for {address} on chain {try_chain}")
-                signature_valid = verify_signature_erc6492(
-                    address, message_hash, payload.signature, try_chain
+                log.info(f"Trying ERC-6492 verification (viem) for {address} on chain {try_chain}")
+                signature_valid = verify_signature_erc6492_viem(
+                    address, message_text, payload.signature, try_chain
                 )
                 if signature_valid:
-                    log.info(f"ERC-6492 verification succeeded on chain {try_chain}")
+                    log.info(f"ERC-6492 verification (viem) succeeded on chain {try_chain}")
                     break
 
         if not signature_valid:

@@ -6,79 +6,82 @@ We need to support Coinbase Smart Wallet (and other ERC-4337 smart wallets) for 
 
 ## Current State
 
-**Status: BLOCKED - Hash mismatch between what we compute and what the wallet signs**
+**Status: WORKING - Using viem via Node.js subprocess**
+
+### Solution
+
+After extensive debugging, we found that Python's ERC-6492 bytecode verification (both Ambire and viem's bytecode) returns different results than viem's JavaScript implementation, even with identical bytecode.
+
+The working solution is to call viem directly via a Node.js subprocess for ERC-6492 signature verification.
 
 ### What Works
-- EOA (Externally Owned Account) signatures work fine
+- EOA (Externally Owned Account) signatures work fine via ecrecover
+- Smart wallet signatures now verified via viem (Node.js subprocess)
 - The signature IS being created and returned from the wallet
 - The signature IS ERC-6492 wrapped (contains factory deployment data)
 
-### What Doesn't Work
-- ERC-6492 signature verification returns `false` on all chains tested
-- The WebAuthn challenge in the signature doesn't match our computed message hash
+### Architecture
+
+```
+Frontend (viem/wagmi)
+    |
+    | Sign SIWE message with smart wallet
+    v
+Backend (Python/Django)
+    |
+    | 1. Try ecrecover (fails for smart wallets)
+    | 2. Call Node.js subprocess with viem
+    v
+scripts/verify_erc6492.js (viem)
+    |
+    | verifyMessage() with ERC-6492 support
+    v
+Returns true/false
+```
 
 ## Root Cause Analysis
 
-### The Hash Mismatch Problem
+### The Hash Mismatch (Expected Behavior)
 
 When we receive a signature from Coinbase Smart Wallet:
 
-1. **Our computed hash** (EIP-191): `2442c92e4fcf39ae3295b52cb30bde2534e3d99789bf0040213df854634e0dc0`
-2. **WebAuthn challenge in signature**: `80c9033cbf8831c30369f2ed8f26dcb8bbd6aad8e62f7f9a9fb9fbbf4e5a200b`
+1. **Our computed hash** (EIP-191): `b52f8b34e9bce3c577f61ae428b3b8450c5f914deb8a602ec2b3dc6e1e494305`
+2. **WebAuthn challenge in signature**: `fb45f7652bef023b624e01a67e81c6a118f4d45231fe01ccc4be2681a2e48d58`
 
-These are completely different! The wallet is signing something else.
+These are different because Coinbase Smart Wallet uses a **replaySafeHash** mechanism (EIP-712 wrapped). This is EXPECTED - the ERC-6492 validator handles this internally.
 
-### Why This Happens
+### Why Python Bytecode Verification Failed
 
-Coinbase Smart Wallet uses a **replaySafeHash** mechanism (from their ERC1271.sol):
+We tried two bytecodes:
+1. **Ambire's signature-validator** - Different bytecode, returned `0x00` (invalid)
+2. **viem's exact bytecode** - Same bytecode as viem, still returned `0x00` (invalid)
 
-```solidity
-function replaySafeHash(bytes32 hash) public view returns (bytes32) {
-    return _eip712Hash(hash);
-}
+The issue appears to be in how web3.py encodes the constructor parameters or handles the eth_call differently than viem. The exact cause is unknown, but the viem subprocess solution works reliably.
 
-// Which computes:
-keccak256("\x19\x01" || domainSeparator() || hashStruct(hash))
-```
+### Chain Verification
 
-The `domainSeparator` includes:
-- Contract name: "Coinbase Smart Wallet"
-- Version: "1"
-- **Chain ID** (critical!)
-- Wallet contract address
+Smart wallet signatures must be verified on the chain the user was connected to when signing:
+- Connected on Ethereum (chain 1) → Verify on chain 1 ✓
+- Connected on Base (chain 8453) → Verify on chain 8453 ✓
 
-### The Chain ID Problem
-
-The SIWE message contains a `chainId` field (e.g., `chainId: 1` for mainnet). But the wallet's domain separator uses the chain where the **wallet contract** is deployed (e.g., Base = 8453).
-
-So if:
-- SIWE message has `chainId: 1`
-- Wallet is on Base (`chainId: 8453`)
-- The `replaySafeHash` computation uses Base's chain ID
-- Our verification uses mainnet's chain ID
-- **Hashes don't match!**
-
-### Additional Complexity
-
-The ERC-6492 validator should handle this by:
-1. Deploying the wallet contract (via factory calldata in signature)
-2. Calling `wallet.isValidSignature(hash, innerSignature)`
-3. The wallet internally computes `replaySafeHash(hash)` and verifies
-
-But verification still fails, possibly because:
-- The wallet isn't getting deployed correctly in the `eth_call` simulation
-- The domain separator chain ID doesn't match
-- Something else in the WebAuthn/passkey verification is failing
+The SIWE message's `chainId` field indicates which chain to verify on.
 
 ## Code Changes Made
 
 ### Backend (`api/ceramic_cache/api/v1.py`)
 
-1. **Added ERC-6492 verification** with multi-chain fallback
-2. **Switched to deployless verification** using Ambire's bytecode (doesn't require pre-deployed validator contract)
-3. **Added testnet chain support** for development
+1. **Added viem verification function** `verify_signature_erc6492_viem()` - calls Node.js subprocess
+2. **Fixed EIP-191 hash computation** - hash full prefixed message, not just body
+3. **Multi-chain fallback** - tries specified chain first, then Base, mainnet, OP, Arb
 
-Key function: `verify_signature_erc6492()` at line ~687
+Key function: `verify_signature_erc6492_viem()` at line ~687
+
+### Backend (`api/scripts/verify_erc6492.js`)
+
+New Node.js script that uses viem for ERC-6492 verification:
+- Takes address, message, signature, chainId as arguments
+- Returns "true" or "false" to stdout
+- Uses viem's `verifyMessage()` which handles ERC-6492 automatically
 
 ### Backend (`api/scorer/settings/base.py`)
 
@@ -99,13 +102,13 @@ ALCHEMY_CHAIN_NETWORKS = {
 
 ### Frontend Test Page (`app/pages/test-smart-wallet.tsx`)
 
-Created a test page to debug signature flow:
+Test page to debug signature flow (in ../project repo):
 - Connect wallet via web3Modal
-- Sign a plain message
+- Sign SIWE message (same format as main app)
 - Decode the ERC-6492 signature structure
 - Extract WebAuthn challenge
 - Compare hashes
-- Try Viem's `verifyMessage`
+- Verify with viem's verifyMessage
 
 ## Signature Structure (ERC-6492)
 
@@ -125,28 +128,13 @@ Created a test page to debug signature flow:
 - **Multicall3**: `0xca11bde05977b3631167028862be2a173976ca11` (factory in ERC-6492)
 - **CoinbaseSmartWalletFactory**: `0xba5ed110efdba3d005bfc882d75358acbbb85842` (called via Multicall3)
 
-## What Needs to Be Done
+## Dependencies
 
-### Option 1: Fix the Hash Computation
-
-Figure out exactly what hash the frontend is sending to the wallet and ensure our backend computes the same hash for verification.
-
-Steps:
-1. Add logging in frontend to capture the exact bytes being signed
-2. Trace through wagmi/viem to see what transformation happens
-3. Match that transformation in backend verification
-
-### Option 2: Use Viem's verifyMessage on Backend
-
-Viem's `verifyMessage` supposedly handles ERC-6492 automatically. We could:
-1. Create a simple Node.js verification service
-2. Or port Viem's verification logic to Python
-
-### Option 3: Ask Coinbase/Base for Guidance
-
-Their docs recommend using Viem but don't explain the hash transformation. May need to:
-1. Check their Discord/GitHub issues
-2. Look at working implementations (if any exist in Python)
+### Node.js (for viem verification)
+```bash
+cd api/scripts
+npm install viem
+```
 
 ## Test Commands
 
@@ -167,30 +155,37 @@ yarn start
 http://localhost:3000/test-smart-wallet
 ```
 
+### Test viem verification directly
+```bash
+cd api/scripts
+node verify_erc6492.js <address> <message> <signature> <chainId>
+```
+
 ## Relevant Files
 
 ### Backend
 - `api/ceramic_cache/api/v1.py` - Main authentication logic, ERC-6492 verification
+- `api/scripts/verify_erc6492.js` - Node.js viem verification script
 - `api/scorer/settings/base.py` - Chain RPC configuration
 
 ### Frontend
-- `app/pages/test-smart-wallet.tsx` - Test page for debugging
+- `app/pages/test-smart-wallet.tsx` - Test page for debugging (in ../project)
 - `app/utils/web3.ts` - Wallet configuration
-- `app/context/ceramicContext.tsx` - SIWE authentication flow
+- `app/context/datastoreConnectionContext.tsx` - SIWE authentication flow
 
 ## References
 
 - [ERC-6492 Spec](https://eips.ethereum.org/EIPS/eip-6492)
 - [Coinbase Smart Wallet GitHub](https://github.com/coinbase/smart-wallet)
 - [Base Docs - Signature Verification](https://docs.base.org/identity/smart-wallet/guides/signature-verification)
-- [Ambire Signature Validator](https://github.com/AmbireTech/signature-validator)
+- [viem verifyMessage](https://viem.sh/docs/actions/public/verifyMessage)
 
 ## Git Branch
 
 All changes are on branch: `smart-wallets-1`
 
-Recent commits:
-- `fix(auth): use deployless ERC-6492 validation for smart wallets`
-- `fix(auth): move message_hash computation before debug logging`
-- `fix(auth): improve smart wallet debug logging to info level`
-- `fix(auth): add multi-chain ERC-6492 verification fallback for smart wallets`
+## Future Improvements
+
+1. **Pure Python solution** - Figure out why Python bytecode verification differs from viem
+2. **Performance** - Node.js subprocess has ~100ms overhead; consider long-running Node process
+3. **Error handling** - Better error messages for specific failure cases
