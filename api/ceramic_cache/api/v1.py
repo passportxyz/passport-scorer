@@ -681,7 +681,10 @@ def get_web3_for_chain(chain_id: int) -> Web3:
     """Get Web3 instance for a specific chain with 5-second timeout"""
     rpc_url = get_rpc_url_for_chain(chain_id)
     provider = Web3.HTTPProvider(rpc_url, request_kwargs={"timeout": 5})
-    return Web3(provider)
+    w3 = Web3(provider)
+    # Set chain_id explicitly to skip automatic eth_chainId RPC calls
+    w3.eth.default_chain_id = chain_id
+    return w3
 
 
 def verify_signature_erc6492(
@@ -690,35 +693,59 @@ def verify_signature_erc6492(
     """
     Verify any signature (EOA or smart wallet) using ERC-6492 Universal Signature Validator.
 
-    Uses the "deployless" bytecode approach - the validator runs inline during eth_call.
-    This is the standard approach for off-chain signature verification per ERC-6492.
+    ERC-6492 handles:
+    - EOA signatures (standard ecrecover)
+    - EIP-1271 deployed smart contract signatures
+    - EIP-1271 undeployed (counterfactual) smart contract signatures
 
-    Handles: EOA (ecrecover), EIP-1271 (deployed), ERC-6492 (counterfactual)
+    Uses the "deployless" approach from Ambire's signature-validator - deploys the validator
+    inline during eth_call without needing a pre-deployed contract.
     """
-    # Universal Signature Validator bytecode from viem - runs inline during eth_call
-    # https://github.com/wevm/viem/blob/main/src/constants/contracts.ts
-    VALIDATOR_BYTECODE = bytes.fromhex(
+    # ERC-6492 Signature Validator bytecode from viem
+    # This is the exact bytecode viem uses for verifyMessage with smart wallet support
+    # Source: https://github.com/wevm/viem/blob/main/src/constants/contracts.ts
+    UNIVERSAL_VALIDATOR_BYTECODE = bytes.fromhex(
         "608060405234801561001057600080fd5b5060405161069438038061069483398101604081905261002f9161051e565b600061003c848484610048565b9050806000526001601ff35b60007f64926492649264926492649264926492649264926492649264926492649264926100748361040c565b036101e7576000606080848060200190518101906100929190610577565b60405192955090935091506000906001600160a01b038516906100b69085906105dd565b6000604051808303816000865af19150503d80600081146100f3576040519150601f19603f3d011682016040523d82523d6000602084013e6100f8565b606091505b50509050876001600160a01b03163b60000361016057806101605760405162461bcd60e51b815260206004820152601e60248201527f5369676e617475726556616c696461746f723a206465706c6f796d656e74000060448201526064015b60405180910390fd5b604051630b135d3f60e11b808252906001600160a01b038a1690631626ba7e90610190908b9087906004016105f9565b602060405180830381865afa1580156101ad573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101d19190610633565b6001600160e01b03191614945050505050610405565b6001600160a01b0384163b1561027a57604051630b135d3f60e11b808252906001600160a01b03861690631626ba7e9061022790879087906004016105f9565b602060405180830381865afa158015610244573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906102689190610633565b6001600160e01b031916149050610405565b81516041146102df5760405162461bcd60e51b815260206004820152603a602482015260008051602061067483398151915260448201527f3a20696e76616c6964207369676e6174757265206c656e6774680000000000006064820152608401610157565b6102e7610425565b5060208201516040808401518451859392600091859190811061030c5761030c61065d565b016020015160f81c9050601b811480159061032b57508060ff16601c14155b1561038c5760405162461bcd60e51b815260206004820152603b602482015260008051602061067483398151915260448201527f3a20696e76616c6964207369676e617475726520762076616c756500000000006064820152608401610157565b60408051600081526020810180835289905260ff83169181019190915260608101849052608081018390526001600160a01b0389169060019060a0016020604051602081039080840390855afa1580156103ea573d6000803e3d6000fd5b505050602060405103516001600160a01b0316149450505050505b9392505050565b600060208251101561041d57600080fd5b508051015190565b60405180606001604052806003906020820280368337509192915050565b6001600160a01b038116811461045857600080fd5b50565b634e487b7160e01b600052604160045260246000fd5b60005b8381101561048c578181015183820152602001610474565b50506000910152565b600082601f8301126104a657600080fd5b81516001600160401b038111156104bf576104bf61045b565b604051601f8201601f19908116603f011681016001600160401b03811182821017156104ed576104ed61045b565b60405281815283820160200185101561050557600080fd5b610516826020830160208701610471565b949350505050565b60008060006060848603121561053357600080fd5b835161053e81610443565b6020850151604086015191945092506001600160401b0381111561056157600080fd5b61056d86828701610495565b9150509250925092565b60008060006060848603121561058c57600080fd5b835161059781610443565b60208501519093506001600160401b038111156105b357600080fd5b6105bf86828701610495565b604086015190935090506001600160401b0381111561056157600080fd5b600082516105ef818460208701610471565b9190910192915050565b828152604060208201526000825180604084015261061e816060850160208701610471565b601f01601f1916919091016060019392505050565b60006020828403121561064557600080fd5b81516001600160e01b03198116811461040557600080fd5b634e487b7160e01b600052603260045260246000fdfe5369676e617475726556616c696461746f72237265636f7665725369676e6572"
     )
 
     try:
         w3 = get_web3_for_chain(chain_id)
         checksum_address = Web3.to_checksum_address(address)
+
+        # Prepare signature bytes
         sig_bytes = bytes.fromhex(signature.replace("0x", ""))
 
-        # ABI encode: (address _signer, bytes32 _hash, bytes _signature)
+        # Check if signature is ERC-6492 wrapped (ends with magic bytes)
+        ERC6492_MAGIC = bytes.fromhex("6492649264926492649264926492649264926492649264926492649264926492")
+        is_6492_wrapped = sig_bytes[-32:] == ERC6492_MAGIC if len(sig_bytes) >= 32 else False
+        log.debug(f"Signature is ERC-6492 wrapped: {is_6492_wrapped}, length: {len(sig_bytes)} bytes")
+
+        # ABI encode constructor parameters: (address _signer, bytes32 _hash, bytes _signature)
         encoded_params = w3.codec.encode(
             ['address', 'bytes32', 'bytes'],
             [checksum_address, message_hash, sig_bytes]
         )
 
-        # Deployless call: bytecode + constructor args, no 'to' address
-        result = w3.eth.call({'data': VALIDATOR_BYTECODE + encoded_params})
-        is_valid = result == b'\x01'
-        log.debug(f"ERC-6492 verification for {checksum_address}: {is_valid}")
-        return is_valid
+        # Concatenate bytecode + encoded params for deployless verification
+        call_data = UNIVERSAL_VALIDATOR_BYTECODE + encoded_params
+
+        log.info(f"ERC-6492 deployless call: chain={chain_id}, address={checksum_address}, hash={message_hash.hex()}, sig_len={len(sig_bytes)}")
+
+        try:
+            # eth_call with no 'to' address deploys and executes the bytecode inline
+            result = w3.eth.call({'data': call_data})
+            # Result is 0x01 for valid, 0x00 for invalid
+            is_valid = result == b'\x01'
+            log.info(f"ERC-6492 deployless result on chain {chain_id}: {result.hex()} (valid={is_valid})")
+            return is_valid
+        except Exception as call_error:
+            log.error(f"ERC-6492 eth_call failed on chain {chain_id}: {call_error}")
+            return False
     except Exception as e:
-        log.error(f"ERC-6492 verification failed for {address}: {e}")
+        log.error(
+            f"Error verifying ERC-6492 signature for {address} on chain {chain_id}: {e}",
+            exc_info=True,
+        )
         return False
 
 
@@ -929,7 +956,10 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         full_prefixed_data = b'\x19Ethereum Signed Message:\n' + str(len(message_bytes)).encode() + message_bytes
         message_hash = Web3.keccak(full_prefixed_data)
 
-        log.debug(f"SIWE message hash: {message_hash.hex()}")
+        # Debug logging to help diagnose smart wallet signature issues
+        log.info(f"Original payload message: {payload.message}")
+        log.info(f"Reconstructed SIWE message text:\n{message_text}")
+        log.info(f"Message hash (hex): {message_hash.hex()}")
 
         # Try standard EOA ecrecover first (faster, no RPC needed)
         from eth_account import Account
@@ -942,13 +972,23 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         except Exception as e:
             log.debug(f"ecrecover failed, trying ERC-6492: {e}")
 
-        # Fallback to ERC-6492 for smart wallets (verify on mainnet)
-        # Smart wallet factories are deployed on mainnet, so verification works there
+        # Fallback to ERC-6492 for smart wallets using pure Python bytecode verification
         if not signature_valid:
-            log.debug(f"Trying ERC-6492 verification for {address} on mainnet")
-            signature_valid = verify_signature_erc6492(
-                address, message_hash, payload.signature, 1  # mainnet
-            )
+            # Chains where smart wallets are commonly deployed (Base, mainnet, Optimism, Arbitrum)
+            # Try the specified chain first, then others
+            chains_to_try = [chain_id]
+            for fallback_chain in [8453, 1, 10, 42161]:  # Base, mainnet, OP, Arb
+                if fallback_chain not in chains_to_try:
+                    chains_to_try.append(fallback_chain)
+
+            for try_chain in chains_to_try:
+                log.info(f"Trying ERC-6492 verification for {address} on chain {try_chain}")
+                signature_valid = verify_signature_erc6492(
+                    address, message_hash, payload.signature, try_chain
+                )
+                if signature_valid:
+                    log.info(f"ERC-6492 verification succeeded on chain {try_chain}")
+                    break
 
         if not signature_valid:
             log.error(f"Signature verification failed for {address}")
