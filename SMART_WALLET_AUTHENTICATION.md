@@ -6,7 +6,35 @@ We need to support Coinbase Smart Wallet (and other ERC-4337 smart wallets) for 
 
 ## Current State
 
-**Status: WORKING - Using viem via Node.js subprocess**
+**Status: SOLUTION VERIFIED - Docker setup pending**
+
+### Verification Proof
+
+The viem-based solution works. Tested with actual signature from Coinbase Smart Wallet:
+
+```bash
+cd api/scripts
+node verify_erc6492.js \
+  "0x9e068046a15E776F734c2733b73F9849D08Cf844" \
+  "<SIWE message>" \
+  "<ERC-6492 signature>" \
+  "1"
+# Returns: true
+```
+
+### Current Blocker
+
+Docker container needs Node.js + viem installed. The Dockerfile has been updated but requires rebuild:
+
+```bash
+docker compose build --no-cache api
+docker compose up
+```
+
+Or manually install in running container:
+```bash
+docker compose exec api bash -c "cd /app/scripts && npm install"
+```
 
 ### Solution
 
