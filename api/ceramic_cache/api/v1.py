@@ -889,6 +889,8 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
     4. Return JWT with did claim
     """
     try:
+        log.info(f"Raw payload message: {payload.message}")
+
         address_raw = payload.message.get("address", "")
         nonce = payload.message.get("nonce")
         chain_id = payload.message.get("chainId", 1)
@@ -925,6 +927,9 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         # Reconstruct the full SIWE message text
         siwe_msg = SiweMessage(**siwe_message_dict)
         message_text = siwe_msg.prepare_message()
+
+        log.info(f"SIWE message dict: {siwe_message_dict}")
+        log.info(f"Reconstructed message text:\n{message_text}")
 
         # Create EIP-191 prefixed message hash for ERC-6492 verification
         # encode_defunct creates the prefixed message, then we hash it to get bytes32
