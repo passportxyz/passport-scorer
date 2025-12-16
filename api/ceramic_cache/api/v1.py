@@ -889,8 +889,6 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
     4. Return JWT with did claim
     """
     try:
-        log.info(f"Raw payload message: {payload.message}")
-
         address_raw = payload.message.get("address", "")
         nonce = payload.message.get("nonce")
         chain_id = payload.message.get("chainId", 1)
@@ -928,34 +926,32 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         siwe_msg = SiweMessage(**siwe_message_dict)
         message_text = siwe_msg.prepare_message()
 
-        log.info(f"SIWE message dict: {siwe_message_dict}")
-        log.info(f"Reconstructed message text:\n{message_text}")
-        log.info(f"Signature: {payload.signature[:20]}...{payload.signature[-20:]}")
-        log.info(f"Signature length: {len(payload.signature)}")
 
         # Create EIP-191 prefixed message hash for ERC-6492 verification
         # encode_defunct creates the prefixed message, then we hash it to get bytes32
         prefixed_message = encode_defunct(text=message_text)
         message_hash = Web3.keccak(prefixed_message.body)
 
-        # Verify signature using ERC-6492 Universal Validator
-        # This handles EOA, deployed smart wallets, AND undeployed smart wallets
-        log.info(
-            f"Verifying signature for {address} on chain {chain_id} using ERC-6492"
-        )
-
-        # Debug: try standard EOA ecrecover
+        # Try standard EOA ecrecover first (faster, no RPC needed)
         from eth_account import Account
+        signature_valid = False
         try:
             recovered = Account.recover_message(prefixed_message, signature=payload.signature)
-            log.info(f"EOA ecrecover: recovered={recovered}, expected={address}, match={recovered.lower() == address.lower()}")
+            signature_valid = recovered.lower() == address.lower()
+            if signature_valid:
+                log.info(f"Signature verified via ecrecover for {address}")
         except Exception as e:
-            log.warning(f"EOA ecrecover failed: {e}")
+            log.debug(f"ecrecover failed, trying ERC-6492: {e}")
 
-        if not verify_signature_erc6492(
-            address, message_hash, payload.signature, chain_id
-        ):
-            log.error(f"ERC-6492 signature verification failed for {address}")
+        # Fallback to ERC-6492 for smart wallets
+        if not signature_valid:
+            log.info(f"Trying ERC-6492 verification for {address} on chain {chain_id}")
+            signature_valid = verify_signature_erc6492(
+                address, message_hash, payload.signature, chain_id
+            )
+
+        if not signature_valid:
+            log.error(f"Signature verification failed for {address}")
             raise FailedVerificationException(detail="Invalid signature!")
 
         # Generate DID (always use eip155:1 for consistent identifier format)
