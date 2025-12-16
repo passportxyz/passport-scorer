@@ -81,7 +81,12 @@ class TestAuthenticateV2:
         assert token["did"] == expected_did
 
     def test_successful_authentication_on_base(self, mocker):
-        """Test successful authentication on Base chain (chainId 8453)"""
+        """Test successful authentication on Base chain (chainId 8453)
+
+        Note: ERC-6492 verification always uses mainnet (chain_id=1) since smart wallet
+        factories are deployed on 100+ chains including mainnet. The SIWE message chain_id
+        is preserved for the user's intent but verification uses mainnet for simplicity.
+        """
         test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
@@ -111,10 +116,10 @@ class TestAuthenticateV2:
 
         assert response.status_code == 200
 
-        # Verify ERC-6492 was called with correct chain_id
+        # Verify ERC-6492 was called with mainnet (always chain_id=1)
         mock_verify.assert_called_once()
         call_args = mock_verify.call_args
-        assert call_args[0][3] == 8453  # chain_id is the 4th argument
+        assert call_args[0][3] == 1  # verification always uses mainnet
 
         # DID should still use eip155:1 (identifier format, not verification chain)
         json_data = response.json()
@@ -212,7 +217,11 @@ class TestAuthenticateV2:
         assert "Invalid nonce" in json_data["detail"]
 
     def test_smart_wallet_on_base(self, mocker):
-        """Test smart wallet authentication on Base chain (e.g., Coinbase Smart Wallet)"""
+        """Test smart wallet authentication on Base chain (e.g., Coinbase Smart Wallet)
+
+        Note: ERC-6492 verification always uses mainnet (chain_id=1) since smart wallet
+        factories are deployed on 100+ chains including mainnet.
+        """
         # Coinbase Smart Wallet example address
         test_address = "0x4bBa290826C253BD854121346c370a9886d1bC26"
         nonce_obj = Nonce.create_nonce(ttl=300)
@@ -249,10 +258,10 @@ class TestAuthenticateV2:
         expected_did = f"did:pkh:eip155:1:{test_address.lower()}"
         assert token["did"] == expected_did
 
-        # Verify ERC-6492 was called with Base chain
+        # Verify ERC-6492 was called with mainnet (always chain_id=1)
         mock_verify.assert_called_once()
         call_args = mock_verify.call_args
-        assert call_args[0][3] == 8453
+        assert call_args[0][3] == 1  # verification always uses mainnet
 
 
 class TestAuthenticateV2EdgeCases:
@@ -419,12 +428,17 @@ class TestJWTTokenStructure:
 
 
 class TestMultiChainSupport:
-    """Test support for multiple L2 chains"""
+    """Test support for SIWE messages from multiple L2 chains.
+
+    Note: ERC-6492 verification always uses mainnet (chain_id=1) since smart wallet
+    factories are deployed on 100+ chains including mainnet. The SIWE message's chainId
+    is accepted and preserved for user intent, but verification is done against mainnet.
+    """
 
     base_url = "/ceramic-cache"
 
     def test_authentication_on_arbitrum(self, mocker):
-        """Test authentication on Arbitrum (chainId 42161)"""
+        """Test authentication with Arbitrum chainId in SIWE message (42161)"""
         test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
@@ -451,13 +465,13 @@ class TestMultiChainSupport:
 
         assert response.status_code == 200
 
-        # Verify ERC-6492 was called with Arbitrum chain_id
+        # Verify ERC-6492 was called with mainnet (always chain_id=1)
         mock_verify.assert_called_once()
         call_args = mock_verify.call_args
-        assert call_args[0][3] == 42161
+        assert call_args[0][3] == 1  # verification always uses mainnet
 
     def test_authentication_on_optimism(self, mocker):
-        """Test authentication on Optimism (chainId 10)"""
+        """Test authentication with Optimism chainId in SIWE message (10)"""
         test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
@@ -482,7 +496,7 @@ class TestMultiChainSupport:
 
         assert response.status_code == 200
         mock_verify.assert_called_once()
-        assert mock_verify.call_args[0][3] == 10
+        assert mock_verify.call_args[0][3] == 1  # verification always uses mainnet
 
 
 class TestOldEndpointStillWorks:
@@ -626,9 +640,10 @@ class TestVerifySignatureERC6492:
 
         # Mock get_web3_for_chain to return a mock Web3 instance
         mock_w3 = Mock()
-        mock_contract = Mock()
-        mock_w3.eth.contract.return_value = mock_contract
-        mock_contract.functions.isValidSig.return_value.call.return_value = True
+        # Mock codec.encode to return actual bytes (ABI-encoded params)
+        mock_w3.codec.encode.return_value = b"\x00" * 128
+        # Mock eth.call to return 0x01 (valid signature)
+        mock_w3.eth.call.return_value = b"\x01"
 
         mocker.patch("ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3)
 
@@ -640,16 +655,17 @@ class TestVerifySignatureERC6492:
         )
 
         assert result is True
-        mock_contract.functions.isValidSig.assert_called_once()
+        mock_w3.eth.call.assert_called_once()
 
     def test_invalid_signature_returns_false(self, mocker):
         """Test that invalid signature verification returns False"""
         from ceramic_cache.api.v1 import verify_signature_erc6492
 
         mock_w3 = Mock()
-        mock_contract = Mock()
-        mock_w3.eth.contract.return_value = mock_contract
-        mock_contract.functions.isValidSig.return_value.call.return_value = False
+        # Mock codec.encode to return actual bytes
+        mock_w3.codec.encode.return_value = b"\x00" * 128
+        # Mock eth.call to return 0x00 (invalid signature)
+        mock_w3.eth.call.return_value = b"\x00"
 
         mocker.patch("ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3)
 
@@ -667,11 +683,10 @@ class TestVerifySignatureERC6492:
         from ceramic_cache.api.v1 import verify_signature_erc6492
 
         mock_w3 = Mock()
-        mock_contract = Mock()
-        mock_w3.eth.contract.return_value = mock_contract
-        mock_contract.functions.isValidSig.return_value.call.side_effect = Exception(
-            "RPC error"
-        )
+        # Mock codec.encode to return actual bytes
+        mock_w3.codec.encode.return_value = b"\x00" * 128
+        # Mock eth.call to raise an exception (RPC error)
+        mock_w3.eth.call.side_effect = Exception("RPC error")
 
         mocker.patch("ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3)
 
@@ -689,9 +704,10 @@ class TestVerifySignatureERC6492:
         from ceramic_cache.api.v1 import verify_signature_erc6492
 
         mock_w3 = Mock()
-        mock_contract = Mock()
-        mock_w3.eth.contract.return_value = mock_contract
-        mock_contract.functions.isValidSig.return_value.call.return_value = True
+        # Mock codec.encode to return actual bytes
+        mock_w3.codec.encode.return_value = b"\x00" * 128
+        # Mock eth.call to return valid signature
+        mock_w3.eth.call.return_value = b"\x01"
 
         mock_get_web3 = mocker.patch(
             "ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3
@@ -712,9 +728,10 @@ class TestVerifySignatureERC6492:
         from ceramic_cache.api.v1 import verify_signature_erc6492
 
         mock_w3 = Mock()
-        mock_contract = Mock()
-        mock_w3.eth.contract.return_value = mock_contract
-        mock_contract.functions.isValidSig.return_value.call.return_value = True
+        # Mock codec.encode to return actual bytes
+        mock_w3.codec.encode.return_value = b"\x00" * 128
+        # Mock eth.call to return valid signature
+        mock_w3.eth.call.return_value = b"\x01"
 
         mocker.patch("ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3)
 

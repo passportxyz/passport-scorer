@@ -11,7 +11,6 @@ import jwt
 import requests
 from asgiref.sync import async_to_sync
 from django.conf import settings
-from scorer.settings.base import get_rpc_url_for_chain
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
@@ -47,6 +46,7 @@ from registry.exceptions import (
 )
 from registry.human_points_utils import get_possible_points_data, get_user_points_data
 from registry.models import HumanPointsConfig, Score
+from scorer.settings.base import get_rpc_url_for_chain
 from stake.api import get_gtc_stake_for_address
 from stake.schema import StakeResponse
 from v2.api.api_stamps import format_v2_score_response, handle_scoring_for_account

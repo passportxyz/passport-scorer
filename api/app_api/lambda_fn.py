@@ -34,7 +34,12 @@ from ninja_extra.exceptions import APIException
 
 from account.models import Nonce
 from aws_lambdas.exceptions import InvalidRequest
-from ceramic_cache.api.v1 import CacaoVerifySubmit, SiweVerifySubmit, handle_authenticate, handle_authenticate_v2
+from ceramic_cache.api.v1 import (
+    CacaoVerifySubmit,
+    SiweVerifySubmit,
+    handle_authenticate,
+    handle_authenticate_v2,
+)
 
 # pylint: enable=wrong-import-position
 
