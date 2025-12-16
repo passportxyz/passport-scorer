@@ -944,9 +944,11 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         message_text = siwe_msg.prepare_message()
 
         # Create EIP-191 prefixed message hash for ERC-6492 verification
-        # encode_defunct creates the prefixed message, then we hash it to get bytes32
+        # encode_defunct returns SignableMessage with version + header + body
+        # We need to hash the FULL prefixed message: \x19Ethereum Signed Message:\n{len}{message}
         prefixed_message = encode_defunct(text=message_text)
-        message_hash = Web3.keccak(prefixed_message.body)
+        full_prefixed_data = prefixed_message.version + prefixed_message.header + prefixed_message.body
+        message_hash = Web3.keccak(full_prefixed_data)
 
         # Debug logging to help diagnose smart wallet signature issues
         log.info(f"Original payload message: {payload.message}")
