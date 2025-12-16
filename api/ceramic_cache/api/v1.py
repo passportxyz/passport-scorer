@@ -927,7 +927,9 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         message_text = siwe_msg.prepare_message()
 
         # Create EIP-191 prefixed message hash for ERC-6492 verification
-        message_hash = encode_defunct(text=message_text).body
+        # encode_defunct creates the prefixed message, then we hash it to get bytes32
+        prefixed_message = encode_defunct(text=message_text)
+        message_hash = Web3.keccak(prefixed_message.body)
 
         # Verify signature using ERC-6492 Universal Validator
         # This handles EOA, deployed smart wallets, AND undeployed smart wallets
