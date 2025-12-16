@@ -684,34 +684,6 @@ def get_web3_for_chain(chain_id: int) -> Web3:
     return Web3(provider)
 
 
-def verify_signature_erc6492_viem(
-    address: str, message: str, signature: str, chain_id: int
-) -> bool:
-    """
-    Verify ERC-6492 signature using viem via Node.js subprocess.
-    This is the most reliable method as viem handles all the complexity.
-    """
-    import subprocess
-    import os
-
-    script_path = os.path.join(os.path.dirname(__file__), '..', '..', 'scripts', 'verify_erc6492.js')
-
-    try:
-        result = subprocess.run(
-            ['node', script_path, address, message, signature, str(chain_id)],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            cwd=os.path.dirname(script_path)
-        )
-        is_valid = result.stdout.strip().lower() == 'true'
-        log.info(f"Viem ERC-6492 verification result: {is_valid} (stdout: {result.stdout.strip()}, stderr: {result.stderr.strip()})")
-        return is_valid
-    except Exception as e:
-        log.error(f"Viem ERC-6492 verification failed: {e}")
-        return False
-
-
 def verify_signature_erc6492(
     address: str, message_hash: bytes, signature: str, chain_id: int
 ) -> bool:
@@ -973,10 +945,12 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         message_text = siwe_msg.prepare_message()
 
         # Create EIP-191 prefixed message hash for ERC-6492 verification
-        # encode_defunct returns SignableMessage with version + header + body
-        # We need to hash the FULL prefixed message: \x19Ethereum Signed Message:\n{len}{message}
+        # EIP-191 format: \x19Ethereum Signed Message:\n<length><message>
+        # Note: encode_defunct splits oddly (version='E', header='thereum...') and doesn't
+        # include the \x19 prefix byte, so we construct the hash correctly here.
         prefixed_message = encode_defunct(text=message_text)
-        full_prefixed_data = prefixed_message.version + prefixed_message.header + prefixed_message.body
+        message_bytes = message_text.encode('utf-8')
+        full_prefixed_data = b'\x19Ethereum Signed Message:\n' + str(len(message_bytes)).encode() + message_bytes
         message_hash = Web3.keccak(full_prefixed_data)
 
         # Debug logging to help diagnose smart wallet signature issues
@@ -995,8 +969,7 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         except Exception as e:
             log.debug(f"ecrecover failed, trying ERC-6492: {e}")
 
-        # Fallback to ERC-6492 for smart wallets using viem (Node.js)
-        # viem handles all the complexity of ERC-6492 verification correctly
+        # Fallback to ERC-6492 for smart wallets using pure Python bytecode verification
         if not signature_valid:
             # Chains where smart wallets are commonly deployed (Base, mainnet, Optimism, Arbitrum)
             # Try the specified chain first, then others
@@ -1006,12 +979,12 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
                     chains_to_try.append(fallback_chain)
 
             for try_chain in chains_to_try:
-                log.info(f"Trying ERC-6492 verification (viem) for {address} on chain {try_chain}")
-                signature_valid = verify_signature_erc6492_viem(
-                    address, message_text, payload.signature, try_chain
+                log.info(f"Trying ERC-6492 verification for {address} on chain {try_chain}")
+                signature_valid = verify_signature_erc6492(
+                    address, message_hash, payload.signature, try_chain
                 )
                 if signature_valid:
-                    log.info(f"ERC-6492 verification (viem) succeeded on chain {try_chain}")
+                    log.info(f"ERC-6492 verification succeeded on chain {try_chain}")
                     break
 
         if not signature_valid:
