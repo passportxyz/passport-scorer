@@ -734,13 +734,17 @@ def verify_signature_erc6492(
 
         # Call isValidSig - this handles EOA, deployed smart wallets, and undeployed smart wallets
         # We use eth_call to simulate the transaction without actually sending it
-        log.debug(f"ERC-6492 isValidSig params: address={checksum_address}, hash={message_hash.hex()}, sig_len={len(sig_bytes)}")
-        result = contract.functions.isValidSig(
-            checksum_address, message_hash, sig_bytes
-        ).call()
+        log.info(f"ERC-6492 isValidSig call: chain={chain_id}, address={checksum_address}, hash={message_hash.hex()}, sig_len={len(sig_bytes)}")
 
-        log.debug(f"ERC-6492 isValidSig result: {result}")
-        return result
+        try:
+            result = contract.functions.isValidSig(
+                checksum_address, message_hash, sig_bytes
+            ).call()
+            log.info(f"ERC-6492 isValidSig result on chain {chain_id}: {result}")
+            return result
+        except Exception as call_error:
+            log.error(f"ERC-6492 eth_call failed on chain {chain_id}: {call_error}")
+            return False
     except Exception as e:
         log.error(
             f"Error verifying ERC-6492 signature for {address} on chain {chain_id}: {e}",
@@ -968,12 +972,24 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
             log.debug(f"ecrecover failed, trying ERC-6492: {e}")
 
         # Fallback to ERC-6492 for smart wallets
+        # Try verification on multiple chains since smart wallets may only be deployed on specific chains
+        # The factory contract in the ERC-6492 signature might only exist on certain chains
         if not signature_valid:
-            log.info(f"Trying ERC-6492 verification for {address} on chain {chain_id}")
-            signature_valid = verify_signature_erc6492(
-                address, message_hash, payload.signature, chain_id
-            )
+            # Chains where smart wallets are commonly deployed (Base, mainnet, Optimism, Arbitrum)
+            # Try the specified chain first, then others
+            chains_to_try = [chain_id]
+            for fallback_chain in [8453, 1, 10, 42161]:  # Base, mainnet, OP, Arb
+                if fallback_chain not in chains_to_try:
+                    chains_to_try.append(fallback_chain)
 
+            for try_chain in chains_to_try:
+                log.info(f"Trying ERC-6492 verification for {address} on chain {try_chain}")
+                signature_valid = verify_signature_erc6492(
+                    address, message_hash, payload.signature, try_chain
+                )
+                if signature_valid:
+                    log.info(f"ERC-6492 verification succeeded on chain {try_chain}")
+                    break
 
         if not signature_valid:
             log.error(f"Signature verification failed for {address}")
