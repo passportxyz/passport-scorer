@@ -11,6 +11,7 @@ import jwt
 import requests
 from asgiref.sync import async_to_sync
 from django.conf import settings
+from scorer.settings.base import get_rpc_url_for_chain
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
@@ -678,7 +679,7 @@ def generate_access_token_response_v2(user_did: str) -> AccessTokenResponse:
 
 def get_web3_for_chain(chain_id: int) -> Web3:
     """Get Web3 instance for a specific chain with 5-second timeout"""
-    rpc_url = settings.get_rpc_url_for_chain(chain_id)
+    rpc_url = get_rpc_url_for_chain(chain_id)
     provider = Web3.HTTPProvider(rpc_url, request_kwargs={"timeout": 5})
     return Web3(provider)
 

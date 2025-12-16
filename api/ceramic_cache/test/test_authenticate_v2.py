@@ -609,3 +609,170 @@ class TestRS256TokenOnProtectedEndpoints:
         assert score_response.status_code != 401, (
             f"HS256 token was rejected with 401. Response: {score_response.json()}"
         )
+
+
+class TestVerifySignatureERC6492:
+    """
+    Unit tests for verify_signature_erc6492 function.
+
+    These tests mock at the Web3 level (not the function level) to ensure
+    the function internals are exercised and bugs like incorrect imports
+    are caught.
+    """
+
+    def test_valid_signature_returns_true(self, mocker):
+        """Test that valid signature verification returns True"""
+        from ceramic_cache.api.v1 import verify_signature_erc6492
+
+        # Mock get_web3_for_chain to return a mock Web3 instance
+        mock_w3 = Mock()
+        mock_contract = Mock()
+        mock_w3.eth.contract.return_value = mock_contract
+        mock_contract.functions.isValidSig.return_value.call.return_value = True
+
+        mocker.patch("ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3)
+
+        result = verify_signature_erc6492(
+            address="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+            message_hash=b"\x00" * 32,
+            signature="0x" + "00" * 65,
+            chain_id=1,
+        )
+
+        assert result is True
+        mock_contract.functions.isValidSig.assert_called_once()
+
+    def test_invalid_signature_returns_false(self, mocker):
+        """Test that invalid signature verification returns False"""
+        from ceramic_cache.api.v1 import verify_signature_erc6492
+
+        mock_w3 = Mock()
+        mock_contract = Mock()
+        mock_w3.eth.contract.return_value = mock_contract
+        mock_contract.functions.isValidSig.return_value.call.return_value = False
+
+        mocker.patch("ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3)
+
+        result = verify_signature_erc6492(
+            address="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+            message_hash=b"\x00" * 32,
+            signature="0x" + "00" * 65,
+            chain_id=1,
+        )
+
+        assert result is False
+
+    def test_web3_exception_returns_false(self, mocker):
+        """Test that Web3 exceptions are caught and return False"""
+        from ceramic_cache.api.v1 import verify_signature_erc6492
+
+        mock_w3 = Mock()
+        mock_contract = Mock()
+        mock_w3.eth.contract.return_value = mock_contract
+        mock_contract.functions.isValidSig.return_value.call.side_effect = Exception(
+            "RPC error"
+        )
+
+        mocker.patch("ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3)
+
+        result = verify_signature_erc6492(
+            address="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+            message_hash=b"\x00" * 32,
+            signature="0x" + "00" * 65,
+            chain_id=1,
+        )
+
+        assert result is False
+
+    def test_uses_correct_chain_id(self, mocker):
+        """Test that the correct chain ID is passed to get_web3_for_chain"""
+        from ceramic_cache.api.v1 import verify_signature_erc6492
+
+        mock_w3 = Mock()
+        mock_contract = Mock()
+        mock_w3.eth.contract.return_value = mock_contract
+        mock_contract.functions.isValidSig.return_value.call.return_value = True
+
+        mock_get_web3 = mocker.patch(
+            "ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3
+        )
+
+        # Test with Base chain ID
+        verify_signature_erc6492(
+            address="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+            message_hash=b"\x00" * 32,
+            signature="0x" + "00" * 65,
+            chain_id=8453,
+        )
+
+        mock_get_web3.assert_called_once_with(8453)
+
+    def test_signature_without_0x_prefix(self, mocker):
+        """Test that signatures without 0x prefix are handled correctly"""
+        from ceramic_cache.api.v1 import verify_signature_erc6492
+
+        mock_w3 = Mock()
+        mock_contract = Mock()
+        mock_w3.eth.contract.return_value = mock_contract
+        mock_contract.functions.isValidSig.return_value.call.return_value = True
+
+        mocker.patch("ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3)
+
+        # Signature without 0x prefix should still work
+        result = verify_signature_erc6492(
+            address="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+            message_hash=b"\x00" * 32,
+            signature="00" * 65,  # No 0x prefix
+            chain_id=1,
+        )
+
+        assert result is True
+
+
+class TestGetWeb3ForChain:
+    """
+    Unit tests for get_web3_for_chain function.
+
+    Tests the RPC URL construction for different chains.
+    """
+
+    def test_returns_web3_instance_for_mainnet(self, mocker):
+        """Test that mainnet returns a Web3 instance with correct RPC URL"""
+        from ceramic_cache.api.v1 import get_web3_for_chain
+
+        # Mock Web3 to capture the provider URL
+        mock_web3_class = mocker.patch("ceramic_cache.api.v1.Web3")
+
+        get_web3_for_chain(1)
+
+        # Verify HTTPProvider was called (via Web3.HTTPProvider)
+        mock_web3_class.HTTPProvider.assert_called_once()
+        call_args = mock_web3_class.HTTPProvider.call_args
+        rpc_url = call_args[0][0]
+        assert "eth-mainnet" in rpc_url
+        assert "alchemy.com" in rpc_url
+
+    def test_returns_web3_instance_for_base(self, mocker):
+        """Test that Base chain returns correct RPC URL"""
+        from ceramic_cache.api.v1 import get_web3_for_chain
+
+        mock_web3_class = mocker.patch("ceramic_cache.api.v1.Web3")
+
+        get_web3_for_chain(8453)
+
+        call_args = mock_web3_class.HTTPProvider.call_args
+        rpc_url = call_args[0][0]
+        assert "base-mainnet" in rpc_url
+
+    def test_unknown_chain_falls_back_to_mainnet(self, mocker):
+        """Test that unknown chain IDs fall back to mainnet"""
+        from ceramic_cache.api.v1 import get_web3_for_chain
+
+        mock_web3_class = mocker.patch("ceramic_cache.api.v1.Web3")
+
+        # Use an unsupported chain ID
+        get_web3_for_chain(999999)
+
+        call_args = mock_web3_class.HTTPProvider.call_args
+        rpc_url = call_args[0][0]
+        assert "eth-mainnet" in rpc_url
