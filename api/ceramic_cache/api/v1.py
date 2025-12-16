@@ -951,15 +951,15 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         siwe_msg = SiweMessage(**siwe_message_dict)
         message_text = siwe_msg.prepare_message()
 
-        # Debug logging to help diagnose smart wallet signature issues
-        log.info(f"Original payload message: {payload.message}")
-        log.info(f"Reconstructed SIWE message text:\n{message_text}")
-        log.info(f"Message hash (hex): {message_hash.hex()}")
-
         # Create EIP-191 prefixed message hash for ERC-6492 verification
         # encode_defunct creates the prefixed message, then we hash it to get bytes32
         prefixed_message = encode_defunct(text=message_text)
         message_hash = Web3.keccak(prefixed_message.body)
+
+        # Debug logging to help diagnose smart wallet signature issues
+        log.info(f"Original payload message: {payload.message}")
+        log.info(f"Reconstructed SIWE message text:\n{message_text}")
+        log.info(f"Message hash (hex): {message_hash.hex()}")
 
         # Try standard EOA ecrecover first (faster, no RPC needed)
         from eth_account import Account
