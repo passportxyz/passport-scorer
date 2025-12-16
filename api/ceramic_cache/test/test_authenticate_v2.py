@@ -2,6 +2,7 @@
 Tests for the /ceramic-cache/authenticate/v2 endpoint (SIWE-based authentication)
 Uses ERC-6492 Universal Signature Validator for all signature types (EOA + smart wallets)
 """
+
 import json
 from unittest.mock import Mock
 
@@ -32,17 +33,18 @@ def create_siwe_message(address: str, nonce: str, chain_id: int = 1) -> dict:
         "version": "1",
         "chainId": chain_id,
         "nonce": nonce,
-        "issuedAt": "2024-01-01T00:00:00.000Z"
+        "issuedAt": "2024-01-01T00:00:00.000Z",
     }
 
 
 class TestAuthenticateV2:
     """Tests for SIWE authentication using ERC-6492 universal signature verification"""
+
     base_url = "/ceramic-cache"
 
     def test_successful_authentication(self, mocker):
         """Test successful authentication with valid signature (ERC-6492)"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         # Mock ERC-6492 verification to return True
@@ -56,7 +58,7 @@ class TestAuthenticateV2:
 
         payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce),
-            "signature": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12"
+            "signature": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12",
         }
 
         response = client.post(
@@ -80,11 +82,13 @@ class TestAuthenticateV2:
 
     def test_successful_authentication_on_base(self, mocker):
         """Test successful authentication on Base chain (chainId 8453)"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         # Mock ERC-6492 verification
-        mock_verify = mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_verify = mocker.patch(
+            "ceramic_cache.api.v1.verify_signature_erc6492", return_value=True
+        )
 
         # Mock SiweMessage
         mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
@@ -93,8 +97,10 @@ class TestAuthenticateV2:
         mock_instance.prepare_message.return_value = "SIWE message text"
 
         payload = {
-            "message": create_siwe_message(test_address, nonce_obj.nonce, chain_id=8453),
-            "signature": "0x1234"
+            "message": create_siwe_message(
+                test_address, nonce_obj.nonce, chain_id=8453
+            ),
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -118,11 +124,11 @@ class TestAuthenticateV2:
 
     def test_invalid_nonce_rejection(self):
         """Test that invalid/expired nonce is rejected"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
 
         payload = {
             "message": create_siwe_message(test_address, "invalid-nonce-123"),
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -138,11 +144,13 @@ class TestAuthenticateV2:
 
     def test_invalid_signature_rejection(self, mocker):
         """Test that invalid signature is rejected"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         # Mock ERC-6492 verification to return False (invalid signature)
-        mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=False)
+        mocker.patch(
+            "ceramic_cache.api.v1.verify_signature_erc6492", return_value=False
+        )
 
         # Mock SiweMessage
         mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
@@ -152,7 +160,7 @@ class TestAuthenticateV2:
 
         payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce),
-            "signature": "0xbadsignature"
+            "signature": "0xbadsignature",
         }
 
         response = client.post(
@@ -168,7 +176,7 @@ class TestAuthenticateV2:
 
     def test_nonce_can_only_be_used_once(self, mocker):
         """Test that nonce can only be used once"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         # Mock ERC-6492 verification
@@ -182,7 +190,7 @@ class TestAuthenticateV2:
 
         payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce),
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         # First request should succeed
@@ -210,7 +218,9 @@ class TestAuthenticateV2:
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         # Mock ERC-6492 verification - handles smart wallets automatically
-        mock_verify = mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_verify = mocker.patch(
+            "ceramic_cache.api.v1.verify_signature_erc6492", return_value=True
+        )
 
         # Mock SiweMessage
         mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
@@ -219,8 +229,10 @@ class TestAuthenticateV2:
         mock_instance.prepare_message.return_value = "SIWE message text"
 
         payload = {
-            "message": create_siwe_message(test_address, nonce_obj.nonce, chain_id=8453),
-            "signature": "0x1234"
+            "message": create_siwe_message(
+                test_address, nonce_obj.nonce, chain_id=8453
+            ),
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -245,6 +257,7 @@ class TestAuthenticateV2:
 
 class TestAuthenticateV2EdgeCases:
     """Test edge cases and validation"""
+
     base_url = "/ceramic-cache"
 
     def test_missing_address_in_message(self):
@@ -256,7 +269,7 @@ class TestAuthenticateV2EdgeCases:
                 "domain": "app.passport.xyz",
                 "nonce": nonce_obj.nonce,
             },
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -274,9 +287,9 @@ class TestAuthenticateV2EdgeCases:
         payload = {
             "message": {
                 "domain": "app.passport.xyz",
-                "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+                "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
             },
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -291,10 +304,12 @@ class TestAuthenticateV2EdgeCases:
 
     def test_defaults_to_mainnet_when_chain_not_specified(self, mocker):
         """Test that chainId defaults to 1 (mainnet) when not specified"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
-        mock_verify = mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_verify = mocker.patch(
+            "ceramic_cache.api.v1.verify_signature_erc6492", return_value=True
+        )
 
         mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
         mock_instance = Mock()
@@ -310,9 +325,9 @@ class TestAuthenticateV2EdgeCases:
                 "uri": "https://app.passport.xyz",
                 "version": "1",
                 "nonce": nonce_obj.nonce,
-                "issuedAt": "2024-01-01T00:00:00.000Z"
+                "issuedAt": "2024-01-01T00:00:00.000Z",
             },
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -331,11 +346,12 @@ class TestAuthenticateV2EdgeCases:
 
 class TestJWTTokenStructure:
     """Test RS256 JWT token structure and claims"""
+
     base_url = "/ceramic-cache"
 
     def test_jwt_contains_required_claims(self, mocker):
         """Test that JWT contains all required claims: did, iat, exp, jti, iss, token_type"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
@@ -346,7 +362,7 @@ class TestJWTTokenStructure:
 
         payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce),
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -374,7 +390,7 @@ class TestJWTTokenStructure:
     def test_address_is_normalized_to_lowercase(self, mocker):
         """Test that address is normalized to lowercase in DID"""
         # Use uppercase address
-        test_address = "0x742D35CC6634C0532925A3B844BC9E7595F0BEB"
+        test_address = "0x742D35CC6634C0532925A3B844BC9E7595F0BEB1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
@@ -385,7 +401,7 @@ class TestJWTTokenStructure:
 
         payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce),
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -404,22 +420,27 @@ class TestJWTTokenStructure:
 
 class TestMultiChainSupport:
     """Test support for multiple L2 chains"""
+
     base_url = "/ceramic-cache"
 
     def test_authentication_on_arbitrum(self, mocker):
         """Test authentication on Arbitrum (chainId 42161)"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
-        mock_verify = mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_verify = mocker.patch(
+            "ceramic_cache.api.v1.verify_signature_erc6492", return_value=True
+        )
         mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
         mock_instance = Mock()
         mock_siwe.return_value = mock_instance
         mock_instance.prepare_message.return_value = "SIWE message text"
 
         payload = {
-            "message": create_siwe_message(test_address, nonce_obj.nonce, chain_id=42161),
-            "signature": "0x1234"
+            "message": create_siwe_message(
+                test_address, nonce_obj.nonce, chain_id=42161
+            ),
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -437,10 +458,12 @@ class TestMultiChainSupport:
 
     def test_authentication_on_optimism(self, mocker):
         """Test authentication on Optimism (chainId 10)"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
-        mock_verify = mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_verify = mocker.patch(
+            "ceramic_cache.api.v1.verify_signature_erc6492", return_value=True
+        )
         mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
         mock_instance = Mock()
         mock_siwe.return_value = mock_instance
@@ -448,7 +471,7 @@ class TestMultiChainSupport:
 
         payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce, chain_id=10),
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -464,15 +487,18 @@ class TestMultiChainSupport:
 
 class TestOldEndpointStillWorks:
     """Regression test: ensure old /authenticate endpoint still works"""
+
     base_url = "/ceramic-cache"
 
     def test_old_authenticate_endpoint_still_works(self, mocker):
         """Test that the original /authenticate endpoint with DagJWS still works"""
         sample_payload = {
-            "signatures": [{
-                "protected": "eyJhbGciOiJFZERTQSIsImNhcCI6ImlwZnM6Ly9iYWZ5cmVpZmhkYTQ2eWp5NWRhYWxocXh2anZvcnpqdnlleHp1bjRrcWRmZWU0YnkybmJyNWhzcHd1eSIsImtpZCI6ImRpZDprZXk6ejZNa2pHSGtRNDVpY3BSakdqWUhWWUZLTkpDMTdwbnE0UU04UWJuODhLSEVaQ05XI3o2TWtqR0hrUTQ1aWNwUmpHallIVllGS05KQzE3cG5xNFFNOFFibjg4S0hFWkNOVyJ9",
-                "signature": "UmVH-NMdgn-P-VE0ejTlmrRxbF45W20Q9SfIThqODF9USwzxFi3kceDttlBWwNZkrGogdqm-SdJQdoRC0GYSCA",
-            }],
+            "signatures": [
+                {
+                    "protected": "eyJhbGciOiJFZERTQSIsImNhcCI6ImlwZnM6Ly9iYWZ5cmVpZmhkYTQ2eWp5NWRhYWxocXh2anZvcnpqdnlleHp1bjRrcWRmZWU0YnkybmJyNWhzcHd1eSIsImtpZCI6ImRpZDprZXk6ejZNa2pHSGtRNDVpY3BSakdqWUhWWUZLTkpDMTdwbnE0UU04UWJuODhLSEVaQ05XI3o2TWtqR0hrUTQ1aWNwUmpHallIVllGS05KQzE3cG5xNFFNOFFibjg4S0hFWkNOVyJ9",
+                    "signature": "UmVH-NMdgn-P-VE0ejTlmrRxbF45W20Q9SfIThqODF9USwzxFi3kceDttlBWwNZkrGogdqm-SdJQdoRC0GYSCA",
+                }
+            ],
             "payload": "AXESIJ-t3oi3FWOnXzz1JomHf4BeT-DVOaW5-RtZGPf_miHs",
             "cid": [1, 113, 18],
             "cacao": [163, 97, 104],
@@ -482,10 +508,13 @@ class TestOldEndpointStillWorks:
 
         class MockedRequestResponse:
             status_code = 200
+
             def json(self):
                 return {"status": "ok"}
 
-        mocker.patch("ceramic_cache.api.v1.requests.post", return_value=MockedRequestResponse())
+        mocker.patch(
+            "ceramic_cache.api.v1.requests.post", return_value=MockedRequestResponse()
+        )
         mocker.patch("ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True)
 
         response = client.post(
@@ -501,6 +530,7 @@ class TestOldEndpointStillWorks:
 
 class TestRS256TokenOnProtectedEndpoints:
     """Integration tests: verify RS256 tokens from /authenticate/v2 work on protected endpoints"""
+
     base_url = "/ceramic-cache"
 
     def test_rs256_token_works_on_score_endpoint(self, mocker):
@@ -508,7 +538,7 @@ class TestRS256TokenOnProtectedEndpoints:
         End-to-end test: get RS256 token from /authenticate/v2,
         then use it on /ceramic-cache/score/{address}
         """
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         # Mock ERC-6492 verification for auth
@@ -521,7 +551,7 @@ class TestRS256TokenOnProtectedEndpoints:
         # Step 1: Get RS256 token from /authenticate/v2
         auth_payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce),
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         auth_response = client.post(
@@ -546,8 +576,9 @@ class TestRS256TokenOnProtectedEndpoints:
 
         # Should NOT be 401 Unauthorized - the token should be accepted
         # (may be 404 if no passport exists, but that's fine - auth worked)
-        assert score_response.status_code != 401, \
+        assert score_response.status_code != 401, (
             f"RS256 token was rejected with 401. Response: {score_response.json()}"
+        )
 
     def test_hs256_token_still_works_on_score_endpoint(self, mocker):
         """
@@ -558,7 +589,10 @@ class TestRS256TokenOnProtectedEndpoints:
 
         # Create an HS256 token using the old method (ninja_jwt)
         from ceramic_cache.api.v1 import generate_access_token_response
-        hs256_response = generate_access_token_response(f"did:pkh:eip155:1:{test_address}")
+
+        hs256_response = generate_access_token_response(
+            f"did:pkh:eip155:1:{test_address}"
+        )
         hs256_token = hs256_response.access
 
         # Verify it's actually an HS256 token
@@ -572,5 +606,6 @@ class TestRS256TokenOnProtectedEndpoints:
         )
 
         # Should NOT be 401 Unauthorized
-        assert score_response.status_code != 401, \
+        assert score_response.status_code != 401, (
             f"HS256 token was rejected with 401. Response: {score_response.json()}"
+        )

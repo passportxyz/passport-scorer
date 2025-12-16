@@ -667,11 +667,7 @@ def generate_siwe_access_token(user_did: str) -> str:
         "iss": "passport-scorer",
         "token_type": "access",
     }
-    return jwt.encode(
-        payload,
-        settings.SIWE_JWT_PRIVATE_KEY,
-        algorithm="RS256"
-    )
+    return jwt.encode(payload, settings.SIWE_JWT_PRIVATE_KEY, algorithm="RS256")
 
 
 def generate_access_token_response_v2(user_did: str) -> AccessTokenResponse:
@@ -687,7 +683,9 @@ def get_web3_for_chain(chain_id: int) -> Web3:
     return Web3(provider)
 
 
-def verify_signature_erc6492(address: str, message_hash: bytes, signature: str, chain_id: int) -> bool:
+def verify_signature_erc6492(
+    address: str, message_hash: bytes, signature: str, chain_id: int
+) -> bool:
     """
     Verify any signature (EOA or smart wallet) using ERC-6492 Universal Signature Validator.
 
@@ -699,25 +697,31 @@ def verify_signature_erc6492(address: str, message_hash: bytes, signature: str, 
     The validator contract is deployed at the same address on all EVM chains via CREATE2.
     """
     # ERC-6492 UniversalSigValidator ABI - just the isValidSig function
-    UNIVERSAL_VALIDATOR_ABI = [{
-        "inputs": [
-            {"name": "_signer", "type": "address"},
-            {"name": "_hash", "type": "bytes32"},
-            {"name": "_signature", "type": "bytes"}
-        ],
-        "name": "isValidSig",
-        "outputs": [{"name": "", "type": "bool"}],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    }]
+    UNIVERSAL_VALIDATOR_ABI = [
+        {
+            "inputs": [
+                {"name": "_signer", "type": "address"},
+                {"name": "_hash", "type": "bytes32"},
+                {"name": "_signature", "type": "bytes"},
+            ],
+            "name": "isValidSig",
+            "outputs": [{"name": "", "type": "bool"}],
+            "stateMutability": "nonpayable",
+            "type": "function",
+        }
+    ]
 
     try:
         w3 = get_web3_for_chain(chain_id)
         checksum_address = Web3.to_checksum_address(address)
-        validator_address = Web3.to_checksum_address(settings.ERC6492_UNIVERSAL_VALIDATOR)
+        validator_address = Web3.to_checksum_address(
+            settings.ERC6492_UNIVERSAL_VALIDATOR
+        )
 
         # Create contract instance
-        contract = w3.eth.contract(address=validator_address, abi=UNIVERSAL_VALIDATOR_ABI)
+        contract = w3.eth.contract(
+            address=validator_address, abi=UNIVERSAL_VALIDATOR_ABI
+        )
 
         # Prepare signature bytes
         sig_bytes = bytes.fromhex(signature.replace("0x", ""))
@@ -725,14 +729,15 @@ def verify_signature_erc6492(address: str, message_hash: bytes, signature: str, 
         # Call isValidSig - this handles EOA, deployed smart wallets, and undeployed smart wallets
         # We use eth_call to simulate the transaction without actually sending it
         result = contract.functions.isValidSig(
-            checksum_address,
-            message_hash,
-            sig_bytes
+            checksum_address, message_hash, sig_bytes
         ).call()
 
         return result
     except Exception as e:
-        log.error(f"Error verifying ERC-6492 signature for {address} on chain {chain_id}: {e}", exc_info=True)
+        log.error(
+            f"Error verifying ERC-6492 signature for {address} on chain {chain_id}: {e}",
+            exc_info=True,
+        )
         return False
 
 
@@ -883,13 +888,21 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
     4. Return JWT with did claim
     """
     try:
-        address = payload.message.get("address", "").lower()
+        address_raw = payload.message.get("address", "")
         nonce = payload.message.get("nonce")
         chain_id = payload.message.get("chainId", 1)
 
-        if not address or not nonce:
+        if not address_raw or not nonce:
             log.error("Missing address or nonce in SIWE message")
             raise FailedVerificationException(detail="Missing address or nonce!")
+
+        # Convert to EIP-55 checksum format (required by SIWE library)
+        # This handles any input format: lowercase, uppercase, or already checksummed
+        try:
+            address = Web3.to_checksum_address(address_raw)
+        except ValueError:
+            log.error("Invalid Ethereum address: '%s'", address_raw)
+            raise FailedVerificationException(detail="Invalid address format!")
 
         # Validate and consume nonce (5-minute TTL)
         if not Nonce.use_nonce(nonce):
@@ -899,7 +912,7 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         # Convert message dict to SIWE message format
         siwe_message_dict = {
             "domain": payload.message.get("domain"),
-            "address": address,
+            "address": address,  # EIP-55 checksum format (converted above)
             "statement": payload.message.get("statement"),
             "uri": payload.message.get("uri"),
             "version": payload.message.get("version"),
@@ -917,13 +930,18 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
 
         # Verify signature using ERC-6492 Universal Validator
         # This handles EOA, deployed smart wallets, AND undeployed smart wallets
-        log.info(f"Verifying signature for {address} on chain {chain_id} using ERC-6492")
-        if not verify_signature_erc6492(address, message_hash, payload.signature, chain_id):
+        log.info(
+            f"Verifying signature for {address} on chain {chain_id} using ERC-6492"
+        )
+        if not verify_signature_erc6492(
+            address, message_hash, payload.signature, chain_id
+        ):
             log.error(f"ERC-6492 signature verification failed for {address}")
             raise FailedVerificationException(detail="Invalid signature!")
 
         # Generate DID (always use eip155:1 for consistent identifier format)
-        user_did = f"did:pkh:eip155:1:{address}"
+        # Lowercase for DID consistency (address is kept in checksum format above for SIWE)
+        user_did = f"did:pkh:eip155:1:{address.lower()}"
 
         # Generate and return JWT token
         return generate_access_token_response_v2(user_did)
