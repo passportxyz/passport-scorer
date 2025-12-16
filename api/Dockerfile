@@ -2,7 +2,9 @@
 FROM --platform=linux/amd64 docker.io/python:3.12 AS base
 
 RUN apt update && \
-    apt install -y python3-dev libpq-dev
+    apt install -y python3-dev libpq-dev curl && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt install -y nodejs
 
 
 #########################################################
@@ -44,6 +46,9 @@ COPY --from=builder /usr/src/.venv/ /usr/src/.venv/
 COPY . /app
 
 RUN /usr/src/.venv/bin/python -c "import django; print(django.__version__)"
+
+# Install Node.js dependencies for ERC-6492 verification
+RUN cd /app/scripts && npm install
 ENV PATH="/usr/src/.venv/bin/:${PATH}"
 
 WORKDIR /app
