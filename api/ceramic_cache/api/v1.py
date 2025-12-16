@@ -944,13 +944,13 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
             f"Verifying signature for {address} on chain {chain_id} using ERC-6492"
         )
 
-        # Debug: check if address has code (is it a smart wallet?)
+        # Debug: try standard EOA ecrecover
+        from eth_account import Account
         try:
-            w3_debug = get_web3_for_chain(chain_id)
-            code = w3_debug.eth.get_code(Web3.to_checksum_address(address))
-            log.info(f"Code at {address} on chain {chain_id}: {len(code)} bytes")
+            recovered = Account.recover_message(prefixed_message, signature=payload.signature)
+            log.info(f"EOA ecrecover: recovered={recovered}, expected={address}, match={recovered.lower() == address.lower()}")
         except Exception as e:
-            log.warning(f"Failed to check code at address: {e}")
+            log.warning(f"EOA ecrecover failed: {e}")
 
         if not verify_signature_erc6492(
             address, message_hash, payload.signature, chain_id
