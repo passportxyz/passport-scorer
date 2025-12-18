@@ -79,4 +79,4 @@ class ComporeDBStatusResponse(Schema):
 
 
 class CalcScorePayload(Schema):
-    alternate_scorer_id: Optional[int]
+    alternate_scorer_id: Optional[int] = None

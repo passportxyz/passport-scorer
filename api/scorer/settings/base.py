@@ -375,9 +375,24 @@ STATIC_ROOT = BASE_DIR / "static"
 
 # SIWE JWT signing keys (RS256 asymmetric) - separate from ninja_jwt
 # Used for SIWE authentication tokens that IAM needs to verify
+# Keys are base64 encoded in env vars to avoid newline issues in secrets managers
 # Defaults are for testing only - production MUST set these env vars
-SIWE_JWT_PRIVATE_KEY = env("SIWE_JWT_PRIVATE_KEY", default="")
-SIWE_JWT_PUBLIC_KEY = env("SIWE_JWT_PUBLIC_KEY", default="")
+import base64
+
+
+def _decode_key(env_var: str) -> str:
+    """Decode base64-encoded PEM key from environment variable."""
+    value = env(env_var, default="")
+    if not value:
+        return ""
+    # If it already looks like a PEM key, use it directly (for local dev)
+    if "-----BEGIN" in value:
+        return value
+    # Otherwise, decode from base64
+    return base64.b64decode(value).decode("utf-8")
+
+SIWE_JWT_PRIVATE_KEY = _decode_key("SIWE_JWT_PRIVATE_KEY")
+SIWE_JWT_PUBLIC_KEY = _decode_key("SIWE_JWT_PUBLIC_KEY")
 
 # Keep ninja_jwt unchanged for existing functionality (UI auth, etc.)
 NINJA_JWT = {
@@ -526,11 +541,17 @@ ALCHEMY_API_KEY = env("ALCHEMY_API_KEY", default="")
 
 # Chain ID to Alchemy network name mapping
 ALCHEMY_CHAIN_NETWORKS = {
+    # Mainnets
     1: "eth-mainnet",
     8453: "base-mainnet",
     42161: "arb-mainnet",
     10: "opt-mainnet",
     5000: "mantle-mainnet",
+    # Testnets (for smart wallet testing)
+    11155111: "eth-sepolia",
+    11155420: "opt-sepolia",
+    84532: "base-sepolia",
+    421614: "arb-sepolia",
 }
 
 def get_rpc_url_for_chain(chain_id: int) -> str:

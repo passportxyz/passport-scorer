@@ -2,6 +2,7 @@
 Tests for the /ceramic-cache/authenticate/v2 endpoint (SIWE-based authentication)
 Uses ERC-6492 Universal Signature Validator for all signature types (EOA + smart wallets)
 """
+
 import json
 from unittest.mock import Mock
 
@@ -32,17 +33,18 @@ def create_siwe_message(address: str, nonce: str, chain_id: int = 1) -> dict:
         "version": "1",
         "chainId": chain_id,
         "nonce": nonce,
-        "issuedAt": "2024-01-01T00:00:00.000Z"
+        "issuedAt": "2024-01-01T00:00:00.000Z",
     }
 
 
 class TestAuthenticateV2:
     """Tests for SIWE authentication using ERC-6492 universal signature verification"""
+
     base_url = "/ceramic-cache"
 
     def test_successful_authentication(self, mocker):
         """Test successful authentication with valid signature (ERC-6492)"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         # Mock ERC-6492 verification to return True
@@ -56,7 +58,7 @@ class TestAuthenticateV2:
 
         payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce),
-            "signature": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12"
+            "signature": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12",
         }
 
         response = client.post(
@@ -79,12 +81,19 @@ class TestAuthenticateV2:
         assert token["did"] == expected_did
 
     def test_successful_authentication_on_base(self, mocker):
-        """Test successful authentication on Base chain (chainId 8453)"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        """Test successful authentication on Base chain (chainId 8453)
+
+        Note: ERC-6492 verification always uses mainnet (chain_id=1) since smart wallet
+        factories are deployed on 100+ chains including mainnet. The SIWE message chain_id
+        is preserved for the user's intent but verification uses mainnet for simplicity.
+        """
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         # Mock ERC-6492 verification
-        mock_verify = mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_verify = mocker.patch(
+            "ceramic_cache.api.v1.verify_signature_erc6492", return_value=True
+        )
 
         # Mock SiweMessage
         mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
@@ -93,8 +102,10 @@ class TestAuthenticateV2:
         mock_instance.prepare_message.return_value = "SIWE message text"
 
         payload = {
-            "message": create_siwe_message(test_address, nonce_obj.nonce, chain_id=8453),
-            "signature": "0x1234"
+            "message": create_siwe_message(
+                test_address, nonce_obj.nonce, chain_id=8453
+            ),
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -105,10 +116,10 @@ class TestAuthenticateV2:
 
         assert response.status_code == 200
 
-        # Verify ERC-6492 was called with correct chain_id
+        # Verify ERC-6492 was called with mainnet (always chain_id=1)
         mock_verify.assert_called_once()
         call_args = mock_verify.call_args
-        assert call_args[0][3] == 8453  # chain_id is the 4th argument
+        assert call_args[0][3] == 1  # verification always uses mainnet
 
         # DID should still use eip155:1 (identifier format, not verification chain)
         json_data = response.json()
@@ -118,11 +129,11 @@ class TestAuthenticateV2:
 
     def test_invalid_nonce_rejection(self):
         """Test that invalid/expired nonce is rejected"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
 
         payload = {
             "message": create_siwe_message(test_address, "invalid-nonce-123"),
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -138,11 +149,13 @@ class TestAuthenticateV2:
 
     def test_invalid_signature_rejection(self, mocker):
         """Test that invalid signature is rejected"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         # Mock ERC-6492 verification to return False (invalid signature)
-        mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=False)
+        mocker.patch(
+            "ceramic_cache.api.v1.verify_signature_erc6492", return_value=False
+        )
 
         # Mock SiweMessage
         mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
@@ -152,7 +165,7 @@ class TestAuthenticateV2:
 
         payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce),
-            "signature": "0xbadsignature"
+            "signature": "0xbadsignature",
         }
 
         response = client.post(
@@ -168,7 +181,7 @@ class TestAuthenticateV2:
 
     def test_nonce_can_only_be_used_once(self, mocker):
         """Test that nonce can only be used once"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         # Mock ERC-6492 verification
@@ -182,7 +195,7 @@ class TestAuthenticateV2:
 
         payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce),
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         # First request should succeed
@@ -204,13 +217,19 @@ class TestAuthenticateV2:
         assert "Invalid nonce" in json_data["detail"]
 
     def test_smart_wallet_on_base(self, mocker):
-        """Test smart wallet authentication on Base chain (e.g., Coinbase Smart Wallet)"""
+        """Test smart wallet authentication on Base chain (e.g., Coinbase Smart Wallet)
+
+        Note: ERC-6492 verification always uses mainnet (chain_id=1) since smart wallet
+        factories are deployed on 100+ chains including mainnet.
+        """
         # Coinbase Smart Wallet example address
         test_address = "0x4bBa290826C253BD854121346c370a9886d1bC26"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         # Mock ERC-6492 verification - handles smart wallets automatically
-        mock_verify = mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_verify = mocker.patch(
+            "ceramic_cache.api.v1.verify_signature_erc6492", return_value=True
+        )
 
         # Mock SiweMessage
         mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
@@ -219,8 +238,10 @@ class TestAuthenticateV2:
         mock_instance.prepare_message.return_value = "SIWE message text"
 
         payload = {
-            "message": create_siwe_message(test_address, nonce_obj.nonce, chain_id=8453),
-            "signature": "0x1234"
+            "message": create_siwe_message(
+                test_address, nonce_obj.nonce, chain_id=8453
+            ),
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -237,14 +258,15 @@ class TestAuthenticateV2:
         expected_did = f"did:pkh:eip155:1:{test_address.lower()}"
         assert token["did"] == expected_did
 
-        # Verify ERC-6492 was called with Base chain
+        # Verify ERC-6492 was called with mainnet (always chain_id=1)
         mock_verify.assert_called_once()
         call_args = mock_verify.call_args
-        assert call_args[0][3] == 8453
+        assert call_args[0][3] == 1  # verification always uses mainnet
 
 
 class TestAuthenticateV2EdgeCases:
     """Test edge cases and validation"""
+
     base_url = "/ceramic-cache"
 
     def test_missing_address_in_message(self):
@@ -256,7 +278,7 @@ class TestAuthenticateV2EdgeCases:
                 "domain": "app.passport.xyz",
                 "nonce": nonce_obj.nonce,
             },
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -274,9 +296,9 @@ class TestAuthenticateV2EdgeCases:
         payload = {
             "message": {
                 "domain": "app.passport.xyz",
-                "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+                "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
             },
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -291,10 +313,12 @@ class TestAuthenticateV2EdgeCases:
 
     def test_defaults_to_mainnet_when_chain_not_specified(self, mocker):
         """Test that chainId defaults to 1 (mainnet) when not specified"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
-        mock_verify = mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_verify = mocker.patch(
+            "ceramic_cache.api.v1.verify_signature_erc6492", return_value=True
+        )
 
         mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
         mock_instance = Mock()
@@ -310,9 +334,9 @@ class TestAuthenticateV2EdgeCases:
                 "uri": "https://app.passport.xyz",
                 "version": "1",
                 "nonce": nonce_obj.nonce,
-                "issuedAt": "2024-01-01T00:00:00.000Z"
+                "issuedAt": "2024-01-01T00:00:00.000Z",
             },
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -331,11 +355,12 @@ class TestAuthenticateV2EdgeCases:
 
 class TestJWTTokenStructure:
     """Test RS256 JWT token structure and claims"""
+
     base_url = "/ceramic-cache"
 
     def test_jwt_contains_required_claims(self, mocker):
         """Test that JWT contains all required claims: did, iat, exp, jti, iss, token_type"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
@@ -346,7 +371,7 @@ class TestJWTTokenStructure:
 
         payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce),
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -374,7 +399,7 @@ class TestJWTTokenStructure:
     def test_address_is_normalized_to_lowercase(self, mocker):
         """Test that address is normalized to lowercase in DID"""
         # Use uppercase address
-        test_address = "0x742D35CC6634C0532925A3B844BC9E7595F0BEB"
+        test_address = "0x742D35CC6634C0532925A3B844BC9E7595F0BEB1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
         mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
@@ -385,7 +410,7 @@ class TestJWTTokenStructure:
 
         payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce),
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -403,23 +428,33 @@ class TestJWTTokenStructure:
 
 
 class TestMultiChainSupport:
-    """Test support for multiple L2 chains"""
+    """Test support for SIWE messages from multiple L2 chains.
+
+    Note: ERC-6492 verification always uses mainnet (chain_id=1) since smart wallet
+    factories are deployed on 100+ chains including mainnet. The SIWE message's chainId
+    is accepted and preserved for user intent, but verification is done against mainnet.
+    """
+
     base_url = "/ceramic-cache"
 
     def test_authentication_on_arbitrum(self, mocker):
-        """Test authentication on Arbitrum (chainId 42161)"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        """Test authentication with Arbitrum chainId in SIWE message (42161)"""
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
-        mock_verify = mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_verify = mocker.patch(
+            "ceramic_cache.api.v1.verify_signature_erc6492", return_value=True
+        )
         mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
         mock_instance = Mock()
         mock_siwe.return_value = mock_instance
         mock_instance.prepare_message.return_value = "SIWE message text"
 
         payload = {
-            "message": create_siwe_message(test_address, nonce_obj.nonce, chain_id=42161),
-            "signature": "0x1234"
+            "message": create_siwe_message(
+                test_address, nonce_obj.nonce, chain_id=42161
+            ),
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -430,17 +465,19 @@ class TestMultiChainSupport:
 
         assert response.status_code == 200
 
-        # Verify ERC-6492 was called with Arbitrum chain_id
+        # Verify ERC-6492 was called with mainnet (always chain_id=1)
         mock_verify.assert_called_once()
         call_args = mock_verify.call_args
-        assert call_args[0][3] == 42161
+        assert call_args[0][3] == 1  # verification always uses mainnet
 
     def test_authentication_on_optimism(self, mocker):
-        """Test authentication on Optimism (chainId 10)"""
-        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+        """Test authentication with Optimism chainId in SIWE message (10)"""
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
         nonce_obj = Nonce.create_nonce(ttl=300)
 
-        mock_verify = mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_verify = mocker.patch(
+            "ceramic_cache.api.v1.verify_signature_erc6492", return_value=True
+        )
         mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
         mock_instance = Mock()
         mock_siwe.return_value = mock_instance
@@ -448,7 +485,7 @@ class TestMultiChainSupport:
 
         payload = {
             "message": create_siwe_message(test_address, nonce_obj.nonce, chain_id=10),
-            "signature": "0x1234"
+            "signature": "0x1234",
         }
 
         response = client.post(
@@ -459,20 +496,23 @@ class TestMultiChainSupport:
 
         assert response.status_code == 200
         mock_verify.assert_called_once()
-        assert mock_verify.call_args[0][3] == 10
+        assert mock_verify.call_args[0][3] == 1  # verification always uses mainnet
 
 
 class TestOldEndpointStillWorks:
     """Regression test: ensure old /authenticate endpoint still works"""
+
     base_url = "/ceramic-cache"
 
     def test_old_authenticate_endpoint_still_works(self, mocker):
         """Test that the original /authenticate endpoint with DagJWS still works"""
         sample_payload = {
-            "signatures": [{
-                "protected": "eyJhbGciOiJFZERTQSIsImNhcCI6ImlwZnM6Ly9iYWZ5cmVpZmhkYTQ2eWp5NWRhYWxocXh2anZvcnpqdnlleHp1bjRrcWRmZWU0YnkybmJyNWhzcHd1eSIsImtpZCI6ImRpZDprZXk6ejZNa2pHSGtRNDVpY3BSakdqWUhWWUZLTkpDMTdwbnE0UU04UWJuODhLSEVaQ05XI3o2TWtqR0hrUTQ1aWNwUmpHallIVllGS05KQzE3cG5xNFFNOFFibjg4S0hFWkNOVyJ9",
-                "signature": "UmVH-NMdgn-P-VE0ejTlmrRxbF45W20Q9SfIThqODF9USwzxFi3kceDttlBWwNZkrGogdqm-SdJQdoRC0GYSCA",
-            }],
+            "signatures": [
+                {
+                    "protected": "eyJhbGciOiJFZERTQSIsImNhcCI6ImlwZnM6Ly9iYWZ5cmVpZmhkYTQ2eWp5NWRhYWxocXh2anZvcnpqdnlleHp1bjRrcWRmZWU0YnkybmJyNWhzcHd1eSIsImtpZCI6ImRpZDprZXk6ejZNa2pHSGtRNDVpY3BSakdqWUhWWUZLTkpDMTdwbnE0UU04UWJuODhLSEVaQ05XI3o2TWtqR0hrUTQ1aWNwUmpHallIVllGS05KQzE3cG5xNFFNOFFibjg4S0hFWkNOVyJ9",
+                    "signature": "UmVH-NMdgn-P-VE0ejTlmrRxbF45W20Q9SfIThqODF9USwzxFi3kceDttlBWwNZkrGogdqm-SdJQdoRC0GYSCA",
+                }
+            ],
             "payload": "AXESIJ-t3oi3FWOnXzz1JomHf4BeT-DVOaW5-RtZGPf_miHs",
             "cid": [1, 113, 18],
             "cacao": [163, 97, 104],
@@ -482,10 +522,13 @@ class TestOldEndpointStillWorks:
 
         class MockedRequestResponse:
             status_code = 200
+
             def json(self):
                 return {"status": "ok"}
 
-        mocker.patch("ceramic_cache.api.v1.requests.post", return_value=MockedRequestResponse())
+        mocker.patch(
+            "ceramic_cache.api.v1.requests.post", return_value=MockedRequestResponse()
+        )
         mocker.patch("ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True)
 
         response = client.post(
@@ -497,3 +540,256 @@ class TestOldEndpointStillWorks:
         assert response.status_code == 200
         json_data = response.json()
         assert "access" in json_data
+
+
+class TestRS256TokenOnProtectedEndpoints:
+    """Integration tests: verify RS256 tokens from /authenticate/v2 work on protected endpoints"""
+
+    base_url = "/ceramic-cache"
+
+    def test_rs256_token_works_on_score_endpoint(self, mocker):
+        """
+        End-to-end test: get RS256 token from /authenticate/v2,
+        then use it on /ceramic-cache/score/{address}
+        """
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        # Mock ERC-6492 verification for auth
+        mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
+        mock_instance = Mock()
+        mock_siwe.return_value = mock_instance
+        mock_instance.prepare_message.return_value = "SIWE message text"
+
+        # Step 1: Get RS256 token from /authenticate/v2
+        auth_payload = {
+            "message": create_siwe_message(test_address, nonce_obj.nonce),
+            "signature": "0x1234",
+        }
+
+        auth_response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(auth_payload),
+            content_type="application/json",
+        )
+
+        assert auth_response.status_code == 200
+        rs256_token = auth_response.json()["access"]
+
+        # Verify it's actually an RS256 token
+        header = jwt.get_unverified_header(rs256_token)
+        assert header["alg"] == "RS256", f"Expected RS256 token, got {header['alg']}"
+
+        # Step 2: Use the RS256 token on a protected endpoint
+        # The score endpoint should accept the token (even if no score exists)
+        score_response = client.get(
+            f"{self.base_url}/score/{test_address.lower()}",
+            HTTP_AUTHORIZATION=f"Bearer {rs256_token}",
+        )
+
+        # Should NOT be 401 Unauthorized - the token should be accepted
+        # (may be 404 if no passport exists, but that's fine - auth worked)
+        assert score_response.status_code != 401, (
+            f"RS256 token was rejected with 401. Response: {score_response.json()}"
+        )
+
+    def test_hs256_token_still_works_on_score_endpoint(self, mocker):
+        """
+        Regression test: HS256 tokens from old /authenticate endpoint
+        should still work on protected endpoints
+        """
+        test_address = "0xffffffffffffffffffffffffffffffffffffffff"
+
+        # Create an HS256 token using the old method (ninja_jwt)
+        from ceramic_cache.api.v1 import generate_access_token_response
+
+        hs256_response = generate_access_token_response(
+            f"did:pkh:eip155:1:{test_address}"
+        )
+        hs256_token = hs256_response.access
+
+        # Verify it's actually an HS256 token
+        header = jwt.get_unverified_header(hs256_token)
+        assert header["alg"] == "HS256", f"Expected HS256 token, got {header['alg']}"
+
+        # Use the HS256 token on a protected endpoint
+        score_response = client.get(
+            f"{self.base_url}/score/{test_address}",
+            HTTP_AUTHORIZATION=f"Bearer {hs256_token}",
+        )
+
+        # Should NOT be 401 Unauthorized
+        assert score_response.status_code != 401, (
+            f"HS256 token was rejected with 401. Response: {score_response.json()}"
+        )
+
+
+class TestVerifySignatureERC6492:
+    """
+    Unit tests for verify_signature_erc6492 function.
+
+    These tests mock at the Web3 level (not the function level) to ensure
+    the function internals are exercised and bugs like incorrect imports
+    are caught.
+    """
+
+    def test_valid_signature_returns_true(self, mocker):
+        """Test that valid signature verification returns True"""
+        from ceramic_cache.api.v1 import verify_signature_erc6492
+
+        # Mock get_web3_for_chain to return a mock Web3 instance
+        mock_w3 = Mock()
+        # Mock codec.encode to return actual bytes (ABI-encoded params)
+        mock_w3.codec.encode.return_value = b"\x00" * 128
+        # Mock eth.call to return 0x01 (valid signature)
+        mock_w3.eth.call.return_value = b"\x01"
+
+        mocker.patch("ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3)
+
+        result = verify_signature_erc6492(
+            address="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+            message_hash=b"\x00" * 32,
+            signature="0x" + "00" * 65,
+            chain_id=1,
+        )
+
+        assert result is True
+        mock_w3.eth.call.assert_called_once()
+
+    def test_invalid_signature_returns_false(self, mocker):
+        """Test that invalid signature verification returns False"""
+        from ceramic_cache.api.v1 import verify_signature_erc6492
+
+        mock_w3 = Mock()
+        # Mock codec.encode to return actual bytes
+        mock_w3.codec.encode.return_value = b"\x00" * 128
+        # Mock eth.call to return 0x00 (invalid signature)
+        mock_w3.eth.call.return_value = b"\x00"
+
+        mocker.patch("ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3)
+
+        result = verify_signature_erc6492(
+            address="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+            message_hash=b"\x00" * 32,
+            signature="0x" + "00" * 65,
+            chain_id=1,
+        )
+
+        assert result is False
+
+    def test_web3_exception_returns_false(self, mocker):
+        """Test that Web3 exceptions are caught and return False"""
+        from ceramic_cache.api.v1 import verify_signature_erc6492
+
+        mock_w3 = Mock()
+        # Mock codec.encode to return actual bytes
+        mock_w3.codec.encode.return_value = b"\x00" * 128
+        # Mock eth.call to raise an exception (RPC error)
+        mock_w3.eth.call.side_effect = Exception("RPC error")
+
+        mocker.patch("ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3)
+
+        result = verify_signature_erc6492(
+            address="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+            message_hash=b"\x00" * 32,
+            signature="0x" + "00" * 65,
+            chain_id=1,
+        )
+
+        assert result is False
+
+    def test_uses_correct_chain_id(self, mocker):
+        """Test that the correct chain ID is passed to get_web3_for_chain"""
+        from ceramic_cache.api.v1 import verify_signature_erc6492
+
+        mock_w3 = Mock()
+        # Mock codec.encode to return actual bytes
+        mock_w3.codec.encode.return_value = b"\x00" * 128
+        # Mock eth.call to return valid signature
+        mock_w3.eth.call.return_value = b"\x01"
+
+        mock_get_web3 = mocker.patch(
+            "ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3
+        )
+
+        # Test with Base chain ID
+        verify_signature_erc6492(
+            address="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+            message_hash=b"\x00" * 32,
+            signature="0x" + "00" * 65,
+            chain_id=8453,
+        )
+
+        mock_get_web3.assert_called_once_with(8453)
+
+    def test_signature_without_0x_prefix(self, mocker):
+        """Test that signatures without 0x prefix are handled correctly"""
+        from ceramic_cache.api.v1 import verify_signature_erc6492
+
+        mock_w3 = Mock()
+        # Mock codec.encode to return actual bytes
+        mock_w3.codec.encode.return_value = b"\x00" * 128
+        # Mock eth.call to return valid signature
+        mock_w3.eth.call.return_value = b"\x01"
+
+        mocker.patch("ceramic_cache.api.v1.get_web3_for_chain", return_value=mock_w3)
+
+        # Signature without 0x prefix should still work
+        result = verify_signature_erc6492(
+            address="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+            message_hash=b"\x00" * 32,
+            signature="00" * 65,  # No 0x prefix
+            chain_id=1,
+        )
+
+        assert result is True
+
+
+class TestGetWeb3ForChain:
+    """
+    Unit tests for get_web3_for_chain function.
+
+    Tests the RPC URL construction for different chains.
+    """
+
+    def test_returns_web3_instance_for_mainnet(self, mocker):
+        """Test that mainnet returns a Web3 instance with correct RPC URL"""
+        from ceramic_cache.api.v1 import get_web3_for_chain
+
+        # Mock Web3 to capture the provider URL
+        mock_web3_class = mocker.patch("ceramic_cache.api.v1.Web3")
+
+        get_web3_for_chain(1)
+
+        # Verify HTTPProvider was called (via Web3.HTTPProvider)
+        mock_web3_class.HTTPProvider.assert_called_once()
+        call_args = mock_web3_class.HTTPProvider.call_args
+        rpc_url = call_args[0][0]
+        assert "eth-mainnet" in rpc_url
+        assert "alchemy.com" in rpc_url
+
+    def test_returns_web3_instance_for_base(self, mocker):
+        """Test that Base chain returns correct RPC URL"""
+        from ceramic_cache.api.v1 import get_web3_for_chain
+
+        mock_web3_class = mocker.patch("ceramic_cache.api.v1.Web3")
+
+        get_web3_for_chain(8453)
+
+        call_args = mock_web3_class.HTTPProvider.call_args
+        rpc_url = call_args[0][0]
+        assert "base-mainnet" in rpc_url
+
+    def test_unknown_chain_falls_back_to_mainnet(self, mocker):
+        """Test that unknown chain IDs fall back to mainnet"""
+        from ceramic_cache.api.v1 import get_web3_for_chain
+
+        mock_web3_class = mocker.patch("ceramic_cache.api.v1.Web3")
+
+        # Use an unsupported chain ID
+        get_web3_for_chain(999999)
+
+        call_args = mock_web3_class.HTTPProvider.call_args
+        rpc_url = call_args[0][0]
+        assert "eth-mainnet" in rpc_url

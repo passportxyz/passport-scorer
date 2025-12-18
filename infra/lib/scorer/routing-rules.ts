@@ -319,13 +319,13 @@ export function configureAllRouting(args: {
     conditions: [pathCondition("/account/nonce"), methodCondition("GET", "OPTIONS")],
   });
 
-  // Priority 5001: /ceramic-cache/authenticate - Python only
+  // Priority 5001: /ceramic-cache/authenticate* - handles both v1 and v2 (routes internally by path)
   createListenerRule({
     name: `app-api-authenticate-${envName}`,
     listenerArn: publicListenerArn,
     priority: 5001,
     targetGroupArn: targetGroups.pythonAppApiAuthenticate.arn,
-    conditions: [pathCondition("/ceramic-cache/authenticate"), methodCondition("POST", "OPTIONS")],
+    conditions: [pathCondition("/ceramic-cache/authenticate*"), methodCondition("POST", "OPTIONS")],
   });
 
   // =============================================================
