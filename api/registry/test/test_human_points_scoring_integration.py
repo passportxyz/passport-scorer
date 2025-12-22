@@ -165,6 +165,7 @@ class TestHumanPointsScoringIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.django_db(transaction=True)
+    @patch("registry.atasks.settings.HUMAN_POINTS_WRITE_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_START_TIMESTAMP", 0)
     async def test_award_points_for_stamps(
