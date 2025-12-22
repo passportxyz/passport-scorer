@@ -255,7 +255,7 @@ async def ascore_passport(
         # Human Points Program integration
         # Check if score is passing (all scorers now return 1 for pass, 0 for fail)
         if (
-            settings.HUMAN_POINTS_ENABLED
+            settings.HUMAN_POINTS_WRITE_ENABLED
             and community.human_points_program
             and score.score == Decimal("1")
             and datetime.now(timezone.utc).timestamp()

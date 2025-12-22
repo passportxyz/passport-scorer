@@ -51,6 +51,7 @@ class TestHumanPointsBinaryScoringFix:
 
     @pytest.mark.asyncio
     @pytest.mark.django_db(transaction=True)
+    @patch("registry.atasks.settings.HUMAN_POINTS_WRITE_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     async def test_human_points_awarded_for_passing_binary_score(
         self, test_passport, human_points_community
@@ -123,6 +124,7 @@ class TestHumanPointsBinaryScoringFix:
 
     @pytest.mark.asyncio
     @pytest.mark.django_db(transaction=True)
+    @patch("registry.atasks.settings.HUMAN_POINTS_WRITE_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     async def test_no_human_points_for_failing_binary_score(
         self, test_passport, human_points_community
@@ -194,6 +196,7 @@ class TestHumanPointsBinaryScoringFix:
 
     @pytest.mark.asyncio
     @pytest.mark.django_db(transaction=True)
+    @patch("registry.atasks.settings.HUMAN_POINTS_WRITE_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     async def test_old_logic_would_never_trigger(
         self, test_passport, human_points_community

@@ -49,6 +49,7 @@ class TestMetaMaskOG2PointsFeature:
     """Test MetaMask OG points awarding functionality"""
 
     @pytest.mark.asyncio
+    @patch("registry.atasks.settings.HUMAN_POINTS_WRITE_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_MTA_ENABLED", True)
     @patch("registry.atasks.avalidate_credentials")
@@ -109,6 +110,7 @@ class TestMetaMaskOG2PointsFeature:
         assert mta_point.action == HumanPoints.Action.METAMASK_OG_2
 
     @pytest.mark.asyncio
+    @patch("registry.atasks.settings.HUMAN_POINTS_WRITE_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_MTA_ENABLED", True)
     @patch("registry.atasks.avalidate_credentials")
@@ -163,6 +165,7 @@ class TestMetaMaskOG2PointsFeature:
         assert mta_points == 0
 
     @pytest.mark.asyncio
+    @patch("registry.atasks.settings.HUMAN_POINTS_WRITE_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_MTA_ENABLED", True)
     @patch("registry.atasks.avalidate_credentials")
@@ -217,6 +220,7 @@ class TestMetaMaskOG2PointsFeature:
         assert mta_points == 0
 
     @pytest.mark.asyncio
+    @patch("registry.atasks.settings.HUMAN_POINTS_WRITE_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_MTA_ENABLED", False)
     @patch("registry.atasks.avalidate_credentials")
@@ -271,6 +275,7 @@ class TestMetaMaskOG2PointsFeature:
         assert mta_points == 0
 
     @pytest.mark.asyncio
+    @patch("registry.atasks.settings.HUMAN_POINTS_WRITE_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_MTA_ENABLED", True)
     @patch("registry.atasks.avalidate_credentials")
@@ -355,6 +360,7 @@ class TestMetaMaskOG2PointsFeature:
             assert total_mta_points == 5000
 
     @pytest.mark.asyncio
+    @patch("registry.atasks.settings.HUMAN_POINTS_WRITE_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_MTA_ENABLED", True)
     @patch("registry.atasks.avalidate_credentials")
@@ -416,6 +422,7 @@ class TestMetaMaskOG2PointsFeature:
         assert mta_points == 1
 
     @pytest.mark.asyncio
+    @patch("registry.atasks.settings.HUMAN_POINTS_WRITE_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_MTA_ENABLED", True)
     @patch("registry.atasks.avalidate_credentials")
@@ -473,6 +480,7 @@ class TestMetaMaskOG2PointsFeature:
         assert mta_points == 1
 
     @pytest.mark.asyncio
+    @patch("registry.atasks.settings.HUMAN_POINTS_WRITE_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_ENABLED", True)
     @patch("registry.atasks.settings.HUMAN_POINTS_MTA_ENABLED", True)
     @patch("registry.atasks.avalidate_credentials")
