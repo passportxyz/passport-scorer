@@ -44,6 +44,7 @@ COPY --from=builder /usr/src/.venv/ /usr/src/.venv/
 COPY . /app
 
 RUN /usr/src/.venv/bin/python -c "import django; print(django.__version__)"
+
 ENV PATH="/usr/src/.venv/bin/:${PATH}"
 
 WORKDIR /app

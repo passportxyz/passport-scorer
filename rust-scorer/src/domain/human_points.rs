@@ -12,6 +12,7 @@ use crate::db::DatabaseError;
 #[derive(Debug, Clone)]
 pub struct HumanPointsConfig {
     pub enabled: bool,
+    pub write_enabled: bool,
     pub start_timestamp: i64,
     pub mta_enabled: bool,
 }
@@ -21,6 +22,10 @@ impl HumanPointsConfig {
     pub fn from_env() -> Self {
         Self {
             enabled: std::env::var("HUMAN_POINTS_ENABLED")
+                .unwrap_or_else(|_| "false".to_string())
+                .parse::<bool>()
+                .unwrap_or(false),
+            write_enabled: std::env::var("HUMAN_POINTS_WRITE_ENABLED")
                 .unwrap_or_else(|_| "false".to_string())
                 .parse::<bool>()
                 .unwrap_or(false),
@@ -83,14 +88,14 @@ pub async fn process_human_points(
     Ok(())
 }
 
-/// Check if Human Points should be processed
+/// Check if Human Points should be processed (written)
 fn should_process_human_points(
     config: &HumanPointsConfig,
     scoring_result: &ScoringResult,
     community_has_program: bool,
 ) -> bool {
-    // All conditions must be met
-    config.enabled
+    // All conditions must be met - uses write_enabled for creating new points
+    config.write_enabled
         && community_has_program
         && scoring_result.binary_score == Decimal::from(1)  // Passing score
         && Utc::now().timestamp() >= config.start_timestamp
@@ -527,6 +532,7 @@ mod tests {
     fn test_should_process_human_points() {
         let config = HumanPointsConfig {
             enabled: true,
+            write_enabled: true,
             start_timestamp: 1000,
             mta_enabled: false,
         };
@@ -554,9 +560,10 @@ mod tests {
         scoring_result.binary_score = Decimal::from(1);
         assert!(!should_process_human_points(&config, &scoring_result, false));
         
-        // Not enabled
+        // Write not enabled
         let disabled_config = HumanPointsConfig {
-            enabled: false,
+            enabled: true,
+            write_enabled: false,
             start_timestamp: 1000,
             mta_enabled: false,
         };

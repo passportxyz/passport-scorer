@@ -3,9 +3,11 @@
 import hashlib
 import hmac
 import json
-from datetime import timedelta
+import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Type
 
+import jwt
 import requests
 from asgiref.sync import async_to_sync
 from django.conf import settings
@@ -14,6 +16,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
+from eth_account.messages import encode_defunct
 from ninja import Router
 from ninja_extra import status
 from ninja_extra.exceptions import APIException
@@ -21,6 +24,8 @@ from ninja_extra.security import HttpBearer
 from ninja_jwt.exceptions import InvalidToken, TokenError
 from ninja_jwt.settings import api_settings
 from ninja_jwt.tokens import RefreshToken, Token
+from siwe import SiweMessage
+from web3 import Web3
 
 import api_logging as logging
 import tos.api
@@ -41,6 +46,7 @@ from registry.exceptions import (
 )
 from registry.human_points_utils import get_possible_points_data, get_user_points_data
 from registry.models import HumanPointsConfig, Score
+from scorer.settings.base import get_rpc_url_for_chain
 from stake.api import get_gtc_stake_for_address
 from stake.schema import StakeResponse
 from v2.api.api_stamps import format_v2_score_response, handle_scoring_for_account
@@ -66,6 +72,7 @@ from .schema import (
     GetStampsWithInternalV2ScoreResponse,
     GetStampsWithV2ScoreResponse,
     InternalV2ScoreResponse,
+    SiweVerifySubmit,
 )
 
 log = logging.getLogger(__name__)
@@ -81,6 +88,10 @@ class JWTDidAuthentication:
     """
     This authentication class will validate an access token that contains a claim named `did`
     and will save that value in `request.did`
+
+    Supports two token types:
+    1. RS256 (SIWE) - Verified using SIWE_JWT_PUBLIC_KEY
+    2. HS256 (legacy ninja_jwt) - Verified using SECRET_KEY
     """
 
     def __init__(self) -> None:
@@ -92,8 +103,32 @@ class JWTDidAuthentication:
         """
         Validates an encoded JSON web token and returns a validated token
         wrapper object.
+
+        First tries RS256 (SIWE tokens), then falls back to HS256 (legacy ninja_jwt).
         """
         messages = []
+
+        # First, try RS256 SIWE token validation
+        if settings.SIWE_JWT_PUBLIC_KEY:
+            try:
+                payload = jwt.decode(
+                    raw_token,
+                    settings.SIWE_JWT_PUBLIC_KEY,
+                    algorithms=["RS256"],
+                    issuer="passport-scorer",
+                )
+                # Return a dict-like object with the 'did' claim
+                return payload
+            except jwt.exceptions.PyJWTError as e:
+                messages.append(
+                    {
+                        "token_class": "SIWE_RS256",
+                        "token_type": "access",
+                        "message": str(e),
+                    }
+                )
+
+        # Fall back to HS256 (legacy ninja_jwt tokens)
         for AuthToken in api_settings.AUTH_TOKEN_CLASSES:
             try:
                 ret = AuthToken(raw_token)
@@ -619,6 +654,95 @@ def generate_access_token_response(user_did: str) -> AccessTokenResponse:
     )
 
 
+def generate_siwe_access_token(user_did: str) -> str:
+    """
+    Generate RS256 JWT for SIWE authentication using PyJWT directly.
+    This token can be verified by IAM using the public key.
+    """
+    now = datetime.now(timezone.utc)
+    payload = {
+        "did": user_did,
+        "iat": now,
+        "exp": now + timedelta(days=7),  # 7-day lifetime like DbCacheToken
+        "jti": str(uuid.uuid4()),
+        "iss": "passport-scorer",
+        "token_type": "access",
+    }
+    return jwt.encode(payload, settings.SIWE_JWT_PRIVATE_KEY, algorithm="RS256")
+
+
+def generate_access_token_response_v2(user_did: str) -> AccessTokenResponse:
+    """Generate JWT access token for SIWE v2 authentication using RS256"""
+    access_token = generate_siwe_access_token(user_did)
+    return AccessTokenResponse(access=access_token)
+
+
+def get_web3_for_chain(chain_id: int) -> Web3:
+    """Get Web3 instance for a specific chain with 5-second timeout"""
+    rpc_url = get_rpc_url_for_chain(chain_id)
+    provider = Web3.HTTPProvider(rpc_url, request_kwargs={"timeout": 5})
+    w3 = Web3(provider)
+    # Cache eth_chainId responses to avoid redundant RPC calls
+    w3.provider.cache_allowed_requests = True
+    return w3
+
+
+def verify_signature_erc6492(
+    address: str, message_hash: bytes, signature: str, chain_id: int
+) -> bool:
+    """
+    Verify any signature (EOA or smart wallet) using ERC-6492 Universal Signature Validator.
+
+    ERC-6492 handles:
+    - EOA signatures (standard ecrecover)
+    - EIP-1271 deployed smart contract signatures
+    - EIP-1271 undeployed (counterfactual) smart contract signatures
+
+    Uses the "deployless" approach from Ambire's signature-validator - deploys the validator
+    inline during eth_call without needing a pre-deployed contract.
+    """
+    # ERC-6492 Signature Validator bytecode from viem
+    # This is the exact bytecode viem uses for verifyMessage with smart wallet support
+    # Source: https://github.com/wevm/viem/blob/main/src/constants/contracts.ts
+    UNIVERSAL_VALIDATOR_BYTECODE = bytes.fromhex(
+        "608060405234801561001057600080fd5b5060405161069438038061069483398101604081905261002f9161051e565b600061003c848484610048565b9050806000526001601ff35b60007f64926492649264926492649264926492649264926492649264926492649264926100748361040c565b036101e7576000606080848060200190518101906100929190610577565b60405192955090935091506000906001600160a01b038516906100b69085906105dd565b6000604051808303816000865af19150503d80600081146100f3576040519150601f19603f3d011682016040523d82523d6000602084013e6100f8565b606091505b50509050876001600160a01b03163b60000361016057806101605760405162461bcd60e51b815260206004820152601e60248201527f5369676e617475726556616c696461746f723a206465706c6f796d656e74000060448201526064015b60405180910390fd5b604051630b135d3f60e11b808252906001600160a01b038a1690631626ba7e90610190908b9087906004016105f9565b602060405180830381865afa1580156101ad573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101d19190610633565b6001600160e01b03191614945050505050610405565b6001600160a01b0384163b1561027a57604051630b135d3f60e11b808252906001600160a01b03861690631626ba7e9061022790879087906004016105f9565b602060405180830381865afa158015610244573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906102689190610633565b6001600160e01b031916149050610405565b81516041146102df5760405162461bcd60e51b815260206004820152603a602482015260008051602061067483398151915260448201527f3a20696e76616c6964207369676e6174757265206c656e6774680000000000006064820152608401610157565b6102e7610425565b5060208201516040808401518451859392600091859190811061030c5761030c61065d565b016020015160f81c9050601b811480159061032b57508060ff16601c14155b1561038c5760405162461bcd60e51b815260206004820152603b602482015260008051602061067483398151915260448201527f3a20696e76616c6964207369676e617475726520762076616c756500000000006064820152608401610157565b60408051600081526020810180835289905260ff83169181019190915260608101849052608081018390526001600160a01b0389169060019060a0016020604051602081039080840390855afa1580156103ea573d6000803e3d6000fd5b505050602060405103516001600160a01b0316149450505050505b9392505050565b600060208251101561041d57600080fd5b508051015190565b60405180606001604052806003906020820280368337509192915050565b6001600160a01b038116811461045857600080fd5b50565b634e487b7160e01b600052604160045260246000fd5b60005b8381101561048c578181015183820152602001610474565b50506000910152565b600082601f8301126104a657600080fd5b81516001600160401b038111156104bf576104bf61045b565b604051601f8201601f19908116603f011681016001600160401b03811182821017156104ed576104ed61045b565b60405281815283820160200185101561050557600080fd5b610516826020830160208701610471565b949350505050565b60008060006060848603121561053357600080fd5b835161053e81610443565b6020850151604086015191945092506001600160401b0381111561056157600080fd5b61056d86828701610495565b9150509250925092565b60008060006060848603121561058c57600080fd5b835161059781610443565b60208501519093506001600160401b038111156105b357600080fd5b6105bf86828701610495565b604086015190935090506001600160401b0381111561056157600080fd5b600082516105ef818460208701610471565b9190910192915050565b828152604060208201526000825180604084015261061e816060850160208701610471565b601f01601f1916919091016060019392505050565b60006020828403121561064557600080fd5b81516001600160e01b03198116811461040557600080fd5b634e487b7160e01b600052603260045260246000fdfe5369676e617475726556616c696461746f72237265636f7665725369676e6572"
+    )
+
+    try:
+        w3 = get_web3_for_chain(chain_id)
+        checksum_address = Web3.to_checksum_address(address)
+
+        # Prepare signature bytes
+        sig_bytes = bytes.fromhex(signature.replace("0x", ""))
+
+        # Check if signature is ERC-6492 wrapped (ends with magic bytes)
+        ERC6492_MAGIC = bytes.fromhex("6492649264926492649264926492649264926492649264926492649264926492")
+        is_6492_wrapped = sig_bytes[-32:] == ERC6492_MAGIC if len(sig_bytes) >= 32 else False
+        log.debug(f"Signature is ERC-6492 wrapped: {is_6492_wrapped}, length: {len(sig_bytes)} bytes")
+
+        # ABI encode constructor parameters: (address _signer, bytes32 _hash, bytes _signature)
+        encoded_params = w3.codec.encode(
+            ['address', 'bytes32', 'bytes'],
+            [checksum_address, message_hash, sig_bytes]
+        )
+
+        # Concatenate bytecode + encoded params for deployless verification
+        call_data = UNIVERSAL_VALIDATOR_BYTECODE + encoded_params
+
+        try:
+            # eth_call with no 'to' address deploys and executes the bytecode inline
+            result = w3.eth.call({'data': call_data})
+            is_valid = result == b'\x01'
+            log.debug(f"ERC-6492 verification for {checksum_address}: {is_valid}")
+            return is_valid
+        except Exception as call_error:
+            log.error(f"ERC-6492 eth_call failed: {call_error}")
+            return False
+    except Exception as e:
+        log.error(f"ERC-6492 verification error for {address}: {e}")
+        return False
+
+
 def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
     # First validate the payload
     # This will ensure that the payload signature was made for our unique nonce
@@ -742,3 +866,123 @@ def accept_tos(
     request, tos_type: str, address: str, payload: tos.schema.TosSigned
 ) -> None:
     tos.api.accept_tos(payload)
+
+
+@router.post(
+    "authenticate/v2",
+    response=AccessTokenResponse,
+)
+def authenticate_v2(request, payload: SiweVerifySubmit):
+    """
+    SIWE-based authentication endpoint that supports both EOA and smart contract wallets.
+    Accepts SIWE message + signature instead of DagJWS/CACAO.
+    Returns JWT with `did` claim in format `did:pkh:eip155:1:0xADDRESS`
+    """
+    return handle_authenticate_v2(payload)
+
+
+def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
+    """
+    Handle SIWE v2 authentication:
+    1. Validate nonce (use once, 5-minute TTL)
+    2. Parse and verify SIWE message
+    3. Verify signature using ERC-6492 (handles EOA + smart wallets universally)
+    4. Return JWT with did claim
+    """
+    try:
+        # Debug: Log the full payload for smart wallet signature debugging
+        log.debug(f"Received authenticate_v2 payload: {payload.dict()}")
+
+        address_raw = payload.message.get("address", "")
+        nonce = payload.message.get("nonce")
+        chain_id = payload.message.get("chainId", 1)
+
+        if not address_raw or not nonce:
+            log.error("Missing address or nonce in SIWE message")
+            raise FailedVerificationException(detail="Missing address or nonce!")
+
+        # Convert to EIP-55 checksum format (required by SIWE library)
+        # This handles any input format: lowercase, uppercase, or already checksummed
+        try:
+            address = Web3.to_checksum_address(address_raw)
+        except ValueError:
+            log.error("Invalid Ethereum address: '%s'", address_raw)
+            raise FailedVerificationException(detail="Invalid address format!")
+
+        # Validate and consume nonce (5-minute TTL)
+        if not Nonce.use_nonce(nonce):
+            log.error("Invalid or expired nonce: '%s'", nonce)
+            raise FailedVerificationException(detail="Invalid nonce!")
+
+        # Convert message dict to SIWE message format
+        # Include ALL optional fields to ensure message text matches what was signed
+        siwe_message_dict = {
+            "domain": payload.message.get("domain"),
+            "address": address,  # EIP-55 checksum format (converted above)
+            "statement": payload.message.get("statement"),
+            "uri": payload.message.get("uri"),
+            "version": payload.message.get("version"),
+            "chain_id": chain_id,
+            "nonce": nonce,
+            "issued_at": payload.message.get("issuedAt"),
+        }
+
+        # Add optional SIWE fields if present in the original message
+        if payload.message.get("expirationTime"):
+            siwe_message_dict["expiration_time"] = payload.message.get("expirationTime")
+        if payload.message.get("notBefore"):
+            siwe_message_dict["not_before"] = payload.message.get("notBefore")
+        if payload.message.get("requestId"):
+            siwe_message_dict["request_id"] = payload.message.get("requestId")
+        if payload.message.get("resources"):
+            siwe_message_dict["resources"] = payload.message.get("resources")
+
+        # Reconstruct the full SIWE message text
+        siwe_msg = SiweMessage(**siwe_message_dict)
+        message_text = siwe_msg.prepare_message()
+
+        # Create EIP-191 prefixed message hash for ERC-6492 verification
+        # EIP-191 format: \x19Ethereum Signed Message:\n<length><message>
+        # Note: encode_defunct splits oddly (version='E', header='thereum...') and doesn't
+        # include the \x19 prefix byte, so we construct the hash correctly here.
+        prefixed_message = encode_defunct(text=message_text)
+        message_bytes = message_text.encode('utf-8')
+        full_prefixed_data = b'\x19Ethereum Signed Message:\n' + str(len(message_bytes)).encode() + message_bytes
+        message_hash = Web3.keccak(full_prefixed_data)
+
+        log.debug(f"SIWE message hash: {message_hash.hex()}")
+
+        # Try standard EOA ecrecover first (faster, no RPC needed)
+        from eth_account import Account
+        signature_valid = False
+        try:
+            recovered = Account.recover_message(prefixed_message, signature=payload.signature)
+            signature_valid = recovered.lower() == address.lower()
+            if signature_valid:
+                log.info(f"Signature verified via ecrecover for {address}")
+        except Exception as e:
+            log.debug(f"ecrecover failed, trying ERC-6492: {e}")
+
+        # Fallback to ERC-6492 for smart wallets (verify on mainnet)
+        # Smart wallet factories are deployed on 100+ chains including mainnet
+        if not signature_valid:
+            signature_valid = verify_signature_erc6492(
+                address, message_hash, payload.signature, 1  # mainnet
+            )
+
+        if not signature_valid:
+            log.error(f"Signature verification failed for {address}")
+            raise FailedVerificationException(detail="Invalid signature!")
+
+        # Generate DID (always use eip155:1 for consistent identifier format)
+        # Lowercase for DID consistency (address is kept in checksum format above for SIWE)
+        user_did = f"did:pkh:eip155:1:{address.lower()}"
+
+        # Generate and return JWT token
+        return generate_access_token_response_v2(user_did)
+
+    except FailedVerificationException:
+        raise
+    except Exception as exc:
+        log.error("Failed authenticate_v2 request: '%s'", payload.dict(), exc_info=True)
+        raise FailedVerificationException(detail="Authentication failed!") from exc

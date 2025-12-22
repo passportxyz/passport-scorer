@@ -373,6 +373,28 @@ else:
 STATIC_ROOT = BASE_DIR / "static"
 
 
+# SIWE JWT signing keys (RS256 asymmetric) - separate from ninja_jwt
+# Used for SIWE authentication tokens that IAM needs to verify
+# Keys are base64 encoded in env vars to avoid newline issues in secrets managers
+# Defaults are for testing only - production MUST set these env vars
+import base64
+
+
+def _decode_key(env_var: str) -> str:
+    """Decode base64-encoded PEM key from environment variable."""
+    value = env(env_var, default="")
+    if not value:
+        return ""
+    # If it already looks like a PEM key, use it directly (for local dev)
+    if "-----BEGIN" in value:
+        return value
+    # Otherwise, decode from base64
+    return base64.b64decode(value).decode("utf-8")
+
+SIWE_JWT_PRIVATE_KEY = _decode_key("SIWE_JWT_PRIVATE_KEY")
+SIWE_JWT_PUBLIC_KEY = _decode_key("SIWE_JWT_PUBLIC_KEY")
+
+# Keep ninja_jwt unchanged for existing functionality (UI auth, etc.)
 NINJA_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
@@ -511,3 +533,31 @@ SYSTEM_TESTS_MAX_AGE_BEFORE_OUTDATED = env.float(
 DEMO_API_KEY = env("DEMO_API_KEY", default=None)
 DEMO_API_SCORER_ID = env("DEMO_API_SCORER_ID", default=None)
 DEMO_API_KEY_ALIASES = env.json("DEMO_API_KEY_ALIASES", default=[])
+
+# Multi-chain RPC configuration for ERC-6492 signature verification
+# Supports smart wallets on multiple L2s (Coinbase Smart Wallet, Safe, Argent, etc.)
+# Default is for testing only - production MUST set this env var
+ALCHEMY_API_KEY = env("ALCHEMY_API_KEY", default="")
+
+# Chain ID to Alchemy network name mapping
+ALCHEMY_CHAIN_NETWORKS = {
+    # Mainnets
+    1: "eth-mainnet",
+    8453: "base-mainnet",
+    42161: "arb-mainnet",
+    10: "opt-mainnet",
+    5000: "mantle-mainnet",
+    # Testnets (for smart wallet testing)
+    11155111: "eth-sepolia",
+    11155420: "opt-sepolia",
+    84532: "base-sepolia",
+    421614: "arb-sepolia",
+}
+
+def get_rpc_url_for_chain(chain_id: int) -> str:
+    """Get RPC URL for a given chain ID. Falls back to mainnet for unsupported chains."""
+    network = ALCHEMY_CHAIN_NETWORKS.get(chain_id, "eth-mainnet")
+    return f"https://{network}.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
+
+# ERC-6492 Universal Signature Validator (same address on all EVM chains via CREATE2)
+ERC6492_UNIVERSAL_VALIDATOR = "0x7dd271fa79df3a5feb99f73bebfa4395b2e4f4be"
