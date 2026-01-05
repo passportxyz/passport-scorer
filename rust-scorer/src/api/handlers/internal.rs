@@ -75,7 +75,6 @@ pub async fn internal_score_handler(
         &address,
         scorer_id,
         &pool,
-        false, // include_human_points
     ).await?))
 }
 

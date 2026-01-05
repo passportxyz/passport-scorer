@@ -124,7 +124,6 @@ pub async fn add_stamps_handler(
         &address,
         scorer_id,
         &pool,
-        false, // include_human_points
     ).await;
 
     let score = score_result?;
@@ -176,7 +175,6 @@ pub async fn get_embed_score_handler(
         &address,
         scorer_id,
         &pool,
-        false, // include_human_points
     ).await;
 
     let score = score_result?;

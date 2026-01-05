@@ -443,7 +443,6 @@ pub async fn calculate_score_for_address(
     address: &str,
     scorer_id: i64,
     pool: &PgPool,
-    include_human_points: bool,
 ) -> Result<V2ScoreResponse, DomainError> {
     use sqlx::{Postgres, Transaction};
     use crate::db::queries::{load_community, delete_stamps, bulk_insert_stamps, upsert_score};
@@ -541,7 +540,8 @@ pub async fn calculate_score_for_address(
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
     // 11. Process human points if enabled
-    if include_human_points && community.human_points_program {
+    let human_points_config = super::human_points::HumanPointsConfig::from_env();
+    if human_points_config.enabled && community.human_points_program {
         process_human_points(
             &scoring_result,
             community.human_points_program,
@@ -558,7 +558,7 @@ pub async fn calculate_score_for_address(
     response.address = address.to_string();
 
     // 14. Add human points data if enabled and community has program
-    if include_human_points && community.human_points_program {
+    if human_points_config.enabled && community.human_points_program {
         use super::human_points::{get_user_points_data, get_possible_points_data};
 
         // Get user's points data
