@@ -56,15 +56,13 @@ METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 log = logging.getLogger(__name__)
 
 
-async def handle_scoring_for_account(
-    address: str, scorer_id: str, user_account, include_human_points: bool = False
-):
+async def handle_scoring_for_account(address: str, scorer_id: str, user_account):
     # Get community object
     user_community = await aget_scorer_by_id(scorer_id, user_account)
-    return await ahandle_scoring(address, user_community, include_human_points)
+    return await ahandle_scoring(address, user_community)
 
 
-async def ahandle_scoring(address: str, community, include_human_points: bool = False):
+async def ahandle_scoring(address: str, community):
     address_lower = address.lower()
     if not is_valid_address(address_lower):
         raise InvalidAddressException()
@@ -86,14 +84,10 @@ async def ahandle_scoring(address: str, community, include_human_points: bool = 
     await ascore_passport(community, db_passport, address_lower, score)
     await score.asave()
 
-    # Get points data if community has human_points_program enabled and include_human_points is True
+    # Get points data if community has human_points_program enabled
     points_data = None
     possible_points_data = None
-    if (
-        include_human_points
-        and settings.HUMAN_POINTS_ENABLED
-        and community.human_points_program
-    ):
+    if settings.HUMAN_POINTS_ENABLED and community.human_points_program:
         from asgiref.sync import sync_to_async
 
         points_data = await sync_to_async(get_user_points_data)(address_lower)
@@ -101,7 +95,7 @@ async def ahandle_scoring(address: str, community, include_human_points: bool = 
         possible_points_data = await sync_to_async(get_possible_points_data)(multiplier)
 
     return format_v2_score_response(
-        score, scorer_type, points_data, possible_points_data, include_human_points
+        score, scorer_type, points_data, possible_points_data
     )
 
 
@@ -110,7 +104,6 @@ def format_v2_score_response(
     scorer_type: Scorer.Type,
     points_data: Dict[str, Any] = None,
     possible_points_data: Dict[str, Any] = None,
-    include_human_points: bool = False,
 ) -> V2ScoreResponse:
     raw_score = score.evidence.get("rawScore", "0") if score.evidence else "0"
     threshold = score.evidence.get("threshold", "20") if score.evidence else "20"
@@ -118,16 +111,17 @@ def format_v2_score_response(
     raw_score = Decimal(0) if raw_score is None else Decimal(raw_score)
     threshold = Decimal(0) if threshold is None else Decimal(threshold)
 
-    # Convert points_data dict to PointsData schema if provided and include_human_points is True
+    # Convert points_data dict to PointsData schema if provided
     formatted_points_data = None
     formatted_possible_points_data = None
-    if include_human_points and points_data:
+    if points_data:
         formatted_points_data = PointsData(
             total_points=points_data["total_points"],
             is_eligible=points_data["is_eligible"],
             multiplier=points_data["multiplier"],
             breakdown=points_data["breakdown"],
         )
+    if possible_points_data:
         formatted_possible_points_data = PointsData(
             total_points=possible_points_data["total_points"],
             is_eligible=possible_points_data["is_eligible"],

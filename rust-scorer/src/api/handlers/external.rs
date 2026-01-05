@@ -2,12 +2,11 @@
 // These are thin handlers that orchestrate HTTP concerns and call domain logic
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::HeaderMap,
     Json,
 };
 use sqlx::PgPool;
-use std::collections::HashMap;
 use tracing::info;
 
 use crate::api::error::{ApiError, ApiResult};
@@ -26,7 +25,6 @@ use crate::models::v2_api::V2ScoreResponse;
 )]
 pub async fn score_address_handler(
     Path((scorer_id, address)): Path<(i64, String)>,
-    Query(params): Query<HashMap<String, String>>,
     State(pool): State<PgPool>,
     headers: HeaderMap,
 ) -> ApiResult<Json<V2ScoreResponse>> {
@@ -75,17 +73,10 @@ pub async fn score_address_handler(
     tx.commit().await
         .map_err(|e| ApiError::Database(format!("Failed to commit analytics: {}", e)))?;
 
-    // 3. Check for human points parameter
-    let include_human_points = params
-        .get("include_human_points")
-        .map(|v| v == "true")
-        .unwrap_or(false);
-
-    // 4. Call shared domain logic and return
+    // 3. Call shared domain logic and return
     Ok(Json(domain::calculate_score_for_address(
         &address,
         scorer_id,
         &pool,
-        include_human_points,
     ).await?))
 }

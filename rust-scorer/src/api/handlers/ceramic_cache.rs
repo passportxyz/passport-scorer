@@ -112,7 +112,6 @@ pub async fn ceramic_cache_add_stamps(
         &address,
         scorer_id,
         &pool,
-        true, // include_human_points
     ).await;
 
     let score = score_result?;
@@ -182,7 +181,6 @@ pub async fn ceramic_cache_get_score(
         &jwt_address,
         scorer_id,
         &pool,
-        true, // include_human_points
     ).await;
 
     let score = score_result?;
@@ -274,7 +272,6 @@ pub async fn ceramic_cache_patch_stamps(
         &address,
         scorer_id,
         &pool,
-        true, // include_human_points
     ).await;
 
     let score = score_result?;

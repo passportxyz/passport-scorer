@@ -583,7 +583,6 @@ def handle_get_ui_score(
             scorer_type,
             points_data,
             possible_points_data,
-            include_human_points=True,
         )
 
     except Community.DoesNotExist as e:
@@ -716,14 +715,19 @@ def verify_signature_erc6492(
         sig_bytes = bytes.fromhex(signature.replace("0x", ""))
 
         # Check if signature is ERC-6492 wrapped (ends with magic bytes)
-        ERC6492_MAGIC = bytes.fromhex("6492649264926492649264926492649264926492649264926492649264926492")
-        is_6492_wrapped = sig_bytes[-32:] == ERC6492_MAGIC if len(sig_bytes) >= 32 else False
-        log.debug(f"Signature is ERC-6492 wrapped: {is_6492_wrapped}, length: {len(sig_bytes)} bytes")
+        ERC6492_MAGIC = bytes.fromhex(
+            "6492649264926492649264926492649264926492649264926492649264926492"
+        )
+        is_6492_wrapped = (
+            sig_bytes[-32:] == ERC6492_MAGIC if len(sig_bytes) >= 32 else False
+        )
+        log.debug(
+            f"Signature is ERC-6492 wrapped: {is_6492_wrapped}, length: {len(sig_bytes)} bytes"
+        )
 
         # ABI encode constructor parameters: (address _signer, bytes32 _hash, bytes _signature)
         encoded_params = w3.codec.encode(
-            ['address', 'bytes32', 'bytes'],
-            [checksum_address, message_hash, sig_bytes]
+            ["address", "bytes32", "bytes"], [checksum_address, message_hash, sig_bytes]
         )
 
         # Concatenate bytecode + encoded params for deployless verification
@@ -731,8 +735,8 @@ def verify_signature_erc6492(
 
         try:
             # eth_call with no 'to' address deploys and executes the bytecode inline
-            result = w3.eth.call({'data': call_data})
-            is_valid = result == b'\x01'
+            result = w3.eth.call({"data": call_data})
+            is_valid = result == b"\x01"
             log.debug(f"ERC-6492 verification for {checksum_address}: {is_valid}")
             return is_valid
         except Exception as call_error:
@@ -805,9 +809,7 @@ def get_detailed_score_response_for_address(
     account = get_object_or_404(Account, community__id=scorer_id)
 
     # Include human points for ceramic-cache endpoints
-    score = async_to_sync(handle_scoring_for_account)(
-        address, str(scorer_id), account, include_human_points=True
-    )
+    score = async_to_sync(handle_scoring_for_account)(address, str(scorer_id), account)
 
     return score
 
@@ -946,17 +948,24 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         # Note: encode_defunct splits oddly (version='E', header='thereum...') and doesn't
         # include the \x19 prefix byte, so we construct the hash correctly here.
         prefixed_message = encode_defunct(text=message_text)
-        message_bytes = message_text.encode('utf-8')
-        full_prefixed_data = b'\x19Ethereum Signed Message:\n' + str(len(message_bytes)).encode() + message_bytes
+        message_bytes = message_text.encode("utf-8")
+        full_prefixed_data = (
+            b"\x19Ethereum Signed Message:\n"
+            + str(len(message_bytes)).encode()
+            + message_bytes
+        )
         message_hash = Web3.keccak(full_prefixed_data)
 
         log.debug(f"SIWE message hash: {message_hash.hex()}")
 
         # Try standard EOA ecrecover first (faster, no RPC needed)
         from eth_account import Account
+
         signature_valid = False
         try:
-            recovered = Account.recover_message(prefixed_message, signature=payload.signature)
+            recovered = Account.recover_message(
+                prefixed_message, signature=payload.signature
+            )
             signature_valid = recovered.lower() == address.lower()
             if signature_valid:
                 log.info(f"Signature verified via ecrecover for {address}")
@@ -967,7 +976,10 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         # Smart wallet factories are deployed on 100+ chains including mainnet
         if not signature_valid:
             signature_valid = verify_signature_erc6492(
-                address, message_hash, payload.signature, 1  # mainnet
+                address,
+                message_hash,
+                payload.signature,
+                1,  # mainnet
             )
 
         if not signature_valid:
