@@ -31,7 +31,6 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "GnosisSafe": "0.222",
     "Google": "0.525",
     "GuildAdmin": "0.468",
-    "GuildPassportMember": "0.24",
     "HolonymGovIdProvider": "16.026",
     "HolonymPhone": "1.521",
     "IdenaState#Human": "1.921",
