@@ -832,3 +832,20 @@ class CustomCredential(models.Model):
     display_name = models.CharField(max_length=64, blank=False, null=False)
 
     description = models.CharField(max_length=256, blank=True, null=True)
+
+
+class FeaturedCampaign(models.Model):
+    partner_name = models.CharField(max_length=100)
+    partner_logo = models.TextField(blank=True, help_text="SVG string")
+    image_tag = models.CharField(max_length=100, help_text="Resolves to /assets/campaigns/{image_tag}.webp")
+    header_text = models.CharField(max_length=255)
+    body_text = models.TextField()
+    destination_url = models.URLField()
+    is_active = models.BooleanField(default=True)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+
+    def __str__(self):
+        return f"{self.partner_name}: {self.header_text[:30]}"

@@ -32,6 +32,7 @@ from .models import (
     CustomCredentialRuleset,
     Customization,
     CustomPlatform,
+    FeaturedCampaign,
     IncludedChainId,
     RateLimits,
 )
@@ -871,3 +872,10 @@ class CustomCredentialRulesetAdmin(admin.ModelAdmin):
             return ["credential_type", "definition", "provider_id", "name"]
         else:
             return ["provider_id", "name"]
+
+
+@admin.register(FeaturedCampaign)
+class FeaturedCampaignAdmin(ScorerModelAdmin):
+    list_display = ["partner_name", "header_text", "is_active", "display_order"]
+    list_editable = ["is_active", "display_order"]
+    ordering = ["display_order"]
