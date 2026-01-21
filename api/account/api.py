@@ -24,6 +24,7 @@ from account.models import (
     Community,
     CustomCredentialRuleset,
     Customization,
+    FeaturedCampaign,
     Nonce,
 )
 from internal.api_key import internal_api_key
@@ -663,6 +664,23 @@ def get_dashboard_discovery(request):
             }
         )
 
+    # Get active featured campaigns
+    featured_campaigns = []
+    for campaign in FeaturedCampaign.objects.filter(is_active=True).order_by(
+        "display_order", "id"
+    ):
+        featured_campaigns.append(
+            {
+                "id": campaign.image_tag,
+                "header": campaign.header_text,
+                "subheader": campaign.body_text,
+                "destinationUrl": campaign.destination_url,
+                "imageTag": campaign.image_tag,
+                "partnerName": campaign.partner_name,
+                "partnerLogo": campaign.partner_logo,
+            }
+        )
+
     # Import StampMetadata here to avoid circular imports
     from registry.weight_models import StampMetadata
 
@@ -671,6 +689,7 @@ def get_dashboard_discovery(request):
 
     return {
         "partnerDashboards": partner_dashboards,
+        "featuredCampaigns": featured_campaigns,
         "stampMetadata": stamp_metadata,
     }
 
@@ -707,6 +726,23 @@ def get_account_customization(request, dashboard_path: str):
                     "name": dashboard.partner_name,
                     "logo": dashboard.nav_logo,
                     "showInTopNav": True,  # Always true since we filtered for it
+                }
+            )
+
+        # Get active featured campaigns
+        featured_campaigns = []
+        for campaign in FeaturedCampaign.objects.filter(is_active=True).order_by(
+            "display_order", "id"
+        ):
+            featured_campaigns.append(
+                {
+                    "id": campaign.image_tag,
+                    "header": campaign.header_text,
+                    "subheader": campaign.body_text,
+                    "destinationUrl": campaign.destination_url,
+                    "imageTag": campaign.image_tag,
+                    "partnerName": campaign.partner_name,
+                    "partnerLogo": campaign.partner_logo,
                 }
             )
 
@@ -763,6 +799,7 @@ def get_account_customization(request, dashboard_path: str):
             showExplanationPanel=customization.show_explanation_panel,
             customStamps=customization.get_custom_stamps(),
             partnerDashboards=partner_dashboards,
+            featuredCampaigns=featured_campaigns,
             stampMetadata=stamp_metadata,
         )
 
