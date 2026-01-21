@@ -40,7 +40,7 @@ def populate_campaigns(apps, schema_editor):
         },
         {
             "partner_name": "ZK Sync",
-            "partner_logo": '''<svg width="20" height="20" viewBox="0 0 20 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 0L5 6L10 12L10 6L15 6L10 0Z" fill="black"/><path d="M10 12L15 6L10 0L10 6L5 6L10 12Z" fill="black" fillOpacity="0.6"/><path d="M0 6L5 0V12L0 6Z" fill="black"/><path d="M20 6L15 12V0L20 6Z" fill="black"/></svg>''',
+            "partner_logo": '''<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 9.88031L5.71428 4.16602V7.02318H11.4286L5.71428 11.3089V15.5946L0 9.88031Z" fill="#0A0A0A"/><path d="M20 9.88031L14.2857 15.5946V12.7375H8.57143L14.2857 8.45175V4.16602L20 9.88031Z" fill="#0A0A0A"/></svg>''',
             "image_tag": "zksync",
             "header_text": "Verify your activity based on days with active commits",
             "body_text": "Verify your activity based on days with active commits",
