@@ -8,7 +8,7 @@ from account.models import (
     EmbedStampSection,
     EmbedStampSectionItem,
 )
-from embed.api import handle_get_embed_stamp_sections
+from embed.api import handle_get_embed_config, handle_get_embed_stamp_sections
 from registry.weight_models import WeightConfiguration, WeightConfigurationItem
 from scorer.settings.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
 
@@ -202,7 +202,111 @@ class TestHandleGetEmbedStampSections(TestCase):
             name="No Customization Community",
             account=self.account
         )
-        
+
         result = handle_get_embed_stamp_sections(str(community_no_custom.id))
         self.assertEqual(result, [])
+
+
+class TestHandleGetEmbedConfig(TestCase):
+    def setUp(self):
+        # Create test user
+        self.user = User.objects.create_user(username="testuser", password="12345")
+
+        # Create test account
+        self.account = Account.objects.create(
+            address="0x1234567890123456789012345678901234567890",
+            user=self.user
+        )
+
+        # Create active weight configuration (required for Community creation)
+        config = WeightConfiguration.objects.create(
+            version="v1",
+            threshold=5.0,
+            active=True,
+            description="Test",
+        )
+
+        for provider, weight in GITCOIN_PASSPORT_WEIGHTS.items():
+            WeightConfigurationItem.objects.create(
+                weight_configuration=config,
+                provider=provider,
+                weight=float(weight),
+            )
+
+        # Create test community
+        self.community = Community.objects.create(
+            name="Test Community",
+            account=self.account
+        )
+
+        # Create customization
+        self.customization = Customization.objects.create(
+            path="test-partner",
+            scorer=self.community,
+            partner_name="Test Partner"
+        )
+
+    def test_get_embed_config_returns_weights_and_sections(self):
+        """Test that combined config returns both weights and stamp sections"""
+        # Create a section with items
+        section = EmbedStampSection.objects.create(
+            customization=self.customization,
+            title="Test Section",
+            order=0
+        )
+        EmbedStampSectionItem.objects.create(
+            section=section,
+            platform_id="Google",
+            order=0
+        )
+
+        result = handle_get_embed_config(str(self.community.id))
+
+        # Verify weights are present
+        self.assertIsNotNone(result.weights)
+        self.assertIsInstance(result.weights, dict)
+
+        # Verify stamp_sections are present
+        self.assertEqual(len(result.stamp_sections), 1)
+        self.assertEqual(result.stamp_sections[0].title, "Test Section")
+
+    def test_get_embed_config_empty_sections(self):
+        """Test that config returns empty sections when none configured"""
+        result = handle_get_embed_config(str(self.community.id))
+
+        # Verify weights are present
+        self.assertIsNotNone(result.weights)
+
+        # Verify stamp_sections is empty list
+        self.assertEqual(result.stamp_sections, [])
+
+    def test_get_embed_config_with_multiple_sections(self):
+        """Test config with multiple sections and items"""
+        section1 = EmbedStampSection.objects.create(
+            customization=self.customization,
+            title="Section One",
+            order=0
+        )
+        section2 = EmbedStampSection.objects.create(
+            customization=self.customization,
+            title="Section Two",
+            order=1
+        )
+
+        EmbedStampSectionItem.objects.create(
+            section=section1,
+            platform_id="Google",
+            order=0
+        )
+        EmbedStampSectionItem.objects.create(
+            section=section2,
+            platform_id="Discord",
+            order=0
+        )
+
+        result = handle_get_embed_config(str(self.community.id))
+
+        self.assertEqual(len(result.stamp_sections), 2)
+        self.assertEqual(result.stamp_sections[0].title, "Section One")
+        self.assertEqual(result.stamp_sections[1].title, "Section Two")
 

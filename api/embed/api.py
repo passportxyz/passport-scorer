@@ -130,6 +130,12 @@ class EmbedStampSectionSchema(Schema):
     items: List[EmbedStampSectionItemSchema]
 
 
+class EmbedConfigResponse(Schema):
+    """Combined response for embed configuration"""
+    weights: dict[str, float]
+    stamp_sections: List[EmbedStampSectionSchema]
+
+
 def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSectionSchema]:
     """
     Get customized stamp sections for a given community/scorer.
@@ -174,3 +180,16 @@ def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSection
     except Exception as e:
         log.error(f"Error fetching embed stamp sections for community {community_id}: {e}")
         return []
+
+
+def handle_get_embed_config(community_id: str) -> EmbedConfigResponse:
+    """
+    Get combined embed configuration: weights and stamp sections.
+    Returns weights with empty stamp_sections if sections lookup fails (partial data).
+    """
+    from ceramic_cache.api.v1 import handle_get_scorer_weights
+
+    weights = handle_get_scorer_weights(community_id)
+    stamp_sections = handle_get_embed_stamp_sections(community_id)
+
+    return EmbedConfigResponse(weights=weights, stamp_sections=stamp_sections)
