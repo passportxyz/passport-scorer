@@ -32,9 +32,9 @@ from .models import (
     CustomCredentialRuleset,
     Customization,
     CustomPlatform,
-    FeaturedCampaign,
     EmbedStampSection,
     EmbedStampSectionItem,
+    FeaturedCampaign,
     IncludedChainId,
     RateLimits,
 )
@@ -79,6 +79,15 @@ def recalculate_scores(modeladmin, request, queryset):
     )
 
 
+class EmbedStampSectionInline(admin.StackedInline):
+    """Inline admin for stamp sections within community"""
+    model = EmbedStampSection
+    extra = 0
+    fields = ["title", "order"]
+    ordering = ["order", "id"]
+    show_change_link = True
+
+
 @admin.register(Community)
 class CommunityAdmin(ScorerModelAdmin):
     list_display = (
@@ -103,6 +112,7 @@ class CommunityAdmin(ScorerModelAdmin):
     readonly_fields = ("scorer_link",)
     list_filter = ("human_points_program",)
     actions = [recalculate_scores]
+    inlines = [EmbedStampSectionInline]
 
     def scorer_link(self, obj):
         # To add additional scorer types, just look at the URL on_delete
@@ -705,33 +715,24 @@ class EmbedStampSectionItemInline(admin.TabularInline):
     """Inline admin for stamp items within a section"""
     model = EmbedStampSectionItem
     extra = 1
-    fields = ["platform_id", "order"]
+    fields = ["platform", "order"]
     ordering = ["order", "id"]
-
-
-class EmbedStampSectionInline(admin.StackedInline):
-    """Inline admin for stamp sections within customization"""
-    model = EmbedStampSection
-    extra = 0
-    fields = ["title", "order"]
-    ordering = ["order", "id"]
-    show_change_link = True
 
 
 @admin.register(EmbedStampSection)
 class EmbedStampSectionAdmin(ScorerModelAdmin):
     """Standalone admin for managing stamp sections and their items"""
-    list_display = ["id", "customization", "title", "order", "item_count", "created_at"]
-    list_filter = ["customization"]
-    search_fields = ["title", "customization__path"]
-    ordering = ["customization", "order", "id"]
+    list_display = ["id", "community", "title", "order", "item_count", "created_at"]
+    list_filter = ["community"]
+    search_fields = ["title", "community__name"]
+    ordering = ["community", "order", "id"]
     inlines = [EmbedStampSectionItemInline]
     
     fieldsets = [
         (
             None,
             {
-                "fields": ["customization", "title", "order"],
+                "fields": ["community", "title", "order"],
             },
         ),
     ]
@@ -749,7 +750,6 @@ class CustomizationAdmin(ScorerModelAdmin):
         AllowListInline,
         CustomCredentialInline,
         IncludedChainIdInline,
-        EmbedStampSectionInline,
     ]
     fieldsets = [
         (

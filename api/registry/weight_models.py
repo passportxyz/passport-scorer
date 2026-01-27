@@ -4,6 +4,32 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
+class PlatformMetadata(models.Model):
+    """
+    Metadata about stamp platforms, auto-populated from external stampMetadata.json.
+    Used as the source of truth for platform choices in EmbedStampSectionItem.
+    """
+
+    platform_id = models.CharField(
+        max_length=100,
+        unique=True,
+        db_index=True,
+        help_text="The platform ID from stampMetadata.json (e.g. 'Discord', 'Github')",
+    )
+    name = models.CharField(
+        max_length=255,
+        help_text="Display name of the platform (e.g. 'Discord', 'GitHub')",
+    )
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Platform Metadata"
+        verbose_name_plural = "Platform Metadata"
+
+    def __str__(self):
+        return f"{self.name} ({self.platform_id})"
+
+
 class StampMetadata(models.Model):
     """
     Global metadata for stamp providers.
@@ -22,6 +48,15 @@ class StampMetadata(models.Model):
     is_beta = models.BooleanField(
         default=False,
         help_text="Whether this stamp should display a beta badge in the UI",
+    )
+
+    platform = models.ForeignKey(
+        PlatformMetadata,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stamps",
+        help_text="The platform this stamp provider belongs to",
     )
 
     class Meta:

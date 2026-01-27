@@ -4,52 +4,53 @@ from django.test import TestCase
 from account.models import (
     Account,
     Community,
-    Customization,
     EmbedStampSection,
     EmbedStampSectionItem,
 )
 from embed.api import handle_get_embed_config, handle_get_embed_stamp_sections
-from registry.weight_models import WeightConfiguration, WeightConfigurationItem
+from registry.weight_models import (
+    PlatformMetadata,
+    WeightConfiguration,
+    WeightConfigurationItem,
+)
 from scorer.settings.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
+
+
+def _get_or_create_platform(platform_id, name=None):
+    """Helper to get or create a PlatformMetadata record for tests."""
+    obj, _ = PlatformMetadata.objects.get_or_create(
+        platform_id=platform_id,
+        defaults={"name": name or platform_id},
+    )
+    return obj
 
 
 class TestHandleGetEmbedStampSections(TestCase):
     def setUp(self):
-        # Create test user
         self.user = User.objects.create_user(username="testuser", password="12345")
-        
-        # Create test account
+
         self.account = Account.objects.create(
             address="0x1234567890123456789012345678901234567890",
             user=self.user
         )
-        
-        # Create active weight configuration (required for Community creation)
+
         config = WeightConfiguration.objects.create(
             version="v1",
             threshold=5.0,
             active=True,
             description="Test",
         )
-        
+
         for provider, weight in GITCOIN_PASSPORT_WEIGHTS.items():
             WeightConfigurationItem.objects.create(
                 weight_configuration=config,
                 provider=provider,
                 weight=float(weight),
             )
-        
-        # Create test community
+
         self.community = Community.objects.create(
             name="Test Community",
             account=self.account
-        )
-        
-        # Create customization
-        self.customization = Customization.objects.create(
-            path="test-partner",
-            scorer=self.community,
-            partner_name="Test Partner"
         )
 
     def test_no_sections_returns_empty_list(self):
@@ -59,98 +60,89 @@ class TestHandleGetEmbedStampSections(TestCase):
 
     def test_sections_with_items(self):
         """Test that sections with items are returned correctly"""
-        # Create sections
         section1 = EmbedStampSection.objects.create(
-            customization=self.customization,
+            community=self.community,
             title="Physical Verification",
             order=0
         )
         section2 = EmbedStampSection.objects.create(
-            customization=self.customization,
+            community=self.community,
             title="Web2 Platforms",
             order=1
         )
-        
-        # Create items for section1
+
         EmbedStampSectionItem.objects.create(
             section=section1,
-            platform_id="Binance",
+            platform=_get_or_create_platform("Binance"),
             order=0
         )
         EmbedStampSectionItem.objects.create(
             section=section1,
-            platform_id="Coinbase",
+            platform=_get_or_create_platform("Coinbase"),
             order=1
         )
-        
-        # Create items for section2
+
         EmbedStampSectionItem.objects.create(
             section=section2,
-            platform_id="Discord",
+            platform=_get_or_create_platform("Discord"),
             order=0
         )
         EmbedStampSectionItem.objects.create(
             section=section2,
-            platform_id="Github",
+            platform=_get_or_create_platform("Github", "GitHub"),
             order=1
         )
-        
+
         result = handle_get_embed_stamp_sections(str(self.community.id))
-        
-        # Verify structure
+
         self.assertEqual(len(result), 2)
-        
-        # Check first section
+
         self.assertEqual(result[0].title, "Physical Verification")
         self.assertEqual(result[0].order, 0)
         self.assertEqual(len(result[0].items), 2)
         self.assertEqual(result[0].items[0].platform_id, "Binance")
         self.assertEqual(result[0].items[1].platform_id, "Coinbase")
-        
-        # Check second section
+
         self.assertEqual(result[1].title, "Web2 Platforms")
         self.assertEqual(result[1].order, 1)
         self.assertEqual(len(result[1].items), 2)
 
     def test_sections_ordering(self):
         """Test that sections are returned in correct order"""
-        # Create sections in reverse order
         section2 = EmbedStampSection.objects.create(
-            customization=self.customization,
+            community=self.community,
             title="Second Section",
             order=2
         )
         section1 = EmbedStampSection.objects.create(
-            customization=self.customization,
+            community=self.community,
             title="First Section",
             order=1
         )
         section0 = EmbedStampSection.objects.create(
-            customization=self.customization,
+            community=self.community,
             title="Zero Section",
             order=0
         )
-        
-        # Add at least one item to each section
+
         EmbedStampSectionItem.objects.create(
             section=section0,
-            platform_id="Platform0",
+            platform=_get_or_create_platform("Platform0"),
             order=0
         )
         EmbedStampSectionItem.objects.create(
             section=section1,
-            platform_id="Platform1",
+            platform=_get_or_create_platform("Platform1"),
             order=0
         )
         EmbedStampSectionItem.objects.create(
             section=section2,
-            platform_id="Platform2",
+            platform=_get_or_create_platform("Platform2"),
             order=0
         )
-        
+
         result = handle_get_embed_stamp_sections(str(self.community.id))
-        
-        # Verify ordering
+
         self.assertEqual(len(result), 3)
         self.assertEqual(result[0].title, "Zero Section")
         self.assertEqual(result[1].title, "First Section")
@@ -159,31 +151,29 @@ class TestHandleGetEmbedStampSections(TestCase):
     def test_items_ordering_within_section(self):
         """Test that items within a section are ordered correctly"""
         section = EmbedStampSection.objects.create(
-            customization=self.customization,
+            community=self.community,
             title="Test Section",
             order=0
         )
-        
-        # Create items in reverse order
+
         EmbedStampSectionItem.objects.create(
             section=section,
-            platform_id="Third",
+            platform=_get_or_create_platform("Third"),
             order=3
         )
         EmbedStampSectionItem.objects.create(
             section=section,
-            platform_id="First",
+            platform=_get_or_create_platform("First"),
             order=1
         )
         EmbedStampSectionItem.objects.create(
             section=section,
-            platform_id="Second",
+            platform=_get_or_create_platform("Second"),
             order=2
         )
-        
+
         result = handle_get_embed_stamp_sections(str(self.community.id))
-        
-        # Verify item ordering
+
         self.assertEqual(len(result), 1)
         self.assertEqual(len(result[0].items), 3)
         self.assertEqual(result[0].items[0].platform_id, "First")
@@ -195,30 +185,26 @@ class TestHandleGetEmbedStampSections(TestCase):
         result = handle_get_embed_stamp_sections("99999")
         self.assertEqual(result, [])
 
-    def test_community_without_customization(self):
-        """Test that community without customization returns empty list"""
-        # Create a community without customization
-        community_no_custom = Community.objects.create(
-            name="No Customization Community",
+    def test_community_without_sections(self):
+        """Test that community without sections returns empty list"""
+        community_no_sections = Community.objects.create(
+            name="No Sections Community",
             account=self.account
         )
 
-        result = handle_get_embed_stamp_sections(str(community_no_custom.id))
+        result = handle_get_embed_stamp_sections(str(community_no_sections.id))
         self.assertEqual(result, [])
 
 
 class TestHandleGetEmbedConfig(TestCase):
     def setUp(self):
-        # Create test user
         self.user = User.objects.create_user(username="testuser", password="12345")
 
-        # Create test account
         self.account = Account.objects.create(
             address="0x1234567890123456789012345678901234567890",
             user=self.user
         )
 
-        # Create active weight configuration (required for Community creation)
         config = WeightConfiguration.objects.create(
             version="v1",
             threshold=5.0,
@@ -233,40 +219,29 @@ class TestHandleGetEmbedConfig(TestCase):
                 weight=float(weight),
             )
 
-        # Create test community
         self.community = Community.objects.create(
             name="Test Community",
             account=self.account
         )
 
-        # Create customization
-        self.customization = Customization.objects.create(
-            path="test-partner",
-            scorer=self.community,
-            partner_name="Test Partner"
-        )
-
     def test_get_embed_config_returns_weights_and_sections(self):
         """Test that combined config returns both weights and stamp sections"""
-        # Create a section with items
         section = EmbedStampSection.objects.create(
-            customization=self.customization,
+            community=self.community,
             title="Test Section",
             order=0
         )
         EmbedStampSectionItem.objects.create(
             section=section,
-            platform_id="Google",
+            platform=_get_or_create_platform("Google"),
             order=0
         )
 
         result = handle_get_embed_config(str(self.community.id))
 
-        # Verify weights are present
         self.assertIsNotNone(result.weights)
         self.assertIsInstance(result.weights, dict)
 
-        # Verify stamp_sections are present
         self.assertEqual(len(result.stamp_sections), 1)
         self.assertEqual(result.stamp_sections[0].title, "Test Section")
 
@@ -274,33 +249,30 @@ class TestHandleGetEmbedConfig(TestCase):
         """Test that config returns empty sections when none configured"""
         result = handle_get_embed_config(str(self.community.id))
 
-        # Verify weights are present
         self.assertIsNotNone(result.weights)
-
-        # Verify stamp_sections is empty list
         self.assertEqual(result.stamp_sections, [])
 
     def test_get_embed_config_with_multiple_sections(self):
         """Test config with multiple sections and items"""
         section1 = EmbedStampSection.objects.create(
-            customization=self.customization,
+            community=self.community,
             title="Section One",
             order=0
         )
         section2 = EmbedStampSection.objects.create(
-            customization=self.customization,
+            community=self.community,
             title="Section Two",
             order=1
         )
 
         EmbedStampSectionItem.objects.create(
             section=section1,
-            platform_id="Google",
+            platform=_get_or_create_platform("Google"),
             order=0
         )
         EmbedStampSectionItem.objects.create(
             section=section2,
-            platform_id="Discord",
+            platform=_get_or_create_platform("Discord"),
             order=0
         )
 
@@ -309,4 +281,3 @@ class TestHandleGetEmbedConfig(TestCase):
         self.assertEqual(len(result.stamp_sections), 2)
         self.assertEqual(result.stamp_sections[0].title, "Section One")
         self.assertEqual(result.stamp_sections[1].title, "Section Two")
-

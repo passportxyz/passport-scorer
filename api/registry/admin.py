@@ -33,6 +33,7 @@ from registry.models import (
     Stamp,
 )
 from registry.weight_models import (
+    PlatformMetadata,
     StampMetadata,
     WeightConfiguration,
     WeightConfigurationItem,
@@ -559,11 +560,79 @@ admin.site.register(WeightConfigurationItem)
 
 @admin.register(StampMetadata)
 class StampMetadataAdmin(ScorerModelAdmin):
-    list_display = ["provider", "is_beta"]
-    list_filter = ["is_beta"]
+    list_display = ["provider", "is_beta", "platform"]
+    list_filter = ["is_beta", "platform"]
     search_fields = ["provider"]
     ordering = ["provider"]
     list_editable = ["is_beta"]  # Allow inline editing of beta flag
+
+
+@admin.register(PlatformMetadata)
+class PlatformMetadataAdmin(ScorerModelAdmin):
+    list_display = ["platform_id", "name", "stamp_count"]
+    search_fields = ["platform_id", "name"]
+    ordering = ["name"]
+    change_list_template = "admin/registry/platformmetadata/change_list.html"
+
+    def stamp_count(self, obj):
+        return obj.stamps.count()
+
+    stamp_count.short_description = "Stamps"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "sync-from-metadata/",
+                self.admin_site.admin_view(self.sync_from_metadata_view),
+                name="registry_platformmetadata_sync",
+            ),
+        ]
+        return custom_urls + urls
+
+    def sync_from_metadata_view(self, request):
+        """
+        Fetch external stamp metadata and upsert PlatformMetadata records.
+        Also links StampMetadata records to their platforms.
+        """
+        from registry.api.v1 import fetch_all_stamp_metadata
+
+        try:
+            metadata = fetch_all_stamp_metadata()
+
+            platforms_synced = 0
+            stamps_linked = 0
+
+            for platform_data in metadata:
+                platform, _ = PlatformMetadata.objects.update_or_create(
+                    platform_id=platform_data.id,
+                    defaults={"name": platform_data.name},
+                )
+                platforms_synced += 1
+
+                # Link StampMetadata records to this platform
+                for group in platform_data.groups:
+                    for stamp in group.stamps:
+                        updated = StampMetadata.objects.filter(
+                            provider=stamp.name
+                        ).update(platform=platform)
+                        stamps_linked += updated
+
+            self.message_user(
+                request,
+                f"Synced {platforms_synced} platforms, linked {stamps_linked} stamps.",
+                messages.SUCCESS,
+            )
+        except Exception as e:
+            self.message_user(
+                request,
+                f"Error syncing platform metadata: {e}",
+                messages.ERROR,
+            )
+
+        from django.urls import reverse
+
+        return redirect(reverse("admin:registry_platformmetadata_changelist"))
 
 
 @admin.register(HumanPointsCommunityQualifiedUsers)

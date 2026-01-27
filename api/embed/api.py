@@ -139,33 +139,23 @@ class EmbedConfigResponse(Schema):
 def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSectionSchema]:
     """
     Get customized stamp sections for a given community/scorer.
-    Returns an empty list if no customization exists.
+    Returns an empty list if no sections exist.
     """
     try:
-        community = Community.objects.get(id=community_id)
-        
-        # Check if this community has a customization
-        if not hasattr(community, 'customization'):
-            return []
-        
-        customization = community.customization
-        
-        # Get all sections with their items, ordered by section order
         sections = EmbedStampSection.objects.filter(
-            customization=customization
-        ).prefetch_related('items').order_by('order', 'id')
-        
-        # Build the response
+            community_id=community_id
+        ).prefetch_related('items__platform').order_by('order', 'id')
+
         result = []
         for section in sections:
             items = [
                 EmbedStampSectionItemSchema(
-                    platform_id=item.platform_id,
+                    platform_id=item.platform.platform_id,
                     order=item.order
                 )
-                for item in section.items.all().order_by('order', 'id')
+                for item in section.items.select_related('platform').order_by('order', 'id')
             ]
-            
+
             result.append(
                 EmbedStampSectionSchema(
                     title=section.title,
@@ -173,10 +163,8 @@ def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSection
                     items=items
                 )
             )
-        
+
         return result
-    except Community.DoesNotExist:
-        return []
     except Exception as e:
         log.error(f"Error fetching embed stamp sections for community {community_id}: {e}")
         return []
