@@ -738,8 +738,7 @@ class EmbedStampPlatformFormSet(BaseInlineFormSet):
             ).values_list('section_id', flat=True)
         )
 
-        # Also check for sections being added in the same save operation
-        # by parsing the POST data for EmbedSectionOrder inline forms
+        # Check POST data for sections being added or deleted in the same save
         if self.data:
             prefix = 'embed_section_orders'
             total_forms_key = f'{prefix}-TOTAL_FORMS'
@@ -751,9 +750,13 @@ class EmbedStampPlatformFormSet(BaseInlineFormSet):
                         delete_key = f'{prefix}-{i}-DELETE'
                         section_id = self.data.get(section_key)
                         is_deleted = self.data.get(delete_key) == 'on'
-                        if section_id and not is_deleted:
+                        if section_id:
                             try:
-                                valid_section_ids.add(int(section_id))
+                                sid = int(section_id)
+                                if is_deleted:
+                                    valid_section_ids.discard(sid)
+                                else:
+                                    valid_section_ids.add(sid)
                             except (ValueError, TypeError):
                                 pass
                 except (ValueError, TypeError):
