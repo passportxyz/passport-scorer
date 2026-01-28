@@ -602,6 +602,7 @@ class PlatformMetadataAdmin(ScorerModelAdmin):
 
             platforms_synced = 0
             stamps_linked = 0
+            stamps_created = 0
 
             for platform_data in metadata:
                 platform, _ = PlatformMetadata.objects.update_or_create(
@@ -610,17 +611,20 @@ class PlatformMetadataAdmin(ScorerModelAdmin):
                 )
                 platforms_synced += 1
 
-                # Link StampMetadata records to this platform
+                # Create or link StampMetadata records to this platform
                 for group in platform_data.groups:
                     for stamp in group.stamps:
-                        updated = StampMetadata.objects.filter(
-                            provider=stamp.name
-                        ).update(platform=platform)
-                        stamps_linked += updated
+                        _, created = StampMetadata.objects.update_or_create(
+                            provider=stamp.name,
+                            defaults={"platform": platform},
+                        )
+                        stamps_linked += 1
+                        if created:
+                            stamps_created += 1
 
             self.message_user(
                 request,
-                f"Synced {platforms_synced} platforms, linked {stamps_linked} stamps.",
+                f"Synced {platforms_synced} platforms, linked {stamps_linked} stamps ({stamps_created} created).",
                 messages.SUCCESS,
             )
         except Exception as e:
