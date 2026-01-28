@@ -6,7 +6,12 @@ from ninja import Router, Schema
 from ninja_extra import NinjaExtraAPI
 
 import api_logging as logging
-from account.models import Community, EmbedStampSection
+from account.models import (
+    Community,
+    Customization,
+    EmbedSectionOrder,
+    EmbedStampPlatform,
+)
 from ceramic_cache.api.schema import (
     CacheStampPayload,
     GetStampsWithV2ScoreResponse,
@@ -142,25 +147,39 @@ def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSection
     Returns an empty list if no sections exist.
     """
     try:
-        sections = EmbedStampSection.objects.filter(
-            community_id=community_id
-        ).prefetch_related('items__platform').order_by('order', 'id')
+        customization = Customization.objects.get(scorer_id=community_id)
+    except Customization.DoesNotExist:
+        return []
+
+    try:
+        section_orders = EmbedSectionOrder.objects.filter(
+            customization=customization
+        ).select_related('section').order_by('order', 'id')
+
+        platforms = EmbedStampPlatform.objects.filter(
+            customization=customization
+        ).select_related('section', 'platform').order_by('order', 'id')
+
+        # Group platforms by section header id
+        platforms_by_section = {}
+        for p in platforms:
+            platforms_by_section.setdefault(p.section_id, []).append(p)
 
         result = []
-        for section in sections:
+        for so in section_orders:
+            section_platforms = platforms_by_section.get(so.section_id, [])
             items = [
                 EmbedStampSectionItemSchema(
-                    platform_id=item.platform.platform_id,
-                    order=item.order
+                    platform_id=p.platform.platform_id,
+                    order=p.order,
                 )
-                for item in section.items.select_related('platform').order_by('order', 'id')
+                for p in section_platforms
             ]
-
             result.append(
                 EmbedStampSectionSchema(
-                    title=section.title,
-                    order=section.order,
-                    items=items
+                    title=so.section.name,
+                    order=so.order,
+                    items=items,
                 )
             )
 

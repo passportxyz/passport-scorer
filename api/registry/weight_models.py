@@ -7,7 +7,7 @@ from django.db import models
 class PlatformMetadata(models.Model):
     """
     Metadata about stamp platforms, auto-populated from external stampMetadata.json.
-    Used as the source of truth for platform choices in EmbedStampSectionItem.
+    Used as the source of truth for platform choices in EmbedStampPlatform.
     """
 
     platform_id = models.CharField(

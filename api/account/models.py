@@ -853,69 +853,52 @@ class FeaturedCampaign(models.Model):
     def __str__(self):
         return f"{self.partner_name}: {self.header_text[:30]}"
 
-class EmbedStampSection(models.Model):
-    """
-    Defines a customizable section of stamps for the Embed product.
-    Each section has a title and order, and contains multiple stamp items.
-    """
-    community = models.ForeignKey(
-        Community,
-        on_delete=models.CASCADE,
-        related_name="embed_stamp_sections",
-        help_text="The community this section belongs to"
-    )
-
-    title = models.CharField(
-        max_length=255,
-        help_text="Title of the stamp section (e.g., 'Physical Verification', 'Web2 Platforms')"
-    )
-
-    order = models.IntegerField(
-        default=0,
-        help_text="Display order of this section (lower numbers appear first)"
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+class EmbedSectionHeader(models.Model):
+    """Global table of section names for embed stamp grouping."""
+    name = models.CharField(max_length=255, unique=True)
 
     class Meta:
-        ordering = ['order', 'id']
+        ordering = ['name']
 
     def __str__(self):
-        return f"Community #{self.community_id} - {self.title} (Order: {self.order})"
+        return self.name
 
 
-class EmbedStampSectionItem(models.Model):
-    """
-    Defines individual stamps within a section.
-    Each item references a platform and has a display order.
-    """
-
-    section = models.ForeignKey(
-        EmbedStampSection,
+class EmbedSectionOrder(models.Model):
+    """Per-customization ordering of embed sections."""
+    customization = models.ForeignKey(
+        Customization,
         on_delete=models.CASCADE,
-        related_name="items",
-        help_text="The section this stamp belongs to"
+        related_name="embed_section_orders",
     )
+    section = models.ForeignKey(EmbedSectionHeader, on_delete=models.CASCADE)
+    order = models.IntegerField(default=0)
 
+    class Meta:
+        ordering = ['order']
+        unique_together = ['customization', 'section']
+
+    def __str__(self):
+        return f"{self.section.name} (order {self.order})"
+
+
+class EmbedStampPlatform(models.Model):
+    """Per-customization assignment of platforms to embed sections."""
+    customization = models.ForeignKey(
+        Customization,
+        on_delete=models.CASCADE,
+        related_name="embed_stamp_platforms",
+    )
+    section = models.ForeignKey(EmbedSectionHeader, on_delete=models.CASCADE)
     platform = models.ForeignKey(
         "registry.PlatformMetadata",
         on_delete=models.CASCADE,
-        related_name="embed_section_items",
-        help_text="Select the platform/stamp to include in this section"
     )
-
-    order = models.IntegerField(
-        default=0,
-        help_text="Display order within the section (lower numbers appear first)"
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    order = models.IntegerField(default=0)
 
     class Meta:
-        ordering = ['order', 'id']
-        unique_together = ['section', 'platform']
+        ordering = ['section__id', 'order', 'id']
+        unique_together = ['customization', 'platform']
 
     def __str__(self):
-        return f"{self.section.title} - {self.platform.platform_id} (Order: {self.order})"
+        return f"{self.section.name} - {self.platform.platform_id} (order {self.order})"

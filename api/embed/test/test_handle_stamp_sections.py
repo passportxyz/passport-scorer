@@ -4,8 +4,10 @@ from django.test import TestCase
 from account.models import (
     Account,
     Community,
-    EmbedStampSection,
-    EmbedStampSectionItem,
+    Customization,
+    EmbedSectionHeader,
+    EmbedSectionOrder,
+    EmbedStampPlatform,
 )
 from embed.api import handle_get_embed_config, handle_get_embed_stamp_sections
 from registry.weight_models import (
@@ -53,6 +55,12 @@ class TestHandleGetEmbedStampSections(TestCase):
             account=self.account
         )
 
+        self.customization = Customization.objects.create(
+            path="test-path",
+            partner_name="Test Partner",
+            scorer=self.community,
+        )
+
     def test_no_sections_returns_empty_list(self):
         """Test that when no sections are configured, empty list is returned"""
         result = handle_get_embed_stamp_sections(str(self.community.id))
@@ -60,37 +68,39 @@ class TestHandleGetEmbedStampSections(TestCase):
 
     def test_sections_with_items(self):
         """Test that sections with items are returned correctly"""
-        section1 = EmbedStampSection.objects.create(
-            community=self.community,
-            title="Physical Verification",
-            order=0
+        header1 = EmbedSectionHeader.objects.create(name="Physical Verification")
+        header2 = EmbedSectionHeader.objects.create(name="Web2 Platforms")
+
+        EmbedSectionOrder.objects.create(
+            customization=self.customization, section=header1, order=0
         )
-        section2 = EmbedStampSection.objects.create(
-            community=self.community,
-            title="Web2 Platforms",
-            order=1
+        EmbedSectionOrder.objects.create(
+            customization=self.customization, section=header2, order=1
         )
 
-        EmbedStampSectionItem.objects.create(
-            section=section1,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header1,
             platform=_get_or_create_platform("Binance"),
-            order=0
+            order=0,
         )
-        EmbedStampSectionItem.objects.create(
-            section=section1,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header1,
             platform=_get_or_create_platform("Coinbase"),
-            order=1
+            order=1,
         )
-
-        EmbedStampSectionItem.objects.create(
-            section=section2,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header2,
             platform=_get_or_create_platform("Discord"),
-            order=0
+            order=0,
         )
-        EmbedStampSectionItem.objects.create(
-            section=section2,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header2,
             platform=_get_or_create_platform("Github", "GitHub"),
-            order=1
+            order=1,
         )
 
         result = handle_get_embed_stamp_sections(str(self.community.id))
@@ -109,36 +119,37 @@ class TestHandleGetEmbedStampSections(TestCase):
 
     def test_sections_ordering(self):
         """Test that sections are returned in correct order"""
-        section2 = EmbedStampSection.objects.create(
-            community=self.community,
-            title="Second Section",
-            order=2
+        header0 = EmbedSectionHeader.objects.create(name="Zero Section")
+        header1 = EmbedSectionHeader.objects.create(name="First Section")
+        header2 = EmbedSectionHeader.objects.create(name="Second Section")
+
+        EmbedSectionOrder.objects.create(
+            customization=self.customization, section=header2, order=2
         )
-        section1 = EmbedStampSection.objects.create(
-            community=self.community,
-            title="First Section",
-            order=1
+        EmbedSectionOrder.objects.create(
+            customization=self.customization, section=header1, order=1
         )
-        section0 = EmbedStampSection.objects.create(
-            community=self.community,
-            title="Zero Section",
-            order=0
+        EmbedSectionOrder.objects.create(
+            customization=self.customization, section=header0, order=0
         )
 
-        EmbedStampSectionItem.objects.create(
-            section=section0,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header0,
             platform=_get_or_create_platform("Platform0"),
-            order=0
+            order=0,
         )
-        EmbedStampSectionItem.objects.create(
-            section=section1,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header1,
             platform=_get_or_create_platform("Platform1"),
-            order=0
+            order=0,
         )
-        EmbedStampSectionItem.objects.create(
-            section=section2,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header2,
             platform=_get_or_create_platform("Platform2"),
-            order=0
+            order=0,
         )
 
         result = handle_get_embed_stamp_sections(str(self.community.id))
@@ -150,26 +161,28 @@ class TestHandleGetEmbedStampSections(TestCase):
 
     def test_items_ordering_within_section(self):
         """Test that items within a section are ordered correctly"""
-        section = EmbedStampSection.objects.create(
-            community=self.community,
-            title="Test Section",
-            order=0
+        header = EmbedSectionHeader.objects.create(name="Test Section")
+        EmbedSectionOrder.objects.create(
+            customization=self.customization, section=header, order=0
         )
 
-        EmbedStampSectionItem.objects.create(
-            section=section,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header,
             platform=_get_or_create_platform("Third"),
-            order=3
+            order=3,
         )
-        EmbedStampSectionItem.objects.create(
-            section=section,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header,
             platform=_get_or_create_platform("First"),
-            order=1
+            order=1,
         )
-        EmbedStampSectionItem.objects.create(
-            section=section,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header,
             platform=_get_or_create_platform("Second"),
-            order=2
+            order=2,
         )
 
         result = handle_get_embed_stamp_sections(str(self.community.id))
@@ -190,6 +203,11 @@ class TestHandleGetEmbedStampSections(TestCase):
         community_no_sections = Community.objects.create(
             name="No Sections Community",
             account=self.account
+        )
+        Customization.objects.create(
+            path="no-sections-path",
+            partner_name="No Sections",
+            scorer=community_no_sections,
         )
 
         result = handle_get_embed_stamp_sections(str(community_no_sections.id))
@@ -224,17 +242,23 @@ class TestHandleGetEmbedConfig(TestCase):
             account=self.account
         )
 
+        self.customization = Customization.objects.create(
+            path="config-test-path",
+            partner_name="Config Test Partner",
+            scorer=self.community,
+        )
+
     def test_get_embed_config_returns_weights_and_sections(self):
         """Test that combined config returns both weights and stamp sections"""
-        section = EmbedStampSection.objects.create(
-            community=self.community,
-            title="Test Section",
-            order=0
+        header = EmbedSectionHeader.objects.create(name="Test Section")
+        EmbedSectionOrder.objects.create(
+            customization=self.customization, section=header, order=0
         )
-        EmbedStampSectionItem.objects.create(
-            section=section,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header,
             platform=_get_or_create_platform("Google"),
-            order=0
+            order=0,
         )
 
         result = handle_get_embed_config(str(self.community.id))
@@ -254,26 +278,27 @@ class TestHandleGetEmbedConfig(TestCase):
 
     def test_get_embed_config_with_multiple_sections(self):
         """Test config with multiple sections and items"""
-        section1 = EmbedStampSection.objects.create(
-            community=self.community,
-            title="Section One",
-            order=0
+        header1 = EmbedSectionHeader.objects.create(name="Section One")
+        header2 = EmbedSectionHeader.objects.create(name="Section Two")
+
+        EmbedSectionOrder.objects.create(
+            customization=self.customization, section=header1, order=0
         )
-        section2 = EmbedStampSection.objects.create(
-            community=self.community,
-            title="Section Two",
-            order=1
+        EmbedSectionOrder.objects.create(
+            customization=self.customization, section=header2, order=1
         )
 
-        EmbedStampSectionItem.objects.create(
-            section=section1,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header1,
             platform=_get_or_create_platform("Google"),
-            order=0
+            order=0,
         )
-        EmbedStampSectionItem.objects.create(
-            section=section2,
+        EmbedStampPlatform.objects.create(
+            customization=self.customization,
+            section=header2,
             platform=_get_or_create_platform("Discord"),
-            order=0
+            order=0,
         )
 
         result = handle_get_embed_config(str(self.community.id))
