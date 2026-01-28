@@ -103,6 +103,7 @@ class CommunityAdmin(ScorerModelAdmin):
     )
     raw_id_fields = ("account", "scorer")
     search_fields = (
+        "id__exact",
         "name",
         "description",
         "account__address",
@@ -717,17 +718,19 @@ class EmbedStampSectionItemInline(admin.TabularInline):
     extra = 1
     fields = ["platform", "order"]
     ordering = ["order", "id"]
+    autocomplete_fields = ["platform"]
 
 
 @admin.register(EmbedStampSection)
 class EmbedStampSectionAdmin(ScorerModelAdmin):
     """Standalone admin for managing stamp sections and their items"""
     list_display = ["id", "community", "title", "order", "item_count", "created_at"]
-    list_filter = ["community"]
+    list_filter = ["community__name"]
     search_fields = ["title", "community__name"]
     ordering = ["community", "order", "id"]
     inlines = [EmbedStampSectionItemInline]
-    
+    autocomplete_fields = ["community"]
+
     fieldsets = [
         (
             None,
