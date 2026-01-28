@@ -731,12 +731,33 @@ class EmbedStampPlatformFormSet(BaseInlineFormSet):
         if not hasattr(self, 'instance') or not self.instance.pk:
             return
 
-        # Get sections defined in EmbedSectionOrder for this customization
+        # Get sections already saved in the database for this customization
         valid_section_ids = set(
             EmbedSectionOrder.objects.filter(
                 customization=self.instance
             ).values_list('section_id', flat=True)
         )
+
+        # Also check for sections being added in the same save operation
+        # by parsing the POST data for EmbedSectionOrder inline forms
+        if self.data:
+            prefix = 'embed_section_orders'
+            total_forms_key = f'{prefix}-TOTAL_FORMS'
+            if total_forms_key in self.data:
+                try:
+                    total = int(self.data.get(total_forms_key, 0))
+                    for i in range(total):
+                        section_key = f'{prefix}-{i}-section'
+                        delete_key = f'{prefix}-{i}-DELETE'
+                        section_id = self.data.get(section_key)
+                        is_deleted = self.data.get(delete_key) == 'on'
+                        if section_id and not is_deleted:
+                            try:
+                                valid_section_ids.add(int(section_id))
+                            except (ValueError, TypeError):
+                                pass
+                except (ValueError, TypeError):
+                    pass
 
         for form in self.forms:
             if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
