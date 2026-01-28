@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
 from asgiref.sync import async_to_sync
 from django.conf import settings
@@ -6,7 +6,12 @@ from ninja import Router, Schema
 from ninja_extra import NinjaExtraAPI
 
 import api_logging as logging
-from account.models import Community
+from account.models import (
+    Community,
+    Customization,
+    EmbedSectionOrder,
+    EmbedStampPlatform,
+)
 from ceramic_cache.api.schema import (
     CacheStampPayload,
     GetStampsWithV2ScoreResponse,
@@ -115,3 +120,83 @@ def handle_get_score(scorer_id: str, address: str) -> GetStampsWithV2ScoreRespon
             revocation__isnull=True,
         ),
     )
+
+
+class EmbedStampSectionItemSchema(Schema):
+    """Schema for individual stamp items within a section"""
+    platform_id: str
+    order: int
+
+
+class EmbedStampSectionSchema(Schema):
+    """Schema for stamp sections with their items"""
+    title: str
+    order: int
+    items: List[EmbedStampSectionItemSchema]
+
+
+class EmbedConfigResponse(Schema):
+    """Combined response for embed configuration"""
+    weights: dict[str, float]
+    stamp_sections: List[EmbedStampSectionSchema]
+
+
+def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSectionSchema]:
+    """
+    Get customized stamp sections for a given community/scorer.
+    Returns an empty list if no sections exist.
+    """
+    try:
+        customization = Customization.objects.get(scorer_id=community_id)
+    except Customization.DoesNotExist:
+        return []
+
+    try:
+        section_orders = EmbedSectionOrder.objects.filter(
+            customization=customization
+        ).select_related('section').order_by('order', 'id')
+
+        platforms = EmbedStampPlatform.objects.filter(
+            customization=customization
+        ).select_related('section', 'platform').order_by('order', 'id')
+
+        # Group platforms by section header id
+        platforms_by_section = {}
+        for p in platforms:
+            platforms_by_section.setdefault(p.section_id, []).append(p)
+
+        result = []
+        for so in section_orders:
+            section_platforms = platforms_by_section.get(so.section_id, [])
+            items = [
+                EmbedStampSectionItemSchema(
+                    platform_id=p.platform.platform_id,
+                    order=p.order,
+                )
+                for p in section_platforms
+            ]
+            result.append(
+                EmbedStampSectionSchema(
+                    title=so.section.name,
+                    order=so.order,
+                    items=items,
+                )
+            )
+
+        return result
+    except Exception as e:
+        log.error(f"Error fetching embed stamp sections for community {community_id}: {e}")
+        return []
+
+
+def handle_get_embed_config(community_id: str) -> EmbedConfigResponse:
+    """
+    Get combined embed configuration: weights and stamp sections.
+    Returns weights with empty stamp_sections if sections lookup fails (partial data).
+    """
+    from ceramic_cache.api.v1 import handle_get_scorer_weights
+
+    weights = handle_get_scorer_weights(community_id)
+    stamp_sections = handle_get_embed_stamp_sections(community_id)
+
+    return EmbedConfigResponse(weights=weights, stamp_sections=stamp_sections)

@@ -8,6 +8,7 @@ import boto3
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
+from django.forms import BaseInlineFormSet
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
@@ -32,6 +33,9 @@ from .models import (
     CustomCredentialRuleset,
     Customization,
     CustomPlatform,
+    EmbedSectionHeader,
+    EmbedSectionOrder,
+    EmbedStampPlatform,
     FeaturedCampaign,
     IncludedChainId,
     RateLimits,
@@ -92,6 +96,7 @@ class CommunityAdmin(ScorerModelAdmin):
     )
     raw_id_fields = ("account", "scorer")
     search_fields = (
+        "id__exact",
         "name",
         "description",
         "account__address",
@@ -101,6 +106,7 @@ class CommunityAdmin(ScorerModelAdmin):
     readonly_fields = ("scorer_link",)
     list_filter = ("human_points_program",)
     actions = [recalculate_scores]
+    inlines = []
 
     def scorer_link(self, obj):
         # To add additional scorer types, just look at the URL on_delete
@@ -687,16 +693,94 @@ class CustomizationForm(forms.ModelForm):
 class AllowListInline(admin.TabularInline):
     model = AllowList
     extra = 0
+    classes = ["collapse"]
 
 
 class IncludedChainIdInline(admin.TabularInline):
     model = IncludedChainId
     extra = 0
+    classes = ["collapse"]
 
 
 class CustomCredentialInline(admin.TabularInline):
     model = CustomCredential
     extra = 0
+    classes = ["collapse"]
+
+
+@admin.register(EmbedSectionHeader)
+class EmbedSectionHeaderAdmin(ScorerModelAdmin):
+    """Admin for global embed section headers"""
+    list_display = ["id", "name"]
+    search_fields = ["name"]
+
+
+class EmbedSectionOrderInline(admin.TabularInline):
+    model = EmbedSectionOrder
+    extra = 0
+    fields = ["section", "order"]
+    autocomplete_fields = ["section"]
+    verbose_name = "embed section"
+    verbose_name_plural = "Embed Sections"
+    classes = ["collapse"]
+
+
+class EmbedStampPlatformFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if not hasattr(self, 'instance') or not self.instance.pk:
+            return
+
+        # Get sections already saved in the database for this customization
+        valid_section_ids = set(
+            EmbedSectionOrder.objects.filter(
+                customization=self.instance
+            ).values_list('section_id', flat=True)
+        )
+
+        # Check POST data for sections being added or deleted in the same save
+        if self.data:
+            prefix = 'embed_section_orders'
+            total_forms_key = f'{prefix}-TOTAL_FORMS'
+            if total_forms_key in self.data:
+                try:
+                    total = int(self.data.get(total_forms_key, 0))
+                    for i in range(total):
+                        section_key = f'{prefix}-{i}-section'
+                        delete_key = f'{prefix}-{i}-DELETE'
+                        section_id = self.data.get(section_key)
+                        is_deleted = self.data.get(delete_key) == 'on'
+                        if section_id:
+                            try:
+                                sid = int(section_id)
+                                if is_deleted:
+                                    valid_section_ids.discard(sid)
+                                else:
+                                    valid_section_ids.add(sid)
+                            except (ValueError, TypeError):
+                                pass
+                except (ValueError, TypeError):
+                    pass
+
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                section = form.cleaned_data.get('section')
+                if section and section.id not in valid_section_ids:
+                    form.add_error(
+                        'section',
+                        f'Section "{section.name}" must be added to Embed Sections first.'
+                    )
+
+
+class EmbedStampPlatformInline(admin.TabularInline):
+    model = EmbedStampPlatform
+    formset = EmbedStampPlatformFormSet
+    extra = 0
+    fields = ["section", "platform", "order"]
+    autocomplete_fields = ["section", "platform"]
+    verbose_name = "embed platform"
+    verbose_name_plural = "Embed Platforms"
+    classes = ["collapse"]
 
 
 @admin.register(Customization)
@@ -707,6 +791,8 @@ class CustomizationAdmin(ScorerModelAdmin):
         AllowListInline,
         CustomCredentialInline,
         IncludedChainIdInline,
+        EmbedSectionOrderInline,
+        EmbedStampPlatformInline,
     ]
     fieldsets = [
         (

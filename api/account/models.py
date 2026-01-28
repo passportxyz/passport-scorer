@@ -686,6 +686,9 @@ class Customization(models.Model):
 
         return stamps
 
+    def __str__(self):
+        return f"{self.partner_name} ({self.path})"
+
 
 def hex_number_validator(value):
     if not value.startswith("0x"):
@@ -849,3 +852,53 @@ class FeaturedCampaign(models.Model):
 
     def __str__(self):
         return f"{self.partner_name}: {self.header_text[:30]}"
+
+class EmbedSectionHeader(models.Model):
+    """Global table of section names for embed stamp grouping."""
+    name = models.CharField(max_length=255, unique=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class EmbedSectionOrder(models.Model):
+    """Per-customization ordering of embed sections."""
+    customization = models.ForeignKey(
+        Customization,
+        on_delete=models.CASCADE,
+        related_name="embed_section_orders",
+    )
+    section = models.ForeignKey(EmbedSectionHeader, on_delete=models.CASCADE)
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ['customization', 'section']
+
+    def __str__(self):
+        return f"{self.section.name} (order {self.order})"
+
+
+class EmbedStampPlatform(models.Model):
+    """Per-customization assignment of platforms to embed sections."""
+    customization = models.ForeignKey(
+        Customization,
+        on_delete=models.CASCADE,
+        related_name="embed_stamp_platforms",
+    )
+    section = models.ForeignKey(EmbedSectionHeader, on_delete=models.CASCADE)
+    platform = models.ForeignKey(
+        "registry.PlatformMetadata",
+        on_delete=models.CASCADE,
+    )
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['section__id', 'order', 'id']
+        unique_together = ['customization', 'platform']
+
+    def __str__(self):
+        return f"{self.section.name} - {self.platform.platform_id} (order {self.order})"
