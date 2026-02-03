@@ -6,7 +6,7 @@ import { RouterProvider } from "react-router-dom";
 
 // --- Styling & UI
 import "../styles/globals.css";
-import { ChakraProvider } from "@chakra-ui/react";
+import { ToastProvider } from "../ui/Toast";
 
 // --- Next components
 import type { AppProps } from "next/app";
@@ -88,7 +88,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <title>Passport Scorer</title>
       </Head>
       <UserProvider>
-        <ChakraProvider>
+        <ToastProvider>
           <ManageAccountCenter>
             <div suppressHydrationWarning>
               {typeof window === "undefined" ? null : (
@@ -96,7 +96,7 @@ export default function App({ Component, pageProps }: AppProps) {
               )}
             </div>{" "}
           </ManageAccountCenter>
-        </ChakraProvider>
+        </ToastProvider>
       </UserProvider>
     </>
   );

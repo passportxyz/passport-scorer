@@ -11,11 +11,11 @@ export default function Warning({
 }) {
   return (
     <div
-      className={`flex w-full items-center justify-center py-2 text-purple-darkpurple ${className}`}
+      className={`flex w-full items-center justify-center py-2 text-gray-900 ${className}`}
     >
-      <ExclamationCircleIcon height={25} color={"#D44D6E"} className="mr-4" />{" "}
+      <ExclamationCircleIcon height={25} color={"#EF4444"} className="mr-4" />{" "}
       {text}{" "}
-      <button onClick={onDismiss} className="ml-2 underline">
+      <button onClick={onDismiss} className="ml-2 underline hover:no-underline transition-all">
         Dismiss
       </button>
     </div>

@@ -56,9 +56,9 @@ describe("NewScorer", () => {
       "tempScorer",
       JSON.stringify({
         useCase: 0, // 0 = Airdrop Protection
-        name: "Gitcoin Airdrop",
+        name: "Human Airdrop",
         description:
-          "This airdrop is for participants of the Gitcoin hackathon",
+          "This airdrop is for participants of the Human hackathon",
       })
     );
   });
@@ -69,10 +69,10 @@ describe("NewScorer", () => {
     expect(screen.getByText("Select a Scoring Mechanism")).toBeInTheDocument();
     expect(airdropProtection[0]).toHaveClass("md:hidden");
     expect(airdropProtection[1]).toHaveClass("md:inline");
-    expect(screen.getByText("Gitcoin Airdrop")).toBeInTheDocument();
+    expect(screen.getByText("Human Airdrop")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "This airdrop is for participants of the Gitcoin hackathon"
+        "This airdrop is for participants of the Human hackathon"
       )
     ).toBeInTheDocument();
   });
@@ -137,9 +137,9 @@ describe("NewScorer", () => {
 
     await waitFor(() =>
       expect(createCommunity).toHaveBeenCalledWith({
-        name: "Gitcoin Airdrop",
+        name: "Human Airdrop",
         description:
-          "This airdrop is for participants of the Gitcoin hackathon",
+          "This airdrop is for participants of the Human hackathon",
         use_case: "Airdrop Protection",
         rule: "LIFO",
         scorer: "WEIGHTED",

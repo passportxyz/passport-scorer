@@ -10,7 +10,7 @@ const getSiweMessage = async (wallet: WalletState, address: string) => {
     const message = new SiweMessage({
       domain: window.location.host,
       address,
-      statement: `Welcome to Gitcoin Passport Scorer! This request will not trigger a blockchain transaction or cost any gas fees. Your authentication status will reset in 24 hours. Wallet Address: ${address}. Nonce: ${nonce}`,
+      statement: `Welcome to Human Passport Scorer! This request will not trigger a blockchain transaction or cost any gas fees. Your authentication status will reset in 24 hours. Wallet Address: ${address}. Nonce: ${nonce}`,
       uri: window.location.origin,
       version: "1",
       chainId: Number(wallet.chains[0].id),

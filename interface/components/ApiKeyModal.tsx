@@ -1,7 +1,4 @@
-import {
-  Input,
-  Text,
-} from "@chakra-ui/react";
+import { Input } from "../ui/Input";
 import { KeyIcon, NoSymbolIcon } from "@heroicons/react/24/outline";
 import { SpinnerIcon } from "./CustomIcons";
 import { useContext, useState } from "react";
@@ -57,7 +54,7 @@ export function ApiKeyCreateModal({
       onClose={closeAndReset}
       footer={() => (
         <button
-          className="mb-6 mt-auto w-full rounded bg-purple-gitcoinpurple py-3 text-white md:mt-8"
+          className="mb-6 mt-auto w-full rounded-[12px] bg-black py-3 text-white font-medium hover:bg-gray-800 transition-colors md:mt-8 disabled:bg-gray-200 disabled:text-gray-400"
           onClick={handleCreateApiKey}
           disabled={keyName.length === 0 || inProgress}
         >
@@ -66,20 +63,20 @@ export function ApiKeyCreateModal({
       )}
     >
       <div className="w-100 flex flex-col items-center">
-        <div className="w-fit rounded-full bg-[#F0EBFF] p-3 text-purple-gitcoinpurple">
+        <div className="w-fit rounded-full bg-gray-100 p-3 text-gray-700">
           <div className="flex w-6 justify-around">
             <KeyIcon />
           </div>
         </div>
       </div>
       <div className="mt-6 mb-6 text-center">
-        <Text className="text-purple-darkpurple">Generate API Key</Text>
-        <Text className="mt-2 text-center text-purple-softpurple">
+        <p className="text-gray-900 font-semibold">Generate API Key</p>
+        <p className="mt-2 text-center text-gray-500">
           Name your API key to help identify it in the future.
-        </Text>
+        </p>
       </div>
       <div className="flex flex-col">
-        <label className="mb-2 font-librefranklin text-xs text-purple-darkpurple">
+        <label className="mb-2 font-sans text-xs text-gray-900">
           Key Name
         </label>
         <Input
@@ -88,17 +85,15 @@ export function ApiKeyCreateModal({
           value={keyName}
           onChange={(e) => setKeyName(e.target.value)}
           placeholder={"Enter the key's name/identifier"}
-          // chakra can't find purple-gitcoinpurple from tailwind :(
-          focusBorderColor="#6f3ff5"
         />
 
-        <p className="mb-1 text-xs italic text-purple-softpurple">
-          i.e. &#39;Gitcoin dApp - Prod&#39;, or &#39;Snapshot discord bot&#39;,
+        <p className="mb-1 text-xs italic text-gray-500">
+          i.e. &#39;Human dApp - Prod&#39;, or &#39;Snapshot discord bot&#39;,
           or &#39;Bankless Academy testing&#39;, etc.
         </p>
-        <hr />
+        <hr className="border-gray-200" />
         {creationError.length > 0 && (
-          <p className="pt-4 text-red-700">{creationError}</p>
+          <p className="pt-4 text-error">{creationError}</p>
         )}
       </div>
     </ModalTemplate>
@@ -139,11 +134,11 @@ export function ApiKeyUpdateModal({
       isOpen={isOpen}
       onClose={closeAndReset}
       header={() => (
-        <span className="text-base font-normal">Rename API Key</span>
+        <span className="text-base font-medium text-gray-900">Rename API Key</span>
       )}
       footer={() => (
         <button
-          className="mb-6 mt-auto w-full rounded bg-purple-gitcoinpurple py-3 text-white md:mt-8"
+          className="mb-6 mt-auto w-full rounded-[12px] bg-black py-3 text-white font-medium hover:bg-gray-800 transition-colors md:mt-8 disabled:bg-gray-200 disabled:text-gray-400"
           onClick={updateApiKey}
           disabled={name.length === 0 || inProgress}
         >
@@ -152,7 +147,7 @@ export function ApiKeyUpdateModal({
       )}
     >
       <div className="flex flex-col">
-        <label className="mb-2 font-librefranklin text-xs text-purple-darkpurple">
+        <label className="mb-2 font-sans text-xs text-gray-900">
           Key Name
         </label>
         <Input
@@ -161,17 +156,15 @@ export function ApiKeyUpdateModal({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={"Enter the key's name/identifier"}
-          // chakra can't find purple-gitcoinpurple from tailwind :(
-          focusBorderColor="#6f3ff5"
         />
 
-        <p className="mb-1 text-xs italic text-purple-softpurple">
-          i.e. &#39;Gitcoin dApp - Prod&#39;, or &#39;Snapshot discord bot&#39;,
+        <p className="mb-1 text-xs italic text-gray-500">
+          i.e. &#39;Human dApp - Prod&#39;, or &#39;Snapshot discord bot&#39;,
           or &#39;Bankless Academy testing&#39;, etc.
         </p>
-        <hr />
+        <hr className="border-gray-200" />
         {updateError.length > 0 && (
-          <p className="pt-4 text-red-700">{updateError}</p>
+          <p className="pt-4 text-error">{updateError}</p>
         )}
       </div>
     </ModalTemplate>
@@ -213,15 +206,15 @@ export function ApiKeyDeleteModal({
       isOpen={isOpen}
       onClose={closeAndReset}
     >
-      <div className="-mt-8 py-6 text-purple-darkpurple">
+      <div className="-mt-8 py-6 text-gray-900">
         <div className="flex items-center justify-center">
-          <div className="mb-4 flex h-12 w-12 justify-center rounded-full bg-[#FDDEE4]">
-            <NoSymbolIcon className="w-7 text-[#D44D6E]" />
+          <div className="mb-4 flex h-12 w-12 justify-center rounded-full bg-red-50">
+            <NoSymbolIcon className="w-7 text-red-500" />
           </div>
         </div>
         <div className="text-center">
-          <p className="font-bold">Are you sure?</p>
-          <p className="mt-2 text-purple-softpurple">
+          <p className="font-semibold text-gray-900">Are you sure?</p>
+          <p className="mt-2 text-gray-500">
             This will permanantly delete your API Key.
             <br />
             Are you sure you want to continue?
@@ -229,13 +222,13 @@ export function ApiKeyDeleteModal({
         </div>
         <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
           <button
-            className="order-last w-full rounded border border-gray-lightgray py-2 px-6 text-base md:order-first"
+            className="order-last w-full rounded-[12px] border border-gray-200 py-2 px-6 text-base text-gray-700 hover:bg-gray-50 transition-colors md:order-first"
             onClick={onClose}
           >
             Cancel
           </button>
           <button
-            className="flex w-full justify-center rounded bg-purple-gitcoinpurple py-2 px-6 text-base text-white"
+            className="flex w-full justify-center rounded-[12px] bg-black py-2 px-6 text-base text-white font-medium hover:bg-gray-800 transition-colors disabled:bg-gray-200 disabled:text-gray-400"
             onClick={deleteApiKey}
             disabled={inProgress}
           >
@@ -243,7 +236,7 @@ export function ApiKeyDeleteModal({
             Confirm Deletion
           </button>
           {deleteError.length > 0 && (
-            <p className="pt-4 text-red-700">{deleteError}</p>
+            <p className="pt-4 text-error">{deleteError}</p>
           )}
         </div>
       </div>

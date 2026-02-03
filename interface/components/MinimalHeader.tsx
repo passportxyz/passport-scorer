@@ -8,16 +8,12 @@ type MinimalHeaderProps = {
 };
 
 const getAssets = (mode?: UIMode) => {
-  const darkMode = mode === "dark";
+  // Always use dark logos for light theme
   return {
-    gitcoinLogo: darkMode
-      ? "/assets/gitcoinLogoWhite.svg"
-      : "/assets/gitcoinLogoDark.svg",
-    scorerWord: darkMode
-      ? "/assets/scorerWordWhite.svg"
-      : "/assets/scorerWordBlack.svg",
+    gitcoinLogo: "/assets/gitcoinLogoDark.svg",
+    scorerWord: "/assets/scorerWordBlack.svg",
     logoLine: "/assets/logoLine.svg",
-    emphasisColor: darkMode ? "white" : "black",
+    emphasisColor: "black",
   };
 };
 
@@ -47,7 +43,7 @@ const MinimalHeader = ({
   return (
     <div className={`flex h-16 ${className}`}>
       <div className="flex items-center">
-        <img className="" src={assets.gitcoinLogo} alt="Gitcoin Logo" />
+        <img className="" src={assets.gitcoinLogo} alt="Human Logo" />
         <img className="mx-3 md:mx-6" src={assets.logoLine} alt="Logo Line" />
         <Logo />
         <img

@@ -18,12 +18,11 @@ import Maintenance from "../components/Maintenance";
 
 // --- Context
 import { UserContext } from "../context/userContext";
-import { useToast } from "@chakra-ui/react";
+import { useToast } from "../ui/Toast";
 
 import PageLayout from "../components/PageLayout";
 import HomePageLayout from "../components/HomePageLayout";
 import NoMatch from "../components/NoMatch";
-import { successToast } from "../components/Toasts";
 import { isServerOnMaintenance } from "../utils/interceptors";
 
 // Layout Route pattern from https://reactrouter.com/en/main/start/concepts#layout-routes
@@ -49,7 +48,7 @@ const PageRouter = () => {
 
   useEffect(() => {
     if (loginComplete) {
-      toast(successToast("Ethereum account has been validated.", toast));
+      toast.success("Ethereum account has been validated.");
     }
   }, [loginComplete]);
 

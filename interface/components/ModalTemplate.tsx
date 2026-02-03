@@ -2,18 +2,8 @@
 import React from "react";
 
 // --- Style/UI Components
-import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
-  Button,
-} from "@chakra-ui/react";
-import { SmallCloseIcon } from "@chakra-ui/icons";
+import { Modal, ModalHeader, ModalBody, ModalFooter } from "../ui/Modal";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 
 type ModalProps = {
   isOpen: boolean;
@@ -31,29 +21,31 @@ const ModalTemplate = ({
   children,
 }: ModalProps): JSX.Element => {
   return (
-    <>
-      <Modal
-        isOpen={isOpen}
-        onClose={onClose}
-        isCentered={true}
-        size={{ base: "full", md: "xl", lg: "xl", xl: "xl" }}
-      >
-        <ModalOverlay />
-        <ModalContent>
-          {header ? (
-            <ModalHeader>{header()}</ModalHeader>
-          ) : (
-            <ModalHeader className="flex items-center justify-end">
-              <SmallCloseIcon className="cursor-pointer" onClick={onClose} />
-            </ModalHeader>
-          )}
-          <ModalBody className="flex h-screen w-full flex-col">
-            {children}
-          </ModalBody>
-          {footer && <ModalFooter>{footer()}</ModalFooter>}
-        </ModalContent>
-      </Modal>
-    </>
+    <Modal isOpen={isOpen} onClose={onClose} size="xl">
+      {header ? (
+        <ModalHeader onClose={onClose} showCloseButton={false}>
+          {header()}
+        </ModalHeader>
+      ) : (
+        <div className="flex items-center justify-end px-6 py-4">
+          <button
+            onClick={onClose}
+            className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            aria-label="Close modal"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+      <ModalBody className="flex h-auto min-h-[200px] w-full flex-col md:min-h-0">
+        {children}
+      </ModalBody>
+      {footer && (
+        <ModalFooter className="border-t-0">
+          {footer()}
+        </ModalFooter>
+      )}
+    </Modal>
   );
 };
 

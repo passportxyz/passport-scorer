@@ -3,19 +3,10 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 // --- Components
-import { ArrowBackIcon, SmallCloseIcon } from "@chakra-ui/icons";
+import { ArrowLeftIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
-import {
-  Input,
-  Text,
-  Icon,
-  Center,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalBody,
-  ModalHeader,
-} from "@chakra-ui/react";
+import { Modal, ModalBody, ModalHeader } from "../ui/Modal";
+import { Input } from "../ui/Input";
 import {
   DotsCircleHorizontalIcon,
   FingerPrintIcon,
@@ -92,51 +83,55 @@ const UseCaseModal = ({
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      isCentered={true}
-      size={{ base: "full", md: "xl", lg: "xl", xl: "xl" }}
-      onClose={closeModal}
-    >
-      <ModalOverlay />
-      <ModalContent>
-        {wizardStep > 1 ? (
-          <ModalHeader className="flex items-center justify-between">
-            <ArrowBackIcon
-              className="cursor-pointer"
-              onClick={() => setWizardStep(1)}
-            />
-            <span className="text-base">Use Case Details</span>
-            <SmallCloseIcon className="cursor-pointer" onClick={closeModal} />
-          </ModalHeader>
-        ) : (
-          <ModalHeader className="flex items-center justify-end">
-            <SmallCloseIcon className="cursor-pointer" onClick={closeModal} />
-          </ModalHeader>
+    <Modal isOpen={isOpen} onClose={closeModal} size="xl">
+      {wizardStep > 1 ? (
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <button
+            onClick={() => setWizardStep(1)}
+            className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <ArrowLeftIcon className="h-5 w-5 cursor-pointer text-gray-600" />
+          </button>
+          <span className="text-base font-medium text-gray-900">Use Case Details</span>
+          <button
+            onClick={closeModal}
+            className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <XMarkIcon className="h-5 w-5 cursor-pointer text-gray-500" />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-end px-6 py-4">
+          <button
+            onClick={closeModal}
+            className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <XMarkIcon className="h-5 w-5 cursor-pointer text-gray-500" />
+          </button>
+        </div>
+      )}
+      <ModalBody className="flex flex-col">
+        {wizardStep === 1 && (
+          <SelectUseCase
+            useCase={useCase}
+            setUseCase={setUseCase}
+            setWizardStep={setWizardStep}
+          />
         )}
-        <ModalBody className="flex h-screen w-full flex-col">
-          {wizardStep === 1 && (
-            <SelectUseCase
-              useCase={useCase}
-              setUseCase={setUseCase}
-              setWizardStep={setWizardStep}
-            />
-          )}
 
-          {wizardStep === 2 && (
-            <UseCaseDetails
-              useCase={useCase}
-              scorerName={scorerName}
-              scorerDescription={scorerDescription}
-              setScorerName={setScorerName}
-              setScorerDescription={setScorerDescription}
-              setWizardStep={setWizardStep}
-              closeModal={closeModal}
-              existingScorers={existingScorers}
-            />
-          )}
-        </ModalBody>
-      </ModalContent>
+        {wizardStep === 2 && (
+          <UseCaseDetails
+            useCase={useCase}
+            scorerName={scorerName}
+            scorerDescription={scorerDescription}
+            setScorerName={setScorerName}
+            setScorerDescription={setScorerDescription}
+            setWizardStep={setWizardStep}
+            closeModal={closeModal}
+            existingScorers={existingScorers}
+          />
+        )}
+      </ModalBody>
     </Modal>
   );
 };
@@ -154,7 +149,7 @@ const SelectUseCase = ({
 }: SelectUseCaseProps) => {
   return (
     <>
-      <Center>
+      <div className="flex justify-center">
         <div>
           <svg
             width="48"
@@ -163,39 +158,39 @@ const SelectUseCase = ({
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <rect width="48" height="48" rx="24" fill="#F0EBFF" />
+            <rect width="48" height="48" rx="24" fill="#F3F4F6" />
             <path
               d="M16 17C16 16.4477 16.4477 16 17 16H31C31.5523 16 32 16.4477 32 17V19C32 19.5523 31.5523 20 31 20H17C16.4477 20 16 19.5523 16 19V17Z"
-              stroke="#6F3FF5"
+              stroke="#111827"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
             <path
               d="M16 25C16 24.4477 16.4477 24 17 24H23C23.5523 24 24 24.4477 24 25V31C24 31.5523 23.5523 32 23 32H17C16.4477 32 16 31.5523 16 31V25Z"
-              stroke="#6F3FF5"
+              stroke="#111827"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
             <path
               d="M28 25C28 24.4477 28.4477 24 29 24H31C31.5523 24 32 24.4477 32 25V31C32 31.5523 31.5523 32 31 32H29C28.4477 32 28 31.5523 28 31V25Z"
-              stroke="#6F3FF5"
+              stroke="#111827"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           </svg>
         </div>
-      </Center>
-      <Center className="mt-6">
-        <Text className="text-purple-darkpurple">Select a Use Case</Text>
-      </Center>
-      <Center className="my-2">
-        <Text className="text-purple-softpurple">
+      </div>
+      <div className="mt-6 text-center">
+        <p className="text-gray-900 font-semibold">Select a Use Case</p>
+      </div>
+      <div className="my-2 text-center">
+        <p className="text-gray-500">
           What will this Scorer be used for?
-        </Text>
-      </Center>
+        </p>
+      </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         {useCases.map((item, index) => (
@@ -204,19 +199,19 @@ const SelectUseCase = ({
             onClick={() => setUseCase(item)}
             data-testid="use-case-item"
             className={
-              "cursor-pointer rounded border bg-white px-6 py-4 shadow-sm hover:border-purple-gitcoinpurple focus:outline-none md:mt-2 " +
+              "cursor-pointer rounded-[12px] border bg-white px-6 py-4 shadow-card hover:border-gray-400 focus:outline-none md:mt-2 transition-colors " +
               (useCase?.title === item.title
-                ? "border-purple-gitcoinpurple"
-                : "border-gray-300")
+                ? "border-black ring-1 ring-black"
+                : "border-gray-200")
             }
           >
             <div className="relative flex space-x-3">
               <div>
-                <Icon boxSize={19.5}>{item.icon()}</Icon>
+                <span className="inline-block w-5 h-5">{item.icon()}</span>
               </div>
               <div className="min-w-0 flex-1 text-xs">
                 <span className="absolute inset-0" aria-hidden="true" />
-                <p className="mb-2 text-purple-darkpurple">{item.title}</p>
+                <p className="mb-2 text-gray-900 font-medium">{item.title}</p>
                 <p className="text-gray-500">{item.description}</p>
               </div>
             </div>
@@ -281,42 +276,40 @@ const UseCaseDetails = ({
 
   return (
     <>
-      <p className="mt-10 text-xs">Use Case</p>
+      <p className="mt-10 text-xs text-gray-500">Use Case</p>
       <div>
-        <p className="my-2 text-purple-gitcoinpurple">
-          <Icon boxSize={19.5}>{useCase?.icon("#6F3FF5")}</Icon>{" "}
+        <p className="my-2 text-black font-medium">
+          <span className="inline-block w-5 h-5">{useCase?.icon("#000000")}</span>{" "}
           {useCase?.title}
         </p>
         <p className="text-gray-500">{useCase?.description}</p>
       </div>
-      <hr className="my-6 text-gray-lightgray" />
+      <hr className="my-6 border-gray-200" />
       <div>
-        <label className="text-gray-softgray font-librefranklin text-xs">
+        <label className="font-sans text-xs text-gray-500">
           Name
         </label>
         <Input
           data-testid="use-case-name-input"
-          className="mt-2 mb-4 text-blue-darkblue"
+          className="mt-2 mb-4"
           value={scorerName}
-          onChange={(name) => setScorerName(name.target.value)}
+          onChange={(e) => setScorerName(e.target.value)}
           placeholder="App / Use Case Name"
         />
-        <label className="text-gray-softgray font-librefranklin text-xs">
+        <label className="font-sans text-xs text-gray-500">
           Description
         </label>
         <Input
-          className="mt-2 text-blue-darkblue"
+          className="mt-2"
           data-testid="use-case-description-input"
           value={scorerDescription}
-          onChange={(description) =>
-            setScorerDescription(description.target.value)
-          }
+          onChange={(e) => setScorerDescription(e.target.value)}
           placeholder="Enter Use Case Description"
         />
       </div>
-      {useCaseError && <p className="pt-4 text-red-700">{useCaseError}</p>}
+      {useCaseError && <p className="pt-4 text-error">{useCaseError}</p>}
       <button
-        className="mb-8 mt-auto w-full rounded-md bg-purple-gitcoinpurple py-3 text-white md:mt-8"
+        className="mb-8 mt-auto w-full rounded-[12px] bg-black py-3 text-white font-medium hover:bg-gray-800 transition-colors md:mt-8 disabled:bg-gray-200 disabled:text-gray-400"
         onClick={switchToSelectMechanism}
         disabled={!scorerName || !scorerDescription}
       >

@@ -19,14 +19,14 @@ const SIWEButton = ({
   return (
     <button
       data-testid={testId}
-      className={`rounded bg-purple-gitcoinpurple px-8 py-3 text-lg text-white disabled:cursor-not-allowed disabled:bg-purple-softpurple disabled:text-black ${className}`}
+      className={`rounded-[12px] bg-black px-8 py-3 text-lg text-white font-medium transition-all duration-200 hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 ${className}`}
       onClick={login}
       disabled={disabled}
     >
       <img
         src="/assets/ethLogo.svg"
         alt="Ethereum Logo"
-        className={`mr-3 inline h-auto w-4 ${disabled ? "invert" : ""}`}
+        className={`mr-3 inline h-auto w-4 ${disabled ? "opacity-50" : ""}`}
       />
       <span className="inline">
         {disabled ? "Loading..." : "Sign-in with Ethereum"}
@@ -50,13 +50,13 @@ const LandingPage = () => {
   );
 
   const mainContent = (
-    <div className="bg-purple-darkpurple">
-      <div className="font-miriam-libre text-white">
-        <img src="/assets/gitcoinWordLogo.svg" alt="Gitcoin Logo" />
-        <p className="md:text-7xl my-2 -ml-1 text-5xl">Passport Scorer</p>
+    <div className="bg-white rounded-[16px] p-8 shadow-card">
+      <div className="font-heading text-gray-900">
+        <img src="/assets/gitcoinWordLogo.svg" alt="Human Logo" />
+        <p className="md:text-7xl my-2 -ml-1 text-5xl font-bold">Passport Scorer</p>
       </div>
-      <div>
-        Gitcoin Passport is a Sybil defense tool that makes it easy to protect
+      <div className="text-gray-600 mt-4 leading-relaxed">
+        Human Passport is a Sybil defense tool that makes it easy to protect
         your web3 community from bots and bad actors. Connect your wallet below
         to access the Passport Scorer app, which helps you create a
         &quot;Scorer&quot; for the application you want to protect from Sybil

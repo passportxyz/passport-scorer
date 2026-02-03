@@ -10,7 +10,7 @@ const Maintenance = () => {
   const mainContent = (
     <div className="bg-purple-darkpurple">
       <div className="font-miriam-libre text-white">
-        <img src="/assets/gitcoinWordLogo.svg" alt="Gitcoin Logo" />
+        <img src="/assets/gitcoinWordLogo.svg" alt="Human Logo" />
         <p className="md:text-7xl my-2 -ml-1 text-5xl">Passport Scorer</p>
       </div>
       <div>
@@ -19,16 +19,16 @@ const Maintenance = () => {
         </p>
       </div>
       <div>
-        Gitcoin Passport Scorer is currently down for scheduled maintenance. Please
+        Human Passport Scorer is currently down for scheduled maintenance. Please
         check back again as we will be back up shortly. For more information,
         check{" "}
         <a
           className="font-bold text-white hover:underline"
-          href="https://twitter.com/gitcoinpassport"
+          href="https://twitter.com/humanpassport"
           target="_blank"
           rel="noopener noreferrer"
         >
-          @GitcoinPassport
+          @HumanPassport
         </a>{" "}
         for updates.
       </div>

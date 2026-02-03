@@ -3,15 +3,11 @@ import { UIMode } from "../utils/dark-mode";
 import { PAGE_PADDING } from "./PageLayout";
 
 const getAssets = (mode?: UIMode) => {
-  const darkMode = mode === "dark";
+  // Always use light theme assets for Passport App design
   return {
-    emphasisColor: darkMode ? "white" : "purple-darkpurple",
-    docsIcon: darkMode
-      ? "/assets/docsIconLight.svg"
-      : "/assets/docsIconDark.svg",
-    githubLogo: darkMode
-      ? "/assets/githubLogoLight.svg"
-      : "/assets/githubLogoDark.svg",
+    emphasisColor: "gray-900",
+    docsIcon: "/assets/docsIconDark.svg",
+    githubLogo: "/assets/githubLogoDark.svg",
   };
 };
 
@@ -26,15 +22,15 @@ const Footer = ({ mode, className, hideLinks }: FooterProps): JSX.Element => {
 
   return (
     <div
-      className={`flex h-[120px] items-center justify-between text-base ${PAGE_PADDING} ${className}`}
+      className={`flex h-[120px] items-center justify-between text-base bg-white border-t border-gray-200 ${PAGE_PADDING} ${className}`}
     >
-      <div className="text-purple-softpurple">
+      <div className="text-gray-500">
         Available on
         <a
           href="https://ceramic.network/"
           target="_blank"
           rel="noopener noreferrer"
-          className={`text-${assets.emphasisColor} ml-1 hover:underline`}
+          className="text-gray-900 ml-1 hover:underline"
         >
           Ceramic.
         </a>
@@ -44,7 +40,7 @@ const Footer = ({ mode, className, hideLinks }: FooterProps): JSX.Element => {
           href={`https://github.com/gitcoinco/passport-scorer/commit/${process.env.NEXT_PUBLIC_GIT_COMMIT_HASH}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="mr-8 text-purple-darkpurple"
+          className="mr-8 text-gray-700 hover:text-gray-900 transition-colors"
         >
           Git commit
         </a>

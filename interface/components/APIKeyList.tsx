@@ -21,15 +21,8 @@ import {
   EllipsisVerticalIcon,
   PlusIcon,
 } from "@heroicons/react/24/solid";
-import {
-  IconButton,
-  Menu,
-  MenuButton,
-  MenuItem,
-  MenuList,
-  useToast,
-} from "@chakra-ui/react";
-import { successToast } from "./Toasts";
+import { DropdownMenu, DropdownMenuItem } from "../ui/DropdownMenu";
+import { useToast } from "../ui/Toast";
 import { KeyIcon } from "@heroicons/react/24/outline";
 
 export type ApiKeyDisplay = ApiKeys & {
@@ -53,8 +46,9 @@ const APIKeyList = () => {
         try {
           const apiKeys = await getApiKeys();
           keysFetched = true;
-          setApiKeys(apiKeys);
+          setApiKeys(Array.isArray(apiKeys) ? apiKeys : []);
         } catch (error: any) {
+          setApiKeys([]);
           setError("There was an error fetching your API keys.");
         }
       }
@@ -65,7 +59,7 @@ const APIKeyList = () => {
   const handleCreateApiKey = async (key: ApiKeyDisplay) => {
     try {
       setCreateApiKeyModal(false);
-      toast(successToast("API Key created successfully!", toast));
+      toast.success("API Key created successfully!");
       setApiKeys([...apiKeys, key]);
     } catch (error: any) {
       const msg =
@@ -82,7 +76,7 @@ const APIKeyList = () => {
     try {
       await updateApiKey(id, name);
       setApiKeyToUpdate(undefined);
-      toast(successToast("API Key updated successfully!", toast));
+      toast.success("API Key updated successfully!");
 
       const apiKeyIndex = apiKeys.findIndex((apiKey) => apiKey.id === id);
       const newApiKeys = [...apiKeys];
@@ -111,7 +105,7 @@ const APIKeyList = () => {
   }
 
   const userInstructions = (
-    <span className="pb-6 text-purple-softpurple lg:pt-3">
+    <span className="pb-6 text-gray-500 lg:pt-3">
       Use these API keys to programmatically access a Scorer.
     </span>
   );
@@ -138,10 +132,10 @@ const APIKeyList = () => {
                 key={`${key.id}-${i}`}
                 className={`flex ${
                   key.api_key && "flex-col"
-                } w-full items-center justify-between border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50`}
+                } w-full items-center justify-between border-x border-t border-gray-200 bg-white p-4 first-of-type:rounded-t-[12px] last-of-type:rounded-b-[12px] last-of-type:border-b hover:bg-gray-50 transition-colors`}
               >
                 <div className="flex w-full items-center justify-between">
-                  <div className="justify-self-center text-purple-darkpurple md:justify-self-start">
+                  <div className="justify-self-center text-gray-900 font-medium md:justify-self-start">
                     <p>{key.name}</p>
                   </div>
 
@@ -149,16 +143,16 @@ const APIKeyList = () => {
                     {key.api_key && (
                       <div className="flex items-center pr-5 pl-1">
                         {key.copied ? (
-                          <p className="flex text-xs text-purple-gitcoinpurple">
+                          <p className="flex text-xs text-emerald-600 font-medium">
                             Copied! <CheckIcon className="ml-3 w-3.5" />
                           </p>
                         ) : (
                           <>
-                            <p className="hidden pr-3 text-xs text-purple-darkpurple md:inline-block">
+                            <p className="hidden pr-3 text-xs text-gray-600 md:inline-block">
                               {key.api_key}
                             </p>
                             <button
-                              className="mb-1"
+                              className="mb-1 hover:opacity-70 transition-opacity"
                               data-testid="copy-api-key"
                               onClick={async () => {
                                 await navigator.clipboard.writeText(
@@ -175,40 +169,34 @@ const APIKeyList = () => {
                             >
                               <ClipboardDocumentIcon
                                 height={14}
-                                color={"#0E0333"}
+                                color={"#111827"}
                               />
                             </button>
                           </>
                         )}
                       </div>
                     )}
-                    <Menu>
-                      <MenuButton
-                        as={IconButton}
-                        icon={
-                          <EllipsisVerticalIcon className="h-8 text-purple-darkpurple" />
-                        }
-                        variant="ghost"
-                        _hover={{ bg: "transparent" }}
-                        _expanded={{ bg: "transparent" }}
-                        _focus={{ bg: "transparent" }}
-                      />
-                      <MenuList color={"#0E0333"}>
-                        <MenuItem onClick={() => setApiKeyToUpdate(key.id)}>
-                          Rename
-                        </MenuItem>
-                        <MenuItem onClick={() => setApiKeyToDelete(key.id)}>
-                          Delete
-                        </MenuItem>
-                      </MenuList>
-                    </Menu>
+                    <DropdownMenu
+                      trigger={
+                        <button className="p-2 hover:bg-gray-100 rounded-[8px] transition-colors">
+                          <EllipsisVerticalIcon className="h-6 w-6 text-gray-700" />
+                        </button>
+                      }
+                    >
+                      <DropdownMenuItem onClick={() => setApiKeyToUpdate(key.id)}>
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setApiKeyToDelete(key.id)}>
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenu>
                   </div>
                 </div>
                 <div className="block max-w-[100%] overflow-hidden md:hidden">
                   {key.api_key && (
                     <div className="flex items-center pr-5 pl-1">
                       {!key.copied && (
-                        <p className="pr-3 text-xs text-purple-darkpurple">
+                        <p className="pr-3 text-xs text-gray-600">
                           {key.api_key}
                         </p>
                       )}
@@ -222,9 +210,9 @@ const APIKeyList = () => {
             <button
               data-testid="open-api-key-modal"
               className={
-                "flex rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white" +
+                "flex rounded-[12px] bg-black px-4 py-2 align-middle text-white font-medium hover:bg-gray-800 transition-colors" +
                 (apiKeys.length >= 5
-                  ? " cursor-not-allowed disabled:bg-gray-lightgray disabled:text-purple-darkpurple"
+                  ? " cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
                   : "")
               }
               onClick={() => setCreateApiKeyModal(true)}
@@ -233,7 +221,7 @@ const APIKeyList = () => {
               <PlusIcon className="mr-2 inline w-6 self-center align-middle" />
               API Key
             </button>
-            <p className="ml-6 text-xs text-purple-softpurple">
+            <p className="ml-6 text-xs text-gray-500">
               The key limit is five.
             </p>
           </div>

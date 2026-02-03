@@ -1,13 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import {
-  Icon,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalOverlay,
-  Select,
-  useToast,
-} from "@chakra-ui/react";
+import { Modal, ModalBody } from "../ui/Modal";
+import { Select } from "../ui/Select";
+import { useToast } from "../ui/Toast";
 import { NoSymbolIcon } from "@heroicons/react/24/outline";
 import {
   ChartPieIcon,
@@ -25,11 +19,10 @@ import Header from "./Header";
 import { UseCaseInterface, useCases } from "./UseCaseModal";
 import { createCommunity } from "../utils/account-requests";
 import PopoverInfo from "./PopoverInfo";
-import { warningToast } from "./Toasts";
 
 type DeduplicationType = "LIFO";
 
-interface GitcoinScoringMechanismInterface {
+interface HumanScoringMechanismInterface {
   icon: (classes?: string) => JSX.Element;
   title: string;
   apiTitle: string;
@@ -39,7 +32,7 @@ interface GitcoinScoringMechanismInterface {
   recommended?: boolean;
 }
 
-export const gitcoinScoringMechanisms: Array<GitcoinScoringMechanismInterface> =
+export const humanScoringMechanisms: Array<HumanScoringMechanismInterface> =
   [
     {
       icon: (classes: string = ""): JSX.Element => (
@@ -77,71 +70,63 @@ export const gitcoinScoringMechanisms: Array<GitcoinScoringMechanismInterface> =
 const PageFooter = ({
   setCancelModal,
   createScorer,
-  gitcoinScoringMechanism,
+  humanScoringMechanism,
   cancelModal,
   handleCancellation,
   deduplication,
   isLoading,
 }: any) => (
   <footer
-    className={`fixed inset-x-0 bottom-0 mt-6 border-t border-gray-lightgray bg-white py-6 ${PAGE_PADDING}`}
+    className={`fixed inset-x-0 bottom-0 mt-6 border-t border-gray-200 bg-white py-6 ${PAGE_PADDING}`}
   >
     <div className="mx-auto overflow-hidden md:flex md:justify-end">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <button
-          className="order-last h-10 w-full rounded border border-gray-lightgray px-6 text-sm text-purple-darkpurple md:order-first md:w-[139px]"
+          className="order-last h-10 w-full rounded-[12px] border border-gray-200 px-6 text-sm text-gray-700 hover:bg-gray-50 transition-colors md:order-first md:w-[139px]"
           onClick={() => setCancelModal(true)}
         >
           Cancel
         </button>
         <button
-          className="h-10 w-full rounded bg-purple-gitcoinpurple text-sm text-white md:w-36"
+          className="h-10 w-full rounded-[12px] bg-black text-sm text-white font-medium hover:bg-gray-800 transition-colors md:w-36 disabled:bg-gray-200 disabled:text-gray-400"
           onClick={createScorer}
-          disabled={!gitcoinScoringMechanism || !deduplication || isLoading}
+          disabled={!humanScoringMechanism || !deduplication || isLoading}
         >
           Create Scorer
         </button>
       </div>
     </div>
-    <Modal
-      isOpen={cancelModal}
-      isCentered={true}
-      size={{ base: "xs", md: "lg", lg: "lg", xl: "lg" }}
-      onClose={() => {}}
-    >
-      <ModalOverlay />
-      <ModalContent>
-        <ModalBody>
-          <div className="py-6 text-purple-darkpurple">
-            <div className="flex items-center justify-center">
-              <div className="mb-4 flex h-12 w-12 justify-center rounded-full bg-[#FDDEE4]">
-                <NoSymbolIcon className="w-7 text-[#D44D6E]" />
-              </div>
-            </div>
-            <div className="text-center">
-              <p className="font-bold">Are you sure?</p>
-              <p className="mt-2 text-purple-softpurple">
-                Your scorer has not been saved, if you exit now your changes
-                will not be saved.
-              </p>
-            </div>
-            <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <button
-                className="order-last w-full rounded border border-gray-lightgray py-2 px-6 text-base md:order-first"
-                onClick={handleCancellation}
-              >
-                Exit Scorer
-              </button>
-              <button
-                className="w-full rounded bg-purple-gitcoinpurple py-2 px-6 text-base text-white"
-                onClick={() => setCancelModal(false)}
-              >
-                Continue Editing
-              </button>
+    <Modal isOpen={cancelModal} onClose={() => setCancelModal(false)} size="lg">
+      <ModalBody>
+        <div className="py-6 text-gray-900">
+          <div className="flex items-center justify-center">
+            <div className="mb-4 flex h-12 w-12 justify-center rounded-full bg-red-50">
+              <NoSymbolIcon className="w-7 text-red-500" />
             </div>
           </div>
-        </ModalBody>
-      </ModalContent>
+          <div className="text-center">
+            <p className="font-semibold text-gray-900">Are you sure?</p>
+            <p className="mt-2 text-gray-500">
+              Your scorer has not been saved, if you exit now your changes
+              will not be saved.
+            </p>
+          </div>
+          <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <button
+              className="order-last w-full rounded-[12px] border border-gray-200 py-2 px-6 text-base text-gray-700 hover:bg-gray-50 transition-colors md:order-first"
+              onClick={handleCancellation}
+            >
+              Exit Scorer
+            </button>
+            <button
+              className="w-full rounded-[12px] bg-black py-2 px-6 text-base text-white font-medium hover:bg-gray-800 transition-colors"
+              onClick={() => setCancelModal(false)}
+            >
+              Continue Editing
+            </button>
+          </div>
+        </div>
+      </ModalBody>
     </Modal>
   </footer>
 );
@@ -149,25 +134,25 @@ const PageFooter = ({
 const Subheader = ({ useCase, name, description }: any) => (
   <div className="my-6 flex w-full justify-between">
     <div>
-      <p className="text-xs text-purple-softpurple">
+      <p className="text-xs text-gray-500">
         Select a Scoring Mechanism
       </p>
-      <p className="mt-2 text-xs text-purple-gitcoinpurple md:hidden">
-        <Icon boxSize={19.5}>{useCase?.icon("#6F3FF5")}</Icon> {useCase?.title}
+      <p className="mt-2 text-xs text-black font-medium md:hidden">
+        <span className="inline-block w-5 h-5">{useCase?.icon("#000000")}</span> {useCase?.title}
       </p>
 
-      <h1 className="mt-2 font-miriamlibre text-2xl text-purple-darkpurple">
+      <h1 className="mt-2 font-heading text-2xl text-gray-900 font-semibold">
         {name}
-        <span className="ml-6 hidden text-xs text-purple-gitcoinpurple md:inline">
-          <Icon boxSize={19.5}>{useCase?.icon("#6F3FF5")}</Icon>{" "}
+        <span className="ml-6 hidden text-xs text-black font-medium md:inline">
+          <span className="inline-block w-5 h-5">{useCase?.icon("#000000")}</span>{" "}
           {useCase?.title}
         </span>
       </h1>
-      <p className="mt-2 text-purple-softpurple">{description}</p>
+      <p className="mt-2 text-gray-500">{description}</p>
     </div>
     <div>
-      <p className="mb-2 text-xs text-purple-softpurple">Scorer ID</p>
-      <p className="text-purple-darkpurple">N/A</p>
+      <p className="mb-2 text-xs text-gray-500">Scorer ID</p>
+      <p className="text-gray-900">N/A</p>
     </div>
   </div>
 );
@@ -181,8 +166,8 @@ const NewScorer = () => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [deduplication, setDeduplication] = useState<DeduplicationType>("LIFO");
-  const [gitcoinScoringMechanism, setGitcoinScoringMechanism] = useState<
-    GitcoinScoringMechanismInterface | undefined
+  const [humanScoringMechanism, setHumanScoringMechanism] = useState<
+    HumanScoringMechanismInterface | undefined
   >(undefined);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -213,19 +198,19 @@ const NewScorer = () => {
         description,
         use_case: useCase!.title,
         rule: deduplication,
-        scorer: gitcoinScoringMechanism!.apiTitle,
+        scorer: humanScoringMechanism!.apiTitle,
       });
       localStorage.setItem("scorerCreated", "true");
       navigate("/dashboard/scorer");
     } catch (e) {
-      toast(warningToast("Something went wrong. Please try again.", toast));
+      toast.warning("Something went wrong. Please try again.");
     }
   }, [
     name,
     description,
     useCase,
     deduplication,
-    gitcoinScoringMechanism,
+    humanScoringMechanism,
     navigate,
     toast,
   ]);
@@ -238,38 +223,37 @@ const NewScorer = () => {
         }
       />
       <PageWidthGrid className="mt-4 mb-40 h-fit md:mb-24">
-        <p className="col-span-4 text-purple-softpurple md:col-span-6 lg:col-span-8 xl:col-span-12">
+        <p className="col-span-4 text-gray-500 md:col-span-6 lg:col-span-8 xl:col-span-12">
           Scoring mechanisms establish identity rules within Scorers. Scorers
           cannot be changed after creating them, but multiple Scorers can be
           created.
         </p>
         <div className="col-span-4 md:col-span-6 lg:col-span-2 xl:col-span-3">
-          <span className="mr-1 text-xs text-purple-softpurple">
+          <span className="mr-1 text-xs text-gray-500">
             Select Deduplication
           </span>
           <PopoverInfo>
-            Gitcoin scoring uses binary logic to verify stamp/account ownership,
+            Human scoring uses binary logic to verify stamp/account ownership,
             encrypted for privacy and to decrease deduplication risk.
             <br />
             <a
               href="https://docs.passport.gitcoin.co"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-green-jade underline"
+              className="text-emerald-500 underline"
             >
               Learn More
             </a>
           </PopoverInfo>
         </div>
         <div className="col-span-4 md:col-span-3 md:row-start-3 lg:col-span-2 lg:row-end-5 xl:col-span-3">
-          <div className="rounded border border-gray-lightgray bg-white p-6 text-purple-softpurple">
+          <div className="rounded-[12px] border border-gray-200 bg-white p-6 text-gray-500 shadow-card">
             <p className="mb-6 text-xs">
               If duplicate Verified Credentials s are found, should Passport
               score through the first or last one created?
             </p>
             <Select
-              iconColor="#0E0333"
-              className="w-full rounded border border-gray-lightgray px-4"
+              className="w-full"
               onChange={(e: any) => setDeduplication(e.target.value)}
             >
               <option value="LIFO">Last in first out (default)</option>
@@ -278,7 +262,7 @@ const NewScorer = () => {
         </div>
 
         <div className="col-span-4 md:col-span-6 xl:col-span-9">
-          <span className="mr-1 text-xs text-purple-softpurple">
+          <span className="mr-1 text-xs text-gray-500">
             Scoring Mechanisms
           </span>
           <PopoverInfo>
@@ -287,19 +271,19 @@ const NewScorer = () => {
           </PopoverInfo>
         </div>
 
-        {gitcoinScoringMechanisms.map((mechanism, index) => (
+        {humanScoringMechanisms.map((mechanism, index) => (
           <div
             key={index}
             data-testid={`scoring-mechanism-${index}`}
-            onClick={() => setGitcoinScoringMechanism(mechanism)}
+            onClick={() => setHumanScoringMechanism(mechanism)}
             className={
-              "col-span-4 rounded border border-gray-lightgray bg-white p-6 md:col-span-3 " +
+              "col-span-4 rounded-[12px] border bg-white p-6 md:col-span-3 shadow-card transition-all " +
               (!mechanism.disabled
                 ? "cursor-pointer " +
-                  (gitcoinScoringMechanism?.title === mechanism.title
-                    ? "outline outline-2 outline-purple-gitcoinpurple"
-                    : "hover:border-purple-gitcoinpurple")
-                : "cursor-not-allowed")
+                  (humanScoringMechanism?.title === mechanism.title
+                    ? "border-black ring-1 ring-black"
+                    : "border-gray-200 hover:border-gray-400")
+                : "cursor-not-allowed border-gray-200")
             }
           >
             <div className="flex items-center justify-between">
@@ -307,25 +291,25 @@ const NewScorer = () => {
                 className={
                   "flex h-12 w-12 items-center justify-center rounded-full " +
                   (mechanism.recommended
-                    ? "bg-[#F0EBFF]"
-                    : "border border-gray-lightgray")
+                    ? "bg-gray-100"
+                    : "border border-gray-200")
                 }
               >
                 {mechanism.icon(
                   `w-7 ${
                     mechanism.recommended
-                      ? "text-purple-gitcoinpurple"
-                      : "text-purple-darkpurple"
+                      ? "text-black"
+                      : "text-gray-700"
                   }`
                 )}
               </div>
               {mechanism.badge && (
                 <div
                   className={
-                    "rounded-xl px-2 py-1 text-xs " +
+                    "rounded-xl px-2 py-1 text-xs font-medium " +
                     (mechanism.recommended
-                      ? "bg-[#F0EBFF] text-purple-gitcoinpurple"
-                      : "bg-gray-lightgray text-blue-darkblue")
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-gray-100 text-gray-600")
                   }
                 >
                   <span>{mechanism.badge}</span>
@@ -333,27 +317,27 @@ const NewScorer = () => {
               )}
             </div>
             <div>
-              <p className="mt-6 mb-4 text-sm text-blue-darkblue">
+              <p className="mt-6 mb-4 text-sm text-gray-900 font-medium">
                 {mechanism.title}
               </p>
-              <p className="text-xs text-purple-softpurple">
+              <p className="text-xs text-gray-500">
                 {mechanism.description}
               </p>
             </div>
           </div>
         ))}
-        <div className="col-span-4 cursor-not-allowed rounded border border-gray-lightgray bg-white p-6 md:col-span-3">
+        <div className="col-span-4 cursor-not-allowed rounded-[12px] border border-gray-200 bg-white p-6 md:col-span-3 shadow-card">
           <div className="flex items-center justify-between">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-lightgray">
-              <AdjustmentsVerticalIcon className="w-7 text-purple-darkpurple" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-200">
+              <AdjustmentsVerticalIcon className="w-7 text-gray-700" />
             </div>
-            <div className="rounded-xl bg-gray-lightgray px-2 py-1 text-xs text-blue-darkblue">
+            <div className="rounded-xl bg-gray-100 px-2 py-1 text-xs text-gray-600 font-medium">
               <span>Coming soon</span>
             </div>
           </div>
           <div>
-            <p className="mt-6 mb-4 text-sm text-blue-darkblue">Customize</p>
-            <p className="text-xs text-purple-softpurple">
+            <p className="mt-6 mb-4 text-sm text-gray-900 font-medium">Customize</p>
+            <p className="text-xs text-gray-500">
               Configure stamp weights for you community and define a score that
               is truly customized to your use case (this is an advanced
               scenario).
@@ -364,7 +348,7 @@ const NewScorer = () => {
       <PageFooter
         setCancelModal={setCancelModal}
         createScorer={createScorer}
-        gitcoinScoringMechanism={gitcoinScoringMechanism}
+        humanScoringMechanism={humanScoringMechanism}
         cancelModal={cancelModal}
         handleCancellation={handleCancellation}
         deduplication={deduplication}

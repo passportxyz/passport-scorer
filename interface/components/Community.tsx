@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
 // Components
-import { Radio, RadioGroup } from "@chakra-ui/react";
+import { RadioGroup, Radio } from "../ui/Radio";
 
 // Requests
 import {
@@ -14,7 +14,7 @@ import {
 } from "../utils/account-requests";
 
 const defaultScorer = {
-  name: "Gitcoin Scoring",
+  name: "Human Scoring",
   description:
     "Stamps and data are binarily verified, aggregated, and scored relative to all other attestations.",
   id: "gitcoin",
@@ -49,36 +49,29 @@ const Community = ({ id }: { id: string }) => {
   }, [id]);
 
   return (
-    <>
+    <RadioGroup
+      value={activeScorer}
+      onChange={setActiveScorer}
+      className="gap-0"
+    >
       {scorers.map((scorer) => (
         <div
           key={scorer.id}
           className="flex w-full justify-start border-x border-t border-gray-lightgray bg-white p-4 first-of-type:rounded-t-md last-of-type:rounded-b-md last-of-type:border-b hover:bg-gray-50"
         >
-          {/* first column */}
-          <RadioGroup
-            className="mt-4"
-            onChange={setActiveScorer}
-            value={activeScorer}
+          <Radio
+            data-testid={`radio-${scorer.id}`}
+            value={scorer.id}
+            className="mr-4"
+            onChange={() => updateScorer(id, scorer.id)}
           >
-            <Radio
-              data-testid={`radio-${scorer.id}`}
-              colorScheme={"purple"}
-              value={scorer.id}
-              className="mr-4"
-              onChange={() => updateScorer(id, scorer.id)}
-            >
-              <p className="mb-2 font-librefranklin font-semibold text-blue-darkblue">
-                {scorer.label}
-              </p>
-              {/* <p className="font-librefranklin text-purple-softpurple">
-              {scorer.description}
-            </p> */}
-            </Radio>
-          </RadioGroup>
+            <p className="mb-2 font-sans font-semibold text-foreground">
+              {scorer.label}
+            </p>
+          </Radio>
         </div>
       ))}
-    </>
+    </RadioGroup>
   );
 };
 

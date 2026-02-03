@@ -13,11 +13,9 @@
     "lint:fix": "next lint && prettier --write ."
   },
   "dependencies": {
-    "@chakra-ui/icons": "^2.0.12",
-    "@chakra-ui/react": "^2.4.1",
-    "@emotion/react": "^11",
-    "@emotion/styled": "^11",
     "@heroicons/react": "^2.0.16",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.2.0",
     "@testing-library/user-event": "^14.4.3",
     "@web3-onboard/core": "^2.20.4",
     "@web3-onboard/injected-wallets": "^2.9.0",
@@ -25,7 +23,6 @@
     "@web3-onboard/walletconnect": "^2.4.0",
     "axios": "^1.2.0",
     "ethers": "^5.7.2",
-    "framer-motion": "^6",
     "next": "13.0.4",
     "react": "18.2.0",
     "react-dom": "18.2.0",
@@ -36,13 +33,13 @@
   "devDependencies": {
     "@badeball/cypress-cucumber-preprocessor": "^14.0.0",
     "@bahmutov/cypress-esbuild-preprocessor": "^2.1.5",
+    "autoprefixer": "^10.4.14",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
     "@types/jest": "^29.2.3",
     "@types/node": "^18.11.9",
     "@types/react": "^18.0.25",
     "@types/react-dom": "^18.0.9",
-    "autoprefixer": "^10.4.13",
     "cypress": "^11.2.0",
     "cypress-cucumber-preprocessor": "^4.3.1",
     "eslint": "^8.28.0",
@@ -53,7 +50,7 @@
     "postcss": "^8.4.19",
     "prettier": "^2.7.1",
     "prettier-plugin-tailwindcss": "^0.1.13",
-    "tailwindcss": "^3.2.4",
+    "tailwindcss": "^3.4.0",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.3"
   }

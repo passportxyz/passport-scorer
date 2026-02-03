@@ -38,7 +38,7 @@ const appMetadata = {
   logo: "/assets/gitcoinLogoDark.svg",
   explore: onBoardExploreUrl,
   description:
-    "Take control of your online identity by creating a decentralized record of your credentials. By collecting “stamps” of validation for your identity and online reputation, you can gain access to the most trustworthy web3 experiences and maximize your ability to benefit from platforms like Gitcoin Grants. The more you verify your identity, the more opportunities you will have to vote and participate across the web3.",
+    "Take control of your online identity by creating a decentralized record of your credentials. By collecting "stamps" of validation for your identity and online reputation, you can gain access to the most trustworthy web3 experiences and maximize your ability to benefit from platforms like Human Grants. The more you verify your identity, the more opportunities you will have to vote and participate across the web3.",
   recommendedInjectedWallets: [
     { name: "Coinbase", url: "https://wallet.coinbase.com/" },
     { name: "MetaMask", url: "https://metamask.io" },

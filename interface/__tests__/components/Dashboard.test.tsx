@@ -9,10 +9,10 @@ describe("Dashboard", () => {
     const notActiveTab = screen.getByTestId("scorer-tab");
     await waitFor(async () => {
       expect(activeTab).toHaveClass(
-        "flex w-full items-center justify-start rounded-md px-3 py-2 text-blue-darkblue border border-gray-lightgray bg-white"
+        "flex w-full items-center justify-start rounded-md px-3 py-2 text-foreground border border-border bg-background"
       );
       expect(notActiveTab).toHaveClass(
-        "flex w-full items-center justify-start rounded-md px-3 py-2 text-blue-darkblue mb-2"
+        "flex w-full items-center justify-start rounded-md px-3 py-2 text-foreground mb-2"
       );
     });
   });

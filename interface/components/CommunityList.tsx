@@ -14,8 +14,7 @@ import {
 } from "../utils/account-requests";
 
 import UseCaseModal from "./UseCaseModal";
-import { useToast } from "@chakra-ui/react";
-import { successToast } from "./Toasts";
+import { useToast } from "../ui/Toast";
 import { StarIcon } from "@heroicons/react/24/outline";
 import { PlusIcon } from "@heroicons/react/24/solid";
 
@@ -30,11 +29,13 @@ const CommunityList = () => {
   const fetchCommunities = useCallback(async () => {
     try {
       setCommunityLoadingStatus("loading");
-      setCommunities(await getCommunities());
+      const data = await getCommunities();
+      setCommunities(Array.isArray(data) ? data : []);
       setCommunityLoadingStatus("done");
     } catch (exc) {
       const error = exc as { response: { status: number } };
       setCommunityLoadingStatus("error");
+      setCommunities([]);
       setError("There was an error fetching your Communities.");
     }
   }, []);
@@ -43,7 +44,7 @@ const CommunityList = () => {
     const scorerCreated = Boolean(localStorage.getItem("scorerCreated"));
 
     if (scorerCreated) {
-      toast(successToast("Your Scorer has been created.", toast));
+      toast.success("Your Scorer has been created.");
       localStorage.removeItem("scorerCreated");
     }
 
@@ -77,8 +78,8 @@ const CommunityList = () => {
   });
 
   const communityList = (
-    <div className="overflow-hidden rounded-md border border-gray-lightgray bg-white">
-      <ul role="list" className="divide-y divide-gray-lightgray">
+    <div className="overflow-hidden rounded-[12px] border border-gray-200 bg-white shadow-card">
+      <ul role="list" className="divide-y divide-gray-100">
         {communityItems}
       </ul>
     </div>
@@ -103,9 +104,9 @@ const CommunityList = () => {
           <div className="mt-5 flex flex-wrap">
             <button
               className={
-                "flex rounded-md bg-purple-gitcoinpurple px-4 py-2 align-middle text-white" +
+                "flex rounded-[12px] bg-black px-4 py-2 align-middle text-white font-medium hover:bg-gray-800 transition-colors" +
                 (communities.length >= 5
-                  ? " cursor-not-allowed disabled:bg-gray-lightgray disabled:text-purple-darkpurple"
+                  ? " cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
                   : "")
               }
               onClick={() => {
@@ -118,7 +119,7 @@ const CommunityList = () => {
               <PlusIcon className="mr-2 inline w-6 self-center" />{" "}
               <span className="self-center">Scorer</span>
             </button>
-            <p className="ml-5 self-center py-3 text-xs text-purple-softpurple">
+            <p className="ml-5 self-center py-3 text-xs text-gray-500">
               The scorer limit is five.
             </p>
           </div>

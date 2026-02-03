@@ -1,23 +1,56 @@
-@import url("https://fonts.googleapis.com/css?family=Libre+Franklin:400,600|Miriam+Libre:400");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Design system color scheme - Passport App Light Theme */
+:root {
+  --background: #F3F4F6;
+  --foreground: #111827;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --border: #E5E7EB;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --success: #10B981;
+  --error: #D44D6E;
+  --warning: #eab308;
+  --code-bg: #f3f4f6;
+  --card: #ffffff;
+  --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --radius: 12px;
+}
+
+.dark {
+  --background: #F3F4F6;
+  --foreground: #111827;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --border: #E5E7EB;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --success: #10B981;
+  --error: #D44D6E;
+  --warning: #eab308;
+  --code-bg: #f3f4f6;
+  --card: #ffffff;
+  --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --radius: 12px;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
   button:disabled {
-    @apply bg-[#F0EBFF] text-[#5932C4];
+    @apply bg-gray-200 text-gray-400 cursor-not-allowed;
   }
 }
 
-.font-libre-franklin {
-  font-family: "Libre Franklin";
-}
-
-.font-miriam-libre {
-  font-family: "Miriam Libre";
-}
-
+/* Web3-Onboard overrides */
 :root {
   --onboard-shadow-3: none;
   --account-center-position-top: -14px;
@@ -26,15 +59,52 @@
   --onboard-action-required-btn-text-color: #fff;
 }
 
-@media (max-width: 1020px /* md */) {
+@media (max-width: 1020px) {
   :root {
     --account-center-position-right: 24px;
   }
 }
 
-@media (max-width: 480px /* base */) {
+@media (max-width: 480px) {
   :root {
     --account-center-position-right: 0px;
     --onboard-modal-top: 0;
   }
+}
+
+/* Legacy font classes for gradual migration */
+.font-libre-franklin {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.font-miriam-libre {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Card component styles */
+.card {
+  @apply bg-white rounded-xl shadow-sm border border-border;
+}
+
+.card-hover {
+  @apply hover:shadow-md transition-shadow duration-200;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground);
 }
