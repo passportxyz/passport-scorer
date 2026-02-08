@@ -9,6 +9,7 @@ import api_logging as logging
 from account.models import (
     Community,
     Customization,
+    CustomPlatform,
     EmbedSectionOrder,
     EmbedStampPlatform,
 )
@@ -135,10 +136,27 @@ class EmbedStampSectionSchema(Schema):
     items: List[EmbedStampSectionItemSchema]
 
 
+class CustomStampSchema(Schema):
+    """Schema for a single custom stamp (AllowList or DeveloperList)"""
+    provider_id: str
+    display_name: str
+    description: Optional[str] = None
+    weight: float
+
+
+class CustomStampsSchema(Schema):
+    """Custom stamps configured for this scorer (Guest List + Developer List)"""
+    allow_list_stamps: List[CustomStampSchema] = []
+    developer_list_stamps: List[CustomStampSchema] = []
+
+
 class EmbedConfigResponse(Schema):
     """Combined response for embed configuration"""
     weights: dict[str, float]
     stamp_sections: List[EmbedStampSectionSchema]
+    custom_stamps: CustomStampsSchema = CustomStampsSchema(
+        allow_list_stamps=[], developer_list_stamps=[]
+    )
 
 
 def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSectionSchema]:
@@ -189,14 +207,57 @@ def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSection
         return []
 
 
+def handle_get_custom_stamps(community_id: str) -> CustomStampsSchema:
+    """
+    Get custom stamps (AllowList / Guest List and Developer List) for this community.
+    These are configured at the Customization level and surfaced in Embed.
+    """
+    try:
+        customization = Customization.objects.get(scorer_id=community_id)
+    except Customization.DoesNotExist:
+        return CustomStampsSchema(allow_list_stamps=[], developer_list_stamps=[])
+
+    allow_list_stamps = [
+        CustomStampSchema(
+            provider_id=f"AllowList#{al.address_list.name}",
+            display_name=al.address_list.name,
+            description="Verify you are part of this community.",
+            weight=float(al.weight),
+        )
+        for al in customization.allow_lists.select_related("address_list").all()
+    ]
+
+    developer_list_stamps = [
+        CustomStampSchema(
+            provider_id=cc.ruleset.provider_id,
+            display_name=cc.display_name,
+            description=cc.description or "",
+            weight=float(cc.weight),
+        )
+        for cc in customization.custom_credentials.select_related("platform", "ruleset").filter(
+            platform__platform_type=CustomPlatform.PlatformType.DeveloperList
+        )
+    ]
+
+    return CustomStampsSchema(
+        allow_list_stamps=allow_list_stamps,
+        developer_list_stamps=developer_list_stamps,
+    )
+
+
 def handle_get_embed_config(community_id: str) -> EmbedConfigResponse:
     """
-    Get combined embed configuration: weights and stamp sections.
+    Get combined embed configuration: weights, stamp sections, and custom stamps.
     Returns weights with empty stamp_sections if sections lookup fails (partial data).
     """
     from ceramic_cache.api.v1 import handle_get_scorer_weights
 
     weights = handle_get_scorer_weights(community_id)
     stamp_sections = handle_get_embed_stamp_sections(community_id)
+    custom_stamps = handle_get_custom_stamps(community_id)
 
-    return EmbedConfigResponse(weights=weights, stamp_sections=stamp_sections)
+    return EmbedConfigResponse(
+        weights=weights,
+        stamp_sections=stamp_sections,
+        custom_stamps=custom_stamps,
+    )
