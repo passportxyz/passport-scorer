@@ -33,3 +33,6 @@ fi
 if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
     echo "Basic dependencies installed!"
 fi
+
+sudo npm install -g agent-browser
+agent-browser install --with-deps
