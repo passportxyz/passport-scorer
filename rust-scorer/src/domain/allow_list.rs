@@ -33,14 +33,10 @@ pub async fn get_credential_definition(
     provider_id: &str,
     pool: &PgPool,
 ) -> Result<CredentialDefinitionResponse, DomainError> {
-    // URL-decode provider_id (replace %23 with #)
-    let decoded_provider = urlencoding::decode(provider_id)
-        .map_err(|e| DomainError::Validation(format!("Invalid provider_id encoding: {}", e)))?;
-
-    let ruleset = get_credential_ruleset(pool, &decoded_provider)
+    let ruleset = get_credential_ruleset(pool, provider_id)
         .await
         .map_err(|e| DomainError::Database(e.to_string()))?
-        .unwrap_or(serde_json::json!({}));
+        .ok_or_else(|| DomainError::NotFound(format!("No credential ruleset found for provider: {}", provider_id)))?;
 
     Ok(CredentialDefinitionResponse { ruleset })
 }
