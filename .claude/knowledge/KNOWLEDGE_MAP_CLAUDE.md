@@ -82,6 +82,8 @@
 
 ## 🔄 Workflows
 
+- @workflows/container_dev_setup.md - Ubuntu/container setup scripts with micromamba, environment detection
+
 ### Local Knowledge
 - rust-scorer/.knowledge/testing.md - Test organization (relocated from global)
 - dev-setup/.knowledge/setup-guide.md - Modular setup scripts (relocated from global)
