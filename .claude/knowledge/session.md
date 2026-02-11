@@ -150,3 +150,39 @@ The 3472-embed-stamp-customization branch adds customizable stamp sections for t
 **Files**: api/registry/weight_models.py, api/account/models.py, api/registry/admin.py, api/embed/api.py
 ---
 
+### [03:00] [workflow] Container dev setup without root access
+**Details**: This container (Debian 12 bookworm, Node.js base image) runs as 'node' user without root/sudo access. To set up the full dev environment:
+
+1. Install micromamba from GitHub releases (static binary, no root needed)
+2. Create passport-dev environment with: python=3.12, postgresql=14, redis-server, gcc, gxx, make, pkg-config, openssl, libpq
+3. Create symlink: ar -> x86_64-conda-linux-gnu-ar (needed by ring crate)
+4. Install Poetry via pip in micromamba env
+5. Install Rust via rustup (installs to ~/.cargo)
+6. PostgreSQL runs in userspace at ~/pgdata (owned by node user, no postgres system user needed)
+7. Redis runs daemonized: redis-server --daemonize yes --bind 127.0.0.1
+
+Key environment variables needed for Rust compilation:
+- CC=$CONDA_PREFIX/bin/gcc
+- AR=$CONDA_PREFIX/bin/ar
+- LIBRARY_PATH, LD_LIBRARY_PATH, C_INCLUDE_PATH, PKG_CONFIG_PATH pointing to $CONDA_PREFIX
+- SQLX_OFFLINE=true (uses cached .sqlx/ queries)
+
+Activation helper script: source ~/activate-passport-dev.sh
+**Files**: dev-setup/install-ubuntu-container.sh, dev-setup/setup-ubuntu.sh
+---
+
+### [14:08] [workflow] Ubuntu/container dev setup scripts overview
+**Details**: Three new scripts were created for Ubuntu/Debian/container environments alongside the original Fedora scripts:
+
+1. **install-ubuntu-container.sh** - For containers without root access. Uses micromamba for all deps (python, postgres, redis, gcc). Installs Rust via rustup. Creates ~/activate-passport-dev.sh for environment activation.
+
+2. **setup-ubuntu.sh** - Database setup, Django migrations, test data creation. Works with the micromamba-installed PostgreSQL running in userspace.
+
+3. **install-ubuntu.sh** - For Ubuntu systems with sudo/apt access (standard installs).
+
+Key pattern: The scripts detect container vs systemd environments and adjust PostgreSQL/Redis startup accordingly. Container environments use direct binary execution with --daemonize instead of systemctl.
+
+Tests verified working: `cd api && poetry run pytest account/test/test_account.py` passes all 4 tests.
+**Files**: dev-setup/install-ubuntu-container.sh, dev-setup/setup-ubuntu.sh, dev-setup/install-ubuntu.sh
+---
+
