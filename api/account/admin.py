@@ -943,8 +943,9 @@ class AddressListAdmin(ScorerModelAdmin):
 
 @admin.register(CustomPlatform)
 class CustomPlatformAdmin(admin.ModelAdmin):
-    list_display = ["name", "display_name", "description"]
-    search_display = ["name", "display_name", "description"]
+    list_display = ["name", "display_name", "platform_type", "is_evm", "description"]
+    search_fields = ["name", "display_name", "description"]
+    list_filter = ["platform_type", "is_evm"]
 
 
 @admin.register(CustomCredentialRuleset)

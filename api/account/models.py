@@ -629,12 +629,12 @@ class Customization(models.Model):
 
     def get_customization_dynamic_weights(self) -> dict:
         weights = {}
-        for allow_list in self.allow_lists.all():
+        for allow_list in self.allow_lists.select_related('address_list').all():
             weights[f"AllowList#{allow_list.address_list.name}"] = str(
                 allow_list.weight
             )
 
-        for custom_credential in self.custom_credentials.all():
+        for custom_credential in self.custom_credentials.select_related('ruleset').all():
             weights[custom_credential.ruleset.provider_id] = str(
                 custom_credential.weight
             )
@@ -643,21 +643,17 @@ class Customization(models.Model):
 
     async def aget_customization_dynamic_weights(self) -> dict:
         weights = {}
-        async for allow_list in self.allow_lists.all():
-            address_list = await AddressList.objects.aget(pk=allow_list.address_list_id)
-            weights[f"AllowList#{address_list.name}"] = str(allow_list.weight)
+        async for allow_list in self.allow_lists.select_related('address_list').all():
+            weights[f"AllowList#{allow_list.address_list.name}"] = str(allow_list.weight)
 
-        async for custom_credential in self.custom_credentials.all():
-            rulesset = await CustomCredentialRuleset.objects.aget(
-                id=custom_credential.ruleset_id
-            )
-            weights[rulesset.provider_id] = str(custom_credential.weight)
+        async for custom_credential in self.custom_credentials.select_related('ruleset').all():
+            weights[custom_credential.ruleset.provider_id] = str(custom_credential.weight)
 
         return weights
 
     def get_custom_stamps(self):
         stamps = {}
-        for custom_credential in self.custom_credentials.all():
+        for custom_credential in self.custom_credentials.select_related('platform', 'ruleset').all():
             platform = custom_credential.platform
             if platform.name not in stamps:
                 stamps[platform.name] = {
@@ -673,7 +669,7 @@ class Customization(models.Model):
                             "url": platform.banner_cta_url,
                         },
                     },
-                    "isEVM": False,  # platform.one_click_flow,
+                    "isEVM": platform.is_evm,
                     "credentials": [],
                 }
             stamps[platform.name]["credentials"].append(
@@ -739,6 +735,7 @@ class AllowList(models.Model):
 class CustomPlatform(models.Model):
     class PlatformType(models.TextChoices):
         DeveloperList = ("DEVEL", "Developer List")
+        NFTHolder = ("NFT", "NFT Holder")
 
     # Used in the frontend to determine the Platform
     # definition and getProviderPayload to use
@@ -768,6 +765,11 @@ class CustomPlatform(models.Model):
     )
     banner_cta_url = models.CharField(max_length=256, blank=True, null=True)
 
+    is_evm = models.BooleanField(
+        default=False,
+        help_text="Whether this platform supports EVM on-chain verification",
+    )
+
     def __str__(self):
         return f"{self.name}"
 
@@ -786,6 +788,7 @@ def validate_custom_stamp_ruleset_definition(value):
 class CustomCredentialRuleset(models.Model):
     class CredentialType(models.TextChoices):
         DeveloperList = ("DEVEL", "Developer List")
+        NFTHolder = ("NFT", "NFT Holder")
 
     credential_type = models.CharField(
         max_length=5, choices=CredentialType.choices, blank=False, null=False
