@@ -1,7 +1,7 @@
 import json
 from hashlib import sha256
-from django.db import migrations
 
+from django.db import migrations
 
 EXAMPLE_DEFINITION = {
     "name": "ExampleNFT",
@@ -17,9 +17,9 @@ EXAMPLE_DEFINITION = {
 }
 
 EXAMPLE_PROVIDER_ID = "NFTHolder#ExampleNFT#{}".format(
-    sha256(
-        json.dumps(EXAMPLE_DEFINITION, sort_keys=True).encode("utf8")
-    ).hexdigest()[0:8]
+    sha256(json.dumps(EXAMPLE_DEFINITION, sort_keys=True).encode("utf8")).hexdigest()[
+        0:8
+    ]
 )
 
 

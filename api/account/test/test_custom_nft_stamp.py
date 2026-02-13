@@ -7,11 +7,12 @@ from django.contrib.auth import get_user_model
 from account.models import (
     Account,
     Community,
-    Customization,
     CustomCredential,
     CustomCredentialRuleset,
+    Customization,
     CustomPlatform,
 )
+from scorer.test.conftest import weight_config  # noqa: F401
 
 User = get_user_model()
 
@@ -27,7 +28,7 @@ def test_account(test_user):
 
 
 @pytest.fixture
-def community(test_account):
+def community(test_account, weight_config):  # noqa: F811
     return Community.objects.create(
         name="test-community",
         description="Test community",

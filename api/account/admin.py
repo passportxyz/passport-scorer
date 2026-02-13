@@ -711,6 +711,7 @@ class CustomCredentialInline(admin.TabularInline):
 @admin.register(EmbedSectionHeader)
 class EmbedSectionHeaderAdmin(ScorerModelAdmin):
     """Admin for global embed section headers"""
+
     list_display = ["id", "name"]
     search_fields = ["name"]
 
@@ -728,28 +729,28 @@ class EmbedSectionOrderInline(admin.TabularInline):
 class EmbedStampPlatformFormSet(BaseInlineFormSet):
     def clean(self):
         super().clean()
-        if not hasattr(self, 'instance') or not self.instance.pk:
+        if not hasattr(self, "instance") or not self.instance.pk:
             return
 
         # Get sections already saved in the database for this customization
         valid_section_ids = set(
-            EmbedSectionOrder.objects.filter(
-                customization=self.instance
-            ).values_list('section_id', flat=True)
+            EmbedSectionOrder.objects.filter(customization=self.instance).values_list(
+                "section_id", flat=True
+            )
         )
 
         # Check POST data for sections being added or deleted in the same save
         if self.data:
-            prefix = 'embed_section_orders'
-            total_forms_key = f'{prefix}-TOTAL_FORMS'
+            prefix = "embed_section_orders"
+            total_forms_key = f"{prefix}-TOTAL_FORMS"
             if total_forms_key in self.data:
                 try:
                     total = int(self.data.get(total_forms_key, 0))
                     for i in range(total):
-                        section_key = f'{prefix}-{i}-section'
-                        delete_key = f'{prefix}-{i}-DELETE'
+                        section_key = f"{prefix}-{i}-section"
+                        delete_key = f"{prefix}-{i}-DELETE"
                         section_id = self.data.get(section_key)
-                        is_deleted = self.data.get(delete_key) == 'on'
+                        is_deleted = self.data.get(delete_key) == "on"
                         if section_id:
                             try:
                                 sid = int(section_id)
@@ -763,12 +764,12 @@ class EmbedStampPlatformFormSet(BaseInlineFormSet):
                     pass
 
         for form in self.forms:
-            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
-                section = form.cleaned_data.get('section')
+            if form.cleaned_data and not form.cleaned_data.get("DELETE", False):
+                section = form.cleaned_data.get("section")
                 if section and section.id not in valid_section_ids:
                     form.add_error(
-                        'section',
-                        f'Section "{section.name}" must be added to Embed Sections first.'
+                        "section",
+                        f'Section "{section.name}" must be added to Embed Sections first.',
                     )
 
 
