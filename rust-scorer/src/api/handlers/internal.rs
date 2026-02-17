@@ -204,9 +204,7 @@ pub async fn internal_credential_definition_handler(
 ) -> ApiResult<Json<domain::allow_list::CredentialDefinitionResponse>> {
     info!("Processing internal credential definition request");
 
-    // URL decode the provider_id
-    let provider_id = provider_id.replace("%23", "#");
-
+    // Axum's Path extractor already URL-decodes path parameters (e.g. %23 -> #)
     Ok(Json(domain::allow_list::get_credential_definition(&provider_id, &pool).await?))
 }
 
