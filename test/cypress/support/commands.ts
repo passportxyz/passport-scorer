@@ -5,6 +5,8 @@
 import { Wallet } from "ethers";
 import { SiweMessage } from "siwe";
 
+const SIWE_EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
+
 const SCORER_BACKEND = Cypress.env("serverUrl");
 
 console.log("DEFINING COMMANDS ...");
@@ -14,7 +16,7 @@ Cypress.Commands.add("siwe", async () => {
   const nonce = (await response.json()).nonce;
   console.log("nonce: ", nonce);
   const wallet = Wallet.fromMnemonic(
-    "chief loud snack trend chief net field husband vote message decide replace"
+    "chief loud snack trend chief net field husband vote message decide replace",
   );
 
   const address = wallet.address;
@@ -28,6 +30,7 @@ Cypress.Commands.add("siwe", async () => {
     chainId,
     nonce,
     issuedAt: new Date().toISOString(),
+    expirationTime: new Date(Date.now() + SIWE_EXPIRATION_MS).toISOString(),
   };
   const siweMessage = new SiweMessage(message);
 
