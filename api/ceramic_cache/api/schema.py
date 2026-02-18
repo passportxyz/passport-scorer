@@ -1,6 +1,6 @@
 """Ceramic Cache API Schema"""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from ninja_schema import Schema
 
@@ -47,15 +47,6 @@ class GetStampsWithInternalV2ScoreResponse(GetStampResponse):
     """Internal response that includes stamps and score with human points data"""
 
     score: InternalV2ScoreResponse
-
-
-class CacaoVerifySubmit(Schema):
-    issuer: str
-    signatures: List[Dict]
-    payload: str
-    nonce: str
-    cid: List[int]
-    cacao: List[int]
 
 
 class SiweVerifySubmit(Schema):

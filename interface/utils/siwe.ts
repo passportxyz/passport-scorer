@@ -3,6 +3,8 @@ import { ethers } from "ethers";
 import { SiweMessage } from "siwe";
 import { getNonce } from "./account-requests";
 
+const SIWE_EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
+
 const getSiweMessage = async (wallet: WalletState, address: string) => {
   try {
     const nonce = await getNonce();
@@ -15,6 +17,7 @@ const getSiweMessage = async (wallet: WalletState, address: string) => {
       version: "1",
       chainId: Number(wallet.chains[0].id),
       nonce,
+      expirationTime: new Date(Date.now() + SIWE_EXPIRATION_MS).toISOString(),
     });
 
     return message;

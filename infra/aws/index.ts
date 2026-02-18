@@ -814,6 +814,18 @@ const apiEnvironment = [
     ),
   },
   {
+    name: "SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE",
+    value: passportXyzDomainName.apply((passportXyzDomainNameStr) =>
+      JSON.stringify([`app.${passportXyzDomainNameStr}`])
+    ),
+  },
+  {
+    name: "SIWE_ALLOWED_DOMAINS_ACCOUNT",
+    value: passportXyzDomainName.apply((passportXyzDomainNameStr) =>
+      JSON.stringify([`developer.${passportXyzDomainNameStr}`])
+    ),
+  },
+  {
     name: "VERIFIER_URL",
     value: "http://core-alb.private.gitcoin.co/verifier/verify",
   },
@@ -1657,6 +1669,7 @@ const appApiResult = createAppApiLambdaFunctions({
   vpcPrivateSubnetIds: vpcPrivateSubnetIds,
   lambdaLayerArn: pythonLambdaLayer.arn,
   bucketId: codeBucketId,
+  passportXyzDomainName: passportXyzDomainName as pulumi.Output<string>,
 });
 
 const embedResult = createEmbedLambdaFunctions({

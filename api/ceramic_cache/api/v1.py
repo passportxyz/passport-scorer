@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Type
 
 import jwt
-import requests
 from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -31,6 +30,7 @@ import api_logging as logging
 import tos.api
 import tos.schema
 from account.models import Account, Community, Nonce
+from account.siwe_validation import validate_siwe_domain, validate_siwe_expiration
 from ceramic_cache.utils import get_utc_time
 from registry.api.utils import (
     is_valid_address,
@@ -58,10 +58,8 @@ from ..exceptions import (
     TooManyStampsException,
 )
 from ..models import CeramicCache
-from ..utils import validate_dag_jws_payload
 from .schema import (
     AccessTokenResponse,
-    CacaoVerifySubmit,
     CachedStampResponse,
     CacheStampPayload,
     CalcScorePayload,
@@ -625,18 +623,6 @@ class DbCacheToken(RefreshToken):
     lifetime: timedelta = timedelta(days=7)
 
 
-@router.post(
-    "authenticate",
-    response=AccessTokenResponse,
-)
-def authenticate(request, payload: CacaoVerifySubmit):
-    """
-    This method will validate a jws created with DagJWS, will validate by forwarding this to our validator
-    it and return a JWT token.
-    """
-    return handle_authenticate(payload)
-
-
 def generate_access_token_response(user_did: str) -> AccessTokenResponse:
     token = DbCacheToken()
     token["did"] = user_did
@@ -745,59 +731,6 @@ def verify_signature_erc6492(
     except Exception as e:
         log.error(f"ERC-6492 verification error for {address}: {e}")
         return False
-
-
-def handle_authenticate(payload: CacaoVerifySubmit) -> AccessTokenResponse:
-    # First validate the payload
-    # This will ensure that the payload signature was made for our unique nonce
-    try:
-        if not Nonce.use_nonce(payload.nonce):
-            log.error("Invalid or expired nonce: '%s'", payload.nonce)
-            raise FailedVerificationException(detail="Invalid nonce!")
-
-        if not validate_dag_jws_payload({"nonce": payload.nonce}, payload.payload):
-            log.error("Failed to validate nonce: '%s'", payload.nonce)
-            raise FailedVerificationException(detail="Invalid nonce or payload!")
-    except Exception as exc:
-        log.error("Failed authenticate request: '%s'", payload.dict(), exc_info=True)
-        raise FailedVerificationException(detail="Invalid nonce or payload!") from exc
-
-    try:
-        res = requests.post(
-            settings.VERIFIER_URL,
-            json={
-                "signatures": payload.signatures,
-                "payload": payload.payload,
-                "cid": payload.cid,
-                "cacao": payload.cacao,
-                "issuer": payload.issuer,
-            },
-        )
-
-        if res.status_code == 200:
-            data = res.json()
-            if data.get("status") == "ok":
-                return generate_access_token_response(payload.issuer)
-
-        log.error(
-            "Failed to validate authentication payload (jws)! Response: %s\n%s",
-            res,
-            res.json(),
-        )
-        raise FailedVerificationException(detail=f"JWS validation failed: {res.json()}")
-
-    except APIException:
-        # re-raise API exceptions
-        raise
-    except Exception as esc:
-        log.error(
-            "Failed to authenticate request (verify_jws failed): '%s'",
-            payload.dict(),
-            exc_info=True,
-        )
-        raise APIException(
-            detail=f"Failed to authenticate request: {str(esc)}"
-        ) from esc
 
 
 def get_detailed_score_response_for_address(
@@ -910,6 +843,21 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         except ValueError:
             log.error("Invalid Ethereum address: '%s'", address_raw)
             raise FailedVerificationException(detail="Invalid address format!")
+
+        # Validate SIWE domain
+        message_domain = payload.message.get("domain")
+        if not validate_siwe_domain(message_domain, settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE):
+            log.warning(
+                "SIWE domain rejected: domain=%r, address=%r",
+                message_domain, address_raw,
+            )
+            raise FailedVerificationException(detail="Verification failed!")
+
+        # Validate SIWE expiration
+        expiration_time = payload.message.get("expirationTime")
+        if not validate_siwe_expiration(expiration_time):
+            log.warning("SIWE message expired: address=%r", address_raw)
+            raise FailedVerificationException(detail="Verification failed!")
 
         # Validate and consume nonce (5-minute TTL)
         if not Nonce.use_nonce(nonce):
