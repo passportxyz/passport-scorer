@@ -27,6 +27,16 @@ DEBUG = env("DEBUG", default=True)
 
 ALLOWED_HOSTS = env.json("ALLOWED_HOSTS", default=[])
 
+SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE = env.json(
+    "SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE",
+    default=[],  # Fail closed: empty = reject all
+)
+
+SIWE_ALLOWED_DOMAINS_ACCOUNT = env.json(
+    "SIWE_ALLOWED_DOMAINS_ACCOUNT",
+    default=[],  # Fail closed: empty = reject all
+)
+
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
 

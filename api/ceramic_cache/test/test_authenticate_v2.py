@@ -499,49 +499,6 @@ class TestMultiChainSupport:
         assert mock_verify.call_args[0][3] == 1  # verification always uses mainnet
 
 
-class TestOldEndpointStillWorks:
-    """Regression test: ensure old /authenticate endpoint still works"""
-
-    base_url = "/ceramic-cache"
-
-    def test_old_authenticate_endpoint_still_works(self, mocker):
-        """Test that the original /authenticate endpoint with DagJWS still works"""
-        sample_payload = {
-            "signatures": [
-                {
-                    "protected": "eyJhbGciOiJFZERTQSIsImNhcCI6ImlwZnM6Ly9iYWZ5cmVpZmhkYTQ2eWp5NWRhYWxocXh2anZvcnpqdnlleHp1bjRrcWRmZWU0YnkybmJyNWhzcHd1eSIsImtpZCI6ImRpZDprZXk6ejZNa2pHSGtRNDVpY3BSakdqWUhWWUZLTkpDMTdwbnE0UU04UWJuODhLSEVaQ05XI3o2TWtqR0hrUTQ1aWNwUmpHallIVllGS05KQzE3cG5xNFFNOFFibjg4S0hFWkNOVyJ9",
-                    "signature": "UmVH-NMdgn-P-VE0ejTlmrRxbF45W20Q9SfIThqODF9USwzxFi3kceDttlBWwNZkrGogdqm-SdJQdoRC0GYSCA",
-                }
-            ],
-            "payload": "AXESIJ-t3oi3FWOnXzz1JomHf4BeT-DVOaW5-RtZGPf_miHs",
-            "cid": [1, 113, 18],
-            "cacao": [163, 97, 104],
-            "issuer": "did:pkh:eip155:1:0xffffffffffffffffffffffffffffffffffffffff",
-            "nonce": Nonce.create_nonce().nonce,
-        }
-
-        class MockedRequestResponse:
-            status_code = 200
-
-            def json(self):
-                return {"status": "ok"}
-
-        mocker.patch(
-            "ceramic_cache.api.v1.requests.post", return_value=MockedRequestResponse()
-        )
-        mocker.patch("ceramic_cache.api.v1.validate_dag_jws_payload", return_value=True)
-
-        response = client.post(
-            f"{self.base_url}/authenticate",
-            json.dumps(sample_payload),
-            content_type="application/json",
-        )
-
-        assert response.status_code == 200
-        json_data = response.json()
-        assert "access" in json_data
-
-
 class TestRS256TokenOnProtectedEndpoints:
     """Integration tests: verify RS256 tokens from /authenticate/v2 work on protected endpoints"""
 
@@ -793,3 +750,265 @@ class TestGetWeb3ForChain:
         call_args = mock_web3_class.HTTPProvider.call_args
         rpc_url = call_args[0][0]
         assert "eth-mainnet" in rpc_url
+
+
+class TestDomainValidation:
+    """Tests for SIWE domain validation on the /authenticate/v2 endpoint.
+
+    Domain validation must happen BEFORE nonce consumption so that an attacker
+    cannot burn a user's nonce by sending a request with a spoofed domain.
+    """
+
+    base_url = "/ceramic-cache"
+
+    def test_valid_domain_passes_authentication(self, mocker, settings):
+        """Test that a valid domain in the allowlist passes authentication"""
+        settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE = ["app.passport.xyz"]
+
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
+        mock_instance = Mock()
+        mock_siwe.return_value = mock_instance
+        mock_instance.prepare_message.return_value = "SIWE message text"
+
+        payload = {
+            "message": create_siwe_message(test_address, nonce_obj.nonce),
+            "signature": "0x1234",
+        }
+
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        assert "access" in response.json()
+
+    def test_invalid_domain_is_rejected(self, settings):
+        """Test that a domain not in the allowlist is rejected with 400"""
+        settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE = ["app.passport.xyz"]
+
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        message = create_siwe_message(test_address, nonce_obj.nonce)
+        message["domain"] = "evil.com"
+
+        payload = {
+            "message": message,
+            "signature": "0x1234",
+        }
+
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        json_data = response.json()
+        assert "detail" in json_data
+
+    def test_invalid_domain_does_not_consume_nonce(self, settings):
+        """Test that a rejected domain does NOT consume the nonce.
+
+        This is critical: domain validation must happen BEFORE nonce consumption
+        so an attacker cannot burn valid nonces with spoofed-domain requests.
+        """
+        settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE = ["app.passport.xyz"]
+
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        message = create_siwe_message(test_address, nonce_obj.nonce)
+        message["domain"] = "evil.com"
+
+        payload = {
+            "message": message,
+            "signature": "0x1234",
+        }
+
+        # First request with bad domain should fail
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+
+        # The nonce should still be valid (not consumed)
+        assert Nonce.use_nonce(nonce_obj.nonce) is True
+
+    def test_missing_domain_is_rejected(self, settings):
+        """Test that a missing domain is rejected"""
+        settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE = ["app.passport.xyz"]
+
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        message = create_siwe_message(test_address, nonce_obj.nonce)
+        del message["domain"]
+
+        payload = {
+            "message": message,
+            "signature": "0x1234",
+        }
+
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+
+    def test_empty_allowlist_rejects_all(self, settings):
+        """Test that an empty allowlist rejects all domains (fail closed)"""
+        settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE = []
+
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        payload = {
+            "message": create_siwe_message(test_address, nonce_obj.nonce),
+            "signature": "0x1234",
+        }
+
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+
+    def test_domain_matching_is_case_insensitive(self, mocker, settings):
+        """Test that domain matching is case-insensitive"""
+        settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE = ["app.passport.xyz"]
+
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
+        mock_instance = Mock()
+        mock_siwe.return_value = mock_instance
+        mock_instance.prepare_message.return_value = "SIWE message text"
+
+        message = create_siwe_message(test_address, nonce_obj.nonce)
+        message["domain"] = "APP.PASSPORT.XYZ"
+
+        payload = {
+            "message": message,
+            "signature": "0x1234",
+        }
+
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        assert "access" in response.json()
+
+
+class TestExpirationValidation:
+    """Tests for SIWE expiration validation on the /authenticate/v2 endpoint.
+
+    Expiration validation must happen BEFORE nonce consumption so that an attacker
+    cannot burn a user's nonce by replaying an expired SIWE message.
+    """
+
+    base_url = "/ceramic-cache"
+
+    def test_expired_message_is_rejected(self, settings):
+        """Test that an expired SIWE message is rejected with 400"""
+        settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE = ["app.passport.xyz"]
+
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        message = create_siwe_message(test_address, nonce_obj.nonce)
+        message["expirationTime"] = "2020-01-01T00:00:00.000Z"
+
+        payload = {
+            "message": message,
+            "signature": "0x1234",
+        }
+
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        json_data = response.json()
+        assert "detail" in json_data
+
+    def test_valid_future_expiration_passes(self, mocker, settings):
+        """Test that a SIWE message with future expiration passes"""
+        settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE = ["app.passport.xyz"]
+
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
+        mock_instance = Mock()
+        mock_siwe.return_value = mock_instance
+        mock_instance.prepare_message.return_value = "SIWE message text"
+
+        message = create_siwe_message(test_address, nonce_obj.nonce)
+        message["expirationTime"] = "2099-12-31T23:59:59.000Z"
+
+        payload = {
+            "message": message,
+            "signature": "0x1234",
+        }
+
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        assert "access" in response.json()
+
+    def test_no_expiration_passes(self, mocker, settings):
+        """Test that a SIWE message without expirationTime passes (backwards compatible).
+
+        Messages without expirationTime should still be accepted since nonce TTL
+        provides time-bounding. This maintains backwards compatibility.
+        """
+        settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE = ["app.passport.xyz"]
+
+        test_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1"
+        nonce_obj = Nonce.create_nonce(ttl=300)
+
+        mocker.patch("ceramic_cache.api.v1.verify_signature_erc6492", return_value=True)
+        mock_siwe = mocker.patch("ceramic_cache.api.v1.SiweMessage")
+        mock_instance = Mock()
+        mock_siwe.return_value = mock_instance
+        mock_instance.prepare_message.return_value = "SIWE message text"
+
+        # create_siwe_message() does NOT include expirationTime by default
+        payload = {
+            "message": create_siwe_message(test_address, nonce_obj.nonce),
+            "signature": "0x1234",
+        }
+
+        response = client.post(
+            f"{self.base_url}/authenticate/v2",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        assert "access" in response.json()

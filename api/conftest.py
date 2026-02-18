@@ -70,3 +70,15 @@ def setup_alchemy_api_key(settings):
 def enable_api_analytics(settings):
     """Enable API analytics tracking for tests"""
     settings.FF_API_ANALYTICS = "on"
+
+
+@pytest.fixture(autouse=True)
+def siwe_domain_settings(settings):
+    """Set default SIWE allowed domains for tests.
+
+    Ceramic cache tests use 'app.passport.xyz' (see create_siwe_message in test_authenticate_v2.py).
+    Account tests use 'localhost' (see authenticate.py SIWE messages).
+    Without this, the default empty allowlist rejects all domains and breaks existing tests.
+    """
+    settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE = ["app.passport.xyz"]
+    settings.SIWE_ALLOWED_DOMAINS_ACCOUNT = ["localhost", "localhost:3000"]
