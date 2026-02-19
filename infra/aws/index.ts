@@ -98,7 +98,7 @@ const vpcID = coreInfraStack.getOutput("vpcId");
 const vpcPrivateSubnetIds = coreInfraStack.getOutput("privateSubnetIds");
 const vpcPublicSubnetIds = coreInfraStack.getOutput("publicSubnetIds");
 
-const passportXyzDomainName = coreInfraStack.getOutput("passportXyzEnvDomainName");
+const passportXyzDomainName = coreInfraStack.getOutput("passportXyzEnvDomainName").apply(String);
 const passportXyzHostedZoneId = coreInfraStack.getOutput("envPassportXyzZoneId");
 const passportXyzCertificateArn = coreInfraStack.getOutput("envPassportXyzCertificateArn");
 
