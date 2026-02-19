@@ -27,6 +27,7 @@ from account.models import (
     FeaturedCampaign,
     Nonce,
 )
+from account.siwe_validation import validate_siwe_domain, validate_siwe_expiration
 from internal.api_key import internal_api_key
 from scorer_weighted.models import (
     BinaryWeightedScorer,
@@ -133,12 +134,7 @@ class ScorerTypeDoesNotExistException(APIException):
 
 class FailedVerificationException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Unable to authorize account"
-
-
-class InvalidDomainException(APIException):
-    status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Unable to authorize requests from this domain"
+    default_detail = "Verification failed!"
 
 
 class InvalidNonceException(APIException):
@@ -195,7 +191,25 @@ class CommunityApiSchema(Schema):
 def submit_signed_challenge(request, payload: SiweVerifySubmit):
     payload.message["chain_id"] = payload.message["chainId"]
     payload.message["issued_at"] = payload.message["issuedAt"]
+    if "expirationTime" in payload.message:
+        payload.message["expiration_time"] = payload.message["expirationTime"]
 
+    # Validate domain and expiration BEFORE consuming the nonce
+    message_domain = payload.message.get("domain")
+    if not validate_siwe_domain(message_domain, settings.SIWE_ALLOWED_DOMAINS_ACCOUNT):
+        log.warning(
+            "SIWE domain rejected: domain=%r, address=%r",
+            message_domain,
+            payload.message.get("address"),
+        )
+        raise FailedVerificationException(detail="Verification failed!")
+
+    expiration_time = payload.message.get("expirationTime")
+    if not validate_siwe_expiration(expiration_time):
+        log.warning("SIWE message expired: address=%r", payload.message.get("address"))
+        raise FailedVerificationException(detail="Verification failed!")
+
+    # THEN consume the nonce (single-use)
     if not Nonce.use_nonce(payload.message["nonce"]):
         raise InvalidNonceException()
 
@@ -208,8 +222,6 @@ def submit_signed_challenge(request, payload: SiweVerifySubmit):
         }
 
         message.verify(**verifyParams)
-    except siwe.DomainMismatch:
-        raise InvalidDomainException()
     except siwe.VerificationError:
         raise FailedVerificationException()
 

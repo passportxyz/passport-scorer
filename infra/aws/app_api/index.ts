@@ -16,6 +16,7 @@ export function createAppApiLambdaFunctions(config: {
   vpcPrivateSubnetIds: pulumi.Input<any>;
   lambdaLayerArn: pulumi.Input<string>;
   bucketId: pulumi.Input<string>;
+  passportXyzDomainName: pulumi.Output<string>;
 }) {
   // Common environment variables for all app API lambdas
   const apiLambdaEnvironment = [
@@ -44,6 +45,18 @@ export function createAppApiLambdaFunctions(config: {
     {
       name: "VERIFIER_URL",
       value: "http://core-alb.private.gitcoin.co/verifier/verify",
+    },
+    {
+      name: "SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE",
+      value: config.passportXyzDomainName.apply((passportXyzDomainNameStr) =>
+        JSON.stringify([`app.${passportXyzDomainNameStr}`])
+      ),
+    },
+    {
+      name: "SIWE_ALLOWED_DOMAINS_ACCOUNT",
+      value: config.passportXyzDomainName.apply((passportXyzDomainNameStr) =>
+        JSON.stringify([`developer.${passportXyzDomainNameStr}`])
+      ),
     },
   ].sort(secretsManager.sortByName);
 

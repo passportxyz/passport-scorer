@@ -8,6 +8,8 @@
 - @architecture/ceramic_cache_scoring.md - Integration points and migration strategy
 - @architecture/rust_scorer_implementation_status.md - Complete status of all 15 endpoints, architecture patterns, performance targets
 - @architecture/lambda_infrastructure_analysis.md - Comprehensive AWS Lambda creation patterns and routing architecture
+- @architecture/embed_stamp_customization.md - Customizable stamp sections for Embed product with PlatformMetadata
+- @architecture/custom_stamps_frontend.md - Custom stamps data flow, provider ID generation, frontend consumption
 
 ### Local Knowledge
 - rust-scorer/.knowledge/architecture.md - Three-layer architecture pattern (relocated from global)
@@ -15,6 +17,8 @@
 ## 🎨 Patterns
 
 - @patterns/deduplication.md - LIFO retry logic and provider-based stamp deduplication
+- @patterns/django_model_patterns.md - Enum choices, BooleanField migrations, admin inlines, JSONField validation
+- @patterns/custom_credential_system.md - Three-model architecture for extensible credential types
 
 ### Local Knowledge
 - rust-scorer/.knowledge/code-organization.md - Code structure, duplication issues (relocated from global)
@@ -40,6 +44,9 @@
 - @gotchas/postgresql_gexec.md - Database creation with gexec gotchas
 - @gotchas/weight_configuration_csv.md - Optional CSV field handling in Django admin
 - @gotchas/database_query_performance.md - LOWER() breaks indexes in WHERE clauses
+- @gotchas/custom_platform_bugs.md - search_display typo and hardcoded isEVM=False
+- @gotchas/rust_scorer_missing_custom_weights.md - Customization dynamic weights not merged in Rust
+- @gotchas/django_addfield_postgresql.md - BooleanField AddField is zero-downtime on PG11+
 
 ### Local Knowledge
 - dev-setup/.knowledge/environment-detection.md - PostgreSQL startup detection (relocated from global)
@@ -66,6 +73,7 @@
 ## 📦 Dependencies
 
 - @dependencies/didkit.md - Credential validation library
+- @dependencies/valkey_redis.md - Redis/Valkey requirement for Django caching in development
 
 ## ⚙️ Configuration
 
@@ -73,6 +81,8 @@
 - @config/opentelemetry.md - ADOT Lambda layer sidecar, endpoint configuration, JSON logging
 
 ## 🔄 Workflows
+
+- @workflows/container_dev_setup.md - Ubuntu/container setup scripts with micromamba, environment detection
 
 ### Local Knowledge
 - rust-scorer/.knowledge/testing.md - Test organization (relocated from global)
