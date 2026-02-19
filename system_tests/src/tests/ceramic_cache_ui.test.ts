@@ -1,9 +1,9 @@
-import { DidSignAuth } from "../auth/strategies";
+import { SiweAuth } from "../auth/strategies";
 import { AuthStrategy } from "../types";
 import { testRequest } from "../utils/testRequest";
 import { generateStamps } from "../generate";
 import { PassportUIUser } from "../users";
-import { Signer } from "ethers";
+import { Wallet, Signer } from "ethers";
 
 const url = (subpath: string) => process.env.SCORER_API_BASE_URL + "/ceramic-cache/" + subpath;
 
@@ -13,9 +13,10 @@ describe("Ceramic Cache DID", () => {
   let signer: Signer;
 
   beforeAll(async () => {
-    let did;
-    ({ did, address, signer } = await PassportUIUser.get());
-    authStrategy = new DidSignAuth({ did });
+    const user = await PassportUIUser.get();
+    address = user.address;
+    signer = user.signer;
+    authStrategy = new SiweAuth({ wallet: user.signer as Wallet });
   });
 
   it("POST /stamps/bulk", async () => {
