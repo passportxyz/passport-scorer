@@ -48,15 +48,23 @@ export function createAppApiLambdaFunctions(config: {
     },
     {
       name: "SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE",
-      value: config.passportXyzDomainName.apply((passportXyzDomainNameStr) =>
-        JSON.stringify([`app.${passportXyzDomainNameStr}`])
-      ),
+      value: config.passportXyzDomainName.apply((d) => {
+        const domains = [`app.${d}`];
+        if (d.startsWith("production.")) {
+          domains.push(`app.${d.replace("production.", "")}`);
+        }
+        return JSON.stringify(domains);
+      }),
     },
     {
       name: "SIWE_ALLOWED_DOMAINS_ACCOUNT",
-      value: config.passportXyzDomainName.apply((passportXyzDomainNameStr) =>
-        JSON.stringify([`developer.${passportXyzDomainNameStr}`])
-      ),
+      value: config.passportXyzDomainName.apply((d) => {
+        const domains = [`developer.${d}`];
+        if (d.startsWith("production.")) {
+          domains.push(`developer.${d.replace("production.", "")}`);
+        }
+        return JSON.stringify(domains);
+      }),
     },
   ].sort(secretsManager.sortByName);
 
