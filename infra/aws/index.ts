@@ -816,10 +816,11 @@ const apiEnvironment = [
   {
     name: "SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE",
     value: passportXyzDomainName.apply((d) => {
-      const domains = [`app.${d}`];
+      const domains = [`app.${d}`, `stake.${d}`];
       // Production users visit app.passport.xyz (no "production" subdomain)
       if (d.startsWith("production.")) {
-        domains.push(`app.${d.replace("production.", "")}`);
+        const envLess = d.replace("production.", "");
+        domains.push(`app.${envLess}`, `stake.${envLess}`);
       }
       return JSON.stringify(domains);
     }),
@@ -827,9 +828,10 @@ const apiEnvironment = [
   {
     name: "SIWE_ALLOWED_DOMAINS_ACCOUNT",
     value: passportXyzDomainName.apply((d) => {
-      const domains = [`developer.${d}`];
+      const domains = [`developer.${d}`, `stake.${d}`];
       if (d.startsWith("production.")) {
-        domains.push(`developer.${d.replace("production.", "")}`);
+        const envLess = d.replace("production.", "");
+        domains.push(`developer.${envLess}`, `stake.${envLess}`);
       }
       return JSON.stringify(domains);
     }),
