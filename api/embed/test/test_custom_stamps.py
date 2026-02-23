@@ -13,7 +13,11 @@ from account.models import (
     Customization,
     CustomPlatform,
 )
-from embed.api import handle_get_custom_stamps, handle_get_embed_config, handle_get_platforms
+from embed.api import (
+    handle_get_custom_stamps,
+    handle_get_embed_config,
+    handle_get_platforms,
+)
 from registry.weight_models import (
     WeightConfiguration,
     WeightConfigurationItem,
