@@ -13,7 +13,7 @@ from account.models import (
     Customization,
     CustomPlatform,
 )
-from embed.api import handle_get_custom_stamps, handle_get_embed_config
+from embed.api import handle_get_custom_stamps, handle_get_embed_config, handle_get_platforms
 from registry.weight_models import (
     PlatformMetadata,
     WeightConfiguration,
@@ -135,3 +135,92 @@ class TestHandleGetCustomStamps(TestCase):
         result = handle_get_custom_stamps("99999")
         self.assertEqual(result.allow_list_stamps, [])
         self.assertEqual(result.developer_list_stamps, [])
+
+    def test_handle_get_platforms_allow_list(self):
+        addr_list = AddressList.objects.create(name="VIPList")
+        AllowList.objects.create(
+            address_list=addr_list,
+            customization=self.customization,
+            weight=10.0,
+        )
+
+        result = handle_get_platforms(str(self.community.id))
+        self.assertEqual(len(result), 1)
+        pdef = result[0]
+        self.assertEqual(pdef.platform_id, "AllowList#VIPList")
+        self.assertEqual(pdef.icon_platform_id, "AllowList")
+        self.assertEqual(pdef.name, "VIPList")
+        self.assertEqual(pdef.description, "Verify you are part of this community.")
+        self.assertFalse(pdef.requires_signature)
+        self.assertFalse(pdef.requires_popup)
+        self.assertEqual(len(pdef.credentials), 1)
+        self.assertEqual(pdef.credentials[0].id, "AllowList#VIPList")
+        self.assertEqual(pdef.credentials[0].weight, "10.0")
+
+    def test_handle_get_platforms_developer_list(self):
+        platform = CustomPlatform.objects.create(
+            platform_type=CustomPlatform.PlatformType.DeveloperList,
+            name="custom_github_platforms",
+            display_name="Developer List",
+        )
+        ruleset = CustomCredentialRuleset.objects.create(
+            credential_type=CustomCredentialRuleset.CredentialType.DeveloperList,
+            definition={
+                "name": "TestRepo",
+                "condition": {"AND": []},
+            },
+            name="TestRepo",
+            provider_id="DeveloperList#TestRepo#placeholder",
+        )
+        CustomCredential.objects.create(
+            customization=self.customization,
+            platform=platform,
+            ruleset=ruleset,
+            weight=5.0,
+            display_name="Test Repo Contributor",
+            description="Verify contributions to TestRepo",
+        )
+
+        result = handle_get_platforms(str(self.community.id))
+        self.assertEqual(len(result), 1)
+        pdef = result[0]
+        self.assertTrue(pdef.platform_id.startswith("DeveloperList#TestRepo#"))
+        self.assertEqual(pdef.icon_platform_id, "CustomGithub")
+        self.assertEqual(pdef.name, "Test Repo Contributor")
+        self.assertEqual(pdef.description, "Verify contributions to TestRepo")
+        self.assertTrue(pdef.requires_signature)
+        self.assertTrue(pdef.requires_popup)
+        self.assertEqual(len(pdef.credentials), 1)
+        self.assertEqual(pdef.credentials[0].weight, "5.0")
+
+    def test_handle_get_platforms_empty(self):
+        result = handle_get_platforms(str(self.community.id))
+        self.assertEqual(result, [])
+
+    def test_handle_get_platforms_nonexistent_community(self):
+        result = handle_get_platforms("99999")
+        self.assertEqual(result, [])
+
+    def test_embed_config_includes_platforms_and_auto_appended_sections(self):
+        addr_list = AddressList.objects.create(name="GuestList")
+        AllowList.objects.create(
+            address_list=addr_list,
+            customization=self.customization,
+            weight=1.0,
+        )
+
+        result = handle_get_embed_config(str(self.community.id))
+
+        # Verify platforms field
+        self.assertEqual(len(result.platforms), 1)
+        self.assertEqual(result.platforms[0].platform_id, "AllowList#GuestList")
+        self.assertEqual(result.platforms[0].icon_platform_id, "AllowList")
+
+        # Verify auto-appended stamp_sections
+        guest_sections = [s for s in result.stamp_sections if s.title == "Guest List"]
+        self.assertEqual(len(guest_sections), 1)
+        self.assertEqual(len(guest_sections[0].items), 1)
+        self.assertEqual(guest_sections[0].items[0].platform_id, "AllowList#GuestList")
+
+        # Verify backward compat custom_stamps still present
+        self.assertEqual(len(result.custom_stamps.allow_list_stamps), 1)
