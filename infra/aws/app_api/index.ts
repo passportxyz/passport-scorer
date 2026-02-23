@@ -49,9 +49,10 @@ export function createAppApiLambdaFunctions(config: {
     {
       name: "SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE",
       value: config.passportXyzDomainName.apply((d) => {
-        const domains = [`app.${d}`];
+        const domains = [`app.${d}`, `stake.${d}`];
         if (d.startsWith("production.")) {
-          domains.push(`app.${d.replace("production.", "")}`);
+          const envLess = d.replace("production.", "");
+          domains.push(`app.${envLess}`, `stake.${envLess}`);
         }
         return JSON.stringify(domains);
       }),
@@ -59,9 +60,10 @@ export function createAppApiLambdaFunctions(config: {
     {
       name: "SIWE_ALLOWED_DOMAINS_ACCOUNT",
       value: config.passportXyzDomainName.apply((d) => {
-        const domains = [`developer.${d}`];
+        const domains = [`developer.${d}`, `stake.${d}`];
         if (d.startsWith("production.")) {
-          domains.push(`developer.${d.replace("production.", "")}`);
+          const envLess = d.replace("production.", "");
+          domains.push(`developer.${envLess}`, `stake.${envLess}`);
         }
         return JSON.stringify(domains);
       }),
