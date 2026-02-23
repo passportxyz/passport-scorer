@@ -350,7 +350,10 @@ def handle_get_embed_config(community_id: str) -> EmbedConfigResponse:
         else:
             developer_list_items.append(item)
 
-    next_order = max((s.order for s in stamp_sections), default=-1) + 1
+    next_order = max(
+        (s.order if hasattr(s, "order") else s["order"] for s in stamp_sections),
+        default=-1,
+    ) + 1
 
     if allow_list_items:
         stamp_sections.append(
