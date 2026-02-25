@@ -57,6 +57,7 @@ jobs:
       refspec: ${{ needs.ref.outputs.refspec }}
       docker_tag: ${{ needs.ref.outputs.docker_tag }}
       environment: staging
+      build_rust_scorer: true
     secrets: inherit
 
   deploy-interface-to-staging:
@@ -87,6 +88,7 @@ jobs:
       refspec: ${{ needs.ref.outputs.refspec }}
       docker_tag: ${{ needs.ref.outputs.docker_tag }}
       environment: production
+      build_rust_scorer: false
     secrets: inherit
 
   deploy-interface-to-production:

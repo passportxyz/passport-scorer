@@ -15,6 +15,11 @@ on:
         description: "Environment to deploy to"
         type: string
         required: true
+      build_rust_scorer:
+        description: "Whether to build the Rust scorer (false to reuse existing artifact)"
+        type: boolean
+        required: false
+        default: true
 
 jobs:
   docker-ecs:
@@ -178,6 +183,7 @@ jobs:
     name: Build Rust scorer Lambda zip
     # Use native ARM64 runner for faster builds (free in public repos)
     runs-on: ubuntu-24.04-arm
+    if: ${{ inputs.build_rust_scorer }}
     outputs:
       artifact_name: ${{ steps.build.outputs.artifact_name }}
     steps:
@@ -216,7 +222,7 @@ jobs:
         with:
           name: rust-scorer-${{ inputs.docker_tag }}.zip
           path: ./rust-scorer/target/lambda/passport-scorer/bootstrap.zip
-          retention-days: 1
+          retention-days: 7
 
   build-app:
     name: Build App
