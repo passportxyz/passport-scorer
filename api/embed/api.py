@@ -9,6 +9,7 @@ import api_logging as logging
 from account.models import (
     Community,
     Customization,
+    CustomPlatform,
     EmbedSectionOrder,
     EmbedStampPlatform,
 )
@@ -135,10 +136,48 @@ class EmbedStampSectionSchema(Schema):
     items: List[EmbedStampSectionItemSchema]
 
 
+class CustomStampSchema(Schema):
+    """Schema for a single custom stamp (AllowList or DeveloperList)"""
+    provider_id: str
+    display_name: str
+    description: Optional[str] = None
+    weight: float
+
+
+class CustomStampsSchema(Schema):
+    """Custom stamps configured for this scorer (Guest List + Developer List)"""
+    allow_list_stamps: List[CustomStampSchema] = []
+    developer_list_stamps: List[CustomStampSchema] = []
+
+
+class PlatformCredentialSchema(Schema):
+    """A credential/provider within a platform definition."""
+    id: str        # e.g. "AllowList#VIPList"
+    weight: str    # e.g. "10.0"
+
+
+class PlatformDefinitionSchema(Schema):
+    """Full platform definition for custom stamps (and future standard overrides)."""
+    platform_id: str           # Unique ID: "AllowList#VIPList" or "DeveloperList#Repo#hash"
+    icon_platform_id: str      # Base platform for icon lookup: "AllowList" or "CustomGithub"
+    name: str                  # Display name
+    description: str
+    documentation_link: Optional[str] = None
+    requires_signature: bool = False
+    requires_popup: bool = False
+    popup_url: Optional[str] = None
+    requires_sdk_flow: bool = False
+    credentials: List[PlatformCredentialSchema] = []
+
+
 class EmbedConfigResponse(Schema):
     """Combined response for embed configuration"""
     weights: dict[str, float]
     stamp_sections: List[EmbedStampSectionSchema]
+    platforms: List[PlatformDefinitionSchema] = []
+    custom_stamps: CustomStampsSchema = CustomStampsSchema(
+        allow_list_stamps=[], developer_list_stamps=[]
+    )
 
 
 def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSectionSchema]:
@@ -189,14 +228,155 @@ def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSection
         return []
 
 
+def handle_get_custom_stamps(community_id: str) -> CustomStampsSchema:
+    """
+    Get custom stamps (AllowList / Guest List and Developer List) for this community.
+    These are configured at the Customization level and surfaced in Embed.
+    """
+    try:
+        customization = Customization.objects.get(scorer_id=community_id)
+    except Customization.DoesNotExist:
+        return CustomStampsSchema(allow_list_stamps=[], developer_list_stamps=[])
+
+    allow_list_stamps = [
+        CustomStampSchema(
+            provider_id=f"AllowList#{al.address_list.name}",
+            display_name=al.address_list.name,
+            description="Verify you are part of this community.",
+            weight=float(al.weight),
+        )
+        for al in customization.allow_lists.select_related("address_list").all()
+    ]
+
+    developer_list_stamps = [
+        CustomStampSchema(
+            provider_id=cc.ruleset.provider_id,
+            display_name=cc.display_name,
+            description=cc.description or "",
+            weight=float(cc.weight),
+        )
+        for cc in customization.custom_credentials.select_related("platform", "ruleset").filter(
+            platform__platform_type=CustomPlatform.PlatformType.DeveloperList
+        )
+    ]
+
+    return CustomStampsSchema(
+        allow_list_stamps=allow_list_stamps,
+        developer_list_stamps=developer_list_stamps,
+    )
+
+
+def handle_get_platforms(community_id: str) -> List[PlatformDefinitionSchema]:
+    """
+    Build PlatformDefinition objects for custom stamps.
+    These are custom stamps that need full platform metadata because
+    they don't exist in the embed service's static STAMP_PAGES.
+    """
+    try:
+        customization = Customization.objects.get(scorer_id=community_id)
+    except Customization.DoesNotExist:
+        return []
+
+    platform_defs = []
+
+    # AllowList stamps
+    for al in customization.allow_lists.select_related("address_list").all():
+        provider_id = f"AllowList#{al.address_list.name}"
+        platform_defs.append(
+            PlatformDefinitionSchema(
+                platform_id=provider_id,
+                icon_platform_id="AllowList",
+                name=al.address_list.name,
+                description="Verify you are part of this community.",
+                documentation_link="https://support.passport.xyz/passport-knowledge-base/stamps/how-do-i-add-passport-stamps/the-guest-list-stamp",
+                credentials=[
+                    PlatformCredentialSchema(
+                        id=provider_id,
+                        weight=str(float(al.weight)),
+                    )
+                ],
+            )
+        )
+
+    # DeveloperList stamps
+    for cc in customization.custom_credentials.select_related("platform", "ruleset").filter(
+        platform__platform_type=CustomPlatform.PlatformType.DeveloperList
+    ):
+        platform_defs.append(
+            PlatformDefinitionSchema(
+                platform_id=cc.ruleset.provider_id,
+                icon_platform_id="CustomGithub",
+                name=cc.display_name,
+                description=cc.description or "Verify your GitHub contributions meet the requirements.",
+                documentation_link="https://support.passport.xyz/passport-knowledge-base/stamps/how-do-i-add-passport-stamps/the-developer-list-stamp",
+                requires_signature=True,
+                requires_popup=True,
+                credentials=[
+                    PlatformCredentialSchema(
+                        id=cc.ruleset.provider_id,
+                        weight=str(float(cc.weight)),
+                    )
+                ],
+            )
+        )
+
+    return platform_defs
+
+
 def handle_get_embed_config(community_id: str) -> EmbedConfigResponse:
     """
-    Get combined embed configuration: weights and stamp sections.
-    Returns weights with empty stamp_sections if sections lookup fails (partial data).
+    Get combined embed configuration: weights, stamp sections, platforms, and custom stamps.
+    The `platforms` field provides full definitions for custom stamps.
+    Custom stamps are auto-appended to stamp_sections so they appear in the section list.
+    The `custom_stamps` field is kept for backward compatibility.
     """
     from ceramic_cache.api.v1 import handle_get_scorer_weights
 
     weights = handle_get_scorer_weights(community_id)
     stamp_sections = handle_get_embed_stamp_sections(community_id)
+    custom_stamps = handle_get_custom_stamps(community_id)
+    platform_defs = handle_get_platforms(community_id)
 
-    return EmbedConfigResponse(weights=weights, stamp_sections=stamp_sections)
+    # Auto-append custom stamps into stamp_sections grouped by type
+    allow_list_items = []
+    developer_list_items = []
+    for i, pdef in enumerate(platform_defs):
+        item = EmbedStampSectionItemSchema(
+            platform_id=pdef.platform_id,
+            order=i,
+        )
+        if pdef.icon_platform_id == "AllowList":
+            allow_list_items.append(item)
+        else:
+            developer_list_items.append(item)
+
+    next_order = max(
+        (s.order if hasattr(s, "order") else s["order"] for s in stamp_sections),
+        default=-1,
+    ) + 1
+
+    if allow_list_items:
+        stamp_sections.append(
+            EmbedStampSectionSchema(
+                title="Guest List",
+                order=next_order,
+                items=allow_list_items,
+            )
+        )
+        next_order += 1
+
+    if developer_list_items:
+        stamp_sections.append(
+            EmbedStampSectionSchema(
+                title="Developer List",
+                order=next_order,
+                items=developer_list_items,
+            )
+        )
+
+    return EmbedConfigResponse(
+        weights=weights,
+        stamp_sections=stamp_sections,
+        platforms=platform_defs,
+        custom_stamps=custom_stamps,
+    )
