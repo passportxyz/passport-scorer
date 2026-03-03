@@ -1,7 +1,9 @@
+import json
 from typing import Any, List, Optional
 
 from asgiref.sync import async_to_sync
 from django.conf import settings
+from django.core.cache import cache
 from ninja import Router, Schema
 from ninja_extra import NinjaExtraAPI
 
@@ -9,6 +11,7 @@ import api_logging as logging
 from account.models import (
     Community,
     Customization,
+    CustomPlatform,
     EmbedSectionOrder,
     EmbedStampPlatform,
 )
@@ -135,21 +138,46 @@ class EmbedStampSectionSchema(Schema):
     items: List[EmbedStampSectionItemSchema]
 
 
+class PlatformCredentialSchema(Schema):
+    """A credential/provider within a platform definition."""
+    id: str        # e.g. "AllowList#VIPList"
+    weight: str    # e.g. "10.0"
+
+
+class PlatformDefinitionSchema(Schema):
+    """Full platform definition for custom stamps (and future standard overrides)."""
+    platform_id: str           # Unique ID: CustomPlatform.name or "AllowList#VIPList"
+    icon_platform_id: str      # Base platform for icon lookup: "AllowList" or "CustomGithub"
+    name: str                  # Display name
+    description: str
+    is_evm: bool = False
+    documentation_link: Optional[str] = None
+    requires_signature: bool = False
+    requires_popup: bool = False
+    popup_url: Optional[str] = None
+    requires_sdk_flow: bool = False
+    credentials: List[PlatformCredentialSchema] = []
+
+
 class EmbedConfigResponse(Schema):
     """Combined response for embed configuration"""
     weights: dict[str, float]
     stamp_sections: List[EmbedStampSectionSchema]
+    platforms: List[PlatformDefinitionSchema] = []
 
 
-def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSectionSchema]:
+def handle_get_embed_stamp_sections(
+    community_id: str, customization: Optional[Customization] = None
+) -> List[EmbedStampSectionSchema]:
     """
     Get customized stamp sections for a given community/scorer.
     Returns an empty list if no sections exist.
     """
-    try:
-        customization = Customization.objects.get(scorer_id=community_id)
-    except Customization.DoesNotExist:
-        return []
+    if customization is None:
+        try:
+            customization = Customization.objects.get(scorer_id=community_id)
+        except Customization.DoesNotExist:
+            return []
 
     try:
         section_orders = EmbedSectionOrder.objects.filter(
@@ -189,14 +217,152 @@ def handle_get_embed_stamp_sections(community_id: str) -> List[EmbedStampSection
         return []
 
 
+PLATFORM_TYPE_DEFAULTS = {
+    CustomPlatform.PlatformType.DeveloperList: {
+        "icon_platform_id": "CustomGithub",
+        "description": "Verify your GitHub contributions meet the requirements.",
+        "requires_signature": True,
+        "requires_popup": True,
+    },
+    CustomPlatform.PlatformType.NFTHolder: {
+        "icon_platform_id": "NFT",
+        "description": "Verify NFT ownership.",
+        "requires_signature": False,
+        "requires_popup": False,
+    },
+}
+
+
+def _build_platform_def(
+    platform: CustomPlatform, credentials: list[PlatformCredentialSchema]
+) -> PlatformDefinitionSchema:
+    """Build a PlatformDefinitionSchema from a CustomPlatform and its credentials."""
+    defaults = PLATFORM_TYPE_DEFAULTS.get(platform.platform_type, {})
+    return PlatformDefinitionSchema(
+        platform_id=platform.name,
+        icon_platform_id=defaults.get("icon_platform_id", "AllowList"),
+        name=platform.display_name or platform.name,
+        description=platform.description or defaults.get("description", ""),
+        is_evm=platform.is_evm,
+        requires_signature=defaults.get("requires_signature", False),
+        requires_popup=defaults.get("requires_popup", False),
+        credentials=credentials,
+    )
+
+
+def handle_get_platforms(
+    community_id: str, customization: Optional[Customization] = None
+) -> List[PlatformDefinitionSchema]:
+    """
+    Build PlatformDefinition objects for custom stamps, grouped by CustomPlatform.
+
+    Credentials (CustomCredentials and AllowLists with a platform set) are grouped
+    under their CustomPlatform. Standalone AllowLists (platform=None) each become
+    their own platform entry.
+    """
+    if customization is None:
+        try:
+            customization = Customization.objects.get(scorer_id=community_id)
+        except Customization.DoesNotExist:
+            return []
+
+    try:
+        # 1. Collect credentials grouped by CustomPlatform
+        platform_credentials: dict[int, tuple[CustomPlatform, list[PlatformCredentialSchema]]] = {}
+
+        for cc in customization.custom_credentials.select_related(
+            "platform", "ruleset"
+        ).order_by("platform__name", "id").all():
+            pk = cc.platform_id
+            if pk not in platform_credentials:
+                platform_credentials[pk] = (cc.platform, [])
+            platform_credentials[pk][1].append(
+                PlatformCredentialSchema(
+                    id=cc.ruleset.provider_id,
+                    weight=str(float(cc.weight)),
+                )
+            )
+
+        # 2. AllowLists with a platform assigned are added to the same group
+        standalone_allow_lists = []
+        for al in customization.allow_lists.select_related(
+            "address_list", "platform"
+        ).order_by("platform__name", "id").all():
+            provider_id = f"AllowList#{al.address_list.name}"
+            cred = PlatformCredentialSchema(id=provider_id, weight=str(float(al.weight)))
+            if al.platform_id is not None:
+                pk = al.platform_id
+                if pk not in platform_credentials:
+                    platform_credentials[pk] = (al.platform, [])
+                platform_credentials[pk][1].append(cred)
+            else:
+                standalone_allow_lists.append((al, cred))
+
+        # 3. Build platform definitions from grouped credentials
+        platform_defs = []
+        for _platform, creds in platform_credentials.values():
+            platform_defs.append(_build_platform_def(_platform, creds))
+
+        # 4. Standalone AllowLists (no platform) become their own entry
+        for al, cred in standalone_allow_lists:
+            platform_defs.append(
+                PlatformDefinitionSchema(
+                    platform_id=cred.id,
+                    icon_platform_id="AllowList",
+                    name=al.address_list.name,
+                    description="Verify you are part of this community.",
+                    credentials=[cred],
+                )
+            )
+
+        return platform_defs
+    except Exception as e:
+        log.error(f"Error fetching platforms for community {community_id}: {e}")
+        return []
+
+
 def handle_get_embed_config(community_id: str) -> EmbedConfigResponse:
     """
-    Get combined embed configuration: weights and stamp sections.
-    Returns weights with empty stamp_sections if sections lookup fails (partial data).
+    Get combined embed configuration: weights, stamp sections, and platforms.
+
+    - weights: scorer weight per provider
+    - stamp_sections: ordered sections of platform_ids (admin-configured)
+    - platforms: full definitions for custom stamps (CustomPlatform + AllowList)
+
+    Response is cached for 60 seconds since this data is admin-configured
+    and rarely changes, but is fetched on every embed page load and
+    auto-verification request.
     """
+    cache_key = f"embed_config_{community_id}"
+    cached = cache.get(cache_key)
+    if cached:
+        try:
+            data = json.loads(cached)
+            return EmbedConfigResponse(**data)
+        except Exception:
+            pass
+
     from ceramic_cache.api.v1 import handle_get_scorer_weights
 
     weights = handle_get_scorer_weights(community_id)
-    stamp_sections = handle_get_embed_stamp_sections(community_id)
 
-    return EmbedConfigResponse(weights=weights, stamp_sections=stamp_sections)
+    try:
+        customization = Customization.objects.get(scorer_id=community_id)
+    except Customization.DoesNotExist:
+        customization = None
+
+    stamp_sections = handle_get_embed_stamp_sections(community_id, customization)
+    platforms = handle_get_platforms(community_id, customization)
+
+    result = EmbedConfigResponse(
+        weights=weights,
+        stamp_sections=stamp_sections,
+        platforms=platforms,
+    )
+
+    try:
+        cache.set(cache_key, result.json(), 60)
+    except Exception:
+        pass
+
+    return result
