@@ -62,6 +62,7 @@ const mockComponent = () => (
       {(value) => (
         <div>
           <button onClick={value.login}>Login</button>
+          <button onClick={value.logout}>Logout</button>
           <span data-testid="connected">{value.connected.toString()}</span>
           <span data-testid="authenticationError">
             {value.authenticationError.toString()}
@@ -238,6 +239,49 @@ describe("UserProvider", () => {
       expect(screen.getByTestId("authenticationError")).toHaveTextContent(
         "false"
       );
+      expect(screen.getByTestId("loginComplete")).toHaveTextContent("false");
+    });
+  });
+
+  it("awaits all wallet disconnects before clearing state", async () => {
+    let resolveDisconnect: () => void;
+    const disconnectPromise = new Promise<void>((resolve) => {
+      resolveDisconnect = resolve;
+    });
+    const disconnect = jest.fn().mockReturnValue(disconnectPromise);
+    const connect = jest.fn().mockResolvedValue([mockWallet]);
+
+    (useConnectWallet as jest.Mock).mockReturnValue([
+      { wallet: mockWallet },
+      connect,
+      disconnect,
+    ]);
+
+    (useWallets as jest.Mock).mockReturnValue([mockWallet]);
+
+    render(mockComponent());
+
+    // Login first
+    screen.getByText("Login").click();
+    await waitFor(() => {
+      expect(screen.getByTestId("connected")).toHaveTextContent("true");
+    });
+
+    // Click logout - disconnect is pending
+    await act(async () => {
+      screen.getByText("Logout").click();
+    });
+
+    // Verify disconnect was called
+    expect(disconnect).toHaveBeenCalledWith(mockWallet);
+
+    // Resolve the disconnect promise
+    await act(async () => {
+      resolveDisconnect!();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("connected")).toHaveTextContent("false");
       expect(screen.getByTestId("loginComplete")).toHaveTextContent("false");
     });
   });
