@@ -60,4 +60,7 @@ init({
   chains,
   appMetadata,
   accountCenter,
+  connect: {
+    autoConnectLastWallet: false,
+  },
 });
