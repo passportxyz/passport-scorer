@@ -375,6 +375,7 @@ jobs:
   deploy_confirm:
     name: Review Approval Pending
     needs: [check_migrations, deploy_preview]
+    if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
