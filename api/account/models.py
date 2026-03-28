@@ -739,6 +739,14 @@ class AllowList(models.Model):
 
     weight = models.DecimalField(default=0.0, max_digits=7, decimal_places=4)
 
+    platform = models.ForeignKey(
+        "CustomPlatform",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text="Optional: group this AllowList under a CustomPlatform",
+    )
+
 
 class CustomPlatform(models.Model):
     class PlatformType(models.TextChoices):
