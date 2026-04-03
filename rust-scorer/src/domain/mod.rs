@@ -38,7 +38,7 @@ impl From<sqlx::Error> for DomainError {
 }
 
 // Re-export commonly used types and functions
-pub use scoring::{calculate_score, build_scoring_result, calculate_score_for_address};
+pub use scoring::{calculate_score, build_scoring_result, calculate_score_for_address, calculate_score_for_address_with_groups};
 pub use weights::get_scorer_weights;
 pub use dedup::lifo_dedup;
 pub use human_points::{process_human_points, get_user_points_data, get_possible_points_data};

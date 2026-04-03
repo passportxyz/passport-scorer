@@ -49,6 +49,7 @@ impl ScoringResult {
             stamps,
             points_data: None,
             possible_points_data: None,
+            linked_score: None,
         }
     }
     

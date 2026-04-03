@@ -1,14 +1,21 @@
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import django_filters
 from django.conf import settings
 from django.core.cache import cache
+from django.utils.timezone import now as django_now
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
-from account.models import Account, Community, Nonce
+from account.models import (
+    Account,
+    Community,
+    Nonce,
+    WalletGroupCommunityClaim,
+    WalletGroupMembership,
+)
 from ceramic_cache.models import CeramicCache
 from registry.api.schema import (
     CursorPaginatedStampCredentialResponse,
@@ -43,10 +50,11 @@ from registry.models import Event, Passport, Score
 from registry.utils import (
     decode_cursor,
     encode_cursor,
+    get_utc_time,
     reverse_lazy_with_query,
 )
 from scorer_weighted.models import Scorer
-from v2.schema import PointsData, V2ScoreResponse
+from v2.schema import LinkedScoreResponse, PointsData, V2ScoreResponse
 
 from ..exceptions import ScoreDoesNotExist
 from .router import api_router
@@ -66,13 +74,97 @@ async def ahandle_scoring(address: str, community):
     address_lower = address.lower()
     if not is_valid_address(address_lower):
         raise InvalidAddressException()
+
+    # Check if address is in a wallet group
+    group_info = await _get_wallet_group(address_lower)
+
+    if not group_info:
+        # No group - existing single-wallet flow
+        return await _score_single_address(address_lower, community)
+
+    group_id, group_addresses = group_info
+
+    # Determine canonical wallet for this community
+    canonical = await _get_or_set_canonical(
+        group_id, address_lower, community
+    )
+
+    # Score all wallets in the group individually, then merge
+    combined_response = await _score_wallet_group(
+        canonical, group_addresses, community
+    )
+
+    if address_lower == canonical:
+        return combined_response
+    else:
+        return _build_non_canonical_response(address_lower, combined_response)
+
+
+async def _get_wallet_group(
+    address: str,
+) -> Optional[Tuple[int, list[str]]]:
+    """Look up wallet group for an address. Returns (group_id, [addresses]) or None."""
+    try:
+        membership = await WalletGroupMembership.objects.aget(address=address)
+    except WalletGroupMembership.DoesNotExist:
+        return None
+
+    group_addresses = [
+        m async for m in WalletGroupMembership.objects.filter(
+            group_id=membership.group_id
+        ).values_list("address", flat=True)
+    ]
+    return (membership.group_id, group_addresses)
+
+
+async def _get_or_set_canonical(
+    group_id: int, requesting_address: str, community: Community
+) -> str:
+    """Get or create canonical wallet claim for a group+community.
+
+    If an existing claim's score has expired, release it and let the
+    requesting address claim it.
+    """
+    try:
+        claim = await WalletGroupCommunityClaim.objects.aget(
+            group_id=group_id, community=community
+        )
+        # Check if canonical wallet's score is still valid
+        try:
+            canonical_score = await Score.objects.select_related("passport").aget(
+                passport__address=claim.canonical_address,
+                passport__community=community,
+            )
+            if (
+                canonical_score.expiration_date
+                and canonical_score.expiration_date < get_utc_time()
+            ):
+                # Expired - release claim, let requesting address take over
+                await claim.adelete()
+                raise WalletGroupCommunityClaim.DoesNotExist()
+        except Score.DoesNotExist:
+            # No score yet for canonical address - keep the claim
+            pass
+
+        return claim.canonical_address
+    except WalletGroupCommunityClaim.DoesNotExist:
+        # No claim exists - requesting address becomes canonical
+        # Use get_or_create to handle races (unique_together protects us)
+        claim, _ = await WalletGroupCommunityClaim.objects.aget_or_create(
+            group_id=group_id,
+            community=community,
+            defaults={"canonical_address": requesting_address},
+        )
+        return claim.canonical_address
+
+
+async def _score_single_address(address: str, community: Community) -> V2ScoreResponse:
+    """Score a single address (no wallet group). Preserves original flow."""
     scorer = await community.aget_scorer()
     scorer_type = scorer.type
 
-    # Create an empty passport instance, only needed to be able to create a pending Score
-    # The passport will be updated by the score_passport task
     db_passport, _ = await Passport.objects.aupdate_or_create(
-        address=address_lower,
+        address=address,
         community=community,
     )
 
@@ -81,21 +173,126 @@ async def ahandle_scoring(address: str, community):
         defaults=dict(score=None, status=Score.Status.PROCESSING),
     )
 
-    await ascore_passport(community, db_passport, address_lower, score)
+    await ascore_passport(community, db_passport, address, score)
     await score.asave()
 
-    # Get points data if community has human_points_program enabled
-    points_data = None
-    possible_points_data = None
-    if settings.HUMAN_POINTS_ENABLED and community.human_points_program:
-        from asgiref.sync import sync_to_async
+    return format_v2_score_response(score, scorer_type)
 
-        points_data = await sync_to_async(get_user_points_data)(address_lower)
-        multiplier = points_data.get("multiplier", 1)
-        possible_points_data = await sync_to_async(get_possible_points_data)(multiplier)
 
-    return format_v2_score_response(
-        score, scorer_type, points_data, possible_points_data
+async def _score_wallet_group(
+    canonical_address: str,
+    group_addresses: list[str],
+    community: Community,
+) -> V2ScoreResponse:
+    """Score all wallets in a group individually, then merge by provider for the canonical wallet."""
+    scorer = await community.aget_scorer()
+    scorer_type = scorer.type
+
+    # Score each wallet through the existing pipeline
+    wallet_scores: dict[str, Score] = {}
+    for addr in group_addresses:
+        db_passport, _ = await Passport.objects.aupdate_or_create(
+            address=addr, community=community
+        )
+        score, _ = await Score.objects.select_related("passport").aget_or_create(
+            passport=db_passport,
+            defaults=dict(score=None, status=Score.Status.PROCESSING),
+        )
+        await ascore_passport(community, db_passport, addr, score)
+        await score.asave()
+        wallet_scores[addr] = score
+
+    # Merge stamps by provider: take first valid (non-deduped) stamp per provider
+    # Process canonical wallet first so its stamps take priority
+    ordered_addresses = [canonical_address] + [
+        a for a in group_addresses if a != canonical_address
+    ]
+
+    merged_stamps: Dict[str, Any] = {}
+    for addr in ordered_addresses:
+        score = wallet_scores[addr]
+        if not score.stamps:
+            continue
+        for provider, stamp_data in score.stamps.items():
+            if provider not in merged_stamps and not stamp_data.get("dedup"):
+                merged_stamps[provider] = stamp_data
+
+    # Calculate combined raw_score from merged stamps using scorer weights
+    weights = scorer.weights or {}
+    try:
+        from account.models import Customization
+
+        customization = await Customization.objects.aget(scorer_id=community.pk)
+        weights.update(await customization.aget_customization_dynamic_weights())
+    except Exception:
+        pass
+
+    combined_raw_score = Decimal(0)
+    merged_stamp_scores = {}
+    earliest_expiration = None
+    for provider, stamp_data in merged_stamps.items():
+        weight = Decimal(weights.get(provider, 0))
+        combined_raw_score += weight
+        merged_stamp_scores[provider] = str(weight)
+
+        exp_date = stamp_data.get("expiration_date")
+        if exp_date and (earliest_expiration is None or exp_date < earliest_expiration):
+            earliest_expiration = exp_date
+
+    threshold = Decimal(
+        scorer.threshold if hasattr(scorer, "threshold") else "20"
+    )
+    is_passing = combined_raw_score >= threshold
+
+    # Update canonical wallet's Score with merged results
+    canonical_score = wallet_scores[canonical_address]
+    canonical_score.score = Decimal(1) if is_passing else Decimal(0)
+    canonical_score.evidence = {
+        "type": "ThresholdScoreCheck",
+        "success": is_passing,
+        "rawScore": str(combined_raw_score),
+        "threshold": str(threshold),
+    }
+    canonical_score.stamps = merged_stamps
+    canonical_score.stamp_scores = merged_stamp_scores
+    canonical_score.status = Score.Status.DONE
+    canonical_score.last_score_timestamp = get_utc_time()
+    if earliest_expiration:
+        from datetime import datetime, timezone
+
+        if isinstance(earliest_expiration, str):
+            canonical_score.expiration_date = datetime.fromisoformat(
+                earliest_expiration
+            )
+        else:
+            canonical_score.expiration_date = earliest_expiration
+    await canonical_score.asave()
+
+    return format_v2_score_response(canonical_score, scorer_type)
+
+
+def _build_non_canonical_response(
+    address: str, canonical_response: V2ScoreResponse
+) -> V2ScoreResponse:
+    """Build a zero-score response for non-canonical wallets with linked_score."""
+    return V2ScoreResponse(
+        address=address,
+        score=Decimal(0),
+        passing_score=False,
+        threshold=canonical_response.threshold,
+        last_score_timestamp=canonical_response.last_score_timestamp,
+        expiration_timestamp=canonical_response.expiration_timestamp,
+        error=None,
+        stamps={},
+        linked_score=LinkedScoreResponse(
+            address=canonical_response.address,
+            score=canonical_response.score,
+            passing_score=canonical_response.passing_score,
+            last_score_timestamp=canonical_response.last_score_timestamp,
+            expiration_timestamp=canonical_response.expiration_timestamp,
+            threshold=canonical_response.threshold,
+            stamps=canonical_response.stamps,
+        ),
     )
 
 

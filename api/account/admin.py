@@ -39,6 +39,9 @@ from .models import (
     FeaturedCampaign,
     IncludedChainId,
     RateLimits,
+    WalletGroup,
+    WalletGroupCommunityClaim,
+    WalletGroupMembership,
 )
 
 
@@ -967,3 +970,32 @@ class FeaturedCampaignAdmin(ScorerModelAdmin):
     list_display = ["partner_name", "header_text", "is_active", "display_order"]
     list_editable = ["is_active", "display_order"]
     ordering = ["display_order"]
+
+
+class WalletGroupMembershipInline(admin.TabularInline):
+    model = WalletGroupMembership
+    extra = 0
+    readonly_fields = ("joined_at",)
+
+
+class WalletGroupCommunityClaimInline(admin.TabularInline):
+    model = WalletGroupCommunityClaim
+    extra = 0
+    readonly_fields = ("claimed_at",)
+
+
+@admin.register(WalletGroup)
+class WalletGroupAdmin(ScorerModelAdmin):
+    list_display = ("id", "created_at", "member_count")
+    inlines = [WalletGroupMembershipInline, WalletGroupCommunityClaimInline]
+
+    @admin.display(description="Members")
+    def member_count(self, obj):
+        return obj.memberships.count()
+
+
+@admin.register(WalletGroupMembership)
+class WalletGroupMembershipAdmin(ScorerModelAdmin):
+    list_display = ("id", "address", "group", "joined_at")
+    search_fields = ("address",)
+    raw_id_fields = ("group",)

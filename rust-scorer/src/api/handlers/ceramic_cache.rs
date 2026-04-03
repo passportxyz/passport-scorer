@@ -108,7 +108,7 @@ pub async fn ceramic_cache_add_stamps(
 
     // 5. Score the address using domain logic
     // Ceramic cache endpoints include human points (matching Python behavior)
-    let score_result = domain::calculate_score_for_address(
+    let score_result = domain::calculate_score_for_address_with_groups(
         &address,
         scorer_id,
         &pool,
@@ -177,7 +177,7 @@ pub async fn ceramic_cache_get_score(
 
     // Score the address using domain logic
     // Ceramic cache endpoints include human points (matching Python behavior)
-    let score_result = domain::calculate_score_for_address(
+    let score_result = domain::calculate_score_for_address_with_groups(
         &jwt_address,
         scorer_id,
         &pool,
@@ -268,7 +268,7 @@ pub async fn ceramic_cache_patch_stamps(
 
     // 5. Score the address using domain logic
     // Ceramic cache endpoints include human points (matching Python behavior)
-    let score_result = domain::calculate_score_for_address(
+    let score_result = domain::calculate_score_for_address_with_groups(
         &address,
         scorer_id,
         &pool,

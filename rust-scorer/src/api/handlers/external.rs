@@ -73,8 +73,8 @@ pub async fn score_address_handler(
     tx.commit().await
         .map_err(|e| ApiError::Database(format!("Failed to commit analytics: {}", e)))?;
 
-    // 3. Call shared domain logic and return
-    Ok(Json(domain::calculate_score_for_address(
+    // 3. Call shared domain logic (wallet-group-aware) and return
+    Ok(Json(domain::calculate_score_for_address_with_groups(
         &address,
         scorer_id,
         &pool,

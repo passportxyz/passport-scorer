@@ -919,3 +919,47 @@ class EmbedStampPlatform(models.Model):
 
     def __str__(self):
         return f"{self.section.name} - {self.platform.platform_id} (order {self.order})"
+
+
+class WalletGroup(models.Model):
+    """A group of linked wallets that share a combined score."""
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        addresses = list(
+            self.memberships.values_list("address", flat=True)[:5]
+        )
+        return f"WalletGroup #{self.id} ({', '.join(addresses)})"
+
+
+class WalletGroupMembership(models.Model):
+    """Links an Ethereum address to a wallet group. One group per wallet."""
+
+    group = models.ForeignKey(
+        WalletGroup, related_name="memberships", on_delete=models.CASCADE
+    )
+    address = EthAddressField(unique=True, db_index=True)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.address} in group #{self.group_id}"
+
+
+class WalletGroupCommunityClaim(models.Model):
+    """Tracks which wallet is canonical (gets the passing score) per community."""
+
+    group = models.ForeignKey(
+        WalletGroup, related_name="claims", on_delete=models.CASCADE
+    )
+    community = models.ForeignKey(
+        Community, on_delete=models.CASCADE, related_name="wallet_group_claims"
+    )
+    canonical_address = EthAddressField()
+    claimed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ["group", "community"]
+
+    def __str__(self):
+        return f"Group #{self.group_id} → {self.canonical_address} in community #{self.community_id}"

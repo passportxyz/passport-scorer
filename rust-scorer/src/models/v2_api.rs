@@ -12,6 +12,18 @@ pub struct V2StampScoreResponse {
     pub expiration_date: Option<String>,
 }
 
+/// Score data from the canonical wallet in a linked wallet group
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LinkedScoreResponse {
+    pub address: String,
+    pub score: Option<String>,
+    pub passing_score: bool,
+    pub last_score_timestamp: Option<String>,
+    pub expiration_timestamp: Option<String>,
+    pub threshold: String,
+    pub stamps: HashMap<String, V2StampScoreResponse>,
+}
+
 /// Main V2 API response structure - field order matches Python for exact compatibility
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct V2ScoreResponse {
@@ -25,6 +37,8 @@ pub struct V2ScoreResponse {
     pub stamps: HashMap<String, V2StampScoreResponse>,
     pub points_data: Option<PointsData>,
     pub possible_points_data: Option<PointsData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub linked_score: Option<LinkedScoreResponse>,
 }
 
 /// Internal score response type alias - includes human points data when available
@@ -76,6 +90,7 @@ impl V2ScoreResponse {
             stamps: HashMap::new(),
             points_data: None,
             possible_points_data: None,
+            linked_score: None,
         }
     }
 }

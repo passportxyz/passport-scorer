@@ -21,6 +21,26 @@ class V2StampScoreResponse(Schema):
     expiration_date: Optional[str]
 
 
+class LinkedScoreResponse(Schema):
+    """Score data from the canonical wallet in a linked wallet group."""
+
+    address: str
+    score: Optional[Decimal]
+    passing_score: bool
+    last_score_timestamp: Optional[str]
+    expiration_timestamp: Optional[str]
+    threshold: Decimal
+    stamps: Optional[Dict[str, V2StampScoreResponse]]
+
+    @field_serializer("score")
+    def serialize_score(self, score: Decimal, _info):
+        return format(score, ".5f")
+
+    @field_serializer("threshold")
+    def serialize_threshold(self, threshold: Decimal, _info):
+        return format(threshold, ".5f")
+
+
 class V2ScoreResponse(Schema):
     address: str
     score: Optional[Decimal]
@@ -32,6 +52,7 @@ class V2ScoreResponse(Schema):
     stamps: Optional[Dict[str, V2StampScoreResponse]]
     points_data: Optional[PointsData] = None
     possible_points_data: Optional[PointsData] = None
+    linked_score: Optional[LinkedScoreResponse] = None
 
     @field_serializer("score")
     def serialize_score(self, score: Decimal, _info):

@@ -65,6 +65,28 @@ pub async fn get_score(
     Ok(result.map(|r| r.id))
 }
 
+/// Get score expiration date for a given address+community (via passport join)
+pub async fn get_score_expiration(
+    pool: &PgPool,
+    address: &str,
+    community_id: i64,
+) -> Result<Option<chrono::DateTime<chrono::Utc>>, DatabaseError> {
+    let row: Option<(Option<chrono::DateTime<chrono::Utc>>,)> = sqlx::query_as(
+        r#"
+        SELECT s.expiration_date
+        FROM registry_score s
+        JOIN registry_passport p ON s.passport_id = p.id
+        WHERE p.address = $1 AND p.community_id = $2
+        "#,
+    )
+    .bind(address)
+    .bind(community_id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.and_then(|(d,)| d))
+}
+
 /// Upsert score record
 pub async fn upsert_score_record(
     tx: &mut Transaction<'_, Postgres>,
