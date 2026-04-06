@@ -37,7 +37,6 @@ pub struct V2ScoreResponse {
     pub stamps: HashMap<String, V2StampScoreResponse>,
     pub points_data: Option<PointsData>,
     pub possible_points_data: Option<PointsData>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub linked_score: Option<LinkedScoreResponse>,
 }
 

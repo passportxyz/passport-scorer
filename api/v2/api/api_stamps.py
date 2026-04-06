@@ -6,7 +6,6 @@ from urllib.parse import urljoin
 import django_filters
 from django.conf import settings
 from django.core.cache import cache
-from django.utils.timezone import now as django_now
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
@@ -46,7 +45,6 @@ from registry.exceptions import (
     InvalidLimitException,
     api_get_object_or_404,
 )
-from registry.human_points_utils import get_possible_points_data, get_user_points_data
 from registry.models import Event, Passport, Score
 from registry.utils import (
     decode_cursor,
@@ -86,14 +84,10 @@ async def ahandle_scoring(address: str, community):
     group_id, group_addresses = group_info
 
     # Determine canonical wallet for this community
-    canonical = await _get_or_set_canonical(
-        group_id, address_lower, community
-    )
+    canonical = await _get_or_set_canonical(group_id, address_lower, community)
 
     # Score all wallets in the group individually, then merge
-    combined_response = await _score_wallet_group(
-        canonical, group_addresses, community
-    )
+    combined_response = await _score_wallet_group(canonical, group_addresses, community)
 
     if address_lower == canonical:
         return combined_response
@@ -111,7 +105,8 @@ async def _get_wallet_group(
         return None
 
     group_addresses = [
-        m async for m in WalletGroupMembership.objects.filter(
+        m
+        async for m in WalletGroupMembership.objects.filter(
             group_id=membership.group_id
         ).values_list("address", flat=True)
     ]
@@ -131,26 +126,28 @@ async def _get_or_set_canonical(
             group_id=group_id, community=community
         )
         # Check if canonical wallet's score is still valid
+        score_expired = False
         try:
             canonical_score = await Score.objects.select_related("passport").aget(
                 passport__address=claim.canonical_address,
                 passport__community=community,
             )
-            if (
+            score_expired = (
                 canonical_score.expiration_date
                 and canonical_score.expiration_date < get_utc_time()
-            ):
-                # Expired - release claim, let requesting address take over
-                await claim.adelete()
-                raise WalletGroupCommunityClaim.DoesNotExist()
+            )
         except Score.DoesNotExist:
-            # No score yet for canonical address - keep the claim
-            pass
+            pass  # No score yet for canonical address - keep the claim
 
+        if score_expired:
+            await claim.adelete()
+            claim, _ = await WalletGroupCommunityClaim.objects.aget_or_create(
+                group_id=group_id,
+                community=community,
+                defaults={"canonical_address": requesting_address},
+            )
         return claim.canonical_address
     except WalletGroupCommunityClaim.DoesNotExist:
-        # No claim exists - requesting address becomes canonical
-        # Use get_or_create to handle races (unique_together protects us)
         claim, _ = await WalletGroupCommunityClaim.objects.aget_or_create(
             group_id=group_id,
             community=community,
@@ -231,7 +228,11 @@ async def _score_wallet_group(
     except Customization.DoesNotExist:
         pass  # No customization for this community — use base weights
     except Exception:
-        log.warning("Failed to load customization weights for community %s", community.pk, exc_info=True)
+        log.warning(
+            "Failed to load customization weights for community %s",
+            community.pk,
+            exc_info=True,
+        )
 
     combined_raw_score = Decimal(0)
     merged_stamp_scores = {}
@@ -245,9 +246,7 @@ async def _score_wallet_group(
         if exp_date and (earliest_expiration is None or exp_date < earliest_expiration):
             earliest_expiration = exp_date
 
-    threshold = Decimal(
-        scorer.threshold if hasattr(scorer, "threshold") else "20"
-    )
+    threshold = Decimal(scorer.threshold if hasattr(scorer, "threshold") else "20")
     is_passing = combined_raw_score >= threshold
 
     # Update canonical wallet's Score with merged results
@@ -306,13 +305,18 @@ def format_v2_score_response(
     points_data: Dict[str, Any] = None,
     possible_points_data: Dict[str, Any] = None,
 ) -> V2ScoreResponse:
+    """Format a Score model into a V2ScoreResponse.
+
+    points_data/possible_points_data are retained for backward compatibility
+    (ceramic_cache still passes them) but the human points campaign is over
+    and scoring endpoints no longer compute them.
+    """
     raw_score = score.evidence.get("rawScore", "0") if score.evidence else "0"
     threshold = score.evidence.get("threshold", "20") if score.evidence else "20"
 
     raw_score = Decimal(0) if raw_score is None else Decimal(raw_score)
     threshold = Decimal(0) if threshold is None else Decimal(threshold)
 
-    # Convert points_data dict to PointsData schema if provided
     formatted_points_data = None
     formatted_possible_points_data = None
     if points_data:

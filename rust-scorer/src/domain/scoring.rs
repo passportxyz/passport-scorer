@@ -709,46 +709,49 @@ pub async fn calculate_score_for_address_with_groups(
             .map_err(|e| DomainError::Database(e.to_string()))?;
     }
 
-    // Build canonical response with merged data
+    // Build response with merged data
     let canonical_base = wallet_responses.get(&canonical)
         .ok_or_else(|| DomainError::Internal("Canonical response missing".into()))?;
 
-    let combined_response = V2ScoreResponse {
-        address: canonical.clone(),
-        score: Some(format_decimal_5(combined_raw_score)),
-        passing_score: is_passing,
-        last_score_timestamp: canonical_base.last_score_timestamp.clone(),
-        expiration_timestamp: earliest_expiration.map(|s| s.to_string()),
-        threshold: format_decimal_5(threshold),
-        error: None,
-        stamps: merged_stamps.clone(),
-        points_data: None,
-        possible_points_data: None,
-        linked_score: None,
-    };
+    let score_str = Some(format_decimal_5(combined_raw_score));
+    let last_ts = canonical_base.last_score_timestamp.clone();
+    let exp_ts = earliest_expiration.map(|s| s.to_string());
+    let threshold_str = format_decimal_5(threshold);
 
     if address == canonical {
-        Ok(combined_response)
+        Ok(V2ScoreResponse {
+            address: canonical,
+            score: score_str,
+            passing_score: is_passing,
+            last_score_timestamp: last_ts,
+            expiration_timestamp: exp_ts,
+            threshold: threshold_str,
+            error: None,
+            stamps: merged_stamps,
+            points_data: None,
+            possible_points_data: None,
+            linked_score: None,
+        })
     } else {
         // Non-canonical: return score=0 with linked_score
         Ok(V2ScoreResponse {
             address: address.to_string(),
             score: Some("0.00000".to_string()),
             passing_score: false,
-            last_score_timestamp: combined_response.last_score_timestamp.clone(),
-            expiration_timestamp: combined_response.expiration_timestamp.clone(),
-            threshold: combined_response.threshold.clone(),
+            last_score_timestamp: last_ts.clone(),
+            expiration_timestamp: exp_ts.clone(),
+            threshold: threshold_str.clone(),
             error: None,
             stamps: HashMap::new(),
             points_data: None,
             possible_points_data: None,
             linked_score: Some(LinkedScoreResponse {
-                address: combined_response.address,
-                score: combined_response.score,
-                passing_score: combined_response.passing_score,
-                last_score_timestamp: combined_response.last_score_timestamp,
-                expiration_timestamp: combined_response.expiration_timestamp,
-                threshold: combined_response.threshold,
+                address: canonical,
+                score: score_str,
+                passing_score: is_passing,
+                last_score_timestamp: last_ts,
+                expiration_timestamp: exp_ts,
+                threshold: threshold_str,
                 stamps: merged_stamps,
             }),
         })

@@ -1,6 +1,6 @@
 """Wallet group linking/unlinking API endpoints."""
 
-from typing import List, Optional
+from typing import List
 
 from django.conf import settings
 from django.db import transaction
@@ -27,6 +27,9 @@ router = Router()
 
 
 class SiwePayload(Schema):
+    """SIWE message + signature pair. Identical to account.api.SiweVerifySubmit
+    but defined locally to avoid a circular import."""
+
     message: dict
     signature: str
 
@@ -136,9 +139,7 @@ def link_wallets(request, payload: LinkWalletsPayload):
         WalletGroupMembership.objects.create(group=group, address=address_a)
         WalletGroupMembership.objects.create(group=group, address=address_b)
 
-    return WalletGroupResponse(
-        group_id=group.id, addresses=[address_a, address_b]
-    )
+    return WalletGroupResponse(group_id=group.id, addresses=[address_a, address_b])
 
 
 @router.post("/add", response=WalletGroupResponse)
@@ -167,14 +168,14 @@ def add_wallet(request, payload: AddWalletPayload):
             group=membership.group
         ).count()
         if current_size >= MAX_GROUP_SIZE:
-            raise HttpError(
-                400, f"Wallet group cannot exceed {MAX_GROUP_SIZE} members"
-            )
+            raise HttpError(400, f"Wallet group cannot exceed {MAX_GROUP_SIZE} members")
 
         # Check new wallet isn't already in a group
-        if WalletGroupMembership.objects.select_for_update().filter(
-            address=new_address
-        ).exists():
+        if (
+            WalletGroupMembership.objects.select_for_update()
+            .filter(address=new_address)
+            .exists()
+        ):
             raise HttpError(400, "New wallet is already in a group")
 
         WalletGroupMembership.objects.create(
@@ -182,11 +183,32 @@ def add_wallet(request, payload: AddWalletPayload):
         )
 
         addresses = list(
-            WalletGroupMembership.objects.filter(
-                group=membership.group
-            ).values_list("address", flat=True)
+            WalletGroupMembership.objects.filter(group=membership.group).values_list(
+                "address", flat=True
+            )
         )
     return WalletGroupResponse(group_id=membership.group_id, addresses=addresses)
+
+
+def _invalidate_scores_for_claims(claims):
+    """Bulk-invalidate scores for a set of canonical claims."""
+    from django.db.models import Q
+
+    from registry.models import Score
+
+    conditions = Q()
+    for claim in claims:
+        conditions |= Q(
+            passport__address=claim.canonical_address,
+            passport__community=claim.community,
+        )
+    if conditions:
+        Score.objects.filter(conditions).update(
+            status=Score.Status.PROCESSING,
+            stamps=None,
+            stamp_scores=None,
+            evidence=None,
+        )
 
 
 @router.post("/unlink", response={200: dict, 404: dict})
@@ -210,24 +232,15 @@ def unlink_wallet(request, payload: SiwePayload):
         group = membership.group
 
         # Invalidate canonical scores where this address is canonical
-        # so stale merged data isn't served
-        from registry.models import Score
-
-        canonical_claims = WalletGroupCommunityClaim.objects.filter(
-            group=group, canonical_address=address
-        )
-        for claim in canonical_claims:
-            Score.objects.filter(
-                passport__address=claim.canonical_address,
-                passport__community=claim.community,
-            ).update(
-                status=Score.Status.PROCESSING,
-                stamps=None,
-                stamp_scores=None,
-                evidence=None,
+        canonical_claims = list(
+            WalletGroupCommunityClaim.objects.filter(
+                group=group, canonical_address=address
             )
-
-        canonical_claims.delete()
+        )
+        _invalidate_scores_for_claims(canonical_claims)
+        WalletGroupCommunityClaim.objects.filter(
+            group=group, canonical_address=address
+        ).delete()
 
         # Remove from group
         membership.delete()
@@ -235,17 +248,10 @@ def unlink_wallet(request, payload: SiwePayload):
         # If only 1 member left, delete the group entirely
         remaining = WalletGroupMembership.objects.filter(group=group).count()
         if remaining <= 1:
-            # Invalidate scores for remaining claims before deleting
-            for claim in WalletGroupCommunityClaim.objects.filter(group=group):
-                Score.objects.filter(
-                    passport__address=claim.canonical_address,
-                    passport__community=claim.community,
-                ).update(
-                    status=Score.Status.PROCESSING,
-                    stamps=None,
-                    stamp_scores=None,
-                    evidence=None,
-                )
+            remaining_claims = list(
+                WalletGroupCommunityClaim.objects.filter(group=group)
+            )
+            _invalidate_scores_for_claims(remaining_claims)
             WalletGroupMembership.objects.filter(group=group).delete()
             WalletGroupCommunityClaim.objects.filter(group=group).delete()
             group.delete()
@@ -263,10 +269,8 @@ def get_wallet_group(request, address: str):
         raise HttpError(404, "Wallet is not in a group")
 
     addresses = list(
-        WalletGroupMembership.objects.filter(
-            group=membership.group
-        ).values_list("address", flat=True)
+        WalletGroupMembership.objects.filter(group=membership.group).values_list(
+            "address", flat=True
+        )
     )
-    return WalletGroupResponse(
-        group_id=membership.group_id, addresses=addresses
-    )
+    return WalletGroupResponse(group_id=membership.group_id, addresses=addresses)
