@@ -71,6 +71,7 @@ class TestBulkStampUpdates:
             "passing_score": False,
             "points_data": None,
             "possible_points_data": None,
+            "linked_score": None,
         }
 
         # Verify the returned stamps
@@ -185,6 +186,7 @@ class TestBulkStampUpdates:
             "passing_score": False,
             "points_data": None,
             "possible_points_data": None,
+            "linked_score": None,
         }
 
         sorted_stamps_returned = sorted(
@@ -314,6 +316,7 @@ class TestBulkStampUpdates:
             "passing_score": False,
             "points_data": None,
             "possible_points_data": None,
+            "linked_score": None,
         }
 
         sorted_stamps_returned = sorted(
