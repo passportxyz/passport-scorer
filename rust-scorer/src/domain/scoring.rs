@@ -594,6 +594,7 @@ pub async fn calculate_score_for_address(
 /// - Determines the canonical wallet for this community
 /// - Scores all wallets in the group independently
 /// - Merges results by provider for the canonical wallet
+/// - Persists merged score to the canonical wallet's DB record
 /// - Non-canonical wallets get score=0 with linked_score pointing to canonical
 ///
 /// If the address is not in a wallet group, delegates to `calculate_score_for_address`.
@@ -602,23 +603,20 @@ pub async fn calculate_score_for_address_with_groups(
     scorer_id: i64,
     pool: &PgPool,
 ) -> Result<V2ScoreResponse, DomainError> {
-    // Check if address is in a wallet group
-    let group_addresses = queries::wallet_groups::get_wallet_group_addresses(pool, address)
+    // Check if address is in a wallet group (single query for group_id + addresses)
+    let group_info = queries::wallet_groups::get_wallet_group(pool, address)
         .await
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
-    if group_addresses.is_empty() || group_addresses.len() == 1 {
-        // No group or solo member - existing flow
-        return calculate_score_for_address(address, scorer_id, pool).await;
-    }
+    let (group_id, group_addresses) = match group_info {
+        None => return calculate_score_for_address(address, scorer_id, pool).await,
+        Some((_, ref addrs)) if addrs.len() <= 1 => {
+            return calculate_score_for_address(address, scorer_id, pool).await;
+        }
+        Some(info) => info,
+    };
 
-    // Get group_id
-    let group_id = queries::wallet_groups::get_group_id_for_address(pool, address)
-        .await
-        .map_err(|e| DomainError::Database(e.to_string()))?
-        .ok_or_else(|| DomainError::Internal("Group ID not found".into()))?;
-
-    // Determine canonical wallet
+    // Determine canonical wallet (uses transaction for claim write ops)
     let canonical = get_or_set_canonical(pool, group_id, scorer_id, address).await?;
 
     // Score all wallets independently
@@ -653,14 +651,63 @@ pub async fn calculate_score_for_address_with_groups(
         .map_err(|e| DomainError::Internal(format!("Failed to parse weights: {}", e)))?;
 
     let mut combined_raw_score = Decimal::from(0);
+    let mut merged_stamp_scores = serde_json::Map::new();
     for (provider, _) in &merged_stamps {
         if let Some(weight) = weights.get(provider) {
             combined_raw_score += weight;
+            merged_stamp_scores.insert(
+                provider.clone(),
+                serde_json::Value::String(format!("{:.5}", weight)),
+            );
         }
     }
 
     let threshold = scorer_config.threshold;
     let is_passing = combined_raw_score >= threshold;
+    let binary_score = if is_passing { Decimal::from(1) } else { Decimal::from(0) };
+
+    // Find earliest expiration from merged stamps
+    let earliest_expiration: Option<&str> = merged_stamps.values()
+        .filter_map(|s| s.expiration_date.as_deref())
+        .min();
+
+    let expiration_dt = earliest_expiration.and_then(|s| {
+        chrono::DateTime::parse_from_rfc3339(s).ok().map(|dt| dt.with_timezone(&Utc))
+    });
+
+    // Persist merged score to canonical wallet's DB record
+    {
+        let evidence = serde_json::json!({
+            "type": "ThresholdScoreCheck",
+            "success": is_passing,
+            "rawScore": format!("{:.5}", combined_raw_score),
+            "threshold": format!("{:.5}", threshold),
+        });
+        let stamps_value = serde_json::to_value(&merged_stamps)
+            .map_err(|e| DomainError::Internal(format!("Failed to serialize stamps: {}", e)))?;
+
+        // Get or create passport for canonical address
+        let mut tx = pool.begin().await
+            .map_err(|e| DomainError::Database(e.to_string()))?;
+
+        let passport_id = queries::scoring::upsert_passport_record(&mut tx, &canonical, scorer_id)
+            .await
+            .map_err(|e| DomainError::Database(e.to_string()))?;
+
+        queries::scoring::upsert_score_record(
+            &mut tx,
+            passport_id,
+            binary_score,
+            threshold,
+            stamps_value,
+            serde_json::Value::Object(merged_stamp_scores),
+            evidence,
+            expiration_dt,
+        ).await.map_err(|e| DomainError::Database(e.to_string()))?;
+
+        tx.commit().await
+            .map_err(|e| DomainError::Database(e.to_string()))?;
+    }
 
     // Build canonical response with merged data
     let canonical_base = wallet_responses.get(&canonical)
@@ -671,7 +718,7 @@ pub async fn calculate_score_for_address_with_groups(
         score: Some(format_decimal_5(combined_raw_score)),
         passing_score: is_passing,
         last_score_timestamp: canonical_base.last_score_timestamp.clone(),
-        expiration_timestamp: canonical_base.expiration_timestamp.clone(),
+        expiration_timestamp: earliest_expiration.map(|s| s.to_string()),
         threshold: format_decimal_5(threshold),
         error: None,
         stamps: merged_stamps.clone(),
@@ -711,7 +758,7 @@ pub async fn calculate_score_for_address_with_groups(
 /// Determine or set the canonical wallet for a group+community.
 async fn get_or_set_canonical(
     pool: &PgPool,
-    group_id: i32,
+    group_id: i64,
     scorer_id: i64,
     requesting_address: &str,
 ) -> Result<String, DomainError> {
@@ -728,21 +775,36 @@ async fn get_or_set_canonical(
         };
 
         if score_expired {
-            // Release the claim
-            queries::wallet_groups::delete_canonical_claim(pool, group_id, scorer_id)
+            // Release the claim within a transaction
+            let mut tx = pool.begin().await
+                .map_err(|e| DomainError::Database(e.to_string()))?;
+            queries::wallet_groups::delete_canonical_claim(&mut tx, group_id, scorer_id)
                 .await
                 .map_err(|e| DomainError::Database(e.to_string()))?;
+            // Set new canonical in same transaction
+            let canonical = queries::wallet_groups::upsert_canonical_claim(
+                &mut tx, group_id, scorer_id, requesting_address,
+            )
+            .await
+            .map_err(|e| DomainError::Database(e.to_string()))?;
+            tx.commit().await
+                .map_err(|e| DomainError::Database(e.to_string()))?;
+            return Ok(canonical);
         } else {
             return Ok(canonical);
         }
     }
 
     // No valid claim - requesting address becomes canonical
+    let mut tx = pool.begin().await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
     let canonical = queries::wallet_groups::upsert_canonical_claim(
-        pool, group_id, scorer_id, requesting_address,
+        &mut tx, group_id, scorer_id, requesting_address,
     )
     .await
     .map_err(|e| DomainError::Database(e.to_string()))?;
+    tx.commit().await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
 
     Ok(canonical)
 }

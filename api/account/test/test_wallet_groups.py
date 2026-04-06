@@ -1,8 +1,9 @@
 """Tests for wallet group models, linking API, and scoring integration."""
 
-import pytest
 from decimal import Decimal
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from django.test import TestCase, override_settings
 
 from account.models import (
@@ -175,7 +176,7 @@ class TestCanonicalClaim(TestCase):
         assert claim.canonical_address == "0xaaa"
 
     def test_expired_canonical_is_replaced(self):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
 
         WalletGroupCommunityClaim.objects.create(
             group=self.group,

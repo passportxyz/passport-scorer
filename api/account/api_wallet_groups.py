@@ -1,22 +1,27 @@
 """Wallet group linking/unlinking API endpoints."""
 
-import api_logging as logging
+from typing import List, Optional
+
 from django.conf import settings
+from django.db import transaction
 from eth_account import Account as EthAccount
 from eth_account.messages import encode_defunct
 from ninja import Router, Schema
 from ninja.errors import HttpError
-from typing import List, Optional
 from web3 import Web3
 
+import api_logging as logging
 from account.models import (
     Nonce,
     WalletGroup,
     WalletGroupCommunityClaim,
     WalletGroupMembership,
 )
+from account.siwe_validation import validate_siwe_domain, validate_siwe_expiration
 
 log = logging.getLogger(__name__)
+
+MAX_GROUP_SIZE = 10
 
 router = Router()
 
@@ -52,6 +57,15 @@ def verify_siwe_ownership(payload: SiwePayload) -> str:
 
     if not address_raw or not nonce:
         raise HttpError(400, "Missing address or nonce in SIWE message")
+
+    # Validate domain against allowlist
+    message_domain = payload.message.get("domain")
+    if not validate_siwe_domain(message_domain, settings.SIWE_ALLOWED_DOMAINS_ACCOUNT):
+        raise HttpError(400, "Invalid domain in SIWE message")
+
+    # Validate expiration
+    if not validate_siwe_expiration(payload.message.get("expirationTime")):
+        raise HttpError(400, "SIWE message has expired")
 
     try:
         address = Web3.to_checksum_address(address_raw)
@@ -109,17 +123,18 @@ def link_wallets(request, payload: LinkWalletsPayload):
     if address_a == address_b:
         raise HttpError(400, "Cannot link a wallet to itself")
 
-    # Check neither is already in a group
-    existing = WalletGroupMembership.objects.filter(
-        address__in=[address_a, address_b]
-    )
-    if existing.exists():
-        raise HttpError(400, "One or both wallets are already in a group")
+    with transaction.atomic():
+        # Check neither is already in a group (lock rows to prevent races)
+        existing = WalletGroupMembership.objects.select_for_update().filter(
+            address__in=[address_a, address_b]
+        )
+        if existing.exists():
+            raise HttpError(400, "One or both wallets are already in a group")
 
-    # Create group with both members
-    group = WalletGroup.objects.create()
-    WalletGroupMembership.objects.create(group=group, address=address_a)
-    WalletGroupMembership.objects.create(group=group, address=address_b)
+        # Create group with both members
+        group = WalletGroup.objects.create()
+        WalletGroupMembership.objects.create(group=group, address=address_a)
+        WalletGroupMembership.objects.create(group=group, address=address_b)
 
     return WalletGroupResponse(
         group_id=group.id, addresses=[address_a, address_b]
@@ -138,25 +153,39 @@ def add_wallet(request, payload: AddWalletPayload):
     if existing_address == new_address:
         raise HttpError(400, "Cannot add a wallet to its own group")
 
-    # Verify existing member is in a group
-    try:
-        membership = WalletGroupMembership.objects.get(address=existing_address)
-    except WalletGroupMembership.DoesNotExist:
-        raise HttpError(404, "Existing member is not in a wallet group")
+    with transaction.atomic():
+        # Verify existing member is in a group
+        try:
+            membership = WalletGroupMembership.objects.select_for_update().get(
+                address=existing_address
+            )
+        except WalletGroupMembership.DoesNotExist:
+            raise HttpError(404, "Existing member is not in a wallet group")
 
-    # Check new wallet isn't already in a group
-    if WalletGroupMembership.objects.filter(address=new_address).exists():
-        raise HttpError(400, "New wallet is already in a group")
-
-    WalletGroupMembership.objects.create(
-        group=membership.group, address=new_address
-    )
-
-    addresses = list(
-        WalletGroupMembership.objects.filter(
+        # Check group size limit
+        current_size = WalletGroupMembership.objects.filter(
             group=membership.group
-        ).values_list("address", flat=True)
-    )
+        ).count()
+        if current_size >= MAX_GROUP_SIZE:
+            raise HttpError(
+                400, f"Wallet group cannot exceed {MAX_GROUP_SIZE} members"
+            )
+
+        # Check new wallet isn't already in a group
+        if WalletGroupMembership.objects.select_for_update().filter(
+            address=new_address
+        ).exists():
+            raise HttpError(400, "New wallet is already in a group")
+
+        WalletGroupMembership.objects.create(
+            group=membership.group, address=new_address
+        )
+
+        addresses = list(
+            WalletGroupMembership.objects.filter(
+                group=membership.group
+            ).values_list("address", flat=True)
+        )
     return WalletGroupResponse(group_id=membership.group_id, addresses=addresses)
 
 
@@ -170,28 +199,56 @@ def unlink_wallet(request, payload: SiwePayload):
     """
     address = verify_siwe_ownership(payload)
 
-    try:
-        membership = WalletGroupMembership.objects.get(address=address)
-    except WalletGroupMembership.DoesNotExist:
-        raise HttpError(404, "Wallet is not in a group")
+    with transaction.atomic():
+        try:
+            membership = WalletGroupMembership.objects.select_for_update().get(
+                address=address
+            )
+        except WalletGroupMembership.DoesNotExist:
+            raise HttpError(404, "Wallet is not in a group")
 
-    group = membership.group
+        group = membership.group
 
-    # Delete canonical claims where this address is canonical
-    WalletGroupCommunityClaim.objects.filter(
-        group=group, canonical_address=address
-    ).delete()
+        # Invalidate canonical scores where this address is canonical
+        # so stale merged data isn't served
+        from registry.models import Score
 
-    # Remove from group
-    membership.delete()
+        canonical_claims = WalletGroupCommunityClaim.objects.filter(
+            group=group, canonical_address=address
+        )
+        for claim in canonical_claims:
+            Score.objects.filter(
+                passport__address=claim.canonical_address,
+                passport__community=claim.community,
+            ).update(
+                status=Score.Status.PROCESSING,
+                stamps=None,
+                stamp_scores=None,
+                evidence=None,
+            )
 
-    # If only 1 member left, delete the group entirely
-    remaining = WalletGroupMembership.objects.filter(group=group).count()
-    if remaining <= 1:
-        # Delete remaining memberships and all claims
-        WalletGroupMembership.objects.filter(group=group).delete()
-        WalletGroupCommunityClaim.objects.filter(group=group).delete()
-        group.delete()
+        canonical_claims.delete()
+
+        # Remove from group
+        membership.delete()
+
+        # If only 1 member left, delete the group entirely
+        remaining = WalletGroupMembership.objects.filter(group=group).count()
+        if remaining <= 1:
+            # Invalidate scores for remaining claims before deleting
+            for claim in WalletGroupCommunityClaim.objects.filter(group=group):
+                Score.objects.filter(
+                    passport__address=claim.canonical_address,
+                    passport__community=claim.community,
+                ).update(
+                    status=Score.Status.PROCESSING,
+                    stamps=None,
+                    stamp_scores=None,
+                    evidence=None,
+                )
+            WalletGroupMembership.objects.filter(group=group).delete()
+            WalletGroupCommunityClaim.objects.filter(group=group).delete()
+            group.delete()
 
     return {"success": True}
 

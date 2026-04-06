@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
@@ -199,7 +200,10 @@ async def _score_wallet_group(
             defaults=dict(score=None, status=Score.Status.PROCESSING),
         )
         await ascore_passport(community, db_passport, addr, score)
-        await score.asave()
+        # Save non-canonical wallets immediately; defer canonical save until after merge
+        # to avoid a spurious SCORE_UPDATE event with pre-merge data
+        if addr != canonical_address:
+            await score.asave()
         wallet_scores[addr] = score
 
     # Merge stamps by provider: take first valid (non-deduped) stamp per provider
@@ -224,8 +228,10 @@ async def _score_wallet_group(
 
         customization = await Customization.objects.aget(scorer_id=community.pk)
         weights.update(await customization.aget_customization_dynamic_weights())
+    except Customization.DoesNotExist:
+        pass  # No customization for this community — use base weights
     except Exception:
-        pass
+        log.warning("Failed to load customization weights for community %s", community.pk, exc_info=True)
 
     combined_raw_score = Decimal(0)
     merged_stamp_scores = {}
@@ -258,8 +264,6 @@ async def _score_wallet_group(
     canonical_score.status = Score.Status.DONE
     canonical_score.last_score_timestamp = get_utc_time()
     if earliest_expiration:
-        from datetime import datetime, timezone
-
         if isinstance(earliest_expiration, str):
             canonical_score.expiration_date = datetime.fromisoformat(
                 earliest_expiration

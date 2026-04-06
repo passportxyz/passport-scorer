@@ -1,16 +1,16 @@
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
 
 use crate::db::DatabaseError;
 
-/// Get all addresses in the same wallet group as the given address.
-/// Returns empty vec if address is not in any group.
-pub async fn get_wallet_group_addresses(
+/// Get wallet group info for an address: (group_id, all member addresses).
+/// Returns None if address is not in any group.
+pub async fn get_wallet_group(
     pool: &PgPool,
     address: &str,
-) -> Result<Vec<String>, DatabaseError> {
-    let rows: Vec<(String,)> = sqlx::query_as(
+) -> Result<Option<(i64, Vec<String>)>, DatabaseError> {
+    let rows: Vec<(i64, String)> = sqlx::query_as(
         r#"
-        SELECT m2.address
+        SELECT m1.group_id, m2.address
         FROM account_walletgroupmembership m1
         JOIN account_walletgroupmembership m2 ON m1.group_id = m2.group_id
         WHERE m1.address = $1
@@ -20,32 +20,19 @@ pub async fn get_wallet_group_addresses(
     .fetch_all(pool)
     .await?;
 
-    Ok(rows.into_iter().map(|(a,)| a).collect())
-}
+    if rows.is_empty() {
+        return Ok(None);
+    }
 
-/// Get the group_id for a given address. Returns None if not in a group.
-pub async fn get_group_id_for_address(
-    pool: &PgPool,
-    address: &str,
-) -> Result<Option<i32>, DatabaseError> {
-    let row: Option<(i32,)> = sqlx::query_as(
-        r#"
-        SELECT group_id
-        FROM account_walletgroupmembership
-        WHERE address = $1
-        "#,
-    )
-    .bind(address)
-    .fetch_optional(pool)
-    .await?;
-
-    Ok(row.map(|(id,)| id))
+    let group_id = rows[0].0;
+    let addresses: Vec<String> = rows.into_iter().map(|(_, a)| a).collect();
+    Ok(Some((group_id, addresses)))
 }
 
 /// Get the canonical address for a group+community. Returns None if no claim exists.
 pub async fn get_canonical_claim(
     pool: &PgPool,
-    group_id: i32,
+    group_id: i64,
     community_id: i64,
 ) -> Result<Option<String>, DatabaseError> {
     let row: Option<(String,)> = sqlx::query_as(
@@ -67,8 +54,8 @@ pub async fn get_canonical_claim(
 /// Uses ON CONFLICT DO NOTHING to handle races - if another wallet won,
 /// we read back the existing claim.
 pub async fn upsert_canonical_claim(
-    pool: &PgPool,
-    group_id: i32,
+    tx: &mut Transaction<'_, Postgres>,
+    group_id: i64,
     community_id: i64,
     address: &str,
 ) -> Result<String, DatabaseError> {
@@ -83,7 +70,7 @@ pub async fn upsert_canonical_claim(
     .bind(group_id)
     .bind(community_id)
     .bind(address)
-    .execute(pool)
+    .execute(&mut **tx)
     .await?;
 
     // Read back the actual canonical address (may be ours or the race winner's)
@@ -96,7 +83,7 @@ pub async fn upsert_canonical_claim(
     )
     .bind(group_id)
     .bind(community_id)
-    .fetch_one(pool)
+    .fetch_one(&mut **tx)
     .await?;
 
     Ok(canonical)
@@ -104,8 +91,8 @@ pub async fn upsert_canonical_claim(
 
 /// Delete a canonical claim (used when the score has expired).
 pub async fn delete_canonical_claim(
-    pool: &PgPool,
-    group_id: i32,
+    tx: &mut Transaction<'_, Postgres>,
+    group_id: i64,
     community_id: i64,
 ) -> Result<(), DatabaseError> {
     sqlx::query(
@@ -116,7 +103,7 @@ pub async fn delete_canonical_claim(
     )
     .bind(group_id)
     .bind(community_id)
-    .execute(pool)
+    .execute(&mut **tx)
     .await?;
 
     Ok(())
