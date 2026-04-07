@@ -633,8 +633,8 @@ pub async fn calculate_score_for_address_with_groups(
     let mut ordered: Vec<&String> = vec![&canonical];
     ordered.extend(group_addresses.iter().filter(|a| **a != canonical));
 
-    for addr in ordered {
-        if let Some(response) = wallet_responses.get(addr) {
+    for addr in &ordered {
+        if let Some(response) = wallet_responses.get(*addr) {
             for (provider, stamp_data) in &response.stamps {
                 if !merged_stamps.contains_key(provider) && !stamp_data.dedup {
                     merged_stamps.insert(provider.clone(), stamp_data.clone());
@@ -643,37 +643,46 @@ pub async fn calculate_score_for_address_with_groups(
         }
     }
 
-    // Calculate combined raw_score from merged stamps using weights
-    let scorer_config = queries::load_scorer_config(pool, scorer_id)
-        .await
-        .map_err(|e| DomainError::Database(e.to_string()))?;
-    let weights: HashMap<String, Decimal> = serde_json::from_value(scorer_config.weights)
-        .map_err(|e| DomainError::Internal(format!("Failed to parse weights: {}", e)))?;
-
+    // Build combined score from merged stamps using already-computed stamp_scores
+    // from individual wallet scoring (avoids duplicating weight-loading logic)
     let mut combined_raw_score = Decimal::from(0);
     let mut merged_stamp_scores = serde_json::Map::new();
     for (provider, _) in &merged_stamps {
-        if let Some(weight) = weights.get(provider) {
-            combined_raw_score += weight;
-            merged_stamp_scores.insert(
-                provider.clone(),
-                serde_json::Value::String(format!("{:.5}", weight)),
-            );
+        // Find this provider's weight from whichever wallet contributed the stamp
+        let mut weight = Decimal::from(0);
+        for addr in &ordered {
+            if let Some(response) = wallet_responses.get(*addr) {
+                if let Some(stamp) = response.stamps.get(provider) {
+                    if let Ok(w) = stamp.score.parse::<Decimal>() {
+                        weight = w;
+                        break;
+                    }
+                }
+            }
         }
+        combined_raw_score += weight;
+        merged_stamp_scores.insert(
+            provider.clone(),
+            serde_json::Value::String(format!("{:.5}", weight)),
+        );
     }
 
+    // Still need threshold from scorer config
+    let scorer_config = queries::load_scorer_config(pool, scorer_id)
+        .await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
     let threshold = scorer_config.threshold;
     let is_passing = combined_raw_score >= threshold;
     let binary_score = if is_passing { Decimal::from(1) } else { Decimal::from(0) };
 
-    // Find earliest expiration from merged stamps
-    let earliest_expiration: Option<&str> = merged_stamps.values()
+    // Find earliest expiration from merged stamps (parse to datetime for proper comparison)
+    let expiration_dt: Option<chrono::DateTime<Utc>> = merged_stamps.values()
         .filter_map(|s| s.expiration_date.as_deref())
+        .filter_map(|s| chrono::DateTime::parse_from_rfc3339(s).ok().map(|dt| dt.with_timezone(&Utc)))
         .min();
 
-    let expiration_dt = earliest_expiration.and_then(|s| {
-        chrono::DateTime::parse_from_rfc3339(s).ok().map(|dt| dt.with_timezone(&Utc))
-    });
+    let earliest_expiration: Option<String> = expiration_dt
+        .map(|dt| dt.to_rfc3339());
 
     // Persist merged score to canonical wallet's DB record
     {
@@ -715,7 +724,7 @@ pub async fn calculate_score_for_address_with_groups(
 
     let score_str = Some(format_decimal_5(combined_raw_score));
     let last_ts = canonical_base.last_score_timestamp.clone();
-    let exp_ts = earliest_expiration.map(|s| s.to_string());
+    let exp_ts = earliest_expiration;
     let threshold_str = format_decimal_5(threshold);
 
     if address == canonical {

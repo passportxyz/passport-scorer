@@ -256,6 +256,127 @@ class TestBuildNonCanonicalResponse:
 
 
 # ============================================================
+# Stamp merge scoring tests
+# ============================================================
+
+
+class TestStampMergeLogic:
+    """Test the stamp merging and weight aggregation logic used by _score_wallet_group.
+
+    These are pure unit tests (no DB) that verify:
+    - Weights come from stamp_scores on individual Score objects
+    - Deduped stamps are excluded from merging
+    - Canonical wallet's stamps take priority
+    - Expiration dates are properly compared as datetimes
+    """
+
+    def _make_score(self, stamp_scores, stamps):
+        """Create a mock Score-like object."""
+        score = MagicMock()
+        score.stamp_scores = stamp_scores
+        score.stamps = stamps
+        return score
+
+    def test_merged_score_uses_stamp_scores_from_individual_wallets(self):
+        """Verify merged score pulls weights from stamp_scores."""
+        from v2.api.api_stamps import _parse_expiration
+
+        score_a = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={
+                "Google": {
+                    "score": "10.00000",
+                    "dedup": False,
+                    "expiration_date": "2027-01-01T00:00:00+00:00",
+                }
+            },
+        )
+        score_b = self._make_score(
+            stamp_scores={"Twitter": "15"},
+            stamps={
+                "Twitter": {
+                    "score": "15.00000",
+                    "dedup": False,
+                    "expiration_date": "2027-06-01T00:00:00+00:00",
+                }
+            },
+        )
+
+        wallet_scores = {"0xaaa": score_a, "0xbbb": score_b}
+        ordered = ["0xaaa", "0xbbb"]
+
+        # Merge stamps (same logic as _score_wallet_group)
+        merged_stamps = {}
+        for addr in ordered:
+            for provider, stamp_data in wallet_scores[addr].stamps.items():
+                if provider not in merged_stamps and not stamp_data.get("dedup"):
+                    merged_stamps[provider] = stamp_data
+
+        # Build combined score from stamp_scores
+        combined = Decimal(0)
+        merged_stamp_scores = {}
+        earliest_exp = None
+        for provider in merged_stamps:
+            for addr in ordered:
+                ws = wallet_scores[addr]
+                if ws.stamp_scores and provider in ws.stamp_scores:
+                    w = Decimal(ws.stamp_scores[provider])
+                    combined += w
+                    merged_stamp_scores[provider] = str(w)
+                    break
+
+            exp = _parse_expiration(merged_stamps[provider].get("expiration_date"))
+            if exp and (earliest_exp is None or exp < earliest_exp):
+                earliest_exp = exp
+
+        assert combined == Decimal("25")
+        assert merged_stamp_scores == {"Google": "10", "Twitter": "15"}
+        assert earliest_exp.year == 2027
+        assert earliest_exp.month == 1  # Google's Jan, not Twitter's Jun
+
+    def test_deduped_stamps_excluded_from_merge(self):
+        """Deduped stamps should NOT contribute to merged score."""
+        score_a = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={"Google": {"score": "10.00000", "dedup": False, "expiration_date": "2027-01-01T00:00:00+00:00"}},
+        )
+        score_b = self._make_score(
+            stamp_scores={},
+            stamps={"Google": {"score": "0.00000", "dedup": True, "expiration_date": "2027-01-01T00:00:00+00:00"}},
+        )
+
+        merged = {}
+        for addr in ["0xaaa", "0xbbb"]:
+            ws = {"0xaaa": score_a, "0xbbb": score_b}[addr]
+            for provider, data in ws.stamps.items():
+                if provider not in merged and not data.get("dedup"):
+                    merged[provider] = data
+
+        assert len(merged) == 1
+        assert "Google" in merged
+
+    def test_canonical_stamps_take_priority(self):
+        """When both wallets have same provider non-deduped, canonical wins."""
+        score_a = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={"Google": {"score": "10.00000", "dedup": False, "expiration_date": "2028-01-01T00:00:00+00:00"}},
+        )
+        score_b = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={"Google": {"score": "10.00000", "dedup": False, "expiration_date": "2026-01-01T00:00:00+00:00"}},
+        )
+
+        merged = {}
+        for addr in ["0xaaa", "0xbbb"]:  # canonical first
+            ws = {"0xaaa": score_a, "0xbbb": score_b}[addr]
+            for provider, data in ws.stamps.items():
+                if provider not in merged and not data.get("dedup"):
+                    merged[provider] = data
+
+        assert merged["Google"]["expiration_date"] == "2028-01-01T00:00:00+00:00"
+
+
+# ============================================================
 # Wallet group API tests (with mocked SIWE)
 # ============================================================
 

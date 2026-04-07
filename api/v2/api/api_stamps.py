@@ -63,6 +63,18 @@ METADATA_URL = urljoin(settings.PASSPORT_PUBLIC_URL, "stampMetadata.json")
 log = logging.getLogger(__name__)
 
 
+def _parse_expiration(exp_date) -> Optional[datetime]:
+    """Parse an expiration date (string or datetime) into a timezone-aware datetime."""
+    if isinstance(exp_date, datetime):
+        return exp_date
+    if isinstance(exp_date, str):
+        try:
+            return datetime.fromisoformat(exp_date)
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
 async def handle_scoring_for_account(address: str, scorer_id: str, user_account):
     # Get community object
     user_community = await aget_scorer_by_id(scorer_id, user_account)
@@ -218,33 +230,27 @@ async def _score_wallet_group(
             if provider not in merged_stamps and not stamp_data.get("dedup"):
                 merged_stamps[provider] = stamp_data
 
-    # Calculate combined raw_score from merged stamps using scorer weights
-    weights = scorer.weights or {}
-    try:
-        from account.models import Customization
-
-        customization = await Customization.objects.aget(scorer_id=community.pk)
-        weights.update(await customization.aget_customization_dynamic_weights())
-    except Customization.DoesNotExist:
-        pass  # No customization for this community — use base weights
-    except Exception:
-        log.warning(
-            "Failed to load customization weights for community %s",
-            community.pk,
-            exc_info=True,
-        )
-
+    # Build combined score from merged stamps using already-computed stamp_scores
+    # from individual wallet scoring (avoids duplicating weight-loading logic)
     combined_raw_score = Decimal(0)
     merged_stamp_scores = {}
     earliest_expiration = None
     for provider, stamp_data in merged_stamps.items():
-        weight = Decimal(weights.get(provider, 0))
+        # Find this provider's weight from whichever wallet contributed the stamp
+        weight = Decimal(0)
+        for addr in ordered_addresses:
+            ws = wallet_scores[addr]
+            if ws.stamp_scores and provider in ws.stamp_scores:
+                weight = Decimal(ws.stamp_scores[provider])
+                break
         combined_raw_score += weight
         merged_stamp_scores[provider] = str(weight)
 
         exp_date = stamp_data.get("expiration_date")
-        if exp_date and (earliest_expiration is None or exp_date < earliest_expiration):
-            earliest_expiration = exp_date
+        if exp_date:
+            parsed = _parse_expiration(exp_date)
+            if parsed and (earliest_expiration is None or parsed < earliest_expiration):
+                earliest_expiration = parsed
 
     threshold = Decimal(scorer.threshold if hasattr(scorer, "threshold") else "20")
     is_passing = combined_raw_score >= threshold
@@ -263,12 +269,7 @@ async def _score_wallet_group(
     canonical_score.status = Score.Status.DONE
     canonical_score.last_score_timestamp = get_utc_time()
     if earliest_expiration:
-        if isinstance(earliest_expiration, str):
-            canonical_score.expiration_date = datetime.fromisoformat(
-                earliest_expiration
-            )
-        else:
-            canonical_score.expiration_date = earliest_expiration
+        canonical_score.expiration_date = earliest_expiration
     await canonical_score.asave()
 
     return format_v2_score_response(canonical_score, scorer_type)

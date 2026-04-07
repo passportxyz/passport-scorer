@@ -955,7 +955,7 @@ class WalletGroupCommunityClaim(models.Model):
     community = models.ForeignKey(
         Community, on_delete=models.CASCADE, related_name="wallet_group_claims"
     )
-    canonical_address = EthAddressField()
+    canonical_address = EthAddressField(db_index=True)
     claimed_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
