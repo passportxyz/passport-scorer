@@ -432,8 +432,8 @@ class TestWalletGroupAPI:
         "account.api_wallet_groups.verify_siwe_ownership",
         side_effect=lambda p: p.message["address"].lower(),
     )
-    def test_link_duplicate_wallet(self, mock_verify):
-        """Can't link a wallet that's already in a group."""
+    def test_link_wallet_b_already_in_group(self, mock_verify):
+        """Can't link if wallet_b is already in a group."""
         import json
 
         # First link
@@ -448,13 +448,13 @@ class TestWalletGroupAPI:
             content_type="application/json",
         )
 
-        # Try to link 0xAAA again
+        # Try to link 0xBBB (already in a group) as wallet_b
         response = self.client.post(
             "/account/wallet-groups/link",
             data=json.dumps(
                 {
-                    "wallet_a": self._mock_siwe("0xAAA"),
-                    "wallet_b": self._mock_siwe("0xCCC"),
+                    "wallet_a": self._mock_siwe("0xCCC"),
+                    "wallet_b": self._mock_siwe("0xBBB"),
                 }
             ),
             content_type="application/json",
@@ -465,7 +465,8 @@ class TestWalletGroupAPI:
         "account.api_wallet_groups.verify_siwe_ownership",
         side_effect=lambda p: p.message["address"].lower(),
     )
-    def test_add_wallet_to_group(self, mock_verify):
+    def test_link_adds_to_existing_group(self, mock_verify):
+        """If wallet_a is already in a group, wallet_b is added to it."""
         import json
 
         # Create initial group
@@ -481,13 +482,13 @@ class TestWalletGroupAPI:
         )
         assert resp.status_code == 200
 
-        # Add third wallet
+        # Link again with wallet_a already in group — adds wallet_b to it
         response = self.client.post(
-            "/account/wallet-groups/add",
+            "/account/wallet-groups/link",
             data=json.dumps(
                 {
-                    "existing_member": self._mock_siwe("0xAAA"),
-                    "new_wallet": self._mock_siwe("0xCCC"),
+                    "wallet_a": self._mock_siwe("0xAAA"),
+                    "wallet_b": self._mock_siwe("0xCCC"),
                 }
             ),
             content_type="application/json",
@@ -518,11 +519,11 @@ class TestWalletGroupAPI:
 
         # Add third so unlinking doesn't destroy group
         self.client.post(
-            "/account/wallet-groups/add",
+            "/account/wallet-groups/link",
             data=json.dumps(
                 {
-                    "existing_member": self._mock_siwe("0xAAA"),
-                    "new_wallet": self._mock_siwe("0xCCC"),
+                    "wallet_a": self._mock_siwe("0xAAA"),
+                    "wallet_b": self._mock_siwe("0xCCC"),
                 }
             ),
             content_type="application/json",

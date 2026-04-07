@@ -39,11 +39,6 @@ class LinkWalletsPayload(Schema):
     wallet_b: SiwePayload
 
 
-class AddWalletPayload(Schema):
-    existing_member: SiwePayload
-    new_wallet: SiwePayload
-
-
 class WalletGroupResponse(Schema):
     group_id: int
     addresses: List[str]
@@ -115,10 +110,13 @@ def verify_siwe_ownership(payload: SiwePayload) -> str:
 
 @router.post("/link", response=WalletGroupResponse)
 def link_wallets(request, payload: LinkWalletsPayload):
-    """Link two wallets into a new wallet group.
+    """Link two wallets together.
 
     Both wallets must prove ownership via SIWE signatures.
-    Neither wallet can already be in a group.
+    - If neither is in a group → creates a new group with both.
+    - If wallet_a is already in a group → adds wallet_b to it.
+    - wallet_b must not already be in a group.
+    - Both wallets in groups (different or same) → error.
     """
     address_a = verify_siwe_ownership(payload.wallet_a)
     address_b = verify_siwe_ownership(payload.wallet_b)
@@ -127,67 +125,42 @@ def link_wallets(request, payload: LinkWalletsPayload):
         raise HttpError(400, "Cannot link a wallet to itself")
 
     with transaction.atomic():
-        # Check neither is already in a group (lock rows to prevent races)
-        existing = WalletGroupMembership.objects.select_for_update().filter(
-            address__in=[address_a, address_b]
-        )
-        if existing.exists():
-            raise HttpError(400, "One or both wallets are already in a group")
-
-        # Create group with both members
-        group = WalletGroup.objects.create()
-        WalletGroupMembership.objects.create(group=group, address=address_a)
-        WalletGroupMembership.objects.create(group=group, address=address_b)
-
-    return WalletGroupResponse(group_id=group.id, addresses=[address_a, address_b])
-
-
-@router.post("/add", response=WalletGroupResponse)
-def add_wallet(request, payload: AddWalletPayload):
-    """Add a new wallet to an existing group.
-
-    Requires SIWE proof from an existing member and from the new wallet.
-    """
-    existing_address = verify_siwe_ownership(payload.existing_member)
-    new_address = verify_siwe_ownership(payload.new_wallet)
-
-    if existing_address == new_address:
-        raise HttpError(400, "Cannot add a wallet to its own group")
-
-    with transaction.atomic():
-        # Verify existing member is in a group
-        try:
-            membership = WalletGroupMembership.objects.select_for_update().get(
-                address=existing_address
+        # Lock both rows to prevent races
+        memberships = {
+            m.address: m
+            for m in WalletGroupMembership.objects.select_for_update().filter(
+                address__in=[address_a, address_b]
             )
-        except WalletGroupMembership.DoesNotExist:
-            raise HttpError(404, "Existing member is not in a wallet group")
+        }
 
-        # Check group size limit
-        current_size = WalletGroupMembership.objects.filter(
-            group=membership.group
-        ).count()
-        if current_size >= MAX_GROUP_SIZE:
-            raise HttpError(400, f"Wallet group cannot exceed {MAX_GROUP_SIZE} members")
+        a_membership = memberships.get(address_a)
+        b_membership = memberships.get(address_b)
 
-        # Check new wallet isn't already in a group
-        if (
-            WalletGroupMembership.objects.select_for_update()
-            .filter(address=new_address)
-            .exists()
-        ):
-            raise HttpError(400, "New wallet is already in a group")
+        if b_membership:
+            raise HttpError(400, "wallet_b is already in a group")
 
-        WalletGroupMembership.objects.create(
-            group=membership.group, address=new_address
-        )
+        if a_membership:
+            # Add wallet_b to wallet_a's existing group
+            group = a_membership.group
+            current_size = WalletGroupMembership.objects.filter(group=group).count()
+            if current_size >= MAX_GROUP_SIZE:
+                raise HttpError(
+                    400, f"Wallet group cannot exceed {MAX_GROUP_SIZE} members"
+                )
+            WalletGroupMembership.objects.create(group=group, address=address_b)
+        else:
+            # Neither in a group — create new group with both
+            group = WalletGroup.objects.create()
+            WalletGroupMembership.objects.create(group=group, address=address_a)
+            WalletGroupMembership.objects.create(group=group, address=address_b)
 
         addresses = list(
-            WalletGroupMembership.objects.filter(group=membership.group).values_list(
+            WalletGroupMembership.objects.filter(group=group).values_list(
                 "address", flat=True
             )
         )
-    return WalletGroupResponse(group_id=membership.group_id, addresses=addresses)
+
+    return WalletGroupResponse(group_id=group.id, addresses=addresses)
 
 
 def _invalidate_scores_for_claims(claims):
