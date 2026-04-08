@@ -9,6 +9,7 @@ pub mod cgrants;
 pub mod weights;
 pub mod utils;
 pub mod dedup;
+pub mod wallet_groups;
 
 // Re-export commonly used query functions
 pub use scoring::{get_passport, upsert_passport_record, get_score, upsert_score_record, load_community, upsert_score};

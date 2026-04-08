@@ -70,8 +70,8 @@ pub async fn internal_score_handler(
 
     // 2. No authentication needed (internal ALB)
 
-    // 3. Call shared domain logic (no human points for internal endpoint)
-    Ok(Json(domain::calculate_score_for_address(
+    // 3. Call shared domain logic (wallet-group-aware, no human points for internal endpoint)
+    Ok(Json(domain::calculate_score_for_address_with_groups(
         &address,
         scorer_id,
         &pool,

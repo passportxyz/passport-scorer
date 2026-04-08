@@ -42,6 +42,11 @@ log = logging.getLogger(__name__)
 
 api = NinjaExtraAPI(urls_namespace="account")
 
+# Mount wallet groups router
+from account.api_wallet_groups import router as wallet_groups_router
+
+api.add_router("/wallet-groups", wallet_groups_router)
+
 
 class SiweVerifySubmit(Schema):
     message: dict

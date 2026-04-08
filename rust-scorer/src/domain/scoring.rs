@@ -6,6 +6,7 @@ use sqlx::PgPool;
 use crate::models::{
     ScoringResult, StampData, V2ScoreResponse,
 };
+use crate::models::v2_api::{LinkedScoreResponse, V2StampScoreResponse, format_decimal_5};
 use crate::db::DatabaseError;
 use crate::db::queries;
 use crate::domain::dedup::LifoResult;
@@ -585,4 +586,237 @@ pub async fn calculate_score_for_address(
     }
 
     Ok(response)
+}
+
+/// Wallet-group-aware scoring wrapper.
+///
+/// If the address belongs to a wallet group:
+/// - Determines the canonical wallet for this community
+/// - Scores all wallets in the group independently
+/// - Merges results by provider for the canonical wallet
+/// - Persists merged score to the canonical wallet's DB record
+/// - Non-canonical wallets get score=0 with linked_score pointing to canonical
+///
+/// If the address is not in a wallet group, delegates to `calculate_score_for_address`.
+pub async fn calculate_score_for_address_with_groups(
+    address: &str,
+    scorer_id: i64,
+    pool: &PgPool,
+) -> Result<V2ScoreResponse, DomainError> {
+    // Check if address is in a wallet group (single query for group_id + addresses)
+    let group_info = queries::wallet_groups::get_wallet_group(pool, address)
+        .await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    let (group_id, group_addresses) = match group_info {
+        None => return calculate_score_for_address(address, scorer_id, pool).await,
+        Some((_, ref addrs)) if addrs.len() <= 1 => {
+            return calculate_score_for_address(address, scorer_id, pool).await;
+        }
+        Some(info) => info,
+    };
+
+    // Determine canonical wallet (uses transaction for claim write ops)
+    let canonical = get_or_set_canonical(pool, group_id, scorer_id, address).await?;
+
+    // Score all wallets independently
+    let mut wallet_responses: HashMap<String, V2ScoreResponse> = HashMap::new();
+    for addr in &group_addresses {
+        let response = calculate_score_for_address(addr, scorer_id, pool).await?;
+        wallet_responses.insert(addr.clone(), response);
+    }
+
+    // Merge stamps by provider (canonical wallet's stamps take priority)
+    let mut merged_stamps: HashMap<String, V2StampScoreResponse> = HashMap::new();
+
+    // Process canonical first
+    let mut ordered: Vec<&String> = vec![&canonical];
+    ordered.extend(group_addresses.iter().filter(|a| **a != canonical));
+
+    for addr in &ordered {
+        if let Some(response) = wallet_responses.get(*addr) {
+            for (provider, stamp_data) in &response.stamps {
+                if !merged_stamps.contains_key(provider) && !stamp_data.dedup {
+                    merged_stamps.insert(provider.clone(), stamp_data.clone());
+                }
+            }
+        }
+    }
+
+    // Build combined score from merged stamps using already-computed stamp_scores
+    // from individual wallet scoring (avoids duplicating weight-loading logic)
+    let mut combined_raw_score = Decimal::from(0);
+    let mut merged_stamp_scores = serde_json::Map::new();
+    for (provider, _) in &merged_stamps {
+        // Find this provider's weight from whichever wallet contributed the stamp
+        let mut weight = Decimal::from(0);
+        for addr in &ordered {
+            if let Some(response) = wallet_responses.get(*addr) {
+                if let Some(stamp) = response.stamps.get(provider) {
+                    if let Ok(w) = stamp.score.parse::<Decimal>() {
+                        weight = w;
+                        break;
+                    }
+                }
+            }
+        }
+        combined_raw_score += weight;
+        merged_stamp_scores.insert(
+            provider.clone(),
+            serde_json::Value::String(format!("{:.5}", weight)),
+        );
+    }
+
+    // Still need threshold from scorer config
+    let scorer_config = queries::load_scorer_config(pool, scorer_id)
+        .await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+    let threshold = scorer_config.threshold;
+    let is_passing = combined_raw_score >= threshold;
+    let binary_score = if is_passing { Decimal::from(1) } else { Decimal::from(0) };
+
+    // Find earliest expiration from merged stamps (parse to datetime for proper comparison)
+    let expiration_dt: Option<chrono::DateTime<Utc>> = merged_stamps.values()
+        .filter_map(|s| s.expiration_date.as_deref())
+        .filter_map(|s| chrono::DateTime::parse_from_rfc3339(s).ok().map(|dt| dt.with_timezone(&Utc)))
+        .min();
+
+    let earliest_expiration: Option<String> = expiration_dt
+        .map(|dt| dt.to_rfc3339());
+
+    // Persist merged score to canonical wallet's DB record
+    {
+        let evidence = serde_json::json!({
+            "type": "ThresholdScoreCheck",
+            "success": is_passing,
+            "rawScore": format!("{:.5}", combined_raw_score),
+            "threshold": format!("{:.5}", threshold),
+        });
+        let stamps_value = serde_json::to_value(&merged_stamps)
+            .map_err(|e| DomainError::Internal(format!("Failed to serialize stamps: {}", e)))?;
+
+        // Get or create passport for canonical address
+        let mut tx = pool.begin().await
+            .map_err(|e| DomainError::Database(e.to_string()))?;
+
+        let passport_id = queries::scoring::upsert_passport_record(&mut tx, &canonical, scorer_id)
+            .await
+            .map_err(|e| DomainError::Database(e.to_string()))?;
+
+        queries::scoring::upsert_score_record(
+            &mut tx,
+            passport_id,
+            binary_score,
+            threshold,
+            stamps_value,
+            serde_json::Value::Object(merged_stamp_scores),
+            evidence,
+            expiration_dt,
+        ).await.map_err(|e| DomainError::Database(e.to_string()))?;
+
+        tx.commit().await
+            .map_err(|e| DomainError::Database(e.to_string()))?;
+    }
+
+    // Build response with merged data
+    let canonical_base = wallet_responses.get(&canonical)
+        .ok_or_else(|| DomainError::Internal("Canonical response missing".into()))?;
+
+    let score_str = Some(format_decimal_5(combined_raw_score));
+    let last_ts = canonical_base.last_score_timestamp.clone();
+    let exp_ts = earliest_expiration;
+    let threshold_str = format_decimal_5(threshold);
+
+    if address == canonical {
+        Ok(V2ScoreResponse {
+            address: canonical,
+            score: score_str,
+            passing_score: is_passing,
+            last_score_timestamp: last_ts,
+            expiration_timestamp: exp_ts,
+            threshold: threshold_str,
+            error: None,
+            stamps: merged_stamps,
+            points_data: None,
+            possible_points_data: None,
+            linked_score: None,
+        })
+    } else {
+        // Non-canonical: return score=0 with linked_score
+        Ok(V2ScoreResponse {
+            address: address.to_string(),
+            score: Some("0.00000".to_string()),
+            passing_score: false,
+            last_score_timestamp: last_ts.clone(),
+            expiration_timestamp: exp_ts.clone(),
+            threshold: threshold_str.clone(),
+            error: None,
+            stamps: HashMap::new(),
+            points_data: None,
+            possible_points_data: None,
+            linked_score: Some(LinkedScoreResponse {
+                address: canonical,
+                score: score_str,
+                passing_score: is_passing,
+                last_score_timestamp: last_ts,
+                expiration_timestamp: exp_ts,
+                threshold: threshold_str,
+                stamps: merged_stamps,
+            }),
+        })
+    }
+}
+
+/// Determine or set the canonical wallet for a group+community.
+async fn get_or_set_canonical(
+    pool: &PgPool,
+    group_id: i64,
+    scorer_id: i64,
+    requesting_address: &str,
+) -> Result<String, DomainError> {
+    // Check for existing claim
+    if let Some(canonical) = queries::wallet_groups::get_canonical_claim(pool, group_id, scorer_id)
+        .await
+        .map_err(|e| DomainError::Database(e.to_string()))?
+    {
+        // Check if canonical wallet's score is expired
+        let score_expired = match queries::scoring::get_score_expiration(pool, &canonical, scorer_id).await {
+            Ok(Some(expiration)) => expiration < Utc::now(),
+            Ok(None) => false, // No score yet, keep the claim
+            Err(_) => false,
+        };
+
+        if score_expired {
+            // Release the claim within a transaction
+            let mut tx = pool.begin().await
+                .map_err(|e| DomainError::Database(e.to_string()))?;
+            queries::wallet_groups::delete_canonical_claim(&mut tx, group_id, scorer_id)
+                .await
+                .map_err(|e| DomainError::Database(e.to_string()))?;
+            // Set new canonical in same transaction
+            let canonical = queries::wallet_groups::upsert_canonical_claim(
+                &mut tx, group_id, scorer_id, requesting_address,
+            )
+            .await
+            .map_err(|e| DomainError::Database(e.to_string()))?;
+            tx.commit().await
+                .map_err(|e| DomainError::Database(e.to_string()))?;
+            return Ok(canonical);
+        } else {
+            return Ok(canonical);
+        }
+    }
+
+    // No valid claim - requesting address becomes canonical
+    let mut tx = pool.begin().await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+    let canonical = queries::wallet_groups::upsert_canonical_claim(
+        &mut tx, group_id, scorer_id, requesting_address,
+    )
+    .await
+    .map_err(|e| DomainError::Database(e.to_string()))?;
+    tx.commit().await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    Ok(canonical)
 }

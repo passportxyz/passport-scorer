@@ -483,6 +483,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "stamps": {},
             "points_data": None,
             "possible_points_data": None,
+            "linked_score": None,
         }
 
     @patch("registry.atasks.validate_credential", side_effect=[[], [], [], []])
@@ -522,6 +523,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             },
             "points_data": None,
             "possible_points_data": None,
+            "linked_score": None,
         }
 
         expected2ndResponse = {
@@ -546,6 +548,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             },
             "points_data": None,
             "possible_points_data": None,
+            "linked_score": None,
         }
 
         # First submission
@@ -662,6 +665,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "threshold": "2.00000",
             "points_data": None,
             "possible_points_data": None,
+            "linked_score": None,
         }
         # First submission
         response = self.client.get(
@@ -936,6 +940,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "threshold": "20.00000",
             "points_data": None,
             "possible_points_data": None,
+            "linked_score": None,
         }
         # First submission
         response = self.client.get(
@@ -1002,6 +1007,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "threshold": "20.00000",
             "points_data": None,
             "possible_points_data": None,
+            "linked_score": None,
         }
 
         # First submission
@@ -1071,6 +1077,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "threshold": "20.00000",
             "points_data": None,
             "possible_points_data": None,
+            "linked_score": None,
         }
         # First submission
         response = self.client.get(

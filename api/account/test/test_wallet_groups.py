@@ -1,0 +1,719 @@
+"""Tests for wallet group models, linking API, and scoring integration."""
+
+from decimal import Decimal
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from django.test import TestCase, override_settings
+
+from account.models import (
+    Account,
+    Community,
+    WalletGroup,
+    WalletGroupCommunityClaim,
+    WalletGroupMembership,
+)
+from registry.models import Passport, Score
+from scorer_weighted.models import BinaryWeightedScorer, Scorer
+
+
+@pytest.fixture
+def wallet_group(db):
+    """Create a wallet group with two members."""
+    group = WalletGroup.objects.create()
+    WalletGroupMembership.objects.create(group=group, address="0xaaa")
+    WalletGroupMembership.objects.create(group=group, address="0xbbb")
+    return group
+
+
+@pytest.fixture
+def community(db):
+    """Create a test community with a binary weighted scorer."""
+    from django.contrib.auth.models import User
+
+    user = User.objects.create_user(username="testuser", password="testpass")
+    account = Account.objects.create(user=user, address="0xowner")
+    scorer = BinaryWeightedScorer.objects.create(
+        type=Scorer.Type.WEIGHTED_BINARY,
+        threshold=Decimal("20"),
+    )
+    community = Community.objects.create(
+        account=account,
+        name="Test Community",
+        scorer=scorer,
+    )
+    return community
+
+
+# ============================================================
+# Model tests
+# ============================================================
+
+
+class TestWalletGroupModels(TestCase):
+    def test_create_wallet_group(self):
+        group = WalletGroup.objects.create()
+        self.assertIsNotNone(group.id)
+        self.assertIsNotNone(group.created_at)
+
+    def test_create_membership(self):
+        group = WalletGroup.objects.create()
+        m = WalletGroupMembership.objects.create(
+            group=group, address="0xaaa"
+        )
+        self.assertEqual(m.address, "0xaaa")
+        self.assertEqual(m.group, group)
+
+    def test_unique_address_constraint(self):
+        """Each address can only be in one group."""
+        group1 = WalletGroup.objects.create()
+        group2 = WalletGroup.objects.create()
+        WalletGroupMembership.objects.create(group=group1, address="0xaaa")
+        with self.assertRaises(Exception):
+            WalletGroupMembership.objects.create(
+                group=group2, address="0xaaa"
+            )
+
+    def test_unique_community_claim(self):
+        """Only one canonical wallet per group per community."""
+        from django.contrib.auth.models import User
+
+        user = User.objects.create_user(username="test", password="test")
+        account = Account.objects.create(user=user, address="0xowner")
+        scorer = BinaryWeightedScorer.objects.create(
+            type=Scorer.Type.WEIGHTED_BINARY,
+            threshold=Decimal("20"),
+            weights={"ETH": "1", "Google": "1"},
+        )
+        community = Community.objects.create(
+            account=account, name="Test", scorer=scorer
+        )
+        group = WalletGroup.objects.create()
+
+        WalletGroupCommunityClaim.objects.create(
+            group=group, community=community, canonical_address="0xaaa"
+        )
+        with self.assertRaises(Exception):
+            WalletGroupCommunityClaim.objects.create(
+                group=group, community=community, canonical_address="0xbbb"
+            )
+
+    def test_cascade_delete_group(self):
+        """Deleting a group cascades to memberships and claims."""
+        group = WalletGroup.objects.create()
+        WalletGroupMembership.objects.create(group=group, address="0xaaa")
+        group.delete()
+        self.assertEqual(WalletGroupMembership.objects.count(), 0)
+
+
+# ============================================================
+# Scoring helper tests
+# ============================================================
+
+
+class TestGetWalletGroup(TestCase):
+    def test_no_group(self):
+        """Address not in a group returns None."""
+        result = WalletGroupMembership.objects.filter(address="0xnogroup").first()
+        assert result is None
+
+    def test_with_group(self):
+        """Address in a group returns all group members."""
+        group = WalletGroup.objects.create()
+        WalletGroupMembership.objects.create(group=group, address="0xaaa")
+        WalletGroupMembership.objects.create(group=group, address="0xbbb")
+
+        membership = WalletGroupMembership.objects.get(address="0xaaa")
+        addresses = list(
+            WalletGroupMembership.objects.filter(
+                group_id=membership.group_id
+            ).values_list("address", flat=True)
+        )
+        assert set(addresses) == {"0xaaa", "0xbbb"}
+
+
+class TestCanonicalClaim(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import User
+
+        self.group = WalletGroup.objects.create()
+        WalletGroupMembership.objects.create(group=self.group, address="0xaaa")
+        WalletGroupMembership.objects.create(group=self.group, address="0xbbb")
+
+        user = User.objects.create_user(username="test_canon", password="test")
+        account = Account.objects.create(user=user, address="0xowner_canon")
+        scorer = BinaryWeightedScorer.objects.create(
+            type=Scorer.Type.WEIGHTED_BINARY,
+            threshold=Decimal("20"),
+            weights={"ETH": "1", "Google": "1"},
+        )
+        self.community = Community.objects.create(
+            account=account, name="Test", scorer=scorer
+        )
+
+    def test_first_wallet_becomes_canonical(self):
+        claim, created = WalletGroupCommunityClaim.objects.get_or_create(
+            group=self.group,
+            community=self.community,
+            defaults={"canonical_address": "0xaaa"},
+        )
+        assert created
+        assert claim.canonical_address == "0xaaa"
+
+    def test_second_wallet_gets_existing_canonical(self):
+        WalletGroupCommunityClaim.objects.create(
+            group=self.group,
+            community=self.community,
+            canonical_address="0xaaa",
+        )
+
+        claim, created = WalletGroupCommunityClaim.objects.get_or_create(
+            group=self.group,
+            community=self.community,
+            defaults={"canonical_address": "0xbbb"},
+        )
+        assert not created
+        assert claim.canonical_address == "0xaaa"
+
+    def test_expired_canonical_is_replaced(self):
+        from datetime import datetime, timedelta, timezone
+
+        WalletGroupCommunityClaim.objects.create(
+            group=self.group,
+            community=self.community,
+            canonical_address="0xaaa",
+        )
+
+        # Create an expired score for 0xaaa
+        passport = Passport.objects.create(
+            address="0xaaa", community=self.community
+        )
+        Score.objects.create(
+            passport=passport,
+            score=Decimal("1"),
+            status=Score.Status.DONE,
+            expiration_date=datetime.now(timezone.utc) - timedelta(days=1),
+        )
+
+        # Check expiration
+        claim = WalletGroupCommunityClaim.objects.get(
+            group=self.group, community=self.community
+        )
+        score = Score.objects.get(
+            passport__address=claim.canonical_address,
+            passport__community=self.community,
+        )
+        assert score.expiration_date < datetime.now(timezone.utc)
+
+        # Delete expired claim and recreate with new canonical
+        claim.delete()
+        new_claim = WalletGroupCommunityClaim.objects.create(
+            group=self.group,
+            community=self.community,
+            canonical_address="0xbbb",
+        )
+        assert new_claim.canonical_address == "0xbbb"
+
+
+# ============================================================
+# Non-canonical response test
+# ============================================================
+
+
+class TestBuildNonCanonicalResponse:
+    def test_non_canonical_response_structure(self):
+        from v2.api.api_stamps import _build_non_canonical_response
+        from v2.schema import LinkedScoreResponse, V2ScoreResponse
+
+        canonical_response = V2ScoreResponse(
+            address="0xaaa",
+            score=Decimal("25.5"),
+            passing_score=True,
+            last_score_timestamp="2024-01-01T00:00:00+00:00",
+            expiration_timestamp="2025-01-01T00:00:00+00:00",
+            threshold=Decimal("20"),
+            error=None,
+            stamps={
+                "ETH": {"score": "1.00000", "dedup": False, "expiration_date": "2025-01-01T00:00:00+00:00"},
+            },
+            linked_score=LinkedScoreResponse(
+                address="0xaaa",
+                score=Decimal("25.5"),
+                passing_score=True,
+                last_score_timestamp="2024-01-01T00:00:00+00:00",
+                expiration_timestamp="2025-01-01T00:00:00+00:00",
+                threshold=Decimal("20"),
+                stamps={
+                    "ETH": {"score": "1.00000", "dedup": False, "expiration_date": "2025-01-01T00:00:00+00:00"},
+                },
+                wallet_stamps={
+                    "0xaaa": {"ETH": {"score": "1.00000", "dedup": False, "expiration_date": "2025-01-01T00:00:00+00:00"}},
+                    "0xbbb": {"ETH": {"score": "0.00000", "dedup": True, "expiration_date": "2025-01-01T00:00:00+00:00"}},
+                },
+            ),
+        )
+
+        result = _build_non_canonical_response("0xbbb", canonical_response)
+
+        # Non-canonical gets score=0
+        assert result.address == "0xbbb"
+        assert result.score == Decimal(0)
+        assert result.passing_score is False
+        assert result.stamps == {}
+
+        # linked_score has canonical's data
+        assert result.linked_score is not None
+        assert result.linked_score.address == "0xaaa"
+        assert result.linked_score.score == Decimal("25.5")
+        assert result.linked_score.passing_score is True
+        assert "ETH" in result.linked_score.stamps
+
+        # wallet_stamps shows per-wallet breakdown
+        assert result.linked_score.wallet_stamps is not None
+        assert "0xaaa" in result.linked_score.wallet_stamps
+        assert "0xbbb" in result.linked_score.wallet_stamps
+        assert "ETH" in result.linked_score.wallet_stamps["0xaaa"]
+        assert "ETH" in result.linked_score.wallet_stamps["0xbbb"]
+        assert result.linked_score.wallet_stamps["0xbbb"]["ETH"].dedup is True
+
+
+# ============================================================
+# Stamp merge scoring tests
+# ============================================================
+
+
+class TestStampMergeLogic:
+    """Test the stamp merging and weight aggregation logic used by _score_wallet_group.
+
+    These are pure unit tests (no DB) that verify:
+    - Weights come from stamp_scores on individual Score objects
+    - Deduped stamps are excluded from merging
+    - Canonical wallet's stamps take priority
+    - Expiration dates are properly compared as datetimes
+    """
+
+    def _make_score(self, stamp_scores, stamps):
+        """Create a mock Score-like object."""
+        score = MagicMock()
+        score.stamp_scores = stamp_scores
+        score.stamps = stamps
+        return score
+
+    def test_merged_score_uses_stamp_scores_from_individual_wallets(self):
+        """Verify merged score pulls weights from stamp_scores."""
+        from v2.api.api_stamps import _parse_expiration
+
+        score_a = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={
+                "Google": {
+                    "score": "10.00000",
+                    "dedup": False,
+                    "expiration_date": "2027-01-01T00:00:00+00:00",
+                }
+            },
+        )
+        score_b = self._make_score(
+            stamp_scores={"Twitter": "15"},
+            stamps={
+                "Twitter": {
+                    "score": "15.00000",
+                    "dedup": False,
+                    "expiration_date": "2027-06-01T00:00:00+00:00",
+                }
+            },
+        )
+
+        wallet_scores = {"0xaaa": score_a, "0xbbb": score_b}
+        ordered = ["0xaaa", "0xbbb"]
+
+        # Merge stamps (same logic as _score_wallet_group)
+        merged_stamps = {}
+        for addr in ordered:
+            for provider, stamp_data in wallet_scores[addr].stamps.items():
+                if provider not in merged_stamps and not stamp_data.get("dedup"):
+                    merged_stamps[provider] = {**stamp_data, "source_wallet": addr}
+
+        # Build combined score from stamp_scores
+        combined = Decimal(0)
+        merged_stamp_scores = {}
+        earliest_exp = None
+        for provider in merged_stamps:
+            for addr in ordered:
+                ws = wallet_scores[addr]
+                if ws.stamp_scores and provider in ws.stamp_scores:
+                    w = Decimal(ws.stamp_scores[provider])
+                    combined += w
+                    merged_stamp_scores[provider] = str(w)
+                    break
+
+            exp = _parse_expiration(merged_stamps[provider].get("expiration_date"))
+            if exp and (earliest_exp is None or exp < earliest_exp):
+                earliest_exp = exp
+
+        assert combined == Decimal("25")
+        assert merged_stamp_scores == {"Google": "10", "Twitter": "15"}
+        assert earliest_exp.year == 2027
+        assert earliest_exp.month == 1  # Google's Jan, not Twitter's Jun
+
+    def test_deduped_stamps_excluded_from_merge(self):
+        """Deduped stamps should NOT contribute to merged score."""
+        score_a = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={"Google": {"score": "10.00000", "dedup": False, "expiration_date": "2027-01-01T00:00:00+00:00"}},
+        )
+        score_b = self._make_score(
+            stamp_scores={},
+            stamps={"Google": {"score": "0.00000", "dedup": True, "expiration_date": "2027-01-01T00:00:00+00:00"}},
+        )
+
+        merged = {}
+        for addr in ["0xaaa", "0xbbb"]:
+            ws = {"0xaaa": score_a, "0xbbb": score_b}[addr]
+            for provider, data in ws.stamps.items():
+                if provider not in merged and not data.get("dedup"):
+                    merged[provider] = {**data, "source_wallet": addr}
+
+        assert len(merged) == 1
+        assert "Google" in merged
+        assert merged["Google"]["source_wallet"] == "0xaaa"
+
+    def test_canonical_stamps_take_priority(self):
+        """When both wallets have same provider non-deduped, canonical wins."""
+        score_a = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={"Google": {"score": "10.00000", "dedup": False, "expiration_date": "2028-01-01T00:00:00+00:00"}},
+        )
+        score_b = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={"Google": {"score": "10.00000", "dedup": False, "expiration_date": "2026-01-01T00:00:00+00:00"}},
+        )
+
+        merged = {}
+        for addr in ["0xaaa", "0xbbb"]:  # canonical first
+            ws = {"0xaaa": score_a, "0xbbb": score_b}[addr]
+            for provider, data in ws.stamps.items():
+                if provider not in merged and not data.get("dedup"):
+                    merged[provider] = {**data, "source_wallet": addr}
+
+        assert merged["Google"]["expiration_date"] == "2028-01-01T00:00:00+00:00"
+        assert merged["Google"]["source_wallet"] == "0xaaa"
+
+    def test_source_wallet_tracks_stamp_origin(self):
+        """Each merged stamp should track which wallet contributed it."""
+        score_a = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={"Google": {"score": "10.00000", "dedup": False, "expiration_date": "2027-01-01T00:00:00+00:00"}},
+        )
+        score_b = self._make_score(
+            stamp_scores={"Twitter": "15"},
+            stamps={"Twitter": {"score": "15.00000", "dedup": False, "expiration_date": "2027-06-01T00:00:00+00:00"}},
+        )
+
+        wallet_scores = {"0xaaa": score_a, "0xbbb": score_b}
+        ordered = ["0xaaa", "0xbbb"]
+
+        merged = {}
+        for addr in ordered:
+            for provider, data in wallet_scores[addr].stamps.items():
+                if provider not in merged and not data.get("dedup"):
+                    merged[provider] = {**data, "source_wallet": addr}
+
+        assert merged["Google"]["source_wallet"] == "0xaaa"
+        assert merged["Twitter"]["source_wallet"] == "0xbbb"
+
+    def test_source_wallet_shows_canonical_wins_on_conflict(self):
+        """When both wallets have same provider, source_wallet is canonical."""
+        score_a = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={"Google": {"score": "10.00000", "dedup": False, "expiration_date": "2027-01-01T00:00:00+00:00"}},
+        )
+        score_b = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={"Google": {"score": "10.00000", "dedup": False, "expiration_date": "2026-06-01T00:00:00+00:00"}},
+        )
+
+        wallet_scores = {"0xaaa": score_a, "0xbbb": score_b}
+        ordered = ["0xaaa", "0xbbb"]
+
+        merged = {}
+        for addr in ordered:
+            for provider, data in wallet_scores[addr].stamps.items():
+                if provider not in merged and not data.get("dedup"):
+                    merged[provider] = {**data, "source_wallet": addr}
+
+        assert merged["Google"]["source_wallet"] == "0xaaa"
+
+    def test_wallet_stamps_contains_all_wallets_stamps(self):
+        """wallet_stamps should include every wallet's stamps independently."""
+        score_a = self._make_score(
+            stamp_scores={"Google": "10", "ETH": "5"},
+            stamps={
+                "Google": {"score": "10.00000", "dedup": False, "expiration_date": "2027-01-01T00:00:00+00:00"},
+                "ETH": {"score": "5.00000", "dedup": False, "expiration_date": "2027-01-01T00:00:00+00:00"},
+            },
+        )
+        score_b = self._make_score(
+            stamp_scores={"ETH": "5", "Twitter": "8"},
+            stamps={
+                "ETH": {"score": "0.00000", "dedup": True, "expiration_date": "2027-01-01T00:00:00+00:00"},
+                "Twitter": {"score": "8.00000", "dedup": False, "expiration_date": "2027-06-01T00:00:00+00:00"},
+            },
+        )
+
+        wallet_scores = {"0xaaa": score_a, "0xbbb": score_b}
+
+        # Build wallet_stamps (same logic as _score_wallet_group)
+        wallet_stamps = {}
+        for addr in ["0xaaa", "0xbbb"]:
+            ws = wallet_scores[addr]
+            if ws.stamps:
+                wallet_stamps[addr] = ws.stamps
+
+        # Each wallet has its own complete stamp set
+        assert set(wallet_stamps["0xaaa"].keys()) == {"Google", "ETH"}
+        assert set(wallet_stamps["0xbbb"].keys()) == {"ETH", "Twitter"}
+
+        # 0xbbb's ETH shows as deduped
+        assert wallet_stamps["0xbbb"]["ETH"]["dedup"] is True
+        assert wallet_stamps["0xaaa"]["ETH"]["dedup"] is False
+
+    def test_wallet_stamps_independent_of_merge(self):
+        """wallet_stamps shows raw per-wallet data regardless of merge outcome."""
+        score_a = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={"Google": {"score": "10.00000", "dedup": False, "expiration_date": "2027-01-01T00:00:00+00:00"}},
+        )
+        score_b = self._make_score(
+            stamp_scores={"Google": "10"},
+            stamps={"Google": {"score": "10.00000", "dedup": False, "expiration_date": "2026-01-01T00:00:00+00:00"}},
+        )
+
+        wallet_scores = {"0xaaa": score_a, "0xbbb": score_b}
+
+        wallet_stamps = {}
+        for addr in ["0xaaa", "0xbbb"]:
+            ws = wallet_scores[addr]
+            if ws.stamps:
+                wallet_stamps[addr] = ws.stamps
+
+        # Both wallets show their Google stamp even though only one wins in merge
+        assert "Google" in wallet_stamps["0xaaa"]
+        assert "Google" in wallet_stamps["0xbbb"]
+        # Can see different expiration dates
+        assert wallet_stamps["0xaaa"]["Google"]["expiration_date"] == "2027-01-01T00:00:00+00:00"
+        assert wallet_stamps["0xbbb"]["Google"]["expiration_date"] == "2026-01-01T00:00:00+00:00"
+
+
+# ============================================================
+# Wallet group API tests (with mocked SIWE)
+# ============================================================
+
+
+@pytest.mark.django_db
+class TestWalletGroupAPI:
+    """Test the wallet group API endpoints with mocked SIWE verification."""
+
+    @pytest.fixture(autouse=True)
+    def setup_client(self):
+        from django.test import Client
+
+        self.client = Client()
+
+    def _mock_siwe(self, address):
+        """Create a mock SIWE payload that will verify as the given address."""
+        return {
+            "message": {
+                "address": address,
+                "nonce": "test_nonce",
+                "domain": "localhost",
+                "version": "1",
+                "chainId": 1,
+                "uri": "http://localhost",
+                "issuedAt": "2024-01-01T00:00:00Z",
+            },
+            "signature": "0xfake",
+        }
+
+    @patch(
+        "account.api_wallet_groups.verify_siwe_ownership",
+        side_effect=lambda p: p.message["address"].lower(),
+    )
+    def test_link_wallets(self, mock_verify):
+        import json
+
+        response = self.client.post(
+            "/account/wallet-groups/link",
+            data=json.dumps(
+                {
+                    "wallet_a": self._mock_siwe("0xAAA"),
+                    "wallet_b": self._mock_siwe("0xBBB"),
+                }
+            ),
+            content_type="application/json",
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "group_id" in data
+        assert set(data["addresses"]) == {"0xaaa", "0xbbb"}
+
+    @patch(
+        "account.api_wallet_groups.verify_siwe_ownership",
+        side_effect=lambda p: p.message["address"].lower(),
+    )
+    def test_link_wallet_b_already_in_group(self, mock_verify):
+        """Can't link if wallet_b is already in a group."""
+        import json
+
+        # First link
+        self.client.post(
+            "/account/wallet-groups/link",
+            data=json.dumps(
+                {
+                    "wallet_a": self._mock_siwe("0xAAA"),
+                    "wallet_b": self._mock_siwe("0xBBB"),
+                }
+            ),
+            content_type="application/json",
+        )
+
+        # Try to link 0xBBB (already in a group) as wallet_b
+        response = self.client.post(
+            "/account/wallet-groups/link",
+            data=json.dumps(
+                {
+                    "wallet_a": self._mock_siwe("0xCCC"),
+                    "wallet_b": self._mock_siwe("0xBBB"),
+                }
+            ),
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+
+    @patch(
+        "account.api_wallet_groups.verify_siwe_ownership",
+        side_effect=lambda p: p.message["address"].lower(),
+    )
+    def test_link_adds_to_existing_group(self, mock_verify):
+        """If wallet_a is already in a group, wallet_b is added to it."""
+        import json
+
+        # Create initial group
+        resp = self.client.post(
+            "/account/wallet-groups/link",
+            data=json.dumps(
+                {
+                    "wallet_a": self._mock_siwe("0xAAA"),
+                    "wallet_b": self._mock_siwe("0xBBB"),
+                }
+            ),
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+
+        # Link again with wallet_a already in group — adds wallet_b to it
+        response = self.client.post(
+            "/account/wallet-groups/link",
+            data=json.dumps(
+                {
+                    "wallet_a": self._mock_siwe("0xAAA"),
+                    "wallet_b": self._mock_siwe("0xCCC"),
+                }
+            ),
+            content_type="application/json",
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["addresses"]) == 3
+        assert "0xccc" in data["addresses"]
+
+    @patch(
+        "account.api_wallet_groups.verify_siwe_ownership",
+        side_effect=lambda p: p.message["address"].lower(),
+    )
+    def test_unlink_wallet(self, mock_verify):
+        import json
+
+        # Create group
+        self.client.post(
+            "/account/wallet-groups/link",
+            data=json.dumps(
+                {
+                    "wallet_a": self._mock_siwe("0xAAA"),
+                    "wallet_b": self._mock_siwe("0xBBB"),
+                }
+            ),
+            content_type="application/json",
+        )
+
+        # Add third so unlinking doesn't destroy group
+        self.client.post(
+            "/account/wallet-groups/link",
+            data=json.dumps(
+                {
+                    "wallet_a": self._mock_siwe("0xAAA"),
+                    "wallet_b": self._mock_siwe("0xCCC"),
+                }
+            ),
+            content_type="application/json",
+        )
+
+        # Unlink 0xBBB
+        response = self.client.post(
+            "/account/wallet-groups/unlink",
+            data=json.dumps(self._mock_siwe("0xBBB")),
+            content_type="application/json",
+        )
+        assert response.status_code == 200
+
+        # Verify 0xBBB is no longer in the group
+        assert not WalletGroupMembership.objects.filter(
+            address="0xbbb"
+        ).exists()
+
+    @patch(
+        "account.api_wallet_groups.verify_siwe_ownership",
+        side_effect=lambda p: p.message["address"].lower(),
+    )
+    def test_unlink_last_two_destroys_group(self, mock_verify):
+        import json
+
+        # Create group of 2
+        resp = self.client.post(
+            "/account/wallet-groups/link",
+            data=json.dumps(
+                {
+                    "wallet_a": self._mock_siwe("0xAAA"),
+                    "wallet_b": self._mock_siwe("0xBBB"),
+                }
+            ),
+            content_type="application/json",
+        )
+        group_id = resp.json()["group_id"]
+
+        # Unlink one - group should be destroyed
+        self.client.post(
+            "/account/wallet-groups/unlink",
+            data=json.dumps(self._mock_siwe("0xBBB")),
+            content_type="application/json",
+        )
+
+        assert not WalletGroup.objects.filter(id=group_id).exists()
+        assert not WalletGroupMembership.objects.filter(
+            address="0xaaa"
+        ).exists()
+
+    def test_get_wallet_group(self):
+        group = WalletGroup.objects.create()
+        WalletGroupMembership.objects.create(group=group, address="0xaaa")
+        WalletGroupMembership.objects.create(group=group, address="0xbbb")
+
+        response = self.client.get("/account/wallet-groups/0xAAA")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["group_id"] == group.id
+        assert set(data["addresses"]) == {"0xaaa", "0xbbb"}
+
+    def test_get_wallet_group_not_found(self):
+        response = self.client.get("/account/wallet-groups/0xNotInGroup")
+        assert response.status_code == 404

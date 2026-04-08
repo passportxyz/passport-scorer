@@ -120,7 +120,7 @@ pub async fn add_stamps_handler(
 
     // 4. Score the address using domain logic
     // Embed endpoints do NOT include human points (matching Python behavior)
-    let score_result = domain::calculate_score_for_address(
+    let score_result = domain::calculate_score_for_address_with_groups(
         &address,
         scorer_id,
         &pool,
@@ -171,7 +171,7 @@ pub async fn get_embed_score_handler(
 
     // 2. Score the address using domain logic
     // Embed endpoints do NOT include human points (matching Python behavior)
-    let score_result = domain::calculate_score_for_address(
+    let score_result = domain::calculate_score_for_address_with_groups(
         &address,
         scorer_id,
         &pool,
