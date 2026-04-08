@@ -228,7 +228,7 @@ async def _score_wallet_group(
             continue
         for provider, stamp_data in score.stamps.items():
             if provider not in merged_stamps and not stamp_data.get("dedup"):
-                merged_stamps[provider] = stamp_data
+                merged_stamps[provider] = {**stamp_data, "source_wallet": addr}
 
     # Build combined score from merged stamps using already-computed stamp_scores
     # from individual wallet scoring (avoids duplicating weight-loading logic)
@@ -272,7 +272,25 @@ async def _score_wallet_group(
         canonical_score.expiration_date = earliest_expiration
     await canonical_score.asave()
 
-    return format_v2_score_response(canonical_score, scorer_type)
+    # Build per-wallet stamp breakdown for UI visibility
+    wallet_stamps: Dict[str, Dict[str, Any]] = {}
+    for addr in ordered_addresses:
+        ws = wallet_scores[addr]
+        if ws.stamps:
+            wallet_stamps[addr] = ws.stamps
+
+    response = format_v2_score_response(canonical_score, scorer_type)
+    response.linked_score = LinkedScoreResponse(
+        address=canonical_address,
+        score=response.score,
+        passing_score=response.passing_score,
+        last_score_timestamp=response.last_score_timestamp,
+        expiration_timestamp=response.expiration_timestamp,
+        threshold=response.threshold,
+        stamps=response.stamps,
+        wallet_stamps=wallet_stamps,
+    )
+    return response
 
 
 def _build_non_canonical_response(
@@ -288,15 +306,7 @@ def _build_non_canonical_response(
         expiration_timestamp=canonical_response.expiration_timestamp,
         error=None,
         stamps={},
-        linked_score=LinkedScoreResponse(
-            address=canonical_response.address,
-            score=canonical_response.score,
-            passing_score=canonical_response.passing_score,
-            last_score_timestamp=canonical_response.last_score_timestamp,
-            expiration_timestamp=canonical_response.expiration_timestamp,
-            threshold=canonical_response.threshold,
-            stamps=canonical_response.stamps,
-        ),
+        linked_score=canonical_response.linked_score,
     )
 
 
