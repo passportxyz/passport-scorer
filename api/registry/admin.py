@@ -1,5 +1,4 @@
 import csv
-import json
 import logging
 from datetime import datetime, timezone
 from io import StringIO
@@ -9,7 +8,6 @@ from asgiref.sync import async_to_sync
 from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
-from django.core.files.base import ContentFile
 from django.db import transaction
 from django.shortcuts import redirect, render
 from django.template.response import TemplateResponse
@@ -268,14 +266,7 @@ class BatchModelScoringRequestAdmin(ScorerModelAdmin):
                 extra_tags="",
                 fail_silently=False,
             )
-            obj = BatchModelScoringRequest.objects.get(id=obj_id)
-            obj.trigger_processing_file = ContentFile(
-                json.dumps(
-                    {"action": "score", "batch_model_scoring_request_id": obj_id}
-                ),
-                name=f"{obj_id}_score.json",
-            )
-            obj.save()
+            BatchModelScoringRequest.objects.get(id=obj_id).trigger("score")
             return redirect(next)
 
         context = dict(
@@ -314,17 +305,7 @@ class BatchModelScoringRequestAdmin(ScorerModelAdmin):
                 extra_tags="",
                 fail_silently=False,
             )
-            obj = BatchModelScoringRequest.objects.get(id=obj_id)
-            obj.trigger_processing_file = ContentFile(
-                json.dumps(
-                    {
-                        "action": "score_errors",
-                        "batch_model_scoring_request_id": obj_id,
-                    }
-                ),
-                name=f"{obj_id}_score_errors.json",
-            )
-            obj.save()
+            BatchModelScoringRequest.objects.get(id=obj_id).trigger("score_errors")
             return redirect(next)
 
         context = dict(
@@ -363,14 +344,7 @@ class BatchModelScoringRequestAdmin(ScorerModelAdmin):
                 extra_tags="",
                 fail_silently=False,
             )
-            obj = BatchModelScoringRequest.objects.get(id=obj_id)
-            obj.trigger_processing_file = ContentFile(
-                json.dumps(
-                    {"action": "score_all", "batch_model_scoring_request_id": obj_id}
-                ),
-                name=f"{obj_id}_score_all.json",
-            )
-            obj.save()
+            BatchModelScoringRequest.objects.get(id=obj_id).trigger("score_all")
             return redirect(next)
 
         context = dict(

@@ -4,6 +4,7 @@ from datetime import datetime
 from enum import Enum
 
 from django.core import serializers
+from django.core.files.base import ContentFile
 from django.db import models
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
@@ -303,6 +304,19 @@ class BatchModelScoringRequest(models.Model):
         upload_to=trigger_processing_file_upload_to,
         help_text="Just a file that is created automatically to trigger the processing. An EventBridge rule will be watching for files created in this folder.",
     )
+
+    VALID_TRIGGER_ACTIONS = ("score", "score_errors", "score_all")
+
+    def trigger(self, action: str) -> None:
+        if action not in self.VALID_TRIGGER_ACTIONS:
+            raise ValueError(
+                f"Invalid trigger action {action!r}; expected one of {self.VALID_TRIGGER_ACTIONS}"
+            )
+        self.trigger_processing_file = ContentFile(
+            json.dumps({"action": action, "batch_model_scoring_request_id": self.id}),
+            name=f"{self.id}_{action}.json",
+        )
+        self.save()
 
     def __str__(self):
         return f"{self.id}"
