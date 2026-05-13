@@ -26,9 +26,9 @@ class ScorerRouter:
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
         """
-        We want to only make sure to run migrations for the data_model models on the data_model db
+        Migrations for the data_model app run only on the data_model DB,
+        and migrations for every other app run only on the default DB.
         """
-        ret = None
         if app_label in self.data_model_app_labels:
-            ret = db == self.data_model_db
-        return ret
+            return db == self.data_model_db
+        return db == "default"

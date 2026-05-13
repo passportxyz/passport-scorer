@@ -244,3 +244,18 @@ class StakeSchema(Schema):
 class GtcStakeEventsSchema(Schema):
     address: str
     round_id: int
+
+
+class BatchModelScoringRequestStatusResponse(Schema):
+    id: int
+    status: str
+    progress: int
+    model_list: str
+    created_at: datetime
+    last_progress_update: Optional[datetime]
+    results_url: Optional[str]
+
+
+class BatchModelScoringRequestCreateResponse(Schema):
+    id: int
+    status: str

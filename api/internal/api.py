@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 
-from ninja import Router
+from ninja import File, Form, Router
+from ninja.files import UploadedFile
 from ninja_extra import NinjaExtraAPI
 from ninja_extra.exceptions import APIException
 
@@ -22,7 +23,15 @@ from embed.api import (
     handle_get_score,
     handle_validate_embed_api_key,
 )
-from registry.api.schema import GtcEventsResponse
+from registry.api.batch_model_scoring import (
+    handle_create_batch_request,
+    handle_get_batch_request_status,
+)
+from registry.api.schema import (
+    BatchModelScoringRequestCreateResponse,
+    BatchModelScoringRequestStatusResponse,
+    GtcEventsResponse,
+)
 from registry.api.utils import ApiKey, with_read_db
 from registry.api.v1 import handle_get_gtc_stake_legacy
 from registry.exceptions import aapi_get_object_or_404
@@ -216,3 +225,27 @@ def check_on_allow_list(request, list: str, address: str):
 @api.get("/customization/credential/{provider_id}", auth=internal_api_key)
 def get_credential_definition(request, provider_id: str):
     return handle_get_credential_definition(provider_id)
+
+
+@api.post(
+    "/batch-model-scoring",
+    response=BatchModelScoringRequestCreateResponse,
+    summary="Upload a CSV of addresses and kick off a batch model scoring run",
+)
+def create_batch_model_scoring_request(
+    request,
+    model_list: str = Form(...),
+    file: UploadedFile = File(...),
+) -> BatchModelScoringRequestCreateResponse:
+    return handle_create_batch_request(file=file, model_list=model_list)
+
+
+@api.get(
+    "/batch-model-scoring/{request_id}",
+    response=BatchModelScoringRequestStatusResponse,
+    summary="Get status and (when done) signed results URL for a batch model scoring run",
+)
+def get_batch_model_scoring_request(
+    request, request_id: int
+) -> BatchModelScoringRequestStatusResponse:
+    return handle_get_batch_request_status(request_id)
