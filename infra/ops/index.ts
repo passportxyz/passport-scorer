@@ -4,7 +4,7 @@ import { createLambdaFunction } from "../lib/lambda";
 
 export const stack = pulumi.getStack(); // values : review, staging & production
 
-export const coreInfraOutputs = new pulumi.StackReference(`passportxyz/core-infra/${stack}`);
+export const coreInfraOutputs = new pulumi.StackReference(`organization/core-infra/${stack}`);
 
 export const coreRdsSecretArn = coreInfraOutputs.getOutput("coreRdsSecretArn");
 export const coreVpcId = coreInfraOutputs.getOutput("vpcId");
