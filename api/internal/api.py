@@ -229,7 +229,6 @@ def get_credential_definition(request, provider_id: str):
 
 @api.post(
     "/batch-model-scoring",
-    auth=internal_api_key,
     response=BatchModelScoringRequestCreateResponse,
     summary="Upload a CSV of addresses and kick off a batch model scoring run",
 )
@@ -243,7 +242,6 @@ def create_batch_model_scoring_request(
 
 @api.get(
     "/batch-model-scoring/{request_id}",
-    auth=internal_api_key,
     response=BatchModelScoringRequestStatusResponse,
     summary="Get status and (when done) signed results URL for a batch model scoring run",
 )
