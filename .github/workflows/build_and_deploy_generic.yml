@@ -21,6 +21,10 @@ on:
         required: false
         default: true
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   docker-ecs:
     name: Build and push docker image for ECS
@@ -242,49 +246,33 @@ jobs:
         with:
           ref: ${{ inputs.refspec }}
           fetch-depth: 0
-      - name: Install 1Password CLI
-        uses: 1password/install-cli-action@v1
-      - name: Configure 1Password Service Account
-        uses: 1password/load-secrets-action/configure@v1
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-      - name: Load secret
-        id: op-load-secret
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          PULUMI_ACCESS_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/PULUMI_ACCESS_TOKEN
-          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
-      - name: Set AWS_SESSION_TOKEN if needed
-        if: inputs.environment == 'production'
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
+          role-to-assume: arn:aws:iam::${{ inputs.environment == 'production' && '559026686882' || '515520736917' }}:role/pulumi-ci-passport-scorer-${{ inputs.environment }}
+          aws-region: us-west-2
+      - name: Pulumi login (S3 backend)
+        run: pulumi login s3://passportxyz-pulumi-state
+        shell: bash
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v3
 
       - name: Setup pulumi for showmigrations
-        uses: pulumi/actions@v4
+        uses: pulumi/actions@v5
         id: pulumi-up
         with:
-          stack-name: passportxyz/passport-scorer-ops/${{ inputs.environment }}
+          stack-name: ${{ inputs.environment }}
           command: up
           work-dir: ./infra/ops
         env:
-          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
           AWS_REGION: us-west-2
           DOCKER_IMAGE_TAG: ${{ inputs.docker_tag }}
       - name: Get Lambda Function URL
         run: |
           echo "Extracting Lambda Function URL..."
-          URL=$(pulumi stack output lambdaUrl --stack passportxyz/passport-scorer-ops/${{ inputs.environment }})
+          URL=$(pulumi stack output lambdaUrl --stack ${{ inputs.environment }})
           echo "LAMBDA_FUNCTION_URL=$URL" >> $GITHUB_ENV
+        working-directory: ./infra/ops
         id: get-lambda-url
       - uses: actions/setup-python@v4
         with:
@@ -296,8 +284,6 @@ jobs:
           pip install requests requests-aws4auth
       - name: Run showmigrations (call lambda function)
         env:
-          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-west-2
           LAMBDA_FUNCTION_URL: ${{ env.LAMBDA_FUNCTION_URL }}
         run: |
@@ -340,17 +326,7 @@ jobs:
         with:
           export-env: true
         env:
-          PULUMI_ACCESS_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/PULUMI_ACCESS_TOKEN
           CLOUDFLARE_API_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/CLOUDFLARE_API_TOKEN
-          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
-      - name: Set AWS_SESSION_TOKEN if needed
-        if: inputs.environment == 'production'
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v3
       - name: Download Rust scorer artifact
@@ -359,16 +335,14 @@ jobs:
           name: rust-scorer-${{ inputs.docker_tag }}.zip
           path: ./rust-scorer-artifact/
       - name: Deploy Preview
-        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v3
+        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v4
         with:
           docker_tag: ${{ inputs.docker_tag }}
-          stack_name: passportxyz/passport-scorer/${{ inputs.environment }}
+          stack_name: ${{ inputs.environment }}
           aws_region: us-west-2
+          aws_role_arn: arn:aws:iam::${{ inputs.environment == 'production' && '559026686882' || '515520736917' }}:role/pulumi-ci-passport-scorer-${{ inputs.environment }}
           pulumi_command: preview
           pulumi_diff: "true"
-          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
 
@@ -439,17 +413,7 @@ jobs:
         with:
           export-env: true
         env:
-          PULUMI_ACCESS_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/PULUMI_ACCESS_TOKEN
           CLOUDFLARE_API_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/CLOUDFLARE_API_TOKEN
-          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
-      - name: Set AWS_SESSION_TOKEN if needed
-        if: inputs.environment == 'production'
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
       - name: Prepare to Deploy to AWS
         uses: passportxyz/gh-workflows/.github/actions/prepare_deploy_to_aws@v3
       - name: Download Rust scorer artifact
@@ -458,14 +422,12 @@ jobs:
           name: rust-scorer-${{ inputs.docker_tag }}.zip
           path: ./rust-scorer-artifact/
       - name: Deploy Review
-        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v3
+        uses: passportxyz/gh-workflows/.github/actions/deploy_to_aws@v4
         with:
           docker_tag: ${{ inputs.docker_tag }}
-          stack_name: passportxyz/passport-scorer/${{ inputs.environment }}
+          stack_name: ${{ inputs.environment }}
           pulumi_command: up
           aws_region: us-west-2
-          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          PULUMI_ACCESS_TOKEN: ${{ env.PULUMI_ACCESS_TOKEN }}
+          aws_role_arn: arn:aws:iam::${{ inputs.environment == 'production' && '559026686882' || '515520736917' }}:role/pulumi-ci-passport-scorer-${{ inputs.environment }}
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
