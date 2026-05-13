@@ -87,7 +87,7 @@ const pagerDutyIntegrationEndpoint = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`
 );
 
-const coreInfraStack = new pulumi.StackReference(`passportxyz/core-infra/${stack}`);
+const coreInfraStack = new pulumi.StackReference(`organization/core-infra/${stack}`);
 
 const privateAlbHttpListenerArn = coreInfraStack.getOutput("privateAlbHttpListenerArn");
 const privatprivateAlbArnSuffixeAlbHttpListenerArn = coreInfraStack.getOutput("privateAlbArnSuffix");
