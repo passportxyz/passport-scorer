@@ -49,6 +49,14 @@ jobs:
     name: Run Pulumi
     needs: [ref]
     runs-on: ubuntu-latest
+    # infra.yml is the "Pulumi only" dispatch path — it doesn't build the Rust
+    # scorer artifact. For preview/refresh we opt out of infra/aws/index.ts's
+    # hard-fail check (a stub asset is used; Pulumi will diff the Lambda code
+    # but never deploy it). For `up` we leave the check on — if someone tries
+    # to update infra without first building the rust-scorer, fail loudly so
+    # the stub never reaches AWS. Use build_and_deploy_generic.yml for `up`.
+    env:
+      ALLOW_MISSING_RUST_SCORER: ${{ (github.event.inputs.command || 'preview') != 'up' && 'true' || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3

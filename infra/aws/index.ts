@@ -73,15 +73,26 @@ export const verifierDockerImage = pulumi
     ([acc, region]) => `${acc.accountId}.dkr.ecr.${region.id}.amazonaws.com/passport-verifier:${DOCKER_IMAGE_TAG}`
   );
 
-// Rust scorer Lambda zip archive
+// Rust scorer Lambda zip archive. build_and_deploy_generic.yml downloads the
+// real zip before previewing/deploying. The Pulumi-only infra.yml workflow
+// doesn't build the artifact, so it sets ALLOW_MISSING_RUST_SCORER=true to
+// opt into a stub asset — Pulumi will diff the Lambda code on preview but the
+// workflow is gated to preview/refresh only, so the stub never gets deployed.
 import * as fs from "fs";
 const rustScorerZipPath = "../../rust-scorer-artifact/bootstrap.zip";
-if (!fs.existsSync(rustScorerZipPath)) {
+const rustScorerZipExists = fs.existsSync(rustScorerZipPath);
+if (!rustScorerZipExists && !process.env.ALLOW_MISSING_RUST_SCORER) {
   throw new Error(
     `Rust scorer zip not found at ${rustScorerZipPath}. Run 'cd rust-scorer && ./build-lambda.sh' first.`
   );
 }
-const rustScorerZipArchive = new pulumi.asset.FileArchive(rustScorerZipPath);
+const rustScorerZipArchive: pulumi.asset.Archive = rustScorerZipExists
+  ? new pulumi.asset.FileArchive(rustScorerZipPath)
+  : new pulumi.asset.AssetArchive({
+      bootstrap: new pulumi.asset.StringAsset(
+        "#!/bin/sh\necho 'rust-scorer placeholder; infra.yml does not build the artifact' >&2\nexit 1\n"
+      ),
+    });
 
 const pagerDutyIntegrationEndpoint = op.read.parse(
   `op://DevOps/passport-scorer-${stack}-env/ci/PAGERDUTY_INTEGRATION_ENDPOINT`

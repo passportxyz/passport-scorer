@@ -22,7 +22,7 @@ export function createRustScorerLambda({
   internalHttpsListener,
 }: {
   httpsListener: pulumi.Output<aws.alb.Listener>;
-  rustScorerZipArchive: pulumi.asset.FileArchive;
+  rustScorerZipArchive: pulumi.asset.Archive;
   privateSubnetSecurityGroup: aws.ec2.SecurityGroup;
   vpcPrivateSubnetIds: pulumi.Output<any>;
   scorerSecret: aws.secretsmanager.Secret;
