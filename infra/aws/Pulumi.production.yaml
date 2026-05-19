@@ -1,2 +1,4 @@
 config:
   aws:region: us-west-2
+secretsprovider: awskms://alias/pulumi-state
+encryptedkey: AQICAHhv9c7hfZIQkfM61+RS2kiYbdA8lu+LyzhUcpIETj4XXQGMBEzS0zFZxulK/pU2xN1nAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMEU2tFvnRG05Rjr9WAgEQgDuKRff+abUZzsfZx5ENMyrdceS67rDJjuRmCHZJmQykih32OHqREKMayJVQr5AqBA+QfLcxnG/FMn5BXQ==
