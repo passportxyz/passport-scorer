@@ -1,0 +1,116 @@
+name: Pulumi Only - Deploy Infra Ops
+run-name: Run pulumi ops - ${{github.event.inputs.command || 'preview'}}  - ${{ github.event.inputs.environment || 'staging' }}
+
+# Companion to infra.yml for the passport-scorer-ops Pulumi project (infra/ops).
+# infra.yml is hardcoded to infra/aws via gh-workflows' deploy_to_aws action,
+# so we keep ops on its own self-contained workflow rather than parameterize
+# the shared action.
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Leave blank to use current HEAD, or provide an override commit SHA"
+        type: string
+        required: false
+      environment:
+        description: "Environment to deploy to"
+        required: false
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+      command:
+        description: "Pulumi command to run"
+        required: false
+        default: "preview"
+        type: choice
+        options:
+          - preview
+          - up
+          - refresh
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  ref:
+    name: Load Commit Ref
+    runs-on: ubuntu-latest
+    steps:
+      - id: ref
+        uses: passportxyz/gh-workflows/.github/actions/load_commit_ref@v3
+        with:
+          commit: ${{ inputs.commit }}
+    outputs:
+      docker_tag: ${{ steps.ref.outputs.docker_tag }}
+      refspec: ${{ steps.ref.outputs.refspec }}
+
+  run_pulumi:
+    name: Run Pulumi (ops)
+    needs: [ref]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.ref.outputs.refspec }}
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: infra/yarn.lock
+
+      - name: Install infra deps
+        working-directory: infra
+        run: yarn install --frozen-lockfile
+
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v1
+      - name: Configure 1Password Service Account
+        uses: 1password/load-secrets-action/configure@v1
+        with:
+          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+      - name: Load Cloudflare API token
+        uses: 1password/load-secrets-action@v1
+        with:
+          export-env: true
+        env:
+          CLOUDFLARE_API_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/CLOUDFLARE_API_TOKEN
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ inputs.environment == 'production' && '559026686882' || '515520736917' }}:role/pulumi-ci-passport-scorer-${{ inputs.environment }}
+          aws-region: us-west-2
+
+      - name: Pulumi login (S3 backend)
+        run: pulumi login s3://passportxyz-pulumi-state
+        shell: bash
+
+      - name: Configure Pulumi stack
+        working-directory: infra/ops
+        shell: bash
+        run: |
+          pulumi stack select ${{ inputs.environment }}
+          pulumi config -s ${{ inputs.environment }} set aws:region us-west-2 --non-interactive
+
+      - name: Run pulumi
+        uses: pulumi/actions@v5
+        id: pulumi
+        with:
+          command: ${{ inputs.command || 'preview' }}
+          stack-name: ${{ inputs.environment }}
+          cloud-url: s3://passportxyz-pulumi-state
+          work-dir: infra/ops
+          diff: true
+        env:
+          AWS_REGION: us-west-2
+          DOCKER_IMAGE_TAG: ${{ needs.ref.outputs.docker_tag }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
