@@ -1,144 +1,43 @@
-"""Tests for wallet group models, linking API, and scoring integration."""
+"""Tests for the per-community canonical-wallet claim model and scoring helpers.
+
+Phase 0 of holonym-foundation/internal-docs#1060: ``WalletGroup`` and
+``WalletGroupMembership`` (and the wallet-linking API) have moved to Silk.
+What remains here is exercising the scorer-side surface:
+
+- ``WalletGroupCommunityClaim`` (now keyed on an opaque ``group_key`` TEXT)
+- ``_build_non_canonical_response`` response shape
+- The stamp-merge / weight-aggregation logic in ``_score_wallet_group``
+"""
 
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-from django.test import TestCase, override_settings
+from django.test import TestCase
 
 from account.models import (
     Account,
     Community,
-    WalletGroup,
     WalletGroupCommunityClaim,
-    WalletGroupMembership,
 )
 from registry.models import Passport, Score
 from scorer_weighted.models import BinaryWeightedScorer, Scorer
 
 
-@pytest.fixture
-def wallet_group(db):
-    """Create a wallet group with two members."""
-    group = WalletGroup.objects.create()
-    WalletGroupMembership.objects.create(group=group, address="0xaaa")
-    WalletGroupMembership.objects.create(group=group, address="0xbbb")
-    return group
-
-
-@pytest.fixture
-def community(db):
-    """Create a test community with a binary weighted scorer."""
-    from django.contrib.auth.models import User
-
-    user = User.objects.create_user(username="testuser", password="testpass")
-    account = Account.objects.create(user=user, address="0xowner")
-    scorer = BinaryWeightedScorer.objects.create(
-        type=Scorer.Type.WEIGHTED_BINARY,
-        threshold=Decimal("20"),
-    )
-    community = Community.objects.create(
-        account=account,
-        name="Test Community",
-        scorer=scorer,
-    )
-    return community
-
-
 # ============================================================
-# Model tests
+# WalletGroupCommunityClaim model tests
 # ============================================================
 
 
-class TestWalletGroupModels(TestCase):
-    def test_create_wallet_group(self):
-        group = WalletGroup.objects.create()
-        self.assertIsNotNone(group.id)
-        self.assertIsNotNone(group.created_at)
+class TestWalletGroupCommunityClaim(TestCase):
+    """The claim row is the only surviving wallet-group model on the scorer.
 
-    def test_create_membership(self):
-        group = WalletGroup.objects.create()
-        m = WalletGroupMembership.objects.create(
-            group=group, address="0xaaa"
-        )
-        self.assertEqual(m.address, "0xaaa")
-        self.assertEqual(m.group, group)
+    Phase 3b will swap ``group_key`` for Silk's user_id; for now it's just
+    an opaque TEXT identifier.
+    """
 
-    def test_unique_address_constraint(self):
-        """Each address can only be in one group."""
-        group1 = WalletGroup.objects.create()
-        group2 = WalletGroup.objects.create()
-        WalletGroupMembership.objects.create(group=group1, address="0xaaa")
-        with self.assertRaises(Exception):
-            WalletGroupMembership.objects.create(
-                group=group2, address="0xaaa"
-            )
-
-    def test_unique_community_claim(self):
-        """Only one canonical wallet per group per community."""
-        from django.contrib.auth.models import User
-
-        user = User.objects.create_user(username="test", password="test")
-        account = Account.objects.create(user=user, address="0xowner")
-        scorer = BinaryWeightedScorer.objects.create(
-            type=Scorer.Type.WEIGHTED_BINARY,
-            threshold=Decimal("20"),
-            weights={"ETH": "1", "Google": "1"},
-        )
-        community = Community.objects.create(
-            account=account, name="Test", scorer=scorer
-        )
-        group = WalletGroup.objects.create()
-
-        WalletGroupCommunityClaim.objects.create(
-            group=group, community=community, canonical_address="0xaaa"
-        )
-        with self.assertRaises(Exception):
-            WalletGroupCommunityClaim.objects.create(
-                group=group, community=community, canonical_address="0xbbb"
-            )
-
-    def test_cascade_delete_group(self):
-        """Deleting a group cascades to memberships and claims."""
-        group = WalletGroup.objects.create()
-        WalletGroupMembership.objects.create(group=group, address="0xaaa")
-        group.delete()
-        self.assertEqual(WalletGroupMembership.objects.count(), 0)
-
-
-# ============================================================
-# Scoring helper tests
-# ============================================================
-
-
-class TestGetWalletGroup(TestCase):
-    def test_no_group(self):
-        """Address not in a group returns None."""
-        result = WalletGroupMembership.objects.filter(address="0xnogroup").first()
-        assert result is None
-
-    def test_with_group(self):
-        """Address in a group returns all group members."""
-        group = WalletGroup.objects.create()
-        WalletGroupMembership.objects.create(group=group, address="0xaaa")
-        WalletGroupMembership.objects.create(group=group, address="0xbbb")
-
-        membership = WalletGroupMembership.objects.get(address="0xaaa")
-        addresses = list(
-            WalletGroupMembership.objects.filter(
-                group_id=membership.group_id
-            ).values_list("address", flat=True)
-        )
-        assert set(addresses) == {"0xaaa", "0xbbb"}
-
-
-class TestCanonicalClaim(TestCase):
     def setUp(self):
         from django.contrib.auth.models import User
-
-        self.group = WalletGroup.objects.create()
-        WalletGroupMembership.objects.create(group=self.group, address="0xaaa")
-        WalletGroupMembership.objects.create(group=self.group, address="0xbbb")
 
         user = User.objects.create_user(username="test_canon", password="test")
         account = Account.objects.create(user=user, address="0xowner_canon")
@@ -150,10 +49,11 @@ class TestCanonicalClaim(TestCase):
         self.community = Community.objects.create(
             account=account, name="Test", scorer=scorer
         )
+        self.group_key = "0xaaa,0xbbb"
 
     def test_first_wallet_becomes_canonical(self):
         claim, created = WalletGroupCommunityClaim.objects.get_or_create(
-            group=self.group,
+            group_key=self.group_key,
             community=self.community,
             defaults={"canonical_address": "0xaaa"},
         )
@@ -162,24 +62,38 @@ class TestCanonicalClaim(TestCase):
 
     def test_second_wallet_gets_existing_canonical(self):
         WalletGroupCommunityClaim.objects.create(
-            group=self.group,
+            group_key=self.group_key,
             community=self.community,
             canonical_address="0xaaa",
         )
 
         claim, created = WalletGroupCommunityClaim.objects.get_or_create(
-            group=self.group,
+            group_key=self.group_key,
             community=self.community,
             defaults={"canonical_address": "0xbbb"},
         )
         assert not created
         assert claim.canonical_address == "0xaaa"
 
+    def test_unique_group_key_community(self):
+        """Only one canonical wallet per group_key per community."""
+        WalletGroupCommunityClaim.objects.create(
+            group_key=self.group_key,
+            community=self.community,
+            canonical_address="0xaaa",
+        )
+        with self.assertRaises(Exception):
+            WalletGroupCommunityClaim.objects.create(
+                group_key=self.group_key,
+                community=self.community,
+                canonical_address="0xbbb",
+            )
+
     def test_expired_canonical_is_replaced(self):
         from datetime import datetime, timedelta, timezone
 
         WalletGroupCommunityClaim.objects.create(
-            group=self.group,
+            group_key=self.group_key,
             community=self.community,
             canonical_address="0xaaa",
         )
@@ -197,7 +111,7 @@ class TestCanonicalClaim(TestCase):
 
         # Check expiration
         claim = WalletGroupCommunityClaim.objects.get(
-            group=self.group, community=self.community
+            group_key=self.group_key, community=self.community
         )
         score = Score.objects.get(
             passport__address=claim.canonical_address,
@@ -208,7 +122,7 @@ class TestCanonicalClaim(TestCase):
         # Delete expired claim and recreate with new canonical
         claim.delete()
         new_claim = WalletGroupCommunityClaim.objects.create(
-            group=self.group,
+            group_key=self.group_key,
             community=self.community,
             canonical_address="0xbbb",
         )
@@ -506,214 +420,14 @@ class TestStampMergeLogic:
 
 
 # ============================================================
-# Wallet group API tests (with mocked SIWE)
+# Linkage source stub tests
 # ============================================================
 
 
-@pytest.mark.django_db
-class TestWalletGroupAPI:
-    """Test the wallet group API endpoints with mocked SIWE verification."""
+@pytest.mark.asyncio
+async def test_get_linked_addresses_returns_solo_set():
+    """Phase 0 stub: always returns the requesting address (lowercased) as a one-element list."""
+    from account.linkage import get_linked_addresses
 
-    @pytest.fixture(autouse=True)
-    def setup_client(self):
-        from django.test import Client
-
-        self.client = Client()
-
-    def _mock_siwe(self, address):
-        """Create a mock SIWE payload that will verify as the given address."""
-        return {
-            "message": {
-                "address": address,
-                "nonce": "test_nonce",
-                "domain": "localhost",
-                "version": "1",
-                "chainId": 1,
-                "uri": "http://localhost",
-                "issuedAt": "2024-01-01T00:00:00Z",
-            },
-            "signature": "0xfake",
-        }
-
-    @patch(
-        "account.api_wallet_groups.verify_siwe_ownership",
-        side_effect=lambda p: p.message["address"].lower(),
-    )
-    def test_link_wallets(self, mock_verify):
-        import json
-
-        response = self.client.post(
-            "/account/wallet-groups/link",
-            data=json.dumps(
-                {
-                    "wallet_a": self._mock_siwe("0xAAA"),
-                    "wallet_b": self._mock_siwe("0xBBB"),
-                }
-            ),
-            content_type="application/json",
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert "group_id" in data
-        assert set(data["addresses"]) == {"0xaaa", "0xbbb"}
-
-    @patch(
-        "account.api_wallet_groups.verify_siwe_ownership",
-        side_effect=lambda p: p.message["address"].lower(),
-    )
-    def test_link_wallet_b_already_in_group(self, mock_verify):
-        """Can't link if wallet_b is already in a group."""
-        import json
-
-        # First link
-        self.client.post(
-            "/account/wallet-groups/link",
-            data=json.dumps(
-                {
-                    "wallet_a": self._mock_siwe("0xAAA"),
-                    "wallet_b": self._mock_siwe("0xBBB"),
-                }
-            ),
-            content_type="application/json",
-        )
-
-        # Try to link 0xBBB (already in a group) as wallet_b
-        response = self.client.post(
-            "/account/wallet-groups/link",
-            data=json.dumps(
-                {
-                    "wallet_a": self._mock_siwe("0xCCC"),
-                    "wallet_b": self._mock_siwe("0xBBB"),
-                }
-            ),
-            content_type="application/json",
-        )
-        assert response.status_code == 400
-
-    @patch(
-        "account.api_wallet_groups.verify_siwe_ownership",
-        side_effect=lambda p: p.message["address"].lower(),
-    )
-    def test_link_adds_to_existing_group(self, mock_verify):
-        """If wallet_a is already in a group, wallet_b is added to it."""
-        import json
-
-        # Create initial group
-        resp = self.client.post(
-            "/account/wallet-groups/link",
-            data=json.dumps(
-                {
-                    "wallet_a": self._mock_siwe("0xAAA"),
-                    "wallet_b": self._mock_siwe("0xBBB"),
-                }
-            ),
-            content_type="application/json",
-        )
-        assert resp.status_code == 200
-
-        # Link again with wallet_a already in group — adds wallet_b to it
-        response = self.client.post(
-            "/account/wallet-groups/link",
-            data=json.dumps(
-                {
-                    "wallet_a": self._mock_siwe("0xAAA"),
-                    "wallet_b": self._mock_siwe("0xCCC"),
-                }
-            ),
-            content_type="application/json",
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["addresses"]) == 3
-        assert "0xccc" in data["addresses"]
-
-    @patch(
-        "account.api_wallet_groups.verify_siwe_ownership",
-        side_effect=lambda p: p.message["address"].lower(),
-    )
-    def test_unlink_wallet(self, mock_verify):
-        import json
-
-        # Create group
-        self.client.post(
-            "/account/wallet-groups/link",
-            data=json.dumps(
-                {
-                    "wallet_a": self._mock_siwe("0xAAA"),
-                    "wallet_b": self._mock_siwe("0xBBB"),
-                }
-            ),
-            content_type="application/json",
-        )
-
-        # Add third so unlinking doesn't destroy group
-        self.client.post(
-            "/account/wallet-groups/link",
-            data=json.dumps(
-                {
-                    "wallet_a": self._mock_siwe("0xAAA"),
-                    "wallet_b": self._mock_siwe("0xCCC"),
-                }
-            ),
-            content_type="application/json",
-        )
-
-        # Unlink 0xBBB
-        response = self.client.post(
-            "/account/wallet-groups/unlink",
-            data=json.dumps(self._mock_siwe("0xBBB")),
-            content_type="application/json",
-        )
-        assert response.status_code == 200
-
-        # Verify 0xBBB is no longer in the group
-        assert not WalletGroupMembership.objects.filter(
-            address="0xbbb"
-        ).exists()
-
-    @patch(
-        "account.api_wallet_groups.verify_siwe_ownership",
-        side_effect=lambda p: p.message["address"].lower(),
-    )
-    def test_unlink_last_two_destroys_group(self, mock_verify):
-        import json
-
-        # Create group of 2
-        resp = self.client.post(
-            "/account/wallet-groups/link",
-            data=json.dumps(
-                {
-                    "wallet_a": self._mock_siwe("0xAAA"),
-                    "wallet_b": self._mock_siwe("0xBBB"),
-                }
-            ),
-            content_type="application/json",
-        )
-        group_id = resp.json()["group_id"]
-
-        # Unlink one - group should be destroyed
-        self.client.post(
-            "/account/wallet-groups/unlink",
-            data=json.dumps(self._mock_siwe("0xBBB")),
-            content_type="application/json",
-        )
-
-        assert not WalletGroup.objects.filter(id=group_id).exists()
-        assert not WalletGroupMembership.objects.filter(
-            address="0xaaa"
-        ).exists()
-
-    def test_get_wallet_group(self):
-        group = WalletGroup.objects.create()
-        WalletGroupMembership.objects.create(group=group, address="0xaaa")
-        WalletGroupMembership.objects.create(group=group, address="0xbbb")
-
-        response = self.client.get("/account/wallet-groups/0xAAA")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["group_id"] == group.id
-        assert set(data["addresses"]) == {"0xaaa", "0xbbb"}
-
-    def test_get_wallet_group_not_found(self):
-        response = self.client.get("/account/wallet-groups/0xNotInGroup")
-        assert response.status_code == 404
+    result = await get_linked_addresses("0xAaBb")
+    assert result == ["0xaabb"]
