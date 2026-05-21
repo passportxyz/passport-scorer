@@ -1741,3 +1741,10 @@ configureAllRouting({
   alertTopic: pagerdutyTopic,
   alarmConfigurations: alarmConfigurations,
 });
+
+// Re-export downstream-needed core-infra outputs as our own stack outputs so
+// the post-deploy S3 sync workflow can read them from this stack instead of
+// cross-cloning core-infra (the default GITHUB_TOKEN is repo-scoped and the
+// cross-clone fails with 'repository not found').
+export const scorerAppBucketName = coreInfraStack.getOutput("scorerAppBucketName");
+export const scorerAppDistributionId = coreInfraStack.getOutput("scorerAppDistributionId");
