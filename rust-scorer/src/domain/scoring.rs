@@ -603,21 +603,23 @@ pub async fn calculate_score_for_address_with_groups(
     scorer_id: i64,
     pool: &PgPool,
 ) -> Result<V2ScoreResponse, DomainError> {
-    // Check if address is in a wallet group (single query for group_id + addresses)
-    let group_info = queries::wallet_groups::get_wallet_group(pool, address)
+    // Look up linked-wallet set for this address. Phase 0 uses the solo-only
+    // stub in `account::linkage`; Phase 3b will swap the body for a Silk
+    // fetch with SWR cache + killswitch + fallback metric.
+    let group_addresses = crate::account::linkage::get_linked_addresses(address, pool)
         .await
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
-    let (group_id, group_addresses) = match group_info {
-        None => return calculate_score_for_address(address, scorer_id, pool).await,
-        Some((_, ref addrs)) if addrs.len() <= 1 => {
-            return calculate_score_for_address(address, scorer_id, pool).await;
-        }
-        Some(info) => info,
-    };
+    if group_addresses.len() <= 1 {
+        return calculate_score_for_address(address, scorer_id, pool).await;
+    }
+
+    // Deterministic opaque key for this linked set. Phase 3b will swap this
+    // for Silk's user_id so canonical claims survive set membership churn.
+    let group_key = build_group_key(&group_addresses);
 
     // Determine canonical wallet (uses transaction for claim write ops)
-    let canonical = get_or_set_canonical(pool, group_id, scorer_id, address).await?;
+    let canonical = get_or_set_canonical(pool, &group_key, scorer_id, address).await?;
 
     // Score all wallets independently
     let mut wallet_responses: HashMap<String, V2ScoreResponse> = HashMap::new();
@@ -767,15 +769,23 @@ pub async fn calculate_score_for_address_with_groups(
     }
 }
 
+/// Build a deterministic opaque group_key from a linked-wallet set.
+/// Phase 3b will replace this with Silk's user_id.
+fn build_group_key(addresses: &[String]) -> String {
+    let mut sorted: Vec<String> = addresses.iter().map(|a| a.to_lowercase()).collect();
+    sorted.sort();
+    sorted.join(",")
+}
+
 /// Determine or set the canonical wallet for a group+community.
 async fn get_or_set_canonical(
     pool: &PgPool,
-    group_id: i64,
+    group_key: &str,
     scorer_id: i64,
     requesting_address: &str,
 ) -> Result<String, DomainError> {
     // Check for existing claim
-    if let Some(canonical) = queries::wallet_groups::get_canonical_claim(pool, group_id, scorer_id)
+    if let Some(canonical) = queries::wallet_groups::get_canonical_claim(pool, group_key, scorer_id)
         .await
         .map_err(|e| DomainError::Database(e.to_string()))?
     {
@@ -790,12 +800,12 @@ async fn get_or_set_canonical(
             // Release the claim within a transaction
             let mut tx = pool.begin().await
                 .map_err(|e| DomainError::Database(e.to_string()))?;
-            queries::wallet_groups::delete_canonical_claim(&mut tx, group_id, scorer_id)
+            queries::wallet_groups::delete_canonical_claim(&mut tx, group_key, scorer_id)
                 .await
                 .map_err(|e| DomainError::Database(e.to_string()))?;
             // Set new canonical in same transaction
             let canonical = queries::wallet_groups::upsert_canonical_claim(
-                &mut tx, group_id, scorer_id, requesting_address,
+                &mut tx, group_key, scorer_id, requesting_address,
             )
             .await
             .map_err(|e| DomainError::Database(e.to_string()))?;
@@ -811,7 +821,7 @@ async fn get_or_set_canonical(
     let mut tx = pool.begin().await
         .map_err(|e| DomainError::Database(e.to_string()))?;
     let canonical = queries::wallet_groups::upsert_canonical_claim(
-        &mut tx, group_id, scorer_id, requesting_address,
+        &mut tx, group_key, scorer_id, requesting_address,
     )
     .await
     .map_err(|e| DomainError::Database(e.to_string()))?;
