@@ -360,7 +360,7 @@ jobs:
 
   push-app-to-s3:
     name: Push App
-    needs: [build-app, deploy_confirm]
+    needs: [build-app, deploy_confirm, deploy_backends]
     uses: ./.github/workflows/sync_to_s3_generic_push_app.yml
     secrets: inherit
     with:
