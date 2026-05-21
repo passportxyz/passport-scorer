@@ -13,21 +13,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name="WalletGroup",
-            fields=[
-                (
-                    "id",
-                    models.BigAutoField(
-                        auto_created=True,
-                        primary_key=True,
-                        serialize=False,
-                        verbose_name="ID",
-                    ),
-                ),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-            ],
-        ),
         migrations.AlterField(
             model_name="embedsectionheader",
             name="id",
@@ -50,35 +35,6 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.CreateModel(
-            name="WalletGroupMembership",
-            fields=[
-                (
-                    "id",
-                    models.BigAutoField(
-                        auto_created=True,
-                        primary_key=True,
-                        serialize=False,
-                        verbose_name="ID",
-                    ),
-                ),
-                (
-                    "address",
-                    account.models.EthAddressField(
-                        db_index=True, max_length=42, unique=True
-                    ),
-                ),
-                ("joined_at", models.DateTimeField(auto_now_add=True)),
-                (
-                    "group",
-                    models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
-                        related_name="memberships",
-                        to="account.walletgroup",
-                    ),
-                ),
-            ],
-        ),
-        migrations.CreateModel(
             name="WalletGroupCommunityClaim",
             fields=[
                 (
@@ -90,7 +46,11 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
-                ("canonical_address", account.models.EthAddressField(max_length=42)),
+                ("group_key", models.TextField()),
+                (
+                    "canonical_address",
+                    account.models.EthAddressField(db_index=True, max_length=42),
+                ),
                 ("claimed_at", models.DateTimeField(auto_now_add=True)),
                 (
                     "community",
@@ -100,17 +60,9 @@ class Migration(migrations.Migration):
                         to="account.community",
                     ),
                 ),
-                (
-                    "group",
-                    models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
-                        related_name="claims",
-                        to="account.walletgroup",
-                    ),
-                ),
             ],
             options={
-                "unique_together": {("group", "community")},
+                "unique_together": {("group_key", "community")},
             },
         ),
     ]
