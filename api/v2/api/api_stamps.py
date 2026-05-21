@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
 import django_filters
@@ -9,12 +9,12 @@ from django.core.cache import cache
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
+from account.linkage import get_linked_addresses
 from account.models import (
     Account,
     Community,
     Nonce,
     WalletGroupCommunityClaim,
-    WalletGroupMembership,
 )
 from ceramic_cache.models import CeramicCache
 from registry.api.schema import (
@@ -86,20 +86,26 @@ async def ahandle_scoring(address: str, community):
     if not is_valid_address(address_lower):
         raise InvalidAddressException()
 
-    # Check if address is in a wallet group
-    group_info = await _get_wallet_group(address_lower)
+    # Look up linked-wallet set for this address. In Phase 0 the linkage source
+    # is a stub that always returns the solo set; Phase 3b will wire it to Silk
+    # (see umbrella holonym-foundation/internal-docs#1058).
+    linked_addresses = await get_linked_addresses(address_lower)
 
-    if not group_info:
-        # No group - existing single-wallet flow
+    if len(linked_addresses) <= 1:
+        # Solo set - existing single-wallet flow
         return await _score_single_address(address_lower, community)
 
-    group_id, group_addresses = group_info
+    # Deterministic opaque key for the linked set. Phase 3b will swap this for
+    # Silk's user_id so that the canonical claim survives changes to the set.
+    group_key = _group_key_for(linked_addresses)
 
     # Determine canonical wallet for this community
-    canonical = await _get_or_set_canonical(group_id, address_lower, community)
+    canonical = await _get_or_set_canonical(group_key, address_lower, community)
 
     # Score all wallets in the group individually, then merge
-    combined_response = await _score_wallet_group(canonical, group_addresses, community)
+    combined_response = await _score_wallet_group(
+        canonical, linked_addresses, community
+    )
 
     if address_lower == canonical:
         return combined_response
@@ -107,26 +113,17 @@ async def ahandle_scoring(address: str, community):
         return _build_non_canonical_response(address_lower, combined_response)
 
 
-async def _get_wallet_group(
-    address: str,
-) -> Optional[Tuple[int, list[str]]]:
-    """Look up wallet group for an address. Returns (group_id, [addresses]) or None."""
-    try:
-        membership = await WalletGroupMembership.objects.aget(address=address)
-    except WalletGroupMembership.DoesNotExist:
-        return None
+def _group_key_for(linked_addresses: list[str]) -> str:
+    """Derive a deterministic opaque key for a linked-wallet set.
 
-    group_addresses = [
-        m
-        async for m in WalletGroupMembership.objects.filter(
-            group_id=membership.group_id
-        ).values_list("address", flat=True)
-    ]
-    return (membership.group_id, group_addresses)
+    Phase 0 derives the key from the sorted, lowercased member set. Phase 3b
+    will replace this with Silk's user_id.
+    """
+    return ",".join(sorted(a.lower() for a in linked_addresses))
 
 
 async def _get_or_set_canonical(
-    group_id: int, requesting_address: str, community: Community
+    group_key: str, requesting_address: str, community: Community
 ) -> str:
     """Get or create canonical wallet claim for a group+community.
 
@@ -135,7 +132,7 @@ async def _get_or_set_canonical(
     """
     try:
         claim = await WalletGroupCommunityClaim.objects.aget(
-            group_id=group_id, community=community
+            group_key=group_key, community=community
         )
         # Check if canonical wallet's score is still valid
         score_expired = False
@@ -154,14 +151,14 @@ async def _get_or_set_canonical(
         if score_expired:
             await claim.adelete()
             claim, _ = await WalletGroupCommunityClaim.objects.aget_or_create(
-                group_id=group_id,
+                group_key=group_key,
                 community=community,
                 defaults={"canonical_address": requesting_address},
             )
         return claim.canonical_address
     except WalletGroupCommunityClaim.DoesNotExist:
         claim, _ = await WalletGroupCommunityClaim.objects.aget_or_create(
-            group_id=group_id,
+            group_key=group_key,
             community=community,
             defaults={"canonical_address": requesting_address},
         )
