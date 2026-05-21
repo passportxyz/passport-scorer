@@ -38,31 +38,20 @@ jobs:
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           CLOUDFLARE_API_TOKEN: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/CLOUDFLARE_API_TOKEN
-          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
       - name: Configure 1Password Service Account
         uses: 1password/load-secrets-action/configure@v1
         with:
           service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-      - name: Set AWS_SESSION_TOKEN if needed
-        if: inputs.environment == 'production'
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
       - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@v3
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@v5
         with:
           refspec: ${{ inputs.refspec }}
           docker_tag: ${{ inputs.docker_tag }}
           ecr_repository_name: passport-scorer
           aws_region: us-west-2
-          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws_session_token: ${{ env.AWS_SESSION_TOKEN }}
+          aws_role_arn: arn:aws:iam::${{ inputs.environment == 'production' && '559026686882' || '515520736917' }}:role/pulumi-ci-passport-scorer-${{ inputs.environment }}
           dockerfile_name: ./api/Dockerfile
           build_dir: ./api/
 
@@ -77,31 +66,20 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
       - name: Configure 1Password Service Account
         uses: 1password/load-secrets-action/configure@v1
         with:
           service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-      - name: Set AWS_SESSION_TOKEN if needed
-        if: inputs.environment == 'production'
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
       - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@v3
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@v5
         with:
           refspec: ${{ inputs.refspec }}
           docker_tag: ${{ inputs.docker_tag }}
           ecr_repository_name: submit-passport-lambdas
           aws_region: us-west-2
-          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws_session_token: ${{ env.AWS_SESSION_TOKEN }}
+          aws_role_arn: arn:aws:iam::${{ inputs.environment == 'production' && '559026686882' || '515520736917' }}:role/pulumi-ci-passport-scorer-${{ inputs.environment }}
           dockerfile_name: ./api/aws_lambdas/submit_passport/Dockerfile
           build_dir: ./api/
 
@@ -116,31 +94,20 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
       - name: Configure 1Password Service Account
         uses: 1password/load-secrets-action/configure@v1
         with:
           service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-      - name: Set AWS_SESSION_TOKEN if needed
-        if: inputs.environment == 'production'
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
       - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@v3
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@v5
         with:
           refspec: ${{ inputs.refspec }}
           docker_tag: ${{ inputs.docker_tag }}
           ecr_repository_name: passport-indexer
           aws_region: us-west-2
-          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws_session_token: ${{ env.AWS_SESSION_TOKEN }}
+          aws_role_arn: arn:aws:iam::${{ inputs.environment == 'production' && '559026686882' || '515520736917' }}:role/pulumi-ci-passport-scorer-${{ inputs.environment }}
           dockerfile_name: ./indexer/Dockerfile
           build_dir: ./indexer/
 
@@ -155,31 +122,20 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          AWS_ACCESS_KEY_ID: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_ACCESS_KEY_ID
-          AWS_SECRET_ACCESS_KEY: op://DeployerVault/github-aws-${{ inputs.environment }}/ci/AWS_SECRET_ACCESS_KEY
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
       - name: Configure 1Password Service Account
         uses: 1password/load-secrets-action/configure@v1
         with:
           service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-      - name: Set AWS_SESSION_TOKEN if needed
-        if: inputs.environment == 'production'
-        uses: 1password/load-secrets-action@v1
-        with:
-          export-env: true
-        env:
-          AWS_SESSION_TOKEN: op://DeployerVault/github-aws-production/ci/AWS_SESSION_TOKEN
       - id: build_and_push_docker_image
-        uses: passportxyz/gh-workflows/.github/actions/build_and_push@v3
+        uses: passportxyz/gh-workflows/.github/actions/build_and_push@v5
         with:
           refspec: ${{ inputs.refspec }}
           docker_tag: ${{ inputs.docker_tag }}
           ecr_repository_name: passport-verifier
           aws_region: us-west-2
-          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws_session_token: ${{ env.AWS_SESSION_TOKEN }}
+          aws_role_arn: arn:aws:iam::${{ inputs.environment == 'production' && '559026686882' || '515520736917' }}:role/pulumi-ci-passport-scorer-${{ inputs.environment }}
           dockerfile_name: ./verifier/Dockerfile
           build_dir: ./verifier/
 
