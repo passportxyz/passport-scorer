@@ -23,7 +23,6 @@ from account.models import (
 from registry.models import Passport, Score
 from scorer_weighted.models import BinaryWeightedScorer, Scorer
 
-
 # ============================================================
 # WalletGroupCommunityClaim model tests
 # ============================================================
