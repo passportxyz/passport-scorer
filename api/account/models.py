@@ -919,3 +919,26 @@ class EmbedStampPlatform(models.Model):
 
     def __str__(self):
         return f"{self.section.name} - {self.platform.platform_id} (order {self.order})"
+
+
+class WalletGroupCommunityClaim(models.Model):
+    """Tracks which wallet is canonical (gets the passing score) per community.
+
+    The ``group_key`` is an opaque text identifier for a linked-wallet group.
+    Linkage data itself lives in the Silk auth-server (see umbrella
+    holonym-foundation/internal-docs#1058); this row only persists the
+    per-community canonical-wallet decision in the scorer.
+    """
+
+    group_key = models.TextField()
+    community = models.ForeignKey(
+        Community, on_delete=models.CASCADE, related_name="wallet_group_claims"
+    )
+    canonical_address = EthAddressField(db_index=True)
+    claimed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ["group_key", "community"]
+
+    def __str__(self):
+        return f"Group {self.group_key} → {self.canonical_address} in community #{self.community_id}"
