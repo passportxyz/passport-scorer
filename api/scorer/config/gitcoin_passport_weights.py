@@ -47,6 +47,7 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "SnapshotProposalsProvider": "0.239",
     "TrustaLabs": "0.511",
     "TrustedCitizen": "4.009",
+    "SteamGamingCredentials": "2.8",
     "X": "3.2",
     "ZkSyncEra": "0.606",
     "zkSyncScore#20": "1.67",
