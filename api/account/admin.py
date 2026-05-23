@@ -694,6 +694,7 @@ class AllowListInline(admin.TabularInline):
     model = AllowList
     extra = 0
     classes = ["collapse"]
+    autocomplete_fields = ["platform"]
 
 
 class IncludedChainIdInline(admin.TabularInline):

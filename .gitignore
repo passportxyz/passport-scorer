@@ -31,3 +31,7 @@ tracing.folded
 flamegraph.svg
 
 target
+
+# Mim - Transient/local state files
+.claude/knowledge/unresolved.md
+.claude/knowledge/mim.log
