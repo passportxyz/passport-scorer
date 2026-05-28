@@ -35,7 +35,14 @@ fn silk_config() -> &'static SilkConfig {
     static CONFIG: OnceLock<SilkConfig> = OnceLock::new();
     CONFIG.get_or_init(|| SilkConfig {
         enabled: std::env::var("LINKED_WALLETS_SOURCE_ENABLED")
-            .map(|v| matches!(v.trim().to_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+            // Mirror django-environ's BOOLEAN_TRUE_STRINGS so the killswitch reads
+            // identically across the Python and Rust scorers.
+            .map(|v| {
+                matches!(
+                    v.trim().to_lowercase().as_str(),
+                    "true" | "on" | "ok" | "y" | "yes" | "1"
+                )
+            })
             .unwrap_or(false),
         base_url: std::env::var("SILK_AUTH_SERVER_URL").unwrap_or_default(),
         service_key: std::env::var("SILK_SERVICE_API_KEY").unwrap_or_default(),

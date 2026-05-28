@@ -53,6 +53,7 @@ async def get_linked_addresses(address: str) -> list[str]:
         return [address]
 
     fresh_key = FRESH_KEY.format(address)
+    last_good_key = LAST_GOOD_KEY.format(address)
     cached = await cache.aget(fresh_key)
     if cached is not None:
         return cached
@@ -62,7 +63,7 @@ async def get_linked_addresses(address: str) -> list[str]:
     except Exception as exc:
         # Outage: never poison the cache. Serve the last good value if present,
         # else fall back to solo.
-        last_good = await cache.aget(LAST_GOOD_KEY.format(address))
+        last_good = await cache.aget(last_good_key)
         if last_good is not None:
             logger.warning(
                 "linked wallets: Silk fetch failed for %s, serving stale value (%s)",
@@ -82,7 +83,7 @@ async def get_linked_addresses(address: str) -> list[str]:
     # Success path: refresh both the freshness key and the longer-lived last-good
     # key. Empty Silk responses normalize to the solo set and are cached too.
     await cache.aset(fresh_key, linked, CACHE_TTL)
-    await cache.aset(LAST_GOOD_KEY.format(address), linked, LAST_GOOD_TTL)
+    await cache.aset(last_good_key, linked, LAST_GOOD_TTL)
     return linked
 
 
