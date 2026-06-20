@@ -11,7 +11,7 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "CivicUniquenessPass": "5.005",
     "CleanHands": "3",
     "CoinbaseDualVerification": "16.042",
-    "CoinbaseDualVerification2": "10.042",
+    "CoinbaseDualVerification2": "4.042",
     "Discord": "0.516",
     "Ens": "0.208",
     "ETHDaysActive#50": "0.207",
