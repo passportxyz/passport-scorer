@@ -4,14 +4,14 @@ This document outlines the process for uploading a CSV file to the Django admin 
 
 ## Prerequisites
 
-- Access to the Django admin interface at api.scorer.gitcoin.co
+- Access to the Django admin interface at api.passport.xyz
 - A CSV file containing the data to be processed
 
 ## Steps
 
 ### 1. Login to Django Admin
 
-1. Open your web browser and navigate to [api.scorer.gitcoin.co/admin](https://api.scorer.gitcoin.co/admin)
+1. Open your web browser and navigate to [api.passport.xyz/admin](https://api.passport.xyz/admin)
 2. Log in with your google account
 
 ### 2. Navigate to Batch Model Scoring Request

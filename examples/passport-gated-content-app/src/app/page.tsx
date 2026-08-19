@@ -8,9 +8,9 @@ const APIKEY = process.env.NEXT_PUBLIC_GC_API_KEY
 const SCORERID = process.env.NEXT_PUBLIC_GC_SCORER_ID
 
 // endpoint for submitting passport
-const SUBMIT_PASSPORT_URI = 'https://api.scorer.gitcoin.co/registry/submit-passport'
+const SUBMIT_PASSPORT_URI = 'https://api.passport.xyz/registry/submit-passport'
 // endpoint for getting the signing message
-const SIGNING_MESSAGE_URI = 'https://api.scorer.gitcoin.co/registry/signing-message'
+const SIGNING_MESSAGE_URI = 'https://api.passport.xyz/registry/signing-message'
 // score needed to see hidden message
 const thresholdNumber = 20
 const headers = APIKEY ? ({
@@ -93,7 +93,7 @@ export default function Passport() {
 
   async function getScore() {
     setScore('')
-    const GET_PASSPORT_SCORE_URI = `https://api.scorer.gitcoin.co/registry/score/${SCORERID}/${address}`
+    const GET_PASSPORT_SCORE_URI = `https://api.passport.xyz/registry/score/${SCORERID}/${address}`
     try {
       const response = await fetch(GET_PASSPORT_SCORE_URI, {
         headers

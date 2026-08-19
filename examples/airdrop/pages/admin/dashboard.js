@@ -123,7 +123,7 @@ export default function Dashboard({ data }) {
         <div className={styles.description}>
           <div>
             <a
-              href="https://www.gitcoin.co/"
+              href="https://passport.human.tech/"
               target="_blank"
               rel="noopener noreferrer"
             >

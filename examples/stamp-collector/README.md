@@ -16,4 +16,4 @@ You should see your stamps displayed in the browser. Icons are common to all sta
 
 ## Learn more
 
-Visit the [Passport docs](http://passport.gitcoin.co)
+Visit the [Passport docs](https://app.passport.xyz)

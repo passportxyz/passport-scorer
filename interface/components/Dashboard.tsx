@@ -53,7 +53,7 @@ const General = ({ className }: { className: string }) => {
       />
       <QuickLink
         text="Developer Docs"
-        url="https://docs.passport.xyz/"
+        url="https://docs.passport.human.tech/"
         icon={<BookOpenIcon className={iconClassName} />}
         className={linkClassName}
       />
@@ -65,13 +65,13 @@ const General = ({ className }: { className: string }) => {
       />
       <QuickLink
         text="API Playground"
-        url="https://api.scorer.gitcoin.co/docs"
+        url="https://api.passport.xyz/docs"
         icon={<CommandLineIcon className={iconClassName} />}
         className={linkClassName}
       />
       <QuickLink
         text="What is a Scorer?"
-        url="https://docs.passport.xyz/building-with-passport/passport-api/getting-access#projects-and-project-id"
+        url="https://docs.passport.human.tech/building-with-passport/passport-api/getting-access#projects-and-project-id"
         icon={<QuestionMarkCircleIcon className={iconClassName} />}
         className={linkClassName}
       />
@@ -96,20 +96,20 @@ const StampsAPI = ({ className }: { className?: string }) => {
       />
       <QuickLink
         text="Overview"
-        url="https://docs.passport.xyz/building-with-passport/stamps/passport-api"
+        url="https://docs.passport.human.tech/building-with-passport/stamps/passport-api"
         className={linkClassName}
         icon={<WindowIcon className={iconClassName} />}
       />
       <QuickLink
         text="Quick Start Guide"
         className={linkClassName}
-        url="https://docs.passport.xyz/building-with-passport/stamps/passport-api/quick-start-guide"
+        url="https://docs.passport.human.tech/building-with-passport/stamps/passport-api/quick-start-guide"
         icon={<FlagIcon className={iconClassName} />}
       />
       <QuickLink
         text="API Reference"
         className={linkClassName}
-        url="https://docs.passport.xyz/building-with-passport/passport-api/api-reference"
+        url="https://docs.passport.human.tech/building-with-passport/passport-api/api-reference"
         icon={<ListBulletIcon className={iconClassName} />}
       />
     </div>
@@ -132,14 +132,14 @@ const ModelsAPI = ({ className }: { className?: string }) => {
       />
       <QuickLink
         text="Overview"
-        url="https://docs.passport.xyz/building-with-passport/models"
+        url="https://docs.passport.human.tech/building-with-passport/models"
         className={linkClassName}
         icon={<WindowIcon className={iconClassName} />}
       />
       <QuickLink
         text="API Reference"
         className={linkClassName}
-        url="https://docs.passport.xyz/building-with-passport/models/api-reference"
+        url="https://docs.passport.human.tech/building-with-passport/models/api-reference"
         icon={<ListBulletIcon className={iconClassName} />}
       />
     </div>

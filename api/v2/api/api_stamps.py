@@ -373,7 +373,7 @@ def format_v2_score_response(
     },
     operation_id="v2_api_api_stamps_a_submit_passport",
     summary="Retrieve Stamp-based unique humanity score for a specified address",
-    description="""This is the primary endpoint that integrators should use. This endpoint will return the latest score and Stamp data for a single address.<br /><br /><a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
+    description="""This is the primary endpoint that integrators should use. This endpoint will return the latest score and Stamp data for a single address.<br /><br /><a href="https://docs.passport.human.tech/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
     tags=["Stamp API"],
 )
 @atrack_apikey_usage(track_response=True)
@@ -440,7 +440,7 @@ class EventFilter(django_filters.FilterSet):
     },
     operation_id="v2_api_api_stamps_get_score_history",
     summary="Retrieve historical Stamp-based unique humanity score for a specified address",
-    description="""This endpoint will return the historical score and Stamp data for a single address at a specified time. **Note:** To access this endpoint, you must submit your use case and be approved by the Passport team. To do so, please fill out the following form, making sure to provide a detailed description of your use case. The Passport team typically reviews and responds to form responses within 48 hours.<br /><br />[Request access](https://forms.gle/4GyicBfhtHW29eEu8)<br /><br /><a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
+    description="""This endpoint will return the historical score and Stamp data for a single address at a specified time. **Note:** To access this endpoint, you must submit your use case and be approved by the Passport team. To do so, please fill out the following form, making sure to provide a detailed description of your use case. The Passport team typically reviews and responds to form responses within 48 hours.<br /><br />[Request access](https://forms.gle/4GyicBfhtHW29eEu8)<br /><br /><a href="https://docs.passport.human.tech/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
     tags=["Stamp API"],
 )
 @track_apikey_usage(track_response=False)
@@ -518,7 +518,7 @@ def get_score_history(
 @api_router.get(
     "/stamps/metadata",
     summary="Receive all Stamps available in Passport",
-    description="""<a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
+    description="""<a href="https://docs.passport.human.tech/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
     auth=ApiKey(),
     response={
         200: List[StampDisplayResponse],
@@ -543,7 +543,7 @@ def stamp_display(request) -> List[StampDisplayResponse]:
     },
     operation_id="v2_api_api_stamps_get_passport_stamps",
     summary="Retrieve the Stamps that a specified account has verified.",
-    description="""Use this endpoint to retrieve the Stamps verified by a specified address.<br /><br />This endpoint will return a `CursorPaginatedStampCredentialResponse`.<br /><br /><a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
+    description="""Use this endpoint to retrieve the Stamps verified by a specified address.<br /><br />This endpoint will return a `CursorPaginatedStampCredentialResponse`.<br /><br /><a href="https://docs.passport.human.tech/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
     exclude_unset=True,
     tags=["Stamp API"],
 )

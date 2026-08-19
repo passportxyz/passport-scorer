@@ -23,7 +23,7 @@ async function submitPassport(address, community, signature, nonce) {
     nonce,
   };
   const { data } = await axios.post(
-    "https://api.scorer.gitcoin.co/registry/submit-passport",
+    "https://api.passport.xyz/registry/submit-passport",
     axiosSubmitPassportData,
     axiosSubmitPassportConfig
   );
