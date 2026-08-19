@@ -65,7 +65,7 @@ const General = ({ className }: { className: string }) => {
       />
       <QuickLink
         text="API Playground"
-        url="https://api.scorer.gitcoin.co/docs"
+        url="https://api.passport.xyz/docs"
         icon={<CommandLineIcon className={iconClassName} />}
         className={linkClassName}
       />

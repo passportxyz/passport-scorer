@@ -52,7 +52,7 @@ export default function Passport() {
 
   async function getStamps() {
     const stampDataArray = []
-    const GET_PASSPORT_STAMPS_URI = `https://api.scorer.gitcoin.co/registry/stamps/${address}?include_metadata=true`
+    const GET_PASSPORT_STAMPS_URI = `https://api.passport.xyz/registry/stamps/${address}?include_metadata=true`
     try {
       const response: Response = await fetch(GET_PASSPORT_STAMPS_URI, { headers })
       const data = await response.json()
