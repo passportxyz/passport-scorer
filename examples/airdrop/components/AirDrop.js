@@ -32,7 +32,7 @@ export default function AirDrop() {
   async function addToAirdrop() {
     setNonce("");
     setPassportScore(0);
-    //  Step #1 (Optional, only required if using the "signature" param when submitting a user's passport. See https://docs.passport.xyz/building-with-passport/scorer-api/endpoint-definition#submit-passport)
+    //  Step #1 (Optional, only required if using the "signature" param when submitting a user's passport. See https://docs.passport.xyz/building-with-passport/stamps/passport-api-v1/api-reference#submit-and-retrieve-latest-score-for-a-single-address)
     //    We call our /api/scorer-message endpoint (/pages/api/scorer-message.js) which internally calls /registry/signing-message
     //    on the scorer API. Instead of calling /registry/signing-message directly, we call it via our api endpoint so we do not
     //    expose our scorer API key to the frontend.
