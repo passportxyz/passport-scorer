@@ -6,7 +6,7 @@ This is a simple demo app that shows how to use the Scorer API to retrieve user 
 
 ## Getting Started
 
-This repository contains source code to accompany a "passport gating" walkthrough tutorial at docs.gitcoin.co.
+This repository contains source code to accompany a "passport gating" walkthrough tutorial at docs.passport.xyz.
 
 You can find step-by-step instructions for setting up and running this app in the tutorial.
 

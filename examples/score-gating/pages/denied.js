@@ -27,7 +27,7 @@ export default function Denied() {
   }, [address]);
 
   async function scorePassport() {
-    //  Step #1 (Optional, only required if using the "signature" param when submitting a user's passport. See https://docs.passport.gitcoin.co/building-with-passport/scorer-api/endpoint-definition#submit-passport)
+    //  Step #1 (Optional, only required if using the "signature" param when submitting a user's passport. See https://docs.passport.xyz/building-with-passport/scorer-api/endpoint-definition#submit-passport)
     //    We call our /api/scorer-message endpoint (/pages/api/scorer-message.js) which internally calls /registry/signing-message
     //    on the scorer API. Instead of calling /registry/signing-message directly, we call it via our api endpoint so we do not
     //    expose our scorer API key to the frontend.
@@ -72,7 +72,7 @@ export default function Denied() {
       //    }
       const submitResponse = await axios.post("/api/submit-passport", {
         address: address, // Required: The user's address you'd like to score.
-        community: process.env.NEXT_PUBLIC_SCORER_ID, // Required: get this from one of your scorers in the Scorer API dashboard https://scorer.gitcoin.co/
+        community: process.env.NEXT_PUBLIC_SCORER_ID, // Required: get this from one of your scorers in the Scorer API dashboard https://developer.passport.xyz/
         signature: data, // Optional: The signature of the message returned in Step #1
         nonce: nonce, // Optional: The nonce returned in Step #1
       });
@@ -126,7 +126,7 @@ export default function Denied() {
         <div className={styles.description}>
           <div>
             <a
-              href="https://www.gitcoin.co/"
+              href="https://www.passport.xyz/"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -157,7 +157,7 @@ export default function Denied() {
             className={dstyles.link}
             target="_blank"
             rel="noreferrer"
-            href="https://passport.gitcoin.co"
+            href="https://app.passport.xyz"
           >
             Click here to increase your score.
           </a>

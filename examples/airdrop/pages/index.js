@@ -39,7 +39,7 @@ export default function Home() {
         <div className={styles.description}>
           <div>
             <a
-              href="https://www.gitcoin.co/"
+              href="https://www.passport.xyz/"
               target="_blank"
               rel="noopener noreferrer"
             >
