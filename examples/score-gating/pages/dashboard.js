@@ -35,7 +35,7 @@ export default function Dashboard() {
   }, [address, initialAddress]);
 
   async function scorePassport() {
-    //  Step #1 (Optional, only required if using the "signature" param when submitting a user's passport. See https://docs.passport.xyz/building-with-passport/stamps/passport-api-v1/api-reference#submit-and-retrieve-latest-score-for-a-single-address)
+    //  Step #1 (Optional, only required if using the "signature" param when submitting a user's passport. See https://docs.passport.human.tech/building-with-passport/stamps/passport-api-v1/api-reference#submit-and-retrieve-latest-score-for-a-single-address)
     //    We call our /api/scorer-message endpoint (/pages/api/scorer-message.js) which internally calls /registry/signing-message
     //    on the scorer API. Instead of calling /registry/signing-message directly, we call it via our api endpoint so we do not
     //    expose our scorer API key to the frontend.
@@ -133,7 +133,7 @@ export default function Dashboard() {
         <div className={styles.description}>
           <div>
             <a
-              href="https://www.passport.xyz/"
+              href="https://passport.human.tech/"
               target="_blank"
               rel="noopener noreferrer"
             >

@@ -8,9 +8,9 @@ The Passport Scorer API (this repository) is a centralized service provided by P
 
 ## Quick Links
 
-- [Passport Docs](https://docs.passport.xyz/)
+- [Passport Docs](https://docs.passport.human.tech/)
 - [API Docs](https://api.passport.xyz/docs)
-- [Official Website](https://www.passport.xyz?utm_source=scorer-api-repo&utm_medium=referral&utm_content=Passport)
+- [Official Website](https://passport.human.tech?utm_source=scorer-api-repo&utm_medium=referral&utm_content=Passport)
 
 ## Contributing
 

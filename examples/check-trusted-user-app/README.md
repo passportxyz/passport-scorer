@@ -6,7 +6,7 @@ from Gitcoin passport. The app is built in Nextjs using `create-next-app` and Ch
 
 ## Getting Started
 
-This repository contains source code to accompany a "trusted user app" walkthrouhg tutorial at [docs.passport.xyz](https://docs.passport.xyz/building-with-passport/stamps/passport-api-v1/tutorials/integrating-stamps-and-scorers).
+This repository contains source code to accompany a "trusted user app" walkthrouhg tutorial at [docs.passport.human.tech](https://docs.passport.human.tech/building-with-passport/stamps/passport-api-v1/tutorials/integrating-stamps-and-scorers).
 
 You can find step-by-step instructions for setting up and running this app in the tutorial.
 

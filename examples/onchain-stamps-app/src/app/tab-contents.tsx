@@ -169,7 +169,7 @@ const ContentBelowThreshold = () => {
             <p>You can go to the <Link href="https://app.passport.xyz" color='teal.500' isExternal>Passport App </Link> and add more stamps to your Passport.</p>
             <p>These Stamps can then be migrated onchain with a single click!</p>
             <br />
-            <p>In the meantime you can read our <Link href="https://docs.passport.xyz" color='teal.500' isExternal> awesome documentation </Link> to learn more about Gitcoin passport</p>
+            <p>In the meantime you can read our <Link href="https://docs.passport.human.tech" color='teal.500' isExternal> awesome documentation </Link> to learn more about Gitcoin passport</p>
             <br />
             <p> You can also check your attestations using the <Link href="https://base-goerli.easscan.org" color='teal.500' isExternal>Ethereum Attestation Service explorer </Link></p>
             <p> There, you can search for your address and see your Attestations in the browser.</p>

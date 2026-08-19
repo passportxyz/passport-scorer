@@ -39,7 +39,7 @@ export default function Home() {
         <div className={styles.description}>
           <div>
             <a
-              href="https://www.passport.xyz/"
+              href="https://passport.human.tech/"
               target="_blank"
               rel="noopener noreferrer"
             >
