@@ -16,7 +16,7 @@ const walletConnectOptions: WalletConnectOptions = {
 
 const onBoardExploreUrl =
   (process.env.NEXT_PUBLIC_WEB3_ONBOARD_EXPLORE_URL as string) ||
-  "https://passport.gitcoin.co/";
+  "https://app.passport.xyz/";
 
 const walletConnect = walletConnectModule(walletConnectOptions);
 const injected = injectedModule();
