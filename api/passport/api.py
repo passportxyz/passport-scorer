@@ -159,9 +159,29 @@ async def fetch(session, url, data):
     headers = {"Content-Type": "application/json"}
     try:
         async with session.post(
-            url, data=json.dumps(data), headers=headers
+            url,
+            data=json.dumps(data),
+            headers=headers,
+            timeout=aiohttp.ClientTimeout(total=10),
         ) as response:
-            body = await response.json()
+            try:
+                body = await response.json()
+            except aiohttp.ContentTypeError:
+                body_preview = (await response.text())[:300]
+                log.error(
+                    "ContentTypeError fetching %s — ALB returned non-JSON (status=%s, preview=%r)",
+                    url,
+                    response.status,
+                    body_preview,
+                )
+                return {
+                    "status": 500,
+                    "data": {
+                        "human_probability": -1,
+                        "n_transactions": -1,
+                        "error": "unexpected content type from model endpoint",
+                    },
+                }
             return {"status": response.status, "data": body.get("data")}
     except Exception as e:
         log.error(f"Error fetching {url}", exc_info=True)
