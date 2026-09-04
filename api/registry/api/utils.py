@@ -157,18 +157,16 @@ def track_usage(request: HttpRequest, key: str, status_code: int) -> None:
     Track API key usage regardless of authentication outcome
     """
     try:
-        api_key = AccountAPIKey.objects.filter(prefix=key[:8]).first()
+        api_key = AccountAPIKey.objects.filter(prefix=key[:8]).first() if key else None
 
         AccountAPIKeyAnalytics.objects.create(
             api_key=api_key,
             path=request.path,
-            method=request.method,
             status_code=status_code,
-            api_key_id=api_key.id if api_key else None,
             error="Unauthorized request",
         )
     except Exception:
-        pass
+        log.exception("track_usage failed to record rejected request")
 
 
 class ApiKey(APIKeyHeader):
@@ -255,14 +253,11 @@ async def atrack_usage(request, key: str, status_code: int) -> None:
         await AccountAPIKeyAnalytics.objects.acreate(
             api_key=api_key,
             path=request.path,
-            method=request.method,
             status_code=status_code,
-            api_key_id=api_key.id if api_key else None,
-            ip_address=request.META.get("REMOTE_ADDR"),
-            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            error="Unauthorized request",
         )
     except Exception as e:
-        pass
+        log.exception("atrack_usage failed to record rejected request: %s", e)
 
 
 async def aapi_key(request):
