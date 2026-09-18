@@ -17,6 +17,7 @@ import {
   ChatBubbleBottomCenterTextIcon,
   WindowIcon,
   ListBulletIcon,
+  LockClosedIcon,
 } from "@heroicons/react/24/solid";
 
 const QuickLink = ({
@@ -73,6 +74,12 @@ const General = ({ className }: { className: string }) => {
         text="What is a Scorer?"
         url="https://docs.passport.human.tech/building-with-passport/passport-api/getting-access#projects-and-project-id"
         icon={<QuestionMarkCircleIcon className={iconClassName} />}
+        className={linkClassName}
+      />
+      <QuickLink
+        text="Share keys through TAP"
+        url="https://tap.human.tech/?utm_source=passport-developer-portal&utm_medium=referral&utm_campaign=tap-key-sharing&utm_content=general-quick-link"
+        icon={<LockClosedIcon className={iconClassName} />}
         className={linkClassName}
       />
     </div>
