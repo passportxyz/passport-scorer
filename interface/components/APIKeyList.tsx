@@ -30,7 +30,7 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import { successToast } from "./Toasts";
-import { KeyIcon } from "@heroicons/react/24/outline";
+import { InformationCircleIcon, KeyIcon } from "@heroicons/react/24/outline";
 
 export type ApiKeyDisplay = ApiKeys & {
   api_key?: string;
@@ -116,11 +116,33 @@ const APIKeyList = () => {
     </span>
   );
 
+  const tapNote = (
+    <div
+      data-testid="tap-note"
+      className="mb-6 flex items-start rounded-md border border-[#D9CCFF] bg-[#F0EBFF] px-4 py-3 text-purple-darkpurple"
+    >
+      <InformationCircleIcon className="mr-3 mt-0.5 w-5 shrink-0 text-purple-gitcoinpurple" />
+      <p>
+        Sharing this API key with an agent or a teammate? Store it securely in
+        TAP. It passes the key at call time, under rules you set.{" "}
+        <a
+          href="https://tap.human.tech/?utm_source=passport-developer-portal&utm_medium=referral&utm_campaign=tap-key-sharing&utm_content=api-keys-note"
+          target="_blank"
+          rel="noreferrer"
+          className="text-purple-gitcoinpurple underline"
+        >
+          tap.human.tech
+        </a>
+      </p>
+    </div>
+  );
+
   return (
     <>
       {apiKeys.length === 0 ? (
         <div className="lg:h-full">
           {userInstructions}
+          {tapNote}
           <NoValues
             title="Generate API Keys"
             description="Interact with the Scorer(s) created via your API key. The key limit is five."
@@ -133,6 +155,7 @@ const APIKeyList = () => {
         <>
           <div className="flex w-full flex-col">
             {userInstructions}
+            {tapNote}
             {apiKeys.map((key, i) => (
               <div
                 key={`${key.id}-${i}`}
