@@ -7,7 +7,23 @@ import {
   waitFor,
 } from "@testing-library/react";
 import UseCaseModal from "../../components/UseCaseModal";
-import { Community } from "../../utils/account-requests";
+import {
+  Community,
+  createCommunity,
+  getOrganization,
+  updateOrganization,
+} from "../../utils/account-requests";
+import { warningToast } from "../../components/Toasts";
+
+jest.mock("../../utils/account-requests", () => ({
+  createCommunity: jest.fn(),
+  getOrganization: jest.fn(),
+  updateOrganization: jest.fn(),
+}));
+
+jest.mock("../../components/Toasts", () => ({
+  warningToast: jest.fn(),
+}));
 
 jest.mock("next/router", () => require("next-router-mock"));
 jest.mock("react-router-dom", () => ({
@@ -35,6 +51,17 @@ const noop = () => {};
 const refreshCommunities = jest.fn();
 
 describe("UseCaseModal", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getOrganization as jest.Mock).mockResolvedValue({
+      organization_name: "Test Org",
+    });
+    (updateOrganization as jest.Mock).mockResolvedValue({
+      organization_name: "Acme Labs",
+    });
+    (createCommunity as jest.Mock).mockResolvedValue(undefined);
+  });
+
   it("should display the creation modal for scorer", async () => {
     render(
       <UseCaseModal
@@ -215,6 +242,103 @@ describe("UseCaseModal", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("threshold-error")).toBeNull();
       expect(continueBtn).not.toBeDisabled();
+    });
+  });
+
+  const fillScorerForm = () => {
+    const useCaseSelect = screen.getByTestId(
+      "use-case-name"
+    ) as HTMLSelectElement;
+    fireEvent.change(useCaseSelect, {
+      target: { value: useCaseSelect.options[1].value },
+    });
+    fireEvent.change(screen.getByTestId("use-case-name-input"), {
+      target: { value: "My Use Case" },
+    });
+    fireEvent.change(screen.getByTestId("use-case-description-input"), {
+      target: { value: "This is my use case description" },
+    });
+  };
+
+  it("should not ask for the organization name when the account has one", async () => {
+    render(
+      <UseCaseModal
+        existingScorers={existingScorers}
+        isOpen={true}
+        onClose={noop}
+        refreshCommunities={refreshCommunities}
+      />
+    );
+
+    await waitFor(() => expect(getOrganization).toHaveBeenCalled());
+    expect(screen.queryByTestId("organization-name-input")).toBeNull();
+  });
+
+  it("should require the organization name when the account has none, and save it before creating the scorer", async () => {
+    (getOrganization as jest.Mock).mockResolvedValue({
+      organization_name: null,
+    });
+
+    render(
+      <UseCaseModal
+        existingScorers={existingScorers}
+        isOpen={true}
+        onClose={noop}
+        refreshCommunities={refreshCommunities}
+      />
+    );
+
+    const organizationInput = await screen.findByTestId(
+      "organization-name-input"
+    );
+    fillScorerForm();
+
+    const continueBtn = screen.getByText(/Continue/i).closest("button");
+    expect(continueBtn).toBeDisabled();
+
+    fireEvent.change(organizationInput, { target: { value: "  Acme Labs " } });
+    expect(continueBtn).toBeEnabled();
+
+    if (!continueBtn) throw new Error("Button not found");
+    fireEvent.click(continueBtn);
+
+    await waitFor(() => expect(createCommunity).toHaveBeenCalled());
+    expect(updateOrganization).toHaveBeenCalledWith("Acme Labs");
+    expect(
+      (updateOrganization as jest.Mock).mock.invocationCallOrder[0]
+    ).toBeLessThan((createCommunity as jest.Mock).mock.invocationCallOrder[0]);
+  });
+
+  it("should show the error the API returns when the scorer cannot be created", async () => {
+    (createCommunity as jest.Mock).mockRejectedValue({
+      response: {
+        data: {
+          detail: "Add your organization name before you create a scorer",
+        },
+      },
+    });
+
+    render(
+      <UseCaseModal
+        existingScorers={existingScorers}
+        isOpen={true}
+        onClose={noop}
+        refreshCommunities={refreshCommunities}
+      />
+    );
+
+    await waitFor(() => expect(getOrganization).toHaveBeenCalled());
+    fillScorerForm();
+
+    const continueBtn = screen.getByText(/Continue/i).closest("button");
+    if (!continueBtn) throw new Error("Button not found");
+    fireEvent.click(continueBtn);
+
+    await waitFor(() => {
+      expect(warningToast).toHaveBeenCalledWith(
+        "Add your organization name before you create a scorer",
+        expect.anything()
+      );
     });
   });
 });

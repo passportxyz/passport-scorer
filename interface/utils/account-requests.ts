@@ -78,6 +78,37 @@ export type CommunityPatch = {
   threshold?: number;
 };
 
+export type Organization = {
+  organization_name: string | null;
+};
+
+export const getOrganization = async (): Promise<Organization> => {
+  try {
+    const response = await axios.get(`${SCORER_BACKEND}account/organization`);
+
+    const { data } = response;
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateOrganization = async (
+  organizationName: string,
+): Promise<Organization> => {
+  try {
+    const response = await axios.patch(
+      `${SCORER_BACKEND}account/organization`,
+      { organization_name: organizationName },
+    );
+
+    const { data } = response;
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const createCommunity = async (community: DraftCommunity) => {
   try {
     const response = await axios.post(`${SCORER_BACKEND}account/communities`, {

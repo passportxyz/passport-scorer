@@ -14,6 +14,7 @@ jest.mock("../../utils/account-requests.ts", () => ({
   createCommunity: jest.fn(),
   deleteCommunity: jest.fn(),
   updateCommunity: jest.fn(),
+  getOrganization: jest.fn().mockResolvedValue({ organization_name: "Org" }),
 }));
 
 describe("CommunityList", () => {

@@ -21,7 +21,18 @@ import {
 } from "@chakra-ui/react";
 
 import { warningToast } from "./Toasts";
-import { Community, createCommunity } from "../utils/account-requests";
+import {
+  Community,
+  createCommunity,
+  getOrganization,
+  updateOrganization,
+} from "../utils/account-requests";
+
+const MAX_ORGANIZATION_NAME_LENGTH = 100;
+
+// Shows the detail message the API returns, so the user knows what to fix
+const apiErrorMessage = (e: any): string =>
+  e?.response?.data?.detail || "Something went wrong. Please try again.";
 
 export interface UseCaseInterface {
   title: string;
@@ -61,6 +72,8 @@ const UseCaseModal = ({
   const [scorerDescription, setScorerDescription] = useState("");
   const [threshold, setThreshold] = useState<string>("20");
   const [error, setError] = useState<string>("");
+  const [organizationName, setOrganizationName] = useState("");
+  const [needsOrganization, setNeedsOrganization] = useState(false);
 
   useEffect(() => {
     localStorage.removeItem("tempScorer");
@@ -69,6 +82,16 @@ const UseCaseModal = ({
       setThreshold("20");
       setScorerName("");
       setScorerDescription("");
+      setOrganizationName("");
+      setNeedsOrganization(false);
+      getOrganization()
+        .then(({ organization_name }) => {
+          setNeedsOrganization(!organization_name?.trim());
+        })
+        .catch(() => {
+          // Ask for the name if we cannot tell. The API still enforces it.
+          setNeedsOrganization(true);
+        });
     }
   }, [isOpen]);
 
@@ -110,6 +133,10 @@ const UseCaseModal = ({
             scorerName={scorerName}
             scorerDescription={scorerDescription}
             threshold={threshold}
+            organizationName={organizationName}
+            needsOrganization={needsOrganization}
+            setOrganizationName={setOrganizationName}
+            setNeedsOrganization={setNeedsOrganization}
             setScorerName={setScorerName}
             setScorerUseCase={setUseCase}
             setScorerDescription={setScorerDescription}
@@ -130,7 +157,11 @@ interface UseCaseDetailsProps {
   scorerName: string;
   scorerDescription: string;
   threshold: string;
+  organizationName: string;
+  needsOrganization: boolean;
   existingScorers: Community[];
+  setOrganizationName: (name: string) => void;
+  setNeedsOrganization: (needsOrganization: boolean) => void;
   setScorerName: (name: string) => void;
   setScorerUseCase: (useCase: string) => void;
   setScorerDescription: (description: string) => void;
@@ -145,7 +176,11 @@ const UseCaseDetails = ({
   scorerName,
   scorerDescription,
   threshold,
+  organizationName,
+  needsOrganization,
   existingScorers,
+  setOrganizationName,
+  setNeedsOrganization,
   setScorerUseCase,
   setScorerName,
   setScorerDescription,
@@ -180,6 +215,10 @@ const UseCaseDetails = ({
     }
     setIsLoading(true);
     try {
+      if (needsOrganization) {
+        await updateOrganization(organizationName.trim());
+        setNeedsOrganization(false);
+      }
       await createCommunity({
         name: scorerName,
         description: scorerDescription,
@@ -193,9 +232,13 @@ const UseCaseDetails = ({
       closeModal();
       refreshCommunities();
     } catch (e) {
-      toast(warningToast("Something went wrong. Please try again.", toast));
+      setIsLoading(false);
+      toast(warningToast(apiErrorMessage(e), toast));
     }
   }, [
+    needsOrganization,
+    organizationName,
+    setNeedsOrganization,
     scorerName,
     scorerDescription,
     useCase,
@@ -279,6 +322,24 @@ const UseCaseDetails = ({
         </div>
       </Center>
       <div className="mt-12 flex flex-col gap-4">
+        {needsOrganization && (
+          <FormControl className="flex flex-col">
+            <label className="text-gray-softgray font-librefranklin text-xs">
+              Organization Name
+            </label>
+            <Input
+              data-testid="organization-name-input"
+              className="mt-2 text-blue-darkblue"
+              value={organizationName}
+              maxLength={MAX_ORGANIZATION_NAME_LENGTH}
+              onChange={(e) => setOrganizationName(e.target.value)}
+              placeholder="Your company or project"
+            />
+            <FormHelperText>
+              We ask once per account, so we know who runs each scorer.
+            </FormHelperText>
+          </FormControl>
+        )}
         <FormControl className="flex flex-col">
           <label className="text-gray-softgray font-librefranklin text-xs">
             Name
@@ -378,6 +439,7 @@ const UseCaseDetails = ({
           !useCase ||
           !scorerName ||
           !scorerDescription ||
+          (needsOrganization && !organizationName.trim()) ||
           !!nameError ||
           !!thresholdError
         }
