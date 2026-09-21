@@ -26,7 +26,8 @@ def test_successfully_create_a_community_id():
 @given("that I have an API account", target_fixture="account")
 def _(scorer_account, mocker):
     """that I have an API account."""
-    pass
+    scorer_account.organization_name = "Test Org"
+    scorer_account.save()
 
 
 @when(

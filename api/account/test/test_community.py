@@ -9,6 +9,10 @@ from django.db.utils import IntegrityError
 from django.test import Client, TestCase
 from ninja_jwt.schema import RefreshToken
 
+from account.api import (
+    AccountHasNoOrganizationException,
+    create_community_for_account,
+)
 from account.models import Account, Community
 from registry.weight_models import WeightConfiguration, WeightConfigurationItem
 from scorer.settings.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
@@ -37,10 +41,12 @@ class CommunityTestCase(TestCase):
         self.access_token = refresh.access_token
 
         (self.account, _) = Account.objects.get_or_create(
-            user=self.user, defaults={"address": "0x0"}
+            user=self.user,
+            defaults={"address": "0x0", "organization_name": "Test Org 1"},
         )
         (self.account2, _) = Account.objects.get_or_create(
-            user=self.user2, defaults={"address": "0x0"}
+            user=self.user2,
+            defaults={"address": "0x0", "organization_name": "Test Org 2"},
         )
 
         config = WeightConfiguration.objects.create(
@@ -609,3 +615,127 @@ class CommunityTestCase(TestCase):
         self.assertIsNotNone(scorer)
         self.assertTrue(hasattr(scorer, "threshold"))
         self.assertEqual(float(scorer.threshold), custom_threshold)
+
+    def test_create_community_without_organization_name(self):
+        """Test that the Developer Portal refuses to create a scorer until the account has an organization name"""
+        self.account.organization_name = None
+        self.account.save()
+
+        client = Client()
+        community_response = client.post(
+            "/account/communities",
+            json.dumps(mock_community_body),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response.status_code, 422)
+        self.assertEqual(
+            community_response.json(),
+            {"detail": "Add your organization name before you create a scorer"},
+        )
+        self.assertEqual(Community.objects.filter(account=self.account).count(), 0)
+
+    def test_create_community_with_blank_organization_name(self):
+        """Test that a whitespace-only organization name does not count as a name"""
+        self.account.organization_name = "   "
+        self.account.save()
+
+        client = Client()
+        community_response = client.post(
+            "/account/communities",
+            json.dumps(mock_community_body),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response.status_code, 422)
+
+    def test_programmatic_creation_does_not_require_organization_name(self):
+        """Test that scorer creation outside the Developer Portal is not blocked"""
+        self.account.organization_name = None
+        self.account.save()
+
+        community = create_community_for_account(
+            self.account,
+            "Programmatic",
+            "test",
+            5,
+            "WEIGHTED_BINARY",
+            "sybil protection",
+            "LIFO",
+        )
+        self.assertEqual(community.account, self.account)
+
+        with self.assertRaises(AccountHasNoOrganizationException):
+            create_community_for_account(
+                self.account,
+                "Programmatic 2",
+                "test",
+                5,
+                "WEIGHTED_BINARY",
+                "sybil protection",
+                "LIFO",
+                require_organization_name=True,
+            )
+
+    def test_get_organization(self):
+        """Test that the organization name is returned for the logged-in account"""
+        client = Client()
+        response = client.get(
+            "/account/organization",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"organization_name": "Test Org 1"})
+
+    def test_patch_organization(self):
+        """Test that the organization name is saved, trimmed, and then unblocks scorer creation"""
+        self.account.organization_name = None
+        self.account.save()
+
+        client = Client()
+        response = client.patch(
+            "/account/organization",
+            json.dumps({"organization_name": "  Acme Labs  "}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"organization_name": "Acme Labs"})
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.organization_name, "Acme Labs")
+
+        community_response = client.post(
+            "/account/communities",
+            json.dumps(mock_community_body),
+            content_type="application/json",
+            **{"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"},
+        )
+        self.assertEqual(community_response.status_code, 200)
+
+    def test_patch_organization_rejects_invalid_value(self):
+        """Test that an empty, whitespace-only or too-long organization name is rejected"""
+        client = Client()
+        for value in ["", "   ", None, "x" * 101]:
+            response = client.patch(
+                "/account/organization",
+                json.dumps({"organization_name": value}),
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+            )
+            self.assertEqual(response.status_code, 422, value)
+
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.organization_name, "Test Org 1")
+
+    def test_organization_requires_auth(self):
+        """Test that the organization endpoints reject unauthenticated calls"""
+        client = Client()
+        self.assertEqual(client.get("/account/organization").status_code, 401)
+        self.assertEqual(
+            client.patch(
+                "/account/organization",
+                json.dumps({"organization_name": "Acme"}),
+                content_type="application/json",
+            ).status_code,
+            401,
+        )

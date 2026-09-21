@@ -251,6 +251,12 @@ class Account(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="account"
     )
+    organization_name = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="The organization that owns this account. Required before a scorer is created in the Developer Portal",
+    )
 
     def __str__(self):
         return f"Account #{self.id} - {self.address} - {self.user_id}"

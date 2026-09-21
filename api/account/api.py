@@ -107,6 +107,16 @@ class CommunityHasNoNameException(APIException):
     default_detail = "A community must have a name"
 
 
+class AccountHasNoOrganizationException(APIException):
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    default_detail = "Add your organization name before you create a scorer"
+
+
+class InvalidOrganizationNameException(APIException):
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    default_detail = "The organization name must be 1 to 100 characters"
+
+
 class CommunityHasNoDescriptionException(APIException):
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
     default_detail = "A community must have a description"
@@ -334,6 +344,37 @@ def delete_api_key(request, api_key_id):
     return {"ok": True}
 
 
+class OrganizationSchema(Schema):
+    organization_name: Optional[str] = None
+
+
+@api.get("/organization", auth=UIAuth(), response=OrganizationSchema)
+def get_organization(request):
+    try:
+        account = request.user.account
+    except Account.DoesNotExist as exc:
+        raise UnauthorizedException() from exc
+
+    return {"organization_name": account.organization_name}
+
+
+@api.patch("/organization", auth=UIAuth(), response=OrganizationSchema)
+def patch_organization(request, payload: OrganizationSchema):
+    try:
+        account = request.user.account
+    except Account.DoesNotExist as exc:
+        raise UnauthorizedException() from exc
+
+    organization_name = (payload.organization_name or "").strip()
+    if not organization_name or len(organization_name) > 100:
+        raise InvalidOrganizationNameException()
+
+    account.organization_name = organization_name
+    account.save(update_fields=["organization_name"])
+
+    return {"organization_name": account.organization_name}
+
+
 def health(request):
     return HttpResponse("Ok")
 
@@ -357,7 +398,13 @@ def create_community_for_account(
     rule,
     threshold=None,
     external_scorer_id=None,
+    require_organization_name=False,
 ):
+    # Only the Developer Portal path requires it, so programmatic scorer creation
+    # through the registry API keeps working for existing integrations
+    if require_organization_name and not (account.organization_name or "").strip():
+        raise AccountHasNoOrganizationException()
+
     account_communities = Community.objects.filter(account=account, deleted_at=None)
 
     if account_communities.count() >= limit:
@@ -418,6 +465,7 @@ def create_community(request, payload: CommunitiesPayload):
             payload.use_case,
             payload.rule,
             payload.threshold,
+            require_organization_name=True,
         )
 
         return {"ok": True}

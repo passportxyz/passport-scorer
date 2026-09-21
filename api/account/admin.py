@@ -44,8 +44,8 @@ from .models import (
 
 @admin.register(Account)
 class AccountAdmin(ScorerModelAdmin):
-    list_display = ("id", "address", "user")
-    search_fields = ("address", "user__username")
+    list_display = ("id", "address", "organization_name", "user")
+    search_fields = ("address", "organization_name", "user__username")
     raw_id_fields = ("user",)
 
 
