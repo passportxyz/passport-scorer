@@ -162,7 +162,7 @@ async def fetch(session, url, data):
             url,
             data=json.dumps(data),
             headers=headers,
-            timeout=aiohttp.ClientTimeout(total=10),
+            timeout=aiohttp.ClientTimeout(total=30),
         ) as response:
             try:
                 body = await response.json()
