@@ -332,7 +332,11 @@ class AccountAPIKey(AbstractAPIKey):
 
 class AccountAPIKeyAnalytics(models.Model):
     api_key = models.ForeignKey(
-        AccountAPIKey, on_delete=models.CASCADE, related_name="analytics"
+        AccountAPIKey,
+        on_delete=models.CASCADE,
+        related_name="analytics",
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
