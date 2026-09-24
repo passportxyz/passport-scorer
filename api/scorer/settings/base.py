@@ -470,6 +470,16 @@ TRUSTED_IAM_ISSUERS = env.json(
 
 CGRANTS_API_TOKEN = env("CGRANTS_API_TOKEN", default="abc")
 
+# Wallet-linking → Silk migration (Phase 3b, #589). The scorer fetches the set of
+# linked wallets for an address from the Silk auth-server's public read endpoint.
+# LINKED_WALLETS_SOURCE_ENABLED is the production killswitch: when false/unset the
+# scorer skips the Silk call entirely and treats every address as solo.
+LINKED_WALLETS_SOURCE_ENABLED = env.bool(
+    "LINKED_WALLETS_SOURCE_ENABLED", default=False
+)
+SILK_AUTH_SERVER_URL = env("SILK_AUTH_SERVER_URL", default="")
+SILK_SERVICE_API_KEY = env("SILK_SERVICE_API_KEY", default="")
+
 IPWARE_META_PRECEDENCE_ORDER = (
     "X_FORWARDED_FOR",
     "HTTP_X_FORWARDED_FOR",  # <client>, <proxy1>, <proxy2>
