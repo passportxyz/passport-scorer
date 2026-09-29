@@ -1,0 +1,33 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  MyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 1024
+      Runtime: python3.12
+      CodeUri: ../api
+      Handler: v2.aws_lambdas.stamp_score_GET.handler
+      Environment:
+        Variables:
+          CERAMIC_CACHE_SCORER_ID: 1
+          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@host.docker.internal:5432/passport_scorer
+          READ_REPLICA_0_URL: postgres://passport_scorer:passport_scorer_pwd@host.docker.internal:5432/passport_scorer
+          LOG_SQL_QUERIES: True
+          FF_V2_API: on
+          SECRET_KEY: 1
+          TRUSTED_IAM_ISSUERS: '["did:key:z6Mkwg65BN2xg6qicufGYR9Sxn3NWwfBxRFrKVEPrZXVAx3z","did:ethr:0xd6fc34345bc8c8e5659a35bed9629d5558d48c4e"]'
+          AWS_ACCESS_KEY_ID: TODO
+          AWS_SECRET_ACCESS_KEY: TODO
+          AWS_REGION: TODO
+          VERIFIER_URL: http://verifier:8001/verifier/verify
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /v2/stamps/{proxy+}
+            Method: GET
+            RestApiId: !Ref ServerlessRestApi  # Reference to implicit API created by SAM
+Globals:
+  Function:
+    Timeout: 30
