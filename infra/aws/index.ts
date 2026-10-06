@@ -437,17 +437,19 @@ const accessLogsBucket = new aws.s3.Bucket(`gitcoin-scorer-access-logs`, {
   },
 });
 
-// Add lifecycle rule to delete objects after 14 days
+const accessLogsRetentionDays = stack === "production" ? 90 : 14;
+
+// Add lifecycle rule to delete objects after the retention period
 new aws.s3.BucketLifecycleConfigurationV2(
   `gitcoin-scorer-access-logs`,
   {
     bucket: accessLogsBucket.id,
     rules: [
       {
-        id: "expire-logs-after-14-days",
+        id: `expire-logs-after-${accessLogsRetentionDays}-days`,
         status: "Enabled",
         expiration: {
-          days: 14,
+          days: accessLogsRetentionDays,
         },
       },
     ],
@@ -936,7 +938,7 @@ const indexerSecrets = pulumi
 // Set up log groups for API service and worker
 //////////////////////////////////////////////////////////////
 const serviceLogGroup = new aws.cloudwatch.LogGroup("scorer-service", {
-  retentionInDays: stack === "production" ? 14 : 7,
+  retentionInDays: stack === "production" ? 90 : 7,
   tags: {
     ...defaultTags,
     Name: `cloudwatch-loggroup-scorer-service`,
