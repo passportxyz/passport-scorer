@@ -18,6 +18,7 @@ from django.utils.timezone import now
 from django_ace import AceWidget
 from rest_framework_api_key.admin import APIKeyAdmin
 
+from scorer.cloud_run import run_job
 from scorer.scorer_admin import ScorerModelAdmin
 from scorer_weighted.models import Scorer
 
@@ -52,6 +53,17 @@ class AccountAdmin(ScorerModelAdmin):
 @admin.action(description="Recalculate scores", permissions=["change"])
 def recalculate_scores(modeladmin, request, queryset):
     community_ids = [str(id) for id in queryset.values_list("id", flat=True)]
+
+    if settings.RESCORE_CLOUD_RUN_JOB:
+        operation = run_job(
+            settings.RESCORE_CLOUD_RUN_JOB,
+            ["--community-ids", ",".join(community_ids)],
+        )
+        modeladmin.message_user(
+            request,
+            f"Submitted {len(community_ids)} communities for recalculation with operation {operation}",
+        )
+        return
 
     # Create SQS client
     sqs = boto3.client("sqs", region_name="us-west-2")

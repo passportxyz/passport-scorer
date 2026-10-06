@@ -484,6 +484,9 @@ IPWARE_META_PRECEDENCE_ORDER = (
 )
 
 RESCORE_QUEUE_URL = env("RESCORE_QUEUE_URL", default="")
+# projects/<project>/locations/<region>/jobs/<job>. When set, the "Recalculate
+# scores" admin action starts this Cloud Run job instead of writing to SQS.
+RESCORE_CLOUD_RUN_JOB = env("RESCORE_CLOUD_RUN_JOB", default="")
 
 INTERNAL_IPS = [
     # ...
