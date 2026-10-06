@@ -287,3 +287,9 @@ Many Django tables use BIGINT (i64) for primary keys and foreign keys, not INT4 
 - account_id fields
 
 All database operations must use the correct i64 type to avoid type mismatches. See `rust-scorer/src/db/write_ops.rs`, `rust-scorer/src/api/handler.rs`.
+
+## Two Rescore Commands
+
+- `manage.py recalculate_scores` copies the active weights/threshold onto the selected scorers, then rescores.
+- The admin "Recalculate scores" action (`account/admin.py`) only rescores with current weights: via SQS → `aws_lambdas/rescore.py` on AWS, or, when `RESCORE_CLOUD_RUN_JOB` is set, by starting that Cloud Run job, which runs `manage.py rescore_communities --community-ids ...`.
+- Don't swap one for the other: they differ in whether weights change.
