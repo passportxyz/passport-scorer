@@ -1,6 +1,6 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
-import { defaultTags } from "./tags";
+import { defaultTags, stack } from "./tags";
 import { FunctionArgs } from "@pulumi/aws/lambda";
 
 /**
@@ -157,7 +157,7 @@ export function createLambdaFunction(
 
   const lambdaLogGroup = new aws.cloudwatch.LogGroup(`${functionArgs.name}-log-group`, {
     name: `/aws/lambda/${functionArgs.name}`,
-    retentionInDays: 14,
+    retentionInDays: stack === "production" ? 90 : 14,
     tags: {
       ...defaultTags,
       Name: `${functionArgs.name}-log-group`,
