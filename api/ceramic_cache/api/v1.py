@@ -1,7 +1,5 @@
 """Ceramic Cache API"""
 
-import hashlib
-import hmac
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -627,15 +625,8 @@ def generate_access_token_response(user_did: str) -> AccessTokenResponse:
     token = DbCacheToken()
     token["did"] = user_did
 
-    intercom_user_hash = hmac.new(
-        bytes(settings.INTERCOM_SECRET_KEY, encoding="utf-8"),
-        bytes(user_did, encoding="utf-8"),
-        digestmod=hashlib.sha256,
-    ).hexdigest()
-
     return AccessTokenResponse(
         access=str(token.access_token),
-        intercom_user_hash=intercom_user_hash,
     )
 
 
