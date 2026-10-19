@@ -289,6 +289,9 @@ class AccountAPIKey(AbstractAPIKey):
     read_scores = models.BooleanField(default=True)
     create_scorers = models.BooleanField(default=False)
     historical_endpoint = models.BooleanField(default=False)
+    # Linked wallets are private: only keys with this flag see which wallets are
+    # in a group (linked_score, source_wallet). Meant for WaaP's own key.
+    linked_wallet_breakdown = models.BooleanField(default=False)
 
     # SHA-256 hash for fast API key verification (migration from PBKDF2)
     hashed_key_sha256 = models.CharField(

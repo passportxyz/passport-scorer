@@ -75,10 +75,31 @@ def _parse_expiration(exp_date) -> Optional[datetime]:
     return None
 
 
-async def handle_scoring_for_account(address: str, scorer_id: str, user_account):
+async def handle_scoring_for_account(
+    address: str,
+    scorer_id: str,
+    user_account,
+    include_linked_wallets: bool = False,
+):
     # Get community object
     user_community = await aget_scorer_by_id(scorer_id, user_account)
-    return await ahandle_scoring(address, user_community)
+    response = await ahandle_scoring(address, user_community)
+    if include_linked_wallets:
+        return response
+    return hide_linked_wallets(response)
+
+
+def hide_linked_wallets(response: V2ScoreResponse) -> V2ScoreResponse:
+    """Drop every field that names another wallet in the address's linked group.
+
+    Linked wallets are private (internal-docs#3587): callers see the score and
+    the stamps, but not which wallets are linked or which one is canonical.
+    """
+    stamps = {
+        provider: stamp.model_copy(update={"source_wallet": None})
+        for provider, stamp in (response.stamps or {}).items()
+    }
+    return response.model_copy(update={"linked_score": None, "stamps": stamps})
 
 
 async def ahandle_scoring(address: str, community):
@@ -218,14 +239,26 @@ async def _score_wallet_group(
         a for a in group_addresses if a != canonical_address
     ]
 
+    # Each wallet's own stamps, taken before the canonical row is overwritten
+    # with the merged set below.
+    wallet_stamps: Dict[str, Dict[str, Any]] = {
+        addr: wallet_scores[addr].stamps
+        for addr in ordered_addresses
+        if wallet_scores[addr].stamps
+    }
+
     merged_stamps: Dict[str, Any] = {}
+    # Which wallet each merged stamp came from. Kept out of the saved stamps so
+    # the Score row and its SCORE_UPDATE event never hold other wallets' addresses.
+    stamp_sources: Dict[str, str] = {}
     for addr in ordered_addresses:
         score = wallet_scores[addr]
         if not score.stamps:
             continue
         for provider, stamp_data in score.stamps.items():
             if provider not in merged_stamps and not stamp_data.get("dedup"):
-                merged_stamps[provider] = {**stamp_data, "source_wallet": addr}
+                merged_stamps[provider] = stamp_data
+                stamp_sources[provider] = addr
 
     # Build combined score from merged stamps using already-computed stamp_scores
     # from individual wallet scoring (avoids duplicating weight-loading logic)
@@ -269,14 +302,9 @@ async def _score_wallet_group(
         canonical_score.expiration_date = earliest_expiration
     await canonical_score.asave()
 
-    # Build per-wallet stamp breakdown for UI visibility
-    wallet_stamps: Dict[str, Dict[str, Any]] = {}
-    for addr in ordered_addresses:
-        ws = wallet_scores[addr]
-        if ws.stamps:
-            wallet_stamps[addr] = ws.stamps
-
     response = format_v2_score_response(canonical_score, scorer_type)
+    for provider, stamp in response.stamps.items():
+        stamp.source_wallet = stamp_sources.get(provider)
     response.linked_score = LinkedScoreResponse(
         address=canonical_address,
         score=response.score,
@@ -387,7 +415,12 @@ async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreRes
         pass
 
     try:
-        return await handle_scoring_for_account(address, str(scorer_id), request.auth)
+        return await handle_scoring_for_account(
+            address,
+            str(scorer_id),
+            request.auth,
+            include_linked_wallets=request.api_key.linked_wallet_breakdown,
+        )
     except APIException as e:
         raise e
     except Exception as e:
