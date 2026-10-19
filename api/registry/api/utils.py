@@ -12,6 +12,7 @@ from eth_utils.address import (
     is_checksum_formatted_address,
     is_hex_address,
 )
+from eth_utils.hexadecimal import remove_0x_prefix
 from ninja.security import APIKeyHeader
 from ninja.security.base import SecuritySchema
 from ninja_extra.exceptions import APIException
@@ -416,12 +417,10 @@ def with_read_db(model):
     return model.objects.using(settings.REGISTRY_API_READ_DB)
 
 
-ZERO_ADDRESS = "0x" + "0" * 40
-
-
 def is_valid_address(address: str) -> bool:
-    # Nobody controls the zero address, so a score for it is meaningless
-    if address.lower() == ZERO_ADDRESS:
+    # Nobody controls the zero address, so a score for it is meaningless.
+    # Strip the prefix too: is_hex_address also accepts unprefixed hex.
+    if remove_0x_prefix(address.lower()) == "0" * 40:
         return False
     return (
         is_checksum_address(address)
