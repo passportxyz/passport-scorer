@@ -416,7 +416,13 @@ def with_read_db(model):
     return model.objects.using(settings.REGISTRY_API_READ_DB)
 
 
+ZERO_ADDRESS = "0x" + "0" * 40
+
+
 def is_valid_address(address: str) -> bool:
+    # Nobody controls the zero address, so a score for it is meaningless
+    if address.lower() == ZERO_ADDRESS:
+        return False
     return (
         is_checksum_address(address)
         if is_checksum_formatted_address(address)
