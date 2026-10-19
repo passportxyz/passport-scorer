@@ -109,7 +109,7 @@ class ValidateLambdaValidateApiKeyTestCase(TestCase):
             timezone.utc
         ) < timedelta(seconds=2)
         assert data["score"] == {
-            "address": "0x0000000000000000000000000000000000000000",
+            "address": "0x0000000000000000000000000000000000000001",
             "error": None,
             "expiration_timestamp": min(expiration_dates).isoformat(),
             "passing_score": True,
