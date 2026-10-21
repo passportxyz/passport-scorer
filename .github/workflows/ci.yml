@@ -95,6 +95,74 @@ jobs:
           DATA_MODEL_DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
           FF_API_ANALYTICS: on
 
+  rust-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:12.3-alpine
+        env:
+          POSTGRES_USER: passport_scorer
+          POSTGRES_PASSWORD: passport_scorer_pwd
+          POSTGRES_DB: passport_scorer
+
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install poetry
+        run: |
+          pip3 install pipx
+          pipx ensurepath
+          pipx install poetry
+          pipx inject poetry poetry-plugin-export
+
+      - name: Generate requirements.txt
+        working-directory: ./api
+        run: poetry export -f requirements.txt -o requirements.txt --with dev,server
+
+      - name: Install API dependencies
+        working-directory: ./api
+        run: pip3 install -r requirements.txt
+
+      # The Rust DB tests read the schema Django creates. CERAMIC_CACHE_SCORER_ID
+      # must be set: migration passport_admin/0007 fails on an empty DB without it.
+      - name: Create database schema
+        working-directory: ./api
+        run: python manage.py migrate
+        env:
+          CERAMIC_CACHE_SCORER_ID: "1"
+          SECRET_KEY: secret-test-value
+          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          DATA_MODEL_DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust-scorer/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('rust-scorer/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+
+      - name: Run Rust unit tests
+        working-directory: ./rust-scorer
+        run: cargo test --lib
+        env:
+          SQLX_OFFLINE: "true"
+          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+
   ui-test:
     runs-on: ubuntu-latest
 
