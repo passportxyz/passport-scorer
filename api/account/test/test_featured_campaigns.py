@@ -42,12 +42,17 @@ def assert_campaigns(response, campaigns):
     returned = response.json()["featuredCampaigns"]
     first, second = campaigns
 
-    assert [c["id"] for c in returned] == [str(first.pk), str(second.pk)]
-    assert all(c["imageTag"] == "shared-image" for c in returned)
-    assert returned[0]["audienceLabel"] == "For builders"
-    assert returned[0]["details"] == "Line one\nLine two"
-    assert returned[1]["audienceLabel"] == ""
-    assert returned[1]["details"] == ""
+    # Migrations seed other campaigns, so check uniqueness across all of them
+    ids = [c["id"] for c in returned]
+    assert len(ids) == len(set(ids))
+
+    by_id = {c["id"]: c for c in returned}
+    ours = [by_id[str(first.pk)], by_id[str(second.pk)]]
+    assert all(c["imageTag"] == "shared-image" for c in ours)
+    assert ours[0]["audienceLabel"] == "For builders"
+    assert ours[0]["details"] == "Line one\nLine two"
+    assert ours[1]["audienceLabel"] == ""
+    assert ours[1]["details"] == ""
 
 
 def test_base_customization_campaign_ids_are_unique(campaigns):
