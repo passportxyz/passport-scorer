@@ -171,9 +171,9 @@ def nonce(request):
 
 
 class AccountApiSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = AccountAPIKey
-        model_fields = ["name", "id", "prefix"]
+        fields = ["name", "id", "prefix"]
 
     api_key: Optional[str] = None
 
