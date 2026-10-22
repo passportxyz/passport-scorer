@@ -1,4 +1,4 @@
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256, Sha512};
 use pbkdf2::pbkdf2;
 use pbkdf2::hmac::Hmac;
 use base64::{Engine as _, engine::general_purpose};
@@ -23,6 +23,18 @@ fn verify_sha256(key: &str, hash_string: &str) -> bool {
         return false;
     }
     let expected = hash_key_sha256(key);
+    constant_time_eq(expected.as_bytes(), hash_string.as_bytes())
+}
+
+/// Verify an API key against djangorestframework-api-key >= 3.0's hash format:
+/// "sha512$$<hex>" (rest_framework_api_key.crypto.Sha512ApiKeyHasher). The
+/// library writes it for every new key and rewrites legacy hashes to it on
+/// first use, so keys can reach this table in this format.
+fn verify_sha512(key: &str, hash_string: &str) -> bool {
+    if !hash_string.starts_with("sha512$$") {
+        return false;
+    }
+    let expected = format!("sha512$${:x}", Sha512::digest(key.as_bytes()));
     constant_time_eq(expected.as_bytes(), hash_string.as_bytes())
 }
 
@@ -58,6 +70,7 @@ fn verify_pbkdf2(key: &str, hash_string: &str) -> bool {
 enum VerificationResult {
     ValidSha256,
     ValidPbkdf2NeedsMigration,
+    ValidSha512NeedsMigration,
     Invalid,
 }
 
@@ -83,6 +96,17 @@ fn verify_api_key(
         if verify_sha256(key, hashed_key) {
             debug!("API key verified using SHA-256 (from hashed_key field)");
             return VerificationResult::ValidSha256;
+        }
+        return VerificationResult::Invalid;
+    }
+
+    // drf-api-key >= 3.0 format (microseconds)
+    if hashed_key.starts_with("sha512$$") {
+        if verify_sha512(key, hashed_key) {
+            info!(
+                "API key verified with SHA-512 (drf-api-key >= 3.0) - needs migration to SHA-256"
+            );
+            return VerificationResult::ValidSha512NeedsMigration;
         }
         return VerificationResult::Invalid;
     }
@@ -216,8 +240,9 @@ impl ApiKeyValidator {
             VerificationResult::ValidSha256 => {
                 // Fast path succeeded - no migration needed
             }
-            VerificationResult::ValidPbkdf2NeedsMigration => {
-                // Slow path succeeded - migrate to SHA-256 asynchronously
+            VerificationResult::ValidPbkdf2NeedsMigration
+            | VerificationResult::ValidSha512NeedsMigration => {
+                // Non-fast-path hash verified - migrate to SHA-256 asynchronously
                 let sha256_hash = hash_key_sha256(&api_key);
                 let api_key_id = stored_key.id.clone();
 
@@ -486,6 +511,62 @@ mod tests {
         match verify_api_key(key, &sha256_hash, None) {
             VerificationResult::ValidSha256 => (),
             _ => panic!("Should detect SHA-256 in hashed_key"),
+        }
+    }
+
+    /// Produced by the real djangorestframework-api-key 3.1.0 hasher
+    /// (`rest_framework_api_key.crypto.KeyGenerator().hash(key)`) for the key
+    /// used throughout these tests. drf-api-key >= 3.0 writes this format for
+    /// every new key, and rewrites legacy hashes to it on first use.
+    const DRF_API_KEY_3_SHA512: &str = "sha512$$b1bd184bf642cb5fc2eee643b2cc20e949abe73b16591f99f24b1f1f7d7873f0b3b242ae53c08c8b09bf594f0c3287b2c109ab542ae0f98be385f13ed4d9c5a7";
+
+    #[test]
+    fn test_verify_api_key_accepts_drf_api_key_3_sha512() {
+        let key = "testkey1.secretpartofthekey123";
+
+        // No SHA-256 fast-path hash yet: a freshly created key. It must verify,
+        // and be flagged for migration so the caller backfills hashed_key_sha256.
+        match verify_api_key(key, DRF_API_KEY_3_SHA512, None) {
+            VerificationResult::ValidSha512NeedsMigration => (),
+            _ => panic!("drf-api-key 3.x sha512$$ hash must verify and need migration"),
+        }
+    }
+
+    #[test]
+    fn test_verify_sha512() {
+        let key = "testkey1.secretpartofthekey123";
+
+        assert!(verify_sha512(key, DRF_API_KEY_3_SHA512));
+        assert!(!verify_sha512("wrong_key", DRF_API_KEY_3_SHA512));
+
+        // Wrong prefix / truncated / single "$" variants must not verify
+        assert!(!verify_sha512(key, &hash_key_sha256(key)));
+        assert!(!verify_sha512(
+            key,
+            &DRF_API_KEY_3_SHA512[..DRF_API_KEY_3_SHA512.len() - 1]
+        ));
+        assert!(!verify_sha512(
+            key,
+            &DRF_API_KEY_3_SHA512.replacen("$$", "$", 1)
+        ));
+    }
+
+    #[test]
+    fn test_verify_api_key_rejects_wrong_key_for_sha512() {
+        match verify_api_key("wrong_key", DRF_API_KEY_3_SHA512, None) {
+            VerificationResult::Invalid => (),
+            _ => panic!("Should be invalid"),
+        }
+    }
+
+    #[test]
+    fn test_verify_api_key_sha256_fast_path_takes_precedence_over_sha512() {
+        let key = "testkey1.secretpartofthekey123";
+        let sha256_hash = hash_key_sha256(key);
+
+        match verify_api_key(key, DRF_API_KEY_3_SHA512, Some(&sha256_hash)) {
+            VerificationResult::ValidSha256 => (),
+            _ => panic!("Should use SHA-256 fast path when hashed_key_sha256 is set"),
         }
     }
 

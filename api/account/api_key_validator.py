@@ -4,6 +4,7 @@ Provides 25,000x speedup for migrated keys while maintaining backward compatibil
 """
 
 import hashlib
+import hmac
 import logging
 from typing import Optional, Tuple
 
@@ -66,6 +67,19 @@ class FastAPIKeyValidator:
             if is_valid:
                 logger.debug("API key verified using SHA-256 (from hashed_key field)")
             return (is_valid, False)
+
+        # djangorestframework-api-key >= 3.0 stores keys as "sha512$$<hex>"
+        # (rest_framework_api_key.crypto.Sha512ApiKeyHasher): create_key() writes
+        # it for new keys, and the library's is_valid() rewrites legacy hashes to
+        # it on first use (e.g. via get_from_key in embed/lambda_fn.py).
+        if hashed_key.startswith("sha512$$"):
+            expected = hashlib.sha512(key.encode()).hexdigest()
+            is_valid = hmac.compare_digest(
+                expected, hashed_key.removeprefix("sha512$$")
+            )
+            if is_valid:
+                logger.debug("API key verified using SHA-512 (drf-api-key >= 3.0)")
+            return (is_valid, is_valid)  # Migrate to the SHA-256 fast path
 
         # Slow fallback: PBKDF2 (88ms average)
         if hashed_key.startswith("pbkdf2_sha256$"):
