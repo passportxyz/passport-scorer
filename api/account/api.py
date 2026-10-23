@@ -683,7 +683,7 @@ def get_dashboard_discovery(request):
     ):
         featured_campaigns.append(
             {
-                "id": campaign.image_tag,
+                "id": str(campaign.pk),
                 "header": campaign.header_text,
                 "subheader": campaign.body_text,
                 "destinationUrl": campaign.destination_url,
@@ -750,7 +750,7 @@ def get_account_customization(request, dashboard_path: str):
         ):
             featured_campaigns.append(
                 {
-                    "id": campaign.image_tag,
+                    "id": str(campaign.pk),
                     "header": campaign.header_text,
                     "subheader": campaign.body_text,
                     "destinationUrl": campaign.destination_url,
