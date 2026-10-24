@@ -434,6 +434,26 @@ class ValidatePassportTestCase(TransactionTestCase):
         created_passport = Passport.objects.get(address=self.account.address.lower())
         self.assertEqual(created_passport.address, self.account.address.lower())
 
+    @patch("registry.atasks.validate_credential", side_effect=[[], []])
+    @patch(
+        "registry.atasks.aget_passport",
+        return_value=mock_passport,
+    )
+    def test_unprefixed_address_is_rejected_without_creating_a_passport(
+        self, aget_passport, validate_credential
+    ):
+        unprefixed = self.account.address.lower().removeprefix("0x")
+
+        response = self.client.get(
+            f"{self.base_url}/{self.community.pk}/score/{unprefixed}",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Token {self.secret}",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"detail": "Invalid address."})
+        self.assertFalse(Passport.objects.filter(address=unprefixed).exists())
+
     # @patch("registry.atasks.validate_credential", side_effect=[[], []])
     # @patch(
     #     "registry.atasks.aget_passport",
