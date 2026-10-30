@@ -92,7 +92,7 @@ jobs:
       - name: Install Pulumi CLI
         uses: pulumi/actions@v5
         with:
-          pulumi-version: latest
+          pulumi-version: "^3"
       - name: Pulumi login (S3 backend)
         run: pulumi login s3://passportxyz-pulumi-state
         shell: bash
