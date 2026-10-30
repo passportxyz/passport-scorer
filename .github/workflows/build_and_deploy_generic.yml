@@ -207,6 +207,10 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::${{ inputs.environment == 'production' && '559026686882' || '515520736917' }}:role/pulumi-ci-passport-scorer-${{ inputs.environment }}
           aws-region: us-west-2
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v5
+        with:
+          pulumi-version: latest
       - name: Pulumi login (S3 backend)
         run: pulumi login s3://passportxyz-pulumi-state
         shell: bash
