@@ -10,8 +10,8 @@ from pytest_bdd import given, scenario, then, when
 from web3 import Web3
 
 from account.models import Community
-from scorer.config.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
 from account.test.test_community import mock_community_body
+from scorer.config.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
