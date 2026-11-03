@@ -856,6 +856,15 @@ class FeaturedCampaign(models.Model):
     )
     header_text = models.CharField(max_length=255)
     body_text = models.TextField()
+    audience_label = models.CharField(
+        max_length=32,
+        blank=True,
+        help_text="Short label on the card, e.g. 'For builders'. Leave blank for none.",
+    )
+    details_text = models.TextField(
+        blank=True,
+        help_text="Text for the 'Learn more' panel. Leave blank to hide the button.",
+    )
     destination_url = models.URLField()
     is_active = models.BooleanField(default=True)
     display_order = models.PositiveIntegerField(default=0)

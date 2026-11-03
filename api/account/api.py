@@ -171,9 +171,9 @@ def nonce(request):
 
 
 class AccountApiSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = AccountAPIKey
-        model_fields = ["name", "id", "prefix"]
+        fields = ["name", "id", "prefix"]
 
     api_key: Optional[str] = None
 
@@ -683,13 +683,15 @@ def get_dashboard_discovery(request):
     ):
         featured_campaigns.append(
             {
-                "id": campaign.image_tag,
+                "id": str(campaign.pk),
                 "header": campaign.header_text,
                 "subheader": campaign.body_text,
                 "destinationUrl": campaign.destination_url,
                 "imageTag": campaign.image_tag,
                 "partnerName": campaign.partner_name,
                 "partnerLogo": campaign.partner_logo,
+                "audienceLabel": campaign.audience_label,
+                "details": campaign.details_text,
             }
         )
 
@@ -748,13 +750,15 @@ def get_account_customization(request, dashboard_path: str):
         ):
             featured_campaigns.append(
                 {
-                    "id": campaign.image_tag,
+                    "id": str(campaign.pk),
                     "header": campaign.header_text,
                     "subheader": campaign.body_text,
                     "destinationUrl": campaign.destination_url,
                     "imageTag": campaign.image_tag,
                     "partnerName": campaign.partner_name,
                     "partnerLogo": campaign.partner_logo,
+                    "audienceLabel": campaign.audience_label,
+                    "details": campaign.details_text,
                 }
             )
 
