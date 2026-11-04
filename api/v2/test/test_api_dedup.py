@@ -253,6 +253,7 @@ class TestApiGetStampsDedupFlagTestCase:
         assert response_wallet_b.status_code == 200
         assert response_data_wallet_b["error"] is None
         assert response_data_wallet_b["score"] == "0.00000"
+        assert response_data_wallet_b["fail_reason"] == "stamps_claimed_elsewhere"
 
         assert response_data_wallet_b["stamps"] == {
             sample_provider: {
@@ -268,6 +269,10 @@ class TestApiGetStampsDedupFlagTestCase:
         response_data_wallet_a_again = response_wallet_a_again.json()
         assert response_wallet_a_again.status_code == 200
         assert response_data_wallet_a_again["error"] is None
+        # Wallet A holds the Stamp, so any failure is its own low score
+        assert response_data_wallet_a_again["fail_reason"] == (
+            None if response_data_wallet_a_again["passing_score"] else "below_threshold"
+        )
         assert (
             response_data_wallet_a_again["score"]
             == f"{Decimal(GITCOIN_PASSPORT_WEIGHTS[sample_provider]):.5f}"

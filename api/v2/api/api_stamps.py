@@ -53,7 +53,12 @@ from registry.utils import (
     reverse_lazy_with_query,
 )
 from scorer_weighted.models import Scorer
-from v2.schema import LinkedScoreResponse, PointsData, V2ScoreResponse
+from v2.schema import (
+    LinkedScoreResponse,
+    PointsData,
+    V2ScoreResponse,
+    get_fail_reason,
+)
 
 from ..exceptions import ScoreDoesNotExist
 from .router import api_router
@@ -342,10 +347,11 @@ def format_v2_score_response(
             breakdown=possible_points_data["breakdown"],
         )
 
+    passing_score = raw_score >= threshold
     return V2ScoreResponse(
         address=score.passport.address,
         score=raw_score,
-        passing_score=(raw_score >= threshold),
+        passing_score=passing_score,
         threshold=threshold,
         last_score_timestamp=(
             score.last_score_timestamp.isoformat()
@@ -356,6 +362,7 @@ def format_v2_score_response(
             score.expiration_date.isoformat() if score.expiration_date else None
         ),
         error=score.error,
+        fail_reason=get_fail_reason(passing_score, score.error, score.stamps),
         stamps=score.stamps if score.stamps is not None else {},
         points_data=formatted_points_data,
         possible_points_data=formatted_possible_points_data,
@@ -495,14 +502,18 @@ def get_score_history(
             score = score_data["evidence"]["rawScore"]
         else:
             score = score_data.get("score", "0")
+        passing_score = Decimal(score) >= Decimal(threshold) if score else False
         return V2ScoreResponse(
             address=address,
             score=score,
-            passing_score=(Decimal(score) >= Decimal(threshold) if score else False),
+            passing_score=passing_score,
             threshold=threshold,
             last_score_timestamp=score_data.get("last_score_timestamp"),
             expiration_timestamp=score_data.get("expiration_date"),
             error=score_data.get("error"),
+            fail_reason=get_fail_reason(
+                passing_score, score_data.get("error"), score_data.get("stamps")
+            ),
             stamps=score_data.get("stamps"),
         )
 

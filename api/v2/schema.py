@@ -1,11 +1,36 @@
 from decimal import Decimal
 from typing import (
+    Any,
     Dict,
     Optional,
 )
 
 from ninja import Schema
-from pydantic import field_serializer, model_serializer
+from pydantic import Field, field_serializer, model_serializer
+
+# Why a wallet does not pass, for partners. Most specific first.
+FAIL_REASON_NO_VALID_STAMPS = "no_valid_stamps"
+FAIL_REASON_STAMPS_CLAIMED_ELSEWHERE = "stamps_claimed_elsewhere"
+FAIL_REASON_BELOW_THRESHOLD = "below_threshold"
+
+
+def get_fail_reason(
+    passing_score: bool, error: Optional[str], stamps: Optional[Dict[str, Any]]
+) -> Optional[str]:
+    """Return why a wallet does not pass, or None if it passes.
+
+    None also when scoring failed (`error` is set) or the Stamps are unknown
+    (`stamps` is None, e.g. a score still processing or an old history event).
+    """
+    if passing_score or error or stamps is None:
+        return None
+    if not stamps:
+        return FAIL_REASON_NO_VALID_STAMPS
+    for stamp in stamps.values():
+        dedup = stamp.get("dedup") if isinstance(stamp, dict) else stamp.dedup
+        if dedup:
+            return FAIL_REASON_STAMPS_CLAIMED_ELSEWHERE
+    return FAIL_REASON_BELOW_THRESHOLD
 
 
 class PointsData(Schema):
@@ -58,6 +83,14 @@ class V2ScoreResponse(Schema):
     expiration_timestamp: Optional[str]
     threshold: Decimal
     error: Optional[str]
+    fail_reason: Optional[str] = Field(
+        default=None,
+        description=(
+            "Why the wallet does not pass: no_valid_stamps, "
+            "stamps_claimed_elsewhere or below_threshold. "
+            "Null when it passes or when error is set."
+        ),
+    )
     stamps: Optional[Dict[str, V2StampScoreResponse]]
     points_data: Optional[PointsData] = None
     possible_points_data: Optional[PointsData] = None
