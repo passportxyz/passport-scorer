@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("account", "0055_walletgroup_models"),
+        ("account", "0056_featuredcampaign_audience_label_details_text"),
     ]
 
     operations = [

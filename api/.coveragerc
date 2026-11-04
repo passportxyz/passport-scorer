@@ -1,0 +1,19 @@
+[run]
+source = .
+omit =
+    */test/*
+    */tests/*
+    */migrations/*
+    */conftest.py
+
+[report]
+# ceramic_cache/management/ and registry/management/ have no __init__.py, so they
+# are namespace packages. Without this, coverage silently leaves every file under
+# them that no test imports out of the report entirely (not even at 0%), which
+# inflates the total. Measured 2026-09-21: 16 files omitted without it.
+include_namespace_packages = True
+show_missing = True
+precision = 2
+# Regression floor, not a target. Measured 72.61% on 2026-09-21 (657 tests).
+# Raise it as coverage grows; never lower it to get a red build through.
+fail_under = 72

@@ -227,10 +227,9 @@ async def _score_wallet_group(
             defaults=dict(score=None, status=Score.Status.PROCESSING),
         )
         await ascore_passport(community, db_passport, addr, score)
-        # Save non-canonical wallets immediately; defer canonical save until after merge
-        # to avoid a spurious SCORE_UPDATE event with pre-merge data
-        if addr != canonical_address:
-            await score.asave()
+        # Nothing is saved yet: every save writes a SCORE_UPDATE event, which
+        # /history returns. The canonical row is saved after the merge, and each
+        # linked wallet's row in its hidden form (_save_hidden_member_score).
         wallet_scores[addr] = score
 
     # Merge stamps by provider: take first valid (non-deduped) stamp per provider
@@ -302,6 +301,10 @@ async def _score_wallet_group(
         canonical_score.expiration_date = earliest_expiration
     await canonical_score.asave()
 
+    for addr in group_addresses:
+        if addr != canonical_address:
+            await _save_hidden_member_score(wallet_scores[addr], canonical_score)
+
     response = format_v2_score_response(canonical_score, scorer_type)
     for provider, stamp in response.stamps.items():
         stamp.source_wallet = stamp_sources.get(provider)
@@ -316,6 +319,30 @@ async def _score_wallet_group(
         wallet_stamps=wallet_stamps,
     )
     return response
+
+
+async def _save_hidden_member_score(score: Score, canonical_score: Score) -> None:
+    """Store a linked (non-canonical) wallet's row as its API response shows it.
+
+    The live response gives the wallet 0 and no stamps (_build_non_canonical_response).
+    Its own score must not be stored either: the row's SCORE_UPDATE event is what
+    /history returns, so the wallet's own score there would show it is in a group.
+    """
+    threshold = (canonical_score.evidence or {}).get("threshold", "20")
+    score.score = Decimal(0)
+    score.evidence = {
+        "type": "ThresholdScoreCheck",
+        "success": False,
+        "rawScore": "0",
+        "threshold": threshold,
+    }
+    score.stamps = {}
+    score.stamp_scores = {}
+    score.error = None
+    score.status = Score.Status.DONE
+    score.last_score_timestamp = canonical_score.last_score_timestamp
+    score.expiration_date = canonical_score.expiration_date
+    await score.asave()
 
 
 def _build_non_canonical_response(

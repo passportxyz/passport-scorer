@@ -82,6 +82,9 @@ class TestLinkedWalletPrivacy(TransactionTestCase):
         _, self.waap_secret = AccountAPIKey.objects.create_key(
             account=account, name="waap", linked_wallet_breakdown=True
         )
+        _, self.history_secret = AccountAPIKey.objects.create_key(
+            account=account, name="history", historical_endpoint=True
+        )
         self.client = Client()
 
     def get_score(self, address, secret=None):
@@ -129,6 +132,42 @@ class TestLinkedWalletPrivacy(TransactionTestCase):
         self.assertTrue(events.exists())
         for event in events:
             self.assertNotIn(A, json.dumps(event.data).lower())
+
+    # The live response gives a linked (non-canonical) wallet 0 and no stamps. Its
+    # stored Score row and its SCORE_UPDATE events must say the same, or /history
+    # and anything reading the row show the wallet's own score and reveal that it
+    # is in a group.
+    def test_linked_wallet_history_matches_the_hidden_score(self, *_):
+        self.get_score(W)  # W becomes canonical
+        self.get_score(A)
+
+        response = self.client.get(
+            f"/v2/stamps/{self.community.pk}/score/{A}/history",
+            {"created_at": (datetime.now(timezone.utc) + timedelta(minutes=1)).isoformat()},
+            HTTP_AUTHORIZATION=f"Token {self.history_secret}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(Decimal(body["score"]), Decimal(0))
+        self.assertFalse(body["passing_score"])
+        self.assertFalse(body["stamps"])
+
+    def test_linked_wallet_row_and_events_hold_no_own_score(self, *_):
+        self.get_score(W)
+        self.get_score(A)
+
+        row = Score.objects.get(passport__address=A)
+        self.assertEqual(row.score, Decimal(0))
+        self.assertEqual(row.evidence["rawScore"], "0")
+        self.assertFalse(row.stamps)
+        self.assertFalse(row.stamp_scores)
+        events = Event.objects.filter(action=Event.Action.SCORE_UPDATE, address=A)
+        self.assertTrue(events.exists())
+        for event in events:
+            # A's own Stamp (Twitter, 15) never reaches its history.
+            self.assertNotIn("Twitter", json.dumps(event.data))
+            self.assertNotIn('"15', json.dumps(event.data))
 
     def test_embed_score_hides_the_group(self, *_):
         self.get_score(W)

@@ -33,3 +33,9 @@ def test_bad_length():
 @pytest.mark.django_db
 def test_bad_length_checksummed():
     assert is_valid_address(address + "a") is False
+
+
+@pytest.mark.django_db
+def test_zero_address():
+    assert is_valid_address("0x0000000000000000000000000000000000000000") is False
+    assert is_valid_address("0" * 40) is False
