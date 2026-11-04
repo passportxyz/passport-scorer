@@ -10,7 +10,10 @@ default-run = "passport-scorer"
 [dependencies]
 # Web framework
 axum = "0.8"
-tower = "0.5"
+# util: ServiceExt::oneshot, used by tests/integration_test.rs. Keep a single
+# tower entry: a second one under [dev-dependencies] gives tests two crates named
+# `tower` (rustc E0464).
+tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["trace", "cors"] }
 
 
@@ -65,7 +68,6 @@ anyhow = "1.0"
 
 [dev-dependencies]
 pretty_assertions = "1.4"
-tower = { version = "0.4", features = ["util"] }
 
 [features]
 default = []

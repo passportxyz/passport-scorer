@@ -7,6 +7,7 @@ use crate::models::{
     ScoringResult, StampData, V2ScoreResponse,
 };
 use crate::models::v2_api::{LinkedScoreResponse, V2StampScoreResponse, format_decimal_5};
+use crate::models::django::{DjangoScoreFields, DjangoStampScore};
 use crate::db::DatabaseError;
 use crate::db::queries;
 use crate::domain::dedup::LifoResult;
@@ -445,8 +446,28 @@ pub async fn calculate_score_for_address(
     scorer_id: i64,
     pool: &PgPool,
 ) -> Result<V2ScoreResponse, DomainError> {
+    let (response, _) = score_address(address, scorer_id, pool, SaveScore::Yes).await?;
+    Ok(response)
+}
+
+/// Whether `score_address` stores the wallet's Score row and SCORE_UPDATE event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SaveScore {
+    Yes,
+    /// Wallet-group scoring: the rows are saved once, after the merge
+    /// (`save_group_scores`). Stamps, dedup links and human points are still saved.
+    No,
+}
+
+/// Score one wallet. Returns the response and the score timestamp.
+async fn score_address(
+    address: &str,
+    scorer_id: i64,
+    pool: &PgPool,
+    save_score: SaveScore,
+) -> Result<(V2ScoreResponse, DateTime<Utc>), DomainError> {
     use sqlx::{Postgres, Transaction};
-    use crate::db::queries::{load_community, delete_stamps, bulk_insert_stamps, upsert_score};
+    use crate::db::queries::{load_community, delete_stamps, bulk_insert_stamps};
     use crate::db::queries::stamps::get_latest_stamps_by_provider;
     use crate::db::queries::scoring::upsert_passport_record as upsert_passport;
     use crate::auth::credentials::validate_credentials_batch;
@@ -520,25 +541,11 @@ pub async fn calculate_score_for_address(
     let scoring_result = calculate_score(address, scorer_id, lifo_result, pool).await
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
-    // 10. Persist score
-    let django_fields = scoring_result.to_django_score_fields();
-    let score_id = upsert_score(&mut tx, passport_id, &django_fields).await
-        .map_err(|e| DomainError::Database(e.to_string()))?;
-
-    // 10a. Insert SCORE_UPDATE event
-    use crate::models::translation::create_score_update_event_data;
-    let event_data = create_score_update_event_data(
-        score_id,
-        passport_id,
-        scoring_result.binary_score.clone(),
-        scoring_result.timestamp,
-        django_fields.evidence,
-        django_fields.stamp_scores,
-        &django_fields.stamps,
-        scoring_result.expires_at,
-    );
-    queries::insert_score_update_event(&mut tx, address, scorer_id, event_data).await
-        .map_err(|e| DomainError::Database(e.to_string()))?;
+    // 10. Persist score and its SCORE_UPDATE event
+    if save_score == SaveScore::Yes {
+        let django_fields = scoring_result.to_django_score_fields();
+        save_score_with_event(&mut tx, address, scorer_id, passport_id, &django_fields).await?;
+    }
 
     // 11. Process human points if enabled
     let human_points_config = super::human_points::HumanPointsConfig::from_env();
@@ -585,7 +592,59 @@ pub async fn calculate_score_for_address(
         }
     }
 
-    Ok(response)
+    Ok((response, scoring_result.timestamp))
+}
+
+/// Store a Score row and write its SCORE_UPDATE event (which `/history` returns).
+async fn save_score_with_event(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    address: &str,
+    scorer_id: i64,
+    passport_id: i64,
+    fields: &crate::models::django::DjangoScoreFields,
+) -> Result<(), DomainError> {
+    use crate::models::translation::create_score_update_event_data;
+
+    let score_id = queries::upsert_score(tx, passport_id, fields).await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+    let event_data = create_score_update_event_data(
+        score_id,
+        passport_id,
+        fields.score,
+        fields.last_score_timestamp,
+        fields.evidence.clone(),
+        fields.stamp_scores.clone(),
+        &fields.stamps,
+        fields.expiration_date,
+    );
+    queries::insert_score_update_event(tx, address, scorer_id, event_data).await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+    Ok(())
+}
+
+/// Whether a score response may say which wallets are linked.
+///
+/// Linked wallets are private (internal-docs#3587). Only API keys with
+/// `linked_wallet_breakdown` and the internal endpoint get `Show`; every other
+/// caller gets `Hide`, which drops `linked_score`. Mirrors Python's
+/// `hide_linked_wallets` (`api/v2/api/api_stamps.py`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinkedWallets {
+    Show,
+    Hide,
+}
+
+impl LinkedWallets {
+    /// `Show` only for a key that has `linked_wallet_breakdown`.
+    pub fn for_api_key(key: &crate::models::django::DjangoApiKey) -> Self {
+        if key.linked_wallet_breakdown { Self::Show } else { Self::Hide }
+    }
+}
+
+/// Drop every field that names another wallet in the address's linked group.
+pub fn hide_linked_wallets(mut response: V2ScoreResponse) -> V2ScoreResponse {
+    response.linked_score = None;
+    response
 }
 
 /// Wallet-group-aware scoring wrapper.
@@ -595,13 +654,15 @@ pub async fn calculate_score_for_address(
 /// - Scores all wallets in the group independently
 /// - Merges results by provider for the canonical wallet
 /// - Persists merged score to the canonical wallet's DB record
-/// - Non-canonical wallets get score=0 with linked_score pointing to canonical
+/// - Non-canonical wallets get score=0, with linked_score pointing to the
+///   canonical when `linked` is `Show`
 ///
 /// If the address is not in a wallet group, delegates to `calculate_score_for_address`.
 pub async fn calculate_score_for_address_with_groups(
     address: &str,
     scorer_id: i64,
     pool: &PgPool,
+    linked: LinkedWallets,
 ) -> Result<V2ScoreResponse, DomainError> {
     // Look up linked-wallet set for this address. Phase 0 uses the solo-only
     // stub in `account::linkage`; Phase 3b will swap the body for a Silk
@@ -610,23 +671,48 @@ pub async fn calculate_score_for_address_with_groups(
         .await
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
-    if group_addresses.len() <= 1 {
-        return calculate_score_for_address(address, scorer_id, pool).await;
-    }
+    let response = if group_addresses.len() <= 1 {
+        calculate_score_for_address(address, scorer_id, pool).await?
+    } else {
+        score_wallet_group(address, &group_addresses, scorer_id, pool).await?
+    };
 
+    Ok(match linked {
+        LinkedWallets::Show => response,
+        LinkedWallets::Hide => hide_linked_wallets(response),
+    })
+}
+
+/// Score a linked group of two or more wallets. Split out from
+/// `calculate_score_for_address_with_groups` so tests can pass the group in
+/// while `get_linked_addresses` is still a stub.
+async fn score_wallet_group(
+    address: &str,
+    group_addresses: &[String],
+    scorer_id: i64,
+    pool: &PgPool,
+) -> Result<V2ScoreResponse, DomainError> {
     // Deterministic opaque key for this linked set. Phase 3b will swap this
     // for Silk's user_id so canonical claims survive set membership churn.
-    let group_key = build_group_key(&group_addresses);
+    let group_key = build_group_key(group_addresses);
 
     // Determine canonical wallet (uses transaction for claim write ops)
     let canonical = get_or_set_canonical(pool, &group_key, scorer_id, address).await?;
 
-    // Score all wallets independently
+    // Score all wallets independently. No Score row is saved yet: every save
+    // writes a SCORE_UPDATE event, which /history returns. The rows are saved
+    // once, after the merge (save_group_scores).
     let mut wallet_responses: HashMap<String, V2ScoreResponse> = HashMap::new();
-    for addr in &group_addresses {
-        let response = calculate_score_for_address(addr, scorer_id, pool).await?;
+    let mut canonical_timestamp: Option<DateTime<Utc>> = None;
+    for addr in group_addresses {
+        let (response, timestamp) = score_address(addr, scorer_id, pool, SaveScore::No).await?;
+        if *addr == canonical {
+            canonical_timestamp = Some(timestamp);
+        }
         wallet_responses.insert(addr.clone(), response);
     }
+    let canonical_timestamp = canonical_timestamp
+        .ok_or_else(|| DomainError::Internal("Canonical wallet is not in the group".into()))?;
 
     // Merge stamps by provider (canonical wallet's stamps take priority)
     let mut merged_stamps: HashMap<String, V2StampScoreResponse> = HashMap::new();
@@ -686,39 +772,30 @@ pub async fn calculate_score_for_address_with_groups(
     let earliest_expiration: Option<String> = expiration_dt
         .map(|dt| dt.to_rfc3339());
 
-    // Persist merged score to canonical wallet's DB record
-    {
-        let evidence = serde_json::json!({
+    // Persist the merged score to the canonical wallet's row, and each linked
+    // wallet's row in its hidden form, each with its SCORE_UPDATE event.
+    let canonical_fields = DjangoScoreFields {
+        score: binary_score,
+        status: "DONE".to_string(),
+        last_score_timestamp: canonical_timestamp,
+        expiration_date: expiration_dt,
+        error: None,
+        evidence: serde_json::json!({
             "type": "ThresholdScoreCheck",
             "success": is_passing,
             "rawScore": format!("{:.5}", combined_raw_score),
             "threshold": format!("{:.5}", threshold),
-        });
-        let stamps_value = serde_json::to_value(&merged_stamps)
-            .map_err(|e| DomainError::Internal(format!("Failed to serialize stamps: {}", e)))?;
-
-        // Get or create passport for canonical address
-        let mut tx = pool.begin().await
-            .map_err(|e| DomainError::Database(e.to_string()))?;
-
-        let passport_id = queries::scoring::upsert_passport_record(&mut tx, &canonical, scorer_id)
-            .await
-            .map_err(|e| DomainError::Database(e.to_string()))?;
-
-        queries::scoring::upsert_score_record(
-            &mut tx,
-            passport_id,
-            binary_score,
-            threshold,
-            stamps_value,
-            serde_json::Value::Object(merged_stamp_scores),
-            evidence,
-            expiration_dt,
-        ).await.map_err(|e| DomainError::Database(e.to_string()))?;
-
-        tx.commit().await
-            .map_err(|e| DomainError::Database(e.to_string()))?;
-    }
+        }),
+        stamp_scores: serde_json::Value::Object(merged_stamp_scores),
+        stamps: merged_stamps.iter()
+            .map(|(provider, stamp)| (provider.clone(), DjangoStampScore {
+                score: stamp.score.clone(),
+                dedup: stamp.dedup,
+                expiration_date: stamp.expiration_date.clone(),
+            }))
+            .collect(),
+    };
+    save_group_scores(pool, scorer_id, &canonical, group_addresses, &canonical_fields).await?;
 
     // Build response with merged data
     let canonical_base = wallet_responses.get(&canonical)
@@ -766,6 +843,62 @@ pub async fn calculate_score_for_address_with_groups(
                 stamps: merged_stamps,
             }),
         })
+    }
+}
+
+/// Save a group's Score rows in one transaction: the canonical wallet's merged
+/// score, and each linked wallet's row in its hidden form.
+async fn save_group_scores(
+    pool: &PgPool,
+    scorer_id: i64,
+    canonical: &str,
+    group_addresses: &[String],
+    canonical_fields: &DjangoScoreFields,
+) -> Result<(), DomainError> {
+    let mut tx = pool.begin().await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+
+    let passport_id = queries::scoring::upsert_passport_record(&mut tx, canonical, scorer_id)
+        .await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+    save_score_with_event(&mut tx, canonical, scorer_id, passport_id, canonical_fields).await?;
+
+    let member_fields = hidden_member_score_fields(canonical_fields);
+    for addr in group_addresses.iter().filter(|a| a.as_str() != canonical) {
+        let passport_id = queries::scoring::upsert_passport_record(&mut tx, addr, scorer_id)
+            .await
+            .map_err(|e| DomainError::Database(e.to_string()))?;
+        save_score_with_event(&mut tx, addr, scorer_id, passport_id, &member_fields).await?;
+    }
+
+    tx.commit().await
+        .map_err(|e| DomainError::Database(e.to_string()))?;
+    Ok(())
+}
+
+/// A linked (non-canonical) wallet's row, stored as its API response shows it.
+///
+/// The live response gives the wallet 0 and no stamps. Its own score must not
+/// be stored either: the row's SCORE_UPDATE event is what /history returns, so
+/// the wallet's own score there would show it is in a group. Mirrors Python's
+/// `_save_hidden_member_score` (`api/v2/api/api_stamps.py`).
+fn hidden_member_score_fields(canonical_fields: &DjangoScoreFields) -> DjangoScoreFields {
+    let threshold = canonical_fields.evidence.get("threshold").cloned()
+        .unwrap_or_else(|| serde_json::Value::String("20".to_string()));
+    DjangoScoreFields {
+        score: Decimal::from(0),
+        status: "DONE".to_string(),
+        last_score_timestamp: canonical_fields.last_score_timestamp,
+        expiration_date: canonical_fields.expiration_date,
+        error: None,
+        evidence: serde_json::json!({
+            "type": "ThresholdScoreCheck",
+            "success": false,
+            "rawScore": "0",
+            "threshold": threshold,
+        }),
+        stamp_scores: serde_json::json!({}),
+        stamps: HashMap::new(),
     }
 }
 
@@ -829,4 +962,188 @@ async fn get_or_set_canonical(
         .map_err(|e| DomainError::Database(e.to_string()))?;
 
     Ok(canonical)
+}
+
+/// Linked-wallet privacy (#977), matching `api/v2/test/test_linked_wallet_privacy.py`.
+#[cfg(test)]
+mod linked_wallet_privacy_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn response_with_linked_score() -> V2ScoreResponse {
+        let mut response = V2ScoreResponse::error("0xmember".to_string(), String::new());
+        response.error = None;
+        response.linked_score = Some(LinkedScoreResponse {
+            address: "0xcanonical".to_string(),
+            score: Some("25.00000".to_string()),
+            passing_score: true,
+            last_score_timestamp: None,
+            expiration_timestamp: None,
+            threshold: "20.00000".to_string(),
+            stamps: HashMap::new(),
+        });
+        response
+    }
+
+    #[test]
+    fn hide_linked_wallets_drops_the_canonical_wallet() {
+        let hidden = hide_linked_wallets(response_with_linked_score());
+        assert!(hidden.linked_score.is_none());
+        assert!(!serde_json::to_string(&hidden).unwrap().contains("0xcanonical"));
+    }
+
+    #[test]
+    fn hidden_member_row_has_no_score_and_the_canonical_timestamps() {
+        let now = Utc::now();
+        let canonical = DjangoScoreFields {
+            score: Decimal::from(1),
+            status: "DONE".to_string(),
+            last_score_timestamp: now,
+            expiration_date: Some(now + chrono::Duration::days(30)),
+            error: None,
+            evidence: json!({"type": "ThresholdScoreCheck", "success": true, "rawScore": "25.00000", "threshold": "20.00000"}),
+            stamp_scores: json!({"Google": "25.00000"}),
+            stamps: HashMap::from([("Google".to_string(), DjangoStampScore {
+                score: "25.00000".to_string(), dedup: false, expiration_date: None,
+            })]),
+        };
+        let member = hidden_member_score_fields(&canonical);
+        assert_eq!(member.score, Decimal::from(0));
+        assert_eq!(member.evidence, json!({"type": "ThresholdScoreCheck", "success": false, "rawScore": "0", "threshold": "20.00000"}));
+        assert_eq!(member.stamp_scores, json!({}));
+        assert!(member.stamps.is_empty());
+        assert_eq!(member.last_score_timestamp, canonical.last_score_timestamp);
+        assert_eq!(member.expiration_date, canonical.expiration_date);
+    }
+
+    /// The community's scorer id differs from the community id, as it does in
+    /// production after a scorer-type change.
+    fn scorer_id_for(community_id: i64) -> i64 {
+        community_id + 500
+    }
+
+    /// Seed a user, account, scorer and community. Also seeds a decoy scorer whose
+    /// id equals the community id, with a different threshold: looking the scorer
+    /// up by the community id would load it instead of the community's own.
+    async fn seed_community(pool: &PgPool, id: i64) -> sqlx::Result<()> {
+        let user_id: i32 = sqlx::query_scalar(
+            "INSERT INTO auth_user (password, is_superuser, username, first_name, last_name, email, is_staff, is_active, date_joined)
+             VALUES ('', false, $1, '', '', '', false, true, NOW()) RETURNING id",
+        ).bind(format!("linked-privacy-{id}")).fetch_one(pool).await?;
+        let account_id: i64 = sqlx::query_scalar(
+            "INSERT INTO account_account (address, user_id) VALUES ($1, $2) RETURNING id",
+        ).bind(format!("0xaccount{id}")).bind(user_id).fetch_one(pool).await?;
+        for (scorer_id, threshold) in [(scorer_id_for(id), 20), (id, 99)] {
+            sqlx::query("INSERT INTO scorer_weighted_scorer (id, type, exclude_from_weight_updates) VALUES ($1, 'WEIGHTED_BINARY', false)")
+                .bind(scorer_id).execute(pool).await?;
+            sqlx::query("INSERT INTO scorer_weighted_binaryweightedscorer (scorer_ptr_id, weights, threshold) VALUES ($1, '{}'::jsonb, $2)")
+                .bind(scorer_id).bind(threshold).execute(pool).await?;
+        }
+        sqlx::query(
+            "INSERT INTO account_community (id, name, description, account_id, scorer_id, rule, human_points_program)
+             VALUES ($1, $2, '', $3, $4, 'LIFO', false)",
+        ).bind(id).bind(format!("linked-privacy-{id}")).bind(account_id).bind(scorer_id_for(id)).execute(pool).await?;
+        Ok(())
+    }
+
+    async fn cleanup(pool: &PgPool, id: i64) {
+        for sql in [
+            "DELETE FROM registry_event WHERE community_id = $1",
+            "DELETE FROM registry_score WHERE passport_id IN (SELECT id FROM registry_passport WHERE community_id = $1)",
+            "DELETE FROM registry_hashscorerlink WHERE community_id = $1",
+            "DELETE FROM registry_passport WHERE community_id = $1",
+            "DELETE FROM account_walletgroupcommunityclaim WHERE community_id = $1",
+            "DELETE FROM account_community WHERE id = $1",
+            "DELETE FROM scorer_weighted_binaryweightedscorer WHERE scorer_ptr_id IN ($1, $1 + 500)",
+            "DELETE FROM scorer_weighted_scorer WHERE id IN ($1, $1 + 500)",
+        ] {
+            let _ = sqlx::query(sql).bind(id).execute(pool).await;
+        }
+        let _ = sqlx::query("DELETE FROM account_account WHERE address = $1").bind(format!("0xaccount{id}")).execute(pool).await;
+        let _ = sqlx::query("DELETE FROM auth_user WHERE username = $1").bind(format!("linked-privacy-{id}")).execute(pool).await;
+    }
+
+    async fn stored_score(pool: &PgPool, address: &str, community_id: i64) -> (Decimal, serde_json::Value, serde_json::Value, DateTime<Utc>) {
+        sqlx::query_as(
+            "SELECT s.score, s.evidence, s.stamps, s.last_score_timestamp FROM registry_score s
+             JOIN registry_passport p ON p.id = s.passport_id WHERE p.address = $1 AND p.community_id = $2",
+        ).bind(address).bind(community_id).fetch_one(pool).await.expect("score row")
+    }
+
+    async fn score_events(pool: &PgPool, address: &str, community_id: i64) -> Vec<serde_json::Value> {
+        sqlx::query_scalar("SELECT data FROM registry_event WHERE action = 'SCU' AND address = $1 AND community_id = $2 ORDER BY id")
+            .bind(address).bind(community_id).fetch_all(pool).await.expect("events")
+    }
+
+    /// A linked wallet's stored row and its SCORE_UPDATE events (what /history
+    /// returns) hold the hidden form, never the wallet's own score; the canonical
+    /// gets one event per request, holding the merged score.
+    #[tokio::test]
+    async fn group_scoring_stores_linked_wallets_in_hidden_form() {
+        let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.expect("connect");
+        let id = 977_000_000 + (Utc::now().timestamp_subsec_micros() as i64);
+        let canonical = format!("0x{:040x}", id);
+        let member = format!("0x{:040x}", id + 1);
+        cleanup(&pool, id).await;
+        seed_community(&pool, id).await.expect("seed");
+
+        // The linked wallet already has its own stored score from before it was linked.
+        let mut tx = pool.begin().await.unwrap();
+        let member_passport = queries::scoring::upsert_passport_record(&mut tx, &member, id).await.unwrap();
+        let old = Utc::now() - chrono::Duration::days(3);
+        sqlx::query(
+            "INSERT INTO registry_score (passport_id, score, status, last_score_timestamp, evidence, stamps, stamp_scores)
+             VALUES ($1, 1, 'DONE', $2, '{\"rawScore\": \"30.00000\"}', '{\"Google\": {}}', '{}')",
+        ).bind(member_passport).bind(old).execute(&mut *tx).await.unwrap();
+        tx.commit().await.unwrap();
+
+        let group = vec![canonical.clone(), member.clone()];
+        let first = score_wallet_group(&canonical, &group, id, &pool).await.expect("score canonical");
+        let second = score_wallet_group(&member, &group, id, &pool).await.expect("score member");
+
+        assert_eq!(first.address, canonical);
+        assert!(first.linked_score.is_none());
+        assert_eq!(second.score.as_deref(), Some("0.00000"));
+        assert_eq!(second.linked_score.as_ref().map(|l| l.address.as_str()), Some(canonical.as_str()));
+
+        let (c_score, c_evidence, _, c_ts) = stored_score(&pool, &canonical, id).await;
+        let (m_score, m_evidence, m_stamps, m_ts) = stored_score(&pool, &member, id).await;
+        assert_eq!(c_score, Decimal::from(0));
+        assert_eq!(c_evidence["rawScore"], json!("0.00000"));
+        assert_eq!(m_score, Decimal::from(0));
+        assert_eq!(m_evidence, json!({"type": "ThresholdScoreCheck", "success": false, "rawScore": "0", "threshold": c_evidence["threshold"]}));
+        assert_eq!(m_stamps, json!({}));
+        assert_eq!(m_ts, c_ts, "linked wallet carries the canonical's timestamp, not its own");
+
+        let canonical_events = score_events(&pool, &canonical, id).await;
+        let member_events = score_events(&pool, &member, id).await;
+        assert_eq!(canonical_events.len(), 2, "one SCORE_UPDATE per request, no pre-merge event");
+        assert_eq!(member_events.len(), 2);
+        for event in &member_events {
+            let fields = &event[0]["fields"];
+            assert_eq!(fields["score"], json!("0"));
+            assert_eq!(fields["evidence"]["rawScore"], json!("0"));
+            assert_eq!(fields["stamps"], json!({}));
+        }
+
+        cleanup(&pool, id).await;
+    }
+
+    /// The scorer comes from `account_community.scorer_id`, not the community id.
+    #[tokio::test]
+    async fn scorer_config_follows_the_community_scorer() {
+        let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.expect("connect");
+        let id = 978_000_000 + (Utc::now().timestamp_subsec_micros() as i64);
+        cleanup(&pool, id).await;
+        seed_community(&pool, id).await.expect("seed");
+
+        let config = queries::load_scorer_config(&pool, id).await;
+        cleanup(&pool, id).await;
+
+        let config = config.expect("scorer config");
+        assert_eq!(config.scorer_ptr_id, scorer_id_for(id));
+        assert_eq!(config.threshold, Decimal::from(20));
+    }
 }
