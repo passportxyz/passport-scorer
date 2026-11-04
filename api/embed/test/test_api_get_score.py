@@ -163,6 +163,7 @@ class StampsApiTestCase(TestCase):
         assert data["score"] == {
             "address": "0x0000000000000000000000000000000000000001",
             "error": None,
+            "fail_reason": None,
             "expiration_timestamp": min(expiration_dates).isoformat(),
             "passing_score": True,
             "score": "45.00000",

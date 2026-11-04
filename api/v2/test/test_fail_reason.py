@@ -1,4 +1,9 @@
+import pytest
+
 from v2.schema import V2StampScoreResponse, get_fail_reason
+
+# conftest has an autouse fixture that needs the database
+pytestmark = pytest.mark.django_db
 
 
 def stamp(dedup):
