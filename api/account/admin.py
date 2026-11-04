@@ -636,6 +636,7 @@ class APIKeyPermissionsAdmin(ScorerModelAdmin):
         "read_scores",
         "create_scorers",
         "historical_endpoint",
+        "linked_wallet_breakdown",
     )
 
 
