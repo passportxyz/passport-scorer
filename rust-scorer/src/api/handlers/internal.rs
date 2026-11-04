@@ -216,6 +216,12 @@ pub async fn internal_stake_gtc_handler(
 ) -> ApiResult<Json<domain::stakes::StakeResponse>> {
     info!("Processing internal GTC stake request");
 
+    // Stakes are stored lowercase; match Python's validation and its 400 message
+    let address = address.to_lowercase();
+    if !is_valid_eth_address(&address) {
+        return Err(ApiError::BadRequest("Invalid address.".to_string()));
+    }
+
     Ok(Json(domain::stakes::get_gtc_stakes(&address, &pool).await?))
 }
 
@@ -226,6 +232,12 @@ pub async fn internal_legacy_stake_handler(
     State(pool): State<PgPool>,
 ) -> ApiResult<Json<domain::stakes::GtcEventsResponse>> {
     info!("Processing internal legacy GTC stake request");
+
+    // Stake events are stored lowercase; match Python's validation and its 400 message
+    let address = address.to_lowercase();
+    if !is_valid_eth_address(&address) {
+        return Err(ApiError::BadRequest("Invalid address.".to_string()));
+    }
 
     Ok(Json(domain::stakes::get_legacy_gtc_events(&address, round_id, &pool).await?))
 }
@@ -443,5 +455,88 @@ mod tests {
 
         assert_eq!(hashes, vec!["hash1", "hash2", ""]);
         assert_eq!(providers, vec!["Provider1", "Provider2", ""]);
+    }
+
+    /// A pool that never connects: the handler must reject the address before using it.
+    fn unreachable_pool() -> PgPool {
+        PgPool::connect_lazy("postgres://unused:unused@127.0.0.1:1/unused").unwrap()
+    }
+
+    const INVALID_ADDRESSES: [&str; 4] = [
+        "0x0000000000000000000000000000000000000000",
+        "0X0000000000000000000000000000000000000000",
+        "not-an-address",
+        "0x71ad3e3057ca74967239c66ca6d3a9c2a43a58f", // 39 hex chars
+    ];
+
+    fn assert_invalid_address<T>(result: ApiResult<T>, address: &str) {
+        match result {
+            Err(ApiError::BadRequest(msg)) => assert_eq!(msg, "Invalid address.", "address {address}"),
+            Err(other) => panic!("address {address}: expected BadRequest, got {other}"),
+            Ok(_) => panic!("address {address}: expected BadRequest, got Ok"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_stake_gtc_rejects_invalid_address() {
+        for address in INVALID_ADDRESSES {
+            let result =
+                internal_stake_gtc_handler(Path(address.to_string()), State(unreachable_pool())).await;
+            assert_invalid_address(result, address);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_legacy_stake_rejects_invalid_address() {
+        for address in INVALID_ADDRESSES {
+            let result = internal_legacy_stake_handler(
+                Path((address.to_string(), 1)),
+                State(unreachable_pool()),
+            )
+            .await;
+            assert_invalid_address(result, address);
+        }
+    }
+
+    // Integration tests - require DATABASE_URL
+    #[tokio::test]
+    async fn test_stake_handlers_match_checksummed_address() {
+        let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.unwrap();
+        // Stored lowercase, as the Python API stores and queries it.
+        let stored = "0x966a0000000000000000000000000000000000aa";
+        let checksummed = "0x966A0000000000000000000000000000000000Aa";
+
+        sqlx::query("DELETE FROM stake_stake WHERE staker = $1").bind(stored).execute(&pool).await.unwrap();
+        sqlx::query("DELETE FROM registry_gtcstakeevent WHERE staker = $1").bind(stored).execute(&pool).await.unwrap();
+        sqlx::query(
+            "INSERT INTO stake_stake (chain, staker, stakee, current_amount, lock_time, unlock_time, last_updated_in_block)
+             VALUES (1, $1, $1, 5, now(), now(), 1)",
+        )
+        .bind(stored)
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO registry_gtcstakeevent (event_type, round_id, staker, address, amount, staked, block_number, tx_hash)
+             VALUES ('SelfStake', 7, $1, NULL, 5, true, 1, '0xabc')",
+        )
+        .bind(stored)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let stakes = internal_stake_gtc_handler(Path(checksummed.to_string()), State(pool.clone()))
+            .await
+            .unwrap();
+        let events = internal_legacy_stake_handler(Path((checksummed.to_string(), 7)), State(pool.clone()))
+            .await
+            .unwrap();
+
+        sqlx::query("DELETE FROM stake_stake WHERE staker = $1").bind(stored).execute(&pool).await.unwrap();
+        sqlx::query("DELETE FROM registry_gtcstakeevent WHERE staker = $1").bind(stored).execute(&pool).await.unwrap();
+
+        assert_eq!(stakes.0.items.len(), 1);
+        assert_eq!(events.0.results.len(), 1);
     }
 }
