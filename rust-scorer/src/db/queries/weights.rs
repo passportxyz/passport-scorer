@@ -78,26 +78,33 @@ pub fn get_default_scorer_weights() -> ScorerWeights {
     }
 }
 
-/// Load binary weighted scorer configuration
-#[tracing::instrument(skip(pool), fields(scorer_id = scorer_id))]
+/// Load the scorer configuration of a community.
+///
+/// Takes the community id, which every caller passes (the `scorer_id` in the
+/// API paths is a community id), and follows `account_community.scorer_id` to
+/// the scorer row, as Python's `Community.get_scorer` does. The two ids differ
+/// once a community changes scorer type: `update_community_scorers` creates a
+/// new scorer row and points the community at it.
+#[tracing::instrument(skip(pool), fields(community_id = community_id))]
 pub async fn load_scorer_config(
     pool: &PgPool,
-    scorer_id: i64,
+    community_id: i64,
 ) -> Result<DjangoBinaryWeightedScorer, DatabaseError> {
-    debug!("Loading scorer config for scorer_id: {}", scorer_id);
+    debug!("Loading scorer config for community_id: {}", community_id);
 
     // Try BinaryWeightedScorer first, then fall back to WeightedScorer
     let scorer = match sqlx::query_as::<_, DjangoBinaryWeightedScorer>(
         r#"
         SELECT
-            scorer_ptr_id,
-            weights,
-            threshold
-        FROM scorer_weighted_binaryweightedscorer
-        WHERE scorer_ptr_id = $1
+            s.scorer_ptr_id,
+            s.weights,
+            s.threshold
+        FROM scorer_weighted_binaryweightedscorer s
+        JOIN account_community c ON c.scorer_id = s.scorer_ptr_id
+        WHERE c.id = $1
         "#
     )
-    .bind(scorer_id)
+    .bind(community_id)
     .fetch_one(pool)
     .await
     {
@@ -107,19 +114,20 @@ pub async fn load_scorer_config(
             sqlx::query_as::<_, DjangoBinaryWeightedScorer>(
                 r#"
                 SELECT
-                    scorer_ptr_id,
-                    weights,
-                    threshold
-                FROM scorer_weighted_weightedscorer
-                WHERE scorer_ptr_id = $1
+                    s.scorer_ptr_id,
+                    s.weights,
+                    s.threshold
+                FROM scorer_weighted_weightedscorer s
+                JOIN account_community c ON c.scorer_id = s.scorer_ptr_id
+                WHERE c.id = $1
                 "#
             )
-            .bind(scorer_id)
+            .bind(community_id)
             .fetch_one(pool)
             .await
             .map_err(|e| match e {
                 sqlx::Error::RowNotFound => DatabaseError::NotFound(
-                    format!("Scorer configuration not found for scorer_id: {}", scorer_id)
+                    format!("Scorer configuration not found for community_id: {}", community_id)
                 ),
                 _ => DatabaseError::QueryError(e),
             })?

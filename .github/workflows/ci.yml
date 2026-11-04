@@ -159,12 +159,15 @@ jobs:
           key: cargo-${{ runner.os }}-${{ hashFiles('rust-scorer/Cargo.lock') }}
           restore-keys: cargo-${{ runner.os }}-
 
-      - name: Run Rust unit tests
+      # --tests runs the lib unit tests and the tests/ suites, so tests/ can't
+      # stop compiling unnoticed. sslmode=disable: create_app adds
+      # sslmode=require otherwise, and the CI Postgres has no TLS.
+      - name: Run Rust tests
         working-directory: ./rust-scorer
-        run: cargo test --lib
+        run: cargo test --tests
         env:
           SQLX_OFFLINE: "true"
-          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer
+          DATABASE_URL: postgres://passport_scorer:passport_scorer_pwd@localhost:5432/passport_scorer?sslmode=disable
 
   ui-test:
     runs-on: ubuntu-latest
