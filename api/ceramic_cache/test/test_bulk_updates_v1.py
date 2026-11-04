@@ -64,6 +64,7 @@ class TestBulkStampUpdates:
         assert score == {
             "address": sample_address.lower(),
             "error": None,
+            "fail_reason": "no_valid_stamps",
             "expiration_timestamp": None,
             "score": "0.00000",
             "stamps": {},
@@ -179,6 +180,7 @@ class TestBulkStampUpdates:
         assert score == {
             "address": sample_address.lower(),
             "error": None,
+            "fail_reason": "no_valid_stamps",
             "expiration_timestamp": None,
             "stamps": {},
             "threshold": "20.00000",
@@ -309,6 +311,7 @@ class TestBulkStampUpdates:
         assert score == {
             "address": sample_address.lower(),
             "error": None,
+            "fail_reason": "no_valid_stamps",
             "expiration_timestamp": None,
             "score": "0.00000",
             "stamps": {},

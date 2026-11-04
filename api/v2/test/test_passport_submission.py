@@ -480,6 +480,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "last_score_timestamp": None,
             "expiration_timestamp": None,
             "error": "No Passport found for this address.",
+            "fail_reason": None,
             "stamps": {},
             "points_data": None,
             "possible_points_data": None,
@@ -509,6 +510,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "expiration_timestamp": mock_passport_expiration_date.isoformat(),
             "threshold": "20.00000",
             "error": None,
+            "fail_reason": "below_threshold",
             "stamps": {
                 "Ens": {
                     "dedup": False,
@@ -534,6 +536,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "expiration_timestamp": mock_passport_expiration_date.isoformat(),
             "threshold": "20.00000",
             "error": None,
+            "fail_reason": "below_threshold",
             "stamps": {
                 "Ens": {
                     "dedup": False,
@@ -648,6 +651,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "passing_score": True,
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "error": None,
+            "fail_reason": None,
             "expiration_timestamp": min(expiration_date_list).isoformat(),
             "last_score_timestamp": get_utc_time().isoformat(),
             "stamps": {
@@ -717,6 +721,7 @@ class ValidatePassportTestCase(TransactionTestCase):
                 "passing_score": False,
                 "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
                 "error": None,
+                "fail_reason": "below_threshold",
                 "expiration_timestamp": min(expiration_date_list).isoformat(),
                 "last_score_timestamp": get_utc_time().isoformat(),
                 "stamps": {
@@ -784,6 +789,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "passing_score": True,
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "error": None,
+            "fail_reason": None,
             "expiration_timestamp": min(expiration_date_list).isoformat(),
             "last_score_timestamp": get_utc_time().isoformat(),
             "stamps": {
@@ -852,6 +858,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "passing_score": False,
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "error": None,
+            "fail_reason": "below_threshold",
             "expiration_timestamp": min(expiration_date_list).isoformat(),
             "last_score_timestamp": get_utc_time().isoformat(),
             "stamps": {
@@ -923,6 +930,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "passing_score": False,
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "error": None,
+            "fail_reason": "below_threshold",
             "expiration_timestamp": min(expiration_date_list).isoformat(),
             "last_score_timestamp": get_utc_time().isoformat(),
             "stamps": {
@@ -990,6 +998,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "passing_score": True,
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "error": None,
+            "fail_reason": None,
             "expiration_timestamp": min(expiration_date_list).isoformat(),
             "last_score_timestamp": get_utc_time().isoformat(),
             "stamps": {
@@ -1060,6 +1069,7 @@ class ValidatePassportTestCase(TransactionTestCase):
             "passing_score": False,
             "address": "0xb81c935d01e734b3d8bb233f5c4e1d72dbc30f6c",
             "error": None,
+            "fail_reason": "below_threshold",
             "expiration_timestamp": min(expiration_date_list).isoformat(),
             "last_score_timestamp": get_utc_time().isoformat(),
             "stamps": {
