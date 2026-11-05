@@ -22,6 +22,12 @@ use crate::db::DatabaseError;
 
 /// Freshness window for a successful lookup.
 const CACHE_TTL: Duration = Duration::from_secs(60);
+/// How long a cached value may still be served when Silk is failing. Matches
+/// Python's `LAST_GOOD_TTL`, so an outage can't keep a long-gone group alive.
+const LAST_GOOD_TTL: Duration = Duration::from_secs(60 * 60);
+/// Most entries the in-process cache keeps. Past it, entries older than
+/// `LAST_GOOD_TTL` are dropped, and if that isn't enough the cache is cleared.
+const MAX_CACHE_ENTRIES: usize = 50_000;
 /// Per-request Silk timeout. Scoring is latency-sensitive; fail fast.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(2);
 
@@ -54,10 +60,9 @@ fn http_client() -> &'static reqwest::Client {
     CLIENT.get_or_init(reqwest::Client::new)
 }
 
-/// `address -> (linked set, fetched_at)`. In-process entries never auto-expire,
-/// so an entry doubles as both the freshness check and the stale-on-failure
-/// source. The address space per process is bounded; a future revision could
-/// swap this for `moka` with TTL eviction if memory becomes a concern.
+/// `address -> (linked set, fetched_at)`. An entry is fresh for `CACHE_TTL` and
+/// serves as the stale-on-failure value for `LAST_GOOD_TTL`. Size is capped at
+/// `MAX_CACHE_ENTRIES` (see `insert_bounded`).
 type LinkedCache = Mutex<HashMap<String, (Vec<String>, Instant)>>;
 
 fn cache() -> &'static LinkedCache {
@@ -102,6 +107,13 @@ async fn fetch_linked(
         return solo;
     }
 
+    // The address goes into the Silk URL path, sent with the service key, so
+    // only a plain EVM address may reach it (Silk applies the same rule).
+    if !is_evm_address(address) {
+        warn!("linked wallets: not an EVM address, treating as solo: {address:?}");
+        return solo;
+    }
+
     // Fresh cache hit: serve without calling Silk.
     if let Some((value, fetched_at)) = cache.lock().unwrap().get(address) {
         if fetched_at.elapsed() < ttl {
@@ -112,20 +124,20 @@ async fn fetch_linked(
     match fetch_from_silk(address, config, client).await {
         Ok(raw) => {
             let normalized = normalize(raw, address);
-            cache
-                .lock()
-                .unwrap()
-                .insert(address.to_string(), (normalized.clone(), Instant::now()));
+            insert_bounded(&mut cache.lock().unwrap(), address, normalized.clone());
             normalized
         }
         Err(err) => {
             // No-poison: never write the cache on failure. Serve the last good
-            // value if present, else fall back to solo.
-            if let Some((value, _)) = cache.lock().unwrap().get(address) {
+            // value if it is recent enough, else fall back to solo.
+            let last_good = cache.lock().unwrap().get(address)
+                .filter(|(_, fetched_at)| fetched_at.elapsed() < LAST_GOOD_TTL)
+                .map(|(value, _)| value.clone());
+            if let Some(value) = last_good {
                 warn!("linked wallets: Silk fetch failed for {address}, serving stale value ({err})");
-                value.clone()
+                value
             } else {
-                warn!("linked wallets: Silk fetch failed for {address} with no cached value, falling back to solo ({err})");
+                warn!("linked wallets: Silk fetch failed for {address} with no recent cached value, falling back to solo ({err})");
                 solo
             }
         }
@@ -153,6 +165,24 @@ async fn fetch_from_silk(
         .json()
         .await?;
     Ok(body.addresses)
+}
+
+/// `0x` followed by 40 lowercase hex characters (the address is lowercased first).
+fn is_evm_address(address: &str) -> bool {
+    address.len() == 42
+        && address.starts_with("0x")
+        && address[2..].bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+/// Insert a fresh entry, keeping the cache under `MAX_CACHE_ENTRIES`.
+fn insert_bounded(cache: &mut HashMap<String, (Vec<String>, Instant)>, address: &str, value: Vec<String>) {
+    if cache.len() >= MAX_CACHE_ENTRIES && !cache.contains_key(address) {
+        cache.retain(|_, (_, fetched_at)| fetched_at.elapsed() < LAST_GOOD_TTL);
+        if cache.len() >= MAX_CACHE_ENTRIES {
+            cache.clear();
+        }
+    }
+    cache.insert(address.to_string(), (value, Instant::now()));
 }
 
 /// Lowercase, dedupe, guarantee `address` is present, and sort lexically.
@@ -196,7 +226,7 @@ mod tests {
         let cache = empty_cache();
 
         let result = fetch_linked(
-            "0xaaa",
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             &config(server.uri(), false),
             &reqwest::Client::new(),
             &cache,
@@ -204,18 +234,18 @@ mod tests {
         )
         .await;
 
-        assert_eq!(result, vec!["0xaaa".to_string()]);
+        assert_eq!(result, vec!["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()]);
         assert_eq!(server.received_requests().await.unwrap().len(), 0);
     }
 
     #[tokio::test]
     async fn happy_path_normalizes_and_caches() {
         let server = MockServer::start().await;
-        mount_addresses(&server, "0xaaa", json!(["0xCCC", "0xAAA", "0xBBB", "0xbbb"])).await;
+        mount_addresses(&server, "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", json!(["0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC", "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"])).await;
         let cache = empty_cache();
 
         let result = fetch_linked(
-            "0xaaa",
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             &config(server.uri(), true),
             &reqwest::Client::new(),
             &cache,
@@ -223,18 +253,18 @@ mod tests {
         )
         .await;
 
-        assert_eq!(result, vec!["0xaaa", "0xbbb", "0xccc"]);
-        assert!(cache.lock().unwrap().contains_key("0xaaa"));
+        assert_eq!(result, vec!["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "0xcccccccccccccccccccccccccccccccccccccccc"]);
+        assert!(cache.lock().unwrap().contains_key("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
     }
 
     #[tokio::test]
     async fn empty_response_returns_solo() {
         let server = MockServer::start().await;
-        mount_addresses(&server, "0xaaa", json!([])).await;
+        mount_addresses(&server, "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", json!([])).await;
         let cache = empty_cache();
 
         let result = fetch_linked(
-            "0xaaa",
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             &config(server.uri(), true),
             &reqwest::Client::new(),
             &cache,
@@ -242,19 +272,19 @@ mod tests {
         )
         .await;
 
-        assert_eq!(result, vec!["0xaaa".to_string()]);
+        assert_eq!(result, vec!["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()]);
     }
 
     #[tokio::test]
     async fn cache_hit_skips_second_request() {
         let server = MockServer::start().await;
-        mount_addresses(&server, "0xaaa", json!(["0xaaa", "0xbbb"])).await;
+        mount_addresses(&server, "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", json!(["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"])).await;
         let cache = empty_cache();
         let cfg = config(server.uri(), true);
         let client = reqwest::Client::new();
 
-        fetch_linked("0xaaa", &cfg, &client, &cache, CACHE_TTL).await;
-        fetch_linked("0xaaa", &cfg, &client, &cache, CACHE_TTL).await;
+        fetch_linked("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", &cfg, &client, &cache, CACHE_TTL).await;
+        fetch_linked("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", &cfg, &client, &cache, CACHE_TTL).await;
 
         assert_eq!(server.received_requests().await.unwrap().len(), 1);
     }
@@ -268,14 +298,14 @@ mod tests {
             .await;
         let cache = empty_cache();
         cache.lock().unwrap().insert(
-            "0xaaa".to_string(),
-            (vec!["0xaaa".to_string(), "0xbbb".to_string()], Instant::now()),
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+            (vec!["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(), "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string()], Instant::now()),
         );
 
         // ttl = ZERO forces the existing entry to be treated as expired, so we
         // reach the fetch (which 503s) and fall back to the stale value.
         let result = fetch_linked(
-            "0xaaa",
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             &config(server.uri(), true),
             &reqwest::Client::new(),
             &cache,
@@ -283,7 +313,72 @@ mod tests {
         )
         .await;
 
-        assert_eq!(result, vec!["0xaaa", "0xbbb"]);
+        assert_eq!(result, vec!["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]);
+    }
+
+    #[tokio::test]
+    async fn non_address_never_reaches_silk() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "addresses": ["0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"] })))
+            .mount(&server)
+            .await;
+        let cfg = config(server.uri(), true);
+        let client = reqwest::Client::new();
+        let long = format!("0x{}", "a".repeat(40));
+
+        for address in ["../../admin".to_string(), format!("0x{}", "a".repeat(39)), "a".repeat(40),
+                        format!("{long}/../x"), format!("{long}\n"), format!("0x{}", "g".repeat(40))] {
+            let cache = empty_cache();
+            let result = fetch_linked(&address, &cfg, &client, &cache, CACHE_TTL).await;
+            assert_eq!(result, vec![address.clone()], "{address:?}");
+        }
+        assert_eq!(server.received_requests().await.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn failure_with_expired_last_good_returns_solo() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(503))
+            .mount(&server)
+            .await;
+        let cache = empty_cache();
+        let Some(long_ago) = Instant::now().checked_sub(LAST_GOOD_TTL + Duration::from_secs(1)) else {
+            return; // Clock too close to boot to build an old Instant.
+        };
+        cache.lock().unwrap().insert(
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+            (vec!["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(), "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string()], long_ago),
+        );
+
+        let result = fetch_linked(
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            &config(server.uri(), true),
+            &reqwest::Client::new(),
+            &cache,
+            CACHE_TTL,
+        )
+        .await;
+
+        assert_eq!(result, vec!["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()]);
+    }
+
+    #[test]
+    fn insert_bounded_caps_the_cache() {
+        let mut cache = HashMap::new();
+        for i in 0..MAX_CACHE_ENTRIES {
+            cache.insert(format!("0x{i:040x}"), (Vec::new(), Instant::now()));
+        }
+        insert_bounded(&mut cache, "0xnew", vec!["0xnew".to_string()]);
+        assert!(cache.len() <= MAX_CACHE_ENTRIES);
+        assert!(cache.contains_key("0xnew"));
+
+        // Refreshing an existing key never evicts others.
+        let mut small = HashMap::new();
+        insert_bounded(&mut small, "0xa", Vec::new());
+        insert_bounded(&mut small, "0xa", Vec::new());
+        assert_eq!(small.len(), 1);
     }
 
     #[tokio::test]
@@ -296,7 +391,7 @@ mod tests {
         let cache = empty_cache();
 
         let result = fetch_linked(
-            "0xaaa",
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             &config(server.uri(), true),
             &reqwest::Client::new(),
             &cache,
@@ -304,7 +399,7 @@ mod tests {
         )
         .await;
 
-        assert_eq!(result, vec!["0xaaa".to_string()]);
+        assert_eq!(result, vec!["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()]);
     }
 
     #[tokio::test]
@@ -317,7 +412,7 @@ mod tests {
         let cache = empty_cache();
 
         fetch_linked(
-            "0xaaa",
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             &config(server.uri(), true),
             &reqwest::Client::new(),
             &cache,

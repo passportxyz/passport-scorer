@@ -21,6 +21,7 @@ Operational behaviour:
 from __future__ import annotations
 
 import logging
+import re
 
 import aiohttp
 from django.conf import settings
@@ -40,16 +41,27 @@ REQUEST_TIMEOUT = 2.0
 FRESH_KEY = "linked_wallets:v1:{}"
 LAST_GOOD_KEY = "linked_wallets:lastgood:{}"
 
+# The address goes into the Silk URL path, sent with the service key, so only a
+# plain EVM address may reach it (Silk applies the same rule and returns 400).
+ADDRESS_RE = re.compile(r"^0x[0-9a-f]{40}$")
+
 
 async def get_linked_addresses(address: str) -> list[str]:
     """Return all addresses linked to ``address`` (always lowercased).
 
-    Returns ``[address]`` when the killswitch is off, when Silk reports no
-    linkage, or when Silk is unreachable and no cached value exists.
+    Returns ``[address]`` when the killswitch is off, when the address is not a
+    0x-prefixed EVM address, when Silk reports no linkage, or when Silk is
+    unreachable and no cached value exists.
     """
     address = address.lower()
 
     if not getattr(settings, "LINKED_WALLETS_SOURCE_ENABLED", False):
+        return [address]
+
+    if not ADDRESS_RE.fullmatch(address):
+        logger.warning(
+            "linked wallets: not an EVM address, treating as solo: %r", address
+        )
         return [address]
 
     fresh_key = FRESH_KEY.format(address)

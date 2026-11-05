@@ -457,41 +457,63 @@ def linkage_settings(settings):
 async def test_killswitch_off_returns_solo_without_fetching(settings, mocker):
     """Killswitch off: no HTTP call, solo set returned."""
     settings.LINKED_WALLETS_SOURCE_ENABLED = False
-    fetch = _patch_fetch(mocker, returns=["0xaaa", "0xbbb"])
+    fetch = _patch_fetch(mocker, returns=["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"])
 
     from account.linkage import get_linked_addresses
 
-    result = await get_linked_addresses("0xAaA")
+    result = await get_linked_addresses("0xAaAAaAAaAAaAAaAAaAAaAAaAAaAAaAAaAAaAAaAA")
 
-    assert result == ["0xaaa"]
+    assert result == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+    fetch.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "address",
+    [
+        "../../admin",
+        "0x" + "a" * 39,
+        "a" * 40,
+        "0x" + "a" * 40 + "\n",
+        "0x" + "a" * 40 + "/../x",
+    ],
+)
+async def test_non_address_never_reaches_silk(mocker, address):
+    """The address goes into the Silk URL path with the service key: anything but
+    a plain 0x EVM address is treated as solo without a request."""
+    fetch = _patch_fetch(mocker, returns=["0x" + "b" * 40])
+
+    from account.linkage import get_linked_addresses
+
+    assert await get_linked_addresses(address) == [address.lower()]
     fetch.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_killswitch_toggle_on_to_off(settings, mocker):
     """Flipping the killswitch off mid-process is picked up on the next call."""
-    fetch = _patch_fetch(mocker, returns=["0xaaa", "0xbbb"])
+    fetch = _patch_fetch(mocker, returns=["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"])
 
     from account.linkage import get_linked_addresses
 
-    assert await get_linked_addresses("0xaaa") == ["0xaaa", "0xbbb"]
+    assert await get_linked_addresses("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]
 
     settings.LINKED_WALLETS_SOURCE_ENABLED = False
-    assert await get_linked_addresses("0xaaa") == ["0xaaa"]
+    assert await get_linked_addresses("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
 
 
 @pytest.mark.asyncio
 async def test_happy_path_returns_normalized_cluster_and_caches(mocker):
     """A multi-address cluster is lowercased, deduped, sorted, and cached."""
-    fetch = _patch_fetch(mocker, returns=["0xCCC", "0xAAA", "0xBBB", "0xbbb"])
+    fetch = _patch_fetch(mocker, returns=["0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC", "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"])
 
     from account.linkage import FRESH_KEY, get_linked_addresses
 
-    result = await get_linked_addresses("0xAAA")
+    result = await get_linked_addresses("0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 
-    assert result == ["0xaaa", "0xbbb", "0xccc"]
-    fetch.assert_awaited_once_with("0xaaa")
-    assert await cache.aget(FRESH_KEY.format("0xaaa")) == ["0xaaa", "0xbbb", "0xccc"]
+    assert result == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "0xcccccccccccccccccccccccccccccccccccccccc"]
+    fetch.assert_awaited_once_with("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    assert await cache.aget(FRESH_KEY.format("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")) == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "0xcccccccccccccccccccccccccccccccccccccccc"]
 
 
 @pytest.mark.asyncio
@@ -501,33 +523,33 @@ async def test_empty_cluster_returns_solo_and_negative_caches(mocker):
 
     from account.linkage import FRESH_KEY, get_linked_addresses
 
-    assert await get_linked_addresses("0xaaa") == ["0xaaa"]
-    assert await cache.aget(FRESH_KEY.format("0xaaa")) == ["0xaaa"]
+    assert await get_linked_addresses("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+    assert await cache.aget(FRESH_KEY.format("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")) == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
 
     # Second call is served from the negative cache without re-fetching.
-    assert await get_linked_addresses("0xaaa") == ["0xaaa"]
+    assert await get_linked_addresses("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
     fetch.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_solo_silk_user_single_element(mocker):
     """A solo Silk user (silkAddress set, no externals) is a real cluster of size 1."""
-    _patch_fetch(mocker, returns=["0xaaa"])
+    _patch_fetch(mocker, returns=["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"])
 
     from account.linkage import get_linked_addresses
 
-    assert await get_linked_addresses("0xAAA") == ["0xaaa"]
+    assert await get_linked_addresses("0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA") == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
 
 
 @pytest.mark.asyncio
 async def test_cache_hit_skips_second_fetch(mocker):
     """A second call within the freshness window hits the cache, no HTTP call."""
-    fetch = _patch_fetch(mocker, returns=["0xaaa", "0xbbb"])
+    fetch = _patch_fetch(mocker, returns=["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"])
 
     from account.linkage import get_linked_addresses
 
-    await get_linked_addresses("0xaaa")
-    await get_linked_addresses("0xaaa")
+    await get_linked_addresses("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    await get_linked_addresses("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 
     fetch.assert_awaited_once()
 
@@ -537,16 +559,16 @@ async def test_cache_key_is_per_address(mocker):
     """Two different addresses do not share a cache entry."""
     fetch = AsyncMock(
         side_effect=lambda addr: {
-            "0xaaa": ["0xaaa", "0xbbb"],
-            "0xccc": ["0xccc", "0xddd"],
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],
+            "0xcccccccccccccccccccccccccccccccccccccccc": ["0xcccccccccccccccccccccccccccccccccccccccc", "0xdddddddddddddddddddddddddddddddddddddddd"],
         }[addr]
     )
     mocker.patch("account.linkage._fetch_from_silk", fetch)
 
     from account.linkage import get_linked_addresses
 
-    assert await get_linked_addresses("0xaaa") == ["0xaaa", "0xbbb"]
-    assert await get_linked_addresses("0xccc") == ["0xccc", "0xddd"]
+    assert await get_linked_addresses("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]
+    assert await get_linked_addresses("0xcccccccccccccccccccccccccccccccccccccccc") == ["0xcccccccccccccccccccccccccccccccccccccccc", "0xdddddddddddddddddddddddddddddddddddddddd"]
     assert fetch.await_count == 2
 
 
@@ -555,15 +577,15 @@ async def test_failure_with_stale_cache_serves_stale(mocker):
     """5xx after a prior success: serve the last good value, not solo."""
     from account.linkage import FRESH_KEY, get_linked_addresses
 
-    fetch = _patch_fetch(mocker, returns=["0xaaa", "0xbbb"])
-    assert await get_linked_addresses("0xaaa") == ["0xaaa", "0xbbb"]
+    fetch = _patch_fetch(mocker, returns=["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"])
+    assert await get_linked_addresses("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]
 
     # Simulate the freshness key expiring; last-good survives for stale fallback.
-    await cache.adelete(FRESH_KEY.format("0xaaa"))
+    await cache.adelete(FRESH_KEY.format("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
     fetch.side_effect = aiohttp.ClientError("503")
     fetch.return_value = None
 
-    assert await get_linked_addresses("0xaaa") == ["0xaaa", "0xbbb"]
+    assert await get_linked_addresses("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]
 
 
 @pytest.mark.asyncio
@@ -573,7 +595,7 @@ async def test_failure_with_no_cache_falls_back_to_solo(mocker):
 
     from account.linkage import get_linked_addresses
 
-    assert await get_linked_addresses("0xAAA") == ["0xaaa"]
+    assert await get_linked_addresses("0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA") == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
 
 
 @pytest.mark.asyncio
@@ -584,7 +606,7 @@ async def test_unauthorized_falls_back_like_any_failure(mocker):
 
     from account.linkage import get_linked_addresses
 
-    assert await get_linked_addresses("0xaaa") == ["0xaaa"]
+    assert await get_linked_addresses("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
 
 
 @pytest.mark.asyncio
@@ -594,7 +616,7 @@ async def test_timeout_falls_back_to_solo(mocker):
 
     from account.linkage import get_linked_addresses
 
-    assert await get_linked_addresses("0xaaa") == ["0xaaa"]
+    assert await get_linked_addresses("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
 
 
 @pytest.mark.asyncio
@@ -604,10 +626,10 @@ async def test_failure_does_not_poison_cache(mocker):
 
     from account.linkage import FRESH_KEY, LAST_GOOD_KEY, get_linked_addresses
 
-    await get_linked_addresses("0xaaa")
+    await get_linked_addresses("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 
-    assert await cache.aget(FRESH_KEY.format("0xaaa")) is None
-    assert await cache.aget(LAST_GOOD_KEY.format("0xaaa")) is None
+    assert await cache.aget(FRESH_KEY.format("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")) is None
+    assert await cache.aget(LAST_GOOD_KEY.format("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")) is None
 
 
 class _FakeResp:
@@ -652,16 +674,16 @@ class _FakeSession:
 @pytest.mark.asyncio
 async def test_fetch_from_silk_builds_request_and_parses_response(mocker):
     """Exercise the real _fetch_from_silk: URL, service-key header, JSON parsing."""
-    session = _FakeSession(_FakeResp(200, {"addresses": ["0xaaa", "0xbbb"]}))
+    session = _FakeSession(_FakeResp(200, {"addresses": ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]}))
     mocker.patch("account.linkage.aiohttp.ClientSession", return_value=session)
 
     from account.linkage import _fetch_from_silk
 
-    result = await _fetch_from_silk("0xaaa")
+    result = await _fetch_from_silk("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 
-    assert result == ["0xaaa", "0xbbb"]
+    assert result == ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]
     assert (
         session.requested_url
-        == "https://silk.test/api/public/linked-wallets/by-address/0xaaa"
+        == "https://silk.test/api/public/linked-wallets/by-address/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     )
     assert session.requested_headers == {"X-Service-Key": "svc-key"}
