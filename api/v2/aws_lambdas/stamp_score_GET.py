@@ -31,7 +31,12 @@ def _handler(event, _context, request, user_account, body):
     except ValueError:
         pass
 
-    return async_to_sync(handle_scoring_for_account)(address, scorer_id, user_account)
+    return async_to_sync(handle_scoring_for_account)(
+        address,
+        scorer_id,
+        user_account,
+        include_linked_wallets=request.api_key.linked_wallet_breakdown,
+    )
 
 
 def handler(*args, **kwargs):

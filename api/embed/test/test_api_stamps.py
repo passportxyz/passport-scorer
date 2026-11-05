@@ -28,7 +28,7 @@ expiration_dates = [
 ]
 
 providers = ["Ens", "Google", "Gitcoin"]
-mock_address = "0x0000000000000000000000000000000000000000"
+mock_address = "0x0000000000000000000000000000000000000001"
 
 trusted_issuer = [
     issuer for issuer in settings.TRUSTED_IAM_ISSUERS if issuer.startswith("did:ethr:")
@@ -156,7 +156,7 @@ class StampsApiTestCase(TestCase):
             timezone.utc
         ) < timedelta(seconds=2)
         assert data["score"] == {
-            "address": "0x0000000000000000000000000000000000000000",
+            "address": "0x0000000000000000000000000000000000000001",
             "error": None,
             "expiration_timestamp": min(expiration_dates).isoformat(),
             "passing_score": True,
@@ -214,7 +214,7 @@ class StampsApiTestCase(TestCase):
             timezone.utc
         ) < timedelta(seconds=2)
         assert data["score"] == {
-            "address": "0x0000000000000000000000000000000000000000",
+            "address": "0x0000000000000000000000000000000000000001",
             "error": None,
             "expiration_timestamp": min(expiration_dates).isoformat(),
             "passing_score": True,
@@ -276,7 +276,7 @@ class StampsApiTestCase(TestCase):
             timezone.utc
         ) < timedelta(seconds=2)
         assert data["score"] == {
-            "address": "0x0000000000000000000000000000000000000000",
+            "address": "0x0000000000000000000000000000000000000001",
             "error": None,
             "expiration_timestamp": min(expiration_dates).isoformat(),
             "passing_score": True,

@@ -75,10 +75,31 @@ def _parse_expiration(exp_date) -> Optional[datetime]:
     return None
 
 
-async def handle_scoring_for_account(address: str, scorer_id: str, user_account):
+async def handle_scoring_for_account(
+    address: str,
+    scorer_id: str,
+    user_account,
+    include_linked_wallets: bool = False,
+):
     # Get community object
     user_community = await aget_scorer_by_id(scorer_id, user_account)
-    return await ahandle_scoring(address, user_community)
+    response = await ahandle_scoring(address, user_community)
+    if include_linked_wallets:
+        return response
+    return hide_linked_wallets(response)
+
+
+def hide_linked_wallets(response: V2ScoreResponse) -> V2ScoreResponse:
+    """Drop every field that names another wallet in the address's linked group.
+
+    Linked wallets are private (internal-docs#3587): callers see the score and
+    the stamps, but not which wallets are linked or which one is canonical.
+    """
+    stamps = {
+        provider: stamp.model_copy(update={"source_wallet": None})
+        for provider, stamp in (response.stamps or {}).items()
+    }
+    return response.model_copy(update={"linked_score": None, "stamps": stamps})
 
 
 async def ahandle_scoring(address: str, community):
@@ -206,10 +227,9 @@ async def _score_wallet_group(
             defaults=dict(score=None, status=Score.Status.PROCESSING),
         )
         await ascore_passport(community, db_passport, addr, score)
-        # Save non-canonical wallets immediately; defer canonical save until after merge
-        # to avoid a spurious SCORE_UPDATE event with pre-merge data
-        if addr != canonical_address:
-            await score.asave()
+        # Nothing is saved yet: every save writes a SCORE_UPDATE event, which
+        # /history returns. The canonical row is saved after the merge, and each
+        # linked wallet's row in its hidden form (_save_hidden_member_score).
         wallet_scores[addr] = score
 
     # Merge stamps by provider: take first valid (non-deduped) stamp per provider
@@ -218,14 +238,26 @@ async def _score_wallet_group(
         a for a in group_addresses if a != canonical_address
     ]
 
+    # Each wallet's own stamps, taken before the canonical row is overwritten
+    # with the merged set below.
+    wallet_stamps: Dict[str, Dict[str, Any]] = {
+        addr: wallet_scores[addr].stamps
+        for addr in ordered_addresses
+        if wallet_scores[addr].stamps
+    }
+
     merged_stamps: Dict[str, Any] = {}
+    # Which wallet each merged stamp came from. Kept out of the saved stamps so
+    # the Score row and its SCORE_UPDATE event never hold other wallets' addresses.
+    stamp_sources: Dict[str, str] = {}
     for addr in ordered_addresses:
         score = wallet_scores[addr]
         if not score.stamps:
             continue
         for provider, stamp_data in score.stamps.items():
             if provider not in merged_stamps and not stamp_data.get("dedup"):
-                merged_stamps[provider] = {**stamp_data, "source_wallet": addr}
+                merged_stamps[provider] = stamp_data
+                stamp_sources[provider] = addr
 
     # Build combined score from merged stamps using already-computed stamp_scores
     # from individual wallet scoring (avoids duplicating weight-loading logic)
@@ -269,14 +301,13 @@ async def _score_wallet_group(
         canonical_score.expiration_date = earliest_expiration
     await canonical_score.asave()
 
-    # Build per-wallet stamp breakdown for UI visibility
-    wallet_stamps: Dict[str, Dict[str, Any]] = {}
-    for addr in ordered_addresses:
-        ws = wallet_scores[addr]
-        if ws.stamps:
-            wallet_stamps[addr] = ws.stamps
+    for addr in group_addresses:
+        if addr != canonical_address:
+            await _save_hidden_member_score(wallet_scores[addr], canonical_score)
 
     response = format_v2_score_response(canonical_score, scorer_type)
+    for provider, stamp in response.stamps.items():
+        stamp.source_wallet = stamp_sources.get(provider)
     response.linked_score = LinkedScoreResponse(
         address=canonical_address,
         score=response.score,
@@ -288,6 +319,30 @@ async def _score_wallet_group(
         wallet_stamps=wallet_stamps,
     )
     return response
+
+
+async def _save_hidden_member_score(score: Score, canonical_score: Score) -> None:
+    """Store a linked (non-canonical) wallet's row as its API response shows it.
+
+    The live response gives the wallet 0 and no stamps (_build_non_canonical_response).
+    Its own score must not be stored either: the row's SCORE_UPDATE event is what
+    /history returns, so the wallet's own score there would show it is in a group.
+    """
+    threshold = (canonical_score.evidence or {}).get("threshold", "20")
+    score.score = Decimal(0)
+    score.evidence = {
+        "type": "ThresholdScoreCheck",
+        "success": False,
+        "rawScore": "0",
+        "threshold": threshold,
+    }
+    score.stamps = {}
+    score.stamp_scores = {}
+    score.error = None
+    score.status = Score.Status.DONE
+    score.last_score_timestamp = canonical_score.last_score_timestamp
+    score.expiration_date = canonical_score.expiration_date
+    await score.asave()
 
 
 def _build_non_canonical_response(
@@ -373,7 +428,7 @@ def format_v2_score_response(
     },
     operation_id="v2_api_api_stamps_a_submit_passport",
     summary="Retrieve Stamp-based unique humanity score for a specified address",
-    description="""This is the primary endpoint that integrators should use. This endpoint will return the latest score and Stamp data for a single address.<br /><br /><a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
+    description="""This is the primary endpoint that integrators should use. This endpoint will return the latest score and Stamp data for a single address.<br /><br /><a href="https://docs.passport.human.tech/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
     tags=["Stamp API"],
 )
 @atrack_apikey_usage(track_response=True)
@@ -387,7 +442,12 @@ async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreRes
         pass
 
     try:
-        return await handle_scoring_for_account(address, str(scorer_id), request.auth)
+        return await handle_scoring_for_account(
+            address,
+            str(scorer_id),
+            request.auth,
+            include_linked_wallets=request.api_key.linked_wallet_breakdown,
+        )
     except APIException as e:
         raise e
     except Exception as e:
@@ -440,7 +500,7 @@ class EventFilter(django_filters.FilterSet):
     },
     operation_id="v2_api_api_stamps_get_score_history",
     summary="Retrieve historical Stamp-based unique humanity score for a specified address",
-    description="""This endpoint will return the historical score and Stamp data for a single address at a specified time. **Note:** To access this endpoint, you must submit your use case and be approved by the Passport team. To do so, please fill out the following form, making sure to provide a detailed description of your use case. The Passport team typically reviews and responds to form responses within 48 hours.<br /><br />[Request access](https://forms.gle/4GyicBfhtHW29eEu8)<br /><br /><a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
+    description="""This endpoint will return the historical score and Stamp data for a single address at a specified time. **Note:** To access this endpoint, you must submit your use case and be approved by the Passport team. To do so, please fill out the following form, making sure to provide a detailed description of your use case. The Passport team typically reviews and responds to form responses within 48 hours.<br /><br />[Request access](https://forms.gle/4GyicBfhtHW29eEu8)<br /><br /><a href="https://docs.passport.human.tech/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
     tags=["Stamp API"],
 )
 @track_apikey_usage(track_response=False)
@@ -518,7 +578,7 @@ def get_score_history(
 @api_router.get(
     "/stamps/metadata",
     summary="Receive all Stamps available in Passport",
-    description="""<a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
+    description="""<a href="https://docs.passport.human.tech/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
     auth=ApiKey(),
     response={
         200: List[StampDisplayResponse],
@@ -543,7 +603,7 @@ def stamp_display(request) -> List[StampDisplayResponse]:
     },
     operation_id="v2_api_api_stamps_get_passport_stamps",
     summary="Retrieve the Stamps that a specified account has verified.",
-    description="""Use this endpoint to retrieve the Stamps verified by a specified address.<br /><br />This endpoint will return a `CursorPaginatedStampCredentialResponse`.<br /><br /><a href="https://docs.passport.xyz/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
+    description="""Use this endpoint to retrieve the Stamps verified by a specified address.<br /><br />This endpoint will return a `CursorPaginatedStampCredentialResponse`.<br /><br /><a href="https://docs.passport.human.tech/building-with-passport/passport-api-v2/api-reference" target="_blank">Docs</a>""",
     exclude_unset=True,
     tags=["Stamp API"],
 )

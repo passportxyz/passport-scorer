@@ -23,7 +23,7 @@ async function fetchScore(address, scorerId) {
     },
   };
   const { data } = await axios.get(
-    `https://api.scorer.gitcoin.co/registry/score/${scorerId}/${address}`,
+    `https://api.passport.xyz/registry/score/${scorerId}/${address}`,
     axiosGetScoreConfig
   );
 

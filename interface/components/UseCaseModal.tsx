@@ -356,7 +356,7 @@ const UseCaseDetails = ({
           />
           <FormHelperText>
             We recommend using a score threshold of 20. Learn more about{" "}
-            <a className="text-purple-gitcoinpurple" href="https://docs.passport.xyz/building-with-passport/stamps/major-concepts/scoring-thresholds">
+            <a className="text-purple-gitcoinpurple" href="https://docs.passport.human.tech/building-with-passport/stamps/major-concepts/scoring-thresholds">
               score thresholds
             </a>
             .

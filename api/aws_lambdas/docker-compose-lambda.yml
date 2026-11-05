@@ -57,7 +57,7 @@ services:
     build: verifier
 
   postgres:
-    image: postgres:12.3-alpine
+    image: postgres:16-alpine
     restart: unless-stopped
 
     environment:

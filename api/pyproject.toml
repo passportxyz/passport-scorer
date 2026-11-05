@@ -8,7 +8,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
-django = "==4.2.6"
+django = "==5.2.*"
 didkit = "*"
 uritemplate = "*"
 django-environ = "*"
@@ -17,7 +17,7 @@ django-ninja-jwt = "*"
 django-ninja-extra = "*"
 web3 = "*"
 psycopg2-binary = "*"
-djangorestframework-api-key = "==2.*"
+djangorestframework-api-key = "==3.*"
 requests = "*"
 dag-cbor = "*"
 django-ratelimit = "*"

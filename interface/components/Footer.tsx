@@ -49,7 +49,7 @@ const Footer = ({ mode, className, hideLinks }: FooterProps): JSX.Element => {
           <img src={assets.githubLogo} alt="Github Logo" />
         </a>
         <a
-          href="https://docs.passport.xyz"
+          href="https://docs.passport.human.tech"
           target="_blank"
           rel="noopener noreferrer"
           className=""

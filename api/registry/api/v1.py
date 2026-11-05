@@ -593,7 +593,7 @@ def get_passport_stamps(
     summary="Programmatically create a generic scorer",
     description="""This endpoint allows the creation of new scorers.\n
 You must have the correct permissions to make requests to this endpoint.\n
-Anyone can go to https://www.scorer.gitcoin.co/ and create a new scorer via the UI.\n
+Anyone can go to https://developer.passport.xyz/ and create a new scorer via the UI.\n
 """,
 )
 def create_generic_scorer(request, payload: GenericCommunityPayload):

@@ -1,10 +1,6 @@
-## 📚 Mim Knowledge System
+@wiki/index.md
 
-@.claude/knowledge/INSTRUCTIONS.md
-
-@.claude/knowledge/KNOWLEDGE_MAP_CLAUDE.md
-
-## 🦀 Rust Scorer Development
+## Rust Scorer Development
 
 Before compiling the Rust scorer, run this to increase file descriptor limit (didkit requires many open files):
 ```bash

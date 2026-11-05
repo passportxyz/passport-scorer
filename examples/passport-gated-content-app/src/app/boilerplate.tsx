@@ -6,9 +6,9 @@ const APIKEY = process.env.NEXT_PUBLIC_GC_API_KEY
 const SCORERID = process.env.NEXT_PUBLIC_GC_SCORER_ID
 
 // endpoint for submitting passport
-const SUBMIT_PASSPORT_URI = 'https://api.scorer.gitcoin.co/registry/submit-passport'
+const SUBMIT_PASSPORT_URI = 'https://api.passport.xyz/registry/submit-passport'
 // endpoint for getting the signing message
-const SIGNING_MESSAGE_URI = 'https://api.scorer.gitcoin.co/registry/signing-message'
+const SIGNING_MESSAGE_URI = 'https://api.passport.xyz/registry/signing-message'
 // score needed to see hidden message
 const thresholdNumber = 20
 const headers = APIKEY ? ({
@@ -137,7 +137,7 @@ export default function Passport() {
     /* this is the UI for the app */
     <div style={styles.main}>
       <h1 style={styles.heading}>Are you a trusted user? 🫶</h1>
-      <p style={styles.configurePassport}>Configure your passport <a style={styles.linkStyle} target="_blank" href="https://passport.gitcoin.co/#/dashboard">here</a></p>
+      <p style={styles.configurePassport}>Configure your passport <a style={styles.linkStyle} target="_blank" href="https://app.passport.xyz/#/dashboard">here</a></p>
       <p style={styles.configurePassport}>Once you've added more stamps to your passport, submit your passport again to recalculate your score.</p>
       <p style={styles.configurePassport}>If you have a score above 20, a Github stamp AND a Lens stamp, you are a trusted user! Click the Check Users button to find out!</p>
       <div style={styles.buttonContainer}>
