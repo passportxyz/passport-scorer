@@ -703,57 +703,22 @@ async fn score_wallet_group(
     // writes a SCORE_UPDATE event, which /history returns. The rows are saved
     // once, after the merge (save_group_scores).
     let mut wallet_responses: HashMap<String, V2ScoreResponse> = HashMap::new();
-    let mut canonical_timestamp: Option<DateTime<Utc>> = None;
+    // Each wallet's own scoring time: the canonical's for its merged row, and each
+    // linked wallet's for its hidden row (sharing the canonical's would pair them).
+    let mut wallet_timestamps: HashMap<String, DateTime<Utc>> = HashMap::new();
     for addr in group_addresses {
         let (response, timestamp) = score_address(addr, scorer_id, pool, SaveScore::No).await?;
-        if *addr == canonical {
-            canonical_timestamp = Some(timestamp);
-        }
+        wallet_timestamps.insert(addr.clone(), timestamp);
         wallet_responses.insert(addr.clone(), response);
     }
-    let canonical_timestamp = canonical_timestamp
+    let canonical_timestamp = *wallet_timestamps.get(&canonical)
         .ok_or_else(|| DomainError::Internal("Canonical wallet is not in the group".into()))?;
 
-    // Merge stamps by provider (canonical wallet's stamps take priority)
-    let mut merged_stamps: HashMap<String, V2StampScoreResponse> = HashMap::new();
-
-    // Process canonical first
+    // Canonical first, so its stamps take priority.
     let mut ordered: Vec<&String> = vec![&canonical];
     ordered.extend(group_addresses.iter().filter(|a| **a != canonical));
-
-    for addr in &ordered {
-        if let Some(response) = wallet_responses.get(*addr) {
-            for (provider, stamp_data) in &response.stamps {
-                if !merged_stamps.contains_key(provider) && !stamp_data.dedup {
-                    merged_stamps.insert(provider.clone(), stamp_data.clone());
-                }
-            }
-        }
-    }
-
-    // Build combined score from merged stamps using already-computed stamp_scores
-    // from individual wallet scoring (avoids duplicating weight-loading logic)
-    let mut combined_raw_score = Decimal::from(0);
-    let mut merged_stamp_scores = serde_json::Map::new();
-    for (provider, _) in &merged_stamps {
-        // Find this provider's weight from whichever wallet contributed the stamp
-        let mut weight = Decimal::from(0);
-        for addr in &ordered {
-            if let Some(response) = wallet_responses.get(*addr) {
-                if let Some(stamp) = response.stamps.get(provider) {
-                    if let Ok(w) = stamp.score.parse::<Decimal>() {
-                        weight = w;
-                        break;
-                    }
-                }
-            }
-        }
-        combined_raw_score += weight;
-        merged_stamp_scores.insert(
-            provider.clone(),
-            serde_json::Value::String(format!("{:.5}", weight)),
-        );
-    }
+    let (merged_stamps, combined_raw_score, merged_stamp_scores) =
+        merge_group_stamps(&ordered, &wallet_responses);
 
     // Still need threshold from scorer config
     let scorer_config = queries::load_scorer_config(pool, scorer_id)
@@ -795,7 +760,7 @@ async fn score_wallet_group(
             }))
             .collect(),
     };
-    save_group_scores(pool, scorer_id, &canonical, group_addresses, &canonical_fields).await?;
+    save_group_scores(pool, scorer_id, &canonical, group_addresses, &canonical_fields, &wallet_timestamps).await?;
 
     // Build response with merged data
     let canonical_base = wallet_responses.get(&canonical)
@@ -821,13 +786,16 @@ async fn score_wallet_group(
             linked_score: None,
         })
     } else {
-        // Non-canonical: return score=0 with linked_score
+        // Non-canonical: its hidden row as stored (score 0, no stamps, its own
+        // scoring time, no expiry), with the group in linked_score.
+        let own_ts = wallet_responses.get(address)
+            .and_then(|r| r.last_score_timestamp.clone());
         Ok(V2ScoreResponse {
             address: address.to_string(),
             score: Some("0.00000".to_string()),
             passing_score: false,
-            last_score_timestamp: last_ts.clone(),
-            expiration_timestamp: exp_ts.clone(),
+            last_score_timestamp: own_ts,
+            expiration_timestamp: None,
             threshold: threshold_str.clone(),
             error: None,
             stamps: HashMap::new(),
@@ -846,6 +814,40 @@ async fn score_wallet_group(
     }
 }
 
+/// Merge a group's stamps by provider: for each provider, the first copy (in
+/// `ordered`, canonical first) that was not deduplicated. The group's raw score
+/// is the sum of the kept copies' weights, from the per-wallet scoring.
+fn merge_group_stamps(
+    ordered: &[&String],
+    wallet_responses: &HashMap<String, V2ScoreResponse>,
+) -> (HashMap<String, V2StampScoreResponse>, Decimal, serde_json::Map<String, serde_json::Value>) {
+    let mut merged_stamps: HashMap<String, V2StampScoreResponse> = HashMap::new();
+    for addr in ordered {
+        if let Some(response) = wallet_responses.get(*addr) {
+            for (provider, stamp_data) in &response.stamps {
+                if !merged_stamps.contains_key(provider) && !stamp_data.dedup {
+                    merged_stamps.insert(provider.clone(), stamp_data.clone());
+                }
+            }
+        }
+    }
+
+    let mut combined_raw_score = Decimal::from(0);
+    let mut merged_stamp_scores = serde_json::Map::new();
+    for (provider, stamp) in &merged_stamps {
+        // The weight of the copy that was kept. Looking the provider up wallet by
+        // wallet instead can land on another wallet's deduplicated copy (score 0)
+        // and drop the stamp's weight from the group.
+        let weight = stamp.score.parse::<Decimal>().unwrap_or_default();
+        combined_raw_score += weight;
+        merged_stamp_scores.insert(
+            provider.clone(),
+            serde_json::Value::String(format!("{:.5}", weight)),
+        );
+    }
+    (merged_stamps, combined_raw_score, merged_stamp_scores)
+}
+
 /// Save a group's Score rows in one transaction: the canonical wallet's merged
 /// score, and each linked wallet's row in its hidden form.
 async fn save_group_scores(
@@ -854,6 +856,7 @@ async fn save_group_scores(
     canonical: &str,
     group_addresses: &[String],
     canonical_fields: &DjangoScoreFields,
+    wallet_timestamps: &HashMap<String, DateTime<Utc>>,
 ) -> Result<(), DomainError> {
     let mut tx = pool.begin().await
         .map_err(|e| DomainError::Database(e.to_string()))?;
@@ -863,8 +866,10 @@ async fn save_group_scores(
         .map_err(|e| DomainError::Database(e.to_string()))?;
     save_score_with_event(&mut tx, canonical, scorer_id, passport_id, canonical_fields).await?;
 
-    let member_fields = hidden_member_score_fields(canonical_fields);
     for addr in group_addresses.iter().filter(|a| a.as_str() != canonical) {
+        let scored_at = *wallet_timestamps.get(addr)
+            .ok_or_else(|| DomainError::Internal("Linked wallet was not scored".into()))?;
+        let member_fields = hidden_member_score_fields(canonical_fields, scored_at);
         let passport_id = queries::scoring::upsert_passport_record(&mut tx, addr, scorer_id)
             .await
             .map_err(|e| DomainError::Database(e.to_string()))?;
@@ -882,14 +887,21 @@ async fn save_group_scores(
 /// be stored either: the row's SCORE_UPDATE event is what /history returns, so
 /// the wallet's own score there would show it is in a group. Mirrors Python's
 /// `_save_hidden_member_score` (`api/v2/api/api_stamps.py`).
-fn hidden_member_score_fields(canonical_fields: &DjangoScoreFields) -> DjangoScoreFields {
+///
+/// `scored_at` is the wallet's own scoring time, and there is no expiry, as for
+/// any wallet with no valid stamps: copying the canonical's timestamps would
+/// give every wallet in the group identical values, which pairs them.
+fn hidden_member_score_fields(
+    canonical_fields: &DjangoScoreFields,
+    scored_at: DateTime<Utc>,
+) -> DjangoScoreFields {
     let threshold = canonical_fields.evidence.get("threshold").cloned()
         .unwrap_or_else(|| serde_json::Value::String("20".to_string()));
     DjangoScoreFields {
         score: Decimal::from(0),
         status: "DONE".to_string(),
-        last_score_timestamp: canonical_fields.last_score_timestamp,
-        expiration_date: canonical_fields.expiration_date,
+        last_score_timestamp: scored_at,
+        expiration_date: None,
         error: None,
         evidence: serde_json::json!({
             "type": "ThresholdScoreCheck",
@@ -968,6 +980,7 @@ async fn get_or_set_canonical(
 #[cfg(test)]
 mod linked_wallet_privacy_tests {
     use super::*;
+    use rust_decimal_macros::dec;
     use serde_json::json;
 
     fn response_with_linked_score() -> V2ScoreResponse {
@@ -992,8 +1005,48 @@ mod linked_wallet_privacy_tests {
         assert!(!serde_json::to_string(&hidden).unwrap().contains("0xcanonical"));
     }
 
+    fn wallet_with(stamps: &[(&str, &str, bool)]) -> V2ScoreResponse {
+        V2ScoreResponse {
+            address: "0x".to_string(),
+            score: None,
+            passing_score: false,
+            last_score_timestamp: None,
+            expiration_timestamp: None,
+            threshold: "20.00000".to_string(),
+            error: None,
+            stamps: stamps.iter().map(|(provider, score, dedup)| (provider.to_string(), V2StampScoreResponse {
+                score: score.to_string(),
+                dedup: *dedup,
+                expiration_date: None,
+            })).collect(),
+            points_data: None,
+            possible_points_data: None,
+            linked_score: None,
+        }
+    }
+
+    /// The canonical's own copy of Google was deduplicated (score 0); the other
+    /// wallet's copy counts. The group gets the counted copy's weight.
     #[test]
-    fn hidden_member_row_has_no_score_and_the_canonical_timestamps() {
+    fn merge_uses_the_weight_of_the_copy_it_keeps() {
+        let canonical = "0xcanonical".to_string();
+        let member = "0xmember".to_string();
+        let responses = HashMap::from([
+            (canonical.clone(), wallet_with(&[("Google", "0.00000", true), ("Twitter", "15.00000", false)])),
+            (member.clone(), wallet_with(&[("Google", "10.00000", false), ("Twitter", "15.00000", false)])),
+        ]);
+
+        let (merged, raw, stamp_scores) = merge_group_stamps(&[&canonical, &member], &responses);
+
+        assert_eq!(raw, dec!(25));
+        assert_eq!(merged["Google"].score, "10.00000");
+        assert!(!merged["Google"].dedup);
+        assert_eq!(stamp_scores["Google"], json!("10.00000"));
+        assert_eq!(stamp_scores["Twitter"], json!("15.00000"));
+    }
+
+    #[test]
+    fn hidden_member_row_has_no_score_and_its_own_timestamps() {
         let now = Utc::now();
         let canonical = DjangoScoreFields {
             score: Decimal::from(1),
@@ -1007,13 +1060,15 @@ mod linked_wallet_privacy_tests {
                 score: "25.00000".to_string(), dedup: false, expiration_date: None,
             })]),
         };
-        let member = hidden_member_score_fields(&canonical);
+        let scored_at = now + chrono::Duration::milliseconds(40);
+        let member = hidden_member_score_fields(&canonical, scored_at);
         assert_eq!(member.score, Decimal::from(0));
         assert_eq!(member.evidence, json!({"type": "ThresholdScoreCheck", "success": false, "rawScore": "0", "threshold": "20.00000"}));
         assert_eq!(member.stamp_scores, json!({}));
         assert!(member.stamps.is_empty());
-        assert_eq!(member.last_score_timestamp, canonical.last_score_timestamp);
-        assert_eq!(member.expiration_date, canonical.expiration_date);
+        assert_eq!(member.last_score_timestamp, scored_at);
+        assert_ne!(member.last_score_timestamp, canonical.last_score_timestamp);
+        assert_eq!(member.expiration_date, None);
     }
 
     /// The community's scorer id differs from the community id, as it does in
@@ -1114,7 +1169,10 @@ mod linked_wallet_privacy_tests {
         assert_eq!(m_score, Decimal::from(0));
         assert_eq!(m_evidence, json!({"type": "ThresholdScoreCheck", "success": false, "rawScore": "0", "threshold": c_evidence["threshold"]}));
         assert_eq!(m_stamps, json!({}));
-        assert_eq!(m_ts, c_ts, "linked wallet carries the canonical's timestamp, not its own");
+        // Identical timestamps would pair the wallets for any caller.
+        assert_ne!(m_ts, c_ts, "linked wallet carries its own timestamp, not the canonical's");
+        assert_eq!(second.expiration_timestamp, None);
+        assert_ne!(second.last_score_timestamp, first.last_score_timestamp);
 
         let canonical_events = score_events(&pool, &canonical, id).await;
         let member_events = score_events(&pool, &member, id).await;
