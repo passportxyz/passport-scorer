@@ -1,0 +1,3 @@
+version = 0.1
+[default.local_start_api.parameters]
+warm_containers = "EAGER"
