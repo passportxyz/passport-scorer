@@ -107,9 +107,9 @@ async def ahandle_scoring(address: str, community):
     if not is_valid_address(address_lower):
         raise InvalidAddressException()
 
-    # Look up linked-wallet set for this address. In Phase 0 the linkage source
-    # is a stub that always returns the solo set; Phase 3b will wire it to Silk
-    # (see umbrella holonym-foundation/internal-docs#1058).
+    # Look up linked-wallet set for this address. account.linkage fetches it from
+    # Silk behind the LINKED_WALLETS_SOURCE_ENABLED killswitch and a cache, and
+    # falls back to the solo set on any failure (#589).
     linked_addresses = await get_linked_addresses(address_lower)
 
     if len(linked_addresses) <= 1:

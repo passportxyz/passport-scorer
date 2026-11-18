@@ -603,9 +603,9 @@ pub async fn calculate_score_for_address_with_groups(
     scorer_id: i64,
     pool: &PgPool,
 ) -> Result<V2ScoreResponse, DomainError> {
-    // Look up linked-wallet set for this address. Phase 0 uses the solo-only
-    // stub in `account::linkage`; Phase 3b will swap the body for a Silk
-    // fetch with SWR cache + killswitch + fallback metric.
+    // Look up linked-wallet set for this address. `account::linkage` fetches it
+    // from Silk behind the `LINKED_WALLETS_SOURCE_ENABLED` killswitch + an SWR
+    // cache, degrading to the solo set on any failure (#589).
     let group_addresses = crate::account::linkage::get_linked_addresses(address, pool)
         .await
         .map_err(|e| DomainError::Database(e.to_string()))?;
