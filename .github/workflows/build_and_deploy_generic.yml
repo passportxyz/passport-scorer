@@ -155,8 +155,7 @@ jobs:
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          # Keep in line with rust-scorer/rust-toolchain.toml
-          toolchain: 1.99.1
+          toolchain: stable
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
