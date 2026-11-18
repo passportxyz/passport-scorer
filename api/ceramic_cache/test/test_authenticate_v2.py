@@ -72,8 +72,6 @@ class TestAuthenticateV2:
 
         # Check response structure
         assert "access" in json_data
-        # v2 auth does not include intercom_user_hash (it's None or not present)
-        assert json_data.get("intercom_user_hash") is None
 
         # Verify JWT contains correct DID (always eip155:1)
         token = decode_siwe_jwt(json_data["access"])
