@@ -1,0 +1,5 @@
+# Pinned: Rust 1.100.0 fails to compile the cacaos 0.5.1 dependency
+# (E0277 in its DagCbor derive, a type-inference change, rust-lang/rust#148922).
+# Raise this after cacaos or libipld is upgraded and builds on the newer version.
+[toolchain]
+channel = "1.99.1"
