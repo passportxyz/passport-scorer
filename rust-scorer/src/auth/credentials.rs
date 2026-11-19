@@ -13,6 +13,11 @@ const DEFAULT_TRUSTED_IAM_ISSUERS: &[&str] = &[
     "did:ethr:0xabczyx",
 ];
 
+/// How far `issuanceDate` may be ahead of the scorer's clock. `ssi` rejects any
+/// future `issuanceDate` as premature. The Python scorer's didkit accepts one,
+/// so without this an IAM clock running ahead would make the two scorers disagree.
+const ISSUANCE_CLOCK_SKEW_SECS: i64 = 300;
+
 /// Cached trusted IAM issuers loaded from environment variable
 static TRUSTED_IAM_ISSUERS: OnceLock<Vec<String>> = OnceLock::new();
 
@@ -54,6 +59,16 @@ pub struct ValidatedCredential {
 pub async fn validate_credential(
     credential: &Value,
     address: &str,
+) -> Result<Option<ValidatedCredential>> {
+    validate_credential_with_issuers(credential, address, get_trusted_issuers()).await
+}
+
+/// `validate_credential` with the trusted issuers passed in, so tests do not
+/// depend on the process-wide `TRUSTED_IAM_ISSUERS`.
+async fn validate_credential_with_issuers(
+    credential: &Value,
+    address: &str,
+    trusted_issuers: &[String],
 ) -> Result<Option<ValidatedCredential>> {
     debug!("Validating credential for address: {}", address);
     
@@ -128,7 +143,6 @@ pub async fn validate_credential(
         .get("issuer")
         .and_then(|i| i.as_str());
 
-    let trusted_issuers = get_trusted_issuers();
     if !issuer.map(|i| trusted_issuers.iter().any(|t| t == i)).unwrap_or(false) {
         warn!("Untrusted issuer: {:?}", issuer);
         return Ok(None);
@@ -156,7 +170,7 @@ pub async fn validate_credential(
 ///
 /// Matches the checks the Python scorer gets from didkit: the proof purpose is
 /// `assertionMethod`, the proof's verification method belongs to the issuer, and
-/// the signature is valid. `at` overrides the verification time (tests only).
+/// the signature is valid. `at` overrides the current time (tests only).
 pub(crate) async fn verify_signature(
     credential: &Value,
     at: Option<DateTime<Utc>>,
@@ -201,10 +215,20 @@ pub(crate) async fn verify_signature(
     let vc = ssi::claims::vc::v1::data_integrity::any_credential_from_json_str(&text)
         .map_err(|e| format!("invalid credential format: {e}"))?;
 
-    let mut params = VerificationParameters::from_resolver(AnyDidMethod::default().into_vm_resolver());
-    if let Some(at) = at {
-        params = params.with_date_time(at);
-    }
+    // Verify at `issuanceDate` when it is only slightly ahead of now (clock skew).
+    // `ssi` checks no other date against this time; validate_credential checks expiry itself.
+    let now = at.unwrap_or_else(Utc::now);
+    let issued = credential
+        .get("issuanceDate")
+        .and_then(|d| d.as_str())
+        .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+        .map(|d| d.with_timezone(&Utc));
+    let verify_at = match issued {
+        Some(t) if t > now && (t - now).num_seconds() <= ISSUANCE_CLOCK_SKEW_SECS => t,
+        _ => now,
+    };
+    let params = VerificationParameters::from_resolver(AnyDidMethod::default().into_vm_resolver())
+        .with_date_time(verify_at);
 
     // Box the future behind `dyn` to erase its deeply nested type. Without it,
     // the axum handler's `Send` check overflows the compiler's recursion limit.
@@ -338,16 +362,32 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_signature_issuance_clock_skew() {
+        let c = &fixtures()["didkit_signed"][0];
+        let issued = DateTime::parse_from_rfc3339(c["issuanceDate"].as_str().unwrap())
+            .unwrap()
+            .with_timezone(&Utc);
+        let ahead = |secs| Some(issued - chrono::Duration::seconds(secs));
+        // Issued slightly in the future: accepted
+        assert_eq!(verify_signature(c, ahead(30)).await, Ok(()));
+        assert_eq!(verify_signature(c, ahead(ISSUANCE_CLOCK_SKEW_SECS)).await, Ok(()));
+        // Beyond the tolerance: still premature
+        let err = verify_signature(c, ahead(ISSUANCE_CLOCK_SKEW_SECS + 1)).await.unwrap_err();
+        assert!(err.contains("Premature"), "{err}");
+    }
+
+    #[tokio::test]
     async fn test_validate_credential_end_to_end() {
-        // Only this test reaches the issuer check, so it is the first to
-        // initialise TRUSTED_IAM_ISSUERS in this process.
         let f = fixtures();
         let c = &f["didkit_signed"][0];
-        let issuer = c["issuer"].as_str().unwrap();
-        let _ = TRUSTED_IAM_ISSUERS.set(vec![issuer.to_string()]);
-        assert!(get_trusted_issuers().iter().any(|i| i == issuer));
+        let trusted = vec![c["issuer"].as_str().unwrap().to_string()];
         let address = format!("0x{}", "a".repeat(40));
-        let valid = validate_credential(c, &address).await.unwrap();
+        let valid = validate_credential_with_issuers(c, &address, &trusted).await.unwrap();
         assert!(valid.is_some());
+
+        // The same credential is rejected when its issuer is not trusted
+        let other = vec!["did:ethr:0x0000000000000000000000000000000000000000".to_string()];
+        let rejected = validate_credential_with_issuers(c, &address, &other).await.unwrap();
+        assert!(rejected.is_none());
     }
 }
