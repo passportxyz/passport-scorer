@@ -39,3 +39,11 @@ def test_bad_length_checksummed():
 def test_zero_address():
     assert is_valid_address("0x0000000000000000000000000000000000000000") is False
     assert is_valid_address("0" * 40) is False
+
+
+@pytest.mark.django_db
+def test_unprefixed_address():
+    # Without the 0x prefix the same wallet would get a second Passport (#965)
+    assert is_valid_address(address[2:].lower()) is False
+    assert is_valid_address(address[2:]) is False
+    assert is_valid_address(address[2:].upper()) is False
