@@ -4,11 +4,12 @@
 
 use anyhow::{Context, Result};
 use chrono::{Duration, Utc};
-use didkit::ssi::jwk::{JWK, Base64urlUInt, ECParams, Params};
-use didkit::ssi::vc::{Credential, LinkedDataProofOptions, ProofPurpose, URI};
-use didkit::ssi::ldp::{ProofSuiteType, eip712::{ProofInfo, TypesOrURI, EIP712Value}};
-use didkit::ssi::jsonld::ContextLoader;
-use didkit::{DID_METHODS, VerifiableCredential};
+use ssi::claims::data_integrity::suites::ethereum_eip712_signature_2021::Eip712Options;
+use ssi::claims::data_integrity::{AnyInputSuiteOptions, AnySuite, CryptographicSuite, ProofOptions};
+use ssi::claims::VerificationParameters;
+use ssi::dids::{AnyDidMethod, DIDResolver};
+use ssi::jwk::JWK;
+use ssi::verification_methods::{ProofPurpose, ReferenceOrOwned, SingleSecretSigner};
 use serde_json::{json, Value};
 use sqlx::postgres::PgPoolOptions;
 use std::env;
@@ -57,9 +58,6 @@ fn stamp_credential_eip712_types() -> Value {
 /// This ensures the issuer DID stays constant across test runs, so TRUSTED_IAM_ISSUERS
 /// doesn't need to be updated in .env.development each time credentials are regenerated.
 fn get_test_ethereum_key() -> Result<JWK> {
-    use k256::ecdsa::SigningKey;
-    use k256::elliptic_curve::sec1::ToEncodedPoint;
-
     // Hardcoded test private key (32 bytes)
     // This is a randomly generated key that is ONLY for local testing - not used in production
     // Corresponding DID: did:ethr:0x018d103c154748e8d5a1d7658185125175457f84
@@ -69,34 +67,18 @@ fn get_test_ethereum_key() -> Result<JWK> {
         0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11,
         0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
     ];
+    let secret = k256::SecretKey::from_bytes((&d).into()).context("Failed to create signing key")?;
+    Ok(JWK::from(ssi::jwk::Params::EC(ssi::jwk::ECParams::from(&secret))))
+}
 
-    // Use k256 to derive the public key
-    let signing_key = SigningKey::from_bytes((&d).into())
-        .context("Failed to create signing key")?;
-    let verifying_key = signing_key.verifying_key();
-    let point = verifying_key.to_encoded_point(false);
-
-    let x = point.x().ok_or_else(|| anyhow::anyhow!("Missing x coordinate"))?;
-    let y = point.y().ok_or_else(|| anyhow::anyhow!("Missing y coordinate"))?;
-
-    let jwk = JWK {
-        params: Params::EC(ECParams {
-            curve: Some("secp256k1".to_string()),
-            x_coordinate: Some(Base64urlUInt(x.to_vec())),
-            y_coordinate: Some(Base64urlUInt(y.to_vec())),
-            ecc_private_key: Some(Base64urlUInt(d.to_vec())),
-        }),
-        public_key_use: None,
-        key_operations: None,
-        algorithm: None,
-        key_id: None,
-        x509_url: None,
-        x509_certificate_chain: None,
-        x509_thumbprint_sha1: None,
-        x509_thumbprint_sha256: None,
-    };
-
-    Ok(jwk)
+/// Move the EIP-712 options between the key `ssi` writes (`eip712`) and the
+/// key the Passport IAM writes (`eip712Domain`). Not part of the signed message.
+fn rename_eip712_key(credential: &mut Value, from: &str, to: &str) {
+    if let Some(proof) = credential.get_mut("proof").and_then(|p| p.as_object_mut()) {
+        if let Some(v) = proof.remove(from) {
+            proof.insert(to.to_string(), v);
+        }
+    }
 }
 
 /// Create a signed verifiable credential with EthereumEip712Signature2021
@@ -134,47 +116,33 @@ async fn create_signed_credential(
         }
     });
 
-    // Use VerifiableCredential::from_json_unsigned like the FFI does
-    // This is what TypeScript DIDKit.issueCredential does internally
-    let credential_str = serde_json::to_string(&credential_json)?;
-    let mut credential = VerifiableCredential::from_json_unsigned(&credential_str)
-        .context("Failed to parse credential")?;
+    let credential: ssi::claims::vc::v1::SpecializedJsonCredential =
+        serde_json::from_value(credential_json).context("Failed to parse credential")?;
 
-    // Create EIP-712 proof options with the signing document structure
-    // This matches what the TypeScript/Python FFI does
-    let types: didkit::ssi::ldp::eip712::Types =
-        serde_json::from_value(stamp_credential_eip712_types())?;
+    // EIP-712 proof options with the signing document structure (matches the IAM)
+    let mut options = AnyInputSuiteOptions::default();
+    options.eip712 = Some(Eip712Options {
+        types: Some(serde_json::from_value(stamp_credential_eip712_types())?),
+        primary_type: Some("Document".parse().map_err(|_| anyhow::anyhow!("bad primary type"))?),
+        domain: Some(serde_json::from_value(json!({ "name": "VerifiableCredential" }))?),
+    });
+    let proof_options = ProofOptions::new(
+        ssi::xsd::DateTimeStamp::now_ms().into(),
+        ReferenceOrOwned::Reference(iref::IriBuf::new(verification_method.to_string())
+            .map_err(|_| anyhow::anyhow!("bad verification method"))?),
+        ProofPurpose::Assertion,
+        options,
+    );
 
-    let proof_info = ProofInfo {
-        types_or_uri: TypesOrURI::Object(types),
-        primary_type: "Document".to_string(),
-        domain: EIP712Value::Struct([(
-            "name".to_string(),
-            EIP712Value::String("VerifiableCredential".to_string())
-        )].iter().cloned().collect()),
-    };
-
-    let proof_options = LinkedDataProofOptions {
-        proof_purpose: Some(ProofPurpose::AssertionMethod),
-        verification_method: Some(URI::String(verification_method.to_string())),
-        type_: Some(ProofSuiteType::EthereumEip712Signature2021),
-        eip712_domain: Some(proof_info),
-        ..Default::default()
-    };
-
-    // Sign the credential - matching the FFI flow
-    let resolver = DID_METHODS.to_resolver();
-    let mut context_loader = ContextLoader::default();
-
-    let proof = credential
-        .generate_proof(key, &proof_options, &*resolver, &mut context_loader)
+    let resolver = AnyDidMethod::default().into_vm_resolver();
+    let signer = SingleSecretSigner::new(key.clone()).into_local();
+    let signed = AnySuite::EthereumEip712Signature2021
+        .sign(credential, &resolver, &signer, proof_options)
         .await
         .context("Failed to generate proof")?;
 
-    credential.add_proof(proof);
-
-    // Convert back to JSON
-    let signed = serde_json::to_value(&credential)?;
+    let mut signed = serde_json::to_value(&signed)?;
+    rename_eip712_key(&mut signed, "eip712", "eip712Domain");
     Ok(signed)
 }
 
@@ -209,16 +177,10 @@ async fn main() -> Result<()> {
     // Get hardcoded test Ethereum key for signing
     let key = get_test_ethereum_key()?;
 
-    // Get issuer DID and verification method using didkit's DID methods
-    let did_method = DID_METHODS.get("ethr")
-        .ok_or_else(|| anyhow::anyhow!("ethr DID method not found"))?;
-
-    let issuer_did = did_method.generate(&didkit::Source::Key(&key))
-        .ok_or_else(|| anyhow::anyhow!("Failed to generate DID"))?;
-
-    let verification_method = didkit::ssi::vc::get_verification_method(&issuer_did, DID_METHODS.to_resolver())
-        .await
-        .ok_or_else(|| anyhow::anyhow!("Failed to get verification method"))?;
+    // Issuer DID and verification method, as the IAM's keyToDID("ethr", key) produces
+    let issuer_did = format!("did:ethr:{}", ssi::jwk::eip155::hash_public_key(&key)
+        .map_err(|e| anyhow::anyhow!("Failed to derive address: {e}"))?);
+    let verification_method = format!("{issuer_did}#controller");
 
     println!("Issuer DID: {}", issuer_did);
     println!("Verification method: {}", verification_method);
@@ -282,25 +244,17 @@ async fn main() -> Result<()> {
     // Verify credentials
     println!("\nVerifying credentials...");
     for (i, credential) in credentials.iter().enumerate() {
-        // Parse the credential
-        let vc: Credential = serde_json::from_value(credential.clone())
+        let mut vc = credential.clone();
+        rename_eip712_key(&mut vc, "eip712Domain", "eip712");
+        let vc = ssi::claims::vc::v1::data_integrity::any_credential_from_json_str(&serde_json::to_string(&vc)?)
             .context("Failed to parse credential for verification")?;
+        let params = VerificationParameters::from_resolver(AnyDidMethod::default().into_vm_resolver());
+        let result = vc.verify(&params).await;
 
-        // Set up verification options
-        let proof_options = LinkedDataProofOptions {
-            proof_purpose: Some(ProofPurpose::AssertionMethod),
-            ..Default::default()
-        };
-
-        // Verify the credential
-        let resolver = DID_METHODS.to_resolver();
-        let mut context_loader = ContextLoader::default();
-        let result = vc.verify(Some(proof_options), &*resolver, &mut context_loader).await;
-
-        if result.errors.is_empty() {
-            println!("  {}: VALID", providers[i]);
-        } else {
-            println!("  {}: INVALID - {:?}", providers[i], result.errors);
+        match result {
+            Ok(Ok(())) => println!("  {}: VALID", providers[i]),
+            Ok(Err(e)) => println!("  {}: INVALID - {:?}", providers[i], e),
+            Err(e) => println!("  {}: INVALID - {}", providers[i], e),
         }
     }
 
