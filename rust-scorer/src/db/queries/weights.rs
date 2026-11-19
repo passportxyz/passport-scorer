@@ -58,26 +58,6 @@ pub async fn get_scorer_weights(
     }))
 }
 
-/// Get default scorer weights
-pub fn get_default_scorer_weights() -> ScorerWeights {
-    // TODO: Load from configuration
-    ScorerWeights {
-        weights: serde_json::json!({
-            "Ens": 1.0,
-            "NFT": 1.0,
-            "Google": 1.0,
-            "Twitter": 1.0,
-            "Discord": 1.0,
-            "Github": 1.0,
-            "Linkedin": 1.0,
-            "Facebook": 1.0,
-            "Brightid": 1.0,
-            "Poh": 1.0,
-        }),
-        threshold: Decimal::from(20),
-    }
-}
-
 /// Load binary weighted scorer configuration
 #[tracing::instrument(skip(pool), fields(scorer_id = scorer_id))]
 pub async fn load_scorer_config(

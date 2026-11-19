@@ -41,23 +41,3 @@ pub async fn get_scorer_weights(
     Ok(weights)
 }
 
-/// Get default weights when no scorer_id is provided
-pub fn get_default_weights() -> HashMap<String, f64> {
-    // These should match the default weights from Python
-    // TODO: Load these from configuration or constants
-    let mut weights = HashMap::new();
-
-    // Example default weights - these should be updated to match Python defaults
-    weights.insert("Ens".to_string(), 1.0);
-    weights.insert("NFT".to_string(), 1.0);
-    weights.insert("Google".to_string(), 1.0);
-    weights.insert("Twitter".to_string(), 1.0);
-    weights.insert("Discord".to_string(), 1.0);
-    weights.insert("Github".to_string(), 1.0);
-    weights.insert("Linkedin".to_string(), 1.0);
-    weights.insert("Facebook".to_string(), 1.0);
-    weights.insert("Brightid".to_string(), 1.0);
-    weights.insert("Poh".to_string(), 1.0);
-
-    weights
-}
