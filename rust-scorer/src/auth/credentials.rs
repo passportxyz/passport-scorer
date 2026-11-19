@@ -134,36 +134,12 @@ pub async fn validate_credential(
         return Ok(None);
     }
     
-    // Verify the credential signature using didkit's underlying ssi library
-    // The Python didkit FFI wraps this Rust functionality
-    use didkit::ssi::vc::{Credential, LinkedDataProofOptions, ProofPurpose};
-    use didkit::ssi::jsonld::ContextLoader;
-    use didkit::DID_METHODS;
-    
-    // Parse the credential
-    let vc: Credential = serde_json::from_value(credential.clone())
-        .map_err(|e| {
-            warn!("Failed to parse credential: {}", e);
-            DatabaseError::InvalidData(format!("Invalid credential format: {}", e))
-        })?;
-    
-    // Set up verification options to match Python's {"proofPurpose":"assertionMethod"}
-    let proof_options = LinkedDataProofOptions {
-        proof_purpose: Some(ProofPurpose::AssertionMethod),
-        ..Default::default()
-    };
-    
-    // Verify the credential
-    let resolver = DID_METHODS.to_resolver();
-    let mut context_loader = ContextLoader::default();
-    let result = vc.verify(Some(proof_options), &*resolver, &mut context_loader).await;
-    
-    // Check verification result
-    if !result.errors.is_empty() {
-        warn!("Credential verification failed: {:?}", result.errors);
+    // Verify the credential signature
+    if let Err(reason) = verify_signature(credential, None).await {
+        warn!("Credential verification failed: {}", reason);
         return Ok(None);
     }
-    
+
     debug!("Credential signature verified successfully");
     
     info!("Credential validated successfully for provider: {}", provider);
@@ -174,6 +150,71 @@ pub async fn validate_credential(
         nullifiers: nullifier_strings,
         expires_at,
     }))
+}
+
+/// Verify the Data Integrity proof on a credential with `ssi`.
+///
+/// Matches the checks the Python scorer gets from didkit: the proof purpose is
+/// `assertionMethod`, the proof's verification method belongs to the issuer, and
+/// the signature is valid. `at` overrides the verification time (tests only).
+pub(crate) async fn verify_signature(
+    credential: &Value,
+    at: Option<DateTime<Utc>>,
+) -> std::result::Result<(), String> {
+    use ssi::claims::VerificationParameters;
+    use ssi::dids::{AnyDidMethod, DIDResolver};
+
+    let mut vc = credential.clone();
+    let proof = vc
+        .get_mut("proof")
+        .and_then(|p| p.as_object_mut())
+        .ok_or("missing proof")?;
+
+    if proof.get("proofPurpose").and_then(|p| p.as_str()) != Some("assertionMethod") {
+        return Err("proof purpose is not assertionMethod".into());
+    }
+
+    // `ssi` does not check that the verification method belongs to the issuer,
+    // so a credential naming a trusted issuer but signed by any other key would
+    // verify. The old didkit rejected that ("No applicable proof"). Check it here.
+    let issuer = credential
+        .get("issuer")
+        .and_then(|i| i.as_str())
+        .ok_or("missing issuer")?;
+    let method = proof
+        .get("verificationMethod")
+        .and_then(|m| m.as_str())
+        .ok_or("missing verificationMethod")?;
+    match method.split_once('#') {
+        Some((did, _)) if did == issuer => {}
+        _ => return Err(format!("verification method {method} does not belong to issuer {issuer}")),
+    }
+
+    // Passport signs with the older EthereumEip712Signature2021 layout, which puts
+    // the EIP-712 types under `eip712Domain`. `ssi` reads them from `eip712`.
+    // The key is not part of the signed message, so renaming it is safe.
+    if let Some(domain) = proof.remove("eip712Domain") {
+        proof.insert("eip712".into(), domain);
+    }
+
+    let text = serde_json::to_string(&vc).map_err(|e| e.to_string())?;
+    let vc = ssi::claims::vc::v1::data_integrity::any_credential_from_json_str(&text)
+        .map_err(|e| format!("invalid credential format: {e}"))?;
+
+    let mut params = VerificationParameters::from_resolver(AnyDidMethod::default().into_vm_resolver());
+    if let Some(at) = at {
+        params = params.with_date_time(at);
+    }
+
+    // Box the future behind `dyn` to erase its deeply nested type. Without it,
+    // the axum handler's `Send` check overflows the compiler's recursion limit.
+    let verification: std::pin::Pin<Box<dyn std::future::Future<Output = _> + Send + '_>> =
+        Box::pin(vc.verify(&params));
+    match verification.await {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(e)) => Err(format!("{e:?}")),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 /// Validate multiple credentials
@@ -234,5 +275,79 @@ mod tests {
 
         let result = validate_credential(&credential, "0x123").await.unwrap();
         assert!(result.is_none(), "Expired credential should return None");
+    }
+
+    fn fixtures() -> Value {
+        serde_json::from_str(include_str!("../../tests/fixtures/eip712_credentials.json")).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_signature_valid_didkit_signed() {
+        // Signed by didkit 0.6 (the library the Python scorer and the IAM use)
+        for c in fixtures()["didkit_signed"].as_array().unwrap() {
+            assert_eq!(verify_signature(c, None).await, Ok(()));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_signature_valid_ssi_signed() {
+        let f = fixtures();
+        assert_eq!(verify_signature(&f["ssi_signed"], None).await, Ok(()));
+    }
+
+    #[tokio::test]
+    async fn test_signature_rejects_tampered_fields() {
+        let f = fixtures();
+        let c = &f["didkit_signed"][0];
+        for (path, value) in [
+            (vec!["credentialSubject", "provider"], json!("Biometrics")),
+            (vec!["credentialSubject", "id"], json!("did:pkh:eip155:1:0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")),
+            (vec!["credentialSubject", "nullifiers"], json!(["v0:other"])),
+            (vec!["expirationDate"], json!("2199-01-01T00:00:00Z")),
+        ] {
+            let mut t = c.clone();
+            let mut node = &mut t;
+            for key in &path[..path.len() - 1] {
+                node = node.get_mut(*key).unwrap();
+            }
+            node[path[path.len() - 1]] = value;
+            assert!(verify_signature(&t, None).await.is_err(), "tampered {:?} must fail", path);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_signature_rejects_key_not_owned_by_issuer() {
+        // Names the trusted issuer, signed by an unrelated key
+        let f = fixtures();
+        let err = verify_signature(&f["forged_issuer"], None).await.unwrap_err();
+        assert!(err.contains("does not belong to issuer"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn test_signature_rejects_wrong_proof_purpose() {
+        let mut c = fixtures()["didkit_signed"][0].clone();
+        c["proof"]["proofPurpose"] = json!("authentication");
+        assert!(verify_signature(&c, None).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_signature_rejects_missing_proof() {
+        let mut c = fixtures()["didkit_signed"][0].clone();
+        c.as_object_mut().unwrap().remove("proof");
+        assert!(verify_signature(&c, None).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_validate_credential_end_to_end() {
+        // Only this test reaches the issuer check, so it is the first to
+        // initialise TRUSTED_IAM_ISSUERS in this process.
+        let f = fixtures();
+        let c = &f["didkit_signed"][0];
+        let issuer = c["issuer"].as_str().unwrap();
+        let _ = TRUSTED_IAM_ISSUERS.set(vec![issuer.to_string()]);
+        assert!(get_trusted_issuers().iter().any(|i| i == issuer));
+        let address = format!("0x{}", "a".repeat(40));
+        let valid = validate_credential(c, &address).await.unwrap();
+        assert!(valid.is_some());
     }
 }
