@@ -216,7 +216,8 @@ pub(crate) async fn verify_signature(
         .map_err(|e| format!("invalid credential format: {e}"))?;
 
     // Verify at `issuanceDate` when it is only slightly ahead of now (clock skew).
-    // `ssi` checks no other date against this time; validate_credential checks expiry itself.
+    // `ssi` also checks `expirationDate` at this time. That is harmless: the IAM sets
+    // expiry well after issuance, and validate_credential checks expiry against now.
     let now = at.unwrap_or_else(Utc::now);
     let issued = credential
         .get("issuanceDate")
@@ -224,7 +225,7 @@ pub(crate) async fn verify_signature(
         .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
         .map(|d| d.with_timezone(&Utc));
     let verify_at = match issued {
-        Some(t) if t > now && (t - now).num_seconds() <= ISSUANCE_CLOCK_SKEW_SECS => t,
+        Some(t) if t > now && t - now <= chrono::Duration::seconds(ISSUANCE_CLOCK_SKEW_SECS) => t,
         _ => now,
     };
     let params = VerificationParameters::from_resolver(AnyDidMethod::default().into_vm_resolver())
