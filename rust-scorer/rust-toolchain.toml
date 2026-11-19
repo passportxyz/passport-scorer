@@ -1,0 +1,4 @@
+# Pinned so a new Rust release cannot break the build unannounced, as 1.100 did.
+# Raise it on purpose, in its own PR, after CI passes on the new version.
+[toolchain]
+channel = "1.100.0"
