@@ -47,6 +47,7 @@ GITCOIN_PASSPORT_WEIGHTS = {
     "Steam": "2.8",
     "TrustaLabs": "0.511",
     "TrustedCitizen": "4.009",
+    "SteamGamingCredentials": "2.8",
     "X": "3.2",
     "ZKEmail#AmazonCasualPurchaser": "1",
     "ZKEmail#AmazonHeavyUser": "0.4",
