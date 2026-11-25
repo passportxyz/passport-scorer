@@ -418,8 +418,11 @@ def with_read_db(model):
 
 
 def is_valid_address(address: str) -> bool:
+    # is_hex_address accepts unprefixed hex, which would store the same wallet
+    # under a second, unprefixed Passport. Require the prefix, as Rust does.
+    if address[:2].lower() != "0x":
+        return False
     # Nobody controls the zero address, so a score for it is meaningless.
-    # Strip the prefix too: is_hex_address also accepts unprefixed hex.
     if remove_0x_prefix(address.lower()) == "0" * 40:
         return False
     return (
