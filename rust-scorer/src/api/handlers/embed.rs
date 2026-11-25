@@ -124,6 +124,7 @@ pub async fn add_stamps_handler(
         &address,
         scorer_id,
         &pool,
+        domain::LinkedWallets::Hide,
     ).await;
 
     let score = score_result?;
@@ -175,6 +176,7 @@ pub async fn get_embed_score_handler(
         &address,
         scorer_id,
         &pool,
+        domain::LinkedWallets::Hide,
     ).await;
 
     let score = score_result?;

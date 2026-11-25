@@ -73,10 +73,12 @@ pub async fn score_address_handler(
     tx.commit().await
         .map_err(|e| ApiError::Database(format!("Failed to commit analytics: {}", e)))?;
 
-    // 3. Call shared domain logic (wallet-group-aware) and return
+    // 3. Call shared domain logic (wallet-group-aware) and return. Only keys
+    // with linked_wallet_breakdown see which wallets are linked.
     Ok(Json(domain::calculate_score_for_address_with_groups(
         &address,
         scorer_id,
         &pool,
+        domain::LinkedWallets::for_api_key(&api_key_data),
     ).await?))
 }

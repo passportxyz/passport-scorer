@@ -164,8 +164,9 @@ mod tests {
             stamps: HashMap::new(),
             points_data: None,
             possible_points_data: None,
+            linked_score: None,
         };
-        
+
         let json = serde_json::to_value(&response).unwrap();
         
         // Verify the structure matches expected format
