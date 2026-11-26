@@ -155,7 +155,10 @@ jobs:
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: stable
+          # No `toolchain:` here, so the version comes from rust-scorer/rust-toolchain.toml
+          rust-src-dir: rust-scorer
+          # The next step caches rust-scorer; the action's own cache would do it twice
+          cache: false
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:

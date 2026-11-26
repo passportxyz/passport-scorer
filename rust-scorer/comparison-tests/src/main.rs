@@ -296,7 +296,7 @@ impl ServerManager {
             }
         }
 
-        // Wait for Rust (120s timeout for didkit compilation)
+        // Wait for Rust (120s timeout for compilation)
         let rust_health = format!("{}/health", RUST_BASE);
         for i in 0..120 {
             match client.get(&rust_health).send().await {

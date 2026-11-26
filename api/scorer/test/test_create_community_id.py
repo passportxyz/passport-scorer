@@ -11,6 +11,7 @@ from web3 import Web3
 
 from account.models import Community
 from account.test.test_community import mock_community_body
+from scorer.config.gitcoin_passport_weights import GITCOIN_PASSPORT_WEIGHTS
 
 web3 = Web3()
 web3.eth.account.enable_unaudited_hdwallet_features()
@@ -73,4 +74,4 @@ def _():
     community = Community.objects.all()[0]
     scorer = community.scorer.binaryweightedscorer
     assert scorer.threshold == Decimal("20.00")
-    assert scorer.weights["Discord"] == 0.516
+    assert scorer.weights["Discord"] == float(GITCOIN_PASSPORT_WEIGHTS["Discord"])

@@ -201,7 +201,8 @@ impl ApiKeyValidator {
                 create_scorers,
                 created,
                 expiry_date,
-                embed_rate_limit
+                embed_rate_limit,
+                linked_wallet_breakdown
             FROM account_accountapikey
             WHERE prefix = $1
                 AND revoked = false

@@ -9,7 +9,9 @@ What remains here is exercising the scorer-side surface:
 - The stamp-merge / weight-aggregation logic in ``_score_wallet_group``
 """
 
+from datetime import datetime, timezone
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -166,13 +168,27 @@ class TestBuildNonCanonicalResponse:
             ),
         )
 
-        result = _build_non_canonical_response("0xbbb", canonical_response)
+        # The member's own hidden row, as _save_hidden_member_score stores it.
+        member_score = SimpleNamespace(
+            passport=SimpleNamespace(address="0xbbb"),
+            evidence={"type": "ThresholdScoreCheck", "success": False, "rawScore": "0", "threshold": "20"},
+            last_score_timestamp=datetime(2024, 1, 1, 0, 0, 5, tzinfo=timezone.utc),
+            expiration_date=None,
+            error=None,
+            stamps={},
+        )
+
+        result = _build_non_canonical_response(member_score, canonical_response, "WEIGHTED_BINARY")
 
         # Non-canonical gets score=0
         assert result.address == "0xbbb"
         assert result.score == Decimal(0)
         assert result.passing_score is False
         assert result.stamps == {}
+        # Its own timestamps, never the canonical's (identical values pair the wallets)
+        assert result.last_score_timestamp == "2024-01-01T00:00:05+00:00"
+        assert result.last_score_timestamp != canonical_response.last_score_timestamp
+        assert result.expiration_timestamp is None
 
         # linked_score has canonical's data
         assert result.linked_score is not None

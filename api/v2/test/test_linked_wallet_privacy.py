@@ -171,6 +171,23 @@ class TestLinkedWalletPrivacy(TransactionTestCase):
         self.assertEqual(live["fail_reason"], solo_fail_reason)
         self.assertEqual(history["fail_reason"], solo_fail_reason)
 
+    # Identical timestamps on two wallets pair them for any caller, so a linked
+    # wallet carries its own scoring time and, like any wallet with no valid
+    # stamps, no expiry: in the live response and in its stored row.
+    def test_linked_wallet_timestamps_are_its_own(self, *_):
+        canonical = self.get_score(W).json()
+        member = self.get_score(A).json()
+
+        self.assertNotEqual(member["last_score_timestamp"], canonical["last_score_timestamp"])
+        self.assertIsNone(member["expiration_timestamp"])
+        canonical_row = Score.objects.get(passport__address=W)
+        member_row = Score.objects.get(passport__address=A)
+        self.assertNotEqual(member_row.last_score_timestamp, canonical_row.last_score_timestamp)
+        self.assertIsNone(member_row.expiration_date)
+        self.assertEqual(
+            member["last_score_timestamp"], member_row.last_score_timestamp.isoformat()
+        )
+
     def test_linked_wallet_row_and_events_hold_no_own_score(self, *_):
         self.get_score(W)
         self.get_score(A)

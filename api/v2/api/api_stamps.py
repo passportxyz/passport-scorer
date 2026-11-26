@@ -129,14 +129,15 @@ async def ahandle_scoring(address: str, community):
     canonical = await _get_or_set_canonical(group_key, address_lower, community)
 
     # Score all wallets in the group individually, then merge
-    combined_response = await _score_wallet_group(
+    combined_response, wallet_scores, scorer_type = await _score_wallet_group(
         canonical, linked_addresses, community
     )
 
     if address_lower == canonical:
         return combined_response
-    else:
-        return _build_non_canonical_response(address_lower, combined_response)
+    return _build_non_canonical_response(
+        wallet_scores[address_lower], combined_response, scorer_type
+    )
 
 
 def _group_key_for(linked_addresses: list[str]) -> str:
@@ -216,8 +217,10 @@ async def _score_wallet_group(
     canonical_address: str,
     group_addresses: list[str],
     community: Community,
-) -> V2ScoreResponse:
-    """Score all wallets in a group individually, then merge by provider for the canonical wallet."""
+) -> tuple[V2ScoreResponse, dict[str, Score], Scorer.Type]:
+    """Score all wallets in a group individually, then merge by provider for the
+    canonical wallet. Returns the canonical's response, every wallet's saved Score
+    row (the linked wallets' in hidden form), and the scorer type."""
     scorer = await community.aget_scorer()
     scorer_type = scorer.type
 
@@ -323,7 +326,7 @@ async def _score_wallet_group(
         stamps=response.stamps,
         wallet_stamps=wallet_stamps,
     )
-    return response
+    return response, wallet_scores, scorer_type
 
 
 async def _save_hidden_member_score(score: Score, canonical_score: Score) -> None:
@@ -345,33 +348,25 @@ async def _save_hidden_member_score(score: Score, canonical_score: Score) -> Non
     score.stamp_scores = {}
     score.error = None
     score.status = Score.Status.DONE
-    score.last_score_timestamp = canonical_score.last_score_timestamp
-    score.expiration_date = canonical_score.expiration_date
+    # The wallet's own scoring time, and no expiry, as for any wallet with no
+    # valid stamps. Copying the canonical's timestamps would give every wallet in
+    # the group identical values, which pairs them for any caller.
+    score.last_score_timestamp = get_utc_time()
+    score.expiration_date = None
     await score.asave()
 
 
 def _build_non_canonical_response(
-    address: str, canonical_response: V2ScoreResponse
+    member_score: Score,
+    canonical_response: V2ScoreResponse,
+    scorer_type: Scorer.Type,
 ) -> V2ScoreResponse:
-    """Build a zero-score response for non-canonical wallets with linked_score.
-
-    fail_reason comes from the same inputs a solo wallet with no Stamps has, so
-    the response cannot show that the wallet is linked. It also matches what
-    /history returns from the row _save_hidden_member_score stores.
-    """
-    stamps = {}
-    return V2ScoreResponse(
-        address=address,
-        score=Decimal(0),
-        passing_score=False,
-        threshold=canonical_response.threshold,
-        last_score_timestamp=canonical_response.last_score_timestamp,
-        expiration_timestamp=canonical_response.expiration_timestamp,
-        error=None,
-        fail_reason=get_fail_reason(False, None, stamps),
-        stamps=stamps,
-        linked_score=canonical_response.linked_score,
-    )
+    """The response for a linked (non-canonical) wallet: its hidden row as stored
+    (_save_hidden_member_score), so the live response and every later read of the
+    row agree. linked_score carries the group, for keys allowed to see it."""
+    response = format_v2_score_response(member_score, scorer_type)
+    response.linked_score = canonical_response.linked_score
+    return response
 
 
 def format_v2_score_response(

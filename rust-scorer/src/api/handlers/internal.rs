@@ -70,11 +70,13 @@ pub async fn internal_score_handler(
 
     // 2. No authentication needed (internal ALB)
 
-    // 3. Call shared domain logic (wallet-group-aware, no human points for internal endpoint)
+    // 3. Call shared domain logic (wallet-group-aware, no human points for internal endpoint).
+    // The internal endpoint keeps linked_score, as Python's /internal/score/v2 does.
     Ok(Json(domain::calculate_score_for_address_with_groups(
         &address,
         scorer_id,
         &pool,
+        domain::LinkedWallets::Show,
     ).await?))
 }
 

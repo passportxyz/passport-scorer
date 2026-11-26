@@ -25,7 +25,8 @@ clap = { version = "4", features = ["derive"] }
 jsonwebtoken = "9"
 
 # For credential generation
-didkit = "*"
+ssi = "0.16"
+iref = "3"
 chrono = { version = "0.4", features = ["serde"] }
 rand = "0.8"
 hex = "0.4"

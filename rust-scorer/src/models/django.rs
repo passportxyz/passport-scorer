@@ -119,6 +119,9 @@ pub struct DjangoApiKey {
     pub created: DateTime<Utc>,
     pub expiry_date: Option<DateTime<Utc>>,
     pub embed_rate_limit: Option<String>,  // Rate limit tier for embed endpoints
+    /// Whether this key may see which wallets are linked (`linked_score`).
+    /// Linked wallets are private; only WaaP's own key is meant to have it.
+    pub linked_wallet_breakdown: bool,
 }
 
 /// Django registry_humanpoints table (Human Points)
