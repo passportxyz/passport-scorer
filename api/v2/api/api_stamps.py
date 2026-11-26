@@ -353,7 +353,13 @@ async def _save_hidden_member_score(score: Score, canonical_score: Score) -> Non
 def _build_non_canonical_response(
     address: str, canonical_response: V2ScoreResponse
 ) -> V2ScoreResponse:
-    """Build a zero-score response for non-canonical wallets with linked_score."""
+    """Build a zero-score response for non-canonical wallets with linked_score.
+
+    fail_reason comes from the same inputs a solo wallet with no Stamps has, so
+    the response cannot show that the wallet is linked. It also matches what
+    /history returns from the row _save_hidden_member_score stores.
+    """
+    stamps = {}
     return V2ScoreResponse(
         address=address,
         score=Decimal(0),
@@ -362,7 +368,8 @@ def _build_non_canonical_response(
         last_score_timestamp=canonical_response.last_score_timestamp,
         expiration_timestamp=canonical_response.expiration_timestamp,
         error=None,
-        stamps={},
+        fail_reason=get_fail_reason(False, None, stamps),
+        stamps=stamps,
         linked_score=canonical_response.linked_score,
     )
 
