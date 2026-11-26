@@ -18,6 +18,7 @@ from account.models import Account, AccountAPIKey, Community
 from embed.api import handle_get_score
 from registry.models import Event, Score
 from scorer_weighted.models import BinaryWeightedScorer, Scorer
+from v2.schema import get_fail_reason
 
 W = "0x" + "1" * 40  # asks first, so it becomes canonical
 A = "0x" + "a" * 40  # linked to W
@@ -152,6 +153,23 @@ class TestLinkedWalletPrivacy(TransactionTestCase):
         self.assertEqual(Decimal(body["score"]), Decimal(0))
         self.assertFalse(body["passing_score"])
         self.assertFalse(body["stamps"])
+
+    # A linked wallet's fail_reason must be the one a solo wallet with no Stamps
+    # gets, and /history must agree with the live response (passport-scorer#979).
+    def test_linked_wallet_fail_reason_looks_like_a_solo_wallet(self, *_):
+        self.get_score(W)  # W becomes canonical
+        live = self.get_score(A).json()
+
+        history = self.client.get(
+            f"/v2/stamps/{self.community.pk}/score/{A}/history",
+            {"created_at": (datetime.now(timezone.utc) + timedelta(minutes=1)).isoformat()},
+            HTTP_AUTHORIZATION=f"Token {self.history_secret}",
+        ).json()
+
+        solo_fail_reason = get_fail_reason(False, None, {})
+        self.assertEqual(solo_fail_reason, "no_valid_stamps")
+        self.assertEqual(live["fail_reason"], solo_fail_reason)
+        self.assertEqual(history["fail_reason"], solo_fail_reason)
 
     # Identical timestamps on two wallets pair them for any caller, so a linked
     # wallet carries its own scoring time and, like any wallet with no valid
