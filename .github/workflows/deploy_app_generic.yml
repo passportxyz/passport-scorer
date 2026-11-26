@@ -1,9 +1,7 @@
 name: Deploy App Generic
-run-name: Deploy UI to  - ${{ github.event.inputs.environment || 'review' }}
+run-name: Deploy UI to  - ${{ github.event.inputs.environment || 'staging' }}
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       commit:
@@ -13,10 +11,9 @@ on:
       environment:
         description: "Environment to deploy to"
         required: false
-        default: "review"
+        default: "staging"
         type: choice
         options:
-          - review
           - staging
           - production
 jobs:
@@ -41,7 +38,7 @@ jobs:
     secrets: inherit
     with:
       refspec: ${{ needs.ref.outputs.refspec }}
-      environment: ${{ github.event.inputs.environment || 'review' }}
+      environment: ${{ github.event.inputs.environment || 'staging' }}
 
   push-app-to-s3:
     name: Push UI to S3
@@ -50,4 +47,4 @@ jobs:
     secrets: inherit
     with:
       refspec: ${{ needs.ref.outputs.refspec }}
-      environment: ${{ github.event.inputs.environment || 'review' }}
+      environment: ${{ github.event.inputs.environment || 'staging' }}
