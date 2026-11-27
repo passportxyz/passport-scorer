@@ -9,7 +9,12 @@ from django.core.cache import cache
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
-from account.linkage import get_linked_addresses
+from account.linkage import (
+    WalletCluster,
+    WalletIdentity,
+    get_linked_addresses,
+    get_wallet_cluster,
+)
 from account.models import (
     Account,
     Community,
@@ -43,6 +48,7 @@ from registry.exceptions import (
     InvalidAddressException,
     InvalidAPIKeyPermissions,
     InvalidLimitException,
+    NotFoundApiException,
     api_get_object_or_404,
 )
 from registry.models import Event, Passport, Score
@@ -53,7 +59,13 @@ from registry.utils import (
     reverse_lazy_with_query,
 )
 from scorer_weighted.models import Scorer
-from v2.schema import LinkedScoreResponse, PointsData, V2ScoreResponse
+from v2.chain_wallet_scoring import score_chain_wallet
+from v2.schema import (
+    ChainWalletScoreResponse,
+    LinkedScoreResponse,
+    PointsData,
+    V2ScoreResponse,
+)
 
 from ..exceptions import ScoreDoesNotExist
 from .router import api_router
@@ -96,7 +108,9 @@ def hide_linked_wallets(response: V2ScoreResponse) -> V2ScoreResponse:
     the stamps, but not which wallets are linked or which one is canonical.
     """
     stamps = {
-        provider: stamp.model_copy(update={"source_wallet": None})
+        provider: stamp.model_copy(
+            update={"source_wallet": None, "source_wallet_chain_id": None}
+        )
         for provider, stamp in (response.stamps or {}).items()
     }
     return response.model_copy(update={"linked_score": None, "stamps": stamps})
@@ -106,6 +120,15 @@ async def ahandle_scoring(address: str, community):
     address_lower = address.lower()
     if not is_valid_address(address_lower):
         raise InvalidAddressException()
+
+    wallet = WalletIdentity(address_lower)
+    try:
+        cluster = await get_wallet_cluster(wallet)
+    except Exception:
+        log.warning("Live wallet linkage is unavailable", exc_info=True)
+        cluster = None
+    if cluster and len(cluster.wallets) > 1:
+        return await score_typed_cluster(wallet, cluster, community)
 
     # Look up linked-wallet set for this address. In Phase 0 the linkage source
     # is a stub that always returns the solo set; Phase 3b will wire it to Silk
@@ -192,6 +215,13 @@ async def _score_single_address(address: str, community: Community) -> V2ScoreRe
     scorer = await community.aget_scorer()
     scorer_type = scorer.type
 
+    score = await calculate_address_score(address, community)
+    await score.asave()
+
+    return format_v2_score_response(score, scorer_type)
+
+
+async def calculate_address_score(address: str, community: Community) -> Score:
     db_passport, _ = await Passport.objects.aupdate_or_create(
         address=address,
         community=community,
@@ -203,9 +233,91 @@ async def _score_single_address(address: str, community: Community) -> V2ScoreRe
     )
 
     await ascore_passport(community, db_passport, address, score)
-    await score.asave()
+    return score
 
-    return format_v2_score_response(score, scorer_type)
+
+async def score_typed_cluster(
+    requester: WalletIdentity, cluster: WalletCluster, community: Community
+) -> V2ScoreResponse:
+    # The WaaP address is stable when a member links or unlinks. Score it first
+    # and compute the aggregate from current membership on every request.
+    canonical = cluster.canonical
+    ordered = (canonical,) + tuple(
+        wallet for wallet in cluster.wallets if wallet != canonical
+    )
+    scorer_type = (await community.aget_scorer()).type
+    legacy_scores = {}
+    responses = {}
+    for wallet in ordered:
+        if wallet.chain_id is None:
+            score = await calculate_address_score(wallet.address, community)
+            legacy_scores[wallet] = score
+            responses[wallet] = format_v2_score_response(score, scorer_type)
+        else:
+            responses[wallet] = await score_chain_wallet(
+                wallet.address, wallet.chain_id, community
+            )
+
+    stamps = {}
+    wallet_stamps = {}
+    for wallet, response in responses.items():
+        if response.stamps:
+            wallet_stamps[wallet.key] = response.stamps
+        for provider, stamp in (response.stamps or {}).items():
+            if not stamp.dedup and provider not in stamps:
+                stamps[provider] = stamp.model_copy(
+                    update={
+                        "source_wallet": wallet.address,
+                        "source_wallet_chain_id": wallet.chain_id,
+                    }
+                )
+    raw_score = sum((Decimal(stamp.score) for stamp in stamps.values()), Decimal(0))
+    expirations = [
+        parsed
+        for stamp in stamps.values()
+        if (parsed := _parse_expiration(stamp.expiration_date)) is not None
+    ]
+    canonical_response = responses[canonical]
+    aggregate = canonical_response.model_copy(
+        update={
+            "score": raw_score,
+            "passing_score": raw_score >= canonical_response.threshold,
+            "stamps": stamps,
+            "expiration_timestamp": (
+                min(expirations).isoformat() if expirations else None
+            ),
+        }
+    )
+    linked = LinkedScoreResponse(
+        address=canonical.address,
+        score=aggregate.score,
+        passing_score=aggregate.passing_score,
+        threshold=aggregate.threshold,
+        stamps=stamps,
+        wallet_stamps=wallet_stamps,
+        last_score_timestamp=aggregate.last_score_timestamp,
+        expiration_timestamp=aggregate.expiration_timestamp,
+    )
+
+    # Persist the canonical's individual score. A linked member must never
+    # remain in the canonical's stored score or score history after unlink.
+    canonical_score = legacy_scores[canonical]
+    await canonical_score.asave()
+    for wallet, row in legacy_scores.items():
+        if wallet != canonical:
+            await _save_hidden_member_score(row, canonical_score)
+    if requester == canonical:
+        return aggregate.model_copy(update={"linked_score": linked})
+    own = responses[requester]
+    return own.model_copy(
+        update={
+            "score": Decimal(0),
+            "passing_score": False,
+            "stamps": {},
+            "expiration_timestamp": None,
+            "linked_score": linked,
+        }
+    )
 
 
 async def _score_wallet_group(
@@ -457,6 +569,43 @@ async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreRes
         raise InternalServerErrorException(
             "Unexpected error while submitting passport"
         ) from e
+
+
+@api_router.get(
+    "/stamps/{scorer_id}/score/eip155/{chain_id}/{address}",
+    auth=aapi_key,
+    response=ChainWalletScoreResponse,
+    summary="Score an active linked contract wallet on a specified chain",
+    tags=["Stamp API"],
+)
+@atrack_apikey_usage(track_response=True)
+async def submit_chain_wallet_score(
+    request, scorer_id: int, chain_id: int, address: str
+):
+    check_rate_limit(request)
+    return await handle_chain_wallet_score(
+        address, chain_id, scorer_id, request.auth, request.api_key
+    )
+
+
+async def handle_chain_wallet_score(address, chain_id, scorer_id, account, api_key):
+    if not (api_key.read_scores and api_key.linked_wallet_breakdown):
+        raise InvalidAPIKeyPermissions()
+    address = address.lower()
+    if not 0 < chain_id <= 9007199254740991 or not is_valid_address(address):
+        raise InvalidAddressException("Invalid EIP-155 wallet identity")
+    community = await aget_scorer_by_id(scorer_id, account)
+    try:
+        wallet = WalletIdentity(address, chain_id)
+        cluster = await get_wallet_cluster(wallet)
+    except Exception as exc:
+        raise InternalServerErrorException("Wallet linkage is unavailable") from exc
+    if not cluster:
+        raise NotFoundApiException("No active contract wallet link")
+    result = await score_typed_cluster(wallet, cluster, community)
+    return ChainWalletScoreResponse.model_validate(
+        {**result.model_dump(), "chain_id": chain_id}
+    )
 
 
 def extract_score_data(event_data: Dict[str, Any]) -> Dict[str, Any]:

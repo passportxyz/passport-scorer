@@ -49,6 +49,7 @@ pub struct DjangoHashScorerLink {
     pub id: i64,
     pub hash: String,
     pub address: String,
+    pub chain_id: i64,
     pub community_id: i64,
     pub expires_at: DateTime<Utc>,
 }

@@ -1,3 +1,4 @@
+pub mod chain_wallet_scoring;
 // Domain layer - shared business logic with no HTTP concerns
 // These modules contain pure business logic that can be used by both
 // internal and external API handlers

@@ -170,6 +170,50 @@ class CeramicCacheLegacy(models.Model):
         unique_together = ["address", "provider"]
 
 
+class ChainWalletStamp(models.Model):
+    """A cached credential for a specific deployed EIP-155 wallet."""
+
+    chain_id = models.PositiveBigIntegerField()
+    address = EthAddressField()
+    provider = models.CharField(max_length=256)
+    stamp = models.JSONField()
+    proof_value = models.CharField(max_length=256, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=("chain_id", "address", "provider"),
+                name="chain_wallet_stamp_history_idx",
+            )
+        ]
+        constraints = [
+            UniqueConstraint(
+                fields=("chain_id", "address", "provider"),
+                condition=Q(deleted_at__isnull=True),
+                name="unique_active_chain_wallet_stamp",
+            ),
+            models.CheckConstraint(
+                condition=Q(chain_id__gt=0, chain_id__lte=9007199254740991),
+                name="chain_wallet_stamp_valid_chain",
+            ),
+        ]
+
+
+class EffectiveChainWalletStamp(models.Model):
+    """Read-only view of active chain stamps and compatible mainnet stamps."""
+
+    id = models.BigIntegerField(primary_key=True)
+    chain_id = models.PositiveBigIntegerField()
+    address = EthAddressField()
+    provider = models.CharField(max_length=256)
+    stamp = models.JSONField()
+
+    class Meta:
+        managed = False
+
+
 class RevocationList(models.Model):
     name = models.CharField(
         default="", max_length=256, db_index=True, null=True, blank=True
@@ -198,10 +242,18 @@ class Revocation(models.Model):
         CeramicCache,
         on_delete=models.CASCADE,
         related_name="revocation",
-        null=False,
-        blank=False,
+        null=True,
+        blank=True,
         db_index=True,
         unique=True,
+    )
+
+    chain_wallet_stamp = models.OneToOneField(
+        ChainWalletStamp,
+        on_delete=models.CASCADE,
+        related_name="revocation",
+        null=True,
+        blank=True,
     )
 
     revocation_list = models.ForeignKey(
@@ -213,6 +265,17 @@ class Revocation(models.Model):
         db_index=True,
         default=None,
     )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    ceramic_cache__isnull=False, chain_wallet_stamp__isnull=True
+                )
+                | Q(ceramic_cache__isnull=True, chain_wallet_stamp__isnull=False),
+                name="revocation_exactly_one_stamp",
+            ),
+        ]
 
     def __str__(self):
         return f"Revocation #{self.pk}, proof_value={self.proof_value}"
@@ -361,7 +424,9 @@ class Ban(models.Model):
 
         if self.type == "account" and not (
             # Account ban (ETH address)
-            self.address and not self.hash and not self.provider
+            self.address
+            and not self.hash
+            and not self.provider
         ):
             raise ValidationError(
                 "Invalid ban for type 'account'. See `Wielding the Ban Hammer`."
@@ -369,7 +434,9 @@ class Ban(models.Model):
 
         if self.type == "hash" and not (
             # Account ban (ETH address)
-            self.hash and not self.address and not self.provider
+            self.hash
+            and not self.address
+            and not self.provider
         ):
             raise ValidationError(
                 "Invalid ban for type 'hash'. See `Wielding the Ban Hammer`."
@@ -377,7 +444,9 @@ class Ban(models.Model):
 
         if self.type == "single_stamp" and not (
             # Account ban (ETH address)
-            self.address and self.provider and not self.hash
+            self.address
+            and self.provider
+            and not self.hash
         ):
             raise ValidationError(
                 "Invalid ban for type 'single_stamp'. See `Wielding the Ban Hammer`."
@@ -408,6 +477,11 @@ class Ban(models.Model):
         for stamp in stamps:
             Revocation.objects.create(
                 proof_value=stamp.proof_value, ceramic_cache=stamp
+            )
+
+        for stamp in ChainWalletStamp.objects.filter(*filters):
+            Revocation.objects.create(
+                proof_value=stamp.proof_value, chain_wallet_stamp=stamp
             )
 
         self.last_run_revoke_matching = timezone.now()

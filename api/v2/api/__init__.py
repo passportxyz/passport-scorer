@@ -3,6 +3,7 @@ from django_ratelimit.exceptions import Ratelimited
 from ninja_extra import NinjaExtraAPI
 
 from ..exceptions import ScoreDoesNotExist
+from . import chain_wallet_stamps  # noqa: F401
 from .api_models import *
 from .api_stamps import *
 from .router import api_router

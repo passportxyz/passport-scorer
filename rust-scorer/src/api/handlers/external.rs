@@ -51,6 +51,8 @@ pub async fn score_address_handler(
         &request_path,
     ).await?;
 
+    let community_id = resolve_owned_scorer(&pool, api_key_data.account_id, scorer_id).await?;
+
     info!(api_key_id = %api_key_data.id, "API key validated");
 
     // Track API usage for analytics
@@ -77,8 +79,56 @@ pub async fn score_address_handler(
     // with linked_wallet_breakdown see which wallets are linked.
     Ok(Json(domain::calculate_score_for_address_with_groups(
         &address,
-        scorer_id,
+        community_id,
         &pool,
         domain::LinkedWallets::for_api_key(&api_key_data),
     ).await?))
+}
+pub async fn chain_wallet_score_handler(
+    Path((scorer_id, chain_id, address)): Path<(i64, i64, String)>,
+    State(pool): State<PgPool>,
+    headers: HeaderMap,
+) -> ApiResult<Json<domain::chain_wallet_scoring::ChainWalletScoreResponse>> {
+    let address = address.to_lowercase();
+    if !(1..=9_007_199_254_740_991).contains(&chain_id) || !is_valid_eth_address(&address) {
+        return Err(ApiError::BadRequest("Invalid EIP-155 wallet identity".into()));
+    }
+    let request_path = format!("/v2/stamps/{scorer_id}/score/eip155/{chain_id}/{address}");
+    let key = ApiKeyValidator::validate(
+        &pool,
+        headers.get("X-API-Key").and_then(|header| header.to_str().ok()),
+        headers.get("Authorization").and_then(|header| header.to_str().ok()),
+        &request_path,
+    ).await?;
+    if !(key.read_scores && key.linked_wallet_breakdown) {
+        return Err(ApiError::Forbidden("Invalid permissions for action".into()));
+    }
+    let community_id = resolve_owned_scorer(&pool, key.account_id, scorer_id).await?;
+    let wallet = crate::account::linkage::WalletIdentity {
+        address,
+        chain_id: Some(chain_id),
+    };
+    let cluster = crate::account::linkage::get_wallet_cluster(&wallet)
+        .await
+        .map_err(|_| ApiError::Internal("Wallet linkage is unavailable".into()))?
+        .ok_or_else(|| ApiError::NotFound("No active contract wallet link".into()))?;
+    let score = domain::scoring::score_typed_cluster(&pool, community_id, &wallet, cluster).await?;
+    Ok(Json(domain::chain_wallet_scoring::ChainWalletScoreResponse { chain_id, score }))
+}
+
+
+async fn resolve_owned_scorer(pool: &PgPool, account_id: i64, scorer_id: i64) -> ApiResult<i64> {
+    let community_id: Option<i64> = sqlx::query_scalar(
+        "SELECT COALESCE(
+            (SELECT CASE WHEN COUNT(*) = 1 THEN MIN(id) END
+             FROM account_community WHERE account_id = $1 AND external_scorer_id = $2),
+            (SELECT id FROM account_community WHERE account_id = $1 AND id = $3)
+         )",
+    )
+    .bind(account_id)
+    .bind(scorer_id.to_string())
+    .bind(scorer_id)
+    .fetch_one(pool)
+    .await?;
+    community_id.ok_or_else(|| ApiError::NotFound("No scorer matches the given criteria".into()))
 }

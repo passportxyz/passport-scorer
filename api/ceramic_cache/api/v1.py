@@ -3,9 +3,11 @@
 import hashlib
 import hmac
 import json
+import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Type
+from urllib.parse import urlsplit
 
 import jwt
 from asgiref.sync import async_to_sync
@@ -13,8 +15,10 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
+from django.db.models import Q
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
+from eth_abi import encode
 from eth_account.messages import encode_defunct
 from ninja import Router
 from ninja_extra import status
@@ -32,6 +36,7 @@ import tos.schema
 from account.models import Account, Community, Nonce
 from account.siwe_validation import validate_siwe_domain, validate_siwe_expiration
 from ceramic_cache.utils import get_utc_time
+from reader.passport_reader import get_did
 from registry.api.utils import (
     is_valid_address,
 )
@@ -151,6 +156,11 @@ class JWTDidAuthentication:
         request.did = None
         validated_token = self.get_validated_token(token)
         request.did = validated_token["did"]
+        if (
+            isinstance(validated_token, dict)
+            and validated_token.get("chain_wallet") is True
+        ):
+            raise InvalidToken("Use the chain wallet stamp API")
         return request
 
 
@@ -639,7 +649,7 @@ def generate_access_token_response(user_did: str) -> AccessTokenResponse:
     )
 
 
-def generate_siwe_access_token(user_did: str) -> str:
+def generate_siwe_access_token(user_did: str, *, chain_wallet: bool = False) -> str:
     """
     Generate RS256 JWT for SIWE authentication using PyJWT directly.
     This token can be verified by IAM using the public key.
@@ -653,6 +663,9 @@ def generate_siwe_access_token(user_did: str) -> str:
         "iss": "passport-scorer",
         "token_type": "access",
     }
+    if chain_wallet:
+        payload["chain_wallet"] = True
+        payload["exp"] = now + timedelta(minutes=15)
     return jwt.encode(payload, settings.SIWE_JWT_PRIVATE_KEY, algorithm="RS256")
 
 
@@ -816,18 +829,40 @@ def authenticate_v2(request, payload: SiweVerifySubmit):
     return handle_authenticate_v2(payload)
 
 
+CHAIN_WALLET_STATEMENT = (
+    "Authorize credential issuance for this deployed wallet in Human Passport"
+)
+
+
+def verify_deployed_wallet_signature(
+    chain_id: int, address: str, message_hash: bytes, signature: str
+) -> bool:
+    signature_bytes = Web3.to_bytes(hexstr=signature)
+    if signature_bytes.endswith(bytes.fromhex("6492" * 16)):
+        return False
+    web3 = get_web3_for_chain(chain_id)
+    if web3.eth.chain_id != chain_id:
+        return False
+    block = web3.eth.block_number
+    if not web3.eth.get_code(address, block_identifier=block):
+        return False
+    calldata = (
+        "0x1626ba7e"
+        + encode(["bytes32", "bytes"], [message_hash, signature_bytes]).hex()
+    )
+    result = web3.eth.call({"to": address, "data": calldata}, block_identifier=block)
+    return bytes(result) == bytes.fromhex("1626ba7e") + bytes(28)
+
+
 def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
     """
     Handle SIWE v2 authentication:
     1. Validate nonce (use once, 5-minute TTL)
     2. Parse and verify SIWE message
-    3. Verify signature using ERC-6492 (handles EOA + smart wallets universally)
+    3. Verify a deployed wallet on its signed chain or use legacy mainnet authentication
     4. Return JWT with did claim
     """
     try:
-        # Debug: Log the full payload for smart wallet signature debugging
-        log.debug(f"Received authenticate_v2 payload: {payload.dict()}")
-
         address_raw = payload.message.get("address", "")
         nonce = payload.message.get("nonce")
         chain_id = payload.message.get("chainId", 1)
@@ -846,12 +881,45 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
 
         # Validate SIWE domain
         message_domain = payload.message.get("domain")
-        if not validate_siwe_domain(message_domain, settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE):
+        if not validate_siwe_domain(
+            message_domain, settings.SIWE_ALLOWED_DOMAINS_CERAMIC_CACHE
+        ):
             log.warning(
                 "SIWE domain rejected: domain=%r, address=%r",
-                message_domain, address_raw,
+                message_domain,
+                address_raw,
             )
             raise FailedVerificationException(detail="Verification failed!")
+
+        statement = payload.message.get("statement")
+        if payload.deployed_wallet:
+            if (
+                os.environ.get("CHAIN_WALLET_SCORING_ENABLED") != "true"
+                or "chainId" not in payload.message
+                or type(chain_id) is not int
+                or chain_id not in settings.ALCHEMY_CHAIN_NETWORKS
+                or statement != CHAIN_WALLET_STATEMENT
+            ):
+                raise FailedVerificationException()
+            uri = urlsplit(payload.message.get("uri", ""))
+            if (
+                uri.scheme != "https"
+                or uri.netloc.lower() != message_domain.lower()
+                or uri.path not in ("", "/")
+                or uri.query
+                or uri.fragment
+                or payload.message.get("resources")
+                or payload.message.get("requestId")
+                or payload.message.get("notBefore")
+                or not payload.message.get("expirationTime")
+            ):
+                raise FailedVerificationException()
+            try:
+                Nonce.validate_nonce(nonce)
+            except Nonce.DoesNotExist as exc:
+                raise FailedVerificationException(detail="Invalid nonce!") from exc
+        elif statement == CHAIN_WALLET_STATEMENT:
+            raise FailedVerificationException()
 
         # Validate SIWE expiration
         expiration_time = payload.message.get("expirationTime")
@@ -860,7 +928,7 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
             raise FailedVerificationException(detail="Verification failed!")
 
         # Validate and consume nonce (5-minute TTL)
-        if not Nonce.use_nonce(nonce):
+        if not payload.deployed_wallet and not Nonce.use_nonce(nonce):
             log.error("Invalid or expired nonce: '%s'", nonce)
             raise FailedVerificationException(detail="Invalid nonce!")
 
@@ -904,6 +972,25 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
         )
         message_hash = Web3.keccak(full_prefixed_data)
 
+        if payload.deployed_wallet:
+            if not verify_deployed_wallet_signature(
+                chain_id, address, message_hash, payload.signature
+            ):
+                raise FailedVerificationException(detail="Invalid signature!")
+            now = datetime.now(timezone.utc)
+            consumed = (
+                Nonce.objects.filter(nonce=nonce, was_used=False)
+                .filter(Q(expires_on__isnull=True) | Q(expires_on__gt=now))
+                .update(was_used=True)
+            )
+            if consumed != 1:
+                raise FailedVerificationException(detail="Invalid nonce!")
+            return AccessTokenResponse(
+                access=generate_siwe_access_token(
+                    get_did(address, str(chain_id)), chain_wallet=True
+                )
+            )
+
         log.debug(f"SIWE message hash: {message_hash.hex()}")
 
         # Try standard EOA ecrecover first (faster, no RPC needed)
@@ -944,5 +1031,8 @@ def handle_authenticate_v2(payload: SiweVerifySubmit) -> AccessTokenResponse:
     except FailedVerificationException:
         raise
     except Exception as exc:
-        log.error("Failed authenticate_v2 request: '%s'", payload.dict(), exc_info=True)
+        log.error(
+            "SIWE authentication failed",
+            extra={"deployed_wallet": payload.deployed_wallet},
+        )
         raise FailedVerificationException(detail="Authentication failed!") from exc

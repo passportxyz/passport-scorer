@@ -1,8 +1,9 @@
 import copy
 from typing import Tuple
 
+from asgiref.sync import sync_to_async
 from django.conf import settings
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 import api_logging as logging
 from account.models import Community
@@ -19,12 +20,18 @@ class HashScorerLinkIntegrityError(Exception):
 
 
 async def alifo(
-    community: Community, lifo_passport: dict, address: str
+    community: Community,
+    lifo_passport: dict,
+    address: str,
+    *,
+    chain_id: int | None = None
 ) -> Tuple[dict, list | None]:
     tries_remaining = 5
     while True:
         try:
-            return await arun_lifo_dedup(community, lifo_passport, address)
+            return await arun_lifo_dedup(
+                community, lifo_passport, address, chain_id=chain_id
+            )
         except HashScorerLinkIntegrityError:
             tries_remaining -= 1
             # If we get integrity errors from trying to create
@@ -35,41 +42,50 @@ async def alifo(
                 raise
 
 
-def get_nullifiers(stamp: dict) -> list[str]:
+def get_nullifiers(stamp: dict, *, all_versions: bool = False) -> list[str]:
     cs = stamp["credential"]["credentialSubject"]
     unfiltered = [cs["hash"]] if "hash" in cs else cs["nullifiers"]
-    if settings.FF_MULTI_NULLIFIER == "on":
+    if all_versions or settings.FF_MULTI_NULLIFIER == "on":
         return unfiltered
     return [nullifier for nullifier in unfiltered if nullifier.startswith("v0")]
 
 
 async def arun_lifo_dedup(
-    community: Community, lifo_passport: dict, address: str
+    community: Community,
+    lifo_passport: dict,
+    address: str,
+    *,
+    chain_id: int | None = None
 ) -> Tuple[dict, list | None]:
     deduped_passport = copy.deepcopy(lifo_passport)
     deduped_passport["stamps"] = []
 
     now = get_utc_time()
+    owner_chain_id = 1 if chain_id is None else chain_id
     if "stamps" in lifo_passport:
         stamp_hashes = []
 
         for stamp in lifo_passport["stamps"]:
-            stamp_hashes.extend(get_nullifiers(stamp))
+            stamp_hashes.extend(
+                get_nullifiers(stamp, all_versions=chain_id is not None)
+            )
 
         existing_hash_links = HashScorerLink.objects.filter(
             hash__in=stamp_hashes, community=community
         )
 
         this_users_hash_links, clashing_hashes, forfeited_hash_links = [], [], []
-        clasing_hash_links_by_hash = {}
+        clashing_hash_links_by_hash = {}
+        existing_hashes = set()
         async for hash_link in existing_hash_links:
-            if hash_link.address == address:
+            existing_hashes.add(hash_link.hash)
+            if (hash_link.chain_id, hash_link.address) == (owner_chain_id, address):
                 # Already claimed by this user,
                 this_users_hash_links.append(hash_link)
             elif hash_link.expires_at > now:
                 # Already claimed by another user,
                 clashing_hashes.append(hash_link.hash)
-                clasing_hash_links_by_hash[hash_link.hash] = hash_link
+                clashing_hash_links_by_hash[hash_link.hash] = hash_link
             else:
                 # Already claimed by another user, but
                 # it's expired so we'll give it to this user
@@ -81,7 +97,7 @@ async def arun_lifo_dedup(
 
         for stamp in lifo_passport["stamps"]:
             # hash = stamp["credential"]["credentialSubject"]["hash"]
-            nullifiers = get_nullifiers(stamp)
+            nullifiers = get_nullifiers(stamp, all_versions=chain_id is not None)
             expires_at = stamp["credential"]["expirationDate"]
 
             # If at least one of the nullifier clashes with an existing hash link
@@ -108,6 +124,7 @@ async def arun_lifo_dedup(
                             if hash_link.hash == nullifier_hash:
                                 done = True
                                 hash_link.address = address
+                                hash_link.chain_id = owner_chain_id
                                 hash_link.expires_at = expires_at
                                 hash_links_to_update.append(hash_link)
                                 break
@@ -117,6 +134,7 @@ async def arun_lifo_dedup(
                             HashScorerLink(
                                 hash=nullifier_hash,
                                 address=address,
+                                chain_id=owner_chain_id,
                                 community=community,
                                 expires_at=stamp["credential"]["expirationDate"],
                             )
@@ -131,8 +149,8 @@ async def arun_lifo_dedup(
                 # The reason why this might be missing is because only one of
                 # the nullifiers was available last time the stamp git deduped
                 for nullifier_hash in nullifiers:
-                    if nullifier_hash not in clashing_hashes:
-                        clashing_hash_link = clasing_hash_links_by_hash[
+                    if nullifier_hash not in existing_hashes:
+                        clashing_hash_link = clashing_hash_links_by_hash[
                             clashing_hashes_for_stamp[0]
                         ]
                         hash_links_to_create.append(
@@ -141,16 +159,16 @@ async def arun_lifo_dedup(
                                 # Create this hash link with the same address, community and expores_at as fields
                                 # the one we are clashing with -> the 2 should be identical
                                 address=clashing_hash_link.address,
+                                chain_id=clashing_hash_link.chain_id,
                                 community=community,
                                 expires_at=clashing_hash_link.expires_at,
                             )
                         )
 
-        await save_hash_links(
-            hash_links_to_create, hash_links_to_update, address, community
-        )
+        await save_hash_links(hash_links_to_create, hash_links_to_update, community)
 
-        if clashing_stamps:
+        # Scoped scores do not write into the address-only history.
+        if clashing_stamps and chain_id is None:
             await Event.objects.abulk_create(
                 [
                     Event(
@@ -171,33 +189,46 @@ async def arun_lifo_dedup(
     return (deduped_passport, None, clashing_stamps)
 
 
-async def save_hash_links(
+@sync_to_async
+def save_hash_links(
     hash_links_to_create: list[HashScorerLink],
     hash_links_to_update: list[HashScorerLink],
-    address: str,
     community: Community,
 ):
-    if hash_links_to_create or hash_links_to_update:
-        try:
-            # Could have IntegrityError if there are conflicting requests
-            # running concurrently
+    expected_owners = {
+        link.hash: (link.chain_id, link.address)
+        for link in hash_links_to_create + hash_links_to_update
+    }
+    if not expected_owners:
+        return
+
+    try:
+        with transaction.atomic():
             if hash_links_to_create:
-                await HashScorerLink.objects.abulk_create(hash_links_to_create)
+                HashScorerLink.objects.bulk_create(hash_links_to_create)
 
             if hash_links_to_update:
-                await HashScorerLink.objects.abulk_update(
-                    hash_links_to_update, fields=["expires_at", "address"]
+                locked_links = (
+                    HashScorerLink.objects.select_for_update()
+                    .filter(pk__in=[link.pk for link in hash_links_to_update])
+                    .order_by("pk")
                 )
-        except IntegrityError:
-            raise HashScorerLinkIntegrityError("Failed to save HashScorerLinks")
+                now = get_utc_time()
+                for link in locked_links:
+                    if (link.chain_id, link.address) != expected_owners[
+                        link.hash
+                    ] and link.expires_at > now:
+                        raise HashScorerLinkIntegrityError(
+                            "Hash scorer link changed owners during scoring"
+                        )
+                HashScorerLink.objects.bulk_update(
+                    hash_links_to_update, fields=["address", "chain_id", "expires_at"]
+                )
 
-        # After updating, double check that there was not a conflicting
-        # request that tried to update the same object
-        updated_hashes = [hash_link.hash for hash_link in hash_links_to_update]
-        created_hashes = [hash_link.hash for hash_link in hash_links_to_create]
-        if await HashScorerLink.objects.filter(
-            address=address,
-            community=community,
-            hash__in=(updated_hashes + created_hashes),
-        ).acount() != len(hash_links_to_update) + len(hash_links_to_create):
-            raise HashScorerLinkIntegrityError("Unexpected number of HashScorerLinks")
+            links = HashScorerLink.objects.filter(
+                community=community, hash__in=expected_owners
+            ).values_list("hash", "chain_id", "address")
+            if {key: (chain, owner) for key, chain, owner in links} != expected_owners:
+                raise HashScorerLinkIntegrityError("Unexpected HashScorerLink owners")
+    except IntegrityError as exc:
+        raise HashScorerLinkIntegrityError("Failed to save HashScorerLinks") from exc

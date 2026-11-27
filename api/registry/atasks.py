@@ -180,12 +180,18 @@ async def aprocess_deduplication(passport, community, passport_data, score: Scor
 
 
 async def avalidate_credentials(passport: Passport, passport_data) -> dict:
+    return await avalidate_credentials_for_identity(passport.address, passport_data)
+
+
+async def avalidate_credentials_for_identity(
+    address: str, passport_data: dict, *, chain_id: int = 1
+) -> dict:
     log.debug("validating credentials")
 
     validated_passport = copy.deepcopy(passport_data)
     validated_passport["stamps"] = []
 
-    did = get_did(passport.address)
+    did = get_did(address, str(chain_id))
 
     for stamp in passport_data["stamps"]:
         log.debug(

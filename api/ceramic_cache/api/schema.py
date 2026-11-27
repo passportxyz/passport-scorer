@@ -52,6 +52,7 @@ class GetStampsWithInternalV2ScoreResponse(GetStampResponse):
 class SiweVerifySubmit(Schema):
     message: dict
     signature: str
+    deployed_wallet: bool = False
 
 
 class AccessTokenResponse(Schema):

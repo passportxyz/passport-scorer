@@ -22,6 +22,7 @@ pub async fn load_hash_scorer_links(
             id,
             hash,
             address,
+            chain_id,
             community_id,
             expires_at
         FROM registry_hashscorerlink
@@ -46,8 +47,8 @@ pub async fn load_hash_scorer_links(
 ))]
 pub async fn bulk_upsert_hash_links(
     tx: &mut Transaction<'_, Postgres>,
-    links_to_create: Vec<(String, String, i64, DateTime<Utc>)>, // (hash, address, community_id, expires_at)
-    links_to_update: Vec<(String, String, i64, DateTime<Utc>)>,
+    links_to_create: Vec<(String, String, i64, DateTime<Utc>, i64)>, // (hash, address, community_id, expires_at, chain_id)
+    links_to_update: Vec<(String, String, i64, DateTime<Utc>, i64)>,
 ) -> Result<()> {
     debug!("Upserting {} new and {} existing hash links",
         links_to_create.len(), links_to_update.len());
@@ -59,17 +60,20 @@ pub async fn bulk_upsert_hash_links(
         let community_ids: Vec<i64> = links_to_create.iter().map(|l| l.2).collect();
         let expires_ats: Vec<DateTime<Utc>> = links_to_create.iter().map(|l| l.3).collect();
 
+        let chain_ids: Vec<i64> = links_to_create.iter().map(|l| l.4).collect();
+
         sqlx::query(
             r#"
-            INSERT INTO registry_hashscorerlink (hash, address, community_id, expires_at)
-            SELECT * FROM UNNEST($1::text[], $2::text[], $3::bigint[], $4::timestamptz[])
-            AS t(hash, address, community_id, expires_at)
+            INSERT INTO registry_hashscorerlink (hash, address, community_id, expires_at, chain_id)
+            SELECT * FROM UNNEST($1::text[], $2::text[], $3::bigint[], $4::timestamptz[], $5::bigint[])
+            AS t(hash, address, community_id, expires_at, chain_id)
             "#
         )
         .bind(&hashes[..])
         .bind(&addresses[..])
         .bind(&community_ids[..])
         .bind(&expires_ats[..])
+        .bind(&chain_ids[..])
         .execute(&mut **tx)
         .await
         .map_err(|e| {
@@ -88,18 +92,20 @@ pub async fn bulk_upsert_hash_links(
     }
 
     // Update existing links (expired or owned)
-    for (hash, address, community_id, expires_at) in &links_to_update {
+    for (hash, address, community_id, expires_at, chain_id) in &links_to_update {
         sqlx::query(
             r#"
             UPDATE registry_hashscorerlink
-            SET address = $1, expires_at = $2
+            SET address = $1, expires_at = $2, chain_id = $5
             WHERE hash = $3 AND community_id = $4
+              AND ((address = $1 AND chain_id = $5) OR expires_at <= NOW())
             "#
         )
         .bind(address)
         .bind(expires_at)
         .bind(hash)
         .bind(community_id)
+        .bind(chain_id)
         .execute(&mut **tx)
         .await
         .map_err(|e| DatabaseError::QueryError(e))?;
@@ -123,6 +129,7 @@ pub async fn verify_hash_links(
     address: &str,
     community_id: i64,
     expected_nullifiers: &[String],
+    chain_id: i64,
 ) -> Result<bool> {
     debug!("Verifying hash links for {} expected nullifiers", expected_nullifiers.len());
 
@@ -133,11 +140,13 @@ pub async fn verify_hash_links(
         WHERE address = $1
             AND community_id = $2
             AND hash = ANY($3)
+            AND chain_id = $4
         "#
     )
     .bind(address)
     .bind(community_id)
     .bind(expected_nullifiers)
+    .bind(chain_id)
     .fetch_one(&mut **tx)
     .await
     .map_err(|e| DatabaseError::QueryError(e))?;

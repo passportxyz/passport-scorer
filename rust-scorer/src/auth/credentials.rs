@@ -70,6 +70,16 @@ async fn validate_credential_with_issuers(
     address: &str,
     trusted_issuers: &[String],
 ) -> Result<Option<ValidatedCredential>> {
+    validate_scoped_credential(credential, address, 1, trusted_issuers, false).await
+}
+
+async fn validate_scoped_credential(
+    credential: &Value,
+    address: &str,
+    chain_id: i64,
+    trusted_issuers: &[String],
+    contract_wallet: bool,
+) -> Result<Option<ValidatedCredential>> {
     debug!("Validating credential for address: {}", address);
     
     // Extract credential subject
@@ -87,31 +97,35 @@ async fn validate_credential_with_issuers(
             "Missing provider".to_string()
         ))?;
     
-    // Extract nullifiers (only support array, not hash field)
-    let nullifiers = credential_subject
-        .get("nullifiers")
-        .and_then(|n| n.as_array())
-        .ok_or_else(|| DatabaseError::InvalidData(
-            "Missing or invalid nullifiers array".to_string()
-        ))?;
-    
-    if nullifiers.is_empty() {
-        warn!("Credential has empty nullifiers array");
+    // Contract scores also accept older credentials with a single signed
+    // hash. Both implementations share the same nullifier namespace.
+    let single_hash = if contract_wallet {
+        credential_subject.get("hash")
+    } else {
+        None
+    };
+    let nullifier_strings = if let Some(hash) = single_hash {
+        let Some(hash) = hash.as_str() else {
+            return Ok(None);
+        };
+        vec![hash.to_string()]
+    } else {
+        let Some(nullifiers) = credential_subject.get("nullifiers").and_then(Value::as_array) else {
+            return Err(DatabaseError::InvalidData("Missing or invalid nullifiers array".into()));
+        };
+        let Some(values) = nullifiers.iter().map(|value| value.as_str().map(String::from)).collect::<Option<Vec<_>>>() else {
+            return Ok(None);
+        };
+        values
+    };
+    if nullifier_strings.is_empty()
+        || (contract_wallet && nullifier_strings.iter().any(|value| value.is_empty() || value.chars().count() > 100))
+    {
         return Ok(None);
     }
-    
-    let nullifier_strings: Vec<String> = nullifiers
-        .iter()
-        .filter_map(|n| n.as_str().map(String::from))
-        .collect();
-    
-    if nullifier_strings.len() != nullifiers.len() {
-        warn!("Some nullifiers are not strings");
-        return Ok(None);
-    }
-    
+
     // Check DID matches address
-    let expected_did = format!("did:pkh:eip155:1:{}", address.to_lowercase());
+    let expected_did = format!("did:pkh:eip155:{chain_id}:{}", address.to_lowercase());
     let credential_did = credential_subject
         .get("id")
         .and_then(|id| id.as_str())
@@ -248,11 +262,28 @@ pub async fn validate_credentials_batch(
     credentials: &[Value],
     address: &str,
 ) -> Result<Vec<ValidatedCredential>> {
+    validate_credentials_for_identity(credentials, address, 1, false).await
+}
+
+pub async fn validate_chain_credentials(
+    credentials: &[Value],
+    address: &str,
+    chain_id: i64,
+) -> Result<Vec<ValidatedCredential>> {
+    validate_credentials_for_identity(credentials, address, chain_id, true).await
+}
+
+async fn validate_credentials_for_identity(
+    credentials: &[Value],
+    address: &str,
+    chain_id: i64,
+    contract_wallet: bool,
+) -> Result<Vec<ValidatedCredential>> {
     let mut valid_credentials = Vec::new();
     let mut seen_providers = HashSet::new();
     
     for credential in credentials {
-        match validate_credential(credential, address).await {
+        match validate_scoped_credential(credential, address, chain_id, get_trusted_issuers(), contract_wallet).await {
             Ok(Some(valid)) => {
                 // Only keep first credential per provider
                 if seen_providers.insert(valid.provider.clone()) {
@@ -375,6 +406,22 @@ mod tests {
         // Beyond the tolerance: still premature
         let err = verify_signature(c, ahead(ISSUANCE_CLOCK_SKEW_SECS + 1)).await.unwrap_err();
         assert!(err.contains("Premature"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn chain_wallet_validation_requires_the_signed_chain() {
+        let f = fixtures();
+        let credential = &f["didkit_signed"][0];
+        let trusted = vec![credential["issuer"].as_str().unwrap().to_string()];
+        let address = format!("0x{}", "a".repeat(40));
+        assert!(
+            validate_scoped_credential(credential, &address, 1, &trusted, true)
+                .await.unwrap().is_some()
+        );
+        assert!(
+            validate_scoped_credential(credential, &address, 8453, &trusted, true)
+                .await.unwrap().is_none()
+        );
     }
 
     #[tokio::test]

@@ -22,6 +22,19 @@ Primary entry point is `/v2/stamps/{scorer_id}/score/{address}` endpoint. Cerami
    - Returns `V2ScoreResponse` with scores, stamps, dedup info
    - If `include_human_points=true`: includes points breakdown
 
+## Chain-scoped WaaP credentials and scores
+
+- The Passport app signs the deployed-wallet SIWE statement on the connected chain. `/ceramic-cache/authenticate/v2` checks deployed bytecode and ERC-1271 on that exact chain and issues a short-lived RS256 token with `chain_wallet: true` and an EIP-155 DID. IAM signs stamps with that same DID and uses the existing nullifier generators.
+- `GET/PATCH /v2/wallet-stamps` reads or replaces the authenticated wallet's active credentials. A null stamp deletes that provider from this wallet's cache. `POST /v2/wallet-stamps/score` lets the wallet holder rescore its own credentials.
+- The `ceramic_cache_chainwalletstamp` partial unique index keys active rows by chain ID, address, and provider. Both scorers match the signed DID and exclude revoked proofs. The shared cache view keeps valid legacy mainnet credentials visible for a deployed mainnet wallet until that provider is edited through the scoped cache. Scoped edits supersede exact mainnet legacy stamps.
+- Both score runtimes read active Silk membership for `GET /v2/stamps/{scorer_id}/score/{address}` and `GET /v2/stamps/{scorer_id}/score/eip155/{chain_id}/{address}`. The contract route requires a community key with `read_scores` and `linked_wallet_breakdown`. The WaaP address anchors the cluster, and only privileged responses show the wallet breakdown and each stamp's source wallet and chain. Contract member keys use `eip155:{chain_id}:{address}`.
+- Store an individual score in `registry_chainwalletscore` by community, chain ID, and address. LIFO shares nullifier claims across wallets and records each claim's owning chain and address. The aggregate is computed from live membership on each request, so unlink removes the member from the next result and its contribution stays out of the legacy score history.
+
+### Staging validation
+
+- Deploy Silk's typed linkage route and Passport IAM support. Apply `registry.0061_chain_wallet_scores` and the ceramic cache migrations through `0037_effective_chain_wallet_stamps` before enabling the scorer. Configure `CHAIN_WALLET_SCORING_ENABLED=true`, `SILK_AUTH_SERVER_URL`, and the matching `SILK_SERVICE_API_KEY` in the scorer deployment, and `NEXT_PUBLIC_CHAIN_WALLET_SCORING_ENABLED=true` in the Passport app build. The scorer auth Lambda needs its existing SIWE signing key and RPC support for the connected chain.
+- Use a disposable WaaP test account, a deployed ERC-1271 wallet with a credential on its chain, and a staging community key with linked-wallet access. Record the WaaP score before linking. Link on the wallet's chain, then query the WaaP address and the typed member route. Verify the stamp's source chain and address, unlink the member, and repeat the queries to confirm the aggregate drops its contribution and the former member route returns 404.
+
 ## Database Tables
 
 - **ceramic_cache**: Credential records (type='V1' only, V2 abandoned)

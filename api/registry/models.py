@@ -53,6 +53,27 @@ class Stamp(models.Model):
         )
 
 
+class ChainWalletScore(models.Model):
+    """Latest score for one deployed wallet on one chain in a community."""
+
+    community = models.ForeignKey(Community, on_delete=models.CASCADE)
+    chain_id = models.PositiveBigIntegerField()
+    address = EthAddressField()
+    response = models.JSONField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("community", "chain_id", "address"),
+                name="chain_wallet_score_identity",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(chain_id__gt=0, chain_id__lte=9007199254740991),
+                name="chain_wallet_score_chain",
+            ),
+        ]
+
+
 class Score(models.Model):
     class Meta:
         permissions = [("rescore_individual_score", "Can rescore individual scores")]
@@ -202,6 +223,8 @@ class HashScorerLink(models.Model):
         db_index=True,
     )
     address = EthAddressField(null=False, blank=False, db_index=True)
+    # 0 is the legacy wallet namespace. Nullifiers stay unique per community.
+    chain_id = models.PositiveBigIntegerField(default=1, db_default=1)
     expires_at = models.DateTimeField(null=False, blank=False, db_index=True)
 
     class Meta:

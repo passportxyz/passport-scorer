@@ -4,7 +4,7 @@ from typing import Dict, List
 from asgiref.sync import async_to_sync
 
 import api_logging as logging
-from ceramic_cache.models import CeramicCache
+from ceramic_cache.models import CeramicCache, EffectiveChainWalletStamp
 
 log = logging.getLogger(__name__)
 
@@ -20,11 +20,21 @@ def get_did(address, network="1"):
     return (f"did:pkh:eip155:{network}:{address}").lower()
 
 
-async def aget_passport(address: str = "") -> Dict:
+async def aget_passport(address: str = "", *, chain_id: int | None = None) -> Dict:
+    if chain_id is not None:
+        scoped_stamps = EffectiveChainWalletStamp.objects.filter(
+            chain_id=chain_id, address=address
+        ).order_by("provider")
+        return {
+            "stamps": [
+                {"provider": stamp.provider, "credential": stamp.stamp}
+                async for stamp in scoped_stamps
+            ]
+        }
+
     db_stamp_list = CeramicCache.objects.filter(
         address=address, deleted_at__isnull=True, revocation__isnull=True
     )
-
     stamps_by_provider = dict()
 
     async for stamp in db_stamp_list:

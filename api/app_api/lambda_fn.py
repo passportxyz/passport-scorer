@@ -64,7 +64,9 @@ def with_app_api_no_auth_request_exception_handling(func):
             bind_contextvars(request_id=context.aws_request_id)
             sensitive_data, event = strip_event(_event)
 
-            logger.info("Received event: %s", event)
+            logger.info(
+                "Received request: %s %s", event.get("httpMethod"), event.get("path")
+            )
 
             # Parse the body and call the function
             body = parse_body(event)

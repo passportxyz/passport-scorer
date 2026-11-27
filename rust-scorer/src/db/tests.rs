@@ -88,8 +88,8 @@ mod integration_tests {
 
         // Test hash link creation
         let links_to_create = vec![
-            ("hash1".to_string(), "0xtest_address".to_string(), 1, chrono::Utc::now()),
-            ("hash2".to_string(), "0xtest_address".to_string(), 1, chrono::Utc::now()),
+            ("hash1".to_string(), "0xtest_address".to_string(), 1, chrono::Utc::now(), 1),
+            ("hash2".to_string(), "0xtest_address".to_string(), 1, chrono::Utc::now(), 1),
         ];
 
         bulk_upsert_hash_links(
@@ -103,7 +103,8 @@ mod integration_tests {
             &mut tx,
             "0xtest_address",
             1,
-            &vec!["hash1".to_string(), "hash2".to_string()]
+            &vec!["hash1".to_string(), "hash2".to_string()],
+            1
         ).await.unwrap();
 
         assert!(verified);
