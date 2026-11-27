@@ -1,3 +1,4 @@
+use crate::account::linkage::{WalletCluster, WalletIdentity, get_wallet_cluster};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use std::collections::{HashMap, HashSet};
@@ -644,6 +645,10 @@ impl LinkedWallets {
 /// Drop every field that names another wallet in the address's linked group.
 pub fn hide_linked_wallets(mut response: V2ScoreResponse) -> V2ScoreResponse {
     response.linked_score = None;
+    for stamp in response.stamps.values_mut() {
+        stamp.source_wallet = None;
+        stamp.source_wallet_chain_id = None;
+    }
     response
 }
 
@@ -664,6 +669,19 @@ pub async fn calculate_score_for_address_with_groups(
     pool: &PgPool,
     linked: LinkedWallets,
 ) -> Result<V2ScoreResponse, DomainError> {
+    let wallet = WalletIdentity { address: address.to_lowercase(), chain_id: None };
+    match get_wallet_cluster(&wallet).await {
+        Ok(Some(cluster)) if cluster.wallets.len() > 1 => {
+            let response = score_typed_cluster(pool, scorer_id, &wallet, cluster).await?;
+            return Ok(match linked {
+                LinkedWallets::Show => response,
+                LinkedWallets::Hide => hide_linked_wallets(response),
+            });
+        }
+        Err(error) => tracing::warn!(%error, "Live wallet linkage is unavailable"),
+        _ => {}
+    }
+
     // Look up linked-wallet set for this address. Phase 0 uses the solo-only
     // stub in `account::linkage`; Phase 3b will swap the body for a Silk
     // fetch with SWR cache + killswitch + fallback metric.
@@ -681,6 +699,94 @@ pub async fn calculate_score_for_address_with_groups(
         LinkedWallets::Show => response,
         LinkedWallets::Hide => hide_linked_wallets(response),
     })
+}
+
+/// Aggregate current typed membership. The canonical row keeps its individual
+/// score so history and later requests cannot retain unlinked contributions.
+pub async fn score_typed_cluster(
+    pool: &PgPool,
+    community_id: i64,
+    requester: &WalletIdentity,
+    cluster: WalletCluster,
+) -> Result<V2ScoreResponse, DomainError> {
+    let canonical = cluster.canonical;
+    let ordered = std::iter::once(&canonical)
+        .chain(cluster.wallets.iter().filter(|wallet| **wallet != canonical));
+    let mut responses = HashMap::new();
+    let mut stamps = HashMap::new();
+    let mut wallet_stamps = HashMap::new();
+    let mut legacy_members = Vec::new();
+    for wallet in ordered {
+        let response = if let Some(chain_id) = wallet.chain_id {
+            super::chain_wallet_scoring::score_chain_wallet(pool, community_id, chain_id, &wallet.address)
+                .await.map_err(|error| DomainError::Database(error.to_string()))?.score
+        } else {
+            let save = if *wallet == canonical { SaveScore::Yes } else { SaveScore::No };
+            let (response, scored_at) = score_address(&wallet.address, community_id, pool, save).await?;
+            if *wallet != canonical {
+                legacy_members.push((wallet.address.clone(), scored_at));
+            }
+            response
+        };
+        if !response.stamps.is_empty() {
+            wallet_stamps.insert(wallet.key(), response.stamps.clone());
+        }
+        for (provider, stamp) in &response.stamps {
+            if !stamp.dedup {
+                stamps.entry(provider.clone()).or_insert_with(|| {
+                    let mut stamp = stamp.clone();
+                    stamp.source_wallet = Some(wallet.address.clone());
+                    stamp.source_wallet_chain_id = wallet.chain_id;
+                    stamp
+                });
+            }
+        }
+        responses.insert(wallet.clone(), response);
+    }
+
+    let canonical_score = &responses[&canonical];
+    if !legacy_members.is_empty() {
+        let mut tx = pool.begin().await.map_err(|error| DomainError::Database(error.to_string()))?;
+        for (address, scored_at) in legacy_members {
+            let fields = hidden_member_fields(serde_json::json!(canonical_score.threshold), scored_at);
+            let passport_id = queries::scoring::upsert_passport_record(&mut tx, &address, community_id)
+                .await.map_err(|error| DomainError::Database(error.to_string()))?;
+            save_score_with_event(&mut tx, &address, community_id, passport_id, &fields).await?;
+        }
+        tx.commit().await.map_err(|error| DomainError::Database(error.to_string()))?;
+    }
+
+    let raw_score: Decimal = stamps.values().filter_map(|stamp| stamp.score.parse::<Decimal>().ok()).sum();
+    let threshold = canonical_score.threshold.parse::<Decimal>()
+        .map_err(|error| DomainError::Internal(error.to_string()))?;
+    let expiration = stamps.values().filter_map(|stamp| stamp.expiration_date.as_deref())
+        .filter_map(|value| DateTime::parse_from_rfc3339(value).ok()).min()
+        .map(|value| value.with_timezone(&Utc).to_rfc3339());
+    let linked = LinkedScoreResponse {
+        address: canonical.address.clone(),
+        score: Some(format!("{raw_score:.5}")),
+        passing_score: raw_score >= threshold,
+        last_score_timestamp: canonical_score.last_score_timestamp.clone(),
+        expiration_timestamp: expiration.clone(),
+        threshold: canonical_score.threshold.clone(),
+        stamps: stamps.clone(),
+        wallet_stamps: Some(wallet_stamps),
+    };
+    let mut response = responses.remove(requester)
+        .ok_or_else(|| DomainError::Internal("Requested wallet is missing from the cluster".into()))?;
+    if *requester == canonical {
+        response.score = linked.score.clone();
+        response.passing_score = linked.passing_score;
+        response.expiration_timestamp = expiration;
+        response.stamps = stamps;
+    } else {
+        response.score = Some("0.00000".into());
+        response.passing_score = false;
+        response.expiration_timestamp = None;
+        response.stamps.clear();
+    }
+    response.linked_score = Some(linked);
+    Ok(response)
 }
 
 /// Score a linked group of two or more wallets. Split out from
@@ -809,6 +915,7 @@ async fn score_wallet_group(
                 expiration_timestamp: exp_ts,
                 threshold: threshold_str,
                 stamps: merged_stamps,
+                wallet_stamps: None,
             }),
         })
     }
@@ -897,6 +1004,13 @@ fn hidden_member_score_fields(
 ) -> DjangoScoreFields {
     let threshold = canonical_fields.evidence.get("threshold").cloned()
         .unwrap_or_else(|| serde_json::Value::String("20".to_string()));
+    hidden_member_fields(threshold, scored_at)
+}
+
+fn hidden_member_fields(
+    threshold: serde_json::Value,
+    scored_at: DateTime<Utc>,
+) -> DjangoScoreFields {
     DjangoScoreFields {
         score: Decimal::from(0),
         status: "DONE".to_string(),
@@ -994,6 +1108,7 @@ mod linked_wallet_privacy_tests {
             expiration_timestamp: None,
             threshold: "20.00000".to_string(),
             stamps: HashMap::new(),
+            wallet_stamps: None,
         });
         response
     }
@@ -1018,6 +1133,8 @@ mod linked_wallet_privacy_tests {
                 score: score.to_string(),
                 dedup: *dedup,
                 expiration_date: None,
+                source_wallet: None,
+                source_wallet_chain_id: None,
             })).collect(),
             points_data: None,
             possible_points_data: None,
@@ -1142,20 +1259,19 @@ mod linked_wallet_privacy_tests {
         });
         let base = credential(8453, "Google", "older Base credential");
         let eth = credential(1, "Google", "newer Ethereum credential");
-        for (cache_type, providers, stamp, updated) in [
-            (1, "Google", &base, Utc::now() - chrono::Duration::days(1)),
-            (2, "Google", &eth, Utc::now()),
-            (1, "Mismatch", &base, Utc::now()),
+        for (chain_id, provider, stamp, updated) in [
+            (8453_i64, "Google", &base, Utc::now() - chrono::Duration::days(1)),
+            (1, "Google", &eth, Utc::now()),
+            (8453, "Mismatch", &base, Utc::now()),
         ] {
             sqlx::query(
-                "INSERT INTO ceramic_cache_ceramiccache
-                 (type, address, provider, stamp, proof_value, updated_at,
-                  compose_db_save_status, compose_db_stream_id)
-                 VALUES ($1, $2, $3, $4, '', $5, '', '')",
+                "INSERT INTO ceramic_cache_chainwalletstamp
+                 (chain_id, address, provider, stamp, proof_value, updated_at)
+                 VALUES ($1, $2, $3, $4, '', $5)",
             )
-            .bind(cache_type)
+            .bind(chain_id)
             .bind(&address)
-            .bind(providers)
+            .bind(provider)
             .bind(stamp)
             .bind(updated)
             .execute(&pool)
@@ -1201,7 +1317,7 @@ mod linked_wallet_privacy_tests {
             "SELECT COUNT(*) FROM registry_passport WHERE community_id = $1",
         ).bind(id).fetch_one(&pool).await.unwrap();
         assert_eq!(legacy_rows, 0);
-        sqlx::query("DELETE FROM ceramic_cache_ceramiccache WHERE address = $1")
+        sqlx::query("DELETE FROM ceramic_cache_chainwalletstamp WHERE address = $1")
             .bind(&address).execute(&pool).await.unwrap();
         cleanup(&pool, id).await;
     }

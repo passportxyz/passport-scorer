@@ -22,6 +22,8 @@ impl ScoringResult {
                     score: format_decimal_5(stamp.weight),
                     dedup: false,
                     expiration_date: Some(format_datetime_python(stamp.expires_at)),
+                    source_wallet: None,
+                    source_wallet_chain_id: None,
                 },
             );
         }
@@ -34,6 +36,8 @@ impl ScoringResult {
                     score: "0.00000".to_string(),
                     dedup: true,
                     expiration_date: Some(format_datetime_python(stamp.expires_at)),
+                    source_wallet: None,
+                    source_wallet_chain_id: None,
                 },
             );
         }

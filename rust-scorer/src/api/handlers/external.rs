@@ -115,14 +115,14 @@ pub async fn chain_wallet_score_handler(
     .await?;
     let community_id = community_id
         .ok_or_else(|| ApiError::NotFound("No scorer matches the given criteria".into()))?;
-    let linked = crate::account::linkage::is_linked_contract_wallet(chain_id, &address)
+    let wallet = crate::account::linkage::WalletIdentity {
+        address,
+        chain_id: Some(chain_id),
+    };
+    let cluster = crate::account::linkage::get_wallet_cluster(&wallet)
         .await
-        .map_err(|_| ApiError::Internal("Wallet linkage is unavailable".into()))?;
-    if !linked {
-        return Err(ApiError::NotFound("No active contract wallet link".into()));
-    }
-    Ok(Json(
-        domain::chain_wallet_scoring::score_chain_wallet(&pool, community_id, chain_id, &address)
-            .await?,
-    ))
+        .map_err(|_| ApiError::Internal("Wallet linkage is unavailable".into()))?
+        .ok_or_else(|| ApiError::NotFound("No active contract wallet link".into()))?;
+    let score = domain::scoring::score_typed_cluster(&pool, community_id, &wallet, cluster).await?;
+    Ok(Json(domain::chain_wallet_scoring::ChainWalletScoreResponse { chain_id, score }))
 }

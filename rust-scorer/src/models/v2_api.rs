@@ -10,6 +10,10 @@ pub struct V2StampScoreResponse {
     pub score: String,
     pub dedup: bool,
     pub expiration_date: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_wallet: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_wallet_chain_id: Option<i64>,
 }
 
 /// Score data from the canonical wallet in a linked wallet group
@@ -22,6 +26,8 @@ pub struct LinkedScoreResponse {
     pub expiration_timestamp: Option<String>,
     pub threshold: String,
     pub stamps: HashMap<String, V2StampScoreResponse>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wallet_stamps: Option<HashMap<String, HashMap<String, V2StampScoreResponse>>>,
 }
 
 /// Main V2 API response structure - field order matches Python for exact compatibility

@@ -11,6 +11,8 @@ use crate::api::error::ApiError;
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
     did: String,
+    #[serde(default)]
+    chain_wallet: bool,
     exp: i64,
 }
 
@@ -111,14 +113,14 @@ pub fn validate_jwt_and_extract_address(token: &str) -> Result<String, ApiError>
         }
     };
 
-    // Extract address from DID format: did:pkh:eip155:1:0xADDRESS
-    // Python's get_address_from_did: did.split(":")[-1]
-    let address = token_data
-        .claims
-        .did
-        .split(':')
-        .last()
-        .ok_or_else(|| ApiError::Validation("Invalid DID format in JWT".to_string()))?;
+    // A deployed-wallet token can only write credentials to its scoped cache.
+    let claims = token_data.claims;
+    if claims.chain_wallet {
+        return Err(ApiError::Unauthorized("Use the chain wallet stamp API".into()));
+    }
+    let did = claims.did.to_lowercase();
+    let address = did.strip_prefix("did:pkh:eip155:1:")
+        .ok_or_else(|| ApiError::Unauthorized("Expected a mainnet wallet token".into()))?;
 
     // Return lowercased address to match Python behavior
     Ok(address.to_lowercase())

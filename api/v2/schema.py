@@ -20,12 +20,15 @@ class V2StampScoreResponse(Schema):
     dedup: bool
     expiration_date: Optional[str]
     source_wallet: Optional[str] = None
+    source_wallet_chain_id: Optional[int] = None
 
     @model_serializer(mode="wrap")
     def _omit_source_wallet_if_none(self, handler):
         data = handler(self)
         if data.get("source_wallet") is None:
             data.pop("source_wallet", None)
+        if data.get("source_wallet_chain_id") is None:
+            data.pop("source_wallet_chain_id", None)
         return data
 
 

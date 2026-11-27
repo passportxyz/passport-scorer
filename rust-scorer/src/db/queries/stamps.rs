@@ -135,19 +135,20 @@ pub async fn get_latest_stamps_for_chain(
     let did = format!("did:pkh:eip155:{chain_id}:{}", address.to_lowercase());
     Ok(sqlx::query_scalar(
         r#"
-        SELECT DISTINCT ON (c.provider) c.stamp
-        FROM ceramic_cache_ceramiccache c
-        WHERE c.address = $1 AND c.deleted_at IS NULL
+        SELECT c.stamp
+        FROM ceramic_cache_chainwalletstamp c
+        WHERE c.address = $1 AND c.chain_id = $3 AND c.deleted_at IS NULL
           AND LOWER(c.stamp #>> '{credentialSubject,id}') = $2
           AND c.stamp #>> '{credentialSubject,provider}' = c.provider
           AND NOT EXISTS (
-              SELECT 1 FROM ceramic_cache_revocation r WHERE r.ceramic_cache_id = c.id
+              SELECT 1 FROM ceramic_cache_revocation r WHERE r.proof_value = c.proof_value
           )
-        ORDER BY c.provider, c.updated_at DESC, c.id ASC
+        ORDER BY c.provider
         "#,
     )
     .bind(address)
     .bind(did)
+    .bind(chain_id)
     .fetch_all(pool)
     .await?)
 }

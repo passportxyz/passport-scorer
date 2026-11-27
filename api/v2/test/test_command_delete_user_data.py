@@ -5,7 +5,7 @@ import pytest
 from django.conf import settings
 from django.core.management import call_command
 
-from ceramic_cache.models import CeramicCache, CeramicCacheLegacy
+from ceramic_cache.models import CeramicCache, CeramicCacheLegacy, ChainWalletStamp
 from passport_admin.models import DismissedBanners, PassportBanner
 from registry.models import (
     ChainWalletScore,
@@ -78,6 +78,13 @@ def user_data(passport_holder_addresses, scorer_community_with_binary_scorer):
         expires_at="2099-01-02 00:00:00+00:00",
     )
     for chain_id in (1, 8453):
+        ChainWalletStamp.objects.create(
+            chain_id=chain_id,
+            address=address,
+            provider="Google",
+            stamp={},
+            proof_value=f"proof-{chain_id}",
+        )
         ChainWalletScore.objects.create(
             community=scorer_community_with_binary_scorer,
             chain_id=chain_id,
@@ -112,6 +119,7 @@ def test_delete_user_data_dry_run(passport_holder_addresses, user_data, capsys):
         "1 Passport ",
         "1 Event ",
         "1 HashScorerLink ",
+        "1 ChainWalletStamp ",
         "1 ChainWalletScore ",
         "1 DismissedBanners ",
     ]
@@ -143,6 +151,7 @@ def test_delete_user_data_dry_run(passport_holder_addresses, user_data, capsys):
     assert CeramicCacheLegacy.objects.all().count() == 1
     assert Event.objects.all().count() == 1
     assert HashScorerLink.objects.count() == 2
+    assert ChainWalletStamp.objects.count() == 2
     assert ChainWalletScore.objects.count() == 2
     assert DismissedBanners.objects.all().count() == 1
 
@@ -177,6 +186,7 @@ def test_delete_user_data_exec(passport_holder_addresses, user_data, capsys):
             "1 Passport ",
             "1 Event ",
             "1 HashScorerLink ",
+            "1 ChainWalletStamp ",
             "1 ChainWalletScore ",
             "1 DismissedBanners ",
         ]
@@ -212,6 +222,9 @@ def test_delete_user_data_exec(passport_holder_addresses, user_data, capsys):
         assert CeramicCacheLegacy.objects.all().count() == 0
         assert Event.objects.all().count() == 0
         assert list(HashScorerLink.objects.values_list("chain_id", flat=True)) == [8453]
+        assert list(ChainWalletStamp.objects.values_list("chain_id", flat=True)) == [
+            8453
+        ]
         assert list(ChainWalletScore.objects.values_list("chain_id", flat=True)) == [
             8453
         ]

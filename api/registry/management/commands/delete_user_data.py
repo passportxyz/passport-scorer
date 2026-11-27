@@ -3,7 +3,7 @@ from django.db.models import Q, TextField, Value
 from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 
-from ceramic_cache.models import CeramicCache, CeramicCacheLegacy
+from ceramic_cache.models import CeramicCache, CeramicCacheLegacy, ChainWalletStamp
 from passport_admin.models import DismissedBanners
 from registry.models import (
     ChainWalletScore,
@@ -55,6 +55,11 @@ def delete_all_user_data(eth_address, dry_run=True):
         dry_run,
     )
     delete_objects(
+        ChainWalletStamp.objects.filter(address=eth_address, chain_id=1),
+        "ChainWalletStamp",
+        dry_run,
+    )
+    delete_objects(
         ChainWalletScore.objects.filter(address=eth_address, chain_id=1),
         "ChainWalletScore",
         dry_run,
@@ -78,6 +83,7 @@ class Command(BaseCommand):
         Passport
         Event
         HashScorerLink
+        ChainWalletStamp (chain ID 1)
         ChainWalletScore (chain ID 1)
         DismissedBanners
 

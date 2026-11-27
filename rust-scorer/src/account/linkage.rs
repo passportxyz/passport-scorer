@@ -20,29 +20,47 @@ pub async fn get_linked_addresses(
     Ok(vec![address.to_lowercase()])
 }
 
-#[derive(serde::Deserialize)]
-struct WalletIdentity {
-    address: String,
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Deserialize)]
+pub struct WalletIdentity {
+    pub address: String,
     #[serde(rename = "chainId")]
-    chain_id: Option<i64>,
+    pub chain_id: Option<i64>,
+}
+
+impl WalletIdentity {
+    pub fn key(&self) -> String {
+        match self.chain_id {
+            Some(chain_id) => format!("eip155:{chain_id}:{}", self.address),
+            None => self.address.clone(),
+        }
+    }
 }
 
 #[derive(serde::Deserialize)]
-struct WalletCluster {
+struct SilkWalletCluster {
     wallets: Vec<WalletIdentity>,
+    #[serde(rename = "waapAddress")]
+    waap_address: Option<String>,
 }
 
-/// Ask Silk for the exact identity. Scoped scoring never falls back to a
-/// legacy address-only call or a cached link when Silk is unavailable.
-pub async fn is_linked_contract_wallet(
-    chain_id: i64,
-    address: &str,
-) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+pub struct WalletCluster {
+    pub canonical: WalletIdentity,
+    pub wallets: Vec<WalletIdentity>,
+}
+
+pub fn chain_wallet_scoring_enabled() -> bool {
+    std::env::var("CHAIN_WALLET_SCORING_ENABLED").as_deref() == Ok("true")
+}
+
+/// Read active members on every request so an unlink takes effect immediately.
+pub async fn get_wallet_cluster(
+    wallet: &WalletIdentity,
+) -> Result<Option<WalletCluster>, Box<dyn std::error::Error + Send + Sync>> {
     use std::sync::OnceLock;
     use std::time::Duration;
 
-    if std::env::var("CHAIN_WALLET_SCORING_ENABLED").as_deref() != Ok("true") {
-        return Err("Chain wallet scoring is disabled".into());
+    if !chain_wallet_scoring_enabled() {
+        return Ok(None);
     }
     static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
     let client = if let Some(client) = CLIENT.get() {
@@ -59,16 +77,33 @@ pub async fn is_linked_contract_wallet(
     if origin.is_empty() || service_key.is_empty() {
         return Err("Silk linkage is not configured".into());
     }
-    let url = format!("{}/api/public/linked-wallets/by-identity/{address}", origin.trim_end_matches('/'));
-    let response = client
-        .get(url)
-        .query(&[("chainId", chain_id)])
-        .header("X-Service-Key", service_key)
-        .send()
-        .await?;
+    let url = format!(
+        "{}/api/public/linked-wallets/by-identity/{}",
+        origin.trim_end_matches('/'),
+        wallet.address
+    );
+    let mut request = client.get(url).header("X-Service-Key", service_key);
+    if let Some(chain_id) = wallet.chain_id {
+        request = request.query(&[("chainId", chain_id)]);
+    }
+    let response = request.send().await?;
     if response.status() != reqwest::StatusCode::OK {
         return Err("Silk linkage request failed".into());
     }
-    let cluster: WalletCluster = response.json().await?;
-    Ok(cluster.wallets.iter().any(|member| member.chain_id == Some(chain_id) && member.address == address))
+    let SilkWalletCluster { mut wallets, waap_address } = response.json().await?;
+    if wallets.iter().any(|member| {
+        !crate::api::utils::is_valid_eth_address(&member.address)
+            || member.address != member.address.to_lowercase()
+            || member.chain_id.is_some_and(|id| !(1..=9_007_199_254_740_991).contains(&id))
+    }) {
+        return Err("Silk returned an invalid wallet identity".into());
+    }
+    let Some(address) = waap_address else { return Ok(None) };
+    let canonical = WalletIdentity { address, chain_id: None };
+    if !wallets.contains(wallet) || !wallets.contains(&canonical) {
+        return Ok(None);
+    }
+    wallets.sort_by_key(WalletIdentity::key);
+    wallets.dedup();
+    Ok(Some(WalletCluster { canonical, wallets }))
 }

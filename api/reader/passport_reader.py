@@ -2,11 +2,11 @@
 from typing import Dict, List
 
 from asgiref.sync import async_to_sync
-from django.db.models import F
+from django.db.models import Exists, F, OuterRef
 from django.db.models.fields.json import KT
 
 import api_logging as logging
-from ceramic_cache.models import CeramicCache
+from ceramic_cache.models import CeramicCache, ChainWalletStamp, Revocation
 
 log = logging.getLogger(__name__)
 
@@ -28,18 +28,26 @@ async def aget_passport(address: str = "", *, chain_id: int | None = None) -> Di
     )
 
     if chain_id is not None:
-        # Scope before choosing the latest stamp. Another chain can have a
-        # more recent stamp from the same provider at the same hex address.
-        db_stamp_list = (
-            db_stamp_list.alias(
-                subject_provider=KT("stamp__credentialSubject__provider")
-            )
-            .filter(
+        scoped_stamps = (
+            ChainWalletStamp.objects.filter(
+                chain_id=chain_id,
+                address=address,
+                deleted_at__isnull=True,
                 stamp__credentialSubject__id__iexact=get_did(address, str(chain_id)),
-                subject_provider=F("provider"),
             )
-            .order_by("id")
+            .alias(subject_provider=KT("stamp__credentialSubject__provider"))
+            .filter(subject_provider=F("provider"))
+            .filter(
+                ~Exists(Revocation.objects.filter(proof_value=OuterRef("proof_value")))
+            )
+            .order_by("provider")
         )
+        return {
+            "stamps": [
+                {"provider": stamp.provider, "credential": stamp.stamp}
+                async for stamp in scoped_stamps
+            ]
+        }
 
     stamps_by_provider = dict()
 
