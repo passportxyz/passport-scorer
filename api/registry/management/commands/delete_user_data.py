@@ -1,4 +1,7 @@
 from django.core.management.base import BaseCommand
+from django.db.models import Q, TextField, Value
+from django.db.models.fields.json import KT
+from django.db.models.functions import Coalesce
 
 from ceramic_cache.models import CeramicCache, CeramicCacheLegacy
 from passport_admin.models import DismissedBanners
@@ -22,9 +25,16 @@ def delete_objects(query, obj_name, dry_run=True):
 
 def delete_all_user_data(eth_address, dry_run=True):
     eth_address = eth_address.lower()
-    delete_objects(
-        CeramicCache.objects.filter(address=eth_address), "CeramicCache", dry_run
+    # Keep the legacy behavior for stamps without a DID.
+    stamps = CeramicCache.objects.filter(address=eth_address).alias(
+        credential_did=Coalesce(
+            KT("stamp__credentialSubject__id"), Value("", output_field=TextField())
+        )
     )
+    other_chain = Q(credential_did__istartswith="did:pkh:eip155:") & ~Q(
+        credential_did__istartswith="did:pkh:eip155:1:"
+    )
+    delete_objects(stamps.exclude(other_chain), "CeramicCache", dry_run)
     delete_objects(
         CeramicCacheLegacy.objects.filter(address=eth_address),
         "CeramicCacheLegacy",

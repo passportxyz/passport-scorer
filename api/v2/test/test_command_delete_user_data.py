@@ -7,7 +7,14 @@ from django.core.management import call_command
 
 from ceramic_cache.models import CeramicCache, CeramicCacheLegacy
 from passport_admin.models import DismissedBanners, PassportBanner
-from registry.models import Event, HashScorerLink, Passport, Score, Stamp
+from registry.models import (
+    ChainWalletScore,
+    Event,
+    HashScorerLink,
+    Passport,
+    Score,
+    Stamp,
+)
 from registry.utils import get_utc_time
 
 pytestmark = pytest.mark.django_db
@@ -58,6 +65,26 @@ def user_data(passport_holder_addresses, scorer_community_with_binary_scorer):
         expires_at="2099-01-02 00:00:00+00:00",
     )
 
+    CeramicCache.objects.create(
+        address=address,
+        provider="Github",
+        stamp={"credentialSubject": {"id": f"did:pkh:eip155:8453:{address}"}},
+    )
+    HashScorerLink.objects.create(
+        community=scorer_community_with_binary_scorer,
+        hash="base-hash",
+        chain_id=8453,
+        address=address,
+        expires_at="2099-01-02 00:00:00+00:00",
+    )
+    for chain_id in (1, 8453):
+        ChainWalletScore.objects.create(
+            community=scorer_community_with_binary_scorer,
+            chain_id=chain_id,
+            address=address,
+            response={},
+        )
+
     banner = PassportBanner.objects.create(content="test", link="test")
     DismissedBanners.objects.create(address=address, banner=banner)
 
@@ -85,6 +112,7 @@ def test_delete_user_data_dry_run(passport_holder_addresses, user_data, capsys):
         "1 Passport ",
         "1 Event ",
         "1 HashScorerLink ",
+        "1 ChainWalletScore ",
         "1 DismissedBanners ",
     ]
     objects_to_be_deleted = [re.escape(word) for word in objects_to_be_deleted]
@@ -103,18 +131,19 @@ def test_delete_user_data_dry_run(passport_holder_addresses, user_data, capsys):
         for match in re.finditer(regex_pattern, captured.out, re.MULTILINE)
     ]
 
-    assert unexpected_objects_to_delete == [], (
-        " apparently more objects are checked for deletion than we expect ..."
-    )
+    assert (
+        unexpected_objects_to_delete == []
+    ), " apparently more objects are checked for deletion than we expect ..."
 
     # Check that passport objects have NOT been deleted
     assert Passport.objects.all().count() == 1
     assert Stamp.objects.all().count() == 1
     assert Score.objects.all().count() == 1
-    assert CeramicCache.objects.all().count() == 1
+    assert CeramicCache.objects.count() == 2
     assert CeramicCacheLegacy.objects.all().count() == 1
     assert Event.objects.all().count() == 1
-    assert HashScorerLink.objects.all().count() == 1
+    assert HashScorerLink.objects.count() == 2
+    assert ChainWalletScore.objects.count() == 2
     assert DismissedBanners.objects.all().count() == 1
 
 
@@ -148,6 +177,7 @@ def test_delete_user_data_exec(passport_holder_addresses, user_data, capsys):
             "1 Passport ",
             "1 Event ",
             "1 HashScorerLink ",
+            "1 ChainWalletScore ",
             "1 DismissedBanners ",
         ]
         objects_to_be_deleted = [re.escape(word) for word in objects_to_be_deleted]
@@ -168,16 +198,21 @@ def test_delete_user_data_exec(passport_holder_addresses, user_data, capsys):
             for match in re.finditer(regex_pattern, captured.out, re.MULTILINE)
         ]
 
-        assert unexpected_objects_to_delete == [], (
-            " apparently more objects are deleted than we expect ..."
-        )
+        assert (
+            unexpected_objects_to_delete == []
+        ), " apparently more objects are deleted than we expect ..."
 
         # Check that passport objects have indeed been deleted
         assert Passport.objects.all().count() == 0
         assert Stamp.objects.all().count() == 0
         assert Score.objects.all().count() == 0
-        assert CeramicCache.objects.all().count() == 0
+        assert list(CeramicCache.objects.values_list("provider", flat=True)) == [
+            "Github"
+        ]
         assert CeramicCacheLegacy.objects.all().count() == 0
         assert Event.objects.all().count() == 0
-        assert HashScorerLink.objects.all().count() == 0
+        assert list(HashScorerLink.objects.values_list("chain_id", flat=True)) == [8453]
+        assert list(ChainWalletScore.objects.values_list("chain_id", flat=True)) == [
+            8453
+        ]
         assert DismissedBanners.objects.all().count() == 0
