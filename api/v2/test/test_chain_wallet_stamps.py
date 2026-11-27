@@ -84,6 +84,14 @@ class ChainWalletStampsTest(TransactionTestCase):
             [8453],
         )
 
+    def test_mainnet_scoped_token_cannot_use_the_legacy_cache(self):
+        token = generate_siwe_access_token(self.did(1), chain_wallet=True)
+        response = self.client.get(
+            f"/ceramic-cache/score/{ADDRESS}",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(response.status_code, 401)
+
     def test_revoked_proof_cannot_be_cached_again(self):
         with patch(
             "v2.api.chain_wallet_stamps.validate_credential",

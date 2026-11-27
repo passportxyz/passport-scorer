@@ -118,9 +118,8 @@ pub fn validate_jwt_and_extract_address(token: &str) -> Result<String, ApiError>
     if claims.chain_wallet {
         return Err(ApiError::Unauthorized("Use the chain wallet stamp API".into()));
     }
-    let did = claims.did.to_lowercase();
-    let address = did.strip_prefix("did:pkh:eip155:1:")
-        .ok_or_else(|| ApiError::Unauthorized("Expected a mainnet wallet token".into()))?;
+    let address = claims.did.rsplit(':').next()
+        .ok_or_else(|| ApiError::Validation("Invalid DID format in JWT".into()))?;
 
     // Return lowercased address to match Python behavior
     Ok(address.to_lowercase())

@@ -159,10 +159,8 @@ class JWTDidAuthentication:
         if (
             isinstance(validated_token, dict)
             and validated_token.get("chain_wallet") is True
-        ) or not request.did.lower().startswith("did:pkh:eip155:1:"):
-            raise InvalidToken(
-                "This credential cache endpoint requires a mainnet identity"
-            )
+        ):
+            raise InvalidToken("Use the chain wallet stamp API")
         return request
 
 
