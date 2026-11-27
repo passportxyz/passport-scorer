@@ -2,6 +2,7 @@ from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import jwt
+from asgiref.sync import async_to_sync
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from django.conf import settings
@@ -9,7 +10,8 @@ from django.test import TransactionTestCase, override_settings
 
 from account.models import Nonce
 from ceramic_cache.api.v1 import CHAIN_WALLET_STATEMENT, generate_siwe_access_token
-from ceramic_cache.models import ChainWalletStamp, Revocation
+from ceramic_cache.models import CeramicCache, ChainWalletStamp, Revocation
+from reader.passport_reader import aget_passport
 from registry.utils import get_utc_time
 
 ADDRESS = "0x" + "a" * 40
@@ -64,6 +66,73 @@ class ChainWalletStampsTest(TransactionTestCase):
             "credentialSubject": {"id": self.did(chain_id), "provider": "Google"},
             "proof": {"proofValue": f"proof-{chain_id}"},
         }
+
+    def cached_stamps(self, chain_id):
+        token = generate_siwe_access_token(self.did(chain_id), chain_wallet=True)
+        response = self.client.get(
+            "/v2/wallet-stamps", HTTP_AUTHORIZATION=f"Bearer {token}"
+        )
+        self.assertEqual(response.status_code, 200)
+        return [row["stamp"] for row in response.json()["stamps"]]
+
+    def test_mainnet_cache_and_scoring_preserve_existing_wallet_stamps(self):
+        credential = self.credential(1)
+        legacy = CeramicCache.objects.create(
+            address=ADDRESS, provider="Google", stamp=credential, proof_value="proof-1"
+        )
+        self.assertEqual(self.cached_stamps(1), [credential])
+        self.assertEqual(self.cached_stamps(8453), [])
+        scored = async_to_sync(aget_passport)(ADDRESS, chain_id=1)
+        self.assertEqual(
+            scored["stamps"], [{"provider": "Google", "credential": credential}]
+        )
+
+        other = CeramicCache.objects.create(
+            address=ADDRESS,
+            provider="Google",
+            stamp=self.credential(8453),
+            type=CeramicCache.StampType.V2,
+            proof_value="proof-8453",
+        )
+        self.assertEqual(self.update(1).json()["stamps"], [])
+        legacy.refresh_from_db()
+        other.refresh_from_db()
+        self.assertIsNotNone(legacy.deleted_at)
+        self.assertIsNone(other.deleted_at)
+        CeramicCache.objects.create(
+            address=ADDRESS, provider="Google", stamp=credential, proof_value="proof-1"
+        )
+        self.assertEqual(self.cached_stamps(1), [])
+        self.assertEqual(
+            async_to_sync(aget_passport)(ADDRESS, chain_id=1)["stamps"], []
+        )
+
+    def test_revoked_or_superseded_legacy_stamps_do_not_return(self):
+        credential = self.credential(1)
+        legacy = CeramicCache.objects.create(
+            address=ADDRESS, provider="Google", stamp=credential, proof_value="proof-1"
+        )
+        Revocation.objects.create(ceramic_cache=legacy, proof_value="proof-1")
+        self.assertEqual(self.cached_stamps(1), [])
+
+        # A later legacy row must not take over after a scoped row is deleted.
+        CeramicCache.objects.filter(pk=legacy.pk).update(
+            stamp={**credential, "proof": {"proofValue": "other-legacy-proof"}},
+            proof_value="other-legacy-proof",
+        )
+        Revocation.objects.filter(ceramic_cache=legacy).delete()
+        ChainWalletStamp.objects.create(
+            address=ADDRESS,
+            chain_id=1,
+            provider="Google",
+            stamp=credential,
+            proof_value="scoped-proof",
+            deleted_at=get_utc_time(),
+        )
+        self.assertEqual(self.cached_stamps(1), [])
+        self.assertEqual(
+            async_to_sync(aget_passport)(ADDRESS, chain_id=1)["stamps"], []
+        )
 
     def test_cache_replacement_and_deletion_preserve_other_chain(self):
         with patch(

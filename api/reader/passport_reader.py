@@ -2,11 +2,9 @@
 from typing import Dict, List
 
 from asgiref.sync import async_to_sync
-from django.db.models import Exists, F, OuterRef
-from django.db.models.fields.json import KT
 
 import api_logging as logging
-from ceramic_cache.models import CeramicCache, ChainWalletStamp, Revocation
+from ceramic_cache.models import CeramicCache, EffectiveChainWalletStamp
 
 log = logging.getLogger(__name__)
 
@@ -23,25 +21,10 @@ def get_did(address, network="1"):
 
 
 async def aget_passport(address: str = "", *, chain_id: int | None = None) -> Dict:
-    db_stamp_list = CeramicCache.objects.filter(
-        address=address, deleted_at__isnull=True, revocation__isnull=True
-    )
-
     if chain_id is not None:
-        scoped_stamps = (
-            ChainWalletStamp.objects.filter(
-                chain_id=chain_id,
-                address=address,
-                deleted_at__isnull=True,
-                stamp__credentialSubject__id__iexact=get_did(address, str(chain_id)),
-            )
-            .alias(subject_provider=KT("stamp__credentialSubject__provider"))
-            .filter(subject_provider=F("provider"))
-            .filter(
-                ~Exists(Revocation.objects.filter(proof_value=OuterRef("proof_value")))
-            )
-            .order_by("provider")
-        )
+        scoped_stamps = EffectiveChainWalletStamp.objects.filter(
+            chain_id=chain_id, address=address
+        ).order_by("provider")
         return {
             "stamps": [
                 {"provider": stamp.provider, "credential": stamp.stamp}
@@ -49,6 +32,9 @@ async def aget_passport(address: str = "", *, chain_id: int | None = None) -> Di
             ]
         }
 
+    db_stamp_list = CeramicCache.objects.filter(
+        address=address, deleted_at__isnull=True, revocation__isnull=True
+    )
     stamps_by_provider = dict()
 
     async for stamp in db_stamp_list:

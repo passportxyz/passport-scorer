@@ -182,6 +182,12 @@ class ChainWalletStamp(models.Model):
     deleted_at = models.DateTimeField(null=True)
 
     class Meta:
+        indexes = [
+            models.Index(
+                fields=("chain_id", "address", "provider"),
+                name="chain_wallet_stamp_history_idx",
+            )
+        ]
         constraints = [
             UniqueConstraint(
                 fields=("chain_id", "address", "provider"),
@@ -193,6 +199,19 @@ class ChainWalletStamp(models.Model):
                 name="chain_wallet_stamp_valid_chain",
             ),
         ]
+
+
+class EffectiveChainWalletStamp(models.Model):
+    """Read-only view of active chain stamps and compatible mainnet stamps."""
+
+    id = models.BigIntegerField(primary_key=True)
+    chain_id = models.PositiveBigIntegerField()
+    address = EthAddressField()
+    provider = models.CharField(max_length=256)
+    stamp = models.JSONField()
+
+    class Meta:
+        managed = False
 
 
 class RevocationList(models.Model):

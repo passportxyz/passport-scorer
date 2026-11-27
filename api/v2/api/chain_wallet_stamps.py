@@ -8,13 +8,19 @@ import jwt
 from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.db import connection, transaction
-from django.db.models import Exists, OuterRef
+from django.db.models import F
+from django.db.models.fields.json import KT
 from ninja import Schema
 from ninja.errors import HttpError
 from ninja.security import HttpBearer
 
 from account.models import Community
-from ceramic_cache.models import ChainWalletStamp, Revocation
+from ceramic_cache.models import (
+    CeramicCache,
+    ChainWalletStamp,
+    EffectiveChainWalletStamp,
+    Revocation,
+)
 from registry.exceptions import NotFoundApiException, Unauthorized
 from registry.utils import validate_credential
 from v2.chain_wallet_scoring import score_chain_wallet
@@ -80,8 +86,8 @@ def active_wallet_stamps(chain_id, address):
 
 
 def stamp_response(chain_id, address):
-    active = active_wallet_stamps(chain_id, address).filter(
-        ~Exists(Revocation.objects.filter(proof_value=OuterRef("proof_value")))
+    active = EffectiveChainWalletStamp.objects.filter(
+        chain_id=chain_id, address=address
     )
     return WalletStampResponse(
         stamps=list(
@@ -148,9 +154,44 @@ def update_wallet_stamps(request, updates: list[WalletStampUpdate]):
                 proof_value__in=[stamp.proof_value for stamp in replacements]
             ).exists():
                 raise HttpError(400, "Revoked wallet credential")
+            deleted_at = datetime.now(timezone.utc)
             active_wallet_stamps(chain_id, address).filter(
                 provider__in=providers
-            ).update(deleted_at=datetime.now(timezone.utc))
+            ).update(deleted_at=deleted_at)
+            if chain_id == 1:
+                deleted_providers = {
+                    update.provider for update in updates if update.stamp is None
+                }
+                handled_providers = ChainWalletStamp.objects.filter(
+                    chain_id=1, address=address, provider__in=deleted_providers
+                ).values_list("provider", flat=True)
+                # A delete against the legacy fallback needs scoped history so
+                # a late write from an older client does not revive that stamp.
+                replacements.extend(
+                    ChainWalletStamp(
+                        chain_id=1,
+                        address=address,
+                        provider=provider,
+                        stamp={},
+                        proof_value="",
+                        deleted_at=deleted_at,
+                    )
+                    for provider in deleted_providers.difference(handled_providers)
+                )
+                # A scoped edit also supersedes its exact mainnet legacy stamp.
+                # Keep the legacy record and proof for revocation checks.
+                CeramicCache.objects.filter(
+                    address=address,
+                    provider__in=providers,
+                    deleted_at__isnull=True,
+                    stamp__credentialSubject__id__iexact=did,
+                ).alias(
+                    subject_provider=KT("stamp__credentialSubject__provider")
+                ).filter(
+                    subject_provider=F("provider")
+                ).update(
+                    deleted_at=deleted_at
+                )
             ChainWalletStamp.objects.bulk_create(replacements)
         return stamp_response(chain_id, address)
 

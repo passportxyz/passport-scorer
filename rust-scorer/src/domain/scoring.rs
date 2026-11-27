@@ -1237,6 +1237,66 @@ mod linked_wallet_privacy_tests {
     }
 
     #[tokio::test]
+    async fn external_score_routes_require_scorer_ownership() {
+        use axum::{extract::{Path, State}, http::HeaderMap};
+        use crate::api::error::ApiError;
+        use crate::api::handlers::external::{chain_wallet_score_handler, score_address_handler};
+        use crate::auth::api_key::hash_key_sha256;
+
+        let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.expect("connect");
+        let owned_id = 980_000_000 + i64::from(Utc::now().timestamp_subsec_micros());
+        let other_id = owned_id + 1_000_000;
+        seed_community(&pool, owned_id).await.unwrap();
+        seed_community(&pool, other_id).await.unwrap();
+        let account_id: i64 = sqlx::query_scalar(
+            "SELECT account_id FROM account_community WHERE id = $1",
+        )
+        .bind(owned_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        let prefix = format!("{owned_id:08x}");
+        let key = format!("{prefix}.test-only");
+        sqlx::query(
+            "INSERT INTO account_accountapikey
+                (id, prefix, hashed_key, hashed_key_sha256, created, name, revoked,
+                 account_id, create_scorers, read_scores, submit_passports,
+                 historical_endpoint, linked_wallet_breakdown)
+             VALUES ($1, $1, '', $2, NOW(), 'Ownership test', false, $3, false, true,
+                     false, false, true)",
+        )
+        .bind(&prefix)
+        .bind(hash_key_sha256(&key))
+        .bind(account_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let address = format!("0x{owned_id:040x}");
+        let mut headers = HeaderMap::new();
+        headers.insert("x-api-key", key.parse().unwrap());
+        let legacy = score_address_handler(
+            Path((other_id, address.clone())), State(pool.clone()), headers.clone(),
+        )
+        .await;
+        let scoped = chain_wallet_score_handler(
+            Path((other_id, 8453, address)), State(pool.clone()), headers,
+        )
+        .await;
+
+        // Clean up before asserting so failing tests don't leave committed fixtures.
+        sqlx::query("DELETE FROM account_accountapikeyanalytics WHERE api_key_id = $1")
+            .bind(&prefix).execute(&pool).await.unwrap();
+        sqlx::query("DELETE FROM account_accountapikey WHERE id = $1")
+            .bind(&prefix).execute(&pool).await.unwrap();
+        cleanup(&pool, owned_id).await;
+        cleanup(&pool, other_id).await;
+        assert!(matches!(legacy, Err(ApiError::NotFound(_))));
+        assert!(matches!(scoped, Err(ApiError::NotFound(_))));
+    }
+
+    #[tokio::test]
     async fn chain_wallet_credential_lookup_and_score_storage_are_scoped() {
         use crate::db::queries::stamps::get_latest_stamps_for_chain;
         use crate::domain::chain_wallet_scoring::score_chain_wallet;
@@ -1312,6 +1372,42 @@ mod linked_wallet_privacy_tests {
         assert_eq!(first.valid_stamps.len(), 1);
         assert!(second.clashing_stamps.contains_key("Google"));
         tx.rollback().await.unwrap();
+
+        // A mainnet smart wallet can already have active, legacy stamps. Its
+        // deployed-wallet score reads those stamps until a provider is edited.
+        let legacy = credential(1, "Discord", "legacy mainnet credential");
+        let revoked = credential(1, "Twitter", "revoked legacy credential");
+        for (provider, stamp) in [("Discord", &legacy), ("Twitter", &revoked)] {
+            let stamp_id: i64 = sqlx::query_scalar(
+                "INSERT INTO ceramic_cache_ceramiccache
+                   (type, address, provider, stamp, proof_value, updated_at,
+                    compose_db_save_status, compose_db_stream_id)
+                 VALUES (1, $1, $2, $3, $2, NOW(), '', '') RETURNING id",
+            )
+            .bind(&address).bind(provider).bind(stamp).fetch_one(&pool).await.unwrap();
+            if provider == "Twitter" {
+                sqlx::query(
+                    "INSERT INTO ceramic_cache_revocation (proof_value, ceramic_cache_id)
+                     VALUES ($1, $2)",
+                )
+                .bind(provider).bind(stamp_id).execute(&pool).await.unwrap();
+            }
+        }
+        let mainnet = get_latest_stamps_for_chain(&pool, &address, 1).await.unwrap();
+        assert_eq!(mainnet[0], legacy);
+        assert_eq!(mainnet.len(), 2);
+        assert_eq!(get_latest_stamps_for_chain(&pool, &address, 8453).await.unwrap().len(), 1);
+        let legacy_reader = queries::stamps::get_latest_stamps_by_provider(&pool, &address)
+            .await.unwrap();
+        assert_eq!(legacy_reader.len(), 1);
+        assert_eq!(legacy_reader[0].stamp, legacy);
+        sqlx::query(
+            "DELETE FROM ceramic_cache_revocation WHERE ceramic_cache_id IN
+             (SELECT id FROM ceramic_cache_ceramiccache WHERE address = $1)",
+        )
+        .bind(&address).execute(&pool).await.unwrap();
+        sqlx::query("DELETE FROM ceramic_cache_ceramiccache WHERE address = $1")
+            .bind(&address).execute(&pool).await.unwrap();
 
         let legacy_rows: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM registry_passport WHERE community_id = $1",

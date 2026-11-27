@@ -42,30 +42,30 @@ pub async fn get_latest_stamps_by_provider(
     pool: &PgPool,
     address: &str,
 ) -> Result<Vec<DjangoCeramicCache>, DatabaseError> {
-    let entries = sqlx::query_as!(
-        DjangoCeramicCache,
+    Ok(sqlx::query_as(
         r#"
-        SELECT DISTINCT ON (provider)
-            id,
-            address,
-            provider,
-            stamp,
-            type AS "stamp_type: _",
-            deleted_at,
-            created_at,
-            updated_at
-        FROM ceramic_cache_ceramiccache
-        WHERE address = $1
-        AND deleted_at IS NULL
-        AND type = 1
-        ORDER BY provider, updated_at DESC
+        SELECT DISTINCT ON (c.provider)
+            c.id,
+            c.address,
+            c.provider,
+            c.stamp,
+            c.type AS stamp_type,
+            c.deleted_at,
+            c.created_at,
+            c.updated_at
+        FROM ceramic_cache_ceramiccache c
+        WHERE c.address = $1
+          AND c.deleted_at IS NULL
+          AND c.type = 1
+          AND NOT EXISTS (
+              SELECT 1 FROM ceramic_cache_revocation r WHERE r.ceramic_cache_id = c.id
+          )
+        ORDER BY c.provider, c.updated_at DESC, c.id
         "#,
-        address
     )
+    .bind(address)
     .fetch_all(pool)
-    .await?;
-
-    Ok(entries)
+    .await?)
 }
 
 /// Delete all existing stamps for a passport
@@ -132,22 +132,11 @@ pub async fn get_latest_stamps_for_chain(
     address: &str,
     chain_id: i64,
 ) -> Result<Vec<JsonValue>, DatabaseError> {
-    let did = format!("did:pkh:eip155:{chain_id}:{}", address.to_lowercase());
     Ok(sqlx::query_scalar(
-        r#"
-        SELECT c.stamp
-        FROM ceramic_cache_chainwalletstamp c
-        WHERE c.address = $1 AND c.chain_id = $3 AND c.deleted_at IS NULL
-          AND LOWER(c.stamp #>> '{credentialSubject,id}') = $2
-          AND c.stamp #>> '{credentialSubject,provider}' = c.provider
-          AND NOT EXISTS (
-              SELECT 1 FROM ceramic_cache_revocation r WHERE r.proof_value = c.proof_value
-          )
-        ORDER BY c.provider
-        "#,
+        "SELECT stamp FROM ceramic_cache_effectivechainwalletstamp
+         WHERE address = $1 AND chain_id = $2 ORDER BY provider",
     )
     .bind(address)
-    .bind(did)
     .bind(chain_id)
     .fetch_all(pool)
     .await?)
