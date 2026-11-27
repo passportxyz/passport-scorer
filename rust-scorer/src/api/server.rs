@@ -186,6 +186,10 @@ pub async fn create_app() -> Result<Router, Box<dyn std::error::Error>> {
             "/v2/stamps/{scorer_id}/score/{address}",
             get(external_score_handler),
         )
+        .route(
+            "/v2/stamps/{scorer_id}/score/eip155/{chain_id}/{address}",
+            get(crate::api::handlers::external::chain_wallet_score_handler),
+        )
         // Internal endpoints (no authentication, ALB only)
         .route(
             "/internal/score/v2/{scorer_id}/{address}",

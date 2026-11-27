@@ -1,6 +1,6 @@
 use chrono::Utc;
 use rust_decimal::Decimal;
-use sqlx::{Postgres, Transaction};
+use sqlx::{Acquire, Postgres, Transaction};
 use std::collections::{HashMap, HashSet};
 use tracing::{info, warn};
 
@@ -47,11 +47,39 @@ pub async fn lifo_dedup(
     weights: &HashMap<String, Decimal>,
     tx: &mut Transaction<'_, Postgres>,
 ) -> Result<LifoResult, DatabaseError> {
+    lifo_dedup_for_identity(stamps, address, None, community_id, weights, tx).await
+}
+
+pub async fn lifo_dedup_for_chain(
+    stamps: &[ValidStamp],
+    address: &str,
+    chain_id: i64,
+    community_id: i64,
+    weights: &HashMap<String, Decimal>,
+    tx: &mut Transaction<'_, Postgres>,
+) -> Result<LifoResult, DatabaseError> {
+    lifo_dedup_for_identity(stamps, address, Some(chain_id), community_id, weights, tx).await
+}
+
+async fn lifo_dedup_for_identity(
+    stamps: &[ValidStamp],
+    address: &str,
+    chain_id: Option<i64>,
+    community_id: i64,
+    weights: &HashMap<String, Decimal>,
+    tx: &mut Transaction<'_, Postgres>,
+) -> Result<LifoResult, DatabaseError> {
     let mut retry_count = 0;
-    
+
     loop {
-        match lifo_dedup_attempt(stamps, address, community_id, weights, tx).await {
+        // Roll back a failed attempt before retrying in the enclosing transaction.
+        let mut attempt = tx.begin().await?;
+        let result =
+            lifo_dedup_attempt(stamps, address, chain_id, community_id, weights, &mut attempt)
+                .await;
+        match result {
             Ok(result) => {
+                attempt.commit().await?;
                 if retry_count > 0 {
                     info!(
                         retry_count,
@@ -63,6 +91,7 @@ pub async fn lifo_dedup(
                 return Ok(result);
             }
             Err(e) if e.is_integrity_error() && retry_count < MAX_RETRIES => {
+                attempt.rollback().await?;
                 retry_count += 1;
                 warn!(
                     retry_count,
@@ -73,6 +102,7 @@ pub async fn lifo_dedup(
                 // Continue to retry
             }
             Err(e) => {
+                attempt.rollback().await?;
                 warn!(
                     retry_count,
                     error = %e,
@@ -88,10 +118,12 @@ pub async fn lifo_dedup(
 async fn lifo_dedup_attempt(
     stamps: &[ValidStamp],
     address: &str,
+    chain_id: Option<i64>,
     community_id: i64,
     weights: &HashMap<String, Decimal>,
     tx: &mut Transaction<'_, Postgres>,
 ) -> Result<LifoResult, DatabaseError> {
+    let owner_chain_id = chain_id.unwrap_or(1);
     // Extract ALL nullifiers from stamps (no filtering per simplified plan)
     let all_nullifiers: Vec<String> = stamps
         .iter()
@@ -128,7 +160,7 @@ async fn lifo_dedup_attempt(
     let mut clashing_links_by_hash: HashMap<String, DjangoHashScorerLink> = HashMap::new();
     
     for link in existing_links {
-        if link.address == address {
+        if link.address == address && link.chain_id == owner_chain_id {
             // Already owned by this address
             owned_hashes.insert(link.hash.clone());
         } else if link.expires_at > now {
@@ -175,6 +207,7 @@ async fn lifo_dedup_attempt(
                         address.to_string(),
                         community_id,
                         stamp.expires_at,
+                        owner_chain_id,
                     ));
                 } else if expired_hashes.contains(nullifier) {
                     // Take over expired link from another address
@@ -183,6 +216,7 @@ async fn lifo_dedup_attempt(
                         address.to_string(),
                         community_id,
                         stamp.expires_at,
+                        owner_chain_id,
                     ));
                 } else {
                     // Create new hash link
@@ -191,6 +225,7 @@ async fn lifo_dedup_attempt(
                         address.to_string(),
                         community_id,
                         stamp.expires_at,
+                        owner_chain_id,
                     ));
                 }
             }
@@ -205,7 +240,11 @@ async fn lifo_dedup_attempt(
                 StampInfo {
                     nullifiers: stamp.nullifiers.clone(),
                     credential: stamp.credential.clone(),
-                    expires_at: clash_owner.expires_at,  // Use expiration from clashing hash link
+                    expires_at: if chain_id.is_some() {
+                        stamp.expires_at
+                    } else {
+                        clash_owner.expires_at
+                    },
                 },
             );
             
@@ -222,6 +261,7 @@ async fn lifo_dedup_attempt(
                         clash_owner.address.clone(),
                         community_id,
                         clash_owner.expires_at,
+                        clash_owner.chain_id,
                     ));
                 }
             }
@@ -250,7 +290,8 @@ async fn lifo_dedup_attempt(
         tx,
         address,
         community_id,
-        &nullifiers_for_current_address
+        &nullifiers_for_current_address,
+        owner_chain_id,
     ).await?;
     
     // Check if verification succeeded
@@ -261,7 +302,7 @@ async fn lifo_dedup_attempt(
     }
     
     // Record deduplication events for clashing stamps
-    if !clashing_stamps.is_empty() {
+    if chain_id.is_none() && !clashing_stamps.is_empty() {
         insert_dedup_events(tx, address, community_id, &clashing_stamps).await?;
     }
     

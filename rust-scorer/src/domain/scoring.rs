@@ -1106,6 +1106,7 @@ mod linked_wallet_privacy_tests {
             "DELETE FROM registry_event WHERE community_id = $1",
             "DELETE FROM registry_score WHERE passport_id IN (SELECT id FROM registry_passport WHERE community_id = $1)",
             "DELETE FROM registry_hashscorerlink WHERE community_id = $1",
+            "DELETE FROM registry_chainwalletscore WHERE community_id = $1",
             "DELETE FROM registry_passport WHERE community_id = $1",
             "DELETE FROM account_walletgroupcommunityclaim WHERE community_id = $1",
             "DELETE FROM account_community WHERE id = $1",
@@ -1116,6 +1117,93 @@ mod linked_wallet_privacy_tests {
         }
         let _ = sqlx::query("DELETE FROM account_account WHERE address = $1").bind(format!("0xaccount{id}")).execute(pool).await;
         let _ = sqlx::query("DELETE FROM auth_user WHERE username = $1").bind(format!("linked-privacy-{id}")).execute(pool).await;
+    }
+
+    #[tokio::test]
+    async fn chain_wallet_credential_lookup_and_score_storage_are_scoped() {
+        use crate::db::queries::stamps::get_latest_stamps_for_chain;
+        use crate::domain::chain_wallet_scoring::score_chain_wallet;
+        use crate::domain::dedup::lifo_dedup_for_chain;
+        use crate::models::internal::ValidStamp;
+
+        let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.expect("connect");
+        let id = 978_000_000 + i64::from(Utc::now().timestamp_subsec_micros());
+        let address = format!("0x{id:040x}");
+        cleanup(&pool, id).await;
+        seed_community(&pool, id).await.expect("seed scorer");
+
+        let credential = |chain_id, provider, label| json!({
+            "credentialSubject": {
+                "id": format!("did:pkh:eip155:{chain_id}:{address}"),
+                "provider": provider,
+            },
+            "label": label,
+        });
+        let base = credential(8453, "Google", "older Base credential");
+        let eth = credential(1, "Google", "newer Ethereum credential");
+        for (cache_type, providers, stamp, updated) in [
+            (1, "Google", &base, Utc::now() - chrono::Duration::days(1)),
+            (2, "Google", &eth, Utc::now()),
+            (1, "Mismatch", &base, Utc::now()),
+        ] {
+            sqlx::query(
+                "INSERT INTO ceramic_cache_ceramiccache
+                 (type, address, provider, stamp, proof_value, updated_at,
+                  compose_db_save_status, compose_db_stream_id)
+                 VALUES ($1, $2, $3, $4, '', $5, '', '')",
+            )
+            .bind(cache_type)
+            .bind(&address)
+            .bind(providers)
+            .bind(stamp)
+            .bind(updated)
+            .execute(&pool)
+            .await
+            .expect("seed credential");
+        }
+        for (chain_id, expected) in [(8453, base), (1, eth)] {
+            assert_eq!(
+                get_latest_stamps_for_chain(&pool, &address, chain_id).await.unwrap(),
+                vec![expected],
+            );
+            let score = score_chain_wallet(&pool, id, chain_id, &address).await.unwrap();
+            assert_eq!(score.chain_id, chain_id);
+        }
+        let rows: Vec<(i64, String)> = sqlx::query_as(
+            "SELECT chain_id, address FROM registry_chainwalletscore
+             WHERE community_id = $1 ORDER BY chain_id",
+        )
+        .bind(id)
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(rows, vec![(1, address.clone()), (8453, address.clone())]);
+
+        let stamp = ValidStamp {
+            provider: "Google".to_string(),
+            credential: json!({}),
+            nullifiers: vec!["shared".to_string()],
+            expires_at: Utc::now() + chrono::Duration::days(1),
+        };
+        let mut tx = pool.begin().await.unwrap();
+        let first = lifo_dedup_for_chain(
+            &[stamp.clone()], &address, 8453, id, &HashMap::new(), &mut tx,
+        ).await.unwrap();
+        let second = lifo_dedup_for_chain(
+            &[stamp], &address, 1, id, &HashMap::new(), &mut tx,
+        ).await.unwrap();
+        assert_eq!(first.valid_stamps.len(), 1);
+        assert!(second.clashing_stamps.contains_key("Google"));
+        tx.rollback().await.unwrap();
+
+        let legacy_rows: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM registry_passport WHERE community_id = $1",
+        ).bind(id).fetch_one(&pool).await.unwrap();
+        assert_eq!(legacy_rows, 0);
+        sqlx::query("DELETE FROM ceramic_cache_ceramiccache WHERE address = $1")
+            .bind(&address).execute(&pool).await.unwrap();
+        cleanup(&pool, id).await;
     }
 
     async fn stored_score(pool: &PgPool, address: &str, community_id: i64) -> (Decimal, serde_json::Value, serde_json::Value, DateTime<Utc>) {

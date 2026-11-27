@@ -125,3 +125,29 @@ pub async fn bulk_insert_stamps(
     info!("Inserted {} stamps", inserted);
     Ok(inserted)
 }
+/// The signed subject identifies the chain as well as the address. Scope
+/// before taking the latest of each provider and exclude revoked credentials.
+pub async fn get_latest_stamps_for_chain(
+    pool: &PgPool,
+    address: &str,
+    chain_id: i64,
+) -> Result<Vec<JsonValue>, DatabaseError> {
+    let did = format!("did:pkh:eip155:{chain_id}:{}", address.to_lowercase());
+    Ok(sqlx::query_scalar(
+        r#"
+        SELECT DISTINCT ON (c.provider) c.stamp
+        FROM ceramic_cache_ceramiccache c
+        WHERE c.address = $1 AND c.deleted_at IS NULL
+          AND LOWER(c.stamp #>> '{credentialSubject,id}') = $2
+          AND c.stamp #>> '{credentialSubject,provider}' = c.provider
+          AND NOT EXISTS (
+              SELECT 1 FROM ceramic_cache_revocation r WHERE r.ceramic_cache_id = c.id
+          )
+        ORDER BY c.provider, c.updated_at DESC, c.id ASC
+        "#,
+    )
+    .bind(address)
+    .bind(did)
+    .fetch_all(pool)
+    .await?)
+}

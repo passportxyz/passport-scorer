@@ -70,3 +70,7 @@ class V2ScoreResponse(Schema):
     @field_serializer("threshold")
     def serialize_threshold(self, threshold: Decimal, _info):
         return format(threshold, ".5f")
+
+
+class ChainWalletScoreResponse(V2ScoreResponse):
+    chain_id: int

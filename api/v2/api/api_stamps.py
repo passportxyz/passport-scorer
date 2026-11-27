@@ -9,7 +9,7 @@ from django.core.cache import cache
 from ninja_extra.exceptions import APIException
 
 import api_logging as logging
-from account.linkage import get_linked_addresses
+from account.linkage import get_linked_addresses, is_linked_contract_wallet
 from account.models import (
     Account,
     Community,
@@ -43,6 +43,7 @@ from registry.exceptions import (
     InvalidAddressException,
     InvalidAPIKeyPermissions,
     InvalidLimitException,
+    NotFoundApiException,
     api_get_object_or_404,
 )
 from registry.models import Event, Passport, Score
@@ -53,7 +54,13 @@ from registry.utils import (
     reverse_lazy_with_query,
 )
 from scorer_weighted.models import Scorer
-from v2.schema import LinkedScoreResponse, PointsData, V2ScoreResponse
+from v2.chain_wallet_scoring import score_chain_wallet
+from v2.schema import (
+    ChainWalletScoreResponse,
+    LinkedScoreResponse,
+    PointsData,
+    V2ScoreResponse,
+)
 
 from ..exceptions import ScoreDoesNotExist
 from .router import api_router
@@ -457,6 +464,39 @@ async def a_submit_passport(request, scorer_id: int, address: str) -> V2ScoreRes
         raise InternalServerErrorException(
             "Unexpected error while submitting passport"
         ) from e
+
+
+@api_router.get(
+    "/stamps/{scorer_id}/score/eip155/{chain_id}/{address}",
+    auth=aapi_key,
+    response=ChainWalletScoreResponse,
+    summary="Score an active linked contract wallet on a specified chain",
+    tags=["Stamp API"],
+)
+@atrack_apikey_usage(track_response=True)
+async def submit_chain_wallet_score(
+    request, scorer_id: int, chain_id: int, address: str
+):
+    check_rate_limit(request)
+    return await handle_chain_wallet_score(
+        address, chain_id, scorer_id, request.auth, request.api_key
+    )
+
+
+async def handle_chain_wallet_score(address, chain_id, scorer_id, account, api_key):
+    if not (api_key.read_scores and api_key.linked_wallet_breakdown):
+        raise InvalidAPIKeyPermissions()
+    address = address.lower()
+    if not 0 < chain_id <= 9007199254740991 or not is_valid_address(address):
+        raise InvalidAddressException("Invalid EIP-155 wallet identity")
+    community = await aget_scorer_by_id(scorer_id, account)
+    try:
+        linked = await is_linked_contract_wallet(chain_id, address)
+    except Exception as exc:
+        raise InternalServerErrorException("Wallet linkage is unavailable") from exc
+    if not linked:
+        raise NotFoundApiException("No active contract wallet link")
+    return await score_chain_wallet(address, chain_id, community)
 
 
 def extract_score_data(event_data: Dict[str, Any]) -> Dict[str, Any]:

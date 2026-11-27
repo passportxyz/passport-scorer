@@ -22,6 +22,14 @@ Primary entry point is `/v2/stamps/{scorer_id}/score/{address}` endpoint. Cerami
    - Returns `V2ScoreResponse` with scores, stamps, dedup info
    - If `include_human_points=true`: includes points breakdown
 
+## Chain-scoped WaaP wallet scores
+
+- Python (including the stamp score Lambda) and Rust serve `GET /v2/stamps/{scorer_id}/score/eip155/{chain_id}/{address}`. The caller needs a key for the community with `read_scores` and `linked_wallet_breakdown`.
+- Apply Django migration `registry.0061_chain_wallet_scores` before deploying either runtime. To enable scoring, set `CHAIN_WALLET_SCORING_ENABLED=true`, `SILK_AUTH_SERVER_URL`, and `SILK_SERVICE_API_KEY` in both environments. Each request checks the exact active contract identity in Silk's service-key API. An unavailable lookup fails the request.
+- Match the signed `did:pkh:eip155:{chain_id}:{address}` before selecting the latest active stamp per provider. The legacy Passport sign-in issues mainnet DIDs, and its stamp cache allows one active credential per address, provider, and cache type. Non-mainnet rollout needs chain-specific credential issuance and cache writes that preserve each chain's active credential.
+- Store the latest response in `registry_chainwalletscore` by community, chain ID, and lowercase address. LIFO keeps one claim per nullifier and community, with the claiming identity recorded as chain ID and address. Existing owners map to chain 1, the DID chain used by legacy scoring.
+- Scoped scores are single-wallet results. Cluster aggregation needs to consume Silk's typed wallet identities separately.
+
 ## Database Tables
 
 - **ceramic_cache**: Credential records (type='V1' only, V2 abandoned)

@@ -138,3 +138,31 @@ pub async fn load_scorer_config(
     info!("Loaded scorer config with threshold: {}", scorer.threshold);
     Ok(scorer)
 }
+
+/// Load the same provider overrides as Django's Customization.
+pub async fn get_chain_wallet_custom_weights(
+    pool: &PgPool,
+    community_id: i64,
+) -> Result<Vec<(String, Decimal)>, DatabaseError> {
+    let allowlists = sqlx::query_as(
+        "SELECT 'AllowList#' || a.name, l.weight
+         FROM account_allowlist l
+         JOIN account_addresslist a ON a.id = l.address_list_id
+         JOIN account_customization c ON c.id = l.customization_id
+         WHERE c.scorer_id = $1 ORDER BY l.id",
+    )
+    .bind(community_id)
+    .fetch_all(pool)
+    .await?;
+    let custom_credentials = sqlx::query_as(
+        "SELECT r.provider_id, d.weight
+         FROM account_customcredential d
+         JOIN account_customcredentialruleset r ON r.id = d.ruleset_id
+         JOIN account_customization c ON c.id = d.customization_id
+         WHERE c.scorer_id = $1 ORDER BY d.id",
+    )
+    .bind(community_id)
+    .fetch_all(pool)
+    .await?;
+    Ok(allowlists.into_iter().chain(custom_credentials).collect())
+}

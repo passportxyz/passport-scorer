@@ -82,3 +82,47 @@ pub async fn score_address_handler(
         domain::LinkedWallets::for_api_key(&api_key_data),
     ).await?))
 }
+pub async fn chain_wallet_score_handler(
+    Path((scorer_id, chain_id, address)): Path<(i64, i64, String)>,
+    State(pool): State<PgPool>,
+    headers: HeaderMap,
+) -> ApiResult<Json<domain::chain_wallet_scoring::ChainWalletScoreResponse>> {
+    let address = address.to_lowercase();
+    if !(1..=9_007_199_254_740_991).contains(&chain_id) || !is_valid_eth_address(&address) {
+        return Err(ApiError::BadRequest("Invalid EIP-155 wallet identity".into()));
+    }
+    let request_path = format!("/v2/stamps/{scorer_id}/score/eip155/{chain_id}/{address}");
+    let key = ApiKeyValidator::validate(
+        &pool,
+        headers.get("X-API-Key").and_then(|header| header.to_str().ok()),
+        headers.get("Authorization").and_then(|header| header.to_str().ok()),
+        &request_path,
+    ).await?;
+    if !(key.read_scores && key.linked_wallet_breakdown) {
+        return Err(ApiError::Forbidden("Invalid permissions for action".into()));
+    }
+    let community_id: Option<i64> = sqlx::query_scalar(
+        "SELECT COALESCE(
+            (SELECT CASE WHEN COUNT(*) = 1 THEN MIN(id) END
+             FROM account_community WHERE account_id = $1 AND external_scorer_id = $2),
+            (SELECT id FROM account_community WHERE account_id = $1 AND id = $3)
+         )",
+    )
+    .bind(key.account_id)
+    .bind(scorer_id.to_string())
+    .bind(scorer_id)
+    .fetch_one(&pool)
+    .await?;
+    let community_id = community_id
+        .ok_or_else(|| ApiError::NotFound("No scorer matches the given criteria".into()))?;
+    let linked = crate::account::linkage::is_linked_contract_wallet(chain_id, &address)
+        .await
+        .map_err(|_| ApiError::Internal("Wallet linkage is unavailable".into()))?;
+    if !linked {
+        return Err(ApiError::NotFound("No active contract wallet link".into()));
+    }
+    Ok(Json(
+        domain::chain_wallet_scoring::score_chain_wallet(&pool, community_id, chain_id, &address)
+            .await?,
+    ))
+}
